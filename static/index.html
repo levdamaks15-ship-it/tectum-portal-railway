@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tectum Enterprise Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+            <div class="header-logo-container" style="display: flex; align-items: center; gap: 1.5rem;">
+                <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 50px;">
+                <div style="text-align: left;">
+                    <h1 style="margin: 0; background: linear-gradient(to right, var(--primary-color), var(--accent-color)); -webkit-background-clip: text; color: transparent; font-size: 2.2rem; font-weight: 800; letter-spacing: 2px;">TECTUM ENGINEERING</h1>
+                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase;">ПРОИЗВОДСТВЕННЫЙ ПОРТАЛ</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button id="theme-toggle" onclick="toggleTheme()" class="tab-btn" style="border: 1px solid var(--glass-border); padding: 0.5rem; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%;">
+                    🌓
+                </button>
+                <div id="user-info-container" class="header-user-container" style="display: none; align-items: center; gap: 1rem;">
+                    <div style="text-align: right;">
+                        <p id="user-greeting-name" style="margin: 0; font-weight: 600; color: var(--text-primary);"></p>
+                        <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);"></p>
+                    </div>
+                    <button onclick="logout()" class="tab-btn" style="border: 1px solid var(--danger-color); color: var(--danger-color);">Выйти</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="login-screen" class="glass-panel">
+            <h2 style="margin-bottom: 1.5rem;">Вход в систему</h2>
+            <div class="input-group">
+                <label>Сотрудник</label>
+                <select id="user-select"><option value="">Загрузка...</option></select>
+            </div>
+            <div class="input-group">
+                <label>ПИН-код</label>
+                <input type="password" id="pin-input" placeholder="Введите 4 цифры" maxlength="4">
+            </div>
+            <button onclick="login()">Войти</button>
+            <p id="login-error" style="color: var(--danger-color); margin-top: 1rem; display: none;"></p>
+        </div>
+
+        <div id="main-app" style="display: none;">
+            <!-- Вкладки навигации -->
+            <div id="tabs-menu" class="tabs-container" style="display: none;">
+                <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📦 Производство</button>
+                <button class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes')">⏱ Журнал Простоев</button>
+                <button class="tab-btn" id="tab-btn-dashboard" onclick="switchTab('dashboard')">📊 Дашборд</button>
+                <button class="tab-btn" id="tab-btn-materials" onclick="switchTab('materials')">🧪 Сводка по сырью</button>
+                <button class="tab-btn" id="tab-btn-archive" onclick="switchTab('archive')">📁 Архив смен</button>
+            </div>
+
+            <!-- Секция активной смены (для ролей кроме Дестакера и СКК) -->
+            <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem; position: relative;">
+                <div id="readonly-badge" style="display:none; position: absolute; top: -10px; right: -10px; background: var(--danger-color); color: white; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">РЕЖИМ ПРОСМОТРА</div>
+                <div>Текущая смена: <strong id="active-shift-display" style="color: var(--accent-color)">Нет открытой смены</strong></div>
+                <div id="shift-dev-indicator" style="display:none; cursor: pointer; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; border-radius: 8px;" onclick="switchTab('materials')">
+                    Отклонение по сырью: <strong id="shift-dev-val">0 кг</strong>
+                </div>
+                <div>
+                    <button onclick="loadData()" style="width: auto; padding: 0.5rem 1.5rem; background: var(--glass-border);">Обновить</button>
+                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()" style="display: none; width: auto; padding: 0.5rem 1.5rem;">Закрыть смену</button>
+                </div>
+            </div>
+
+            <div id="production-tab" class="dashboard-grid">
+                
+                <!-- 1. Мастер -->
+                <div class="glass-panel card" id="master-view">
+                    <h3>Мастер (Смена и Приход)</h3>
+
+                    <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                        <h4>Открыть смену</h4>
+                        <input type="date" id="shift-date" style="margin-bottom:0.5rem">
+                        <select id="shift-name" style="margin-bottom:0.5rem">
+                            <option value="День">День</option><option value="Ночь">Ночь</option>
+                        </select>
+                        <select id="shift-line" style="margin-bottom:0.5rem">
+                            <option value="Линия 1">Линия 1</option>
+                            <option value="Линия 2">Линия 2 (Шанхай)</option>
+                        </select>
+                        <button onclick="createShift()">Начать смену</button>
+                    </div>
+                    <div>
+                        <h4>Приход Сырья (на склад)</h4>
+                        <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem;">
+                            <input type="number" id="rec-chr-4-20" placeholder="Хризотил 4-20">
+                            <input type="number" id="rec-chr-5-65" placeholder="Хризотил 5-65">
+                            <input type="number" id="rec-chr-6-40" placeholder="Хризотил 6-40">
+                            <input type="number" id="rec-cem" placeholder="Цемент">
+                            <input type="number" id="rec-cel" placeholder="Целлюлоза">
+                            <input type="number" id="rec-slate" placeholder="Дроб. шифер">
+                            <input type="number" id="rec-asb" placeholder="Асбозурит">
+                            <input type="number" id="rec-fib" placeholder="Стекловолокно">
+                        </div>
+                        <button onclick="updateReceipt()" style="margin-top:0.5rem">Сохранить приход</button>
+                    </div>
+                    <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
+
+
+                </div>
+
+                <!-- 2. ЗО -->
+                <div class="glass-panel card mobile-form" id="zo-view">
+                    <h3 style="text-align: center;">Заготовительное отделение (ЗО)</h3>
+                    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Итог за смену (Расход)</p>
+                    
+                    <div class="form-group">
+                        <label>Хризотил 4-20 (кг)</label>
+                        <input type="number" id="zo-chr-4-20" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Хризотил 5-65 (кг)</label>
+                        <input type="number" id="zo-chr-5-65" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Хризотил 6-40 (кг)</label>
+                        <input type="number" id="zo-chr-6-40" placeholder="0">
+                    </div>
+                    
+                    <h4 style="margin-top: 1rem; color: var(--accent-color);">Цемент по силосам</h4>
+                    <div class="form-group">
+                        <label>Силос 1 (кг)</label>
+                        <input type="number" id="zo-cem-1" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Силос 2 (кг)</label>
+                        <input type="number" id="zo-cem-2" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Силос 3 (кг)</label>
+                        <input type="number" id="zo-cem-3" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Силос 4 (кг)</label>
+                        <input type="number" id="zo-cem-4" placeholder="0">
+                    </div>
+                    
+                    <h4 style="margin-top: 1rem; color: var(--accent-color);">Остальные компоненты</h4>
+                    <div class="form-group">
+                        <label>Целлюлоза (кг)</label>
+                        <input type="number" id="zo-cel" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Дробленый шифер (кг)</label>
+                        <input type="number" id="zo-slate" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Асбозурит (кг)</label>
+                        <input type="number" id="zo-asb" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Стекловолокно (кг)</label>
+                        <input type="number" id="zo-fib" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Лапрол (кг)</label>
+                        <input type="number" id="zo-laprol" placeholder="0">
+                    </div>
+                    
+                    <h4 style="margin-top: 1rem; color: var(--accent-color);">Замесы за смену</h4>
+                    <div class="form-group">
+                        <label>Количество замесов</label>
+                        <input type="number" id="zo-batches" placeholder="0">
+                    </div>
+                    
+                    <button class="btn-submit-huge" id="btn-submit-zo" onclick="updateZO()">Отправить данные за смену</button>
+                    <p id="zo-lock-msg" style="display:none; color: var(--success-color); text-align: center; margin-top: 1rem;">Данные успешно отправлены. Для корректировки обратитесь к мастеру.</p>
+                </div>
+
+                <!-- 3. ЛФМ -->
+                <div class="glass-panel card mobile-form" id="lfm-view">
+                    <h3 style="text-align: center;">Формовка (ЛФМ)</h3>
+                    
+                    <div class="form-group">
+                        <label>Выпускаемая продукция</label>
+                        <select id="lfm-product" style="font-size: 1.2rem; padding: 1rem; border-radius: 12px;">
+                            <option value="Шифер 7 волн">Шифер 7 волн</option>
+                            <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
+                            <option value="Шифер 8 волн">Шифер 8 волн</option>
+                            <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
+                            <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
+                            <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
+                            <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
+                            <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
+                            <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Сколько сформовано (листов)</label>
+                        <input type="number" id="lfm-sheets" placeholder="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Сбросов наката (шт)</label>
+                        <input type="number" id="lfm-resets" placeholder="0">
+                    </div>
+                    
+                    <button class="btn-submit-huge" id="btn-submit-lfm" onclick="addLFMReport()">Добавить отчет ЛФМ</button>
+                    
+                    <div id="lfm-reports-list" style="margin-top:1rem; font-size: 0.9rem;"></div>
+                    <div id="lfm-economics" style="margin-top: 1rem; color: var(--danger-color); font-weight: bold; font-size: 0.9rem;"></div>
+                </div>
+
+                <!-- 4. Стакер -->
+                <div class="glass-panel card" id="stacker-view">
+                    <h3>Стакер (Укладчик)</h3>
+                    <div style="margin-bottom: 1.5rem;">
+                        <input type="text" id="batch-number" placeholder="Номер партии (напр. 0001)" style="margin-bottom:0.5rem">
+                        <select id="batch-product" style="margin-bottom:0.5rem">
+                            <option value="Шифер 7 волн">Шифер 7 волн</option>
+                            <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
+                            <option value="Шифер 8 волн">Шифер 8 волн</option>
+                            <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
+                            <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
+                            <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
+                            <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
+                            <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
+                            <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
+                        </select>
+                        <input type="number" id="batch-stacks" placeholder="Количество наката в стопах" style="margin-bottom:0.5rem">
+                        <button onclick="createBatch()">Создать партию</button>
+                    </div>
+                </div>
+
+                <!-- 5. Разборщик -->
+                <div class="glass-panel card" id="destacker-view">
+                    <h3>Дестакер</h3>
+                    <select id="ds-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
+                    <input type="number" id="ds-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
+                    <input type="number" id="ds-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
+                    
+                    <div style="margin-bottom: 0.5rem;">
+                        <label>Был ли брак?</label>
+                        <select id="ds-has-defect" onchange="toggleDefectsBlock()">
+                            <option value="no">Нет</option>
+                            <option value="yes">Да</option>
+                        </select>
+                    </div>
+                    
+                    <div id="ds-defects-block" style="display: none; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;">
+                        <input type="number" id="def-chip" placeholder="Скол">
+                        <input type="number" id="def-scratch" placeholder="Сдир">
+                        <input type="number" id="def-bad-cut" placeholder="Плохой рез">
+                        <input type="number" id="def-stick-bottom" placeholder="Налип снизу">
+                        <input type="number" id="def-stick-top" placeholder="Налип сверху">
+                        <input type="number" id="def-broken" placeholder="Сломан">
+                        <input type="number" id="def-fell" placeholder="Упал коробки">
+                        <input type="number" id="def-dent" placeholder="Вмятина">
+                        <input type="number" id="def-thickness" placeholder="Не соотв. толщ.">
+                        <input type="number" id="def-delam" placeholder="Расслоение">
+                        <input type="number" id="def-edge" placeholder="Кромка">
+                    </div>
+                    
+                    <button onclick="updateDestacker()">Сохранить разборку</button>
+                </div>
+
+                <!-- 6. СКК -->
+                <div class="glass-panel card" id="qcd-view">
+                    <h3>СКК (ОТК)</h3>
+                    <select id="qcd-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
+                    <input type="number" id="qcd-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
+                    <input type="number" id="qcd-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
+                    <input type="number" id="qcd-defect" placeholder="Количество брака (шт)" style="margin-bottom:0.5rem">
+                    <button onclick="updateQCD()">Сохранить контроль</button>
+                </div>
+
+                <!-- 7. Сводный Отчет -->
+                <div class="glass-panel card" id="report-view" style="grid-column: 1 / -1; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Сводный отчет (Партии текущей смены)</h3>
+                        <button onclick="exportToExcel()" style="width: auto; padding: 0.5rem 1.5rem; background: #217346;">Выгрузить в Excel</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="summary-table" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary); font-size: 0.9rem;">
+                            <thead>
+                                <!-- Заголовок генерируется динамически -->
+                            </thead>
+                            <tbody id="report-table-body">
+                                <!-- Данные генерируются динамически -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                </div> <!-- End of production-tab -->
+
+                <div id="materials-tab" class="glass-panel card" style="display: none;">
+                    <h3>🧪 Сводка по сырью (Отклонения)</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br/>Положительное число означает перерасход сырья, отрицательное — экономию.</p>
+                    <div style="overflow-x: auto; margin-top: 1rem;">
+                        <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
+                            <thead>
+                                <tr>
+                                    <th>Материал</th>
+                                    <th>Факт ЗО (кг)</th>
+                                    <th>Теория ЛФМ (кг)</th>
+                                    <th>Отклонение (кг)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="materials-report-list">
+                                <tr><td colspan="4" style="text-align:center; color: var(--text-secondary);">Загрузка отчета...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="downtimes-tab" class="glass-panel card" style="display: none;">
+                    <h3>⏱ Журнал Простоев (Текущая смена)</h3>
+                    
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <h4>Фиксация нового простоя</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                            <div>
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Время начала</label>
+                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ">
+                            </div>
+                            <div id="wrapper-dt-end">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Время окончания</label>
+                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ">
+                            </div>
+                            <div id="wrapper-dt-cat">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Категория</label>
+                                <select id="journal-dt-cat">
+                                    <option value="">-- Выберите --</option>
+                                    <option value="Электромеханика">Электромеханика</option>
+                                    <option value="АСУ ТП">АСУ ТП</option>
+                                    <option value="Технология">Технология</option>
+                                    <option value="Организационные">Организационные</option>
+                                    <option value="Внешние">Внешние</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
+                                <select id="journal-dt-node">
+                                    <option value="">-- Выберите --</option>
+                                    <option value="Заготовительное отделение (ЗО)">Заготовительное отделение (ЗО)</option>
+                                    <option value="Линия Формовки (ЛФМ)">Линия Формовки (ЛФМ)</option>
+                                    <option value="Конвейер ЛФМ">Конвейер ЛФМ</option>
+                                    <option value="Стакер / Транспортер">Стакер / Транспортер</option>
+                                    <option value="Прочее">Прочее</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Описание / Комментарий</label>
+                            <input type="text" id="journal-dt-desc" placeholder="Подробная причина остановки">
+                        </div>
+                        <div style="margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-camera"></i> Фото / Видео</label>
+                                <input type="file" id="downtime-media" accept="image/*,video/*" capture="environment" onchange="uploadDowntimeMedia(this)">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);"><i class="fa-solid fa-microphone"></i> Голосовое сообщение</label>
+                                <button id="btn-record-audio" onclick="toggleAudioRecording(event)" style="width: 100%; padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; transition: 0.3s;">
+                                    <i class="fa-solid fa-microphone"></i> Начать запись
+                                </button>
+                            </div>
+                        </div>
+                        <progress id="upload-progress" value="0" max="100" style="display:none; width: 100%; margin-top: 5px;"></progress>
+                        <p id="upload-status" style="font-size: 0.8rem; color: var(--accent-color); display: none; margin-top: 5px;"></p>
+                        
+                        <div id="uploaded-files-container" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;"></div>
+
+                        <button id="btn-add-dt" onclick="addJournalDowntime()" style="margin-top: 1rem; width: auto; padding: 0.5rem 2rem;">Добавить простой</button>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="table-glass">
+                            <thead>
+                                <tr>
+                                    <th>Смена</th>
+                                    <th>Статус</th>
+                                    <th>Начало</th>
+                                    <th>Конец</th>
+                                    <th>Длительность</th>
+                                    <th>Потери (Тонны / Тенге)</th>
+                                    <th>Узел и Категория</th>
+                                    <th>Описание</th>
+                                    <th>Медиа</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journal-downtimes-list">
+                                <tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="dashboard-tab" style="display: none;">
+                <!-- 8. Дашборд Руководства -->
+                <div class="glass-panel card" id="dashboard-view" style="grid-column: 1 / -1;">
+                    <h3>Аналитический Дашборд</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производство (СКК)</h4>
+                            <canvas id="chart-production"></canvas>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Структура Брака</h4>
+                            <canvas id="chart-defects"></canvas>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Отклонения сырья (Склад vs ЗО)</h4>
+                            <canvas id="chart-materials"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Учет Простоев -->
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                        <h4 style="text-align: center; margin-bottom: 1rem; color: var(--danger-color);">Учет Простоев (Аналитика)</h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <div style="font-size: 0.9rem; color: var(--text-secondary);">Общее время</div>
+                                <div style="font-size: 1.5rem; font-weight: bold;" id="kpi-dt-minutes">0 мин</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <div style="font-size: 0.9rem; color: var(--text-secondary);">Потери (Тонны)</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tons">0 т</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <div style="font-size: 0.9rem; color: var(--text-secondary);">Финансовые потери</div>
+                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tenge">0 ₸</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <h4 style="text-align: center; margin-bottom: 0.5rem;">По Категориям</h4>
+                                <canvas id="chart-dt-category"></canvas>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Топ Узлов (кол-во остановок)</h4>
+                                <canvas id="chart-dt-nodes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                </div>
+
+                <div id="archive-tab" class="glass-panel card" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3>📁 Архив смен</h3>
+                        <button onclick="loadArchive()" style="width: auto; padding: 0.5rem 1.5rem;">Обновить архив</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="table-glass">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Дата</th>
+                                    <th>Смена</th>
+                                    <th>Линия</th>
+                                    <th>Статус</th>
+                                    <th>Приход (т)</th>
+                                    <th>ЗО (т)</th>
+                                    <th>Партии</th>
+                                </tr>
+                            </thead>
+                            <tbody id="archive-table-body">
+                                <tr><td colspan="8" style="text-align:center; color: var(--text-secondary);">Загрузка архива...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно редактирования простоя -->
+    <div id="edit-dt-modal" class="glass-panel card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 500px; box-shadow: 0 0 20px rgba(0,0,0,0.8); background: rgba(30, 41, 59, 0.95);">
+        <h3 style="margin-bottom: 1rem; color: var(--accent-color);">Редактирование простоя</h3>
+        <input type="hidden" id="edit-dt-id">
+        <div class="two-col-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+            <div>
+                <label>Время начала</label>
+                <input type="text" class="time-picker" id="edit-dt-start">
+            </div>
+            <div>
+                <label>Время окончания</label>
+                <input type="text" class="time-picker" id="edit-dt-end">
+            </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>Категория</label>
+            <select id="edit-dt-cat">
+                <option value="Электромеханика">Электромеханика</option>
+                <option value="АСУ ТП">АСУ ТП</option>
+                <option value="Технология">Технология</option>
+                <option value="Организационные">Организационные</option>
+                <option value="Внешние">Внешние</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>Узел / Оборудование</label>
+            <select id="edit-dt-node">
+                <option value="Заготовительное отделение (ЗО)">Заготовительное отделение (ЗО)</option>
+                <option value="Линия Формовки (ЛФМ)">Линия Формовки (ЛФМ)</option>
+                <option value="Конвейер ЛФМ">Конвейер ЛФМ</option>
+                <option value="Стакер / Транспортер">Стакер / Транспортер</option>
+                <option value="Прочее">Прочее</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+            <label>Описание</label>
+            <input type="text" id="edit-dt-desc">
+        </div>
+        <div style="display:flex; gap: 1rem;">
+            <button onclick="submitEditDowntime()">Сохранить изменения</button>
+            <button onclick="closeEditDowntimeModal()" style="background: rgba(255,255,255,0.1);">Отмена</button>
+        </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
