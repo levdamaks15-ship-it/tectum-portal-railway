@@ -120,6 +120,7 @@ class ProductNorm(Base):
     __tablename__ = "product_norms"
     id = Column(Integer, primary_key=True, index=True)
     product_name = Column(String, unique=True, index=True)
+    weight_kg = Column(Float, default=0.0)
     
     norm_chrysotile_4_20 = Column(Float, default=0.0)
     norm_chrysotile_5_65 = Column(Float, default=0.0)

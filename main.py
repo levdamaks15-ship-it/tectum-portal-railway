@@ -11,6 +11,11 @@ from pydantic import BaseModel
 from sqlalchemy import or_, func
 from contextlib import asynccontextmanager
 import seed_norms
+import calendar
+import openpyxl
+from openpyxl.chart import BarChart, Reference
+import io
+from fastapi import Response
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -457,6 +462,269 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
 @app.get("/api/norms/", response_model=list[schemas.ProductNorm])
 def get_product_norms(db: Session = Depends(get_db)):
     return db.query(models.ProductNorm).all()
+
+def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
+    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
+    if not norm or not norm.weight_kg:
+        return 19.6 # fallback for 8 волн
+    return norm.weight_kg
+
+def get_product_raw_weight_kg(db: Session, product_name: str) -> float:
+    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
+    if not norm:
+        return 18.2 # fallback
+    return (
+        (norm.norm_chrysotile_4_20 or 0) +
+        (norm.norm_chrysotile_5_65 or 0) +
+        (norm.norm_chrysotile_6_40 or 0) +
+        (norm.norm_cement or 0) +
+        (norm.norm_cellulose or 0) +
+        (norm.norm_crushed_slate or 0) +
+        (norm.norm_asbozurit or 0) +
+        (norm.norm_fiberglass or 0)
+    )
+
+@app.get("/api/dashboard/daily_report")
+def get_daily_report(month: str, line: str = None, db: Session = Depends(get_db)):
+    try:
+        y, m = map(int, month.split('-'))
+        num_days = calendar.monthrange(y, m)[1]
+    except:
+        raise HTTPException(400, "Invalid month format")
+        
+    month_start = datetime(y, m, 1).date()
+    month_end = datetime(y, m, num_days).date()
+    shifts = db.query(models.Shift).filter(
+        models.Shift.date >= month_start,
+        models.Shift.date <= month_end
+    ).all()
+    
+    data = {
+        "line_1": {str(d): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": 2700, "plan_tons": 2700*19.6/1000}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300*19.6/1000}} for d in range(1, num_days + 1)},
+        "line_2": {str(d): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": 2700, "plan_tons": 2700*19.6/1000}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300*19.6/1000}} for d in range(1, num_days + 1)}
+    }
+    
+    for s in shifts:
+        if not s.date: continue
+        day = str(s.date.day)
+        line_key = "line_1" if "1" in s.line else "line_2"
+        s_name = "День" if s.shift_name == "День" else "Ночь"
+        
+        total_w = 0
+        total_s = 0
+        for r in s.lfm_reports:
+            w_kg = get_product_finished_weight_kg(db, r.product_name)
+            data[line_key][day][s_name]["sheets"] += r.lfm_sheets
+            data[line_key][day][s_name]["tons"] += (r.lfm_sheets * w_kg) / 1000.0
+            total_w += w_kg * r.lfm_sheets
+            total_s += r.lfm_sheets
+            
+        if total_s > 0:
+            avg_w = total_w / total_s
+            data[line_key][day][s_name]["plan_tons"] = data[line_key][day][s_name]["plan_sheets"] * avg_w / 1000.0
+            
+    return {
+        "days": num_days,
+        "data": data
+    }
+
+@app.get("/api/dashboard/export_daily_report")
+def export_daily_report(month: str, line: str = None, db: Session = Depends(get_db)):
+    try:
+        y, m = map(int, month.split('-'))
+        num_days = calendar.monthrange(y, m)[1]
+    except:
+        raise HTTPException(400, "Invalid month format")
+        
+    month_start = datetime(y, m, 1).date()
+    month_end = datetime(y, m, num_days).date()
+    shifts = db.query(models.Shift).filter(
+        models.Shift.date >= month_start,
+        models.Shift.date <= month_end
+    ).all()
+    
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    
+    lines_to_export = [("Линия 1", "ЛФМ-1"), ("Линия 2", "ЛФМ-2")]
+    if line == 'lfm1':
+        lines_to_export = [("Линия 1", "ЛФМ-1")]
+    elif line == 'lfm2':
+        lines_to_export = [("Линия 2", "ЛФМ-2")]
+        
+    for line_id, line_label in lines_to_export:
+        ws = wb.create_sheet(title=line_label)
+        ws.append(["День", "Смена", "План (Листы)", "Факт (Листы)", "План (Тонны)", "Факт (Тонны)"])
+        
+        day_data = {d: {
+            "День": {"sheets": 0, "tons": 0.0, "plan_sheets": 2700, "plan_tons": 2700*19.6/1000}, 
+            "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300*19.6/1000}
+        } for d in range(1, num_days + 1)}
+        
+        for s in shifts:
+            if not s.date or s.line != line_id: continue
+            day = s.date.day
+            s_name = "День" if s.shift_name == "День" else "Ночь"
+            
+            total_w = 0
+            total_s = 0
+            for r in s.lfm_reports:
+                w_kg = get_product_finished_weight_kg(db, r.product_name)
+                day_data[day][s_name]["sheets"] += r.lfm_sheets
+                day_data[day][s_name]["tons"] += (r.lfm_sheets * w_kg) / 1000.0
+                total_w += w_kg * r.lfm_sheets
+                total_s += r.lfm_sheets
+                
+            if total_s > 0:
+                avg_w = total_w / total_s
+                day_data[day][s_name]["plan_tons"] = day_data[day][s_name]["plan_sheets"] * avg_w / 1000.0
+                
+        row_idx = 2
+        for d in range(1, num_days + 1):
+            ws.append([d, "День", day_data[d]["День"]["plan_sheets"], day_data[d]["День"]["sheets"], round(day_data[d]["День"]["plan_tons"], 2), round(day_data[d]["День"]["tons"], 2)])
+            ws.append([d, "Ночь", day_data[d]["Ночь"]["plan_sheets"], day_data[d]["Ночь"]["sheets"], round(day_data[d]["Ночь"]["plan_tons"], 2), round(day_data[d]["Ночь"]["tons"], 2)])
+            row_idx += 2
+            
+        chart = BarChart()
+        chart.type = "col"
+        chart.style = 10
+        chart.title = f"Выработка {line_label} ({month})"
+        chart.y_axis.title = 'Количество / Вес'
+        chart.x_axis.title = 'День месяца'
+        
+        data = Reference(ws, min_col=3, min_row=1, max_row=row_idx-1, max_col=6)
+        cats = Reference(ws, min_col=1, min_row=2, max_row=row_idx-1)
+        
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        chart.shape = 4
+        
+        ws.add_chart(chart, "H2")
+        
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    headers = {
+        'Content-Disposition': f'attachment; filename="report_{month}_{line or "all"}.xlsx"'
+    }
+    return Response(content=out.read(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
+@app.get("/api/dashboard/shift_board")
+def get_shift_board(month: str, db: Session = Depends(get_db)):
+    try:
+        y, m = map(int, month.split('-'))
+        num_days = calendar.monthrange(y, m)[1]
+    except:
+        raise HTTPException(400, "Invalid month format")
+        
+    month_start = datetime(y, m, 1).date()
+    month_end = datetime(y, m, num_days).date()
+    shifts = db.query(models.Shift).filter(
+        models.Shift.date >= month_start,
+        models.Shift.date <= month_end
+    ).order_by(models.Shift.date, models.Shift.id).all()
+    
+    board = {}
+    for s in shifts:
+        if not s.date: continue
+        master = s.master_name or "Неизвестный мастер"
+        if master not in board:
+            board[master] = []
+            
+        total_s = 0
+        total_w = 0
+        for r in s.lfm_reports:
+            w_kg = get_product_finished_weight_kg(db, r.product_name)
+            total_s += r.lfm_sheets
+            total_w += r.lfm_sheets * w_kg
+            
+        plan_sheets = 2700 if s.shift_name == "День" else 3300
+        plan_tons = (plan_sheets * 19.6) / 1000.0
+        if total_s > 0:
+            avg_w = total_w / total_s
+            plan_tons = (plan_sheets * avg_w) / 1000.0
+            
+        board[master].append({
+            "shift_id": s.id,
+            "date": str(s.date),
+            "shift_name": s.shift_name,
+            "line": s.line,
+            "plan_sheets": plan_sheets,
+            "fact_sheets": total_s,
+            "plan_tons": round(plan_tons, 2),
+            "fact_tons": round(total_w / 1000.0, 2),
+            "closed": s.status == "closed"
+        })
+        
+    return board
+
+@app.get("/api/dashboard/export_shift")
+def export_shift(shift_id: int, db: Session = Depends(get_db)):
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(404, "Смена не найдена")
+        
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Смена {shift_id}"
+    
+    master = shift.master_name or "Неизвестно"
+    date_str = str(shift.date)
+    
+    ws.append([f"Отчет за смену: {date_str} ({shift.shift_name})"])
+    ws.append([f"Мастер: {master}", f"Линия: {shift.line}"])
+    ws.append([])
+    
+    ws.append(["Продукция", "План", "Факт", "Ед. изм."])
+    
+    total_sheets = sum(r.lfm_sheets for r in shift.lfm_reports)
+    total_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in shift.lfm_reports)
+    
+    plan_sheets = 2700 if shift.shift_name == "День" else 3300
+    plan_tons = plan_sheets * (total_tons / total_sheets if total_sheets > 0 else 19.6/1000)
+    
+    ws.append(["Вся продукция", plan_sheets, total_sheets, "Листы"])
+    ws.append(["Вся продукция", round(plan_tons, 2), round(total_tons, 2), "Тонны"])
+    
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    return Response(content=out.read(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={'Content-Disposition': f'attachment; filename="shift_{shift_id}.xlsx"'})
+
+@app.get("/api/dashboard/export_week")
+def export_week(start_date: str, db: Session = Depends(get_db)):
+    try:
+        sd = datetime.strptime(start_date, "%Y-%m-%d").date()
+    except:
+        raise HTTPException(400, "Invalid date format, use YYYY-MM-DD")
+        
+    ed = sd + timedelta(days=6)
+    
+    shifts = db.query(models.Shift).filter(
+        models.Shift.date >= sd,
+        models.Shift.date <= ed
+    ).order_by(models.Shift.date, models.Shift.id).all()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Неделя {sd} - {ed}"
+    
+    ws.append([f"Отчет за неделю с {sd} по {ed}"])
+    ws.append(["Дата", "Смена", "Мастер", "Линия", "План (Листы)", "Факт (Листы)", "План (Тонны)", "Факт (Тонны)"])
+    
+    for s in shifts:
+        total_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
+        total_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in s.lfm_reports)
+        plan_sheets = 2700 if s.shift_name == "День" else 3300
+        plan_tons = plan_sheets * (total_tons / total_sheets if total_sheets > 0 else 19.6/1000)
+        
+        ws.append([str(s.date), s.shift_name, s.master_name or "Н/Д", s.line, plan_sheets, total_sheets, round(plan_tons, 2), round(total_tons, 2)])
+        
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    return Response(content=out.read(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={'Content-Disposition': f'attachment; filename="week_{sd}.xlsx"'})
 
 @app.get("/api/shifts/{shift_id}/materials_report", response_model=schemas.RawMaterialReport)
 def get_materials_report(shift_id: int, db: Session = Depends(get_db)):

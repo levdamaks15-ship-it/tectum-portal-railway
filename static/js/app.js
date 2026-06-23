@@ -7,8 +7,8 @@ let chartDefects = null;
 let chartMaterials = null;
 let chartDtCategory = null;
 let chartDtNodes = null;
-
-
+let chartDailyLfm1 = null;
+let chartDailyLfm2 = null;
 // Multipliers: stacks to sheets
 const PRODUCT_MULTIPLIERS = {
     "Шифер 7 волн": 100,
@@ -183,12 +183,14 @@ function switchTab(tabId) {
     const dash = document.getElementById('dashboard-tab');
     const mats = document.getElementById('materials-tab');
     const arch = document.getElementById('archive-tab');
+    const daily = document.getElementById('daily-report-tab');
     
     if(prod) prod.style.display = 'none';
     if(down) down.style.display = 'none';
     if(dash) dash.style.display = 'none';
     if(mats) mats.style.display = 'none';
     if(arch) arch.style.display = 'none';
+    if(daily) daily.style.display = 'none';
     
     const target = document.getElementById(`${tabId}-tab`);
     if(target) {
@@ -200,6 +202,13 @@ function switchTab(tabId) {
         loadArchive();
     } else if (tabId === 'materials') {
         loadMaterialsReport();
+    } else if (tabId === 'daily-report') {
+        const dMonth = document.getElementById('daily-report-month');
+        if (!dMonth.value) {
+            const d = new Date();
+            dMonth.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+        loadDailyReport();
     }
 }
 
@@ -1144,6 +1153,257 @@ async function loadMaterialsReport() {
     } catch (e) {
         document.getElementById('materials-report-list').innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--danger-color);">Ошибка загрузки</td></tr>';
     }
+}
+
+async function loadDailyReport() {
+    const month = document.getElementById('daily-report-month').value;
+    const unit = document.getElementById('daily-report-unit').value; // 'sheets' or 'tons'
+    const line = document.getElementById('daily-report-line').value; // 'all', 'lfm1', 'lfm2'
+    if (!month) return;
+    
+    try {
+        const res = await fetch(`/api/dashboard/daily_report?month=${month}`);
+        if (!res.ok) throw new Error("Ошибка загрузки");
+        const report = await res.json();
+        
+        const container1 = document.getElementById('chart-daily-lfm1').parentElement.parentElement;
+        const container2 = document.getElementById('chart-daily-lfm2').parentElement.parentElement;
+        
+        container1.style.display = (line === 'all' || line === 'lfm1') ? 'block' : 'none';
+        container2.style.display = (line === 'all' || line === 'lfm2') ? 'block' : 'none';
+
+        if (line === 'all' || line === 'lfm1') {
+            renderDailyChart('lfm1', 'chart-daily-lfm1', report.data.line_1, report.days, unit);
+        }
+        if (line === 'all' || line === 'lfm2') {
+            renderDailyChart('lfm2', 'chart-daily-lfm2', report.data.line_2, report.days, unit);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderDailyChart(lineId, canvasId, lineData, daysCount, unit) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (lineId === 'lfm1' && chartDailyLfm1) chartDailyLfm1.destroy();
+    if (lineId === 'lfm2' && chartDailyLfm2) chartDailyLfm2.destroy();
+    
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const textCol = isLight ? '#1e293b' : '#e0e0e0';
+    
+    const labels = [];
+    const dayData = [];
+    const nightData = [];
+    const bgColorsDay = [];
+    const bgColorsNight = [];
+    
+    for(let d=1; d<=daysCount; d++) {
+        labels.push(d.toString());
+        const dStr = d.toString();
+        const dVal = lineData[dStr] ? lineData[dStr]["День"][unit] : 0;
+        const nVal = lineData[dStr] ? lineData[dStr]["Ночь"][unit] : 0;
+        
+        const planKey = unit === 'sheets' ? 'plan_sheets' : 'plan_tons';
+        const dPlan = lineData[dStr] ? lineData[dStr]["День"][planKey] : 0;
+        const nPlan = lineData[dStr] ? lineData[dStr]["Ночь"][planKey] : 0;
+        
+        dayData.push(dVal);
+        nightData.push(nVal);
+        
+        bgColorsDay.push(dVal >= dPlan ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)');
+        bgColorsNight.push(nVal >= nPlan ? 'rgba(40, 167, 69, 0.8)' : 'rgba(220, 53, 69, 0.8)');
+    }
+    
+    const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'День',
+                    data: dayData,
+                    backgroundColor: bgColorsDay,
+                },
+                {
+                    label: 'Ночь',
+                    data: nightData,
+                    backgroundColor: bgColorsNight,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: textCol } },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const d = context.dataIndex + 1;
+                            const dStr = d.toString();
+                            const isDay = context.datasetIndex === 0;
+                            const sName = isDay ? "День" : "Ночь";
+                            const planKey = unit === 'sheets' ? 'plan_sheets' : 'plan_tons';
+                            const planVal = lineData[dStr] ? lineData[dStr][sName][planKey] : 0;
+                            return `План: ${planVal.toFixed(1)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { ticks: { color: textCol }, title: {display: true, text: unit === 'sheets' ? 'Листы' : 'Тонны', color: textCol} },
+                x: { ticks: { color: textCol } }
+            }
+        }
+    });
+    
+    if (lineId === 'lfm1') chartDailyLfm1 = chart;
+    else chartDailyLfm2 = chart;
+}
+
+function exportDailyReport() {
+    const month = document.getElementById('daily-report-month').value;
+    const line = document.getElementById('daily-report-line').value;
+    if (!month) return;
+    window.open(`/api/dashboard/export_daily_report?month=${month}&line=${line}`, '_blank');
+}
+
+async function loadArchive() {
+    const month = document.getElementById('archive-month').value;
+    if (!month) {
+        const now = new Date();
+        const m = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('archive-month').value = m;
+        return loadArchive();
+    }
+    
+    try {
+        const boardRes = await fetch(`/api/dashboard/shift_board?month=${month}`);
+        if (boardRes.ok) {
+            const boardData = await boardRes.json();
+            renderShiftBoard(boardData);
+        }
+        
+        const res = await fetch('/api/shifts/all');
+        if (res.ok) {
+            const shifts = await res.json();
+            const filtered = shifts.filter(s => s.date && s.date.startsWith(month));
+            
+            const tbody = document.getElementById('archive-table-body');
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Нет смен в этом месяце</td></tr>';
+            } else {
+                tbody.innerHTML = filtered.map(s => {
+                    const recTons = ((s.receipt_chrysotile_4_20||0) + (s.receipt_chrysotile_5_65||0) + (s.receipt_chrysotile_6_40||0) + (s.receipt_cement||0) + (s.receipt_cellulose||0) + (s.receipt_crushed_slate||0) + (s.receipt_asbozurit||0) + (s.receipt_fiberglass||0)) / 1000;
+                    const zoTons = ((s.zo_chrysotile_4_20||0) + (s.zo_chrysotile_5_65||0) + (s.zo_chrysotile_6_40||0) + (s.zo_cement||0) + (s.zo_cellulose||0) + (s.zo_crushed_slate||0) + (s.zo_asbozurit||0) + (s.zo_fiberglass||0)) / 1000;
+                    
+                    return `
+                        <tr>
+                            <td>${s.id}</td>
+                            <td>${s.date}</td>
+                            <td>${s.shift_name}</td>
+                            <td>${s.line}</td>
+                            <td>${s.status === 'closed' ? '<span style="color:var(--success-color)">Закрыта</span>' : '<span style="color:var(--accent-color)">Открыта</span>'}</td>
+                            <td>${recTons.toFixed(1)} т</td>
+                            <td>${zoTons.toFixed(1)} т</td>
+                            <td>${(s.batches||[]).length} шт</td>
+                            <td>
+                                <button onclick="exportShift(${s.id})" style="background: #217346; width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem;">🖨 Печать</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderShiftBoard(boardData) {
+    const container = document.getElementById('shift-board-container');
+    if (Object.keys(boardData).length === 0) {
+        container.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">Нет данных по бригадам за этот месяц</p>';
+        return;
+    }
+    
+    let html = '';
+    for (const [master, shifts] of Object.entries(boardData)) {
+        let rows = '';
+        let totalPlanSheets = 0, totalFactSheets = 0;
+        let totalPlanTons = 0, totalFactTons = 0;
+        
+        shifts.forEach(s => {
+            totalPlanSheets += s.plan_sheets;
+            totalFactSheets += s.fact_sheets;
+            totalPlanTons += s.plan_tons;
+            totalFactTons += s.fact_tons;
+            
+            const isDanger = s.fact_sheets < s.plan_sheets;
+            const factSheetsColor = isDanger ? 'var(--danger-color)' : 'var(--success-color)';
+            
+            rows += `
+                <tr>
+                    <td>${s.date}</td>
+                    <td>${s.shift_name}</td>
+                    <td>${s.plan_sheets}</td>
+                    <td style="color: ${factSheetsColor}; font-weight: bold;">${s.fact_sheets}</td>
+                    <td>${s.plan_tons.toFixed(1)}</td>
+                    <td style="color: ${factSheetsColor}; font-weight: bold;">${s.fact_tons.toFixed(1)}</td>
+                    <td><button onclick="exportShift(${s.shift_id})" style="background: #217346; padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; width:auto; border:none; cursor:pointer;" title="Печать смены">🖨</button></td>
+                </tr>
+            `;
+        });
+        
+        const isTotalDanger = totalFactSheets < totalPlanSheets;
+        const totalColor = isTotalDanger ? 'var(--danger-color)' : 'var(--success-color)';
+        rows += `
+            <tr style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                <td colspan="2" style="text-align:right;">ИТОГО:</td>
+                <td>${totalPlanSheets}</td>
+                <td style="color: ${totalColor}">${totalFactSheets}</td>
+                <td>${totalPlanTons.toFixed(1)}</td>
+                <td style="color: ${totalColor}">${totalFactTons.toFixed(1)}</td>
+                <td></td>
+            </tr>
+        `;
+        
+        html += `
+            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                <h5 style="margin-bottom: 0.5rem; color: var(--accent-color); font-size: 1.1rem;">Бригада: ${master}</h5>
+                <div style="overflow-x: auto;">
+                    <table class="table-glass" style="font-size: 0.85rem; width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Смена</th>
+                                <th>План (лист)</th>
+                                <th>Факт (лист)</th>
+                                <th>План (т)</th>
+                                <th>Факт (т)</th>
+                                <th>Печать</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+function exportWeek() {
+    const start = document.getElementById('archive-week-start').value;
+    if (!start) return alert("Выберите дату начала недели");
+    window.open(`/api/dashboard/export_week?start_date=${start}`, '_blank');
+}
+
+function exportShift(shiftId) {
+    window.open(`/api/dashboard/export_shift?shift_id=${shiftId}`, '_blank');
 }
 
 window.onload = init;

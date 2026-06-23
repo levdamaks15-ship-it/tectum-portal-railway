@@ -55,6 +55,7 @@
                 <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📦 Производство</button>
                 <button class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes')">⏱ Журнал Простоев</button>
                 <button class="tab-btn" id="tab-btn-dashboard" onclick="switchTab('dashboard')">📊 Дашборд</button>
+                <button class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report')">📈 Ежедневная сводка</button>
                 <button class="tab-btn" id="tab-btn-materials" onclick="switchTab('materials')">🧪 Сводка по сырью</button>
                 <button class="tab-btn" id="tab-btn-archive" onclick="switchTab('archive')">📁 Архив смен</button>
             </div>
@@ -452,11 +453,56 @@
                 </div>
                 </div>
 
-                <div id="archive-tab" class="glass-panel card" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                        <h3>📁 Архив смен</h3>
-                        <button onclick="loadArchive()" style="width: auto; padding: 0.5rem 1.5rem;">Обновить архив</button>
+                <div id="daily-report-tab" class="glass-panel card" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <h3 style="margin: 0;">Ежедневная сводка мастера</h3>
+                        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                            <input type="month" id="daily-report-month" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                            <select id="daily-report-line" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px;">
+                                <option value="all">Обе линии</option>
+                                <option value="lfm1">Только ЛФМ-1</option>
+                                <option value="lfm2">Только ЛФМ-2</option>
+                            </select>
+                            <select id="daily-report-unit" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px;">
+                                <option value="sheets">Листы</option>
+                                <option value="tons">Тонны</option>
+                            </select>
+                            <button onclick="exportDailyReport()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">Выгрузить в Excel</button>
+                        </div>
                     </div>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производительность ЛФМ-1</h4>
+                            <div style="position: relative; height: 300px; width: 100%;">
+                                <canvas id="chart-daily-lfm1"></canvas>
+                            </div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производительность ЛФМ-2</h4>
+                            <div style="position: relative; height: 300px; width: 100%;">
+                                <canvas id="chart-daily-lfm2"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="archive-tab" class="glass-panel card" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <h3 style="margin: 0;">📁 Архив смен</h3>
+                        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                            <input type="month" id="archive-month" onchange="loadArchive()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                            <input type="date" id="archive-week-start" title="Начало недели" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                            <button onclick="exportWeek()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">🖨 Печать недели</button>
+                            <button onclick="loadArchive()" style="width: auto; padding: 0.5rem 1.5rem;">Обновить архив</button>
+                        </div>
+                    </div>
+                    
+                    <h4 style="margin-bottom: 1rem;">Сводная доска бригад (за месяц)</h4>
+                    <div id="shift-board-container" style="display: grid; gap: 1.5rem; margin-bottom: 2rem;">
+                        <!-- Генерируется JS: Карточки/таблицы по мастерам -->
+                    </div>
+                    
+                    <h4 style="margin-bottom: 1rem;">Список всех смен</h4>
                     <div style="overflow-x: auto;">
                         <table class="table-glass">
                             <thead>
