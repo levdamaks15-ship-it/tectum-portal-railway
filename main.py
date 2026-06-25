@@ -41,8 +41,11 @@ async def lifespan(app: FastAPI):
     
     db = SessionLocal()
     try:
-        if not db.query(models.Master).first():
-            db.add(models.Master(name="Бекбосынов", pin="1234", role="master"))
+        if not db.query(models.Master).filter(models.Master.role == "master").first():
+            db.add(models.Master(name="Бекбосынов Р.", pin="1234", role="master"))
+            db.add(models.Master(name="Монаев С.", pin="1234", role="master"))
+            db.add(models.Master(name="Султанулы С.", pin="1234", role="master"))
+            db.add(models.Master(name="Дауылбай М.", pin="1234", role="master"))
             db.add(models.Master(name="Оператор ЗО", pin="2222", role="zo"))
             db.add(models.Master(name="Машинист ЛФМ", pin="3333", role="lfm"))
             db.add(models.Master(name="Стакер", pin="4444", role="stacker"))
@@ -84,8 +87,11 @@ def read_root():
 
 @app.post("/api/setup_demo_data/")
 def setup_demo_data(db: Session = Depends(get_db)):
-    if not db.query(models.Master).first():
-        db.add(models.Master(name="Бекбосынов", pin="1234", role="master"))
+    if not db.query(models.Master).filter(models.Master.role == "master").first():
+        db.add(models.Master(name="Бекбосынов Р.", pin="1234", role="master"))
+        db.add(models.Master(name="Монаев С.", pin="1234", role="master"))
+        db.add(models.Master(name="Султанулы С.", pin="1234", role="master"))
+        db.add(models.Master(name="Дауылбай М.", pin="1234", role="master"))
         db.add(models.Master(name="Оператор ЗО", pin="2222", role="zo"))
         db.add(models.Master(name="Машинист ЛФМ", pin="3333", role="lfm"))
         db.add(models.Master(name="Стакер", pin="4444", role="stacker"))
