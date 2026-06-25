@@ -1,111 +1,55 @@
 import openpyxl
-from datetime import datetime, timedelta
+from datetime import datetime
 
-def generate_plan(month=6, year=2026, target=160000):
-    # Determine the number of days in the month
-    if month in [4, 6, 9, 11]:
-        days_in_month = 30
-    elif month == 2:
-        days_in_month = 29 if year % 4 == 0 else 28
-    else:
-        days_in_month = 31
-
-    # Figure out the exact mondays
-    mondays = []
-    for d in range(1, days_in_month + 1):
-        dt = datetime(year, month, d)
-        if dt.weekday() == 0: # 0 is Monday
-            mondays.append(d)
-
-    # Weights
-    weights = []
-    shifts = []
-    
-    for d in range(1, days_in_month + 1):
-        # Day Shift
-        w_day = 5.5 if d in mondays else 11.0
-        weights.append(w_day)
-        shifts.append((d, "День", w_day))
-        
-        # Night Shift
-        w_night = 13.0
-        weights.append(w_night)
-        shifts.append((d, "Ночь", w_night))
-
-    total_weight = sum(weights)
-    exact_values = [w / total_weight * target for w in weights]
-    
-    plans = []
-    running_exact = 0.0
-    running_int = 0
-    for ev in exact_values:
-        running_exact += ev
-        val = round(running_exact) - running_int
-        plans.append(val)
-        running_int += val
-
-    # Read existing facts if the file exists
-    facts = {}
-    try:
-        wb_old = openpyxl.load_workbook("monthly_plan_board.xlsx", data_only=True)
-        ws_old = wb_old.active
-        for row in ws_old.iter_rows(min_row=2, values_only=True):
-            if len(row) >= 6:
-                date_str, shift_type, _, _, _, fact, *_ = row
-                if date_str and shift_type:
-                    facts[(date_str, shift_type)] = fact
-    except Exception as e:
-        print(f"Could not read old facts: {e}")
-
-    # Masters and pattern
-    # Sequence of masters for days:
-    # 01.06 Day=3, Night=1
-    # 02.06 Day=4, Night=3
-    # 03.06 Day=2, Night=4
-    # 04.06 Day=1, Night=2
-    # So the Day sequence is 3, 4, 2, 1 repeating.
-    # The Night sequence is 1, 3, 4, 2 repeating.
-    
-    day_masters = [3, 4, 2, 1]
-    night_masters = [1, 3, 4, 2]
-    
-    master_names = {
-        1: "Бекбосынов Р.",
-        2: "Монаев С.",
-        3: "Султанулы С.",
-        4: "Дауылбай М."
-    }
-
-    # Determine starting index for June 1st
-    # Let's say we anchor to June 1st, 2026 as index 0.
-    anchor_date = datetime(2026, 6, 1)
-
-    wb = openpyxl.Workbook()
+def generate_plan():
+    file_path = "monthly_plan_board.xlsx"
+    wb = openpyxl.load_workbook(file_path)
     ws = wb.active
-    ws.title = "Выработка"
-    headers = ["Дата", "Тип смены", "Мастер", "Смена", "План", "Факт"]
-    ws.append(headers)
-
-    for i, (d, shift_type, w) in enumerate(shifts):
-        dt = datetime(year, month, d)
-        delta_days = (dt - anchor_date).days
+    
+    total_plan = 0
+    updated_rows = 0
+    
+    # Iterate through rows starting from Row 2 (headers are in Row 1)
+    for row in ws.iter_rows(min_row=2):
+        date_cell = row[0]
+        shift_cell = row[2]
+        plan_cell = row[6]
         
-        idx = delta_days % 4
-        if shift_type == "День":
-            master_num = day_masters[idx]
-        else:
-            master_num = night_masters[idx]
+        date_val = date_cell.value
+        if not date_val:
+            continue
             
-        master_name = master_names[master_num]
-        date_str = dt.strftime("%d.%m.%Y")
-        plan_val = plans[i]
+        if isinstance(date_val, datetime):
+            dt = date_val.date()
+        elif isinstance(date_val, str):
+            try:
+                dt = datetime.strptime(date_val, "%d.%m.%Y").date()
+            except ValueError:
+                try:
+                    dt = datetime.strptime(date_val, "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+        else:
+            continue
+            
+        shift_name = str(shift_cell.value).strip() if shift_cell.value else "День"
         
-        fact_val = facts.get((date_str, shift_type), "")
+        # Calculate plan sheets based on factory standard norms:
+        # - Monday Day = 0
+        # - Normal Day = 2700
+        # - Night = 3300
+        if dt.weekday() == 0 and shift_name == "День":
+            plan_sheets = 0
+        else:
+            plan_sheets = 2700 if shift_name == "День" else 3300
+            
+        plan_cell.value = plan_sheets
+        total_plan += plan_sheets
+        updated_rows += 1
         
-        ws.append([date_str, shift_type, master_name, master_num, plan_val, fact_val])
-
-    wb.save("monthly_plan_board_v2.xlsx")
-    print(f"Generated monthly_plan_board_v2.xlsx with total plan: {sum(plans)} sheets.")
+    wb.save(file_path)
+    print(f"Successfully updated {updated_rows} rows in {file_path} in-place.")
+    print(f"Total plan: {total_plan} sheets.")
 
 if __name__ == '__main__':
-    generate_plan(6, 2026, 160000)
+    generate_plan()
