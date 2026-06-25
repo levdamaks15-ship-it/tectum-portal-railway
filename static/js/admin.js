@@ -60,11 +60,14 @@ function switchAdminTab(tabId) {
     document.getElementById('tab-norms').style.display = 'none';
     document.getElementById('tab-plan-board').style.display = 'none';
     document.getElementById('tab-cleanup').style.display = 'none';
+    document.getElementById('tab-audit-logs').style.display = 'none';
     
     document.getElementById('tab-' + tabId).style.display = 'block';
 
     if (tabId === 'plan-board') {
         loadPlanBoard();
+    } else if (tabId === 'audit-logs') {
+        loadAuditLogs();
     }
 }
 
@@ -295,8 +298,18 @@ async function loadPlanBoard() {
             tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">Нет данных</td></tr>`;
             return;
         }
+        
+        const isAdmin = currentAdmin && currentAdmin.role === 'admin';
+        
         data.forEach(p => {
             const masterName = p.master ? p.master.name : 'Н/Д';
+            
+            const actionsHtml = isAdmin ? `
+                <button class="btn-danger" style="padding: 0.25rem 0.5rem; width: auto; font-size: 0.8rem;" onclick="deletePlanBoardRow(${p.id})">
+                    <i class="fa-solid fa-trash"></i> Удалить
+                </button>
+            ` : `<span style="color: var(--text-secondary); font-size: 0.85rem;">Нет прав</span>`;
+            
             tbody.innerHTML += `
                 <tr>
                     <td>${p.date}</td>
@@ -308,11 +321,7 @@ async function loadPlanBoard() {
                     <td>${p.fact_sheets}</td>
                     <td>${p.first_grade || 0}</td>
                     <td>${p.defect || 0}</td>
-                    <td>
-                        <button class="btn-danger" style="padding: 0.25rem 0.5rem; width: auto; font-size: 0.8rem;" onclick="deletePlanBoardRow(${p.id})">
-                            <i class="fa-solid fa-trash"></i> Удалить
-                        </button>
-                    </td>
+                    <td>${actionsHtml}</td>
                 </tr>
             `;
         });
@@ -326,7 +335,8 @@ async function loadPlanBoard() {
 async function deletePlanBoardRow(id) {
     if (!confirm("Вы уверены, что хотите удалить эту строку из выработки?")) return;
     try {
-        const res = await fetch(`/api/plan_board/${id}`, { method: 'DELETE' });
+        const userNameParam = currentAdmin ? encodeURIComponent(currentAdmin.name) : '';
+        const res = await fetch(`/api/plan_board/${id}?user_name=${userNameParam}`, { method: 'DELETE' });
         if (res.ok) {
             alert("Строка успешно удалена.");
             loadPlanBoard();
@@ -356,3 +366,35 @@ async function importPlanBoard() {
         alert("Ошибка сети при импорте");
     }
 }
+
+async function loadAuditLogs() {
+    try {
+        const res = await fetch('/api/admin/audit_logs');
+        const data = await res.json();
+        const tbody = document.getElementById('audit-logs-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Нет записей</td></tr>`;
+            return;
+        }
+        data.forEach(log => {
+            const dateObj = new Date(log.timestamp);
+            const timeStr = dateObj.toLocaleString('ru-RU');
+            tbody.innerHTML += `
+                <tr>
+                    <td>${timeStr}</td>
+                    <td>${log.user_name || 'Система'}</td>
+                    <td><strong style="color: ${log.action === 'DELETE' ? 'var(--danger-color)' : log.action === 'UPDATE' ? 'var(--accent-color)' : 'var(--success-color)'};">${log.action}</strong></td>
+                    <td>${log.target_table}</td>
+                    <td style="font-size: 0.85rem; max-width: 400px; word-break: break-all;">${log.details || ''}</td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error(e);
+        const tbody = document.getElementById('audit-logs-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:red;">Ошибка загрузки логов</td></tr>`;
+    }
+}
+

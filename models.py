@@ -155,3 +155,14 @@ class MonthlyPlanBoard(Base):
     defect = Column(Integer, default=0)
 
     master = relationship("Master")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    user_name = Column(String, nullable=True)
+    action = Column(String)  # "CREATE", "UPDATE", "DELETE", "IMPORT"
+    target_table = Column(String)
+    target_id = Column(Integer, nullable=True)
+    details = Column(String, nullable=True)
+

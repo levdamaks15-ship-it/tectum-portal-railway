@@ -89,6 +89,7 @@
             <div class="admin-nav-item" onclick="switchAdminTab('norms')" id="nav-norms"><i class="fa-solid fa-scale-balanced"></i> Нормы продукции</div>
             <div class="admin-nav-item" onclick="switchAdminTab('plan-board')" id="nav-plan-board"><i class="fa-solid fa-clipboard-list"></i> Выработка (План/Факт)</div>
             <div class="admin-nav-item" onclick="switchAdminTab('cleanup')" id="nav-cleanup"><i class="fa-solid fa-trash-can"></i> Очистка данных</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
             <div style="flex-grow: 1;"></div>
             <button onclick="window.location.href='/'" style="background: transparent; border: 1px solid var(--glass-border);"><i class="fa-solid fa-arrow-left"></i> На портал</button>
         </div>
@@ -134,9 +135,9 @@
 
             <!-- Cleanup Tab -->
             <div id="tab-cleanup" style="display: none;">
-                <h2 style="margin-bottom: 2rem; color: var(--danger-color);">Очистка операционных данных</h2>
-                <div class="glass-panel" style="max-width: 600px;">
-                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                <div style="max-width: 600px;">
+                    <h2 style="color: var(--danger-color); margin-bottom: 1.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Сброс операционных данных</h2>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
                         Эта операция безвозвратно удалит все записи о сменах, отчетах ЛФМ, простоях оборудования и партиях продукции. 
                         Справочники (сотрудники и нормы) останутся нетронутыми.
                     </p>
@@ -162,6 +163,25 @@
                         </thead>
                         <tbody id="plan-board-table-body">
                             <tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Audit Logs Tab -->
+            <div id="tab-audit-logs" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2>История изменений (Лог аудита)</h2>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>Время</th><th>Пользователь</th><th>Действие</th><th>Таблица</th><th>Детали</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-logs-table-body">
+                            <tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -261,6 +281,6 @@
         </div>
     </div>
 
-    <script src="/static/js/admin.js"></script>
+    <script src="/static/js/admin.js?v=20260625"></script>
 </body>
 </html>

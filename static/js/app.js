@@ -1910,7 +1910,7 @@ async function loadDirectorPlanBoard() {
         if (!tbody) return;
         tbody.innerHTML = '';
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Нет данных</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Нет данных</td></tr>`;
             return;
         }
         data.forEach(p => {
@@ -1924,13 +1924,33 @@ async function loadDirectorPlanBoard() {
                     <td>${masterName}</td>
                     <td>${p.plan_sheets}</td>
                     <td>${p.fact_sheets}</td>
+                    <td>
+                        <button class="btn-edit" onclick="editDirectorPlanBoard('${p.date}', '${p.line || ''}', '${p.shift_name}', ${p.shift_number}, ${p.master_id}, ${p.plan_sheets}, ${p.fact_sheets})" style="padding: 0.25rem 0.5rem; width: auto; font-size: 0.8rem; background: var(--primary-color);">
+                            <i class="fa-solid fa-pen"></i> Ред.
+                        </button>
+                    </td>
                 </tr>
             `;
         });
     } catch (e) {
         console.error(e);
         const tbody = document.getElementById('director-plan-board-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
+    }
+}
+
+function editDirectorPlanBoard(date, line, shiftName, shiftNumber, masterId, planSheets, factSheets) {
+    document.getElementById('pb-date').value = date;
+    document.getElementById('pb-line').value = line;
+    document.getElementById('pb-shift-name').value = shiftName;
+    document.getElementById('pb-shift-num').value = shiftNumber;
+    document.getElementById('pb-master').value = masterId;
+    document.getElementById('pb-plan').value = planSheets;
+    document.getElementById('pb-fact').value = factSheets;
+    
+    const inputDate = document.getElementById('pb-date');
+    if (inputDate) {
+        inputDate.scrollIntoView({ behavior: 'smooth' });
     }
 }
 
@@ -1951,7 +1971,8 @@ async function saveDirectorPlanBoard() {
     }
 
     try {
-        const res = await fetch('/api/plan_board', {
+        const userNameParam = currentUser ? `?user_name=${encodeURIComponent(currentUser.name)}` : '';
+        const res = await fetch(`/api/plan_board${userNameParam}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -1971,3 +1992,4 @@ async function saveDirectorPlanBoard() {
 }
 
 window.onload = init;
+

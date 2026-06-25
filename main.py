@@ -1145,8 +1145,12 @@ def clear_operational_data(db: Session = Depends(get_db)):
 def get_plan_board(db: Session = Depends(get_db)):
     return db.query(models.MonthlyPlanBoard).order_by(models.MonthlyPlanBoard.date.desc(), models.MonthlyPlanBoard.shift_number).all()
 
+@app.get("/api/admin/audit_logs")
+def get_audit_logs(db: Session = Depends(get_db)):
+    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).limit(100).all()
+
 @app.post("/api/plan_board", response_model=schemas.MonthlyPlanBoard)
-def create_or_update_plan_board(data: schemas.MonthlyPlanBoardCreate, db: Session = Depends(get_db)):
+def create_or_update_plan_board(data: schemas.MonthlyPlanBoardCreate, user_name: str = None, db: Session = Depends(get_db)):
     existing = db.query(models.MonthlyPlanBoard).filter(
         models.MonthlyPlanBoard.date == data.date,
         models.MonthlyPlanBoard.shift_name == data.shift_name,
@@ -1157,28 +1161,71 @@ def create_or_update_plan_board(data: schemas.MonthlyPlanBoardCreate, db: Sessio
         data.plan_sheets = 0
         
     if existing:
+        old_plan = existing.plan_sheets
+        old_fact = existing.fact_sheets
         existing.master_id = data.master_id
         existing.shift_number = data.shift_number
         existing.plan_sheets = data.plan_sheets
         existing.fact_sheets = data.fact_sheets
         db.commit()
         db.refresh(existing)
+        
+        # Log to AuditLog
+        details_str = f"Дата: {data.date}, Смена: {data.shift_name}, Линия: {data.line}. План: {old_plan}->{data.plan_sheets}, Факт: {old_fact}->{data.fact_sheets}"
+        log = models.AuditLog(
+            user_name=user_name,
+            action="UPDATE",
+            target_table="monthly_plan_board",
+            target_id=existing.id,
+            details=details_str
+        )
+        db.add(log)
+        db.commit()
+        
         return existing
     else:
         new_plan = models.MonthlyPlanBoard(**data.model_dump())
         db.add(new_plan)
         db.commit()
         db.refresh(new_plan)
+        
+        # Log to AuditLog
+        details_str = f"Дата: {data.date}, Смена: {data.shift_name}, Линия: {data.line}. План: {data.plan_sheets}, Факт: {data.fact_sheets}"
+        log = models.AuditLog(
+            user_name=user_name,
+            action="CREATE",
+            target_table="monthly_plan_board",
+            target_id=new_plan.id,
+            details=details_str
+        )
+        db.add(log)
+        db.commit()
+        
         return new_plan
 
 @app.delete("/api/plan_board/{id}")
-def delete_plan_board_row(id: int, db: Session = Depends(get_db)):
+def delete_plan_board_row(id: int, user_name: str = None, db: Session = Depends(get_db)):
     row = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.id == id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Запись не найдена")
+    
+    details_str = f"Дата: {row.date}, Смена: {row.shift_name}, Линия: {row.line}. План: {row.plan_sheets}, Факт: {row.fact_sheets}"
     db.delete(row)
     db.commit()
+    
+    # Log to AuditLog
+    log = models.AuditLog(
+        user_name=user_name,
+        action="DELETE",
+        target_table="monthly_plan_board",
+        target_id=id,
+        details=details_str
+    )
+    db.add(log)
+    db.commit()
+    
     return {"status": "ok"}
+
 
 @app.post("/api/admin/import_plan_board")
 def import_plan_board(db: Session = Depends(get_db)):
@@ -1276,6 +1323,17 @@ def import_plan_board(db: Session = Depends(get_db)):
                 count_created += 1
                 
         db.commit()
+        
+        # Log to AuditLog
+        log = models.AuditLog(
+            user_name="Администратор",
+            action="IMPORT",
+            target_table="monthly_plan_board",
+            details=f"Импорт из Excel. Создано записей: {count_created}, обновлено: {count_updated}"
+        )
+        db.add(log)
+        db.commit()
+        
         return {"status": "ok", "created": count_created, "updated": count_updated}
     except Exception as e:
         db.rollback()
