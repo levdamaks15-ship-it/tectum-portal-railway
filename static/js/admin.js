@@ -90,6 +90,7 @@ async function loadMasters() {
                 <td>${m.id}</td>
                 <td>${m.name}</td>
                 <td>${m.role}</td>
+                <td>${m.email || '-'}</td>
                 <td>
                     <button class="action-btn btn-edit" onclick='editMaster(${JSON.stringify(m)})'><i class="fa-solid fa-pen"></i></button>
                     <button class="action-btn btn-delete" onclick="deleteMaster(${m.id})"><i class="fa-solid fa-trash"></i></button>
@@ -103,6 +104,7 @@ function openMasterModal() {
     document.getElementById('master-id').value = '';
     document.getElementById('master-name').value = '';
     document.getElementById('master-pin').value = '';
+    document.getElementById('master-email').value = '';
     document.getElementById('master-role').value = 'master';
     document.getElementById('master-modal-title').innerText = "Добавить сотрудника";
     document.getElementById('master-modal').style.display = 'flex';
@@ -113,6 +115,7 @@ function editMaster(m) {
     document.getElementById('master-name').value = m.name;
     document.getElementById('master-pin').value = ''; // Don't show existing pin
     document.getElementById('master-pin').placeholder = 'Оставьте пустым, чтобы не менять';
+    document.getElementById('master-email').value = m.email || '';
     document.getElementById('master-role').value = m.role;
     document.getElementById('master-modal-title').innerText = "Редактировать сотрудника";
     document.getElementById('master-modal').style.display = 'flex';
@@ -122,7 +125,8 @@ async function saveMaster() {
     const id = document.getElementById('master-id').value;
     const data = {
         name: document.getElementById('master-name').value,
-        role: document.getElementById('master-role').value
+        role: document.getElementById('master-role').value,
+        email: document.getElementById('master-email').value || null
     };
     
     const pin = document.getElementById('master-pin').value;
