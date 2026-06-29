@@ -88,6 +88,7 @@
             <div class="admin-nav-item active" onclick="switchAdminTab('masters')" id="nav-masters"><i class="fa-solid fa-users"></i> Сотрудники (Мастера)</div>
             <div class="admin-nav-item" onclick="switchAdminTab('norms')" id="nav-norms"><i class="fa-solid fa-scale-balanced"></i> Нормы продукции</div>
             <div class="admin-nav-item" onclick="switchAdminTab('plan-board')" id="nav-plan-board"><i class="fa-solid fa-clipboard-list"></i> Выработка (План/Факт)</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('shifts')" id="nav-shifts"><i class="fa-solid fa-calendar-days"></i> Управление сменами</div>
             <div class="admin-nav-item" onclick="switchAdminTab('cleanup')" id="nav-cleanup"><i class="fa-solid fa-trash-can"></i> Очистка данных</div>
             <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
             <div style="flex-grow: 1;"></div>
@@ -110,6 +111,29 @@
                             </tr>
                         </thead>
                         <tbody id="masters-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Shifts Tab -->
+            <div id="tab-shifts" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2>Управление сменами</h2>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Дата</th>
+                                <th>Смена</th>
+                                <th>Линия</th>
+                                <th>Мастер</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shifts-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -281,6 +305,203 @@
             <div style="display: flex; gap: 1rem; margin-top: 2rem;">
                 <button onclick="closeModals()" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
                 <button onclick="saveNorm()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shift Edit Modal -->
+    <div id="shift-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <h3 id="shift-modal-title" style="margin-bottom: 1.5rem;">Редактировать смену</h3>
+            <input type="hidden" id="shift-edit-id">
+            
+            <h4>Основная информация</h4>
+            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                     <label>Дата (ГГГГ-ММ-ДД)</label>
+                     <input type="date" id="shift-edit-date">
+                </div>
+                <div>
+                     <label>Смена</label>
+                     <select id="shift-edit-name">
+                         <option value="День">День</option>
+                         <option value="Ночь">Ночь</option>
+                     </select>
+                </div>
+                <div>
+                     <label>Линия</label>
+                     <select id="shift-edit-line">
+                         <option value="Линия 1">Линия 1</option>
+                         <option value="Линия 2">Линия 2</option>
+                     </select>
+                </div>
+                <div>
+                     <label>Мастер</label>
+                     <select id="shift-edit-master"></select>
+                 </div>
+                 <div>
+                     <label>Статус</label>
+                     <select id="shift-edit-status">
+                         <option value="active">active (Открыта)</option>
+                         <option value="closed">closed (Закрыта)</option>
+                     </select>
+                 </div>
+            </div>
+
+            <h4>План</h4>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div>
+                     <label>План (листы)</label>
+                     <input type="number" id="shift-edit-plan-sheets">
+                </div>
+                <div>
+                     <label>План (тонны)</label>
+                     <input type="number" id="shift-edit-plan-tons" step="0.1">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 2rem;">
+                 <div style="flex: 1;">
+                     <h4 style="color: var(--primary-color);">Приход сырья</h4>
+                     <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="shift-edit-receipt-chr420" step="0.1"></div>
+                     <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="shift-edit-receipt-chr565" step="0.1"></div>
+                     <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="shift-edit-receipt-chr640" step="0.1"></div>
+                     <div class="form-group"><label>Цемент (кг)</label><input type="number" id="shift-edit-receipt-cement" step="0.1"></div>
+                     <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="shift-edit-receipt-cellulose" step="0.1"></div>
+                     <div class="form-group"><label>Дроб. шифер (кг)</label><input type="number" id="shift-edit-receipt-slate" step="0.1"></div>
+                     <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="shift-edit-receipt-asbozurit" step="0.1"></div>
+                     <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="shift-edit-receipt-fiberglass" step="0.1"></div>
+                     <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="shift-edit-receipt-laprol" step="0.1"></div>
+                 </div>
+                 <div style="flex: 1;">
+                     <h4 style="color: var(--warning-color);">Расход ЗО</h4>
+                     <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="shift-edit-zo-chr420" step="0.1"></div>
+                     <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="shift-edit-zo-chr565" step="0.1"></div>
+                     <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="shift-edit-zo-chr640" step="0.1"></div>
+                     <div class="form-group"><label>Цемент Силос 1 (кг)</label><input type="number" id="shift-edit-zo-cement-s1" step="0.1"></div>
+                     <div class="form-group"><label>Цемент Силос 2 (кг)</label><input type="number" id="shift-edit-zo-cement-s2" step="0.1"></div>
+                     <div class="form-group"><label>Цемент Силос 3 (кг)</label><input type="number" id="shift-edit-zo-cement-s3" step="0.1"></div>
+                     <div class="form-group"><label>Цемент Силос 4 (кг)</label><input type="number" id="shift-edit-zo-cement-s4" step="0.1"></div>
+                     <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="shift-edit-zo-cellulose" step="0.1"></div>
+                     <div class="form-group"><label>Дроб. шифер (кг)</label><input type="number" id="shift-edit-zo-slate" step="0.1"></div>
+                     <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="shift-edit-zo-asbozurit" step="0.1"></div>
+                     <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="shift-edit-zo-fiberglass" step="0.1"></div>
+                 </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button onclick="closeModals()" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveShiftEdit()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shift Production Details Modal -->
+    <div id="shift-details-modal" class="modal">
+        <div class="modal-content" style="max-width: 950px; max-height: 90vh; overflow-y: auto;">
+            <h3 id="shift-details-title" style="margin-bottom: 1.5rem;">Производственные данные смены</h3>
+            
+            <!-- LFM Section -->
+            <h4 style="color: var(--primary-color);">Отчеты ЛФМ (Формовка)</h4>
+            <div style="overflow-x: auto; margin-bottom: 2rem;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Продукт</th><th>Листов</th><th>Сбросы</th><th>1 сорт</th><th>Брак</th><th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shift-details-lfm-body"></tbody>
+                </table>
+            </div>
+
+            <!-- Batches Section -->
+            <h4 style="color: var(--warning-color);">Партии (Разборка / СКК)</h4>
+            <div style="overflow-x: auto; margin-bottom: 2rem;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>№ Партии</th><th>Продукт</th><th>Стоп разборка</th><th>Годных (Дест)</th><th>Брак (Дест)</th><th>СКК Годных</th><th>СКК Брак</th><th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shift-details-batches-body"></tbody>
+                </table>
+            </div>
+
+            <!-- Downtimes Section -->
+            <h4 style="color: var(--danger-color);">Простои</h4>
+            <div style="overflow-x: auto; margin-bottom: 2rem;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Время</th><th>Длительность (мин)</th><th>Причина</th><th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shift-details-downtimes-body"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <button onclick="closeModals()" style="background: transparent; border: 1px solid var(--glass-border); width: auto; padding: 0.5rem 2rem;">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit LFM Row Modal -->
+    <div id="edit-lfm-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>Редактировать отчет ЛФМ</h3>
+            <input type="hidden" id="edit-lfm-id">
+            <div class="form-group"><label>Продукт</label><input type="text" id="edit-lfm-product"></div>
+            <div class="form-group"><label>Листов</label><input type="number" id="edit-lfm-sheets"></div>
+            <div class="form-group"><label>Сбросы</label><input type="number" id="edit-lfm-wind-resets"></div>
+            <div class="form-group"><label>1 сорт</label><input type="number" id="edit-lfm-formed-1st"></div>
+            <div class="form-group"><label>Брак</label><input type="number" id="edit-lfm-formed-defect"></div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button onclick="document.getElementById('edit-lfm-modal').style.display='none'" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveLfmEdit()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Batch Row Modal -->
+    <div id="edit-batch-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h3>Редактировать партию</h3>
+            <input type="hidden" id="edit-batch-id">
+            <div class="form-group"><label>Номер партии</label><input type="text" id="edit-batch-number"></div>
+            <div class="form-group"><label>Продукт</label><input type="text" id="edit-batch-product"></div>
+            <div class="form-group"><label>Разобранных стоп</label><input type="number" id="edit-batch-stacked-stacks"></div>
+            
+            <h5>Дестакер (Данные разборки)</h5>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <div class="form-group"><label>Годных</label><input type="number" id="edit-batch-ds-first-grade"></div>
+                <div class="form-group"><label>Брак</label><input type="number" id="edit-batch-ds-defect"></div>
+            </div>
+
+            <h5>СКК (Результаты контроля)</h5>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                <div class="form-group"><label>Годных</label><input type="number" id="edit-batch-qcd-first-grade"></div>
+                <div class="form-group"><label>Брак</label><input type="number" id="edit-batch-qcd-defect"></div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button onclick="document.getElementById('edit-batch-modal').style.display='none'" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveBatchEdit()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Downtime Row Modal -->
+    <div id="edit-downtime-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>Редактировать простой</h3>
+            <input type="hidden" id="edit-downtime-id">
+            <div class="form-group"><label>Время простоя</label><input type="text" id="edit-downtime-time"></div>
+            <div class="form-group"><label>Длительность (мин)</label><input type="number" id="edit-downtime-duration"></div>
+            <div class="form-group"><label>Причина</label><input type="text" id="edit-downtime-reason"></div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button onclick="document.getElementById('edit-downtime-modal').style.display='none'" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveDowntimeEdit()" class="btn-save">Сохранить</button>
             </div>
         </div>
     </div>

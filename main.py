@@ -1267,6 +1267,228 @@ def delete_master(master_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "ok"}
 
+def check_admin_session(request: Request, db: Session):
+    role = request.session.get("user_role")
+    user_id = request.session.get("user_id")
+    if not user_id or role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Требуются права администратора.")
+    user = db.query(models.Master).get(user_id)
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Требуются права администратора.")
+    return user
+
+@app.get("/api/admin/shifts/{shift_id}/details")
+def admin_get_shift_details(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin_session(request, db)
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift: raise HTTPException(404, "Смена не найдена")
+    
+    lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).all()
+    batches = db.query(models.Batch).filter(models.Batch.shift_id == shift_id).all()
+    downtimes = db.query(models.Downtime).filter(models.Downtime.shift_id == shift_id).all()
+    
+    return {
+        "shift": shift,
+        "lfm_reports": lfm_reports,
+        "batches": batches,
+        "downtimes": downtimes
+    }
+
+@app.put("/api/admin/shifts/{shift_id}")
+def admin_update_shift(shift_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift: raise HTTPException(404, "Смена не найдена")
+    
+    old_values = {}
+    new_values = {}
+    
+    if "date" in data and data["date"]:
+        try:
+            data["date"] = datetime.datetime.strptime(data["date"], "%Y-%m-%d").date()
+        except Exception:
+            pass
+            
+    for key, val in data.items():
+        if hasattr(shift, key):
+            old_val = getattr(shift, key)
+            if old_val != val:
+                old_values[key] = str(old_val)
+                new_values[key] = str(val)
+                setattr(shift, key, val)
+                
+    if old_values:
+        log_entry = models.AuditLog(
+            timestamp=datetime.datetime.utcnow(),
+            user_name=admin.name,
+            action=f"Редактирование смены ID {shift_id}",
+            details=f"Изменено: {old_values} -> {new_values}"
+        )
+        db.add(log_entry)
+        db.commit()
+    else:
+        db.commit()
+    return {"status": "ok"}
+
+@app.delete("/api/admin/shifts/{shift_id}")
+def admin_delete_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift: raise HTTPException(404, "Смена не найдена")
+    
+    db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).delete()
+    db.query(models.Batch).filter(models.Batch.shift_id == shift_id).delete()
+    db.query(models.Downtime).filter(models.Downtime.shift_id == shift_id).delete()
+    
+    log_entry = models.AuditLog(
+        timestamp=datetime.datetime.utcnow(),
+        user_name=admin.name,
+        action=f"Удаление смены ID {shift_id}",
+        details=f"Удалена смена за {shift.date} ({shift.shift_name}, Линия {shift.line}) и все связанные с ней отчеты, партии и простои."
+    )
+    db.add(log_entry)
+    db.delete(shift)
+    db.commit()
+    return {"status": "ok"}
+
+@app.put("/api/admin/lfm/{report_id}")
+def admin_update_lfm(report_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    report = db.query(models.LFMReport).get(report_id)
+    if not report: raise HTTPException(404, "Отчет ЛФМ не найден")
+    
+    old_values = {}
+    new_values = {}
+    for key, val in data.items():
+        if hasattr(report, key):
+            old_val = getattr(report, key)
+            if old_val != val:
+                old_values[key] = str(old_val)
+                new_values[key] = str(val)
+                setattr(report, key, val)
+                
+    if old_values:
+        log_entry = models.AuditLog(
+            timestamp=datetime.datetime.utcnow(),
+            user_name=admin.name,
+            action=f"Редактирование отчета ЛФМ ID {report_id}",
+            details=f"Смена {report.shift_id}. Изменено: {old_values} -> {new_values}"
+        )
+        db.add(log_entry)
+        db.commit()
+    else:
+        db.commit()
+    return {"status": "ok"}
+
+@app.delete("/api/admin/lfm/{report_id}")
+def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    report = db.query(models.LFMReport).get(report_id)
+    if not report: raise HTTPException(404, "Отчет ЛФМ не найден")
+    
+    log_entry = models.AuditLog(
+        timestamp=datetime.datetime.utcnow(),
+        user_name=admin.name,
+        action=f"Удаление отчета ЛФМ ID {report_id}",
+        details=f"Смена {report.shift_id}. Удалена продукция: {report.product_name}, листы: {report.lfm_sheets}."
+    )
+    db.add(log_entry)
+    db.delete(report)
+    db.commit()
+    return {"status": "ok"}
+
+@app.put("/api/admin/batches/{batch_id}")
+def admin_update_batch(batch_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    batch = db.query(models.Batch).get(batch_id)
+    if not batch: raise HTTPException(404, "Партия не найдена")
+    
+    old_values = {}
+    new_values = {}
+    for key, val in data.items():
+        if hasattr(batch, key):
+            old_val = getattr(batch, key)
+            if old_val != val:
+                old_values[key] = str(old_val)
+                new_values[key] = str(val)
+                setattr(batch, key, val)
+                
+    if old_values:
+        log_entry = models.AuditLog(
+            timestamp=datetime.datetime.utcnow(),
+            user_name=admin.name,
+            action=f"Редактирование партии ID {batch_id}",
+            details=f"Смена {batch.shift_id}. Изменено: {old_values} -> {new_values}"
+        )
+        db.add(log_entry)
+        db.commit()
+    else:
+        db.commit()
+    return {"status": "ok"}
+
+@app.delete("/api/admin/batches/{batch_id}")
+def admin_delete_batch(batch_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    batch = db.query(models.Batch).get(batch_id)
+    if not batch: raise HTTPException(404, "Партия не найдена")
+    
+    log_entry = models.AuditLog(
+        timestamp=datetime.datetime.utcnow(),
+        user_name=admin.name,
+        action=f"Удаление партии ID {batch_id}",
+        details=f"Смена {batch.shift_id}. Удален номер партии: {batch.batch_number}, продукция: {batch.product_name}."
+    )
+    db.add(log_entry)
+    db.delete(batch)
+    db.commit()
+    return {"status": "ok"}
+
+@app.put("/api/admin/downtimes/{downtime_id}")
+def admin_update_downtime(downtime_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    dt = db.query(models.Downtime).get(downtime_id)
+    if not dt: raise HTTPException(404, "Простой не найден")
+    
+    old_values = {}
+    new_values = {}
+    for key, val in data.items():
+        if hasattr(dt, key):
+            old_val = getattr(dt, key)
+            if old_val != val:
+                old_values[key] = str(old_val)
+                new_values[key] = str(val)
+                setattr(dt, key, val)
+                
+    if old_values:
+        log_entry = models.AuditLog(
+            timestamp=datetime.datetime.utcnow(),
+            user_name=admin.name,
+            action=f"Редактирование простоя ID {downtime_id}",
+            details=f"Смена {dt.shift_id}. Изменено: {old_values} -> {new_values}"
+        )
+        db.add(log_entry)
+        db.commit()
+    else:
+        db.commit()
+    return {"status": "ok"}
+
+@app.delete("/api/admin/downtimes/{downtime_id}")
+def admin_delete_downtime(downtime_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    dt = db.query(models.Downtime).get(downtime_id)
+    if not dt: raise HTTPException(404, "Простой не найден")
+    
+    log_entry = models.AuditLog(
+        timestamp=datetime.datetime.utcnow(),
+        user_name=admin.name,
+        action=f"Удаление простоя ID {downtime_id}",
+        details=f"Смена {dt.shift_id}. Удалена причина: {dt.reason}, длительность: {dt.duration_minutes} мин."
+    )
+    db.add(log_entry)
+    db.delete(dt)
+    db.commit()
+    return {"status": "ok"}
+
 @app.post("/api/admin/norms/", response_model=schemas.ProductNorm)
 def create_norm(norm: schemas.ProductNormCreate, db: Session = Depends(get_db)):
     db_norm = models.ProductNorm(**norm.model_dump())

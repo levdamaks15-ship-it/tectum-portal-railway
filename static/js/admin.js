@@ -59,6 +59,7 @@ function switchAdminTab(tabId) {
     document.getElementById('tab-masters').style.display = 'none';
     document.getElementById('tab-norms').style.display = 'none';
     document.getElementById('tab-plan-board').style.display = 'none';
+    document.getElementById('tab-shifts').style.display = 'none';
     document.getElementById('tab-cleanup').style.display = 'none';
     document.getElementById('tab-audit-logs').style.display = 'none';
     
@@ -68,12 +69,18 @@ function switchAdminTab(tabId) {
         loadPlanBoard();
     } else if (tabId === 'audit-logs') {
         loadAuditLogs();
+    } else if (tabId === 'shifts') {
+        loadShifts();
     }
 }
 
 function closeModals() {
     document.getElementById('master-modal').style.display = 'none';
     document.getElementById('norm-modal').style.display = 'none';
+    const shiftModal = document.getElementById('shift-modal');
+    if (shiftModal) shiftModal.style.display = 'none';
+    const shiftDetailsModal = document.getElementById('shift-details-modal');
+    if (shiftDetailsModal) shiftDetailsModal.style.display = 'none';
 }
 
 // --- MASTERS CRUD ---
@@ -399,6 +406,409 @@ async function loadAuditLogs() {
         console.error(e);
         const tbody = document.getElementById('audit-logs-table-body');
         if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:red;">Ошибка загрузки логов</td></tr>`;
+    }
+}
+
+// --- SHIFTS CRUD & FULL PRODUCTION DATA EDITING ---
+
+let allMastersCached = [];
+
+async function loadShifts() {
+    try {
+        const res = await fetch('/api/shifts/all');
+        const shifts = await res.json();
+        
+        const mastersRes = await fetch('/api/masters/');
+        allMastersCached = await mastersRes.json();
+        
+        const tbody = document.getElementById('shifts-table-body');
+        tbody.innerHTML = '';
+        
+        if (shifts.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Смен не обнаружено</td></tr>`;
+            return;
+        }
+        
+        shifts.forEach(s => {
+            const master = allMastersCached.find(m => m.id === s.master_id);
+            const masterName = master ? master.name : `ID: ${s.master_id}`;
+            const statusStyle = s.status === 'active' ? 'color: var(--success-color); font-weight: bold;' : 'color: var(--text-secondary);';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${s.id}</td>
+                    <td>${s.date}</td>
+                    <td>${s.shift_name}</td>
+                    <td>${s.line}</td>
+                    <td>${masterName}</td>
+                    <td style="${statusStyle}">${s.status}</td>
+                    <td>
+                        <button class="action-btn btn-edit" title="Редактировать смену и сырье" onclick="editShift(${s.id})"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="action-btn" title="Производственные отчеты (ЛФМ, партии, простои)" style="background: var(--warning-color); color: black;" onclick="showShiftDetails(${s.id})"><i class="fa-solid fa-industry"></i></button>
+                        <button class="action-btn btn-delete" title="Удалить смену полностью" onclick="deleteShift(${s.id})"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка при загрузке смен");
+    }
+}
+
+async function editShift(id) {
+    try {
+        const res = await fetch(`/api/admin/shifts/${id}/details`);
+        if (!res.ok) throw new Error("Не удалось загрузить данные смены");
+        const data = await res.json();
+        const shift = data.shift;
+        
+        document.getElementById('shift-edit-id').value = shift.id;
+        document.getElementById('shift-edit-date').value = shift.date;
+        document.getElementById('shift-edit-name').value = shift.shift_name;
+        document.getElementById('shift-edit-line').value = shift.line;
+        document.getElementById('shift-edit-status').value = shift.status;
+        document.getElementById('shift-edit-plan-sheets').value = shift.plan_sheets || 0;
+        document.getElementById('shift-edit-plan-tons').value = shift.plan_tons || 0;
+        
+        const masterSelect = document.getElementById('shift-edit-master');
+        masterSelect.innerHTML = '';
+        allMastersCached.filter(m => m.role === 'master').forEach(m => {
+            const selected = m.id === shift.master_id ? 'selected' : '';
+            masterSelect.innerHTML += `<option value="${m.id}" ${selected}>${m.name}</option>`;
+        });
+        
+        document.getElementById('shift-edit-receipt-chr420').value = shift.receipt_chrysotile_4_20 || 0;
+        document.getElementById('shift-edit-receipt-chr565').value = shift.receipt_chrysotile_5_65 || 0;
+        document.getElementById('shift-edit-receipt-chr640').value = shift.receipt_chrysotile_6_40 || 0;
+        document.getElementById('shift-edit-receipt-cement').value = shift.receipt_cement || 0;
+        document.getElementById('shift-edit-receipt-cellulose').value = shift.receipt_cellulose || 0;
+        document.getElementById('shift-edit-receipt-slate').value = shift.receipt_crushed_slate || 0;
+        document.getElementById('shift-edit-receipt-asbozurit').value = shift.receipt_asbozurit || 0;
+        document.getElementById('shift-edit-receipt-fiberglass').value = shift.receipt_fiberglass || 0;
+        document.getElementById('shift-edit-receipt-laprol').value = shift.receipt_laprol || 0;
+        
+        document.getElementById('shift-edit-zo-chr420').value = shift.zo_chrysotile_4_20 || 0;
+        document.getElementById('shift-edit-zo-chr565').value = shift.zo_chrysotile_5_65 || 0;
+        document.getElementById('shift-edit-zo-chr640').value = shift.zo_chrysotile_6_40 || 0;
+        document.getElementById('shift-edit-zo-cement-s1').value = shift.zo_cement_silo1 || 0;
+        document.getElementById('shift-edit-zo-cement-s2').value = shift.zo_cement_silo2 || 0;
+        document.getElementById('shift-edit-zo-cement-s3').value = shift.zo_cement_silo3 || 0;
+        document.getElementById('shift-edit-zo-cement-s4').value = shift.zo_cement_silo4 || 0;
+        document.getElementById('shift-edit-zo-cellulose').value = shift.zo_cellulose || 0;
+        document.getElementById('shift-edit-zo-slate').value = shift.zo_crushed_slate || 0;
+        document.getElementById('shift-edit-zo-asbozurit').value = shift.zo_asbozurit || 0;
+        document.getElementById('shift-edit-zo-fiberglass').value = shift.zo_fiberglass || 0;
+        
+        document.getElementById('shift-modal').style.display = 'flex';
+    } catch (e) {
+        console.error(e);
+        alert(e.message);
+    }
+}
+
+async function saveShiftEdit() {
+    const id = document.getElementById('shift-edit-id').value;
+    const data = {
+        date: document.getElementById('shift-edit-date').value,
+        shift_name: document.getElementById('shift-edit-name').value,
+        line: document.getElementById('shift-edit-line').value,
+        master_id: parseInt(document.getElementById('shift-edit-master').value),
+        status: document.getElementById('shift-edit-status').value,
+        plan_sheets: parseInt(document.getElementById('shift-edit-plan-sheets').value) || 0,
+        plan_tons: parseFloat(document.getElementById('shift-edit-plan-tons').value) || 0,
+        
+        receipt_chrysotile_4_20: parseFloat(document.getElementById('shift-edit-receipt-chr420').value) || 0,
+        receipt_chrysotile_5_65: parseFloat(document.getElementById('shift-edit-receipt-chr565').value) || 0,
+        receipt_chrysotile_6_40: parseFloat(document.getElementById('shift-edit-receipt-chr640').value) || 0,
+        receipt_cement: parseFloat(document.getElementById('shift-edit-receipt-cement').value) || 0,
+        receipt_cellulose: parseFloat(document.getElementById('shift-edit-receipt-cellulose').value) || 0,
+        receipt_crushed_slate: parseFloat(document.getElementById('shift-edit-receipt-slate').value) || 0,
+        receipt_asbozurit: parseFloat(document.getElementById('shift-edit-receipt-asbozurit').value) || 0,
+        receipt_fiberglass: parseFloat(document.getElementById('shift-edit-receipt-fiberglass').value) || 0,
+        receipt_laprol: parseFloat(document.getElementById('shift-edit-receipt-laprol').value) || 0,
+        
+        zo_chrysotile_4_20: parseFloat(document.getElementById('shift-edit-zo-chr420').value) || 0,
+        zo_chrysotile_5_65: parseFloat(document.getElementById('shift-edit-zo-chr565').value) || 0,
+        zo_chrysotile_6_40: parseFloat(document.getElementById('shift-edit-zo-chr640').value) || 0,
+        zo_cement_silo1: parseFloat(document.getElementById('shift-edit-zo-cement-s1').value) || 0,
+        zo_cement_silo2: parseFloat(document.getElementById('shift-edit-zo-cement-s2').value) || 0,
+        zo_cement_silo3: parseFloat(document.getElementById('shift-edit-zo-cement-s3').value) || 0,
+        zo_cement_silo4: parseFloat(document.getElementById('shift-edit-zo-cement-s4').value) || 0,
+        zo_cement: (parseFloat(document.getElementById('shift-edit-zo-cement-s1').value) || 0) +
+                   (parseFloat(document.getElementById('shift-edit-zo-cement-s2').value) || 0) +
+                   (parseFloat(document.getElementById('shift-edit-zo-cement-s3').value) || 0) +
+                   (parseFloat(document.getElementById('shift-edit-zo-cement-s4').value) || 0),
+        zo_cellulose: parseFloat(document.getElementById('shift-edit-zo-cellulose').value) || 0,
+        zo_crushed_slate: parseFloat(document.getElementById('shift-edit-zo-slate').value) || 0,
+        zo_asbozurit: parseFloat(document.getElementById('shift-edit-zo-asbozurit').value) || 0,
+        zo_fiberglass: parseFloat(document.getElementById('shift-edit-zo-fiberglass').value) || 0
+    };
+    
+    try {
+        const res = await fetch(`/api/admin/shifts/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            closeModals();
+            loadShifts();
+        } else {
+            alert("Ошибка при сохранении смены");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети");
+    }
+}
+
+async function deleteShift(id) {
+    if (!confirm("ВНИМАНИЕ! Удаление смены удалит все связанные отчеты ЛФМ, партии и простои.\nВы уверены, что хотите удалить смену полностью?")) return;
+    try {
+        const res = await fetch(`/api/admin/shifts/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadShifts();
+        } else {
+            alert("Ошибка при удалении смены");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+// --- SUB-DATA MANAGEMENT (LFM, BATCHES, DOWNTIMES) ---
+
+let activeShiftDetails = null;
+
+async function showShiftDetails(shiftId) {
+    try {
+        const res = await fetch(`/api/admin/shifts/${shiftId}/details`);
+        if (!res.ok) throw new Error("Не удалось получить данные смены");
+        activeShiftDetails = await res.json();
+        
+        document.getElementById('shift-details-title').innerText = `Производственные данные смены № ${shiftId} (${activeShiftDetails.shift.date})`;
+        
+        const lfmTbody = document.getElementById('shift-details-lfm-body');
+        lfmTbody.innerHTML = '';
+        if (activeShiftDetails.lfm_reports.length === 0) {
+            lfmTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Нет отчетов ЛФМ</td></tr>`;
+        } else {
+            activeShiftDetails.lfm_reports.forEach(r => {
+                lfmTbody.innerHTML += `
+                    <tr>
+                        <td>${r.product_name}</td>
+                        <td>${r.lfm_sheets}</td>
+                        <td>${r.lfm_wind_resets}</td>
+                        <td>${r.formed_1st_grade}</td>
+                        <td>${r.formed_defect}</td>
+                        <td>
+                            <button class="action-btn btn-edit" onclick='editLfmRow(${JSON.stringify(r)})'><i class="fa-solid fa-pen"></i></button>
+                            <button class="action-btn btn-delete" onclick="deleteLfmRow(${r.id})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        const batchTbody = document.getElementById('shift-details-batches-body');
+        batchTbody.innerHTML = '';
+        if (activeShiftDetails.batches.length === 0) {
+            batchTbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Нет созданных партий</td></tr>`;
+        } else {
+            activeShiftDetails.batches.forEach(b => {
+                batchTbody.innerHTML += `
+                    <tr>
+                        <td>${b.batch_number}</td>
+                        <td>${b.product_name}</td>
+                        <td>${b.stacked_stacks}</td>
+                        <td>${b.ds_first_grade}</td>
+                        <td>${b.ds_defect}</td>
+                        <td>${b.qcd_first_grade}</td>
+                        <td>${b.qcd_defect}</td>
+                        <td>
+                            <button class="action-btn btn-edit" onclick='editBatchRow(${JSON.stringify(b)})'><i class="fa-solid fa-pen"></i></button>
+                            <button class="action-btn btn-delete" onclick="deleteBatchRow(${b.id})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        const dtTbody = document.getElementById('shift-details-downtimes-body');
+        dtTbody.innerHTML = '';
+        if (activeShiftDetails.downtimes.length === 0) {
+            dtTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Нет записей о простоях</td></tr>`;
+        } else {
+            activeShiftDetails.downtimes.forEach(d => {
+                dtTbody.innerHTML += `
+                    <tr>
+                        <td>${d.start_time || '-'}</td>
+                        <td>${d.duration_minutes}</td>
+                        <td>${d.reason}</td>
+                        <td>
+                            <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d)})'><i class="fa-solid fa-pen"></i></button>
+                            <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('shift-details-modal').style.display = 'flex';
+    } catch (e) {
+        console.error(e);
+        alert(e.message);
+    }
+}
+
+function editLfmRow(r) {
+    document.getElementById('edit-lfm-id').value = r.id;
+    document.getElementById('edit-lfm-product').value = r.product_name;
+    document.getElementById('edit-lfm-sheets').value = r.lfm_sheets;
+    document.getElementById('edit-lfm-wind-resets').value = r.lfm_wind_resets;
+    document.getElementById('edit-lfm-formed-1st').value = r.formed_1st_grade;
+    document.getElementById('edit-lfm-formed-defect').value = r.formed_defect;
+    document.getElementById('edit-lfm-modal').style.display = 'flex';
+}
+
+async function saveLfmEdit() {
+    const id = document.getElementById('edit-lfm-id').value;
+    const data = {
+        product_name: document.getElementById('edit-lfm-product').value,
+        lfm_sheets: parseInt(document.getElementById('edit-lfm-sheets').value) || 0,
+        lfm_wind_resets: parseInt(document.getElementById('edit-lfm-wind-resets').value) || 0,
+        formed_1st_grade: parseInt(document.getElementById('edit-lfm-formed-1st').value) || 0,
+        formed_defect: parseInt(document.getElementById('edit-lfm-formed-defect').value) || 0
+    };
+    try {
+        const res = await fetch(`/api/admin/lfm/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            document.getElementById('edit-lfm-modal').style.display = 'none';
+            showShiftDetails(activeShiftDetails.shift.id);
+        } else {
+            alert("Ошибка сохранения отчета ЛФМ");
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deleteLfmRow(id) {
+    if (!confirm("Удалить этот отчет ЛФМ?")) return;
+    try {
+        const res = await fetch(`/api/admin/lfm/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            showShiftDetails(activeShiftDetails.shift.id);
+        } else {
+            alert("Ошибка удаления");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function editBatchRow(b) {
+    document.getElementById('edit-batch-id').value = b.id;
+    document.getElementById('edit-batch-number').value = b.batch_number;
+    document.getElementById('edit-batch-product').value = b.product_name;
+    document.getElementById('edit-batch-stacked-stacks').value = b.stacked_stacks;
+    document.getElementById('edit-batch-ds-first-grade').value = b.ds_first_grade;
+    document.getElementById('edit-batch-ds-defect').value = b.ds_defect;
+    document.getElementById('edit-batch-qcd-first-grade').value = b.qcd_first_grade;
+    document.getElementById('edit-batch-qcd-defect').value = b.qcd_defect;
+    document.getElementById('edit-batch-modal').style.display = 'flex';
+}
+
+async function saveBatchEdit() {
+    const id = document.getElementById('edit-batch-id').value;
+    const data = {
+        batch_number: document.getElementById('edit-batch-number').value,
+        product_name: document.getElementById('edit-batch-product').value,
+        stacked_stacks: parseInt(document.getElementById('edit-batch-stacked-stacks').value) || 0,
+        ds_first_grade: parseInt(document.getElementById('edit-batch-ds-first-grade').value) || 0,
+        ds_defect: parseInt(document.getElementById('edit-batch-ds-defect').value) || 0,
+        qcd_first_grade: parseInt(document.getElementById('edit-batch-qcd-first-grade').value) || 0,
+        qcd_defect: parseInt(document.getElementById('edit-batch-qcd-defect').value) || 0
+    };
+    try {
+        const res = await fetch(`/api/admin/batches/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            document.getElementById('edit-batch-modal').style.display = 'none';
+            showShiftDetails(activeShiftDetails.shift.id);
+        } else {
+            alert("Ошибка сохранения партии");
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deleteBatchRow(id) {
+    if (!confirm("Удалить эту партию?")) return;
+    try {
+        const res = await fetch(`/api/admin/batches/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            showShiftDetails(activeShiftDetails.shift.id);
+        } else {
+            alert("Ошибка удаления");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function editDowntimeRow(d) {
+    document.getElementById('edit-downtime-id').value = d.id;
+    document.getElementById('edit-downtime-time').value = d.start_time || '';
+    document.getElementById('edit-downtime-duration').value = d.duration_minutes;
+    document.getElementById('edit-downtime-reason').value = d.reason;
+    document.getElementById('edit-downtime-modal').style.display = 'flex';
+}
+
+async function saveDowntimeEdit() {
+    const id = document.getElementById('edit-downtime-id').value;
+    const data = {
+        start_time: document.getElementById('edit-downtime-time').value || null,
+        duration_minutes: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
+        reason: document.getElementById('edit-downtime-reason').value
+    };
+    try {
+        const res = await fetch(`/api/admin/downtimes/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            document.getElementById('edit-downtime-modal').style.display = 'none';
+            showShiftDetails(activeShiftDetails.shift.id);
+        } else {
+            alert("Ошибка сохранения простоя");
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deleteDowntimeRow(id) {
+    if (!confirm("Удалить эту запись о простое?")) return;
+    try {
+        const res = await fetch(`/api/admin/downtimes/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            showShiftDetails(activeShiftDetails.shift.id);
+        } else {
+            alert("Ошибка удаления");
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 
