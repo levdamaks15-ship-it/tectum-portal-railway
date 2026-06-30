@@ -370,6 +370,75 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, db: Session = Depends(get_db
     db.commit()
     return {"message": "ZO updated"}
 
+def sync_lfm_to_plan_board(shift_id: int, db: Session):
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        return
+        
+    # Map shift line to plan board line
+    pb_line = "ЛФМ-1" if shift.line == "Линия 1" else "ЛФМ-2"
+    
+    # Calculate sum of sheets, 1st grade, defect from LFM reports for this shift
+    lfm_stats = db.query(
+        func.sum(models.LFMReport.lfm_sheets).label("total_sheets"),
+        func.sum(models.LFMReport.formed_1st_grade).label("total_1st"),
+        func.sum(models.LFMReport.formed_defect).label("total_defect")
+    ).filter(models.LFMReport.shift_id == shift_id).first()
+    
+    total_sheets = int(lfm_stats.total_sheets or 0)
+    total_1st = int(lfm_stats.total_1st or 0)
+    total_defect = int(lfm_stats.total_defect or 0)
+    
+    # Find corresponding MonthlyPlanBoard row
+    pb_row = db.query(models.MonthlyPlanBoard).filter(
+        models.MonthlyPlanBoard.date == shift.date,
+        models.MonthlyPlanBoard.shift_name == shift.shift_name,
+        models.MonthlyPlanBoard.line == pb_line
+    ).first()
+    
+    if pb_row:
+        old_fact = pb_row.fact_sheets
+        pb_row.fact_sheets = total_sheets
+        pb_row.first_grade = total_1st
+        pb_row.defect = total_defect
+        
+        # Log to AuditLog (per rules, plan board changes must be logged to AuditLog)
+        log_entry = models.AuditLog(
+            timestamp=datetime.utcnow(),
+            user_name="System Sync (LFM)",
+            action="UPDATE",
+            target_table="monthly_plan_board",
+            target_id=pb_row.id,
+            details=f"Смена {shift_id} LFM sync. Факт обновлен: {old_fact} -> {total_sheets} листов. 1 сорт: {total_1st}, Брак: {total_defect}."
+        )
+        db.add(log_entry)
+    else:
+        # Create a new plan board row if it doesn't exist
+        pb_row = models.MonthlyPlanBoard(
+            date=shift.date,
+            shift_name=shift.shift_name,
+            line=pb_line,
+            master_id=shift.master_id,
+            plan_sheets=0,
+            fact_sheets=total_sheets,
+            first_grade=total_1st,
+            defect=total_defect
+        )
+        db.add(pb_row)
+        db.flush() # get the ID
+        
+        log_entry = models.AuditLog(
+            timestamp=datetime.utcnow(),
+            user_name="System Sync (LFM)",
+            action="CREATE",
+            target_table="monthly_plan_board",
+            target_id=pb_row.id,
+            details=f"Создана новая запись план-борда для смены {shift_id}. Факт: {total_sheets} листов. 1 сорт: {total_1st}, Брак: {total_defect}."
+        )
+        db.add(log_entry)
+        
+    db.commit()
+
 # --- ЛФМ ---
 @app.post("/api/shifts/{shift_id}/lfm")
 def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, db: Session = Depends(get_db)):
@@ -378,6 +447,9 @@ def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, db: Session 
     db_report = models.LFMReport(**data.model_dump(), shift_id=shift_id)
     db.add(db_report)
     db.commit()
+    
+    # Sync LFM sheets to plan board fact
+    sync_lfm_to_plan_board(shift_id, db)
     return {"status": "ok"}
 
 # --- ПРОСТОИ ---
@@ -1388,6 +1460,8 @@ def admin_update_lfm(report_id: int, data: dict, request: Request, db: Session =
         )
         db.add(log_entry)
         db.commit()
+        # Sync with plan board
+        sync_lfm_to_plan_board(report.shift_id, db)
     else:
         db.commit()
     return {"status": "ok"}
@@ -1397,6 +1471,7 @@ def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get
     admin = check_admin_session(request, db)
     report = db.query(models.LFMReport).get(report_id)
     if not report: raise HTTPException(404, "Отчет ЛФМ не найден")
+    shift_id = report.shift_id
     
     log_entry = models.AuditLog(
         timestamp=datetime.utcnow(),
@@ -1407,6 +1482,8 @@ def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get
     db.add(log_entry)
     db.delete(report)
     db.commit()
+    # Sync with plan board
+    sync_lfm_to_plan_board(shift_id, db)
     return {"status": "ok"}
 
 @app.put("/api/admin/batches/{batch_id}")

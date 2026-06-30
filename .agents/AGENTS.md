@@ -10,6 +10,8 @@ When interacting with the user, ALWAYS proactively suggest the use of slash comm
 ## Production Plan Rules
 When making changes to the monthly production plan logic or generating plans (e.g. `distribute_plan.py`), ALWAYS use the fixed factory standard norms: Normal day = 2700, Night = 3300, Sanitary day (Monday Day) = 0. Do not calculate proportionally from a monthly target.
 
+**План-факт и данные ЛФМ**: Фактическое количество листов (`fact_sheets`) в План-факт доске (`MonthlyPlanBoard`) формируется на основе общего количества сформованных листов из отчетов ЛФМ (`LFMReport.lfm_sheets`), которые передает машинист ЛФМ. Эти данные должны быть связаны в базе данных: любые изменения (создание, изменение, удаление отчетов ЛФМ) должны автоматически приводить к обновлению соответствующего `fact_sheets` в `MonthlyPlanBoard` для данной смены.
+
 **Reporting Architecture**: The plan is static and primary. Reports (daily graphs, weekly tables) MUST always generate the full grid of expected shifts (e.g., 14 shifts for a week) with the static plan numbers, regardless of whether factual data exists for those days. Fact data should be overlaid onto this static plan grid.
 
 **Sanitary Day Facts**: While the plan for a Sanitary Day (Monday Day) is 0, if actual production occurs, it MUST be fully recorded as fact, resulting in an over-fulfillment against the 0 plan.
