@@ -499,6 +499,10 @@ async function editShift(id) {
         document.getElementById('shift-edit-zo-slate').value = shift.zo_crushed_slate || 0;
         document.getElementById('shift-edit-zo-asbozurit').value = shift.zo_asbozurit || 0;
         document.getElementById('shift-edit-zo-fiberglass').value = shift.zo_fiberglass || 0;
+        document.getElementById('shift-edit-zo-laprol').value = shift.zo_laprol || 0;
+        document.getElementById('shift-edit-zo-asb-drain').value = shift.zo_asb_drain || 0;
+        document.getElementById('shift-edit-zo-cem-drain').value = shift.zo_cem_drain || 0;
+        document.getElementById('shift-edit-zo-batches').value = shift.zo_batches || 0;
         
         document.getElementById('shift-modal').style.display = 'flex';
     } catch (e) {
@@ -542,7 +546,11 @@ async function saveShiftEdit() {
         zo_cellulose: parseFloat(document.getElementById('shift-edit-zo-cellulose').value) || 0,
         zo_crushed_slate: parseFloat(document.getElementById('shift-edit-zo-slate').value) || 0,
         zo_asbozurit: parseFloat(document.getElementById('shift-edit-zo-asbozurit').value) || 0,
-        zo_fiberglass: parseFloat(document.getElementById('shift-edit-zo-fiberglass').value) || 0
+        zo_fiberglass: parseFloat(document.getElementById('shift-edit-zo-fiberglass').value) || 0,
+        zo_laprol: parseFloat(document.getElementById('shift-edit-zo-laprol').value) || 0,
+        zo_asb_drain: parseFloat(document.getElementById('shift-edit-zo-asb-drain').value) || 0,
+        zo_cem_drain: parseFloat(document.getElementById('shift-edit-zo-cem-drain').value) || 0,
+        zo_batches: parseInt(document.getElementById('shift-edit-zo-batches').value) || 0
     };
     
     try {
