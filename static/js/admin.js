@@ -158,11 +158,17 @@ async function saveMaster() {
 
 async function deleteMaster(id) {
     if (!confirm("Вы уверены, что хотите удалить этого сотрудника?")) return;
-    const res = await fetch(`/api/admin/masters/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-        loadMasters();
-    } else {
-        alert("Ошибка при удалении");
+    try {
+        const res = await fetch(`/api/admin/masters/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadMasters();
+        } else {
+            const err = await res.json();
+            alert(err.detail || "Ошибка при удалении");
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Ошибка сети при удалении");
     }
 }
 

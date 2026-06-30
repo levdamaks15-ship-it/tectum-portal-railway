@@ -1260,9 +1260,21 @@ def update_master(master_id: int, master: schemas.MasterUpdate, db: Session = De
     return db_master
 
 @app.delete("/api/admin/masters/{master_id}")
-def delete_master(master_id: int, db: Session = Depends(get_db)):
+def delete_master(master_id: int, request: Request, db: Session = Depends(get_db)):
+    check_admin_session(request, db)
     db_master = db.query(models.Master).get(master_id)
-    if not db_master: raise HTTPException(404)
+    if not db_master: raise HTTPException(404, "Сотрудник не найден")
+    
+    # Проверяем наличие связанных смен
+    has_shifts = db.query(models.Shift).filter(models.Shift.master_id == master_id).first()
+    if has_shifts:
+        raise HTTPException(status_code=400, detail="Невозможно удалить сотрудника, так как на него записаны смены.")
+        
+    # Проверяем наличие записей в плане на месяц
+    has_plans = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.master_id == master_id).first()
+    if has_plans:
+        raise HTTPException(status_code=400, detail="Невозможно удалить сотрудника, так как он есть в плане на месяц.")
+        
     db.delete(db_master)
     db.commit()
     return {"status": "ok"}
