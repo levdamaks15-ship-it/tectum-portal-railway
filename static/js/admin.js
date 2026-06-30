@@ -62,6 +62,8 @@ function switchAdminTab(tabId) {
     document.getElementById('tab-shifts').style.display = 'none';
     document.getElementById('tab-cleanup').style.display = 'none';
     document.getElementById('tab-audit-logs').style.display = 'none';
+    const tabDowntimes = document.getElementById('tab-downtimes-dir');
+    if (tabDowntimes) tabDowntimes.style.display = 'none';
     
     document.getElementById('tab-' + tabId).style.display = 'block';
 
@@ -71,7 +73,10 @@ function switchAdminTab(tabId) {
         loadAuditLogs();
     } else if (tabId === 'shifts') {
         loadShifts();
+    } else if (tabId === 'downtimes-dir') {
+        loadDowntimesDir();
     }
+
 }
 
 function closeModals() {
@@ -81,7 +86,10 @@ function closeModals() {
     if (shiftModal) shiftModal.style.display = 'none';
     const shiftDetailsModal = document.getElementById('shift-details-modal');
     if (shiftDetailsModal) shiftDetailsModal.style.display = 'none';
+    const dtDirModal = document.getElementById('downtime-dir-modal');
+    if (dtDirModal) dtDirModal.style.display = 'none';
 }
+
 
 // --- MASTERS CRUD ---
 
@@ -652,16 +660,17 @@ async function showShiftDetails(shiftId) {
         const dtTbody = document.getElementById('shift-details-downtimes-body');
         dtTbody.innerHTML = '';
         if (activeShiftDetails.downtimes.length === 0) {
-            dtTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Нет записей о простоях</td></tr>`;
+            dtTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Нет записей о простоях</td></tr>`;
         } else {
             activeShiftDetails.downtimes.forEach(d => {
                 dtTbody.innerHTML += `
                     <tr>
                         <td>${d.start_time || '-'}</td>
-                        <td>${d.duration_minutes}</td>
-                        <td>${d.reason}</td>
+                        <td>${d.duration}</td>
+                        <td>${d.description}</td>
+                        <td><span class="badge" style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${d.category || 'Не указана'}</span></td>
                         <td>
-                            <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d)})'><i class="fa-solid fa-pen"></i></button>
+                            <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
                             <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
@@ -670,6 +679,7 @@ async function showShiftDetails(shiftId) {
         }
 
         document.getElementById('shift-details-modal').style.display = 'flex';
+
     } catch (e) {
         console.error(e);
         alert(e.message);
@@ -783,8 +793,9 @@ async function deleteBatchRow(id) {
 function editDowntimeRow(d) {
     document.getElementById('edit-downtime-id').value = d.id;
     document.getElementById('edit-downtime-time').value = d.start_time || '';
-    document.getElementById('edit-downtime-duration').value = d.duration_minutes;
-    document.getElementById('edit-downtime-reason').value = d.reason;
+    document.getElementById('edit-downtime-duration').value = d.duration || 0;
+    document.getElementById('edit-downtime-reason').value = d.description || '';
+    document.getElementById('edit-downtime-category').value = d.category || 'Механические';
     document.getElementById('edit-downtime-modal').style.display = 'flex';
 }
 
@@ -792,8 +803,9 @@ async function saveDowntimeEdit() {
     const id = document.getElementById('edit-downtime-id').value;
     const data = {
         start_time: document.getElementById('edit-downtime-time').value || null,
-        duration_minutes: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
-        reason: document.getElementById('edit-downtime-reason').value
+        duration: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
+        description: document.getElementById('edit-downtime-reason').value,
+        category: document.getElementById('edit-downtime-category').value
     };
     try {
         const res = await fetch(`/api/admin/downtimes/${id}`, {
@@ -812,6 +824,7 @@ async function saveDowntimeEdit() {
     }
 }
 
+
 async function deleteDowntimeRow(id) {
     if (!confirm("Удалить эту запись о простое?")) return;
     try {
@@ -825,4 +838,137 @@ async function deleteDowntimeRow(id) {
         console.error(e);
     }
 }
+
+// --- DOWNTIME DIRECTORY CRUD ---
+let downtimesDirList = [];
+
+async function loadDowntimesDir() {
+    try {
+        const res = await fetch('/api/downtimes/directory');
+        if (!res.ok) return;
+        downtimesDirList = await res.json();
+        renderDowntimesDirTable(downtimesDirList);
+    } catch (e) {
+        console.error("Failed to load downtime directory", e);
+    }
+}
+
+function renderDowntimesDirTable(list) {
+    const tbody = document.getElementById('downtimes-dir-table-body');
+    if (!tbody) return;
+    
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">Записи отсутствуют</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = list.map(item => `
+        <tr>
+            <td>${item.department}</td>
+            <td>${item.node}</td>
+            <td>${item.breakdown}</td>
+            <td><span class="badge" style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${item.category || 'Не указана'}</span></td>
+            <td>${item.comment || '-'}</td>
+            <td>
+                <button class="action-btn btn-edit" onclick='openDowntimeDirModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn btn-delete" onclick="deleteDowntimeDirEntry(${item.id})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterDowntimesDirTable() {
+    const query = document.getElementById('downtimes-dir-search').value.toLowerCase();
+    const filtered = downtimesDirList.filter(item => {
+        return (item.department && item.department.toLowerCase().includes(query)) ||
+               (item.node && item.node.toLowerCase().includes(query)) ||
+               (item.breakdown && item.breakdown.toLowerCase().includes(query)) ||
+               (item.category && item.category.toLowerCase().includes(query)) ||
+               (item.comment && item.comment.toLowerCase().includes(query));
+    });
+    renderDowntimesDirTable(filtered);
+}
+
+function openDowntimeDirModal(item = null) {
+    const modal = document.getElementById('downtime-dir-modal');
+    const title = document.getElementById('downtime-dir-modal-title');
+    const idInput = document.getElementById('downtime-dir-id');
+    const deptInput = document.getElementById('downtime-dir-dept');
+    const nodeInput = document.getElementById('downtime-dir-node');
+    const breakdownInput = document.getElementById('downtime-dir-breakdown');
+    const catSelect = document.getElementById('downtime-dir-category');
+    const commentInput = document.getElementById('downtime-dir-comment');
+    
+    if (item) {
+        title.innerText = "Редактировать запись справочника";
+        idInput.value = item.id;
+        deptInput.value = item.department || '';
+        nodeInput.value = item.node || '';
+        breakdownInput.value = item.breakdown || '';
+        catSelect.value = item.category || 'Механические';
+        commentInput.value = item.comment || '';
+    } else {
+        title.innerText = "Добавить запись в справочник";
+        idInput.value = '';
+        deptInput.value = '';
+        nodeInput.value = '';
+        breakdownInput.value = '';
+        catSelect.value = 'Механические';
+        commentInput.value = '';
+    }
+    modal.style.display = 'flex';
+}
+
+async function saveDowntimeDirEntry() {
+    const id = document.getElementById('downtime-dir-id').value;
+    const data = {
+        department: document.getElementById('downtime-dir-dept').value.strip ? document.getElementById('downtime-dir-dept').value.strip() : document.getElementById('downtime-dir-dept').value.trim(),
+        node: document.getElementById('downtime-dir-node').value.strip ? document.getElementById('downtime-dir-node').value.strip() : document.getElementById('downtime-dir-node').value.trim(),
+        breakdown: document.getElementById('downtime-dir-breakdown').value.strip ? document.getElementById('downtime-dir-breakdown').value.strip() : document.getElementById('downtime-dir-breakdown').value.trim(),
+        category: document.getElementById('downtime-dir-category').value,
+        comment: document.getElementById('downtime-dir-comment').value.trim() || null
+    };
+    
+    if (!data.department || !data.node || !data.breakdown) {
+        alert("Заполните обязательные поля: Участок, Узел, Поломка");
+        return;
+    }
+    
+    const url = id ? `/api/downtimes/directory/${id}` : '/api/downtimes/directory';
+    const method = id ? 'PUT' : 'POST';
+    
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            closeModals();
+            loadDowntimesDir();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "неизвестно"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети");
+    }
+}
+
+async function deleteDowntimeDirEntry(id) {
+    if (!confirm("Удалить эту запись из справочника?")) return;
+    try {
+        const res = await fetch(`/api/downtimes/directory/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadDowntimesDir();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "неизвестно"));
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
 

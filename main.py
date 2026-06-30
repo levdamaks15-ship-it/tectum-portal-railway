@@ -48,8 +48,23 @@ async def lifespan(app: FastAPI):
         conn.commit()
         conn.close()
     except: pass
+
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE downtimes ADD COLUMN department VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
+
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE downtime_directory ADD COLUMN category VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
     
     db = SessionLocal()
+
     try:
         if not db.query(models.Master).filter(models.Master.role == "master").first():
             db.add(models.Master(name="Бекбосынов Р.", pin="1234", role="master"))
@@ -69,6 +84,15 @@ async def lifespan(app: FastAPI):
         if not db.query(models.Master).filter(models.Master.role == "admin").first():
             db.add(models.Master(name="Админ", pin="0000", role="admin"))
             db.commit()
+        
+        # Auto-import downtimes directory if empty
+        try:
+            from import_downtimes import import_downtimes
+            if db.query(models.DowntimeDirectory).count() == 0:
+                print("Downtime directory is empty. Importing automatically...")
+                import_downtimes()
+        except Exception as e:
+            print(f"Auto-importing downtimes failed: {e}")
     finally:
         db.close()
     
@@ -275,7 +299,11 @@ def get_masters(db: Session = Depends(get_db)):
 
 # --- УПРАВЛЕНИЕ СМЕНОЙ ---
 @app.post("/api/shifts/", response_model=schemas.Shift)
-def create_shift(shift: schemas.ShiftCreate, db: Session = Depends(get_db)):
+def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    if user_role not in ["master", "admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастер смены или администратор могут открывать смены.")
+        
     db_shift = models.Shift(**shift.model_dump())
     db.add(db_shift)
     db.commit()
@@ -297,12 +325,31 @@ def get_single_shift(shift_id: int, db: Session = Depends(get_db)):
     return shift
 
 @app.put("/api/shifts/{shift_id}/close")
-def close_shift(shift_id: int, db: Session = Depends(get_db)):
+def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
+    if user_role not in ["master", "admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастер смены или администратор могут закрывать смены.")
+        
     shift = db.query(models.Shift).get(shift_id)
-    if not shift: raise HTTPException(404, "Смена не найдена")
+    if not shift:
+        raise HTTPException(404, "Смена не найдена")
+        
+    if user_role != "admin" and shift.master_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Доступ запрещен. Только мастер, открывший смену, или администратор могут закрыть её."
+        )
+        
     shift.status = "closed"
     db.commit()
     return {"message": "Смена закрыта"}
+
+
 
 # --- ПРИХОД И ЗО ---
 class UpdateReceiptZO(BaseModel):
@@ -452,6 +499,106 @@ def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, db: Session 
     sync_lfm_to_plan_board(shift_id, db)
     return {"status": "ok"}
 
+@app.get("/api/downtimes/directory/departments")
+def get_downtime_departments(db: Session = Depends(get_db)):
+    results = db.query(models.DowntimeDirectory.department).distinct().all()
+    return [r[0] for r in results if r[0]]
+
+@app.get("/api/downtimes/directory/nodes")
+def get_downtime_nodes(department: str, db: Session = Depends(get_db)):
+    results = db.query(models.DowntimeDirectory.node).filter(models.DowntimeDirectory.department == department).distinct().all()
+    return [r[0] for r in results if r[0]]
+
+@app.get("/api/downtimes/directory/breakdowns")
+def get_downtime_breakdowns(department: str, node: str, db: Session = Depends(get_db)):
+    results = db.query(models.DowntimeDirectory.breakdown, models.DowntimeDirectory.comment).filter(
+        models.DowntimeDirectory.department == department,
+        models.DowntimeDirectory.node == node
+    ).all()
+    return [{"breakdown": r[0], "comment": r[1]} for r in results if r[0]]
+
+@app.get("/api/downtimes/directory", response_model=list[schemas.DowntimeDirectory])
+def get_downtime_directory(db: Session = Depends(get_db)):
+    return db.query(models.DowntimeDirectory).order_by(
+        models.DowntimeDirectory.department,
+        models.DowntimeDirectory.node,
+        models.DowntimeDirectory.breakdown
+    ).all()
+
+@app.post("/api/downtimes/directory", response_model=schemas.DowntimeDirectory)
+def create_downtime_directory_entry(data: schemas.DowntimeDirectoryCreate, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    entry = models.DowntimeDirectory(**data.model_dump())
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    
+    # Log audit
+    log = models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_name=admin.name,
+        action="CREATE",
+        target_table="downtime_directory",
+        target_id=entry.id,
+        details=f"Добавлена запись: {entry.department} -> {entry.node} -> {entry.breakdown} (Категория: {entry.category})"
+    )
+    db.add(log)
+    db.commit()
+    return entry
+
+@app.put("/api/downtimes/directory/{entry_id}", response_model=schemas.DowntimeDirectory)
+def update_downtime_directory_entry(entry_id: int, data: schemas.DowntimeDirectoryCreate, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    entry = db.query(models.DowntimeDirectory).get(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+    
+    old_details = f"{entry.department} -> {entry.node} -> {entry.breakdown} (Категория: {entry.category}, Комментарий: {entry.comment})"
+    
+    entry.department = data.department
+    entry.node = data.node
+    entry.breakdown = data.breakdown
+    entry.category = data.category
+    entry.comment = data.comment
+    db.commit()
+    db.refresh(entry)
+    
+    new_details = f"{entry.department} -> {entry.node} -> {entry.breakdown} (Категория: {entry.category}, Комментарий: {entry.comment})"
+    
+    # Log audit
+    log = models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_name=admin.name,
+        action="UPDATE",
+        target_table="downtime_directory",
+        target_id=entry.id,
+        details=f"Изменена запись ID {entry_id}: {old_details} -> {new_details}"
+    )
+    db.add(log)
+    db.commit()
+    return entry
+
+@app.delete("/api/downtimes/directory/{entry_id}")
+def delete_downtime_directory_entry(entry_id: int, request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    entry = db.query(models.DowntimeDirectory).get(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Запись не найдена")
+    
+    log = models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_name=admin.name,
+        action="DELETE",
+        target_table="downtime_directory",
+        target_id=entry.id,
+        details=f"Удалена запись ID {entry_id}: {entry.department} -> {entry.node} -> {entry.breakdown}"
+    )
+    db.add(log)
+    db.delete(entry)
+    db.commit()
+    return {"status": "ok"}
+
+
 # --- ПРОСТОИ ---
 @app.post("/api/upload_media/")
 async def upload_media(file: UploadFile = File(...)):
@@ -485,10 +632,26 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, db: Session = D
     lost_tons = (duration / 60.0) * TONS_PER_HOUR
     lost_tenge = lost_tons * PRICE_PER_TON
     
-    status = "resolved" if data.end_time and data.category else "pending"
+    status = "resolved" if data.end_time else "pending"
+    
+    category_val = data.category
+    if not category_val and data.department and data.node and data.description:
+        dir_entry = db.query(models.DowntimeDirectory).filter(
+            models.DowntimeDirectory.department == data.department,
+            models.DowntimeDirectory.node == data.node,
+            models.DowntimeDirectory.breakdown == data.description
+        ).first()
+        if dir_entry and dir_entry.category:
+            category_val = dir_entry.category
+        else:
+            from import_downtimes_from_txt import get_category
+            category_val = get_category(data.description, data.node, data.department)
+
+    dt_data = data.model_dump(exclude={"status", "category"})
+    dt_data["category"] = category_val
     
     db_dt = models.Downtime(
-        **data.model_dump(exclude={"status"}),
+        **dt_data,
         shift_id=shift_id,
         duration=duration,
         lost_tons=lost_tons,
@@ -521,11 +684,25 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, db: Session = Depe
     lost_tons = (duration / 60.0) * TONS_PER_HOUR
     lost_tenge = lost_tons * PRICE_PER_TON
     
-    status = "resolved" if data.end_time and data.category else "pending"
+    status = "resolved" if data.end_time else "pending"
     
+    category_val = data.category
+    if not category_val and data.department and data.node and data.description:
+        dir_entry = db.query(models.DowntimeDirectory).filter(
+            models.DowntimeDirectory.department == data.department,
+            models.DowntimeDirectory.node == data.node,
+            models.DowntimeDirectory.breakdown == data.description
+        ).first()
+        if dir_entry and dir_entry.category:
+            category_val = dir_entry.category
+        else:
+            from import_downtimes_from_txt import get_category
+            category_val = get_category(data.description, data.node, data.department)
+            
     dt.start_time = data.start_time
     dt.end_time = data.end_time
-    dt.category = data.category
+    dt.category = category_val
+    dt.department = data.department
     dt.node = data.node
     dt.description = data.description
     dt.media_urls = data.media_urls
@@ -535,6 +712,7 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, db: Session = Depe
     dt.status = status
     
     db.commit()
+
     db.refresh(dt)
     return dt
 

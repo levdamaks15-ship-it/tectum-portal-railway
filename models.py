@@ -68,6 +68,7 @@ class Downtime(Base):
     end_time = Column(String, nullable=True)
     duration = Column(Integer, default=0)
     category = Column(String, nullable=True)
+    department = Column(String, nullable=True)
     node = Column(String)
     description = Column(String, nullable=True)
     media_urls = Column(String, nullable=True) # JSON string
@@ -166,4 +167,14 @@ class AuditLog(Base):
     target_table = Column(String)
     target_id = Column(Integer, nullable=True)
     details = Column(String, nullable=True)
+
+class DowntimeDirectory(Base):
+    __tablename__ = "downtime_directory"
+    id = Column(Integer, primary_key=True, index=True)
+    department = Column(String)
+    node = Column(String)
+    breakdown = Column(String)
+    category = Column(String, nullable=True)
+    comment = Column(String, nullable=True)
+
 

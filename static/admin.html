@@ -91,7 +91,9 @@
             <div class="admin-nav-item" onclick="switchAdminTab('shifts')" id="nav-shifts"><i class="fa-solid fa-calendar-days"></i> Управление сменами</div>
             <div class="admin-nav-item" onclick="switchAdminTab('cleanup')" id="nav-cleanup"><i class="fa-solid fa-trash-can"></i> Очистка данных</div>
             <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('downtimes-dir')" id="nav-downtimes-dir"><i class="fa-solid fa-list-check"></i> Справочник простоев</div>
             <div style="flex-grow: 1;"></div>
+
             <button onclick="window.location.href='/'" style="background: transparent; border: 1px solid var(--glass-border);"><i class="fa-solid fa-arrow-left"></i> На портал</button>
         </div>
 
@@ -209,10 +211,32 @@
                         </tbody>
                     </table>
                 </div>
+            <!-- Downtime Directory Tab -->
+            <div id="tab-downtimes-dir" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2>Справочник поломок (простоев)</h2>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <input type="text" id="downtimes-dir-search" placeholder="Поиск поломки..." oninput="filterDowntimesDirTable()" style="width: 250px; padding: 0.4rem 0.8rem; font-size: 0.9rem;">
+                        <button onclick="openDowntimeDirModal()" style="width: auto; padding: 0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
+                    </div>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>Участок</th><th>Узел/Подузел</th><th>Поломка (Неисправность)</th><th>Категория</th><th>Комментарий</th><th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="downtimes-dir-table-body">
+                            <tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
         </div>
     </div>
+
 
     <!-- Master Modal -->
     <div id="master-modal" class="modal">
@@ -252,7 +276,46 @@
         </div>
     </div>
 
+    <!-- Downtime Directory Modal -->
+    <div id="downtime-dir-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="downtime-dir-modal-title" style="margin-bottom: 1.5rem;">Запись справочника</h3>
+            <input type="hidden" id="downtime-dir-id">
+            <div class="form-group">
+                <label>Участок (Отделение)</label>
+                <input type="text" id="downtime-dir-dept" placeholder="например, ЛФМ">
+            </div>
+            <div class="form-group">
+                <label>Узел / Подузел</label>
+                <input type="text" id="downtime-dir-node" placeholder="например, Ковшевая мешалка">
+            </div>
+            <div class="form-group">
+                <label>Поломка (Неисправность)</label>
+                <input type="text" id="downtime-dir-breakdown" placeholder="например, Замена подшипника">
+            </div>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="downtime-dir-category">
+                    <option value="Механические">Механические</option>
+                    <option value="Энергетические">Энергетические</option>
+                    <option value="Технологические">Технологические</option>
+                    <option value="ТО и ППР">ТО и ППР</option>
+                    <option value="Остановки не связанные с простоем оборудования">Остановки не связанные с простоем оборудования</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Комментарий / Пример (необязательно)</label>
+                <input type="text" id="downtime-dir-comment" placeholder="например, Сгорел двигатель">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button onclick="closeModals()" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveDowntimeDirEntry()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Norm Modal -->
+
     <div id="norm-modal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <h3 id="norm-modal-title" style="margin-bottom: 1.5rem;">Норма продукции</h3>
@@ -437,8 +500,9 @@
                 <table class="data-table" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th>Время</th><th>Длительность (мин)</th><th>Причина</th><th>Действия</th>
+                            <th>Время</th><th>Длительность (мин)</th><th>Причина</th><th>Категория</th><th>Действия</th>
                         </tr>
+
                     </thead>
                     <tbody id="shift-details-downtimes-body"></tbody>
                 </table>
@@ -503,10 +567,21 @@
             <div class="form-group"><label>Время простоя</label><input type="text" id="edit-downtime-time"></div>
             <div class="form-group"><label>Длительность (мин)</label><input type="number" id="edit-downtime-duration"></div>
             <div class="form-group"><label>Причина</label><input type="text" id="edit-downtime-reason"></div>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="edit-downtime-category">
+                    <option value="Механические">Механические</option>
+                    <option value="Энергетические">Энергетические</option>
+                    <option value="Технологические">Технологические</option>
+                    <option value="ТО и ППР">ТО и ППР</option>
+                    <option value="Остановки не связанные с простоем оборудования">Остановки не связанные с простоем оборудования</option>
+                </select>
+            </div>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button onclick="document.getElementById('edit-downtime-modal').style.display='none'" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
                 <button onclick="saveDowntimeEdit()" class="btn-save">Сохранить</button>
             </div>
+
         </div>
     </div>
 

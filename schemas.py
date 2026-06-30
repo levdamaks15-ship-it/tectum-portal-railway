@@ -61,6 +61,7 @@ class DowntimeBase(BaseModel):
     start_time: str
     end_time: Optional[str] = None
     category: Optional[str] = None
+    department: Optional[str] = None
     node: str
     description: str
     media_urls: Optional[str] = None
@@ -236,3 +237,20 @@ class MonthlyPlanBoard(MonthlyPlanBoardBase):
 
     class Config:
         from_attributes = True
+
+class DowntimeDirectoryBase(BaseModel):
+    department: str
+    node: str
+    breakdown: str
+    category: Optional[str] = None
+    comment: Optional[str] = None
+
+class DowntimeDirectoryCreate(DowntimeDirectoryBase):
+    pass
+
+class DowntimeDirectory(DowntimeDirectoryBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+

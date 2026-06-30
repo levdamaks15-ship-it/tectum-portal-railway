@@ -377,6 +377,8 @@ function switchTab(tabId) {
         loadArchive();
     } else if (tabId === 'materials') {
         loadMaterialsReport();
+    } else if (tabId === 'downtimes') {
+        loadDowntimeDepartments();
     } else if (tabId === 'plan-board') {
         loadDirectorPlanBoard();
     } else if (tabId === 'daily-report') {
@@ -479,27 +481,39 @@ async function createShift() {
     const line = document.getElementById('shift-line').value;
     if (!date) return alert("Выберите дату");
     
-    await fetch('/api/shifts/', {
+    const res = await fetch('/api/shifts/', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             date: date, shift_name: name, line: line, master_id: currentUser.id
         })
     });
-    alert("Смена начата");
+    if (res.ok) {
+        alert("Смена начата");
+    } else {
+        const err = await res.json();
+        alert("Ошибка открытия смены: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
+
 
 async function closeShift() {
     if (!activeShiftId) return;
     if (!confirm("Вы уверены, что хотите закрыть текущую смену?")) return;
     
-    await fetch(`/api/shifts/${activeShiftId}/close`, {
+    const res = await fetch(`/api/shifts/${activeShiftId}/close`, {
         method: 'PUT'
     });
-    alert("Смена закрыта!");
+    if (res.ok) {
+        alert("Смена закрыта!");
+    } else {
+        const err = await res.json();
+        alert("Ошибка при закрытии смены: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
+
 
 async function viewShift(shiftId) {
     const res = await fetch(`/api/shifts/${shiftId}`);
@@ -809,18 +823,22 @@ async function addJournalDowntime() {
     if (!activeShiftId) return alert("Нет активной смены");
     const start_time = document.getElementById(`journal-dt-start`).value;
     const end_time = document.getElementById(`journal-dt-end`).value || null;
-    const category = document.getElementById(`journal-dt-cat`).value || null;
+    const category = null;
+    const department = document.getElementById(`journal-dt-dept`).value;
     const node = document.getElementById(`journal-dt-node`).value;
-    const description = document.getElementById(`journal-dt-desc`).value;
+    const subnode = document.getElementById(`journal-dt-subnode`).value;
+    const combinedNode = subnode ? `${node} - ${subnode}` : node;
+    const breakdownSelect = document.getElementById(`journal-dt-breakdown`);
+    const description = breakdownSelect.value === 'Другое' ? document.getElementById(`journal-dt-desc`).value : (breakdownSelect.value || document.getElementById(`journal-dt-desc`).value);
     
-    if (!start_time || !node) return alert("Заполните обязательные поля (Время начала, Узел)");
+    if (!start_time || !department || !node) return alert("Заполните обязательные поля (Время начала, Участок, Узел)");
     
     const media_urls = currentMediaUrls.length > 0 ? JSON.stringify(currentMediaUrls) : null;
     
     await fetch(`/api/shifts/${activeShiftId}/downtimes`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ start_time, end_time, category, node, description, media_urls })
+        body: JSON.stringify({ start_time, end_time, category, department, node: combinedNode, description, media_urls })
     });
     alert("Простой зарегистрирован!");
     document.getElementById(`journal-dt-start`).value = '';
@@ -828,6 +846,14 @@ async function addJournalDowntime() {
     document.getElementById(`journal-dt-desc`).value = '';
     document.getElementById(`downtime-media`).value = '';
     document.getElementById('upload-status').style.display = 'none';
+    
+    // reset depts
+    document.getElementById(`journal-dt-dept`).value = '';
+    document.getElementById(`journal-dt-node`).innerHTML = '<option value="">-- Сначала выберите участок --</option>';
+    document.getElementById(`journal-dt-subnode`).innerHTML = '<option value="">-- Выберите подузел --</option>';
+    document.getElementById(`wrapper-dt-subnode`).style.display = 'none';
+    document.getElementById(`journal-dt-breakdown`).innerHTML = '<option value="">-- Сначала выберите узел --</option>';
+    
     currentMediaUrls = [];
     renderUploadedFiles();
     loadData();
@@ -863,6 +889,8 @@ function renderDowntimesTable(shift) {
             `;
         }
         
+        let dept_and_node = dt.department ? `${dt.department} / ${dt.node}` : dt.node;
+        
         return `
         <tr style="${dt.status === 'pending' ? 'background: rgba(255,165,0,0.1);' : ''}">
             <td>${shift.shift_name} (${shift.date})</td>
@@ -871,7 +899,7 @@ function renderDowntimesTable(shift) {
             <td>${dt.end_time || '-'}</td>
             <td>${dt.duration} мин</td>
             <td><span style="color:var(--danger-color)">-${dt.lost_tons.toFixed(1)} т / -${dt.lost_tenge.toLocaleString()} ₸</span></td>
-            <td>[${dt.category || '?'}]<br>${dt.node}</td>
+            <td>${dept_and_node}</td>
             <td>${dt.description}</td>
             <td>${mediaLinks}</td>
             <td>${actionButtons}</td>
@@ -882,16 +910,271 @@ function renderDowntimesTable(shift) {
     list.innerHTML = html;
 }
 
-function openEditDowntimeModal(id) {
+// --- DOWNTIME DYNAMIC DIRECTORY LOGIC ---
+let currentJournalNodes = [];
+let currentEditNodes = [];
+
+async function loadDowntimeDepartments() {
+    try {
+        const res = await fetch('/api/downtimes/directory/departments');
+        const depts = await res.json();
+        const select = document.getElementById('journal-dt-dept');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- Выберите участок --</option>' + 
+            depts.map(d => `<option value="${d}">${d}</option>`).join('');
+    } catch(e) {
+        console.error("Failed to load departments", e);
+    }
+}
+
+async function onJournalDeptChange() {
+    const dept = document.getElementById('journal-dt-dept').value;
+    const nodeSelect = document.getElementById('journal-dt-node');
+    const subnodeWrapper = document.getElementById('wrapper-dt-subnode');
+    const subnodeSelect = document.getElementById('journal-dt-subnode');
+    const breakdownSelect = document.getElementById('journal-dt-breakdown');
+    
+    nodeSelect.innerHTML = '<option value="">-- Выберите узел --</option>';
+    subnodeSelect.innerHTML = '<option value="">-- Выберите подузел --</option>';
+    breakdownSelect.innerHTML = '<option value="">-- Сначала выберите узел --</option>';
+    subnodeWrapper.style.display = 'none';
+    
+    if (!dept) return;
+    try {
+        const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
+        currentJournalNodes = await res.json();
+        
+        const primaryNodes = Array.from(new Set(currentJournalNodes.map(n => n.split(' - ')[0])));
+        nodeSelect.innerHTML = '<option value="">-- Выберите узел --</option>' + 
+            primaryNodes.map(n => `<option value="${n}">${n}</option>`).join('');
+    } catch(e) {
+        console.error("Failed to load nodes", e);
+    }
+}
+
+async function onJournalNodeChange() {
+    const dept = document.getElementById('journal-dt-dept').value;
+    const node = document.getElementById('journal-dt-node').value;
+    const subnodeWrapper = document.getElementById('wrapper-dt-subnode');
+    const subnodeSelect = document.getElementById('journal-dt-subnode');
+    const breakdownSelect = document.getElementById('journal-dt-breakdown');
+    
+    subnodeSelect.innerHTML = '<option value="">-- Выберите подузел --</option>';
+    breakdownSelect.innerHTML = '<option value="">-- Сначала выберите подузел --</option>';
+    
+    if (!dept || !node) {
+        subnodeWrapper.style.display = 'none';
+        return;
+    }
+    
+    const matchingRawNodes = currentJournalNodes.filter(n => n.startsWith(node + ' - ') || n === node);
+    const subnodes = matchingRawNodes
+        .filter(n => n.includes(' - '))
+        .map(n => n.split(' - ')[1]);
+        
+    if (subnodes.length > 0) {
+        subnodeWrapper.style.display = 'block';
+        subnodeSelect.innerHTML = '<option value="">-- Выберите подузел --</option>' + 
+            subnodes.map(s => `<option value="${s}">${s}</option>`).join('');
+    } else {
+        subnodeWrapper.style.display = 'none';
+        await loadBreakdowns(dept, node);
+    }
+}
+
+async function onJournalSubnodeChange() {
+    const dept = document.getElementById('journal-dt-dept').value;
+    const node = document.getElementById('journal-dt-node').value;
+    const subnode = document.getElementById('journal-dt-subnode').value;
+    
+    if (!subnode) return;
+    const combinedNode = `${node} - ${subnode}`;
+    await loadBreakdowns(dept, combinedNode);
+}
+
+async function loadBreakdowns(dept, combinedNode) {
+    const breakdownSelect = document.getElementById('journal-dt-breakdown');
+    breakdownSelect.innerHTML = '<option value="">-- Выберите поломку --</option>';
+    try {
+        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(combinedNode)}`);
+        const breakdowns = await res.json();
+        breakdownSelect.innerHTML = '<option value="">-- Выберите поломку --</option>' + 
+            breakdowns.map(b => `<option value="${b.breakdown}" data-comment="${b.comment || ''}">${b.breakdown}</option>`).join('') +
+            '<option value="Другое">Другое (ввести вручную)</option>';
+    } catch(e) {
+        console.error("Failed to load breakdowns", e);
+    }
+}
+
+function onJournalBreakdownChange() {
+    const breakdownSelect = document.getElementById('journal-dt-breakdown');
+    const selectedOption = breakdownSelect.options[breakdownSelect.selectedIndex];
+    const descInput = document.getElementById('journal-dt-desc');
+    
+    if (selectedOption && selectedOption.value === "Другое") {
+        descInput.value = '';
+        descInput.placeholder = "Введите описание поломки вручную";
+        descInput.focus();
+    } else if (selectedOption && selectedOption.value) {
+        const comment = selectedOption.getAttribute('data-comment');
+        descInput.value = selectedOption.value + (comment && comment !== "None" ? ` (${comment})` : '');
+    } else {
+        descInput.value = '';
+    }
+}
+
+async function loadEditDepartments(selectedDept = '', selectedNode = '', selectedBreakdown = '') {
+    try {
+        const res = await fetch('/api/downtimes/directory/departments');
+        const depts = await res.json();
+        const select = document.getElementById('edit-dt-dept');
+        if (!select) return;
+        select.innerHTML = '<option value="">-- Выберите участок --</option>' + 
+            depts.map(d => `<option value="${d}">${d}</option>`).join('');
+            
+        if (selectedDept) {
+            select.value = selectedDept;
+            await onEditDeptChange(selectedNode, selectedBreakdown);
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function onEditDeptChange(selectedNode = '', selectedBreakdown = '') {
+    const dept = document.getElementById('edit-dt-dept').value;
+    const nodeSelect = document.getElementById('edit-dt-node');
+    const subnodeWrapper = document.getElementById('wrapper-edit-dt-subnode');
+    const subnodeSelect = document.getElementById('edit-dt-subnode');
+    const breakdownSelect = document.getElementById('edit-dt-breakdown');
+    
+    nodeSelect.innerHTML = '<option value="">-- Выберите узел --</option>';
+    subnodeSelect.innerHTML = '<option value="">-- Выберите подузел --</option>';
+    breakdownSelect.innerHTML = '<option value="">-- Сначала выберите узел --</option>';
+    subnodeWrapper.style.display = 'none';
+    
+    if (!dept) return;
+    try {
+        const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
+        currentEditNodes = await res.json();
+        
+        const primaryNodes = Array.from(new Set(currentEditNodes.map(n => n.split(' - ')[0])));
+        nodeSelect.innerHTML = '<option value="">-- Выберите узел --</option>' + 
+            primaryNodes.map(n => `<option value="${n}">${n}</option>`).join('');
+            
+        if (selectedNode) {
+            const primaryNode = selectedNode.split(' - ')[0];
+            const subnode = selectedNode.includes(' - ') ? selectedNode.split(' - ')[1] : '';
+            nodeSelect.value = primaryNode;
+            await onEditNodeChange(subnode, selectedBreakdown);
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function onEditNodeChange(selectedSubnode = '', selectedBreakdown = '') {
+    const dept = document.getElementById('edit-dt-dept').value;
+    const node = document.getElementById('edit-dt-node').value;
+    const subnodeWrapper = document.getElementById('wrapper-edit-dt-subnode');
+    const subnodeSelect = document.getElementById('edit-dt-subnode');
+    const breakdownSelect = document.getElementById('edit-dt-breakdown');
+    
+    subnodeSelect.innerHTML = '<option value="">-- Выберите подузел --</option>';
+    breakdownSelect.innerHTML = '<option value="">-- Сначала выберите подузел --</option>';
+    
+    if (!dept || !node) {
+        subnodeWrapper.style.display = 'none';
+        return;
+    }
+    
+    const matchingRawNodes = currentEditNodes.filter(n => n.startsWith(node + ' - ') || n === node);
+    const subnodes = matchingRawNodes
+        .filter(n => n.includes(' - '))
+        .map(n => n.split(' - ')[1]);
+        
+    if (subnodes.length > 0) {
+        subnodeWrapper.style.display = 'block';
+        subnodeSelect.innerHTML = '<option value="">-- Выберите подузел --</option>' + 
+            subnodes.map(s => `<option value="${s}">${s}</option>`).join('');
+            
+        if (selectedSubnode) {
+            subnodeSelect.value = selectedSubnode;
+            await onEditSubnodeChange(selectedBreakdown);
+        }
+    } else {
+        subnodeWrapper.style.display = 'none';
+        await loadEditBreakdowns(dept, node, selectedBreakdown);
+    }
+}
+
+async function onEditSubnodeChange(selectedBreakdown = '') {
+    const dept = document.getElementById('edit-dt-dept').value;
+    const node = document.getElementById('edit-dt-node').value;
+    const subnode = document.getElementById('edit-dt-subnode').value;
+    
+    if (!subnode) return;
+    const combinedNode = `${node} - ${subnode}`;
+    await loadEditBreakdowns(dept, combinedNode, selectedBreakdown);
+}
+
+async function loadEditBreakdowns(dept, combinedNode, selectedBreakdown = '') {
+    const breakdownSelect = document.getElementById('edit-dt-breakdown');
+    breakdownSelect.innerHTML = '<option value="">-- Выберите поломку --</option>';
+    try {
+        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(combinedNode)}`);
+        const breakdowns = await res.json();
+        
+        let found = false;
+        let html = '<option value="">-- Выберите поломку --</option>';
+        breakdowns.forEach(b => {
+            html += `<option value="${b.breakdown}" data-comment="${b.comment || ''}">${b.breakdown}</option>`;
+            if (b.breakdown === selectedBreakdown) found = true;
+        });
+        html += '<option value="Другое">Другое (ввести вручную)</option>';
+        breakdownSelect.innerHTML = html;
+        
+        if (selectedBreakdown) {
+            if (found) {
+                breakdownSelect.value = selectedBreakdown;
+            } else {
+                breakdownSelect.value = "Другое";
+                document.getElementById('edit-dt-desc').value = selectedBreakdown;
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function onEditBreakdownChange() {
+    const breakdownSelect = document.getElementById('edit-dt-breakdown');
+    const selectedOption = breakdownSelect.options[breakdownSelect.selectedIndex];
+    const descInput = document.getElementById('edit-dt-desc');
+    
+    if (selectedOption && selectedOption.value === "Другое") {
+        descInput.value = '';
+        descInput.placeholder = "Введите описание поломки вручную";
+        descInput.focus();
+    } else if (selectedOption && selectedOption.value) {
+        const comment = selectedOption.getAttribute('data-comment');
+        descInput.value = selectedOption.value + (comment && comment !== "None" ? ` (${comment})` : '');
+    } else {
+        descInput.value = '';
+    }
+}
+
+async function openEditDowntimeModal(id) {
     const dt = currentDowntimes.find(d => d.id === id);
     if (!dt) return;
     
     document.getElementById('edit-dt-id').value = dt.id;
     document.getElementById('edit-dt-start').value = dt.start_time;
-    document.getElementById('edit-dt-end').value = dt.end_time;
-    document.getElementById('edit-dt-cat').value = dt.category;
-    document.getElementById('edit-dt-node').value = dt.node;
-    document.getElementById('edit-dt-desc').value = dt.description;
+    document.getElementById('edit-dt-end').value = dt.end_time || '';
+
+    document.getElementById('edit-dt-desc').value = dt.description || '';
+    
+    await loadEditDepartments(dt.department || '', dt.node || '', dt.description || '');
     
     document.getElementById('edit-dt-modal').style.display = 'block';
 }
@@ -904,16 +1187,20 @@ async function submitEditDowntime() {
     const id = document.getElementById('edit-dt-id').value;
     const start_time = document.getElementById('edit-dt-start').value;
     const end_time = document.getElementById('edit-dt-end').value;
-    const category = document.getElementById('edit-dt-cat').value;
+    const category = null;
+    const department = document.getElementById('edit-dt-dept').value;
     const node = document.getElementById('edit-dt-node').value;
-    const description = document.getElementById('edit-dt-desc').value;
+    const subnode = document.getElementById('edit-dt-subnode').value;
+    const combinedNode = subnode ? `${node} - ${subnode}` : node;
+    const breakdownSelect = document.getElementById('edit-dt-breakdown');
+    const description = breakdownSelect.value === 'Другое' ? document.getElementById('edit-dt-desc').value : (breakdownSelect.value || document.getElementById('edit-dt-desc').value);
     
-    if (!start_time || !end_time || !category || !node) return alert("Заполните обязательные поля");
+    if (!start_time || !end_time || !department || !node) return alert("Заполните обязательные поля (Время начала, Конец, Участок, Узел)");
     
     await fetch(`/api/downtimes/${id}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ start_time, end_time, category, node, description })
+        body: JSON.stringify({ start_time, end_time, category, department, node: combinedNode, description })
     });
     
     closeEditDowntimeModal();
@@ -1112,7 +1399,6 @@ async function renderDashboard(shiftDataParam = null) {
             dMinutes += d.duration;
             dTons += d.lost_tons;
             dTenge += d.lost_tenge;
-            dtByCat[d.category] = (dtByCat[d.category] || 0) + d.duration;
             dtNodesMap[d.node] = (dtNodesMap[d.node] || 0) + 1;
         }
         let topReasons = Object.entries(dtNodesMap).map(([node, count]) => ({node, count})).sort((a,b)=>b.count-a.count).slice(0,5);
@@ -1129,7 +1415,7 @@ async function renderDashboard(shiftDataParam = null) {
                 "Целлюлоза": { receipt: s.receipt_cellulose||0, zo: s.zo_cellulose||0 }
             },
             downtimes: {
-                total_minutes: dMinutes, lost_tons: dTons, lost_tenge: dTenge, by_category: dtByCat, top_reasons: topReasons
+                total_minutes: dMinutes, lost_tons: dTons, lost_tenge: dTenge, top_reasons: topReasons
             }
         };
     } else {
@@ -1243,23 +1529,7 @@ async function renderDashboard(shiftDataParam = null) {
     document.getElementById('kpi-dt-tons').innerText = stats.downtimes.lost_tons.toFixed(1) + ' т';
     document.getElementById('kpi-dt-tenge').innerText = stats.downtimes.lost_tenge.toLocaleString() + ' ₸';
 
-    // 5. Простои - Категории (Doughnut)
-    const ctxDtCat = document.getElementById('chart-dt-category').getContext('2d');
-    if (chartDtCategory) chartDtCategory.destroy();
-    
-    chartDtCategory = new Chart(ctxDtCat, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(stats.downtimes.by_category).length ? Object.keys(stats.downtimes.by_category) : ['Нет простоев'],
-            datasets: [{
-                data: Object.keys(stats.downtimes.by_category).length ? Object.values(stats.downtimes.by_category) : [1],
-                backgroundColor: Object.keys(stats.downtimes.by_category).length ? ['#ff6384','#36a2eb','#ffce56','#4bc0c0','#9966ff'] : ['rgba(255,255,255,0.1)'],
-                borderColor: 'rgba(255,255,255,0.2)',
-                borderWidth: 1
-            }]
-        },
-        options: { plugins: { legend: { position: 'right', labels: { color: textCol } } } }
-    });
+
 
     // 6. Простои - Узлы (Bar)
     const ctxDtNodes = document.getElementById('chart-dt-nodes').getContext('2d');
@@ -1288,7 +1558,47 @@ async function renderDashboard(shiftDataParam = null) {
             }
         }
     });
+
+    // 7. Простои - Категории (Doughnut)
+    const ctxDtCategory = document.getElementById('chart-dt-category').getContext('2d');
+    if (chartDtCategory) chartDtCategory.destroy();
+
+    const catLabels = Object.keys(stats.downtimes.by_category || {});
+    const catData = Object.values(stats.downtimes.by_category || {});
+
+    const finalLabels = catLabels.length ? catLabels : ['Нет данных'];
+    const finalData = catData.length ? catData : [0];
+
+    chartDtCategory = new Chart(ctxDtCategory, {
+        type: 'doughnut',
+        data: {
+            labels: finalLabels,
+            datasets: [{
+                data: finalData,
+                backgroundColor: [
+                    'rgba(23, 162, 184, 0.8)',  // Teal (Технологические)
+                    'rgba(255, 193, 7, 0.8)',   // Yellow (Энергетические)
+                    'rgba(40, 167, 69, 0.8)',   // Green (Механические)
+                    'rgba(220, 53, 69, 0.8)',   // Red (Остановки внешние)
+                    'rgba(111, 66, 193, 0.8)'   // Purple (ТО и ППР)
+                ],
+                borderColor: 'var(--glass-border)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: textCol, boxWidth: 12 }
+                }
+            }
+        }
+    });
 }
+
 
 async function fetchMaterialsSummary(shiftId) {
     try {

@@ -436,26 +436,29 @@
                                 <label style="font-size: 0.8rem; color: var(--text-secondary);">Время окончания</label>
                                 <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ">
                             </div>
-                            <div id="wrapper-dt-cat">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Категория</label>
-                                <select id="journal-dt-cat">
-                                    <option value="">-- Выберите --</option>
-                                    <option value="Электромеханика">Электромеханика</option>
-                                    <option value="АСУ ТП">АСУ ТП</option>
-                                    <option value="Технология">Технология</option>
-                                    <option value="Организационные">Организационные</option>
-                                    <option value="Внешние">Внешние</option>
+
+                            <div>
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
+                                <select id="journal-dt-dept" onchange="onJournalDeptChange()">
+                                    <option value="">-- Выберите участок --</option>
                                 </select>
                             </div>
                             <div>
                                 <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
-                                <select id="journal-dt-node">
-                                    <option value="">-- Выберите --</option>
-                                    <option value="Заготовительное отделение (ЗО)">Заготовительное отделение (ЗО)</option>
-                                    <option value="Линия Формовки (ЛФМ)">Линия Формовки (ЛФМ)</option>
-                                    <option value="Конвейер ЛФМ">Конвейер ЛФМ</option>
-                                    <option value="Стакер / Транспортер">Стакер / Транспортер</option>
-                                    <option value="Прочее">Прочее</option>
+                                <select id="journal-dt-node" onchange="onJournalNodeChange()">
+                                    <option value="">-- Сначала выберите участок --</option>
+                                </select>
+                            </div>
+                            <div id="wrapper-dt-subnode" style="display: none;">
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Подузел</label>
+                                <select id="journal-dt-subnode" onchange="onJournalSubnodeChange()">
+                                    <option value="">-- Выберите подузел --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
+                                <select id="journal-dt-breakdown" onchange="onJournalBreakdownChange()">
+                                    <option value="">-- Сначала выберите узел --</option>
                                 </select>
                             </div>
                         </div>
@@ -493,7 +496,7 @@
                                     <th>Конец</th>
                                     <th>Длительность</th>
                                     <th>Потери (Тонны / Тенге)</th>
-                                    <th>Узел и Категория</th>
+                                    <th>Участок / Узел / Кат.</th>
                                     <th>Описание</th>
                                     <th>Медиа</th>
                                     <th>Действия</th>
@@ -545,15 +548,18 @@
                         </div>
 
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <h4 style="text-align: center; margin-bottom: 0.5rem;">По Категориям</h4>
-                                <canvas id="chart-dt-category"></canvas>
-                            </div>
+
                             <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
                                 <h4 style="text-align: center; margin-bottom: 0.5rem;">Топ Узлов (кол-во остановок)</h4>
                                 <canvas id="chart-dt-nodes"></canvas>
                             </div>
+
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Простои по категориям (мин)</h4>
+                                <canvas id="chart-dt-category"></canvas>
+                            </div>
                         </div>
+
                     </div>
 
                 </div>
@@ -812,28 +818,33 @@
                 <input type="text" class="time-picker" id="edit-dt-end">
             </div>
         </div>
+
         <div style="margin-bottom: 1rem;">
-            <label>Категория</label>
-            <select id="edit-dt-cat">
-                <option value="Электромеханика">Электромеханика</option>
-                <option value="АСУ ТП">АСУ ТП</option>
-                <option value="Технология">Технология</option>
-                <option value="Организационные">Организационные</option>
-                <option value="Внешние">Внешние</option>
+            <label>Участок / Отделение</label>
+            <select id="edit-dt-dept" onchange="onEditDeptChange()">
+                <option value="">-- Выберите участок --</option>
             </select>
         </div>
         <div style="margin-bottom: 1rem;">
             <label>Узел / Оборудование</label>
-            <select id="edit-dt-node">
-                <option value="Заготовительное отделение (ЗО)">Заготовительное отделение (ЗО)</option>
-                <option value="Линия Формовки (ЛФМ)">Линия Формовки (ЛФМ)</option>
-                <option value="Конвейер ЛФМ">Конвейер ЛФМ</option>
-                <option value="Стакер / Транспортер">Стакер / Транспортер</option>
-                <option value="Прочее">Прочее</option>
+            <select id="edit-dt-node" onchange="onEditNodeChange()">
+                <option value="">-- Сначала выберите участок --</option>
+            </select>
+        </div>
+        <div id="wrapper-edit-dt-subnode" style="display: none; margin-bottom: 1rem;">
+            <label>Подузел</label>
+            <select id="edit-dt-subnode" onchange="onEditSubnodeChange()">
+                <option value="">-- Выберите подузел --</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 1rem;">
+            <label>Поломка / Причина</label>
+            <select id="edit-dt-breakdown" onchange="onEditBreakdownChange()">
+                <option value="">-- Сначала выберите узел --</option>
             </select>
         </div>
         <div style="margin-bottom: 1.5rem;">
-            <label>Описание</label>
+            <label>Описание / Комментарий</label>
             <input type="text" id="edit-dt-desc">
         </div>
         <div style="display:flex; gap: 1rem;">
@@ -843,6 +854,6 @@
     </div>
     
 
-    <script src="/static/js/app.js?v=20260630_v2"></script>
+    <script src="/static/js/app.js?v=20260630_v3"></script>
 </body>
 </html>
