@@ -455,9 +455,13 @@ async function loadData() {
     } else {
         document.getElementById('active-shift-display').innerText = "Нет открытой смены";
         activeShiftId = null;
-        document.getElementById('btn-close-shift').style.display = 'none';
-        document.getElementById('shift-dev-indicator').style.display = 'none';
-        document.getElementById('readonly-badge').style.display = 'none';
+        const btnClose = document.getElementById('btn-close-shift');
+        if (btnClose) btnClose.style.display = 'none';
+        const devInd = document.getElementById('shift-dev-indicator');
+        if (devInd) devInd.style.display = 'none';
+        const readOnly = document.getElementById('readonly-badge');
+        if (readOnly) readOnly.style.display = 'none';
+        applyShiftMode(null);
     }
     
     if (currentUser.role === 'director') {
@@ -562,12 +566,18 @@ async function viewShift(shiftId) {
 }
 
 function applyShiftMode(shift) {
-    const isClosed = shift.status === 'closed';
-    document.getElementById('readonly-badge').style.display = isClosed ? 'block' : 'none';
-    document.getElementById('btn-close-shift').style.display = isClosed ? 'none' : 'inline-block';
+    const isClosed = !shift || shift.status === 'closed';
+    const readonlyBadge = document.getElementById('readonly-badge');
+    if (readonlyBadge) {
+        readonlyBadge.style.display = (shift && shift.status === 'closed') ? 'block' : 'none';
+    }
+    const btnCloseShift = document.getElementById('btn-close-shift');
+    if (btnCloseShift) {
+        btnCloseShift.style.display = (shift && shift.status !== 'closed') ? 'inline-block' : 'none';
+    }
     
-    // Disable inputs and buttons in production if closed
-    const forms = ['master-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view'];
+    // Disable inputs and buttons in production if closed or no shift
+    const forms = ['zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'master-view'];
     forms.forEach(f => {
         const el = document.getElementById(f);
         if (el) {
@@ -590,7 +600,7 @@ function applyShiftMode(shift) {
     // Special logic for ZO
     const zoView = document.getElementById('zo-view');
     if (zoView) {
-        const isZoLocked = isClosed || shift.zo_submitted;
+        const isZoLocked = isClosed || (shift && shift.zo_submitted);
         const inputs = zoView.querySelectorAll('input, select, button');
         inputs.forEach(input => {
             if(input.innerText !== 'Обновить' && !input.getAttribute('onclick')?.includes('switchTab')) {
@@ -604,7 +614,10 @@ function applyShiftMode(shift) {
                  }
             }
         });
-        document.getElementById('zo-lock-msg').style.display = (shift.zo_submitted && !isClosed) ? 'block' : 'none';
+        const zoLockMsg = document.getElementById('zo-lock-msg');
+        if (zoLockMsg) {
+            zoLockMsg.style.display = (shift && shift.zo_submitted && shift.status !== 'closed') ? 'block' : 'none';
+        }
     }
 }
 
