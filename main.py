@@ -1287,16 +1287,26 @@ def get_materials_report(shift_id: int, db: Session = Depends(get_db)):
         ("Стекловолокно", shift.zo_fiberglass, theoretical["fiberglass"])
     ]
     
+    total_sheets = sum(product_counts.values())
+    
     for mat_name, actual, theory in mapping:
         actual_val = actual or 0.0
         theory_val = theory or 0.0
         dev = actual_val - theory_val
         total_dev += dev
+        
+        unit_actual = actual_val / total_sheets if total_sheets > 0 else 0.0
+        unit_theory = theory_val / total_sheets if total_sheets > 0 else 0.0
+        unit_dev = dev / total_sheets if total_sheets > 0 else 0.0
+        
         details.append({
             "material": mat_name,
             "actual": round(actual_val, 2),
             "theoretical": round(theory_val, 2),
-            "deviation": round(dev, 2)
+            "deviation": round(dev, 2),
+            "unit_actual": round(unit_actual, 4),
+            "unit_theoretical": round(unit_theory, 4),
+            "unit_deviation": round(unit_dev, 4)
         })
         
     return {

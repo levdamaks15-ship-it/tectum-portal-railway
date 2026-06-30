@@ -1309,7 +1309,7 @@ async function fetchMaterialsSummary(shiftId) {
 
 async function loadMaterialsReport() {
     if (!activeShiftId) {
-        document.getElementById('materials-report-list').innerHTML = '<tr><td colspan="4" style="text-align:center;">Нет активной смены</td></tr>';
+        document.getElementById('materials-report-list').innerHTML = '<tr><td colspan="7" style="text-align:center;">Нет активной смены</td></tr>';
         return;
     }
     
@@ -1319,7 +1319,7 @@ async function loadMaterialsReport() {
         
         const tbody = document.getElementById('materials-report-list');
         if (!data.details || data.details.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Нет данных</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Нет данных</td></tr>';
             return;
         }
         
@@ -1328,12 +1328,19 @@ async function loadMaterialsReport() {
             if (d.deviation > 0) color = 'var(--danger-color)';
             else if (d.deviation < 0) color = 'var(--success-color)';
             
+            const unitAct = d.unit_actual !== undefined ? d.unit_actual : 0;
+            const unitTheo = d.unit_theoretical !== undefined ? d.unit_theoretical : 0;
+            const unitDev = d.unit_deviation !== undefined ? d.unit_deviation : 0;
+            
             return `
                 <tr>
                     <td>${d.material}</td>
                     <td>${d.actual}</td>
                     <td>${d.theoretical}</td>
                     <td style="color: ${color}; font-weight: bold;">${d.deviation > 0 ? '+' : ''}${d.deviation}</td>
+                    <td>${unitAct}</td>
+                    <td>${unitTheo}</td>
+                    <td style="color: ${color}; font-weight: bold;">${unitDev > 0 ? '+' : ''}${unitDev}</td>
                 </tr>
             `;
         }).join('');
@@ -1341,7 +1348,7 @@ async function loadMaterialsReport() {
         tbody.innerHTML = html;
         
     } catch (e) {
-        document.getElementById('materials-report-list').innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--danger-color);">Ошибка загрузки</td></tr>';
+        document.getElementById('materials-report-list').innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--danger-color);">Ошибка загрузки</td></tr>';
     }
 }
 

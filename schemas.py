@@ -207,6 +207,9 @@ class MaterialDeviation(BaseModel):
     actual: float
     theoretical: float
     deviation: float
+    unit_actual: Optional[float] = 0.0
+    unit_theoretical: Optional[float] = 0.0
+    unit_deviation: Optional[float] = 0.0
 
 class RawMaterialReport(BaseModel):
     shift_id: int
