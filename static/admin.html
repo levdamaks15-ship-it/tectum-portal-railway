@@ -92,6 +92,9 @@
             <div class="admin-nav-item" onclick="switchAdminTab('cleanup')" id="nav-cleanup"><i class="fa-solid fa-trash-can"></i> Очистка данных</div>
             <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-dir')" id="nav-downtimes-dir"><i class="fa-solid fa-list-check"></i> Справочник простоев</div>
+            
+            <button id="btn-sync-sharepoint" onclick="syncDirectoriesFromSharepoint()" style="background: #217346; margin-top: 1.5rem; margin-bottom: 0.5rem; width: 100%;"><i class="fa-solid fa-arrows-rotate"></i> Синхронизация с M365</button>
+            
             <div style="flex-grow: 1;"></div>
 
             <button onclick="window.location.href='/'" style="background: transparent; border: 1px solid var(--glass-border);"><i class="fa-solid fa-arrow-left"></i> На портал</button>

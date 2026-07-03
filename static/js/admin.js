@@ -1108,4 +1108,39 @@ async function deleteDowntimeDirEntry(id) {
     }
 }
 
+async function syncDirectoriesFromSharepoint() {
+    const btn = document.getElementById('btn-sync-sharepoint');
+    const originalText = btn.innerHTML;
+    
+    if (!confirm("Вы действительно хотите синхронизировать все нормативы и справочник простоев из файла Справочники_Tectum.xlsx в SharePoint? Это перезапишет текущие справочники на портале!")) {
+        return;
+    }
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Синхронизация...';
+        
+        const res = await fetch('/api/admin/sync_directories_sharepoint', {
+            method: 'POST'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Синхронизация выполнена успешно!");
+            loadNorms();
+            if (typeof loadDowntimesDir === 'function') {
+                loadDowntimesDir();
+            }
+        } else {
+            alert("Ошибка синхронизации: " + (data.detail || "Неизвестная ошибка"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при выполнении синхронизации: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 

@@ -6,6 +6,7 @@ from database import SessionLocal, engine, Base
 import models, schemas
 import os
 import m365_integration
+import excel_exporter
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy import or_, func
@@ -92,6 +93,13 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE shifts ADD COLUMN sharepoint_url VARCHAR(500)")
+        conn.commit()
+        conn.close()
+    except: pass
+
     
     db = SessionLocal()
 
@@ -130,6 +138,25 @@ async def lifespan(app: FastAPI):
         db.close()
     
     seed_norms.seed_norms()
+
+    # SharePoint directories bootstrap/sync check
+    db = SessionLocal()
+    try:
+        if not m365_integration.check_file_exists_on_sharepoint("Справочники_Tectum.xlsx", folder="Shifts"):
+            print("Справочники_Tectum.xlsx is missing on SharePoint, uploading initial template...")
+            template_bytes = excel_exporter.create_initial_directories_xlsx(db)
+            m365_integration.upload_file_to_sharepoint(template_bytes, "Справочники_Tectum.xlsx", folder="Shifts")
+            print("Template uploaded successfully.")
+        else:
+            print("Справочники_Tectum.xlsx exists on SharePoint, syncing directories...")
+            file_bytes = m365_integration.download_file_from_sharepoint("Справочники_Tectum.xlsx", folder="Shifts")
+            excel_exporter.sync_directories_from_excel_bytes(file_bytes, db)
+            print("Directories auto-synced from SharePoint successfully.")
+    except Exception as e:
+        print(f"Error checking/syncing directories with SharePoint on startup: {e}")
+    finally:
+        db.close()
+
     yield
 
 app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan)
@@ -384,7 +411,108 @@ def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
         
     shift.status = "closed"
     db.commit()
+    
+    # Generate Excel passport in memory and upload to SharePoint
+    try:
+        file_bytes, filename = excel_exporter.generate_shift_excel_passport(shift_id, db)
+        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Shifts_Passport")
+        shift.sharepoint_url = web_url
+        db.commit()
+        
+        # Log to AuditLog
+        audit_detail = f"Смена {shift_id} закрыта. Паспорт смены сгенерирован и загружен в SharePoint: {web_url}"
+        db.add(models.AuditLog(
+            user_name=request.session.get("user_email") or f"user_{user_id}",
+            action="UPDATE",
+            target_table="shifts",
+            target_id=shift_id,
+            details=audit_detail
+        ))
+        db.commit()
+    except Exception as e:
+        print(f"Error generating/uploading shift passport Excel: {e}")
+        audit_detail = f"Смена {shift_id} закрыта. Ошибка загрузки паспорта в SharePoint: {str(e)}"
+        try:
+            db.add(models.AuditLog(
+                user_name=request.session.get("user_email") or f"user_{user_id}",
+                action="UPDATE",
+                target_table="shifts",
+                target_id=shift_id,
+                details=audit_detail
+            ))
+            db.commit()
+        except: pass
+        
     return {"message": "Смена закрыта"}
+
+@app.get("/api/shifts/{shift_id}/download_passport")
+def download_shift_passport(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(404, "Смена не найдена")
+        
+    # If sharepoint_url is already available, redirect to it
+    if shift.sharepoint_url:
+        return RedirectResponse(url=shift.sharepoint_url)
+        
+    # If not available (e.g. upload failed initially or it's an old shift), generate and upload now
+    try:
+        file_bytes, filename = excel_exporter.generate_shift_excel_passport(shift_id, db)
+        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Shifts_Passport")
+        shift.sharepoint_url = web_url
+        db.commit()
+        return RedirectResponse(url=web_url)
+    except Exception as e:
+        print(f"SharePoint upload failed in download_passport fallback: {e}")
+        # Fallback to local on-the-fly download if SharePoint is totally failing
+        try:
+            file_bytes, filename = excel_exporter.generate_shift_excel_passport(shift_id, db)
+            from fastapi import Response
+            from urllib.parse import quote
+            safe_filename = quote(filename)
+            return Response(
+                content=file_bytes, 
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+                headers={'Content-Disposition': f'attachment; filename="{safe_filename}"; filename*=UTF-8\'\'{safe_filename}'}
+            )
+        except Exception as inner_e:
+            raise HTTPException(500, f"Не удалось сгенерировать паспорт смены: {str(e)} | fallback error: {str(inner_e)}")
+
+@app.post("/api/admin/sync_directories_sharepoint")
+def sync_directories_sharepoint(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ разрешен только администраторам")
+        
+    try:
+        # Check if directories file exists
+        if not m365_integration.check_file_exists_on_sharepoint("Справочники_Tectum.xlsx", folder="Shifts"):
+            # Create a template and upload it
+            template_bytes = excel_exporter.create_initial_directories_xlsx(db)
+            m365_integration.upload_file_to_sharepoint(template_bytes, "Справочники_Tectum.xlsx", folder="Shifts")
+            return {"status": "ok", "message": "Файл Справочники_Tectum.xlsx отсутствовал на SharePoint. Создан шаблон и загружен в облако."}
+            
+        file_bytes = m365_integration.download_file_from_sharepoint("Справочники_Tectum.xlsx", folder="Shifts")
+        excel_exporter.sync_directories_from_excel_bytes(file_bytes, db)
+        
+        # Log to AuditLog
+        db.add(models.AuditLog(
+            user_name=request.session.get("user_email") or f"admin_{user_id}",
+            action="IMPORT",
+            target_table="product_norms/downtime_directory",
+            details="Синхронизация технологических норм и справочника простоев из файла Справочники_Tectum.xlsx в SharePoint."
+        ))
+        db.commit()
+        return {"status": "ok", "message": "Справочники успешно синхронизированы из SharePoint!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка синхронизации: {str(e)}")
 
 
 

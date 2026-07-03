@@ -2407,6 +2407,7 @@ async function loadArchive() {
                             <td>${(s.batches||[]).length} шт</td>
                             <td>
                                 <button onclick="exportShift(${s.id})" style="background: #217346; width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem;">🖨 Печать</button>
+                                <button onclick="window.open('/api/shifts/${s.id}/download_passport', '_blank')" style="background: #1F4E78; width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-left: 0.3rem;">🌐 Excel Паспорт</button>
                             </td>
                         </tr>
                     `;
@@ -2448,7 +2449,10 @@ function renderShiftBoard(boardData) {
                     <td style="color: ${factSheetsColor}; font-weight: bold;">${s.fact_sheets}</td>
                     <td>${s.plan_tons.toFixed(1)}</td>
                     <td style="color: ${factSheetsColor}; font-weight: bold;">${s.fact_tons.toFixed(1)}</td>
-                    <td><button onclick="exportShift(${s.shift_id})" style="background: #217346; padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; width:auto; border:none; cursor:pointer;" title="Печать смены">🖨</button></td>
+                    <td>
+                        <button onclick="exportShift(${s.shift_id})" style="background: #217346; padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; width:auto; border:none; cursor:pointer;" title="Печать смены">🖨</button>
+                        <button onclick="window.open('/api/shifts/${s.shift_id}/download_passport', '_blank')" style="background: #1F4E78; padding: 0.2rem 0.5rem; font-size: 0.8rem; border-radius: 4px; width:auto; border:none; cursor:pointer; margin-left: 0.3rem;" title="Excel Паспорт">🌐</button>
+                    </td>
                 </tr>
             `;
         });

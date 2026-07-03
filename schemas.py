@@ -130,6 +130,7 @@ class Shift(ShiftBase):
     id: int
     master_id: int
     status: str
+    sharepoint_url: Optional[str] = None
     batches: List[Batch] = []
     lfm_reports: List[LFMReport] = []
     downtimes: List[Downtime] = []

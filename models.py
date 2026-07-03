@@ -19,6 +19,7 @@ class Shift(Base):
     master_id = Column(Integer, ForeignKey("masters.id"))
     line = Column(String) # "Линия 1", "Линия 2"
     status = Column(String, default="active") # active, closed
+    sharepoint_url = Column(String(500), nullable=True)
     
     # План
     plan_sheets = Column(Integer, default=0)
