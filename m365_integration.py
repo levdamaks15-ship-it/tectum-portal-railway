@@ -104,3 +104,16 @@ def check_file_exists_on_sharepoint(filename: str, folder: str = "Shifts") -> bo
         return resp.status_code == 200
     except Exception:
         return False
+
+def get_file_web_url(filename: str, folder: str = "Shifts") -> str:
+    access_token = get_access_token()
+    site_id = get_site_id(access_token)
+    drive_id = get_drive_id(access_token, site_id)
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root:/{folder}/{filename}"
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+    return resp.json().get("webUrl")
