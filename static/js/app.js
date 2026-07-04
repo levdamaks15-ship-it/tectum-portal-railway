@@ -740,12 +740,17 @@ async function updateReceipt() {
         fiberglass: getNum('rec-fib'),
         laprol: getNum('rec-laprol')
     };
-    await fetch(`/api/shifts/${activeShiftId}/receipt`, {
+    const res = await fetch(`/api/shifts/${activeShiftId}/receipt`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    alert("Приход сохранен");
+    if (res.ok) {
+        alert("Приход сохранен");
+    } else {
+        const err = await res.json();
+        alert("Ошибка сохранения: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
 
@@ -768,12 +773,17 @@ async function updateZO() {
         batches: getNum('zo-batches'),
         submitted: true
     };
-    await fetch(`/api/shifts/${activeShiftId}/zo`, {
+    const res = await fetch(`/api/shifts/${activeShiftId}/zo`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    alert("Данные ЗО успешно отправлены");
+    if (res.ok) {
+        alert("Данные ЗО успешно отправлены");
+    } else {
+        const err = await res.json();
+        alert("Ошибка отправки данных ЗО: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
 
@@ -1344,14 +1354,19 @@ async function createBatch() {
     const product_name = document.getElementById('batch-product').value;
     const stacked_stacks = getNum('batch-stacks');
     
-    await fetch(`/api/batches/?shift_id=${activeShiftId}`, {
+    const res = await fetch(`/api/batches/?shift_id=${activeShiftId}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ batch_number, product_name, stacked_stacks })
     });
-    alert("Партия создана!");
-    document.getElementById('batch-number').value = '';
-    document.getElementById('batch-stacks').value = '';
+    if (res.ok) {
+        alert("Партия создана!");
+        document.getElementById('batch-number').value = '';
+        document.getElementById('batch-stacks').value = '';
+    } else {
+        const err = await res.json();
+        alert("Ошибка создания партии: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
 
@@ -1381,12 +1396,17 @@ async function updateDestacker() {
         ds_defect_edge: hasDef ? getNum('def-edge') : 0
     };
     
-    await fetch(`/api/batches/${batchId}/destacker`, {
+    const res = await fetch(`/api/batches/${batchId}/destacker`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    alert("Разборка сохранена!");
+    if (res.ok) {
+        alert("Разборка сохранена!");
+    } else {
+        const err = await res.json();
+        alert("Ошибка сохранения разборщика: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
 
@@ -1400,12 +1420,17 @@ async function updateQCD() {
         qcd_defect: getNum('qcd-defect')
     };
     
-    await fetch(`/api/batches/${batchId}/qcd`, {
+    const res = await fetch(`/api/batches/${batchId}/qcd`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
     });
-    alert("СКК контроль сохранен!");
+    if (res.ok) {
+        alert("СКК контроль сохранен!");
+    } else {
+        const err = await res.json();
+        alert("Ошибка сохранения СКК: " + (err.detail || "Недостаточно прав"));
+    }
     loadData();
 }
 

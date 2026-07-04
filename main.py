@@ -601,12 +601,18 @@ class LFMDrainsUpdate(BaseModel):
 def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
     
     if user_role == "master" and shift.master_id != user_id:
         master_name = shift.master.name if shift.master else "другим мастером"
         raise HTTPException(status_code=403, detail=f"Вы не можете редактировать рецепт этой смены, так как она была открыта мастером {master_name}.")
+        
+    if user_role not in ["master", "admin", "director", "technologist"]:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
         
     shift.receipt_chrysotile_4_20 = data.chrysotile_4_20
     shift.receipt_chrysotile_5_65 = data.chrysotile_5_65
@@ -621,9 +627,22 @@ def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: S
     return {"status": "ok"}
 
 @app.post("/api/shifts/{shift_id}/zo")
-def update_zo(shift_id: int, data: UpdateReceiptZO, db: Session = Depends(get_db)):
+def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
     shift = db.query(models.Shift).get(shift_id)
-    if not shift: raise HTTPException(404)
+    if not shift: raise HTTPException(404, "Смена не найдена")
+    
+    if user_role == "master" and shift.master_id != user_id:
+        master_name = shift.master.name if shift.master else "другим мастером"
+        raise HTTPException(status_code=403, detail=f"Вы не можете редактировать данные ЗО этой смены, так как она была открыта мастером {master_name}.")
+        
+    if user_role not in ["master", "admin", "zo"]:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+        
     shift.zo_chrysotile_4_20 = data.chrysotile_4_20
     shift.zo_chrysotile_5_65 = data.chrysotile_5_65
     shift.zo_chrysotile_6_40 = data.chrysotile_6_40
@@ -649,9 +668,22 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, db: Session = Depends(get_db
     return {"message": "ZO updated"}
 
 @app.post("/api/shifts/{shift_id}/lfm_drains")
-def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, db: Session = Depends(get_db)):
+def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
+    
+    if user_role == "master" and shift.master_id != user_id:
+        master_name = shift.master.name if shift.master else "другим мастером"
+        raise HTTPException(status_code=403, detail=f"Вы не можете редактировать сливы ЛФМ этой смены, так как она была открыта мастером {master_name}.")
+        
+    if user_role not in ["master", "admin", "lfm"]:
+        raise HTTPException(status_code=403, detail="Недостаточно прав")
+        
     shift.lfm_asb_drain = data.asb_drain
     shift.lfm_cem_drain = data.cem_drain
     db.commit()
