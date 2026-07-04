@@ -1551,7 +1551,7 @@ def export_shift(shift_id: int = None, db: Session = Depends(get_db)):
 @app.get("/api/dashboard/view_archive")
 def view_archive():
     try:
-        url = m365_integration.get_file_web_url("Сводный_отчет_Tectum.xlsx", folder="Shifts")
+        url = m365_integration.get_file_web_url("Сводный_отчет_Tectum.xlsx", folder="Reports")
         return RedirectResponse(url=url)
     except Exception as e:
         print("Ошибка получения ссылки из SharePoint, отдаем локальный файл:", e)
