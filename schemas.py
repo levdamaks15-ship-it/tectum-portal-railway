@@ -233,11 +233,11 @@ class MonthlyPlanBoardBase(BaseModel):
     defect: int = 0
 
 class MonthlyPlanBoardCreate(MonthlyPlanBoardBase):
-    master_id: int
+    master_id: Optional[int] = None
 
 class MonthlyPlanBoard(MonthlyPlanBoardBase):
     id: int
-    master_id: int
+    master_id: Optional[int] = None
     master: Optional[Master] = None
 
     class Config:
