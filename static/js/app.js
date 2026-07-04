@@ -249,58 +249,29 @@ function applyRoleVisibility() {
     if(tabsMenu) tabsMenu.style.display = 'none';
     
     const btnProd = document.getElementById('tab-btn-production');
-    const btnReceipt = document.getElementById('tab-btn-receipt');
     const btnDown = document.getElementById('tab-btn-downtimes');
-    const btnDash = document.getElementById('tab-btn-dashboard');
     const btnMats = document.getElementById('tab-btn-materials');
-    const btnArch = document.getElementById('tab-btn-archive');
     const btnDaily = document.getElementById('tab-btn-daily-report');
-    const btnWeekly = document.getElementById('tab-btn-weekly-report');
-    const btnPlanBoard = document.getElementById('tab-btn-plan-board');
     if(btnProd) btnProd.style.display = 'none';
-    if(btnReceipt) btnReceipt.style.display = 'none';
     if(btnDown) btnDown.style.display = 'none';
-    if(btnDash) btnDash.style.display = 'none';
     if(btnMats) btnMats.style.display = 'none';
-    if(btnArch) btnArch.style.display = 'none';
     if(btnDaily) btnDaily.style.display = 'none';
-    if(btnWeekly) btnWeekly.style.display = 'none';
-    if(btnPlanBoard) btnPlanBoard.style.display = 'none';
     
     if (role === 'master' || role === 'director' || role === 'technologist' || role === 'mechanic' || role === 'admin') {
         if(tabsMenu) tabsMenu.style.display = 'flex';
         
-        if (role === 'admin') {
+        if (role === 'admin' || role === 'master') {
             if(btnProd) btnProd.style.display = 'inline-block';
-            if(btnReceipt) btnReceipt.style.display = 'inline-block';
             if(btnDown) btnDown.style.display = 'inline-block';
-            if(btnDash) btnDash.style.display = 'inline-block';
             if(btnMats) btnMats.style.display = 'inline-block';
-            if(btnArch) btnArch.style.display = 'inline-block';
             if(btnDaily) btnDaily.style.display = 'inline-block';
-            if(btnWeekly) btnWeekly.style.display = 'inline-block';
-            if(btnPlanBoard) btnPlanBoard.style.display = 'inline-block';
-            switchTab('dashboard');
-        } else if (role === 'master') {
-            if(btnProd) btnProd.style.display = 'inline-block';
-            if(btnReceipt) btnReceipt.style.display = 'inline-block';
-            if(btnDown) btnDown.style.display = 'inline-block';
-            if(btnDash) btnDash.style.display = 'inline-block';
-            if(btnMats) btnMats.style.display = 'inline-block';
-            if(btnArch) btnArch.style.display = 'inline-block';
-            if(btnDaily) btnDaily.style.display = 'inline-block';
-            if(btnWeekly) btnWeekly.style.display = 'inline-block';
-            if(btnPlanBoard) btnPlanBoard.style.display = 'inline-block';
-            switchTab('dashboard');
+            switchTab('production');
         } else if (role === 'director' || role === 'technologist') {
+            if(btnProd) btnProd.style.display = 'inline-block';
             if(btnDown) btnDown.style.display = 'inline-block';
-            if(btnDash) btnDash.style.display = 'inline-block';
             if(btnMats) btnMats.style.display = 'inline-block';
-            if(btnArch) btnArch.style.display = 'inline-block';
             if(btnDaily) btnDaily.style.display = 'inline-block';
-            if(btnWeekly) btnWeekly.style.display = 'inline-block';
-            if(btnPlanBoard) btnPlanBoard.style.display = 'inline-block';
-            switchTab('dashboard');
+            switchTab('production');
         } else if (role === 'mechanic') {
             if(btnDown) btnDown.style.display = 'inline-block';
             switchTab('downtimes');
@@ -319,6 +290,22 @@ function applyRoleVisibility() {
     if (wrapCat) wrapCat.style.display = isMechanicOrMaster ? 'block' : 'none';
 
     document.getElementById('master-view').style.display = (role === 'master' || role === 'admin') ? 'block' : 'none';
+    
+    const receiptView = document.getElementById('master-receipt-view');
+    if (receiptView) {
+        receiptView.style.display = (role === 'master' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const dashView = document.getElementById('dashboard-view');
+    if (dashView) {
+        dashView.style.display = (role === 'master' || role === 'director' || role === 'technologist' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const planBoardView = document.getElementById('plan-board-view');
+    if (planBoardView) {
+        planBoardView.style.display = (role === 'master' || role === 'director' || role === 'technologist' || role === 'admin') ? 'block' : 'none';
+    }
+
     document.getElementById('zo-view').style.display = (role === 'zo' || role === 'admin') ? 'block' : 'none';
     document.getElementById('lfm-view').style.display = (role === 'lfm' || role === 'admin') ? 'block' : 'none';
     document.getElementById('stacker-view').style.display = (role === 'stacker' || role === 'admin') ? 'block' : 'none';
@@ -338,25 +325,15 @@ function switchTab(tabId) {
     if(btn) btn.classList.add('active');
     
     const prod = document.getElementById('production-tab');
-    const receipt = document.getElementById('receipt-tab');
     const down = document.getElementById('downtimes-tab');
-    const dash = document.getElementById('dashboard-tab');
     const mats = document.getElementById('materials-tab');
-    const arch = document.getElementById('archive-tab');
     const daily = document.getElementById('daily-report-tab');
-    const weekly = document.getElementById('weekly-report-tab');
-    const planBoard = document.getElementById('plan-board-tab');
     const analytics = document.getElementById('analytics-tab');
     
     if(prod) prod.style.display = 'none';
-    if(receipt) receipt.style.display = 'none';
     if(down) down.style.display = 'none';
-    if(dash) dash.style.display = 'none';
     if(mats) mats.style.display = 'none';
-    if(arch) arch.style.display = 'none';
     if(daily) daily.style.display = 'none';
-    if(weekly) weekly.style.display = 'none';
-    if(planBoard) planBoard.style.display = 'none';
     if(analytics) analytics.style.display = 'none';
     
     const target = document.getElementById(`${tabId}-tab`);
@@ -365,14 +342,16 @@ function switchTab(tabId) {
         else target.style.display = 'block';
     }
 
-    if (tabId === 'archive') {
-        loadArchive();
+    if (tabId === 'production') {
+        const role = currentUser ? currentUser.role : '';
+        if (role === 'master' || role === 'admin' || role === 'director' || role === 'technologist') {
+            renderDashboard();
+            loadDirectorPlanBoard();
+        }
     } else if (tabId === 'materials') {
         loadMaterialsReport();
     } else if (tabId === 'downtimes') {
         loadDowntimeDepartments();
-    } else if (tabId === 'plan-board') {
-        loadDirectorPlanBoard();
     } else if (tabId === 'daily-report') {
         const dMonth = document.getElementById('daily-report-month');
         if (dMonth && !dMonth.value) {
@@ -385,8 +364,6 @@ function switchTab(tabId) {
         }
         toggleRangeControls();
         loadDailyReport();
-    } else if (tabId === 'weekly-report') {
-        loadWeeklyReport();
     } else if (tabId === 'analytics') {
         initAnalyticsTab();
     }
@@ -438,13 +415,25 @@ async function loadData() {
             document.getElementById('zo-batches').value = shift.zo_batches || '';
         }
 
+        // Populate Receipt fields if present in DOM
+        if (document.getElementById('rec-chr-4-20')) {
+            document.getElementById('rec-chr-4-20').value = shift.receipt_chrysotile_4_20 || '';
+            document.getElementById('rec-chr-5-65').value = shift.receipt_chrysotile_5_65 || '';
+            document.getElementById('rec-chr-6-40').value = shift.receipt_chrysotile_6_40 || '';
+            document.getElementById('rec-cem').value = shift.receipt_cement || '';
+            document.getElementById('rec-cel').value = shift.receipt_cellulose || '';
+            document.getElementById('rec-slate').value = shift.receipt_crushed_slate || '';
+            document.getElementById('rec-asb').value = shift.receipt_asbozurit || '';
+            document.getElementById('rec-fib').value = shift.receipt_fiberglass || '';
+            document.getElementById('rec-laprol').value = shift.receipt_laprol || '';
+        }
+
         // Populate LFM drains if present in DOM
         if (document.getElementById('lfm-asb-drain')) {
             document.getElementById('lfm-asb-drain').value = shift.lfm_asb_drain || '';
             document.getElementById('lfm-cem-drain').value = shift.lfm_cem_drain || '';
         }
 
-        
         applyShiftMode(shift);
     } else {
         document.getElementById('active-shift-display').innerText = "Нет открытой смены";
@@ -571,7 +560,7 @@ function applyShiftMode(shift) {
     }
     
     // Disable inputs and buttons in production if closed or no shift
-    const forms = ['zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'master-view'];
+    const forms = ['zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'master-view', 'master-receipt-view'];
     forms.forEach(f => {
         const el = document.getElementById(f);
         if (el) {

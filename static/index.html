@@ -98,15 +98,10 @@
             <!-- Вкладки навигации -->
             <div id="tabs-menu" class="tabs-container" style="display: none;">
                 <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📦 Производство</button>
-                <button class="tab-btn" id="tab-btn-receipt" onclick="switchTab('receipt')" style="display: none;">📥 Приход сырья</button>
                 <button class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes')">⏱ Журнал Простоев</button>
-                <button class="tab-btn" id="tab-btn-dashboard" onclick="switchTab('dashboard')">📊 Дашборд</button>
                 <button class="tab-btn" id="tab-btn-analytics" onclick="switchTab('analytics')">📈 Аналитика</button>
                 <button class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report')">📈 Месячная сводка</button>
-                <button class="tab-btn" id="tab-btn-weekly-report" onclick="switchTab('weekly-report')">📅 Еженедельный отчет</button>
                 <button class="tab-btn" id="tab-btn-materials" onclick="switchTab('materials')">🧪 Сводка по сырью</button>
-                <button class="tab-btn" id="tab-btn-archive" onclick="switchTab('archive')">📁 Архив смен</button>
-                <button class="tab-btn" id="tab-btn-plan-board" onclick="switchTab('plan-board')" style="display: none;">📋 План/Факт</button>
             </div>
 
             <!-- Секция активной смены (для ролей кроме Дестакера и СКК) -->
@@ -141,6 +136,113 @@
                         <button onclick="createShift()">Начать смену</button>
                     </div>
                     <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                        <button class="btn-success" onclick="window.open('/static/Сводный_отчет_Tectum.xlsx')" style="background: #217346; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">📁 Сводный отчет (Архив)</button>
+                    </div>
+                </div>
+
+                <!-- 1.1 Внесение выработки (для директора, мастера и админа) -->
+                <div class="glass-panel card" id="plan-board-view" style="display: none; margin-top: 1.5rem;">
+                    <h3>📋 Внесение выработки</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Данные по выработке для формирования Месячной сводки.</p>
+                    
+                    <!-- Панель управления администратора (только для роли admin) -->
+                    <div id="admin-plan-controls" style="display: none; background: rgba(200, 35, 35, 0.05); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
+                        <h4 style="margin-bottom: 0.5rem; color: var(--accent-color); font-size: 0.95rem;">🛡️ Админ-панель</h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <input type="file" id="admin-excel-file" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="uploadAndImportExcel()" style="padding: 0.4rem 1rem; background: var(--success-color); font-size: 0.8rem;">Импорт</button>
+                                <button class="btn-danger" onclick="clearPlanBoard()" style="padding: 0.4rem 1rem; font-size: 0.8rem; background: var(--danger-color);">Очистить</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Форма добавления данных -->
+                    <div id="director-plan-form" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                        <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата</label>
+                                <input type="date" id="pb-date" style="padding: 0.4rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Мастер</label>
+                                <select id="pb-master" style="padding: 0.4rem;"></select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Линия</label>
+                                <select id="pb-line" style="padding: 0.4rem;">
+                                    <option value="ЛФМ-1">ЛФМ-1</option>
+                                    <option value="ЛФМ-2" selected>ЛФМ-2</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Тип смены</label>
+                                <select id="pb-shift-name" style="padding: 0.4rem;">
+                                    <option value="День">День</option>
+                                    <option value="Ночь">Ночь</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Номер смены (Excel)</label>
+                                <input type="number" id="pb-shift-num" value="1" style="padding: 0.4rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">План (листы)</label>
+                                <input type="number" id="pb-plan" value="0" style="padding: 0.4rem;">
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Факт (листы)</label>
+                                <input type="number" id="pb-fact" value="0" style="padding: 0.4rem;">
+                            </div>
+                        </div>
+                        <button onclick="saveDirectorPlanBoard()" style="margin-top: 1rem; width: 100%; padding: 0.6rem; font-size: 0.9rem;">Сохранить выработку</button>
+                    </div>
+                </div>
+
+                <!-- 1.2 Приход сырья для мастера -->
+                <div class="glass-panel card" id="master-receipt-view" style="display: none;">
+                    <h3>📥 Приход Сырья (на склад)</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Ввод сырья, поступившего на склад за текущую смену.</p>
+                    <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem;">
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 4-20 (кг)</label>
+                            <input type="number" id="rec-chr-4-20" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 5-65 (кг)</label>
+                            <input type="number" id="rec-chr-5-65" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 6-40 (кг)</label>
+                            <input type="number" id="rec-chr-6-40" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Цемент (кг)</label>
+                            <input type="number" id="rec-cem" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Целлюлоза (кг)</label>
+                            <input type="number" id="rec-cel" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дробленый шифер (кг)</label>
+                            <input type="number" id="rec-slate" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Асбозурит (кг)</label>
+                            <input type="number" id="rec-asb" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Стекловолокно (кг)</label>
+                            <input type="number" id="rec-fib" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Лапрол (кг)</label>
+                            <input type="number" id="rec-laprol" placeholder="0">
+                        </div>
+                    </div>
+                    <button onclick="updateReceipt()" style="margin-top: 1rem; width: 100%;">Сохранить приход</button>
                 </div>
 
                 <!-- 2. ЗО -->
@@ -335,7 +437,7 @@
                         <h3>Сводный отчет (Партии текущей смены)</h3>
                         <button onclick="exportToExcel()" style="width: auto; padding: 0.5rem 1.5rem; background: #217346;">Выгрузить в Excel</button>
                     </div>
-                    <div style="overflow-x: auto;">
+                    <div class="table-responsive-container">
                         <table id="summary-table" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary); font-size: 0.9rem;">
                             <thead>
                                 <!-- Заголовок генерируется динамически -->
@@ -345,60 +447,74 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
-
-                </div> <!-- End of production-tab -->
-
-                <div id="receipt-tab" class="glass-panel card" style="display: none;">
-                    <h3>📥 Приход Сырья (на склад)</h3>
-                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem;">Ввод количества сырья, поступившего на склад за текущую смену.</p>
-                    <div style="max-width: 600px;">
-                        <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Хризотил 4-20 (кг)</label>
-                                <input type="number" id="rec-chr-4-20" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Хризотил 5-65 (кг)</label>
-                                <input type="number" id="rec-chr-5-65" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Хризотил 6-40 (кг)</label>
-                                <input type="number" id="rec-chr-6-40" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Цемент (кг)</label>
-                                <input type="number" id="rec-cem" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Целлюлоза (кг)</label>
-                                <input type="number" id="rec-cel" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Дробленый шифер (кг)</label>
-                                <input type="number" id="rec-slate" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Асбозурит (кг)</label>
-                                <input type="number" id="rec-asb" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Стекловолокно (кг)</label>
-                                <input type="number" id="rec-fib" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; display: block;">Лапрол (кг)</label>
-                                <input type="number" id="rec-laprol" placeholder="0">
+                <!-- 8. Аналитический Дашборд -->
+                <div class="glass-panel card" id="dashboard-view" style="grid-column: 1 / -1; display: none; margin-top: 1.5rem;">
+                    <h3>Аналитический Дашборд</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производство (СКК)</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-production"></canvas>
                             </div>
                         </div>
-                        <button onclick="updateReceipt()" style="margin-top: 1.5rem; width: auto; padding: 0.75rem 2rem;">Сохранить приход</button>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Структура Брака</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-defects"></canvas>
+                            </div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Отклонения сырья (Склад vs ЗО)</h4>
+                            <div class="chart-container">
+                                <canvas id="chart-materials"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Учет Простоев -->
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                        <h4 style="text-align: center; margin-bottom: 1rem; color: var(--danger-color);">Учет Простоев (Аналитика)</h4>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Общее время</div>
+                                <div style="font-size: 1.3rem; font-weight: bold;" id="kpi-dt-minutes">0 мин</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Потери (Тонны)</div>
+                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tons">0 т</div>
+                            </div>
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Финансовые потери</div>
+                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tenge">0 ₸</div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Топ Узлов (кол-во остановок)</h4>
+                                <div class="chart-container">
+                                    <canvas id="chart-dt-nodes"></canvas>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Простои по категориям (мин)</h4>
+                                <div class="chart-container">
+                                    <canvas id="chart-dt-category"></canvas>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+
+                </div> <!-- End of production-tab -->
 
                 <div id="materials-tab" class="glass-panel card" style="display: none;">
                     <h3>🧪 Сводка по сырью (Отклонения)</h3>
                     <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br/>Положительное число означает перерасход сырья, отрицательное — экономию.</p>
-                    <div style="overflow-x: auto; margin-top: 1rem;">
+                    <div class="table-responsive-container" style="margin-top: 1rem;">
                         <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
                             <thead>
                                 <tr>
@@ -471,7 +587,7 @@
                         <button id="btn-add-dt" onclick="addJournalDowntime()" style="margin-top: 1rem; width: auto; padding: 0.5rem 2rem;">Добавить простой</button>
                     </div>
 
-                    <div style="overflow-x: auto;">
+                    <div class="table-responsive-container">
                         <table class="table-glass">
                             <thead>
                                 <tr>
@@ -494,61 +610,6 @@
                     </div>
                 </div>
 
-                <div id="dashboard-tab" style="display: none;">
-                <!-- 8. Дашборд Руководства -->
-                <div class="glass-panel card" id="dashboard-view" style="grid-column: 1 / -1;">
-                    <h3>Аналитический Дашборд</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производство (СКК)</h4>
-                            <canvas id="chart-production"></canvas>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Структура Брака</h4>
-                            <canvas id="chart-defects"></canvas>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Отклонения сырья (Склад vs ЗО)</h4>
-                            <canvas id="chart-materials"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Учет Простоев -->
-                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
-                        <h4 style="text-align: center; margin-bottom: 1rem; color: var(--danger-color);">Учет Простоев (Аналитика)</h4>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <div style="font-size: 0.9rem; color: var(--text-secondary);">Общее время</div>
-                                <div style="font-size: 1.5rem; font-weight: bold;" id="kpi-dt-minutes">0 мин</div>
-                            </div>
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <div style="font-size: 0.9rem; color: var(--text-secondary);">Потери (Тонны)</div>
-                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tons">0 т</div>
-                            </div>
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <div style="font-size: 0.9rem; color: var(--text-secondary);">Финансовые потери</div>
-                                <div style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tenge">0 ₸</div>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Топ Узлов (кол-во остановок)</h4>
-                                <canvas id="chart-dt-nodes"></canvas>
-                            </div>
-
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Простои по категориям (мин)</h4>
-                                <canvas id="chart-dt-category"></canvas>
-                            </div>
-                        </div>
-
-                    </div>
-
-                </div>
-                </div>
 
                 <!-- Вкладка Аналитики Простоев -->
                 <div id="analytics-tab" class="glass-panel card" style="display: none;">
@@ -725,159 +786,6 @@
                     </div>
                 </div>
 
-                <div id="weekly-report-tab" class="glass-panel card" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-                        <h3 style="margin: 0;">Еженедельный отчет</h3>
-                        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                            <input type="date" id="weekly-report-start-date" onchange="loadWeeklyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);" title="Начало недели">
-                            <button onclick="exportWeeklyReportPDF()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">Выгрузить в PDF</button>
-                        </div>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table class="table-glass">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Смена</th>
-                                    <th>Мастер</th>
-                                    <th>План (Листы/Тонны)</th>
-                                    <th>Факт (Листы/Тонны)</th>
-                                    <th>Выполнение (%)</th>
-                                    <th>1-й сорт (шт/%)</th>
-                                    <th>Брак (шт/%)</th>
-                                    <th>Примечание</th>
-                                </tr>
-                            </thead>
-                            <tbody id="weekly-report-body">
-                                <tr><td colspan="9" style="text-align:center; color: var(--text-secondary);">Выберите дату для загрузки...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="plan-board-tab" class="glass-panel card" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-                        <h3 style="margin: 0;">📋 Выработка (План/Факт)</h3>
-                    </div>
-
-                    <!-- Панель управления администратора (только для роли admin) -->
-                    <div id="admin-plan-controls" style="display: none; background: rgba(200, 35, 35, 0.05); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
-                        <h4 style="margin-bottom: 1rem; color: var(--accent-color); display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; font-weight: 600;">🛡️ Панель администратора</h4>
-                        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end;">
-                            <div style="flex: 1; min-width: 250px;">
-                                <label style="display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Загрузить и импортировать Excel файл (.xlsx)</label>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="file" id="admin-excel-file" accept=".xlsx" style="padding: 0.5rem; font-size: 0.9rem;">
-                                    <button onclick="uploadAndImportExcel()" style="width: auto; padding: 0.5rem 1.5rem; background: var(--success-color); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);">Импорт</button>
-                                </div>
-                            </div>
-                            <div style="margin-left: auto;">
-                                <button class="btn-danger" onclick="clearPlanBoard()" style="width: auto; padding: 0.5rem 1.5rem;">🗑️ Очистить все данные</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Форма добавления данных (только для директора) -->
-                    <div id="director-plan-form" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                        <h4 style="margin-bottom: 1rem;">Добавить или обновить данные</h4>
-                        <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата</label>
-                                <input type="date" id="pb-date">
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Мастер</label>
-                                <select id="pb-master"></select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Линия</label>
-                                <select id="pb-line">
-                                    <option value="ЛФМ-1">ЛФМ-1</option>
-                                    <option value="ЛФМ-2" selected>ЛФМ-2</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Тип смены</label>
-                                <select id="pb-shift-name">
-                                    <option value="День">День</option>
-                                    <option value="Ночь">Ночь</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Номер смены (Excel)</label>
-                                <input type="number" id="pb-shift-num" value="1">
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">План (листы)</label>
-                                <input type="number" id="pb-plan" value="0">
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Факт (листы)</label>
-                                <input type="number" id="pb-fact" value="0">
-                            </div>
-                        </div>
-                        <button onclick="saveDirectorPlanBoard()" style="margin-top: 1rem; width: auto; padding: 0.5rem 1.5rem;">Сохранить запись</button>
-                    </div>
-
-                    <div style="overflow-x: auto;">
-                        <table class="table-glass">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Линия</th>
-                                    <th>Смена</th>
-                                    <th>Смена (номер)</th>
-                                    <th>Мастер</th>
-                                    <th>План (листы)</th>
-                                    <th>Факт (листы)</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody id="director-plan-board-body">
-                                <tr><td colspan="8" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="archive-tab" class="glass-panel card" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-                        <h3 style="margin: 0;">📁 Архив смен</h3>
-                        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                            <input type="month" id="archive-month" onchange="loadArchive()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
-                            <input type="date" id="archive-week-start" title="Начало недели" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
-                            <button onclick="exportWeek()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">🖨 Печать недели</button>
-                            <button onclick="loadArchive()" style="width: auto; padding: 0.5rem 1.5rem;">Обновить архив</button>
-                        </div>
-                    </div>
-                    
-                    <h4 style="margin-bottom: 1rem;">Сводная доска бригад (за месяц)</h4>
-                    <div id="shift-board-container" style="display: grid; gap: 1.5rem; margin-bottom: 2rem;">
-                        <!-- Генерируется JS: Карточки/таблицы по мастерам -->
-                    </div>
-                    
-                    <h4 style="margin-bottom: 1rem;">Список всех смен</h4>
-                    <div style="overflow-x: auto;">
-                        <table class="table-glass">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Дата</th>
-                                    <th>Смена</th>
-                                    <th>Линия</th>
-                                    <th>Статус</th>
-                                    <th>Приход (т)</th>
-                                    <th>ЗО (т)</th>
-                                    <th>Партии</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody id="archive-table-body">
-                                <tr><td colspan="9" style="text-align:center; color: var(--text-secondary);">Загрузка архива...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
 
             </div>
         </div>

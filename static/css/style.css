@@ -359,3 +359,55 @@ button.btn-secondary:hover {
     box-shadow: none;
     transform: none;
 }
+
+/* Table scrollbar & styling for mobile screens */
+.table-responsive-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    margin-bottom: 1.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) rgba(255, 255, 255, 0.05);
+}
+
+.table-responsive-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-responsive-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+}
+
+.table-responsive-container::-webkit-scrollbar-thumb {
+    background-color: var(--glass-border);
+    border-radius: 4px;
+    border: 1px solid transparent;
+}
+
+.table-responsive-container::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary-color);
+}
+
+/* Chart containers for scaling and responsive layout */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .chart-container {
+        height: 240px;
+    }
+    .card h3 {
+        font-size: 1.1rem;
+    }
+    input, select, button {
+        padding: 0.6rem 0.8rem;
+        font-size: 0.9rem;
+    }
+}
