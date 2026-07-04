@@ -252,10 +252,12 @@ function applyRoleVisibility() {
     const btnDown = document.getElementById('tab-btn-downtimes');
     const btnMats = document.getElementById('tab-btn-materials');
     const btnDaily = document.getElementById('tab-btn-daily-report');
+    const btnAnalytics = document.getElementById('tab-btn-analytics');
     if(btnProd) btnProd.style.display = 'none';
     if(btnDown) btnDown.style.display = 'none';
     if(btnMats) btnMats.style.display = 'none';
     if(btnDaily) btnDaily.style.display = 'none';
+    if(btnAnalytics) btnAnalytics.style.display = 'none';
     
     if (role === 'master' || role === 'director' || role === 'technologist' || role === 'mechanic' || role === 'admin') {
         if(tabsMenu) tabsMenu.style.display = 'flex';
@@ -265,12 +267,14 @@ function applyRoleVisibility() {
             if(btnDown) btnDown.style.display = 'inline-block';
             if(btnMats) btnMats.style.display = 'inline-block';
             if(btnDaily) btnDaily.style.display = 'inline-block';
+            if(btnAnalytics) btnAnalytics.style.display = 'inline-block';
             switchTab('production');
         } else if (role === 'director' || role === 'technologist') {
             if(btnProd) btnProd.style.display = 'inline-block';
             if(btnDown) btnDown.style.display = 'inline-block';
             if(btnMats) btnMats.style.display = 'inline-block';
             if(btnDaily) btnDaily.style.display = 'inline-block';
+            if(btnAnalytics) btnAnalytics.style.display = 'inline-block';
             switchTab('production');
         } else if (role === 'mechanic') {
             if(btnDown) btnDown.style.display = 'inline-block';
@@ -2544,6 +2548,10 @@ async function loadDirectorPlanBoard() {
         }
 
         const res = await fetch('/api/plan_board');
+        if (!res.ok) {
+            console.error("Ошибка при получении данных выработки:", res.status, res.statusText);
+            return;
+        }
         const data = await res.json();
         const tbody = document.getElementById('director-plan-board-body');
         if (!tbody) return;

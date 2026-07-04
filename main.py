@@ -100,13 +100,22 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
+    # SQLite migrations for monthly_plan_board columns
+    for col, col_def in [("first_grade", "INTEGER DEFAULT 0"), ("defect", "INTEGER DEFAULT 0"), ("line", "VARCHAR(255) DEFAULT 'LFM-1'")]:
+        try:
+            conn = sqlite3.connect("tectum.db")
+            conn.execute(f"ALTER TABLE monthly_plan_board ADD COLUMN {col} {col_def}")
+            conn.commit()
+            conn.close()
+        except: pass
+
     # PostgreSQL auto-migration for missing columns
     if "postgresql" in engine.url.drivername or "postgres" in engine.url.drivername:
         from sqlalchemy import text
         pg_cols_to_add = [
             ("monthly_plan_board", "first_grade", "INTEGER DEFAULT 0"),
             ("monthly_plan_board", "defect", "INTEGER DEFAULT 0"),
-            ("monthly_plan_board", "line", "VARCHAR(255) DEFAULT 'ЛФМ-1'"),
+            ("monthly_plan_board", "line", "VARCHAR(255) DEFAULT 'LFM-1'"),
             ("masters", "email", "VARCHAR(255)"),
             ("downtimes", "department", "VARCHAR(255)"),
             ("downtime_directory", "category", "VARCHAR(255)"),
@@ -116,9 +125,9 @@ async def lifespan(app: FastAPI):
             ("shifts", "lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "sharepoint_url", "VARCHAR(500)")
         ]
-        try:
-            with engine.begin() as conn:
-                for table, col, col_def in pg_cols_to_add:
+        for table, col, col_def in pg_cols_to_add:
+            try:
+                with engine.connect() as conn:
                     res = conn.execute(text(f"""
                         SELECT column_name 
                         FROM information_schema.columns 
@@ -127,9 +136,10 @@ async def lifespan(app: FastAPI):
                     if not res:
                         print(f"Adding column '{col}' to table '{table}' in PostgreSQL...")
                         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def};"))
+                        conn.commit()
                         print(f"Column '{col}' added successfully.")
-        except Exception as pg_err:
-            print(f"Error running PostgreSQL migrations: {pg_err}")
+            except Exception as pg_err:
+                print(f"Error adding column '{col}' to table '{table}' in PostgreSQL: {pg_err}")
 
     db = SessionLocal()
 
