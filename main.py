@@ -412,15 +412,25 @@ def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
     shift.status = "closed"
     db.commit()
     
-    # Generate Excel passport in memory and upload to SharePoint
+    # Generate unified Excel flat report in memory and upload to SharePoint
     try:
-        file_bytes, filename = excel_exporter.generate_shift_excel_passport(shift_id, db)
-        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Shifts_Passport")
+        file_bytes = excel_exporter.generate_flat_report(db)
+        filename = "Сводный_отчет_Tectum.xlsx"
+        
+        # Save locally to static folder as well
+        local_path = os.path.join("static", "Сводный_отчет_Tectum.xlsx")
+        try:
+            with open(local_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception as local_err:
+            print(f"Error saving local excel file: {local_err}")
+            
+        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
         shift.sharepoint_url = web_url
         db.commit()
         
         # Log to AuditLog
-        audit_detail = f"Смена {shift_id} закрыта. Паспорт смены сгенерирован и загружен в SharePoint: {web_url}"
+        audit_detail = f"Смена {shift_id} закрыта. Сводный отчет сгенерирован и загружен в SharePoint: {web_url}"
         db.add(models.AuditLog(
             user_name=request.session.get("user_email") or f"user_{user_id}",
             action="UPDATE",
@@ -430,8 +440,8 @@ def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
         ))
         db.commit()
     except Exception as e:
-        print(f"Error generating/uploading shift passport Excel: {e}")
-        audit_detail = f"Смена {shift_id} закрыта. Ошибка загрузки паспорта в SharePoint: {str(e)}"
+        print(f"Error generating/uploading unified report Excel: {e}")
+        audit_detail = f"Смена {shift_id} закрыта. Ошибка загрузки сводного отчета в SharePoint: {str(e)}"
         try:
             db.add(models.AuditLog(
                 user_name=request.session.get("user_email") or f"user_{user_id}",
@@ -461,8 +471,9 @@ def download_shift_passport(shift_id: int, request: Request, db: Session = Depen
         
     # If not available (e.g. upload failed initially or it's an old shift), generate and upload now
     try:
-        file_bytes, filename = excel_exporter.generate_shift_excel_passport(shift_id, db)
-        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Shifts_Passport")
+        file_bytes = excel_exporter.generate_flat_report(db)
+        filename = "Сводный_отчет_Tectum.xlsx"
+        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
         shift.sharepoint_url = web_url
         db.commit()
         return RedirectResponse(url=web_url)
@@ -470,17 +481,17 @@ def download_shift_passport(shift_id: int, request: Request, db: Session = Depen
         print(f"SharePoint upload failed in download_passport fallback: {e}")
         # Fallback to local on-the-fly download if SharePoint is totally failing
         try:
-            file_bytes, filename = excel_exporter.generate_shift_excel_passport(shift_id, db)
+            file_bytes = excel_exporter.generate_flat_report(db)
             from fastapi import Response
             from urllib.parse import quote
-            safe_filename = quote(filename)
+            safe_filename = quote("Сводный_отчет_Tectum.xlsx")
             return Response(
                 content=file_bytes, 
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
                 headers={'Content-Disposition': f'attachment; filename="{safe_filename}"; filename*=UTF-8\'\'{safe_filename}'}
             )
         except Exception as inner_e:
-            raise HTTPException(500, f"Не удалось сгенерировать паспорт смены: {str(e)} | fallback error: {str(inner_e)}")
+            raise HTTPException(500, f"Не удалось сгенерировать сводный отчет: {str(e)} | fallback error: {str(inner_e)}")
 
 @app.post("/api/admin/sync_directories_sharepoint")
 def sync_directories_sharepoint(request: Request, db: Session = Depends(get_db)):
@@ -1483,42 +1494,19 @@ def get_shift_board(month: str, db: Session = Depends(get_db)):
     return board
 
 @app.get("/api/dashboard/export_shift")
-def export_shift(shift_id: int, db: Session = Depends(get_db)):
-    shift = db.query(models.Shift).get(shift_id)
-    if not shift:
-        raise HTTPException(404, "Смена не найдена")
-        
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = f"Смена {shift_id}"
-    
-    master = shift.master_name or "Неизвестно"
-    date_str = str(shift.date)
-    
-    ws.append([f"Отчет за смену: {date_str} ({shift.shift_name})"])
-    ws.append([f"Мастер: {master}", f"Линия: {shift.line}"])
-    ws.append([])
-    
-    ws.append(["Продукция", "План", "Факт", "Ед. изм."])
-    ws.column_dimensions['A'].width = 20
-    ws.column_dimensions['B'].width = 12
-    ws.column_dimensions['C'].width = 12
-    ws.column_dimensions['D'].width = 12
-    
-    total_sheets = sum(r.lfm_sheets for r in shift.lfm_reports)
-    total_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in shift.lfm_reports)
-    
-    plan_sheets = get_shift_plan(db, shift)
-    plan_tons = plan_sheets * (total_tons / total_sheets if total_sheets > 0 else 19.6/1000)
-    
-    ws.append(["Вся продукция", plan_sheets, total_sheets, "Листы"])
-    ws.append(["Вся продукция", round(plan_tons, 2), round(total_tons, 2), "Тонны"])
-    
-    out = io.BytesIO()
-    wb.save(out)
-    
-    filename = f"shift_{shift_id}.xlsx"
-    return Response(content=out.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+def export_shift(shift_id: int = None, db: Session = Depends(get_db)):
+    file_bytes = excel_exporter.generate_flat_report(db)
+    filename = "Сводный_отчет_Tectum.xlsx"
+    from urllib.parse import quote
+    safe_filename = quote(filename)
+    headers = {
+        'Content-Disposition': f'attachment; filename="{safe_filename}"; filename*=UTF-8\'\'{safe_filename}'
+    }
+    return Response(
+        content=file_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers
+    )
 
 @app.get("/api/dashboard/export_week")
 def export_week(start_date: str, db: Session = Depends(get_db)):
