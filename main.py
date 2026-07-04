@@ -2137,7 +2137,14 @@ def clear_operational_data(db: Session = Depends(get_db)):
 # --- MONTHLY PLAN BOARD ---
 @app.get("/api/plan_board", response_model=list[schemas.MonthlyPlanBoard])
 def get_plan_board(db: Session = Depends(get_db)):
-    return db.query(models.MonthlyPlanBoard).order_by(models.MonthlyPlanBoard.date.desc(), models.MonthlyPlanBoard.shift_number).all()
+    try:
+        return db.query(models.MonthlyPlanBoard).order_by(models.MonthlyPlanBoard.date.desc(), models.MonthlyPlanBoard.shift_number).all()
+    except Exception as e:
+        import traceback
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        err_msg = f"Database error on driver '{driver}': {str(e)}\n{traceback.format_exc()}"
+        print(err_msg)
+        raise HTTPException(status_code=500, detail=err_msg)
 
 @app.get("/api/admin/audit_logs")
 def get_audit_logs(db: Session = Depends(get_db)):
