@@ -404,9 +404,16 @@ def get_masters(db: Session = Depends(get_db)):
 # --- УПРАВЛЕНИЕ СМЕНОЙ ---
 @app.post("/api/shifts/", response_model=schemas.Shift)
 def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if user_role not in ["master", "admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастер смены или администратор могут открывать смены.")
+        
+    active = db.query(models.Shift).filter(models.Shift.status == "active").first()
+    if active:
+        if user_role != "admin" and active.master_id != user_id:
+            master_name = active.master.name if active.master else "другим мастером"
+            raise HTTPException(status_code=403, detail=f"Уже есть активная смена, открытая мастером {master_name}. Вы не можете начать новую смену.")
         
     db_shift = models.Shift(**shift.model_dump())
     db.add(db_shift)
@@ -591,9 +598,16 @@ class LFMDrainsUpdate(BaseModel):
     cem_drain: float = 0
 
 @app.post("/api/shifts/{shift_id}/receipt")
-def update_receipt(shift_id: int, data: UpdateReceiptZO, db: Session = Depends(get_db)):
+def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
     shift = db.query(models.Shift).get(shift_id)
-    if not shift: raise HTTPException(404)
+    if not shift: raise HTTPException(404, "Смена не найдена")
+    
+    if user_role == "master" and shift.master_id != user_id:
+        master_name = shift.master.name if shift.master else "другим мастером"
+        raise HTTPException(status_code=403, detail=f"Вы не можете редактировать рецепт этой смены, так как она была открыта мастером {master_name}.")
+        
     shift.receipt_chrysotile_4_20 = data.chrysotile_4_20
     shift.receipt_chrysotile_5_65 = data.chrysotile_5_65
     shift.receipt_chrysotile_6_40 = data.chrysotile_6_40
@@ -1120,6 +1134,82 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
             "top_reasons": top_reasons
         }
     }
+
+@app.get("/api/dashboard/weekly_report")
+def get_weekly_report(db: Session = Depends(get_db)):
+    # Берем последние 7 смен (включая текущую)
+    shifts = db.query(models.Shift).order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(7).all()
+    
+    report_data = []
+    for shift in shifts:
+        # 1. Считаем формовку (ЛФМ)
+        lfm_sheets = db.query(func.sum(models.LFMReport.lfm_sheets)).filter(models.LFMReport.shift_id == shift.id).scalar() or 0
+        
+        # 2. Считаем итог СКК
+        qcd_stats = db.query(
+            func.sum(models.Batch.qcd_condition).label('condition'),
+            func.sum(models.Batch.qcd_first_grade).label('first_grade'),
+            func.sum(models.Batch.qcd_defect).label('defect')
+        ).filter(models.Batch.shift_id == shift.id).first()
+        
+        qcd_cond = qcd_stats.condition or 0
+        qcd_fg = qcd_stats.first_grade or 0
+        qcd_def = qcd_stats.defect or 0
+        
+        # 3. Считаем отклонение сырья (Факт из ЗО - Теория по нормам)
+        lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all()
+        product_counts = {}
+        for r in lfm_reports:
+            product_counts[r.product_name] = product_counts.get(r.product_name, 0) + r.lfm_sheets
+            
+        theoretical = {
+            "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
+            "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
+            "asbozurit": 0.0, "fiberglass": 0.0
+        }
+        
+        for prod_name, sheets in product_counts.items():
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == prod_name).first()
+            if norm:
+                theoretical["chrysotile_4_20"] += sheets * norm.norm_chrysotile_4_20
+                theoretical["chrysotile_5_65"] += sheets * norm.norm_chrysotile_5_65
+                theoretical["chrysotile_6_40"] += sheets * norm.norm_chrysotile_6_40
+                theoretical["cement"] += sheets * norm.norm_cement
+                theoretical["cellulose"] += sheets * norm.norm_cellulose
+                theoretical["crushed_slate"] += sheets * norm.norm_crushed_slate
+                theoretical["asbozurit"] += sheets * norm.norm_asbozurit
+                theoretical["fiberglass"] += sheets * norm.norm_fiberglass
+
+        # Фактический расход сырья из ЗО за смену
+        fact_raw = (shift.zo_chrysotile_4_20 or 0.0) + \
+                   (shift.zo_chrysotile_5_65 or 0.0) + \
+                   (shift.zo_chrysotile_6_40 or 0.0) + \
+                   (shift.zo_cement or 0.0) + \
+                   (shift.zo_cellulose or 0.0) + \
+                   (shift.zo_crushed_slate or 0.0) + \
+                   (shift.zo_asbozurit or 0.0) + \
+                   (shift.zo_fiberglass or 0.0)
+
+        # Теоретический расход сырья
+        theory_raw = sum(theoretical.values())
+        
+        # Общее отклонение по сырью в кг (Факт - Теория)
+        deviation = fact_raw - theory_raw
+
+        report_data.append({
+            "id": shift.id,
+            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+            "shift_name": shift.shift_name,
+            "line": shift.line,
+            "master_name": shift.master.name if shift.master else "Н/Д",
+            "lfm_sheets": lfm_sheets,
+            "qcd_condition": qcd_cond,
+            "qcd_first_grade": qcd_fg,
+            "qcd_defect": qcd_def,
+            "raw_deviation": round(deviation, 2)
+        })
+        
+    return report_data
 
 @app.get("/api/dashboard/analytics_data")
 def get_analytics_data(

@@ -5,6 +5,8 @@ let currentDowntimes = [];
 let chartProduction = null;
 let chartDefects = null;
 let chartMaterials = null;
+let chartWeeklyProduction = null;
+let chartWeeklyDeviation = null;
 let chartDtCategory = null;
 let chartDtNodes = null;
 let chartDailySheets = null;
@@ -283,7 +285,6 @@ function applyRoleVisibility() {
     } else {
         if(tabsMenu) tabsMenu.style.display = 'flex';
         if(btnProd) btnProd.style.display = 'inline-block';
-        if(btnDown) btnDown.style.display = 'inline-block';
         switchTab('production');
     }
     
@@ -382,7 +383,8 @@ async function loadData() {
         activeShiftId = shift.id;
         activeShiftData = shift;
         currentDowntimes = shift.downtimes || [];
-        document.getElementById('active-shift-display').innerText = `${shift.date} | ${shift.shift_name} | ${shift.line}`;
+        const masterText = shift.master ? ` (Мастер: ${shift.master.name})` : '';
+        document.getElementById('active-shift-display').innerText = `${shift.date} | ${shift.shift_name} | ${shift.line}${masterText}`;
         
         const lfmList = document.getElementById('lfm-reports-list');
         if(lfmList) {
@@ -391,6 +393,7 @@ async function loadData() {
             ).join('');
         }
         
+        updateOperatorsStatus(shift);
         renderDowntimesTable(shift);
         
         if (currentUser.role === 'master') {
@@ -459,17 +462,17 @@ async function loadData() {
     if (currentUser.role === 'destacker' || currentUser.role === 'admin') {
         const dsRes = await fetch('/api/batches/pending_destacker');
         const dsBatches = await dsRes.json();
-        document.getElementById('ds-batch-select').innerHTML = dsBatches.map(b => 
+        document.getElementById('ds-batch-select').innerHTML = '<option value="">-- Выберите партию --</option>' + dsBatches.map(b => 
             `<option value="${b.id}">${b.batch_number} (${b.product_name})</option>`
-        ).join('') || '<option value="">Нет партий</option>';
+        ).join('');
     }
     
     if (currentUser.role === 'qcd' || currentUser.role === 'admin') {
         const qcdRes = await fetch('/api/batches/pending_qcd');
         const qcdBatches = await qcdRes.json();
-        document.getElementById('qcd-batch-select').innerHTML = qcdBatches.map(b => 
+        document.getElementById('qcd-batch-select').innerHTML = '<option value="">-- Выберите партию --</option>' + qcdBatches.map(b => 
             `<option value="${b.id}">${b.batch_number} (${b.status})</option>`
-        ).join('') || '<option value="">Нет партий</option>';
+        ).join('');
     }
 }
 
@@ -521,7 +524,8 @@ async function viewShift(shiftId) {
     activeShiftData = shift;
     currentDowntimes = shift.downtimes || [];
     
-    document.getElementById('active-shift-display').innerText = `${shift.date} | ${shift.shift_name} | ${shift.line}`;
+    const masterText = shift.master ? ` (Мастер: ${shift.master.name})` : '';
+    document.getElementById('active-shift-display').innerText = `${shift.date} | ${shift.shift_name} | ${shift.line}${masterText}`;
     
     const lfmList = document.getElementById('lfm-reports-list');
     if(lfmList) {
@@ -530,37 +534,116 @@ async function viewShift(shiftId) {
         ).join('');
     }
     
+    updateOperatorsStatus(shift);
     renderDowntimesTable(shift);
     
     if (currentUser.role === 'master') {
         renderSummaryTable(shift);
-        renderMasterDashboard(shift);
         fetchMaterialsSummary(shift.id);
     } else if (currentUser.role === 'director') {
         renderSummaryTable(shift);
         fetchMaterialsSummary(shift.id);
-        renderDashboard(shift); // Need to pass shift instead of fetching active
     }
     
     applyShiftMode(shift);
     
-    // Switch to dashboard or production tab to see the data
-    if (currentUser.role === 'director') {
-        switchTab('dashboard');
-    } else {
-        switchTab('production');
+    switchTab('production');
+}
+
+function updateOperatorsStatus(shift) {
+    const block = document.getElementById('operators-status-block');
+    if (!block) return;
+    
+    if (!shift) {
+        block.style.display = 'none';
+        return;
+    }
+    
+    const canSee = !!(currentUser && currentUser.role);
+    if (!canSee) {
+        block.style.display = 'none';
+        return;
+    }
+    
+    block.style.display = 'block';
+    
+    // 1. ЗО
+    const statusZo = document.getElementById('status-zo');
+    if (statusZo) {
+        if (shift.zo_submitted) {
+            statusZo.innerHTML = `ЗО: <span style="font-weight: bold; color: var(--success-color);">Передано</span>`;
+        } else {
+            statusZo.innerHTML = `ЗО: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>`;
+        }
+    }
+    
+    // 2. ЛФМ
+    const statusLfm = document.getElementById('status-lfm');
+    if (statusLfm) {
+        const hasLfm = shift.lfm_reports && shift.lfm_reports.length > 0;
+        if (hasLfm) {
+            statusLfm.innerHTML = `ЛФМ: <span style="font-weight: bold; color: var(--success-color);">Передано</span>`;
+        } else {
+            statusLfm.innerHTML = `ЛФМ: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>`;
+        }
+    }
+    
+    // 3. Стакер
+    const statusStacker = document.getElementById('status-stacker');
+    if (statusStacker) {
+        const hasStacker = shift.batches && shift.batches.length > 0;
+        if (hasStacker) {
+            statusStacker.innerHTML = `Стакер: <span style="font-weight: bold; color: var(--success-color);">Передано</span>`;
+        } else {
+            statusStacker.innerHTML = `Стакер: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>`;
+        }
+    }
+    
+    // 4. Дестакер
+    const statusDestacker = document.getElementById('status-destacker');
+    if (statusDestacker) {
+        const hasDestacker = shift.batches && shift.batches.some(b => b.status === 'destacked' || b.status === 'qcd_checked');
+        if (hasDestacker) {
+            statusDestacker.innerHTML = `Разборщик: <span style="font-weight: bold; color: var(--success-color);">Передано</span>`;
+        } else {
+            statusDestacker.innerHTML = `Разборщик: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>`;
+        }
+    }
+    
+    // 5. СКК
+    const statusQcd = document.getElementById('status-qcd');
+    if (statusQcd) {
+        const hasQcd = shift.batches && shift.batches.some(b => b.status === 'qcd_checked');
+        if (hasQcd) {
+            statusQcd.innerHTML = `СКК: <span style="font-weight: bold; color: var(--success-color);">Передано</span>`;
+        } else {
+            statusQcd.innerHTML = `СКК: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>`;
+        }
     }
 }
 
 function applyShiftMode(shift) {
     const isClosed = !shift || shift.status === 'closed';
+    const isOtherMaster = shift && currentUser.role === 'master' && shift.master_id !== currentUser.id;
+    const isReadOnly = isClosed || isOtherMaster;
+    
     const readonlyBadge = document.getElementById('readonly-badge');
     if (readonlyBadge) {
-        readonlyBadge.style.display = (shift && shift.status === 'closed') ? 'block' : 'none';
+        if (shift && shift.status === 'closed') {
+            readonlyBadge.innerText = "РЕЖИМ ПРОСМОТРА";
+            readonlyBadge.style.display = 'block';
+        } else if (isOtherMaster) {
+            readonlyBadge.innerText = "СМЕНА ДРУГОГО МАСТЕРА";
+            readonlyBadge.style.display = 'block';
+        } else {
+            readonlyBadge.style.display = 'none';
+        }
     }
+    
     const btnCloseShift = document.getElementById('btn-close-shift');
     if (btnCloseShift) {
-        btnCloseShift.style.display = (shift && shift.status !== 'closed') ? 'inline-block' : 'none';
+        const canClose = shift && shift.status !== 'closed' && (currentUser.role === 'admin' || (currentUser.role === 'master' && shift.master_id === currentUser.id));
+        btnCloseShift.style.display = canClose ? 'inline-block' : 'none';
     }
     
     // Disable inputs and buttons in production if closed or no shift
@@ -571,7 +654,10 @@ function applyShiftMode(shift) {
             const inputs = el.querySelectorAll('input, select, button');
             inputs.forEach(input => {
                 if(input.id !== 'btn-close-shift' && !input.classList.contains('tab-btn') && input.innerText !== 'Обновить' && !input.getAttribute('onclick')?.includes('switchTab')) {
-                     const shouldDisable = (f === 'master-view') ? (shift && shift.status === 'closed') : isClosed;
+                     let shouldDisable = isReadOnly;
+                     if (f === 'master-view') {
+                         shouldDisable = !!shift;
+                     }
                      input.disabled = shouldDisable;
                      if(shouldDisable) {
                          input.style.opacity = '0.5';
@@ -588,7 +674,7 @@ function applyShiftMode(shift) {
     // Special logic for ZO
     const zoView = document.getElementById('zo-view');
     if (zoView) {
-        const isZoLocked = isClosed || (shift && shift.zo_submitted);
+        const isZoLocked = isReadOnly || (shift && shift.zo_submitted);
         const inputs = zoView.querySelectorAll('input, select, button');
         inputs.forEach(input => {
             if(input.innerText !== 'Обновить' && !input.getAttribute('onclick')?.includes('switchTab')) {
@@ -1403,230 +1489,196 @@ function exportToExcel() {
     XLSX.writeFile(wb, "Svodny_Otchet.xlsx");
 }
 
-async function renderDashboard(shiftDataParam = null) {
-    let stats;
-    if (shiftDataParam) {
-        // Compute stats manually for the specific shift
-        const s = shiftDataParam;
-        let cond = 0, first = 0, def = 0;
-        let defects = {};
-        for(let k in DEFECT_NAMES) defects[k] = 0;
-        
-        const bList = s.batches || [];
-        for(let b of bList) {
-            cond += b.ds_condition || 0;
-            first += b.ds_first_grade || 0;
-            def += b.ds_defect || 0;
-            for(let k in DEFECT_NAMES) {
-                defects[k] += b[k] || 0;
-            }
-        }
-        
-        let dMinutes = 0, dTons = 0, dTenge = 0;
-        let dtByCat = {};
-        let dtNodesMap = {};
-        for(let d of (s.downtimes || [])) {
-            dMinutes += d.duration;
-            dTons += d.lost_tons;
-            dTenge += d.lost_tenge;
-            dtNodesMap[d.node] = (dtNodesMap[d.node] || 0) + 1;
-        }
-        let topReasons = Object.entries(dtNodesMap).map(([node, count]) => ({node, count})).sort((a,b)=>b.count-a.count).slice(0,5);
-        
-        stats = {
-            production: { condition: cond, first_grade: first, defect: def },
-            defects: defects,
-            materials: {
-                "Асбест": { 
-                    receipt: (s.receipt_chrysotile_4_20||0) + (s.receipt_chrysotile_5_65||0) + (s.receipt_chrysotile_6_40||0),
-                    zo: (s.zo_chrysotile_4_20||0) + (s.zo_chrysotile_5_65||0) + (s.zo_chrysotile_6_40||0)
-                },
-                "Цемент": { receipt: s.receipt_cement||0, zo: s.zo_cement||0 },
-                "Целлюлоза": { receipt: s.receipt_cellulose||0, zo: s.zo_cellulose||0 }
-            },
-            downtimes: {
-                total_minutes: dMinutes, lost_tons: dTons, lost_tenge: dTenge, top_reasons: topReasons
-            }
-        };
-    } else {
-        const res = await fetch('/api/dashboard/stats');
-        stats = await res.json();
-    }
-
+async function renderDashboard() {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     const textCol = isLight ? '#1e293b' : '#e0e0e0';
 
-    // 1. Production (Bar)
-    const ctxProd = document.getElementById('chart-production').getContext('2d');
-    if (chartProduction) chartProduction.destroy();
-    chartProduction = new Chart(ctxProd, {
-        type: 'bar',
-        data: {
-            labels: ['Кондиция', '1 Сорт', 'Брак'],
-            datasets: [{
-                label: 'Объем (шт)',
-                data: [stats.production.condition, stats.production.first_grade, stats.production.defect],
-                backgroundColor: ['rgba(40, 167, 69, 0.8)', 'rgba(23, 162, 184, 0.8)', 'rgba(220, 53, 69, 0.8)'],
-                borderColor: ['#28a745', '#17a2b8', '#dc3545'],
-                borderWidth: 1
-            }]
-        },
-        options: { 
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { ticks: { color: textCol } },
-                x: { ticks: { color: textCol } }
-            }
-        }
-    });
-
-    // 2. Defects (Doughnut)
-    const ctxDef = document.getElementById('chart-defects').getContext('2d');
-    if (chartDefects) chartDefects.destroy();
+    // Загрузка недельной аналитики
+    const weeklyRes = await fetch('/api/dashboard/weekly_report');
+    if (!weeklyRes.ok) {
+        console.error("Ошибка загрузки недельного отчета");
+        return;
+    }
+    const weeklyData = await weeklyRes.json();
     
-    const defLabels = [];
-    const defData = [];
-    const defColors = [
-        '#ff6384','#36a2eb','#cc65fe','#ffce56','#ff9f40',
-        '#4bc0c0','#9966ff','#ff6633','#00cc99','#ff33cc','#ffff66'
-    ];
-    let colorIdx = 0;
-    const finalColors = [];
-
-    for (const [k, v] of Object.entries(stats.defects)) {
-        if (v > 0) {
-            defLabels.push(k);
-            defData.push(v);
-            finalColors.push(defColors[colorIdx % defColors.length]);
+    // Отрисовываем таблицу
+    const tbody = document.getElementById('weekly-report-table-body');
+    if (tbody) {
+        tbody.innerHTML = '';
+        if (weeklyData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 1rem;">Нет данных за неделю</td></tr>`;
+        } else {
+            weeklyData.forEach(row => {
+                const devColor = row.raw_deviation > 0 ? 'var(--danger-color)' : (row.raw_deviation < 0 ? 'var(--success-color)' : 'inherit');
+                const formattedDev = row.raw_deviation > 0 ? `+${row.raw_deviation}` : row.raw_deviation;
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: 0.5rem;">${row.date} (${row.shift_name === 'День' ? 'Д' : 'Н'})</td>
+                        <td style="padding: 0.5rem;">${row.line}</td>
+                        <td style="padding: 0.5rem;">${row.master_name}</td>
+                        <td style="padding: 0.5rem; text-align: right; font-weight: bold;">${row.lfm_sheets.toLocaleString()}</td>
+                        <td style="padding: 0.5rem; text-align: right; color: var(--success-color);">${row.qcd_condition.toLocaleString()}</td>
+                        <td style="padding: 0.5rem; text-align: right; color: var(--accent-color);">${row.qcd_first_grade.toLocaleString()}</td>
+                        <td style="padding: 0.5rem; text-align: right; color: var(--danger-color);">${row.qcd_defect.toLocaleString()}</td>
+                        <td style="padding: 0.5rem; text-align: right; color: ${devColor}; font-weight: bold;">${formattedDev} кг</td>
+                    </tr>
+                `;
+            });
         }
-        colorIdx++;
     }
 
-    chartDefects = new Chart(ctxDef, {
-        type: 'doughnut',
-        data: {
-            labels: defLabels.length ? defLabels : ['Нет брака'],
-            datasets: [{
-                data: defData.length ? defData : [1],
-                backgroundColor: defData.length ? finalColors : ['rgba(255,255,255,0.1)'],
-                borderColor: 'rgba(255,255,255,0.2)',
-                borderWidth: 1
-            }]
-        },
-        options: { 
-            plugins: { 
-                legend: { position: 'right', labels: { color: textCol } } 
-            } 
-        }
-    });
+    // Готовим данные для графиков
+    const chartShifts = [...weeklyData].reverse();
+    const labels = chartShifts.map(s => `${s.date.split('-').slice(1).join('.')}\n(${s.shift_name[0]})`);
+    const lfmData = chartShifts.map(s => s.lfm_sheets);
+    const qcdCondData = chartShifts.map(s => s.qcd_condition);
+    const devData = chartShifts.map(s => s.raw_deviation);
 
-    // 3. Materials (Bar - grouped)
-    const ctxMat = document.getElementById('chart-materials').getContext('2d');
-    if (chartMaterials) chartMaterials.destroy();
-    
-    chartMaterials = new Chart(ctxMat, {
-        type: 'bar',
-        data: {
-            labels: ['Асбест', 'Цемент', 'Целлюлоза'],
-            datasets: [
-                {
-                    label: 'Склад (Приход)',
-                    data: [stats.materials['Асбест'].receipt, stats.materials['Цемент'].receipt, stats.materials['Целлюлоза'].receipt],
-                    backgroundColor: 'rgba(23, 162, 184, 0.8)',
-                    borderColor: '#17a2b8',
-                    borderWidth: 1
-                },
-                {
-                    label: 'ЗО (Расход)',
-                    data: [stats.materials['Асбест'].zo, stats.materials['Цемент'].zo, stats.materials['Целлюлоза'].zo],
-                    backgroundColor: 'rgba(255, 193, 7, 0.8)',
-                    borderColor: '#ffc107',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            scales: {
-                y: { ticks: { color: textCol } },
-                x: { ticks: { color: textCol } }
+    // 1. Формовка vs Кондиция (Bar)
+    const ctxProd = document.getElementById('chart-weekly-production')?.getContext('2d');
+    if (ctxProd) {
+        if (chartWeeklyProduction) chartWeeklyProduction.destroy();
+        chartWeeklyProduction = new Chart(ctxProd, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Формовка (ЛФМ)',
+                        data: lfmData,
+                        backgroundColor: 'rgba(23, 162, 184, 0.8)',
+                        borderColor: '#17a2b8',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Кондиция (СКК)',
+                        data: qcdCondData,
+                        backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                        borderColor: '#28a745',
+                        borderWidth: 1
+                    }
+                ]
             },
-            plugins: { legend: { labels: { color: textCol } } }
-        }
-    });
-
-    // 4. Простои (KPIs)
-    document.getElementById('kpi-dt-minutes').innerText = stats.downtimes.total_minutes + ' мин';
-    document.getElementById('kpi-dt-tons').innerText = stats.downtimes.lost_tons.toFixed(1) + ' т';
-    document.getElementById('kpi-dt-tenge').innerText = stats.downtimes.lost_tenge.toLocaleString() + ' ₸';
-
-
-
-    // 6. Простои - Узлы (Bar)
-    const ctxDtNodes = document.getElementById('chart-dt-nodes').getContext('2d');
-    if (chartDtNodes) chartDtNodes.destroy();
-    
-    const nodeLabels = stats.downtimes.top_reasons.map(r => r.node);
-    const nodeData = stats.downtimes.top_reasons.map(r => r.count);
-    
-    chartDtNodes = new Chart(ctxDtNodes, {
-        type: 'bar',
-        data: {
-            labels: nodeLabels.length ? nodeLabels : ['Нет данных'],
-            datasets: [{
-                label: 'Кол-во остановок',
-                data: nodeData.length ? nodeData : [0],
-                backgroundColor: 'rgba(220, 53, 69, 0.8)',
-                borderColor: '#dc3545',
-                borderWidth: 1
-            }]
-        },
-        options: { 
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { ticks: { color: textCol, stepSize: 1 }, beginAtZero: true },
-                x: { ticks: { color: textCol } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { ticks: { color: textCol } },
+                    x: { ticks: { color: textCol } }
+                },
+                plugins: { legend: { labels: { color: textCol } } }
             }
-        }
-    });
+        });
+    }
 
-    // 7. Простои - Категории (Doughnut)
-    const ctxDtCategory = document.getElementById('chart-dt-category').getContext('2d');
-    if (chartDtCategory) chartDtCategory.destroy();
+    // 2. Отклонения по сырью (Bar)
+    const ctxDev = document.getElementById('chart-weekly-deviation')?.getContext('2d');
+    if (ctxDev) {
+        if (chartWeeklyDeviation) chartWeeklyDeviation.destroy();
+        
+        const bgColors = devData.map(val => val > 0 ? 'rgba(220, 53, 69, 0.8)' : 'rgba(40, 167, 69, 0.8)');
+        const borderColors = devData.map(val => val > 0 ? '#dc3545' : '#28a745');
+        
+        chartWeeklyDeviation = new Chart(ctxDev, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Отклонение (кг)',
+                    data: devData,
+                    backgroundColor: bgColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { ticks: { color: textCol } },
+                    x: { ticks: { color: textCol } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
 
-    const catLabels = Object.keys(stats.downtimes.by_category || {});
-    const catData = Object.values(stats.downtimes.by_category || {});
+    // 3. Загружаем простои (KPIs и структуру)
+    const resStats = await fetch('/api/dashboard/stats');
+    if (resStats.ok) {
+        const stats = await resStats.json();
+        
+        document.getElementById('kpi-dt-minutes').innerText = stats.downtimes.total_minutes + ' мин';
+        document.getElementById('kpi-dt-tons').innerText = stats.downtimes.lost_tons.toFixed(1) + ' т';
+        document.getElementById('kpi-dt-tenge').innerText = stats.downtimes.lost_tenge.toLocaleString() + ' ₸';
 
-    const finalLabels = catLabels.length ? catLabels : ['Нет данных'];
-    const finalData = catData.length ? catData : [0];
-
-    chartDtCategory = new Chart(ctxDtCategory, {
-        type: 'doughnut',
-        data: {
-            labels: finalLabels,
-            datasets: [{
-                data: finalData,
-                backgroundColor: [
-                    'rgba(23, 162, 184, 0.8)',  // Teal (Технологические)
-                    'rgba(255, 193, 7, 0.8)',   // Yellow (Энергетические)
-                    'rgba(40, 167, 69, 0.8)',   // Green (Механические)
-                    'rgba(220, 53, 69, 0.8)',   // Red (Остановки внешние)
-                    'rgba(111, 66, 193, 0.8)'   // Purple (ТО и ППР)
-                ],
-                borderColor: 'var(--glass-border)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textCol, boxWidth: 12 }
+        // Топ узлов простоев
+        const ctxDtNodes = document.getElementById('chart-dt-nodes').getContext('2d');
+        if (chartDtNodes) chartDtNodes.destroy();
+        
+        const nodeLabels = stats.downtimes.top_reasons.map(r => r.node);
+        const nodeData = stats.downtimes.top_reasons.map(r => r.count);
+        
+        chartDtNodes = new Chart(ctxDtNodes, {
+            type: 'bar',
+            data: {
+                labels: nodeLabels.length ? nodeLabels : ['Нет данных'],
+                datasets: [{
+                    label: 'Кол-во остановок',
+                    data: nodeData.length ? nodeData : [0],
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    borderColor: '#dc3545',
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { ticks: { color: textCol, stepSize: 1 }, beginAtZero: true },
+                    x: { ticks: { color: textCol } }
                 }
             }
-        }
-    });
+        });
+
+        // Простои по категориям
+        const ctxDtCategory = document.getElementById('chart-dt-category').getContext('2d');
+        if (chartDtCategory) chartDtCategory.destroy();
+
+        const catLabels = Object.keys(stats.downtimes.by_category || {});
+        const catData = Object.values(stats.downtimes.by_category || {});
+
+        const finalLabels = catLabels.length ? catLabels : ['Нет данных'];
+        const finalData = catData.length ? catData : [0];
+
+        chartDtCategory = new Chart(ctxDtCategory, {
+            type: 'doughnut',
+            data: {
+                labels: finalLabels,
+                datasets: [{
+                    data: finalData,
+                    backgroundColor: [
+                        'rgba(23, 162, 184, 0.8)',  // Teal
+                        'rgba(255, 193, 7, 0.8)',   // Yellow
+                        'rgba(40, 167, 69, 0.8)',   // Green
+                        'rgba(220, 53, 69, 0.8)',   // Red
+                        'rgba(111, 66, 193, 0.8)'   // Purple
+                    ],
+                    borderColor: 'var(--glass-border)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: textCol, boxWidth: 12 }
+                    }
+                }
+            }
+        });
+    }
 }
 
 

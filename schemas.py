@@ -134,6 +134,7 @@ class Shift(ShiftBase):
     batches: List[Batch] = []
     lfm_reports: List[LFMReport] = []
     downtimes: List[Downtime] = []
+    master: Optional['Master'] = None
 
     class Config:
         from_attributes = True

@@ -117,6 +117,28 @@
                 </div>
             </div>
 
+            <!-- Статус операторов смены (виден всем ролям) -->
+            <div class="glass-panel card" id="operators-status-block" style="margin-bottom: 1.5rem; display: none;">
+                <h4 style="margin-bottom: 0.5rem; text-align: center;">Статус отчетов операторов смены:</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; font-size: 0.85rem;">
+                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-zo">
+                        ЗО: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-lfm">
+                        ЛФМ: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-stacker">
+                        Стакер: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-destacker">
+                        Разборщик: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-qcd">
+                        СКК: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+                    </div>
+                </div>
+            </div>
+
             <div id="production-tab" class="dashboard-grid">
                 
                 <!-- 1. Мастер -->
@@ -135,70 +157,14 @@
                         </select>
                         <button onclick="createShift()">Начать смену</button>
                     </div>
+
                     <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
                     <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
                         <button class="btn-success" onclick="window.open('/api/dashboard/view_archive')" style="background: #217346; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">📁 Сводный отчет (Архив)</button>
                     </div>
                 </div>
 
-                <!-- 1.1 Внесение выработки (для директора, мастера и админа) -->
-                <div class="glass-panel card" id="plan-board-view" style="display: none; margin-top: 1.5rem;">
-                    <h3>📋 Внесение выработки</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Данные по выработке для формирования Месячной сводки.</p>
-                    
-                    <!-- Панель управления администратора (только для роли admin) -->
-                    <div id="admin-plan-controls" style="display: none; background: rgba(200, 35, 35, 0.05); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 12px; margin-bottom: 1rem;">
-                        <h4 style="margin-bottom: 0.5rem; color: var(--accent-color); font-size: 0.95rem;">🛡️ Админ-панель</h4>
-                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                            <input type="file" id="admin-excel-file" accept=".xlsx" style="font-size: 0.8rem; width: 100%;">
-                            <div style="display: flex; gap: 0.5rem;">
-                                <button onclick="uploadAndImportExcel()" style="padding: 0.4rem 1rem; background: var(--success-color); font-size: 0.8rem;">Импорт</button>
-                                <button class="btn-danger" onclick="clearPlanBoard()" style="padding: 0.4rem 1rem; font-size: 0.8rem; background: var(--danger-color);">Очистить</button>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Форма добавления данных -->
-                    <div id="director-plan-form" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                        <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
-                            <div>
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата</label>
-                                <input type="date" id="pb-date" style="padding: 0.4rem;">
-                            </div>
-                            <div>
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Мастер</label>
-                                <select id="pb-master" style="padding: 0.4rem;"></select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Линия</label>
-                                <select id="pb-line" style="padding: 0.4rem;">
-                                    <option value="ЛФМ-1">ЛФМ-1</option>
-                                    <option value="ЛФМ-2" selected>ЛФМ-2</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Тип смены</label>
-                                <select id="pb-shift-name" style="padding: 0.4rem;">
-                                    <option value="День">День</option>
-                                    <option value="Ночь">Ночь</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Номер смены (Excel)</label>
-                                <input type="number" id="pb-shift-num" value="1" style="padding: 0.4rem;">
-                            </div>
-                            <div>
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">План (листы)</label>
-                                <input type="number" id="pb-plan" value="0" style="padding: 0.4rem;">
-                            </div>
-                            <div style="grid-column: span 2;">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary);">Факт (листы)</label>
-                                <input type="number" id="pb-fact" value="0" style="padding: 0.4rem;">
-                            </div>
-                        </div>
-                        <button onclick="saveDirectorPlanBoard()" style="margin-top: 1rem; width: 100%; padding: 0.6rem; font-size: 0.9rem;">Сохранить выработку</button>
-                    </div>
-                </div>
 
                 <!-- 1.2 Приход сырья для мастера -->
                 <div class="glass-panel card" id="master-receipt-view" style="display: none;">
@@ -431,43 +397,46 @@
                     <button onclick="updateQCD()">Сохранить контроль</button>
                 </div>
 
-                <!-- 7. Сводный Отчет -->
-                <div class="glass-panel card" id="report-view" style="grid-column: 1 / -1; display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <h3>Сводный отчет (Партии текущей смены)</h3>
-                        <button onclick="exportToExcel()" style="width: auto; padding: 0.5rem 1.5rem; background: #217346;">Выгрузить в Excel</button>
-                    </div>
-                    <div class="table-responsive-container">
-                        <table id="summary-table" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary); font-size: 0.9rem;">
-                            <thead>
-                                <!-- Заголовок генерируется динамически -->
-                            </thead>
-                            <tbody id="report-table-body">
-                                <!-- Данные генерируются динамически -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
                 <!-- 8. Аналитический Дашборд -->
                 <div class="glass-panel card" id="dashboard-view" style="grid-column: 1 / -1; display: none; margin-top: 1.5rem;">
                     <h3>Аналитический Дашборд</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                    
+                    <!-- Таблица недельного отчета -->
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                        <h4 style="margin-bottom: 0.75rem;">Итоги работы за неделю (последние 7 смен)</h4>
+                        <div class="table-responsive-container">
+                            <table style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary); font-size: 0.85rem;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid var(--glass-border);">
+                                        <th style="padding: 0.5rem;">Дата / Смена</th>
+                                        <th style="padding: 0.5rem;">Линия</th>
+                                        <th style="padding: 0.5rem;">Мастер</th>
+                                        <th style="padding: 0.5rem; text-align: right;">Формовка (ЛФМ)</th>
+                                        <th style="padding: 0.5rem; text-align: right;">СКК Конд.</th>
+                                        <th style="padding: 0.5rem; text-align: right;">СКК 1 Сорт</th>
+                                        <th style="padding: 0.5rem; text-align: right;">СКК Брак</th>
+                                        <th style="padding: 0.5rem; text-align: right;">Откл. сырья (кг)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weekly-report-table-body">
+                                    <!-- Данные генерируются из js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Графики производства и сырья -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
                         <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производство (СКК)</h4>
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Формовка vs Кондиция (последние 7 смен)</h4>
                             <div class="chart-container">
-                                <canvas id="chart-production"></canvas>
+                                <canvas id="chart-weekly-production"></canvas>
                             </div>
                         </div>
                         <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Структура Брака</h4>
+                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Отклонение расхода сырья (кг)</h4>
                             <div class="chart-container">
-                                <canvas id="chart-defects"></canvas>
-                            </div>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Отклонения сырья (Склад vs ЗО)</h4>
-                            <div class="chart-container">
-                                <canvas id="chart-materials"></canvas>
+                                <canvas id="chart-weekly-deviation"></canvas>
                             </div>
                         </div>
                     </div>
