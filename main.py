@@ -100,7 +100,37 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
-    
+    # PostgreSQL auto-migration for missing columns
+    if "postgresql" in engine.url.drivername or "postgres" in engine.url.drivername:
+        from sqlalchemy import text
+        pg_cols_to_add = [
+            ("monthly_plan_board", "first_grade", "INTEGER DEFAULT 0"),
+            ("monthly_plan_board", "defect", "INTEGER DEFAULT 0"),
+            ("monthly_plan_board", "line", "VARCHAR(255) DEFAULT 'ЛФМ-1'"),
+            ("masters", "email", "VARCHAR(255)"),
+            ("downtimes", "department", "VARCHAR(255)"),
+            ("downtime_directory", "category", "VARCHAR(255)"),
+            ("downtimes", "is_equipment_downtime", "BOOLEAN DEFAULT TRUE"),
+            ("shifts", "zo_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("shifts", "lfm_asb_drain", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("shifts", "lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("shifts", "sharepoint_url", "VARCHAR(500)")
+        ]
+        try:
+            with engine.begin() as conn:
+                for table, col, col_def in pg_cols_to_add:
+                    res = conn.execute(text(f"""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name='{table}' AND column_name='{col}';
+                    """)).fetchone()
+                    if not res:
+                        print(f"Adding column '{col}' to table '{table}' in PostgreSQL...")
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def};"))
+                        print(f"Column '{col}' added successfully.")
+        except Exception as pg_err:
+            print(f"Error running PostgreSQL migrations: {pg_err}")
+
     db = SessionLocal()
 
     try:
