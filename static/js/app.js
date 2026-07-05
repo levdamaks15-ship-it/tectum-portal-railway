@@ -80,8 +80,26 @@ function setupTimePickers() {
     });
 }
 
+function setupCollapsibleCards() {
+    document.querySelectorAll('.collapsible-card h3').forEach(header => {
+        if (header.dataset.collapsibleSetup) return;
+        header.dataset.collapsibleSetup = 'true';
+        header.addEventListener('click', () => {
+            const card = header.closest('.collapsible-card');
+            if (card) {
+                card.classList.toggle('expanded');
+            }
+        });
+    });
+}
+
 async function init() {
     initTheme();
+    setupCollapsibleCards();
+    
+    if (typeof Chart !== 'undefined') {
+        Chart.defaults.plugins.legend.display = window.innerWidth > 480;
+    }
     
     // Check if the user is already authenticated on the server
     try {
@@ -322,6 +340,17 @@ function applyRoleVisibility() {
     if (adminPlanControls) {
         adminPlanControls.style.display = (role === 'admin') ? 'block' : 'none';
     }
+
+    // Auto-expand visible cards on mobile for line roles, keep them collapsed for master/admin
+    const collapsibleCards = document.querySelectorAll('.collapsible-card');
+    collapsibleCards.forEach(card => {
+        card.classList.remove('expanded');
+        if (role !== 'master' && role !== 'admin') {
+            if (card.style.display !== 'none') {
+                card.classList.add('expanded');
+            }
+        }
+    });
 }
 
 function switchTab(tabId) {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260705_v10">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260705_v11">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -142,259 +142,270 @@
             <div id="production-tab" class="dashboard-grid">
                 
                 <!-- 1. Мастер -->
-                <div class="glass-panel card" id="master-view">
+                <div class="glass-panel card collapsible-card" id="master-view">
                     <h3>Мастер (Управление сменой)</h3>
+                    <div class="card-content">
+                        <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                            <h4>Открыть смену</h4>
+                            <input type="date" id="shift-date" style="margin-bottom:0.5rem">
+                            <select id="shift-name" style="margin-bottom:0.5rem">
+                                <option value="День">День</option><option value="Ночь">Ночь</option>
+                            </select>
+                            <select id="shift-line" style="margin-bottom:0.5rem">
+                                <option value="Линия 1">Линия 1</option>
+                                <option value="Линия 2">Линия 2</option>
+                            </select>
+                            <button onclick="createShift()">Начать смену</button>
+                        </div>
 
-                    <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
-                        <h4>Открыть смену</h4>
-                        <input type="date" id="shift-date" style="margin-bottom:0.5rem">
-                        <select id="shift-name" style="margin-bottom:0.5rem">
-                            <option value="День">День</option><option value="Ночь">Ночь</option>
-                        </select>
-                        <select id="shift-line" style="margin-bottom:0.5rem">
-                            <option value="Линия 1">Линия 1</option>
-                            <option value="Линия 2">Линия 2</option>
-                        </select>
-                        <button onclick="createShift()">Начать смену</button>
-                    </div>
-
-                    <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
-                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
-                        <button class="btn-success" onclick="window.open('/api/dashboard/view_archive')" style="background: #217346; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">📁 Сводный отчет (Архив)</button>
+                        <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
+                        <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                            <button class="btn-success" onclick="window.open('/api/dashboard/view_archive')" style="background: #217346; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">📁 Сводный отчет (Архив)</button>
+                        </div>
                     </div>
                 </div>
 
 
 
                 <!-- 1.2 Приход сырья для мастера -->
-                <div class="glass-panel card" id="master-receipt-view" style="display: none;">
+                <div class="glass-panel card collapsible-card" id="master-receipt-view" style="display: none;">
                     <h3>📥 Приход Сырья (на склад)</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Ввод сырья, поступившего на склад за текущую смену.</p>
-                    <div class="two-col-grid">
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 4-20 (кг)</label>
-                            <input type="number" id="rec-chr-4-20" placeholder="0">
+                    <div class="card-content">
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Ввод сырья, поступившего на склад за текущую смену.</p>
+                        <div class="two-col-grid">
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 4-20 (кг)</label>
+                                <input type="number" id="rec-chr-4-20" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 5-65 (кг)</label>
+                                <input type="number" id="rec-chr-5-65" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 6-40 (кг)</label>
+                                <input type="number" id="rec-chr-6-40" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Цемент (кг)</label>
+                                <input type="number" id="rec-cem" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Целлюлоза (кг)</label>
+                                <input type="number" id="rec-cel" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дробленый шифер (кг)</label>
+                                <input type="number" id="rec-slate" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Асбозурит (кг)</label>
+                                <input type="number" id="rec-asb" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Стекловолокно (кг)</label>
+                                <input type="number" id="rec-fib" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Лапрол (кг)</label>
+                                <input type="number" id="rec-laprol" placeholder="0">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 5-65 (кг)</label>
-                            <input type="number" id="rec-chr-5-65" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 6-40 (кг)</label>
-                            <input type="number" id="rec-chr-6-40" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Цемент (кг)</label>
-                            <input type="number" id="rec-cem" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Целлюлоза (кг)</label>
-                            <input type="number" id="rec-cel" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дробленый шифер (кг)</label>
-                            <input type="number" id="rec-slate" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Асбозурит (кг)</label>
-                            <input type="number" id="rec-asb" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Стекловолокно (кг)</label>
-                            <input type="number" id="rec-fib" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Лапрол (кг)</label>
-                            <input type="number" id="rec-laprol" placeholder="0">
-                        </div>
+                        <button onclick="updateReceipt()" style="margin-top: 1rem; width: 100%;">Сохранить приход</button>
                     </div>
-                    <button onclick="updateReceipt()" style="margin-top: 1rem; width: 100%;">Сохранить приход</button>
                 </div>
 
                 <!-- 2. ЗО -->
-                <div class="glass-panel card mobile-form" id="zo-view">
+                <div class="glass-panel card mobile-form collapsible-card" id="zo-view">
                     <h3 style="text-align: center;">Заготовительное отделение (ЗО)</h3>
-                    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Итог за смену (Расход)</p>
-                    
-                    <div class="form-group">
-                        <label>Хризотил 4-20 (кг)</label>
-                        <input type="number" id="zo-chr-4-20" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Хризотил 5-65 (кг)</label>
-                        <input type="number" id="zo-chr-5-65" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Хризотил 6-40 (кг)</label>
-                        <input type="number" id="zo-chr-6-40" placeholder="0">
-                    </div>
-                    
-                    <h4 style="margin-top: 1rem; color: var(--accent-color);">Цемент по силосам</h4>
-                    <div class="form-group">
-                        <label>Силос 1 (кг)</label>
-                        <input type="number" id="zo-cem-1" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Силос 2 (кг)</label>
-                        <input type="number" id="zo-cem-2" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Силос 3 (кг)</label>
-                        <input type="number" id="zo-cem-3" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Силос 4 (кг)</label>
-                        <input type="number" id="zo-cem-4" placeholder="0">
-                    </div>
-                    
-                    <h4 style="margin-top: 1rem; color: var(--accent-color);">Остальные компоненты</h4>
-                    <div class="form-group">
-                        <label>Целлюлоза (кг)</label>
-                        <input type="number" id="zo-cel" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Дробленый шифер (кг)</label>
-                        <input type="number" id="zo-slate" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Асбозурит (кг)</label>
-                        <input type="number" id="zo-asb" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Стекловолокно (кг)</label>
-                        <input type="number" id="zo-fib" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Лапрол (кг)</label>
-                        <input type="number" id="zo-laprol" placeholder="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Асбокартон (кг)</label>
-                        <input type="number" id="zo-asbocarton" placeholder="0">
-                    </div>
+                    <div class="card-content">
+                        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Итог за смену (Расход)</p>
+                        
+                        <div class="form-group">
+                            <label>Хризотил 4-20 (кг)</label>
+                            <input type="number" id="zo-chr-4-20" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Хризотил 5-65 (кг)</label>
+                            <input type="number" id="zo-chr-5-65" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Хризотил 6-40 (кг)</label>
+                            <input type="number" id="zo-chr-6-40" placeholder="0">
+                        </div>
+                        
+                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Цемент по силосам</h4>
+                        <div class="form-group">
+                            <label>Силос 1 (кг)</label>
+                            <input type="number" id="zo-cem-1" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Силос 2 (кг)</label>
+                            <input type="number" id="zo-cem-2" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Силос 3 (кг)</label>
+                            <input type="number" id="zo-cem-3" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Силос 4 (кг)</label>
+                            <input type="number" id="zo-cem-4" placeholder="0">
+                        </div>
+                        
+                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Остальные компоненты</h4>
+                        <div class="form-group">
+                            <label>Целлюлоза (кг)</label>
+                            <input type="number" id="zo-cel" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Дробленый шифер (кг)</label>
+                            <input type="number" id="zo-slate" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Асбозурит (кг)</label>
+                            <input type="number" id="zo-asb" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Стекловолокно (кг)</label>
+                            <input type="number" id="zo-fib" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Лапрол (кг)</label>
+                            <input type="number" id="zo-laprol" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Асбокартон (кг)</label>
+                            <input type="number" id="zo-asbocarton" placeholder="0">
+                        </div>
 
-                    
-                    <h4 style="margin-top: 1rem; color: var(--accent-color);">Замесы за смену</h4>
-                    <div class="form-group">
-                        <label>Количество замесов</label>
-                        <input type="number" id="zo-batches" placeholder="0">
+                        
+                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Замесы за смену</h4>
+                        <div class="form-group">
+                            <label>Количество замесов</label>
+                            <input type="number" id="zo-batches" placeholder="0">
+                        </div>
+                        
+                        <button class="btn-submit-huge" id="btn-submit-zo" onclick="updateZO()">Отправить данные за смену</button>
+                        <p id="zo-lock-msg" style="display:none; color: var(--success-color); text-align: center; margin-top: 1rem;">Данные успешно отправлены. Для корректировки обратитесь к мастеру.</p>
                     </div>
-                    
-                    <button class="btn-submit-huge" id="btn-submit-zo" onclick="updateZO()">Отправить данные за смену</button>
-                    <p id="zo-lock-msg" style="display:none; color: var(--success-color); text-align: center; margin-top: 1rem;">Данные успешно отправлены. Для корректировки обратитесь к мастеру.</p>
                 </div>
 
                 <!-- 3. ЛФМ -->
-                <div class="glass-panel card mobile-form" id="lfm-view">
+                <div class="glass-panel card mobile-form collapsible-card" id="lfm-view">
                     <h3 style="text-align: center;">Формовка (ЛФМ)</h3>
-                    
-                    <div class="form-group">
-                        <label>Выпускаемая продукция</label>
-                        <select id="lfm-product" style="font-size: 1.2rem; padding: 1rem; border-radius: 12px;">
-                            <option value="Шифер 7 волн">Шифер 7 волн</option>
-                            <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
-                            <option value="Шифер 8 волн">Шифер 8 волн</option>
-                            <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
-                            <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
-                            <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
-                            <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
-                            <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
-                            <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Сколько сформовано (листов)</label>
-                        <input type="number" id="lfm-sheets" placeholder="0">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Сбросов наката (шт)</label>
-                        <input type="number" id="lfm-resets" placeholder="0">
-                    </div>
-                    
-                    
-                    <button class="btn-submit-huge" id="btn-submit-lfm" onclick="addLFMReport()">Добавить отчет ЛФМ</button>
-                    
-                    <div id="lfm-reports-list" style="margin-top:1rem; font-size: 0.9rem;"></div>
-                    <div id="lfm-economics" style="margin-top: 1rem; color: var(--danger-color); font-weight: bold; font-size: 0.9rem;"></div>
-                    
-                    <div style="border-top: 1px solid var(--glass-border); margin-top: 1.5rem; padding-top: 1.5rem;" id="lfm-drains-section">
-                        <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Сливы за смену (ЛФМ)</h4>
+                    <div class="card-content">
                         <div class="form-group">
-                            <label>Слив асбеста (кг)</label>
-                            <input type="number" id="lfm-asb-drain" placeholder="0">
+                            <label>Выпускаемая продукция</label>
+                            <select id="lfm-product" style="font-size: 1.2rem; padding: 1rem; border-radius: 12px;">
+                                <option value="Шифер 7 волн">Шифер 7 волн</option>
+                                <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
+                                <option value="Шифер 8 волн">Шифер 8 волн</option>
+                                <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
+                                <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
+                                <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
+                                <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
+                                <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
+                                <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
+                            </select>
                         </div>
+                        
                         <div class="form-group">
-                            <label>Слив цемента (кг)</label>
-                            <input type="number" id="lfm-cem-drain" placeholder="0">
+                            <label>Сколько сформовано (листов)</label>
+                            <input type="number" id="lfm-sheets" placeholder="0">
                         </div>
-                        <button class="btn-submit-huge" onclick="saveLFMDrains()" style="background: linear-gradient(135deg, #e65100, #ff9800); margin-top: 0.5rem;">Сохранить сливы</button>
+                        
+                        <div class="form-group">
+                            <label>Сбросов наката (шт)</label>
+                            <input type="number" id="lfm-resets" placeholder="0">
+                        </div>
+                        
+                        <button class="btn-submit-huge" id="btn-submit-lfm" onclick="addLFMReport()">Добавить отчет ЛФМ</button>
+                        
+                        <div id="lfm-reports-list" style="margin-top:1rem; font-size: 0.9rem;"></div>
+                        <div id="lfm-economics" style="margin-top: 1rem; color: var(--danger-color); font-weight: bold; font-size: 0.9rem;"></div>
+                        
+                        <div style="border-top: 1px solid var(--glass-border); margin-top: 1.5rem; padding-top: 1.5rem;" id="lfm-drains-section">
+                            <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Сливы за смену (ЛФМ)</h4>
+                            <div class="form-group">
+                                <label>Слив асбеста (кг)</label>
+                                <input type="number" id="lfm-asb-drain" placeholder="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Слив цемента (кг)</label>
+                                <input type="number" id="lfm-cem-drain" placeholder="0">
+                            </div>
+                            <button class="btn-submit-huge" onclick="saveLFMDrains()" style="background: linear-gradient(135deg, #e65100, #ff9800); margin-top: 0.5rem;">Сохранить сливы</button>
+                        </div>
                     </div>
                 </div>
 
 
                 <!-- 4. Стакер -->
-                <div class="glass-panel card" id="stacker-view">
+                <div class="glass-panel card collapsible-card" id="stacker-view">
                     <h3>Стакер (Укладчик)</h3>
-                    <div style="margin-bottom: 1.5rem;">
-                        <input type="text" id="batch-number" placeholder="Номер партии (напр. 0001)" style="margin-bottom:0.5rem">
-                        <select id="batch-product" style="margin-bottom:0.5rem">
-                            <option value="Шифер 7 волн">Шифер 7 волн</option>
-                            <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
-                            <option value="Шифер 8 волн">Шифер 8 волн</option>
-                            <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
-                            <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
-                            <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
-                            <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
-                            <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
-                            <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
-                        </select>
-                        <input type="number" id="batch-stacks" placeholder="Общее количество (листов)" style="margin-bottom:0.5rem">
-                        <button onclick="createBatch()">Создать партию</button>
+                    <div class="card-content">
+                        <div style="margin-bottom: 1.5rem;">
+                            <input type="text" id="batch-number" placeholder="Номер партии (напр. 0001)" style="margin-bottom:0.5rem">
+                            <select id="batch-product" style="margin-bottom:0.5rem">
+                                <option value="Шифер 7 волн">Шифер 7 волн</option>
+                                <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
+                                <option value="Шифер 8 волн">Шифер 8 волн</option>
+                                <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
+                                <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
+                                <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
+                                <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
+                                <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
+                                <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
+                            </select>
+                            <input type="number" id="batch-stacks" placeholder="Общее количество (листов)" style="margin-bottom:0.5rem">
+                            <button onclick="createBatch()">Создать партию</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 5. Разборщик -->
-                <div class="glass-panel card" id="destacker-view">
+                <div class="glass-panel card collapsible-card" id="destacker-view">
                     <h3>Дестакер</h3>
-                    <select id="ds-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
-                    <input type="number" id="ds-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
-                    <input type="number" id="ds-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
-                    
-                    <div style="margin-bottom: 0.5rem;">
-                        <label>Был ли брак?</label>
-                        <select id="ds-has-defect" onchange="toggleDefectsBlock()">
-                            <option value="no">Нет</option>
-                            <option value="yes">Да</option>
-                        </select>
+                    <div class="card-content">
+                        <select id="ds-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
+                        <input type="number" id="ds-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
+                        <input type="number" id="ds-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
+                        
+                        <div style="margin-bottom: 0.5rem;">
+                            <label>Был ли брак?</label>
+                            <select id="ds-has-defect" onchange="toggleDefectsBlock()">
+                                <option value="no">Нет</option>
+                                <option value="yes">Да</option>
+                            </select>
+                        </div>
+                        
+                        <div id="ds-defects-block" style="display: none; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;">
+                            <input type="number" id="def-chip" placeholder="Скол">
+                            <input type="number" id="def-scratch" placeholder="Сдир">
+                            <input type="number" id="def-bad-cut" placeholder="Плохой рез">
+                            <input type="number" id="def-stick-bottom" placeholder="Налип снизу">
+                            <input type="number" id="def-stick-top" placeholder="Налип сверху">
+                            <input type="number" id="def-broken" placeholder="Сломан">
+                            <input type="number" id="def-fell" placeholder="Упал коробки">
+                            <input type="number" id="def-dent" placeholder="Вмятина">
+                            <input type="number" id="def-thickness" placeholder="Не соотв. толщ.">
+                            <input type="number" id="def-delam" placeholder="Расслоение">
+                            <input type="number" id="def-edge" placeholder="Кромка">
+                        </div>
+                        
+                        <button onclick="updateDestacker()">Сохранить разборку</button>
                     </div>
-                    
-                    <div id="ds-defects-block" style="display: none; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;">
-                        <input type="number" id="def-chip" placeholder="Скол">
-                        <input type="number" id="def-scratch" placeholder="Сдир">
-                        <input type="number" id="def-bad-cut" placeholder="Плохой рез">
-                        <input type="number" id="def-stick-bottom" placeholder="Налип снизу">
-                        <input type="number" id="def-stick-top" placeholder="Налип сверху">
-                        <input type="number" id="def-broken" placeholder="Сломан">
-                        <input type="number" id="def-fell" placeholder="Упал коробки">
-                        <input type="number" id="def-dent" placeholder="Вмятина">
-                        <input type="number" id="def-thickness" placeholder="Не соотв. толщ.">
-                        <input type="number" id="def-delam" placeholder="Расслоение">
-                        <input type="number" id="def-edge" placeholder="Кромка">
-                    </div>
-                    
-                    <button onclick="updateDestacker()">Сохранить разборку</button>
                 </div>
 
                 <!-- 6. СКК -->
-                <div class="glass-panel card" id="qcd-view">
+                <div class="glass-panel card collapsible-card" id="qcd-view">
                     <h3>СКК (ОТК)</h3>
-                    <select id="qcd-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
-                    <input type="number" id="qcd-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
-                    <input type="number" id="qcd-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
-                    <input type="number" id="qcd-defect" placeholder="Количество брака (шт)" style="margin-bottom:0.5rem">
-                    <button onclick="updateQCD()">Сохранить контроль</button>
+                    <div class="card-content">
+                        <select id="qcd-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
+                        <input type="number" id="qcd-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
+                        <input type="number" id="qcd-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
+                        <input type="number" id="qcd-defect" placeholder="Количество брака (шт)" style="margin-bottom:0.5rem">
+                        <button onclick="updateQCD()">Сохранить контроль</button>
+                    </div>
                 </div>
 
                 <!-- 8. Аналитический Дашборд -->
@@ -815,6 +826,6 @@
     </div>
     
 
-    <script src="/static/js/app.js?v=20260705_v10"></script>
+    <script src="/static/js/app.js?v=20260705_v11"></script>
 </body>
 </html>
