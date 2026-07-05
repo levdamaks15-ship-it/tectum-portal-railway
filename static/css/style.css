@@ -39,6 +39,10 @@
     font-family: 'Inter', sans-serif;
 }
 
+html, body {
+    overflow-x: hidden;
+}
+
 body {
     background-color: var(--bg-color);
     color: var(--text-primary);
@@ -75,6 +79,69 @@ body {
 header {
     margin-bottom: 2rem;
     text-align: center;
+}
+
+.header-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.header-logo-container {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.header-title-block {
+    text-align: left;
+}
+
+.header-title {
+    margin: 0;
+    background: linear-gradient(to right, var(--primary-color), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+.header-subtitle {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.theme-toggle-btn {
+    border: 1px solid var(--glass-border);
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+
+.header-user-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 h1 {
@@ -114,6 +181,39 @@ input, select {
     color: var(--input-color);
     font-size: 1rem;
     transition: all 0.3s ease;
+}
+
+.report-filters-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.report-filters-wrapper {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .report-filters-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .report-filters-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    .report-filters-wrapper > button, 
+    .report-filters-wrapper > select, 
+    .report-filters-wrapper > input {
+        width: 100% !important;
+    }
 }
 
 input:focus, select:focus {
@@ -261,29 +361,40 @@ button.btn-secondary:hover {
     .container {
         padding: 1rem;
     }
-    header {
+    .header-main {
         flex-direction: column;
+        align-items: center;
         text-align: center;
         gap: 1rem;
     }
     .header-logo-container {
-        flex-direction: column !important;
-        text-align: center !important;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
     }
-    .header-logo-container > div {
-        text-align: center !important;
+    .header-title-block {
+        text-align: center;
+    }
+    .header-title {
+        font-size: 1.5rem;
+        letter-spacing: 1px;
+    }
+    .header-actions {
+        justify-content: center;
+        width: 100%;
+        gap: 0.5rem;
     }
     .header-user-container {
         flex-direction: column;
         width: 100%;
         justify-content: center;
-        gap: 0.5rem !important;
+        gap: 0.5rem;
     }
     .header-user-container > div {
         text-align: center !important;
     }
     h1 {
-        font-size: 1.6rem !important;
+        font-size: 1.6rem;
     }
     .two-col-grid {
         grid-template-columns: 1fr !important;
@@ -301,6 +412,20 @@ button.btn-secondary:hover {
     .tab-btn {
         width: 100%;
         text-align: center;
+    }
+    #ds-defects-block {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+    }
+}
+
+/* Mobile Forms & Grids Extra */
+@media (max-width: 576px) {
+    .two-col-grid {
+        grid-template-columns: 1fr !important;
+    }
+    #ds-defects-block {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5rem;
     }
 }
 
@@ -409,5 +534,11 @@ button.btn-secondary:hover {
     input, select, button {
         padding: 0.6rem 0.8rem;
         font-size: 0.9rem;
+    }
+    .header-title {
+        font-size: 1.3rem !important;
+    }
+    .header-logo-container img {
+        height: 40px !important;
     }
 }

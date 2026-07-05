@@ -25,19 +25,19 @@
 </head>
 <body>
     <div class="container">
-        <header style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
-            <div class="header-logo-container" style="display: flex; align-items: center; gap: 1.5rem;">
+        <header class="header-main">
+            <div class="header-logo-container">
                 <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 50px;">
-                <div style="text-align: left;">
-                    <h1 style="margin: 0; background: linear-gradient(to right, var(--primary-color), var(--accent-color)); -webkit-background-clip: text; color: transparent; font-size: 2.2rem; font-weight: 800; letter-spacing: 2px;">TECTUM ENGINEERING</h1>
-                    <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase;">ПРОИЗВОДСТВЕННЫЙ ПОРТАЛ</p>
+                <div class="header-title-block">
+                    <h1 class="header-title">TECTUM ENGINEERING</h1>
+                    <p class="header-subtitle">ПРОИЗВОДСТВЕННЫЙ ПОРТАЛ</p>
                 </div>
             </div>
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <button id="theme-toggle" onclick="toggleTheme()" class="tab-btn" style="border: 1px solid var(--glass-border); padding: 0.5rem; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%;">
+            <div class="header-actions">
+                <button id="theme-toggle" onclick="toggleTheme()" class="tab-btn theme-toggle-btn">
                     🌓
                 </button>
-                <div id="user-info-container" class="header-user-container" style="display: none; align-items: center; gap: 1rem;">
+                <div id="user-info-container" class="header-user-container" style="display: none;">
                     <div style="text-align: right;">
                         <p id="user-greeting-name" style="margin: 0; font-weight: 600; color: var(--text-primary);"></p>
                         <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);"></p>
@@ -675,9 +675,9 @@
                 </div>
 
                 <div id="daily-report-tab" class="glass-panel card" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-                        <h3 style="margin: 0;" id="daily-report-title">Месячная сводка выработки</h3>
-                        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <div class="report-filters-row">
+                        <h3 id="daily-report-title">Месячная сводка выработки</h3>
+                        <div class="report-filters-wrapper">
                             <label style="font-size: 0.9rem; color: var(--text-secondary);">Линия:</label>
                             <select id="daily-report-line" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px;">
                                 <option value="lfm1">Линия 1 (ЛФМ-1)</option>
