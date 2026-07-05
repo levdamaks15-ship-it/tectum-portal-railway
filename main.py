@@ -1081,14 +1081,17 @@ def update_qcd(batch_id: int, data: QCDUpdate, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @app.get("/api/dashboard/stats")
-def get_dashboard_stats(db: Session = Depends(get_db)):
-    prod_stats = db.query(
+def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
+    prod_query = db.query(
         func.sum(models.Batch.qcd_condition).label('condition'),
         func.sum(models.Batch.qcd_first_grade).label('first_grade'),
         func.sum(models.Batch.qcd_defect).label('defect')
-    ).first()
+    )
 
-    defects = db.query(
+    defects_query = db.query(
         func.sum(models.Batch.ds_defect_chip).label('chip'),
         func.sum(models.Batch.ds_defect_scratch).label('scratch'),
         func.sum(models.Batch.ds_defect_bad_cut).label('bad_cut'),
@@ -1100,9 +1103,9 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         func.sum(models.Batch.ds_defect_thickness).label('thickness'),
         func.sum(models.Batch.ds_defect_delamination).label('delamination'),
         func.sum(models.Batch.ds_defect_edge).label('edge'),
-    ).first()
+    )
 
-    mats = db.query(
+    mats_query = db.query(
         func.sum(models.Shift.receipt_chrysotile_4_20).label('r_4_20'),
         func.sum(models.Shift.receipt_chrysotile_5_65).label('r_5_65'),
         func.sum(models.Shift.receipt_chrysotile_6_40).label('r_6_40'),
@@ -1113,13 +1116,25 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         func.sum(models.Shift.zo_cement).label('z_cem'),
         func.sum(models.Shift.receipt_cellulose).label('r_cel'),
         func.sum(models.Shift.zo_cellulose).label('z_cel')
-    ).first()
+    )
+
+    dt_query = db.query(models.Downtime)
+
+    if user_role == "master" and user_id:
+        prod_query = prod_query.join(models.Shift).filter(models.Shift.master_id == user_id)
+        defects_query = defects_query.join(models.Shift).filter(models.Shift.master_id == user_id)
+        mats_query = mats_query.filter(models.Shift.master_id == user_id)
+        dt_query = dt_query.join(models.Shift).filter(models.Shift.master_id == user_id)
+
+    prod_stats = prod_query.first()
+    defects = defects_query.first()
+    mats = mats_query.first()
 
     rec_asb = (mats.r_4_20 or 0) + (mats.r_5_65 or 0) + (mats.r_6_40 or 0)
     zo_asb = (mats.z_4_20 or 0) + (mats.z_5_65 or 0) + (mats.z_6_40 or 0)
 
     # --- DOWNTIME AGGREGATION ---
-    downtimes = db.query(models.Downtime).all()
+    downtimes = dt_query.all()
     total_downtime_minutes = sum((d.duration or 0) for d in downtimes)
     total_lost_tons = sum((d.lost_tons or 0) for d in downtimes)
     total_lost_tenge = sum((d.lost_tenge or 0) for d in downtimes)
@@ -1168,9 +1183,15 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     }
 
 @app.get("/api/dashboard/weekly_report")
-def get_weekly_report(db: Session = Depends(get_db)):
+def get_weekly_report(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
     # Берем последние 7 смен (включая текущую)
-    shifts = db.query(models.Shift).order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(7).all()
+    query = db.query(models.Shift)
+    if user_role == "master" and user_id:
+        query = query.filter(models.Shift.master_id == user_id)
+    shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(7).all()
     
     report_data = []
     for shift in shifts:
@@ -1245,12 +1266,19 @@ def get_weekly_report(db: Session = Depends(get_db)):
 
 @app.get("/api/dashboard/analytics_data")
 def get_analytics_data(
+    request: Request,
     start_date: str = None,
     end_date: str = None,
     department: str = None,
     db: Session = Depends(get_db)
 ):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
     query = db.query(models.Downtime).join(models.Shift)
+    
+    if user_role == "master" and user_id:
+        query = query.filter(models.Shift.master_id == user_id)
     
     if start_date:
         try:
@@ -1384,7 +1412,10 @@ def get_shift_plan(db: Session, shift: models.Shift) -> int:
     return 2700 if shift.shift_name == "День" else 3300
 
 @app.get("/api/dashboard/daily_report")
-def get_daily_report(start_date: str, end_date: str = None, line: str = None, shift_number: int = None, db: Session = Depends(get_db)):
+def get_daily_report(request: Request, start_date: str, end_date: str = None, line: str = None, shift_number: int = None, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
     try:
         sd = datetime.strptime(start_date, "%Y-%m-%d").date()
     except:
@@ -1434,14 +1465,20 @@ def get_daily_report(start_date: str, end_date: str = None, line: str = None, sh
             if shift_number is not None and pb.shift_number != shift_number:
                 continue
             data[line_key][day_key][s_name]["plan_sheets"] = pb.plan_sheets or 0
-            data[line_key][day_key][s_name]["sheets"] = pb.fact_sheets or 0
             data[line_key][day_key][s_name]["plan_tons"] = (pb.plan_sheets or 0) * 19.6 / 1000.0
-            data[line_key][day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
-            data[line_key][day_key][s_name]["first_grade"] = pb.first_grade or 0
-            data[line_key][day_key][s_name]["defect"] = pb.defect or 0
+            
+            # Факт записываем только для текущего мастера (или если роль не master)
+            if user_role != "master" or pb.master_id == user_id:
+                data[line_key][day_key][s_name]["sheets"] = pb.fact_sheets or 0
+                data[line_key][day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
+                data[line_key][day_key][s_name]["first_grade"] = pb.first_grade or 0
+                data[line_key][day_key][s_name]["defect"] = pb.defect or 0
             
     for s in shifts:
         if not s.date: continue
+        # Пропускаем смены других мастеров для роли master
+        if user_role == "master" and s.master_id != user_id:
+            continue
         day_key = str(s.date)
         line_key = "line_1" if "1" in s.line else "line_2"
         s_name = "День" if s.shift_name == "День" else "Ночь"
@@ -1479,7 +1516,10 @@ def get_daily_report(start_date: str, end_date: str = None, line: str = None, sh
     }
 
 @app.get("/api/dashboard/export_daily_report")
-def export_daily_report(start_date: str, line: str = None, db: Session = Depends(get_db)):
+def export_daily_report(request: Request, start_date: str, line: str = None, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
     try:
         sd = datetime.strptime(start_date, "%Y-%m-%d").date()
     except:
@@ -1531,14 +1571,20 @@ def export_daily_report(start_date: str, line: str = None, db: Session = Depends
             s_name = pb.shift_name
             if day_key in day_data and s_name in ["День", "Ночь"]:
                 day_data[day_key][s_name]["plan_sheets"] = pb.plan_sheets or 0
-                day_data[day_key][s_name]["sheets"] = pb.fact_sheets or 0
                 day_data[day_key][s_name]["plan_tons"] = (pb.plan_sheets or 0) * 19.6 / 1000.0
-                day_data[day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
-                day_data[day_key][s_name]["first_grade"] = pb.first_grade or 0
-                day_data[day_key][s_name]["defect"] = pb.defect or 0
+                
+                # Факт записываем только для текущего мастера (или если роль не master)
+                if user_role != "master" or pb.master_id == user_id:
+                    day_data[day_key][s_name]["sheets"] = pb.fact_sheets or 0
+                    day_data[day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
+                    day_data[day_key][s_name]["first_grade"] = pb.first_grade or 0
+                    day_data[day_key][s_name]["defect"] = pb.defect or 0
         
         for s in shifts:
             if not s.date or s.line != line_id: continue
+            # Пропускаем смены других мастеров для роли master
+            if user_role == "master" and s.master_id != user_id:
+                continue
             day_key = str(s.date)
             if day_key not in day_data: continue
             
@@ -1680,7 +1726,10 @@ def view_archive():
         return RedirectResponse(url="/api/dashboard/export_shift")
 
 @app.get("/api/dashboard/export_week")
-def export_week(start_date: str, db: Session = Depends(get_db)):
+def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
     try:
         sd = datetime.strptime(start_date, "%Y-%m-%d").date()
     except:
@@ -1688,10 +1737,13 @@ def export_week(start_date: str, db: Session = Depends(get_db)):
         
     ed = sd + timedelta(days=6)
     
-    shifts = db.query(models.Shift).filter(
+    query = db.query(models.Shift).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
-    ).order_by(models.Shift.date, models.Shift.id).all()
+    )
+    if user_role == "master" and user_id:
+        query = query.filter(models.Shift.master_id == user_id)
+    shifts = query.order_by(models.Shift.date, models.Shift.id).all()
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -1730,9 +1782,11 @@ def export_week(start_date: str, db: Session = Depends(get_db)):
                     plan_sheets = pb.plan_sheets
                     
                 s = next((shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key), None)
-                total_sheets = pb.fact_sheets if pb else 0
                 
-                if s:
+                show_fact = (user_role != "master" or (pb and pb.master_id == user_id) or (s and s.master_id == user_id))
+                total_sheets = pb.fact_sheets if (pb and show_fact) else 0
+                
+                if s and show_fact:
                     sum_lfm_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
                     sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in s.lfm_reports)
                     avg_w = (sum_lfm_tons / sum_lfm_sheets) if sum_lfm_sheets > 0 else (19.6/1000)
@@ -1741,7 +1795,8 @@ def export_week(start_date: str, db: Session = Depends(get_db)):
                     master_name = s.master.name if s.master else "Н/Д"
                 else:
                     avg_w = 19.6 / 1000.0
-                    master_name = "Н/Д"
+                    master_name = "Н/Д" if show_fact else "Смена др. мастера"
+                    total_sheets = pb.fact_sheets if (pb and show_fact) else 0
                     
                 plan_tons = plan_sheets * avg_w
                 total_tons = total_sheets * avg_w
@@ -1754,7 +1809,10 @@ def export_week(start_date: str, db: Session = Depends(get_db)):
     return Response(content=out.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
 @app.get("/api/dashboard/weekly")
-def get_weekly_json(start_date: str, db: Session = Depends(get_db)):
+def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
     try:
         sd = datetime.strptime(start_date, "%Y-%m-%d").date()
     except:
@@ -1762,10 +1820,13 @@ def get_weekly_json(start_date: str, db: Session = Depends(get_db)):
         
     ed = sd + timedelta(days=6)
     
-    shifts = db.query(models.Shift).filter(
+    query = db.query(models.Shift).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
-    ).order_by(models.Shift.date, models.Shift.id).all()
+    )
+    if user_role == "master" and user_id:
+        query = query.filter(models.Shift.master_id == user_id)
+    shifts = query.order_by(models.Shift.date, models.Shift.id).all()
     
     plan_boards = db.query(models.MonthlyPlanBoard).filter(
         models.MonthlyPlanBoard.date >= sd,
@@ -1791,9 +1852,11 @@ def get_weekly_json(start_date: str, db: Session = Depends(get_db)):
                     plan_sheets = pb.plan_sheets
                     
                 s = next((shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key), None)
-                total_sheets = pb.fact_sheets if pb else 0
                 
-                if s:
+                show_fact = (user_role != "master" or (pb and pb.master_id == user_id) or (s and s.master_id == user_id))
+                total_sheets = pb.fact_sheets if (pb and show_fact) else 0
+                
+                if s and show_fact:
                     sum_lfm_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
                     sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in s.lfm_reports)
                     avg_w = (sum_lfm_tons / sum_lfm_sheets) if sum_lfm_sheets > 0 else (19.6/1000)
@@ -1821,11 +1884,11 @@ def get_weekly_json(start_date: str, db: Session = Depends(get_db)):
                     shift_id = s.id
                 else:
                     avg_w = 19.6 / 1000.0
-                    ds_first = pb.first_grade if pb else 0
-                    ds_defect = pb.defect if pb else 0
+                    ds_first = pb.first_grade if (pb and show_fact) else 0
+                    ds_defect = pb.defect if (pb and show_fact) else 0
                     qcd_first = 0
                     qcd_defect = 0
-                    sanitary_note = "Санитарный день (план 0)" if d.weekday() == 0 and s_name == "День" else "Нет данных"
+                    sanitary_note = "Санитарный день (план 0)" if d.weekday() == 0 and s_name == "День" else ("Нет данных" if show_fact else "Смена другого мастера")
                     master_name = "Н/Д"
                     shift_id = None
                     
