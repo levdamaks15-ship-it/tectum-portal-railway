@@ -392,9 +392,18 @@ button.btn-secondary:hover {
 @media (max-width: 768px) {
     html, body {
         font-size: 14px;
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
     }
     .container {
         padding: 0.75rem;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
     h2 {
         font-size: 1.4rem;
@@ -407,24 +416,30 @@ button.btn-secondary:hover {
     }
     .card {
         padding: 1rem;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     .header-main {
         flex-direction: column;
         align-items: center;
         text-align: center;
         gap: 1rem;
+        max-width: 100%;
     }
     .header-logo-container {
         flex-direction: column;
         text-align: center;
         gap: 0.5rem;
+        max-width: 100%;
     }
     .header-title-block {
         text-align: center;
+        max-width: 100%;
     }
     .header-title {
         font-size: 1.5rem;
         letter-spacing: 1px;
+        word-wrap: break-word;
     }
     .header-actions {
         justify-content: center;
@@ -444,29 +459,34 @@ button.btn-secondary:hover {
         font-size: 1.6rem;
     }
     .two-col-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: minmax(0, 1fr) !important;
     }
     .dashboard-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: minmax(0, 1fr) !important;
     }
     .grid-trend-analytics {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: minmax(0, 1fr) !important;
     }
     .grid-analytics-kpis {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: minmax(0, 1fr) !important;
     }
     .grid-downtime-fix-form {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: minmax(0, 1fr) !important;
     }
     .tabs-container {
-        justify-content: center;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
     }
     #active-shift-banner {
         flex-direction: column;
         padding: 1rem;
+        width: 100%;
+        box-sizing: border-box;
     }
     .tab-btn {
-        width: 100%;
+        width: auto !important;
         text-align: center;
     }
     #ds-defects-block {
