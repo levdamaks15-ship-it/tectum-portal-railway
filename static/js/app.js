@@ -263,6 +263,13 @@ async function logout() {
 }
 
 function applyRoleVisibility() {
+    // Восстанавливаем класс collapsible-card у всех карточек перед пересчетом ролей
+    const views = ['master-view', 'master-receipt-view', 'zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view'];
+    views.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('collapsible-card');
+    });
+
     const role = currentUser.role;
     
     const tabsMenu = document.getElementById('tabs-menu');
@@ -341,13 +348,14 @@ function applyRoleVisibility() {
         adminPlanControls.style.display = (role === 'admin') ? 'block' : 'none';
     }
 
-    // Auto-expand visible cards on mobile for line roles, keep them collapsed for master/admin
+    // Для мобильных экранов: убираем аккордеон для операторов смены, оставляя только для master/admin
     const collapsibleCards = document.querySelectorAll('.collapsible-card');
     collapsibleCards.forEach(card => {
         card.classList.remove('expanded');
         if (role !== 'master' && role !== 'admin') {
             if (card.style.display !== 'none') {
-                card.classList.add('expanded');
+                // Оператор смены видит только свою форму, убираем с неё функционал аккордеона
+                card.classList.remove('collapsible-card');
             }
         }
     });
