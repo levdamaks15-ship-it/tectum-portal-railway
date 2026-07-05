@@ -319,7 +319,10 @@ function applyRoleVisibility() {
     if (wrapEnd) wrapEnd.style.display = isMechanicOrMaster ? 'block' : 'none';
     if (wrapCat) wrapCat.style.display = isMechanicOrMaster ? 'block' : 'none';
 
-    document.getElementById('master-view').style.display = (role === 'master' || role === 'admin') ? 'block' : 'none';
+    const masterView = document.getElementById('master-view');
+    if (masterView) {
+        masterView.style.display = (role === 'master' || role === 'admin') ? 'block' : 'none';
+    }
     
     const receiptView = document.getElementById('master-receipt-view');
     if (receiptView) {
@@ -336,12 +339,35 @@ function applyRoleVisibility() {
         planBoardView.style.display = (role === 'master' || role === 'director' || role === 'technologist' || role === 'admin') ? 'block' : 'none';
     }
 
-    document.getElementById('zo-view').style.display = (role === 'zo' || role === 'admin') ? 'block' : 'none';
-    document.getElementById('lfm-view').style.display = (role === 'lfm' || role === 'admin') ? 'block' : 'none';
-    document.getElementById('stacker-view').style.display = (role === 'stacker' || role === 'admin') ? 'block' : 'none';
-    document.getElementById('destacker-view').style.display = (role === 'destacker' || role === 'admin') ? 'block' : 'none';
-    document.getElementById('qcd-view').style.display = (role === 'qcd' || role === 'admin') ? 'block' : 'none';
-    document.getElementById('report-view').style.display = (role === 'master' || role === 'admin') ? 'block' : 'none';
+    const zoView = document.getElementById('zo-view');
+    if (zoView) {
+        zoView.style.display = (role === 'zo' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const lfmView = document.getElementById('lfm-view');
+    if (lfmView) {
+        lfmView.style.display = (role === 'lfm' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const stackerView = document.getElementById('stacker-view');
+    if (stackerView) {
+        stackerView.style.display = (role === 'stacker' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const destackerView = document.getElementById('destacker-view');
+    if (destackerView) {
+        destackerView.style.display = (role === 'destacker' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const qcdView = document.getElementById('qcd-view');
+    if (qcdView) {
+        qcdView.style.display = (role === 'qcd' || role === 'admin') ? 'block' : 'none';
+    }
+    
+    const reportView = document.getElementById('report-view');
+    if (reportView) {
+        reportView.style.display = (role === 'master' || role === 'admin') ? 'block' : 'none';
+    }
 
     const adminPlanControls = document.getElementById('admin-plan-controls');
     if (adminPlanControls) {
