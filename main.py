@@ -7,6 +7,7 @@ import models, schemas
 import os
 import m365_integration
 import excel_exporter
+import import_aci_excel
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy import or_, func
@@ -571,6 +572,61 @@ def sync_directories_sharepoint(request: Request, db: Session = Depends(get_db))
         return {"status": "ok", "message": "Справочники успешно синхронизированы из SharePoint!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка синхронизации: {str(e)}")
+
+@app.post("/api/admin/upload_aci_report")
+async def upload_aci_report(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ разрешен только администраторам")
+        
+    try:
+        # Импортируем данные
+        res = import_aci_excel.import_aci_excel_data(file.file, db)
+        
+        # Логируем действие в AuditLog
+        db.add(models.AuditLog(
+            user_name=request.session.get("user_email") or f"admin_{user_id}",
+            action="IMPORT",
+            target_table="shifts/batches/lfm_reports",
+            details=f"Импорт рапорта АЦИ из файла {file.filename}. Успешно: смен: {res['shifts']}, партий: {res['batches']}, ЛФМ: {res['lfm_reports']}"
+        ))
+        db.commit()
+        
+        # Автоматически перегенерируем сводный отчет в SharePoint
+        try:
+            file_bytes = excel_exporter.generate_flat_report(db)
+            filename = "Сводный_отчет_Tectum.xlsx"
+            
+            # Локальная копия
+            local_path = os.path.join("static", "Сводный_отчет_Tectum.xlsx")
+            try:
+                with open(local_path, "wb") as f:
+                    f.write(file_bytes)
+            except Exception as local_err:
+                print(f"Error saving local excel file: {local_err}")
+                
+            web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+            
+            # Обновим sharepoint_url у всех импортированных смен, чтобы они вели на этот отчет
+            shifts = db.query(models.Shift).all()
+            for s in shifts:
+                s.sharepoint_url = web_url
+            db.commit()
+            
+            res["sharepoint_url"] = web_url
+        except Exception as sp_err:
+            print(f"SharePoint update failed during ACI import: {sp_err}")
+            res["sharepoint_url"] = None
+            res["sharepoint_error"] = str(sp_err)
+            
+        return res
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки рапорта АЦИ: {str(e)}")
+
 
 
 

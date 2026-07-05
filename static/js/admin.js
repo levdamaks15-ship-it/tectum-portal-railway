@@ -1143,4 +1143,52 @@ async function syncDirectoriesFromSharepoint() {
     }
 }
 
+async function uploadAciReport() {
+    const fileInput = document.getElementById("aci-report-file");
+    const btn = document.getElementById("btn-upload-aci");
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Пожалуйста, выберите Excel-файл рапорта АЦИ (.xlsx)");
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const originalText = btn.innerHTML;
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обработка и импорт...';
+        
+        const res = await fetch("/api/admin/upload_aci_report", {
+            method: "POST",
+            body: formData
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            let msg = `Импорт завершен успешно!\n`;
+            msg += `- Импортировано смен: ${data.shifts}\n`;
+            msg += `- Импортировано партий: ${data.batches}\n`;
+            msg += `- Импортировано отчетов ЛФМ: ${data.lfm_reports}\n`;
+            if (data.sharepoint_url) {
+                msg += `\nСводный отчет успешно сгенерирован и загружен в SharePoint.`;
+            } else if (data.sharepoint_error) {
+                msg += `\nВнимание: Сводный отчет не загрузился в SharePoint (ошибка: ${data.sharepoint_error})`;
+            }
+            alert(msg);
+            fileInput.value = ""; // Очищаем поле ввода
+        } else {
+            alert("Ошибка импорта: " + (data.detail || "Неизвестная ошибка на сервере"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при загрузке файла: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+
 
