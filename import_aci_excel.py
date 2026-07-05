@@ -4,6 +4,34 @@ from datetime import datetime, date
 from sqlalchemy.orm import Session
 import models
 
+def safe_int(val) -> int:
+    if val is None:
+        return 0
+    if isinstance(val, int):
+        return val
+    if isinstance(val, float):
+        return int(val)
+    val_str = str(val).strip()
+    if not val_str:
+        return 0
+    try:
+        return int(float(val_str))
+    except ValueError:
+        return 0
+
+def safe_float(val) -> float:
+    if val is None:
+        return 0.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    val_str = str(val).strip()
+    if not val_str:
+        return 0.0
+    try:
+        return float(val_str)
+    except ValueError:
+        return 0.0
+
 def import_aci_excel_data(file_source, db: Session) -> dict:
     """
     Импортирует данные напрямую из Excel-файла рапорта АЦИ (лист "рапорт").
@@ -135,34 +163,34 @@ def import_aci_excel_data(file_source, db: Session) -> dict:
         if not shift_info["data_filled"]:
             batches_count = row[6] if len(row) > 6 and row[6] else 0
             if batches_count or (len(row) > 18 and row[18]): # receipt_cement_total
-                shift_model.zo_batches = int(batches_count)
+                shift_model.zo_batches = safe_int(batches_count)
                 
                 # Цемент по силосам (в кг)
-                shift_model.zo_cement_silo1 = float(row[14] or 0.0)
-                shift_model.zo_cement_silo2 = float(row[15] or 0.0)
-                shift_model.zo_cement_silo3 = float(row[16] or 0.0)
-                shift_model.zo_cement_silo4 = float(row[17] or 0.0)
+                shift_model.zo_cement_silo1 = safe_float(row[14] or 0.0)
+                shift_model.zo_cement_silo2 = safe_float(row[15] or 0.0)
+                shift_model.zo_cement_silo3 = safe_float(row[16] or 0.0)
+                shift_model.zo_cement_silo4 = safe_float(row[17] or 0.0)
                 shift_model.zo_cement = (shift_model.zo_cement_silo1 + shift_model.zo_cement_silo2 + 
                                          shift_model.zo_cement_silo3 + shift_model.zo_cement_silo4)
                 
                 # Сливы смеси
-                shift_model.zo_asb_drain = float(row[19] or 0.0) if len(row) > 19 else 0.0
-                shift_model.zo_cem_drain = float(row[20] or 0.0) if len(row) > 20 else 0.0
+                shift_model.zo_asb_drain = safe_float(row[19] or 0.0) if len(row) > 19 else 0.0
+                shift_model.zo_cem_drain = safe_float(row[20] or 0.0) if len(row) > 20 else 0.0
                 
                 # Приход / Расход сырья
-                shift_model.receipt_laprol = float(row[21] or 0.0) if len(row) > 21 else 0.0
-                shift_model.zo_laprol = float(row[22] or 0.0) if len(row) > 22 else 0.0
+                shift_model.receipt_laprol = safe_float(row[21] or 0.0) if len(row) > 21 else 0.0
+                shift_model.zo_laprol = safe_float(row[22] or 0.0) if len(row) > 22 else 0.0
                 
-                shift_model.receipt_cellulose = float(row[23] or 0.0) if len(row) > 23 else 0.0
-                shift_model.zo_cellulose = float(row[24] or 0.0) if len(row) > 24 else 0.0
+                shift_model.receipt_cellulose = safe_float(row[23] or 0.0) if len(row) > 23 else 0.0
+                shift_model.zo_cellulose = safe_float(row[24] or 0.0) if len(row) > 24 else 0.0
                 
-                shift_model.receipt_fiberglass = float(row[25] or 0.0) if len(row) > 25 else 0.0
-                shift_model.zo_fiberglass = float(row[26] or 0.0) if len(row) > 26 else 0.0
+                shift_model.receipt_fiberglass = safe_float(row[25] or 0.0) if len(row) > 25 else 0.0
+                shift_model.zo_fiberglass = safe_float(row[26] or 0.0) if len(row) > 26 else 0.0
                 
-                shift_model.receipt_crushed_slate = float(row[27] or 0.0) if len(row) > 27 else 0.0
-                shift_model.zo_crushed_slate = float(row[28] or 0.0) if len(row) > 28 else 0.0
+                shift_model.receipt_crushed_slate = safe_float(row[27] or 0.0) if len(row) > 27 else 0.0
+                shift_model.zo_crushed_slate = safe_float(row[28] or 0.0) if len(row) > 28 else 0.0
                 
-                shift_model.zo_asbozurit = float(row[29] or 0.0) if len(row) > 29 else 0.0
+                shift_model.zo_asbozurit = safe_float(row[29] or 0.0) if len(row) > 29 else 0.0
                 shift_model.zo_submitted = True
                 
                 db.commit()
@@ -174,7 +202,7 @@ def import_aci_excel_data(file_source, db: Session) -> dict:
         
         if batch_num and product_name:
             existing_batch = db.query(models.Batch).filter_by(shift_id=shift_id, batch_number=batch_num).first()
-            transferred = int(row[9] or 0) if len(row) > 9 and row[9] is not None else 0
+            transferred = safe_int(row[9]) if len(row) > 9 else 0
             
             if not existing_batch:
                 batch = models.Batch(
@@ -185,22 +213,23 @@ def import_aci_excel_data(file_source, db: Session) -> dict:
                     stacked_stacks=0,
                     ds_condition=transferred,
                     qcd_condition=transferred,
-                    qcd_first_grade=int(row[10] or 0) if len(row) > 10 and row[10] is not None else 0,
-                    qcd_defect=int(row[11] or 0) if len(row) > 11 and row[11] is not None else 0
+                    qcd_first_grade=safe_int(row[10]) if len(row) > 10 else 0,
+                    qcd_defect=safe_int(row[11]) if len(row) > 11 else 0
                 )
                 db.add(batch)
                 imported_batches_count += 1
             else:
                 existing_batch.ds_condition = transferred
                 existing_batch.qcd_condition = transferred
-                existing_batch.qcd_first_grade = int(row[10] or 0) if len(row) > 10 and row[10] is not None else 0
-                existing_batch.qcd_defect = int(row[11] or 0) if len(row) > 11 and row[11] is not None else 0
+                existing_batch.qcd_first_grade = safe_int(row[10]) if len(row) > 10 else 0
+                existing_batch.qcd_defect = safe_int(row[11]) if len(row) > 11 else 0
                 
         # Добавление отчета ЛФМ
         if product_name and (len(row) > 7 and row[7] is not None):
             existing_lfm = db.query(models.LFMReport).filter_by(shift_id=shift_id, product_name=product_name).first()
-            lfm_sheets_val = int(row[7] or 0)
-            lfm_wind_resets_val = int(row[12] or 0) if len(row) > 12 and row[12] is not None else 0
+            lfm_sheets_val = safe_int(row[7])
+            lfm_wind_resets_val = safe_int(row[12]) if len(row) > 12 else 0
+            transferred = safe_int(row[9]) if len(row) > 9 else 0
             
             if not existing_lfm:
                 lfm = models.LFMReport(
@@ -208,8 +237,8 @@ def import_aci_excel_data(file_source, db: Session) -> dict:
                     product_name=product_name,
                     lfm_sheets=lfm_sheets_val,
                     lfm_wind_resets=lfm_wind_resets_val,
-                    formed_1st_grade=int(row[10] or 0) if len(row) > 10 and row[10] is not None else 0,
-                    formed_defect=int(row[11] or 0) if len(row) > 11 and row[11] is not None else 0,
+                    formed_1st_grade=safe_int(row[10]) if len(row) > 10 else 0,
+                    formed_defect=safe_int(row[11]) if len(row) > 11 else 0,
                     transferred_to_warehouse=transferred
                 )
                 db.add(lfm)
@@ -226,3 +255,4 @@ def import_aci_excel_data(file_source, db: Session) -> dict:
         "batches": imported_batches_count,
         "lfm_reports": imported_lfm_count
     }
+
