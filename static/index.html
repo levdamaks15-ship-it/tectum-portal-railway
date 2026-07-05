@@ -170,7 +170,7 @@
                 <div class="glass-panel card" id="master-receipt-view" style="display: none;">
                     <h3>📥 Приход Сырья (на склад)</h3>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Ввод сырья, поступившего на склад за текущую смену.</p>
-                    <div class="two-col-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem;">
+                    <div class="two-col-grid">
                         <div class="form-group">
                             <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 4-20 (кг)</label>
                             <input type="number" id="rec-chr-4-20" placeholder="0">
@@ -509,7 +509,7 @@
                     
                     <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                         <h4>Фиксация нового простоя</h4>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                        <div class="grid-downtime-fix-form">
                             <div>
                                 <label style="font-size: 0.8rem; color: var(--text-secondary);">Время начала</label>
                                 <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ">
@@ -605,12 +605,12 @@
                     </div>
 
                     <!-- KPI карточки -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="grid-analytics-kpis">
                         <div style="background: rgba(220, 53, 69, 0.15); border: 1px solid rgba(220, 53, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
                             <h4 style="color: #ff6b6b; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                                 🛑 С остановкой оборудования
                             </h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="grid-kpi-two-col">
                                 <div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Время простоев</div>
                                     <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-min">0 мин</div>
@@ -634,7 +634,7 @@
                             <h4 style="color: #28a745; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                                 ⚡ Без остановки оборудования
                             </h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="grid-kpi-two-col">
                                 <div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary);">Время ремонта</div>
                                     <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-min">0 мин</div>
@@ -656,7 +656,7 @@
                     </div>
 
                     <!-- Графики первого уровня -->
-                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    <div class="grid-trend-analytics">
                         <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
                             <h4 style="text-align: center; margin-bottom: 1rem;">Динамика простоев по дням (минут)</h4>
                             <canvas id="chart-analytics-trend" style="max-height: 300px;"></canvas>
@@ -765,7 +765,7 @@
     <div id="edit-dt-modal" class="glass-panel card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 500px; box-shadow: 0 0 20px rgba(0,0,0,0.8); background: rgba(30, 41, 59, 0.95);">
         <h3 style="margin-bottom: 1rem; color: var(--accent-color);">Редактирование простоя</h3>
         <input type="hidden" id="edit-dt-id">
-        <div class="two-col-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="two-col-grid" style="margin-bottom: 1rem;">
             <div>
                 <label>Время начала</label>
                 <input type="text" class="time-picker" id="edit-dt-start">

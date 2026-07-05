@@ -356,9 +356,45 @@ button.btn-secondary:hover {
     background: var(--table-header-bg);
 }
 
+.two-col-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+}
+
+.grid-downtime-fix-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.grid-analytics-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.grid-kpi-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.grid-trend-analytics {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
     .container {
+        padding: 0.75rem;
+    }
+    .card {
         padding: 1rem;
     }
     .header-main {
@@ -400,7 +436,16 @@ button.btn-secondary:hover {
         grid-template-columns: 1fr !important;
     }
     .dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
+    }
+    .grid-trend-analytics {
+        grid-template-columns: 1fr !important;
+    }
+    .grid-analytics-kpis {
+        grid-template-columns: 1fr !important;
+    }
+    .grid-downtime-fix-form {
+        grid-template-columns: 1fr !important;
     }
     .tabs-container {
         justify-content: center;
@@ -415,6 +460,9 @@ button.btn-secondary:hover {
     }
     #ds-defects-block {
         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important;
+    }
+    .mobile-form label {
+        font-size: 0.95rem;
     }
 }
 
@@ -529,7 +577,7 @@ button.btn-secondary:hover {
         height: 240px;
     }
     .card h3 {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
     }
     input, select, button {
         padding: 0.6rem 0.8rem;
@@ -540,5 +588,15 @@ button.btn-secondary:hover {
     }
     .header-logo-container img {
         height: 40px !important;
+    }
+    .btn-submit-huge {
+        padding: 1rem;
+        font-size: 1.1rem;
+    }
+    .mobile-form label {
+        font-size: 0.9rem;
+    }
+    .grid-kpi-two-col {
+        grid-template-columns: 1fr !important;
     }
 }
