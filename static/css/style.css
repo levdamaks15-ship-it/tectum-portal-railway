@@ -389,10 +389,21 @@ button.btn-secondary:hover {
     margin-bottom: 1.5rem;
 }
 
-/* Mobile Responsiveness */
 @media (max-width: 768px) {
+    html, body {
+        font-size: 14px;
+    }
     .container {
         padding: 0.75rem;
+    }
+    h2 {
+        font-size: 1.4rem;
+    }
+    h3 {
+        font-size: 1.25rem;
+    }
+    h4 {
+        font-size: 1.05rem;
     }
     .card {
         padding: 1rem;
@@ -571,17 +582,25 @@ button.btn-secondary:hover {
     margin-top: 0.5rem;
 }
 
-/* Responsive adjustments */
 @media (max-width: 480px) {
+    html, body {
+        font-size: 13px;
+    }
+    h2 {
+        font-size: 1.2rem !important;
+    }
+    h3, .card h3 {
+        font-size: 1.1rem !important;
+    }
+    h4 {
+        font-size: 0.95rem !important;
+    }
     .chart-container {
         height: 240px;
     }
-    .card h3 {
-        font-size: 1.2rem;
-    }
     input, select, button {
-        padding: 0.6rem 0.8rem;
-        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.85rem !important;
     }
     .header-title {
         font-size: 1.3rem !important;
