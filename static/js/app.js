@@ -1513,6 +1513,10 @@ function renderMasterDashboard(shift) {
 }
 
 function renderSummaryTable(shift) {
+    const tableHeaderEl = document.querySelector('#summary-table thead');
+    const tableBodyEl = document.getElementById('report-table-body');
+    if (!tableHeaderEl || !tableBodyEl) return;
+    
     const batches = shift.batches || [];
     
     // Определяем, какие колонки брака не пустые
@@ -1542,7 +1546,7 @@ function renderSummaryTable(shift) {
         </tr>
     `;
     
-    document.querySelector('#summary-table thead').innerHTML = tableHeader;
+    tableHeaderEl.innerHTML = tableHeader;
     
     let rows = '';
     batches.forEach(b => {
@@ -1568,7 +1572,7 @@ function renderSummaryTable(shift) {
         `;
     });
     
-    document.getElementById('report-table-body').innerHTML = rows;
+    tableBodyEl.innerHTML = rows;
 }
 
 function exportToExcel() {
