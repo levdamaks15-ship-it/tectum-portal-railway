@@ -306,6 +306,40 @@ def run_merge_masters_secret(db: Session = Depends(get_db)):
         db.rollback()
         return {"status": "error", "detail": str(e)}
 
+@app.get("/api/debug/inspect")
+def run_inspect(request: Request, db: Session = Depends(get_db)):
+    try:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name")
+        
+        active_shifts = db.query(models.Shift).filter(models.Shift.status == "active").all()
+        shifts_info = []
+        for s in active_shifts:
+            shifts_info.append({
+                "id": s.id,
+                "date": str(s.date),
+                "shift_name": s.shift_name,
+                "line": s.line,
+                "master_id": s.master_id,
+                "master_name": s.master.name if s.master else None
+            })
+            
+        masters = db.query(models.Master).all()
+        masters_info = [{"id": m.id, "name": m.name, "role": m.role, "email": m.email} for m in masters]
+        
+        return {
+            "session": {
+                "user_id": user_id,
+                "user_name": user_name,
+                "user_role": user_role
+            },
+            "active_shifts": shifts_info,
+            "all_masters_in_db": masters_info
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 class LoginRequest(BaseModel):
     name: str
     pin: str
