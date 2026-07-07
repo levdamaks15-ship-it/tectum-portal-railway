@@ -420,6 +420,7 @@ function switchTab(tabId) {
         loadMaterialsReport();
     } else if (tabId === 'downtimes') {
         loadDowntimeDepartments();
+        loadDowntimeShifts();
     } else if (tabId === 'daily-report') {
         const dMonth = document.getElementById('daily-report-month');
         if (dMonth && !dMonth.value) {
@@ -1006,8 +1007,54 @@ function renderUploadedFiles() {
     `).join('');
 }
 
+async function loadDowntimeShifts() {
+    try {
+        const res = await fetch('/api/shifts/all');
+        const shifts = await res.json();
+        const select = document.getElementById('journal-dt-shift-select');
+        if (!select) return;
+        
+        let html = '';
+        if (activeShiftId) {
+            html += `<option value="${activeShiftId}">-- Текущая активная смена (ID ${activeShiftId}) --</option>`;
+        } else {
+            html += '<option value="">-- Выберите смену --</option>';
+        }
+        
+        shifts.forEach(s => {
+            if (s.id !== activeShiftId) {
+                const masterName = s.master ? s.master.name : 'Без мастера';
+                const statusStr = s.status === 'active' ? 'Активна' : 'Закрыта';
+                html += `<option value="${s.id}">${s.date} | ${s.shift_name} | ${s.line} (Мастер: ${masterName}) [${statusStr}]</option>`;
+            }
+        });
+        select.innerHTML = html;
+    } catch(e) {
+        console.error("Failed to load shifts for downtimes dropdown", e);
+    }
+}
+
+async function onJournalShiftChange() {
+    const shiftId = document.getElementById('journal-dt-shift-select').value;
+    if (!shiftId) return;
+    
+    try {
+        const res = await fetch(`/api/shifts/${shiftId}`);
+        if (res.ok) {
+            const shift = await res.json();
+            currentDowntimes = shift.downtimes || [];
+            renderDowntimesTable(shift);
+        }
+    } catch(e) {
+        console.error("Failed to load selected shift downtimes", e);
+    }
+}
+
 async function addJournalDowntime() {
-    if (!activeShiftId) return alert("Нет активной смены");
+    const selectedShiftId = document.getElementById('journal-dt-shift-select').value;
+    const targetShiftId = selectedShiftId || activeShiftId;
+    if (!targetShiftId) return alert("Выберите смену или откройте активную смену");
+    
     const start_time = document.getElementById(`journal-dt-start`).value;
     const end_time = document.getElementById(`journal-dt-end`).value || null;
     const category = null;
@@ -1023,7 +1070,7 @@ async function addJournalDowntime() {
     
     const media_urls = currentMediaUrls.length > 0 ? JSON.stringify(currentMediaUrls) : null;
     
-    await fetch(`/api/shifts/${activeShiftId}/downtimes`, {
+    await fetch(`/api/shifts/${targetShiftId}/downtimes`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ start_time, end_time, category, department, node: combinedNode, description, media_urls, is_equipment_downtime })
@@ -1043,7 +1090,12 @@ async function addJournalDowntime() {
     
     currentMediaUrls = [];
     renderUploadedFiles();
-    loadData();
+    
+    if (selectedShiftId) {
+        onJournalShiftChange();
+    } else {
+        loadData();
+    }
 }
 
 function renderDowntimesTable(shift) {

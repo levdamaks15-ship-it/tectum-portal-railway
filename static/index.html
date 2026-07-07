@@ -522,6 +522,12 @@
                         <h4>Фиксация нового простоя</h4>
                         <div class="grid-downtime-fix-form">
                             <div>
+                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Выбор смены</label>
+                                <select id="journal-dt-shift-select" onchange="onJournalShiftChange()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
+                                    <option value="">-- Выберите смену --</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label style="font-size: 0.8rem; color: var(--text-secondary);">Время начала</label>
                                 <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ">
                             </div>
