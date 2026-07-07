@@ -259,6 +259,53 @@ def setup_demo_data(db: Session = Depends(get_db)):
 
     return {"message": "Demo data loaded"}
 
+@app.get("/api/debug/merge_masters_secret")
+def run_merge_masters_secret(db: Session = Depends(get_db)):
+    try:
+        masters = db.query(models.Master).filter(models.Master.role == 'master').all()
+        bases = ["Бекбосынов", "Монаев", "Дауылбай", "Султанулы"]
+        
+        def normalize(s):
+            return s.replace("ұ", "у").replace("Ұ", "У").replace("ь", "").replace("Ь", "")
+            
+        groups = {base: [] for base in bases}
+        for m in masters:
+            normalized_m_name = normalize(m.name)
+            for base in bases:
+                normalized_base = normalize(base)
+                if normalized_base in normalized_m_name:
+                    groups[base].append(m)
+                    break
+        
+        results = []
+        for base, ms in groups.items():
+            if len(ms) <= 1:
+                continue
+            
+            # Find the primary master (prefer name with initials, i.e., longer name)
+            primary = sorted(ms, key=lambda x: len(x.name), reverse=True)[0]
+            results.append(f"Primary master for {base}: {primary.name} (ID: {primary.id})")
+            
+            for m in ms:
+                if m.id == primary.id:
+                    continue
+                results.append(f"Merging duplicate {m.name} (ID: {m.id}) into {primary.name}")
+                
+                # Update shifts
+                db.query(models.Shift).filter(models.Shift.master_id == m.id).update({models.Shift.master_id: primary.id})
+                
+                # Update monthly plan board
+                db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.master_id == m.id).update({models.MonthlyPlanBoard.master_id: primary.id})
+                
+                # Delete duplicate master
+                db.delete(m)
+                
+        db.commit()
+        return {"status": "success", "log": results}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "detail": str(e)}
+
 class LoginRequest(BaseModel):
     name: str
     pin: str
