@@ -262,3 +262,34 @@ class DowntimeDirectory(DowntimeDirectoryBase):
     class Config:
         from_attributes = True
 
+
+class RawMaterialsBulkUpdate(BaseModel):
+    receipt_chrysotile_4_20: float = 0.0
+    receipt_chrysotile_5_65: float = 0.0
+    receipt_chrysotile_6_40: float = 0.0
+    receipt_cement: float = 0.0
+    receipt_cellulose: float = 0.0
+    receipt_crushed_slate: float = 0.0
+    receipt_asbocarton: float = 0.0
+    receipt_pallets: float = 0.0
+    receipt_fiberglass: float = 0.0
+    receipt_laprol: float = 0.0
+
+    zo_chrysotile_4_20: float = 0.0
+    zo_chrysotile_5_65: float = 0.0
+    zo_chrysotile_6_40: float = 0.0
+    zo_cement_silo1: float = 0.0
+    zo_cement_silo2: float = 0.0
+    zo_cement_silo3: float = 0.0
+    zo_cement_silo4: float = 0.0
+    zo_cellulose: float = 0.0
+    zo_crushed_slate: float = 0.0
+    zo_asbozurit: float = 0.0
+    zo_fiberglass: float = 0.0
+    zo_laprol: float = 0.0
+    zo_asbocarton: float = 0.0
+    zo_asb_drain: float = 0.0
+    zo_cem_drain: float = 0.0
+    zo_batches: int = 0
+
+

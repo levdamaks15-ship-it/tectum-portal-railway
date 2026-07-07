@@ -256,15 +256,7 @@ async function logout() {
     document.getElementById('main-app').style.display = 'none';
     document.getElementById('login-screen').style.display = 'block';
     document.getElementById('pin-input').value = '';
-    document.getElementById('login-error').style.display = 'none';
-    
-    // Reset to initial screen (SSO or PIN selection)
-    init();
-}
-
-function applyRoleVisibility() {
-    // Восстанавливаем класс collapsible-card у всех карточек перед пересчетом ролей
-    const views = ['master-view', 'master-receipt-view', 'zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view'];
+       const views = ['master-view', 'master-receipt-view', 'zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'raw-materials-management-card'];
     views.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('collapsible-card');
@@ -318,6 +310,18 @@ function applyRoleVisibility() {
     const wrapCat = document.getElementById('wrapper-dt-cat');
     if (wrapEnd) wrapEnd.style.display = isMechanicOrMaster ? 'block' : 'none';
     if (wrapCat) wrapCat.style.display = isMechanicOrMaster ? 'block' : 'none';
+ 
+    const isMaterialsAuthorized = (role === 'master' || role === 'admin' || role === 'director' || role === 'technologist');
+    
+    const matsDashPanel = document.getElementById('materials-dashboards-panel');
+    if (matsDashPanel) {
+        matsDashPanel.style.display = isMaterialsAuthorized ? 'block' : 'none';
+    }
+    
+    const rawMatsManageCard = document.getElementById('raw-materials-management-card');
+    if (rawMatsManageCard) {
+        rawMatsManageCard.style.display = isMaterialsAuthorized ? 'block' : 'none';
+    }
 
     const masterView = document.getElementById('master-view');
     if (masterView) {
@@ -459,6 +463,7 @@ async function loadData() {
         
         updateOperatorsStatus(shift);
         renderDowntimesTable(shift);
+        renderMaterialsDashboards(shift);
         
         if (currentUser.role === 'master') {
             renderSummaryTable(shift);
@@ -515,6 +520,7 @@ async function loadData() {
         const readOnly = document.getElementById('readonly-badge');
         if (readOnly) readOnly.style.display = 'none';
         applyShiftMode(null);
+        renderMaterialsDashboards(null);
     }
     
     if (currentUser.role === 'director') {
@@ -3105,5 +3111,231 @@ async function loadAnalyticsData() {
     }
 }
 
+async function renderMaterialsDashboards(shift) {
+    const effList = document.getElementById('m-dash-efficiency-list');
+    const balList = document.getElementById('m-dash-balance-list');
+    if (!effList || !balList) return;
+    
+    if (!shift) {
+        effList.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">Нет активной смены</p>';
+        balList.innerHTML = '<p style="text-align:center; color: var(--text-secondary);">Нет активной смены</p>';
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/shifts/${shift.id}/materials_report`);
+        if (res.ok) {
+            const report = await res.json();
+            effList.innerHTML = report.details.map(d => {
+                let color = 'var(--warning-color)';
+                let sign = '';
+                if (d.deviation > 0.05) {
+                    color = 'var(--danger-color)';
+                    sign = '+';
+                } else if (d.deviation < -0.05) {
+                    color = 'var(--success-color)';
+                    sign = '';
+                }
+                
+                const percent = d.theoretical > 0 ? (d.deviation / d.theoretical * 100).toFixed(1) : null;
+                const percentText = percent ? ` (${sign}${percent}%)` : '';
+                
+                return `
+                    <div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.3rem;">
+                            <span><strong>${d.material}</strong></span>
+                            <span style="color: ${color};">Факт: ${d.actual} кг / Теор: ${d.theoretical} кг${percentText}</span>
+                        </div>
+                        <div class="progress-bar-container" style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden; position: relative;">
+                            <div style="width: ${Math.min(Math.max((d.actual / (d.theoretical || 1)) * 50, 0), 100)}%; height: 100%; background: ${color}; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            effList.innerHTML = '<p style="text-align:center; color: var(--danger-color);">Ошибка загрузки эффективности</p>';
+        }
+    } catch(e) {
+        console.error(e);
+        effList.innerHTML = '<p style="text-align:center; color: var(--danger-color);">Ошибка загрузки эффективности</p>';
+    }
+    
+    const balanceItems = [
+        { name: "Хризотил 4-20", rec: shift.receipt_chrysotile_4_20 || 0, zo: shift.zo_chrysotile_4_20 || 0 },
+        { name: "Хризотил 5-65", rec: shift.receipt_chrysotile_5_65 || 0, zo: shift.zo_chrysotile_5_65 || 0 },
+        { name: "Хризотил 6-40", rec: shift.receipt_chrysotile_6_40 || 0, zo: shift.zo_chrysotile_6_40 || 0 },
+        { name: "Цемент", rec: shift.receipt_cement || 0, zo: shift.zo_cement || 0 },
+        { name: "Целлюлоза", rec: shift.receipt_cellulose || 0, zo: shift.zo_cellulose || 0 },
+        { name: "Дробленый шифер", rec: shift.receipt_crushed_slate || 0, zo: shift.zo_crushed_slate || 0 },
+        { name: "Асбокартон", rec: shift.receipt_asbocarton || 0, zo: shift.zo_asbocarton || 0 },
+        { name: "Стекловолокно", rec: shift.receipt_fiberglass || 0, zo: shift.zo_fiberglass || 0 },
+        { name: "Лапрол", rec: shift.receipt_laprol || 0, zo: shift.zo_laprol || 0 }
+    ];
+    
+    balList.innerHTML = balanceItems.map(item => {
+        const diff = item.rec - item.zo;
+        let color = 'var(--warning-color)';
+        let sign = '';
+        if (diff > 0.05) {
+            color = 'var(--success-color)';
+            sign = '+';
+        } else if (diff < -0.05) {
+            color = 'var(--danger-color)';
+            sign = '';
+        }
+        
+        return `
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.3rem;">
+                    <span><strong>${item.name}</strong></span>
+                    <span>Приход: ${item.rec} кг / Расход ЗО: ${item.zo} кг</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary);">
+                    <span>Баланс:</span>
+                    <span style="color: ${color}; font-weight: bold;">${sign}${diff.toFixed(1)} кг</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+let currentManagedShiftId = null;
+
+async function loadManageMaterials() {
+    const dateEl = document.getElementById('manage-mat-date');
+    const shiftNameEl = document.getElementById('manage-mat-shift');
+    const lineEl = document.getElementById('manage-mat-line');
+    if (!dateEl || !shiftNameEl || !lineEl) return;
+    
+    const date = dateEl.value;
+    const shiftName = shiftNameEl.value;
+    const line = lineEl.value;
+    
+    if (!date) {
+        alert("Пожалуйста, выберите дату");
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/shifts/by_params?date=${date}&shift_name=${shiftName}&line=${line}`);
+        if (!res.ok) {
+            const err = await res.json();
+            alert("Ошибка загрузки данных смены: " + (err.detail || "Недостаточно прав"));
+            return;
+        }
+        
+        const shift = await res.json();
+        currentManagedShiftId = shift.id;
+        
+        const formContainer = document.getElementById('manage-materials-form-container');
+        if (formContainer) formContainer.style.display = 'block';
+        
+        const titleEl = document.getElementById('manage-materials-title');
+        if (titleEl) titleEl.innerText = `Редактирование сырья за ${date} (${shiftName}, ${line}) - ID смены: ${shift.id}`;
+        
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val !== undefined && val !== null ? val : 0;
+        };
+        
+        // Populate fields safely
+        setVal('m-rec-chr-4-20', shift.receipt_chrysotile_4_20);
+        setVal('m-rec-chr-5-65', shift.receipt_chrysotile_5_65);
+        setVal('m-rec-chr-6-40', shift.receipt_chrysotile_6_40);
+        setVal('m-rec-cem', shift.receipt_cement);
+        setVal('m-rec-cel', shift.receipt_cellulose);
+        setVal('m-rec-slate', shift.receipt_crushed_slate);
+        setVal('m-rec-asbocarton', shift.receipt_asbocarton);
+        setVal('m-rec-pallets', shift.receipt_pallets);
+        setVal('m-rec-fib', shift.receipt_fiberglass);
+        setVal('m-rec-laprol', shift.receipt_laprol);
+        
+        setVal('m-zo-chr-4-20', shift.zo_chrysotile_4_20);
+        setVal('m-zo-chr-5-65', shift.zo_chrysotile_5_65);
+        setVal('m-zo-chr-6-40', shift.zo_chrysotile_6_40);
+        setVal('m-zo-cem-1', shift.zo_cement_silo1);
+        setVal('m-zo-cem-2', shift.zo_cement_silo2);
+        setVal('m-zo-cem-3', shift.zo_cement_silo3);
+        setVal('m-zo-cem-4', shift.zo_cement_silo4);
+        setVal('m-zo-cel', shift.zo_cellulose);
+        setVal('m-zo-slate', shift.zo_crushed_slate);
+        setVal('m-zo-asb', shift.zo_asbozurit);
+        setVal('m-zo-fib', shift.zo_fiberglass);
+        setVal('m-zo-laprol', shift.zo_laprol);
+        setVal('m-zo-asbocarton', shift.zo_asbocarton);
+        setVal('m-zo-asb-drain', shift.zo_asb_drain);
+        setVal('m-zo-cem-drain', shift.zo_cem_drain);
+        setVal('m-zo-batches', shift.zo_batches);
+        
+    } catch(e) {
+        console.error(e);
+        alert("Ошибка загрузки");
+    }
+}
+
+async function saveManageMaterials() {
+    if (!currentManagedShiftId) {
+        alert("Смена не выбрана");
+        return;
+    }
+    
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? parseFloat(el.value) || 0 : 0;
+    };
+    
+    const payload = {
+        receipt_chrysotile_4_20: getVal('m-rec-chr-4-20'),
+        receipt_chrysotile_5_65: getVal('m-rec-chr-5-65'),
+        receipt_chrysotile_6_40: getVal('m-rec-chr-6-40'),
+        receipt_cement: getVal('m-rec-cem'),
+        receipt_cellulose: getVal('m-rec-cel'),
+        receipt_crushed_slate: getVal('m-rec-slate'),
+        receipt_asbocarton: getVal('m-rec-asbocarton'),
+        receipt_pallets: getVal('m-rec-pallets'),
+        receipt_fiberglass: getVal('m-rec-fib'),
+        receipt_laprol: getVal('m-rec-laprol'),
+        
+        zo_chrysotile_4_20: getVal('m-zo-chr-4-20'),
+        zo_chrysotile_5_65: getVal('m-zo-chr-5-65'),
+        zo_chrysotile_6_40: getVal('m-zo-chr-6-40'),
+        zo_cement_silo1: getVal('m-zo-cem-1'),
+        zo_cement_silo2: getVal('m-zo-cem-2'),
+        zo_cement_silo3: getVal('m-zo-cem-3'),
+        zo_cement_silo4: getVal('m-zo-cem-4'),
+        zo_cellulose: getVal('m-zo-cel'),
+        zo_crushed_slate: getVal('m-zo-slate'),
+        zo_asbozurit: getVal('m-zo-asb'),
+        zo_fiberglass: getVal('m-zo-fib'),
+        zo_laprol: getVal('m-zo-laprol'),
+        zo_asbocarton: getVal('m-zo-asbocarton'),
+        zo_asb_drain: getVal('m-zo-asb-drain'),
+        zo_cem_drain: getVal('m-zo-cem-drain'),
+        zo_batches: Math.round(getVal('m-zo-batches'))
+    };
+    
+    try {
+        const res = await fetch(`/api/shifts/${currentManagedShiftId}/raw_materials_bulk`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            alert("Данные сырья успешно сохранены!");
+            if (activeShiftId === currentManagedShiftId) {
+                loadData();
+            }
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Недостаточно прав"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Ошибка сети при сохранении");
+    }
+}
+
 window.onload = init;
+
 

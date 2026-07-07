@@ -768,6 +768,104 @@ def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, db
     db.commit()
     return {"message": "LFM drains updated"}
 
+@app.get("/api/shifts/by_params", response_model=schemas.Shift)
+def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    if user_role not in ["master", "admin", "director", "technologist"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
+        
+    shift = db.query(models.Shift).filter(
+        models.Shift.date == parsed_date,
+        models.Shift.shift_name == shift_name,
+        models.Shift.line == line
+    ).first()
+    
+    if not shift:
+        # Автоматически создаем закрытую смену с master_id текущего пользователя (или первого мастера в БД)
+        master_id = user_id
+        if user_role not in ["master"]:
+            first_master = db.query(models.Master).filter(models.Master.role == "master").first()
+            if first_master:
+                master_id = first_master.id
+                
+        shift = models.Shift(
+            date=parsed_date,
+            shift_name=shift_name,
+            line=line,
+            master_id=master_id,
+            status="closed",
+            plan_sheets=0,
+            plan_tons=0.0
+        )
+        db.add(shift)
+        db.commit()
+        db.refresh(shift)
+        
+    return shift
+
+@app.post("/api/shifts/{shift_id}/raw_materials_bulk")
+def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdate, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    if user_role not in ["master", "admin", "director", "technologist"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(404, "Смена не найдена")
+        
+    # Изоляция данных разных мастеров (для роли master):
+    if user_role == "master" and shift.master_id != user_id:
+        raise HTTPException(status_code=403, detail="Вы не можете редактировать смену другого мастера")
+        
+    # Записываем приход
+    shift.receipt_chrysotile_4_20 = data.receipt_chrysotile_4_20
+    shift.receipt_chrysotile_5_65 = data.receipt_chrysotile_5_65
+    shift.receipt_chrysotile_6_40 = data.receipt_chrysotile_6_40
+    shift.receipt_cement = data.receipt_cement
+    shift.receipt_cellulose = data.receipt_cellulose
+    shift.receipt_crushed_slate = data.receipt_crushed_slate
+    shift.receipt_asbocarton = data.receipt_asbocarton
+    shift.receipt_pallets = data.receipt_pallets
+    shift.receipt_fiberglass = data.receipt_fiberglass
+    shift.receipt_laprol = data.receipt_laprol
+    
+    # Записываем расход ЗО
+    shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20
+    shift.zo_chrysotile_5_65 = data.zo_chrysotile_5_65
+    shift.zo_chrysotile_6_40 = data.zo_chrysotile_6_40
+    shift.zo_cement_silo1 = data.zo_cement_silo1
+    shift.zo_cement_silo2 = data.zo_cement_silo2
+    shift.zo_cement_silo3 = data.zo_cement_silo3
+    shift.zo_cement_silo4 = data.zo_cement_silo4
+    
+    # Суммируем в legacy zo_cement
+    shift.zo_cement = (data.zo_cement_silo1 or 0) + (data.zo_cement_silo2 or 0) + (data.zo_cement_silo3 or 0) + (data.zo_cement_silo4 or 0)
+    
+    shift.zo_cellulose = data.zo_cellulose
+    shift.zo_crushed_slate = data.zo_crushed_slate
+    shift.zo_asbozurit = data.zo_asbozurit
+    shift.zo_fiberglass = data.zo_fiberglass
+    shift.zo_laprol = data.zo_laprol
+    shift.zo_asbocarton = data.zo_asbocarton
+    shift.zo_asb_drain = data.zo_asb_drain
+    shift.zo_cem_drain = data.zo_cem_drain
+    shift.zo_batches = data.zo_batches
+    shift.zo_submitted = True
+    
+    db.commit()
+    return {"status": "success"}
+
 
 def sync_lfm_to_plan_board(shift_id: int, db: Session):
     shift = db.query(models.Shift).get(shift_id)

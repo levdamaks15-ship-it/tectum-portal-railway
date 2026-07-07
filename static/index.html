@@ -219,6 +219,111 @@
                     </div>
                 </div>
 
+                <!-- Raw Materials Dashboards and Management Panel -->
+                <div class="glass-panel card" id="materials-dashboards-panel" style="display: none; grid-column: span 2;">
+                    <h3>📊 Дашборды сырья (Активная смена)</h3>
+                    <div class="card-content">
+                        <div class="two-col-grid" style="gap: 2rem;">
+                            <!-- 1. Дашборд по сырью (Факт ЗО vs Теория ЛФМ) -->
+                            <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                <h4 style="color: var(--primary-color); margin-bottom: 1.2rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">🧪 Эффективность расхода (Факт ЗО vs Теория ЛФМ)</h4>
+                                <div id="m-dash-efficiency-list" style="display: flex; flex-direction: column; gap: 1.2rem;">
+                                    <!-- Dynamic rows -->
+                                </div>
+                            </div>
+
+                            <!-- 2. Дашборд по учету сырья (Приход vs Расход) -->
+                            <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                <h4 style="color: var(--warning-color); margin-bottom: 1.2rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">📦 Баланс Склада (Приход vs Расход ЗО)</h4>
+                                <div id="m-dash-balance-list" style="display: flex; flex-direction: column; gap: 1.2rem;">
+                                    <!-- Dynamic rows -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel card collapsible-card" id="raw-materials-management-card" style="display: none; grid-column: span 2;">
+                    <h3>🎛 Панель управления сырьем</h3>
+                    <div class="card-content">
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                            Ввод и редактирование данных по приходу и расходу сырья за любой день. Приход автоматически связывается со списанием расхода от ЗО.
+                        </p>
+                        
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: flex-end; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дата</label>
+                                <input type="date" id="manage-mat-date" style="margin-bottom: 0;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 120px;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Смена</label>
+                                <select id="manage-mat-shift" style="margin-bottom: 0;">
+                                    <option value="День">День</option>
+                                    <option value="Ночь">Ночь</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 120px;">
+                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Линия</label>
+                                <select id="manage-mat-line" style="margin-bottom: 0;">
+                                    <option value="Линия 1">Линия 1</option>
+                                    <option value="Линия 2">Линия 2</option>
+                                </select>
+                            </div>
+                            <button onclick="loadManageMaterials()" style="height: 38px; width: auto; padding: 0 1.5rem; background: var(--accent-color); margin-bottom: 0;">Загрузить</button>
+                        </div>
+
+                        <div id="manage-materials-form-container" style="display: none;">
+                            <h4 id="manage-materials-title" style="margin-bottom: 1.5rem; color: var(--primary-color); font-size: 1.1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;"></h4>
+                            
+                            <div class="two-col-grid" style="gap: 2rem;">
+                                <!-- Приход сырья (Склад) -->
+                                <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                    <h4 style="color: var(--primary-color); margin-bottom: 1.2rem; font-size: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">📥 Приход на склад</h4>
+                                    <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="m-rec-chr-4-20" placeholder="0"></div>
+                                    <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="m-rec-chr-5-65" placeholder="0"></div>
+                                    <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="m-rec-chr-6-40" placeholder="0"></div>
+                                    <div class="form-group"><label>Цемент (кг)</label><input type="number" id="m-rec-cem" placeholder="0"></div>
+                                    <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="m-rec-cel" placeholder="0"></div>
+                                    <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="m-rec-slate" placeholder="0"></div>
+                                    <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="m-rec-asbocarton" placeholder="0"></div>
+                                    <div class="form-group"><label>Поддоны (шт)</label><input type="number" id="m-rec-pallets" placeholder="0"></div>
+                                    <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="m-rec-fib" placeholder="0"></div>
+                                    <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="m-rec-laprol" placeholder="0"></div>
+                                </div>
+
+                                <!-- Расход ЗО -->
+                                <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                    <h4 style="color: var(--warning-color); margin-bottom: 1.2rem; font-size: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">🥣 Расход ЗО</h4>
+                                    <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="m-zo-chr-4-20" placeholder="0"></div>
+                                    <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="m-zo-chr-5-65" placeholder="0"></div>
+                                    <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="m-zo-chr-6-40" placeholder="0"></div>
+                                    
+                                    <h5 style="margin: 1.2rem 0 0.6rem 0; color: var(--accent-color); font-size: 0.95rem;">Цемент по силосам</h5>
+                                    <div class="form-group"><label>Силос 1 (кг)</label><input type="number" id="m-zo-cem-1" placeholder="0"></div>
+                                    <div class="form-group"><label>Силос 2 (кг)</label><input type="number" id="m-zo-cem-2" placeholder="0"></div>
+                                    <div class="form-group"><label>Силос 3 (кг)</label><input type="number" id="m-zo-cem-3" placeholder="0"></div>
+                                    <div class="form-group"><label>Силос 4 (кг)</label><input type="number" id="m-zo-cem-4" placeholder="0"></div>
+                                    
+                                    <h5 style="margin: 1.2rem 0 0.6rem 0; color: var(--accent-color); font-size: 0.95rem;">Прочие материалы</h5>
+                                    <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="m-zo-cel" placeholder="0"></div>
+                                    <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="m-zo-slate" placeholder="0"></div>
+                                    <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="m-zo-asb" placeholder="0"></div>
+                                    <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="m-zo-fib" placeholder="0"></div>
+                                    <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="m-zo-laprol" placeholder="0"></div>
+                                    <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="m-zo-asbocarton" placeholder="0"></div>
+                                    
+                                    <h5 style="margin: 1.2rem 0 0.6rem 0; color: var(--accent-color); font-size: 0.95rem;">Сливы и Замесы</h5>
+                                    <div class="form-group"><label>Слив хризотила (кг)</label><input type="number" id="m-zo-asb-drain" placeholder="0"></div>
+                                    <div class="form-group"><label>Слив цемента (кг)</label><input type="number" id="m-zo-cem-drain" placeholder="0"></div>
+                                    <div class="form-group"><label>Количество замесов (шт)</label><input type="number" id="m-zo-batches" placeholder="0"></div>
+                                </div>
+                            </div>
+                            
+                            <button onclick="saveManageMaterials()" style="margin-top: 2rem; width: 100%; font-size: 1.1rem; height: 48px;" class="btn-save">Сохранить изменения сырья</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 2. ЗО -->
                 <div class="glass-panel card mobile-form collapsible-card" id="zo-view">
                     <h3 style="text-align: center;">Заготовительное отделение (ЗО)</h3>
