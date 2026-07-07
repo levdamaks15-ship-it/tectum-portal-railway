@@ -2566,8 +2566,8 @@ async function loadArchive() {
                 tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Нет смен в этом месяце</td></tr>';
             } else {
                 tbody.innerHTML = filtered.map(s => {
-                    const recTons = ((s.receipt_chrysotile_4_20||0) + (s.receipt_chrysotile_5_65||0) + (s.receipt_chrysotile_6_40||0) + (s.receipt_cement||0) + (s.receipt_cellulose||0) + (s.receipt_crushed_slate||0) + (s.receipt_asbozurit||0) + (s.receipt_fiberglass||0)) / 1000;
-                    const zoTons = ((s.zo_chrysotile_4_20||0) + (s.zo_chrysotile_5_65||0) + (s.zo_chrysotile_6_40||0) + (s.zo_cement||0) + (s.zo_cellulose||0) + (s.zo_crushed_slate||0) + (s.zo_asbozurit||0) + (s.zo_fiberglass||0)) / 1000;
+                    const recTons = ((s.receipt_chrysotile_4_20||0) + (s.receipt_chrysotile_5_65||0) + (s.receipt_chrysotile_6_40||0) + (s.receipt_cement||0) + (s.receipt_cellulose||0) + (s.receipt_crushed_slate||0) + (s.receipt_asbocarton||0) + (s.receipt_fiberglass||0) + (s.receipt_laprol||0)) / 1000;
+                    const zoTons = ((s.zo_chrysotile_4_20||0) + (s.zo_chrysotile_5_65||0) + (s.zo_chrysotile_6_40||0) + (s.zo_cement||0) + (s.zo_cellulose||0) + (s.zo_crushed_slate||0) + (s.zo_asbocarton||0) + (s.zo_fiberglass||0) + (s.zo_laprol||0)) / 1000;
                     
                     return `
                         <tr>
