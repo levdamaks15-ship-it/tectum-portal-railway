@@ -189,6 +189,14 @@
                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Цемент (кг)</label>
                                 <input type="number" id="rec-cem" placeholder="0">
                             </div>
+                             <div class="form-group">
+                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Асбокартон (кг)</label>
+                                 <input type="number" id="rec-asbocarton" placeholder="0">
+                             </div>
+                             <div class="form-group">
+                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Поддоны (шт)</label>
+                                 <input type="number" id="rec-pallets" placeholder="0">
+                             </div>
                             <div class="form-group">
                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Целлюлоза (кг)</label>
                                 <input type="number" id="rec-cel" placeholder="0">
@@ -197,10 +205,7 @@
                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дробленый шифер (кг)</label>
                                 <input type="number" id="rec-slate" placeholder="0">
                             </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Асбозурит (кг)</label>
-                                <input type="number" id="rec-asb" placeholder="0">
-                            </div>
+
                             <div class="form-group">
                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Стекловолокно (кг)</label>
                                 <input type="number" id="rec-fib" placeholder="0">
@@ -283,6 +288,16 @@
                             <label>Количество замесов</label>
                             <input type="number" id="zo-batches" placeholder="0">
                         </div>
+
+                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Сливы за смену (ЗО)</h4>
+                        <div class="form-group">
+                            <label>Слив хризотила (кг)</label>
+                            <input type="number" id="zo-asb-drain" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Слив цемента (кг)</label>
+                            <input type="number" id="zo-cem-drain" placeholder="0">
+                        </div>
                         
                         <button class="btn-submit-huge" id="btn-submit-zo" onclick="updateZO()">Отправить данные за смену</button>
                         <p id="zo-lock-msg" style="display:none; color: var(--success-color); text-align: center; margin-top: 1rem;">Данные успешно отправлены. Для корректировки обратитесь к мастеру.</p>
@@ -323,18 +338,7 @@
                         <div id="lfm-reports-list" style="margin-top:1rem; font-size: 0.9rem;"></div>
                         <div id="lfm-economics" style="margin-top: 1rem; color: var(--danger-color); font-weight: bold; font-size: 0.9rem;"></div>
                         
-                        <div style="border-top: 1px solid var(--glass-border); margin-top: 1.5rem; padding-top: 1.5rem;" id="lfm-drains-section">
-                            <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Сливы за смену (ЛФМ)</h4>
-                            <div class="form-group">
-                                <label>Слив асбеста (кг)</label>
-                                <input type="number" id="lfm-asb-drain" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label>Слив цемента (кг)</label>
-                                <input type="number" id="lfm-cem-drain" placeholder="0">
-                            </div>
-                            <button class="btn-submit-huge" onclick="saveLFMDrains()" style="background: linear-gradient(135deg, #e65100, #ff9800); margin-top: 0.5rem;">Сохранить сливы</button>
-                        </div>
+
                     </div>
                 </div>
 

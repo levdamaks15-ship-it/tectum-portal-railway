@@ -33,6 +33,8 @@ class Shift(Base):
     receipt_cellulose = Column(Float, default=0)
     receipt_crushed_slate = Column(Float, default=0)
     receipt_asbozurit = Column(Float, default=0)
+    receipt_asbocarton = Column(Float, default=0.0)
+    receipt_pallets = Column(Float, default=0.0)
     receipt_fiberglass = Column(Float, default=0)
     receipt_laprol = Column(Float, default=0)
     

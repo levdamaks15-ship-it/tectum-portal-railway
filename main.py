@@ -96,6 +96,20 @@ async def lifespan(app: FastAPI):
 
     try:
         conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE shifts ADD COLUMN receipt_asbocarton FLOAT DEFAULT 0.0")
+        conn.commit()
+        conn.close()
+    except: pass
+
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE shifts ADD COLUMN receipt_pallets FLOAT DEFAULT 0.0")
+        conn.commit()
+        conn.close()
+    except: pass
+
+    try:
+        conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE shifts ADD COLUMN sharepoint_url VARCHAR(500)")
         conn.commit()
         conn.close()
@@ -124,6 +138,8 @@ async def lifespan(app: FastAPI):
             ("shifts", "zo_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "lfm_asb_drain", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("shifts", "receipt_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
+            ("shifts", "receipt_pallets", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "sharepoint_url", "VARCHAR(500)")
         ]
         for table, col, col_def in pg_cols_to_add:
@@ -646,6 +662,9 @@ class UpdateReceiptZO(BaseModel):
     fiberglass: float = 0
     laprol: float = 0
     asbocarton: float = 0
+    pallets: float = 0
+    asb_drain: float = 0
+    cem_drain: float = 0
     batches: int = 0
     submitted: bool = False
 
@@ -677,6 +696,8 @@ def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: S
     shift.receipt_cellulose = data.cellulose
     shift.receipt_crushed_slate = data.crushed_slate
     shift.receipt_asbozurit = data.asbozurit
+    shift.receipt_asbocarton = data.asbocarton
+    shift.receipt_pallets = data.pallets
     shift.receipt_fiberglass = data.fiberglass
     shift.receipt_laprol = data.laprol
     db.commit()
@@ -717,6 +738,8 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, db: Sessio
     shift.zo_fiberglass = data.fiberglass
     shift.zo_laprol = data.laprol
     shift.zo_asbocarton = data.asbocarton
+    shift.zo_asb_drain = data.asb_drain
+    shift.zo_cem_drain = data.cem_drain
     shift.zo_batches = data.batches
     shift.zo_submitted = data.submitted
     

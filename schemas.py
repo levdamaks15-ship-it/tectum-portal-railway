@@ -97,6 +97,8 @@ class ShiftBase(BaseModel):
     receipt_cellulose: Optional[float] = 0
     receipt_crushed_slate: Optional[float] = 0
     receipt_asbozurit: Optional[float] = 0
+    receipt_asbocarton: Optional[float] = 0.0
+    receipt_pallets: Optional[float] = 0.0
     receipt_fiberglass: Optional[float] = 0
     receipt_laprol: Optional[float] = 0
     

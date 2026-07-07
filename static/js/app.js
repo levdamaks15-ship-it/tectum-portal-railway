@@ -484,6 +484,8 @@ async function loadData() {
             document.getElementById('zo-laprol').value = shift.zo_laprol || '';
             document.getElementById('zo-asbocarton').value = shift.zo_asbocarton || '';
             document.getElementById('zo-batches').value = shift.zo_batches || '';
+            document.getElementById('zo-asb-drain').value = shift.zo_asb_drain || '';
+            document.getElementById('zo-cem-drain').value = shift.zo_cem_drain || '';
         }
 
         // Populate Receipt fields if present in DOM
@@ -494,16 +496,13 @@ async function loadData() {
             document.getElementById('rec-cem').value = shift.receipt_cement || '';
             document.getElementById('rec-cel').value = shift.receipt_cellulose || '';
             document.getElementById('rec-slate').value = shift.receipt_crushed_slate || '';
-            document.getElementById('rec-asb').value = shift.receipt_asbozurit || '';
+            document.getElementById('rec-asbocarton').value = shift.receipt_asbocarton || '';
+            document.getElementById('rec-pallets').value = shift.receipt_pallets || '';
             document.getElementById('rec-fib').value = shift.receipt_fiberglass || '';
             document.getElementById('rec-laprol').value = shift.receipt_laprol || '';
         }
 
-        // Populate LFM drains if present in DOM
-        if (document.getElementById('lfm-asb-drain')) {
-            document.getElementById('lfm-asb-drain').value = shift.lfm_asb_drain || '';
-            document.getElementById('lfm-cem-drain').value = shift.lfm_cem_drain || '';
-        }
+
 
         applyShiftMode(shift);
     } else {
@@ -800,7 +799,8 @@ async function updateReceipt() {
         cement: getNum('rec-cem'),
         cellulose: getNum('rec-cel'),
         crushed_slate: getNum('rec-slate'),
-        asbozurit: getNum('rec-asb'),
+        asbocarton: getNum('rec-asbocarton'),
+        pallets: getNum('rec-pallets'),
         fiberglass: getNum('rec-fib'),
         laprol: getNum('rec-laprol')
     };
@@ -835,6 +835,8 @@ async function updateZO() {
         laprol: getNum('zo-laprol'),
         asbocarton: getNum('zo-asbocarton'),
         batches: getNum('zo-batches'),
+        asb_drain: getNum('zo-asb-drain'),
+        cem_drain: getNum('zo-cem-drain'),
         submitted: true
     };
     const res = await fetch(`/api/shifts/${activeShiftId}/zo`, {
@@ -851,24 +853,7 @@ async function updateZO() {
     loadData();
 }
 
-async function saveLFMDrains() {
-    if (!activeShiftId) return alert("Нет активной смены");
-    const data = {
-        asb_drain: getNum('lfm-asb-drain'),
-        cem_drain: getNum('lfm-cem-drain')
-    };
-    const res = await fetch(`/api/shifts/${activeShiftId}/lfm_drains`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    });
-    if (res.ok) {
-        alert("Сливы сохранены");
-    } else {
-        alert("Ошибка при сохранении сливов");
-    }
-    loadData();
-}
+
 
 
 async function addLFMReport() {

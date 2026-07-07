@@ -75,7 +75,7 @@ with engine.connect() as conn:
         print("Column 'category' added successfully.")
 
     # Check Shift columns for Asbocarton and Drains
-    for col in ['zo_asbocarton', 'lfm_asb_drain', 'lfm_cem_drain']:
+    for col in ['zo_asbocarton', 'lfm_asb_drain', 'lfm_cem_drain', 'receipt_asbocarton', 'receipt_pallets']:
         res_shift_col = conn.execute(text(f"""
             SELECT column_name 
             FROM information_schema.columns 

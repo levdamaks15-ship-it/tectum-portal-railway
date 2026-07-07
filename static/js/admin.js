@@ -586,7 +586,8 @@ async function editShift(id) {
         document.getElementById('shift-edit-receipt-cement').value = shift.receipt_cement || 0;
         document.getElementById('shift-edit-receipt-cellulose').value = shift.receipt_cellulose || 0;
         document.getElementById('shift-edit-receipt-slate').value = shift.receipt_crushed_slate || 0;
-        document.getElementById('shift-edit-receipt-asbozurit').value = shift.receipt_asbozurit || 0;
+        document.getElementById('shift-edit-receipt-asbocarton').value = shift.receipt_asbocarton || 0;
+        document.getElementById('shift-edit-receipt-pallets').value = shift.receipt_pallets || 0;
         document.getElementById('shift-edit-receipt-fiberglass').value = shift.receipt_fiberglass || 0;
         document.getElementById('shift-edit-receipt-laprol').value = shift.receipt_laprol || 0;
         
@@ -605,6 +606,8 @@ async function editShift(id) {
         document.getElementById('shift-edit-zo-asbocarton').value = shift.zo_asbocarton || 0;
         document.getElementById('shift-edit-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
         document.getElementById('shift-edit-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
+        document.getElementById('shift-edit-zo-asb-drain').value = shift.zo_asb_drain || 0;
+        document.getElementById('shift-edit-zo-cem-drain').value = shift.zo_cem_drain || 0;
         document.getElementById('shift-edit-zo-batches').value = shift.zo_batches || 0;
         
         document.getElementById('shift-modal').style.display = 'flex';
@@ -631,7 +634,8 @@ async function saveShiftEdit() {
         receipt_cement: parseFloat(document.getElementById('shift-edit-receipt-cement').value) || 0,
         receipt_cellulose: parseFloat(document.getElementById('shift-edit-receipt-cellulose').value) || 0,
         receipt_crushed_slate: parseFloat(document.getElementById('shift-edit-receipt-slate').value) || 0,
-        receipt_asbozurit: parseFloat(document.getElementById('shift-edit-receipt-asbozurit').value) || 0,
+        receipt_asbocarton: parseFloat(document.getElementById('shift-edit-receipt-asbocarton').value) || 0,
+        receipt_pallets: parseFloat(document.getElementById('shift-edit-receipt-pallets').value) || 0,
         receipt_fiberglass: parseFloat(document.getElementById('shift-edit-receipt-fiberglass').value) || 0,
         receipt_laprol: parseFloat(document.getElementById('shift-edit-receipt-laprol').value) || 0,
         
@@ -654,6 +658,8 @@ async function saveShiftEdit() {
         zo_asbocarton: parseFloat(document.getElementById('shift-edit-zo-asbocarton').value) || 0,
         lfm_asb_drain: parseFloat(document.getElementById('shift-edit-lfm-asb-drain').value) || 0,
         lfm_cem_drain: parseFloat(document.getElementById('shift-edit-lfm-cem-drain').value) || 0,
+        zo_asb_drain: parseFloat(document.getElementById('shift-edit-zo-asb-drain').value) || 0,
+        zo_cem_drain: parseFloat(document.getElementById('shift-edit-zo-cem-drain').value) || 0,
         zo_batches: parseInt(document.getElementById('shift-edit-zo-batches').value) || 0
     };
 
