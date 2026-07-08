@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models, schemas
 import os
+import asyncio
 import m365_integration
 import excel_exporter
 import import_aci_excel
@@ -452,8 +453,35 @@ def get_single_shift(shift_id: int, db: Session = Depends(get_db)):
     if not shift: raise HTTPException(404, "Смена не найдена")
     return shift
 
+async def upload_sharepoint_report_retry(file_bytes: bytes, filename: str, folder: str, retries: int = 5, delay: int = 60):
+    for i in range(retries):
+        await asyncio.sleep(delay)
+        try:
+            print(f"Background task: Attempting to upload {filename} to SharePoint (attempt {i+1})...")
+            m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder=folder)
+            print(f"Background task: Successfully uploaded {filename} to SharePoint on attempt {i+1}")
+            
+            db = SessionLocal()
+            try:
+                db.add(models.AuditLog(
+                    user_name="system_background",
+                    action="UPDATE",
+                    target_table="shifts",
+                    target_id=0,
+                    details=f"Фоновая автосинхронизация: отчет {filename} успешно обновлен на SharePoint после освобождения файла."
+                ))
+                db.commit()
+            except Exception as audit_err:
+                print(f"Error logging background sync success: {audit_err}")
+            finally:
+                db.close()
+            break
+        except Exception as e:
+            print(f"Background task: Attempt {i+1} failed to upload {filename}: {e}")
+            delay = delay * 2
+
 @app.put("/api/shifts/{shift_id}/close")
-def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
+def close_shift(shift_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     
@@ -503,9 +531,24 @@ def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
             details=audit_detail
         ))
         db.commit()
+        return {"message": "Смена закрыта"}
     except Exception as e:
         print(f"Error generating/uploading unified report Excel: {e}")
-        audit_detail = f"Смена {shift_id} закрыта. Ошибка загрузки сводного отчета в SharePoint: {str(e)}"
+        error_msg = str(e)
+        warning_text = None
+        if "423" in error_msg or "Locked" in error_msg:
+            warning_text = "Сводный отчет заблокирован в SharePoint (кто-то открыл его в Excel Online). Смена успешно закрыта, но облачный отчет не обновился. Запущена фоновая автосинхронизация, локальная копия сохранена на сервере."
+        else:
+            warning_text = f"Смена закрыта, но произошла ошибка при загрузке отчета на SharePoint: {error_msg}. Запущена фоновая автосинхронизация, локальная копия сохранена на сервере."
+            
+        # Queue background task to retry upload
+        try:
+            file_bytes = excel_exporter.generate_flat_report(db)
+            background_tasks.add_task(upload_sharepoint_report_retry, file_bytes, "Сводный_отчет_Tectum.xlsx", "Reports")
+        except Exception as gen_err:
+            print(f"Failed to queue background sync: {gen_err}")
+            
+        audit_detail = f"Смена {shift_id} закрыта. Предупреждение по SharePoint: {warning_text}"
         try:
             db.add(models.AuditLog(
                 user_name=request.session.get("user_email") or f"user_{user_id}",
@@ -516,8 +559,7 @@ def close_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
             ))
             db.commit()
         except: pass
-        
-    return {"message": "Смена закрыта"}
+        return {"message": "Смена закрыта", "warning": warning_text}
 
 @app.get("/api/shifts/{shift_id}/download_passport")
 def download_shift_passport(shift_id: int, request: Request, db: Session = Depends(get_db)):
@@ -1892,6 +1934,48 @@ def export_shift(shift_id: int = None, db: Session = Depends(get_db)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers
     )
+
+@app.post("/api/dashboard/sync_sharepoint")
+def sync_sharepoint_manually(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
+    if user_role not in ["master", "admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастер смены или администратор могут запускать синхронизацию.")
+        
+    try:
+        file_bytes = excel_exporter.generate_flat_report(db)
+        filename = "Сводный_отчет_Tectum.xlsx"
+        
+        # Save locally to static folder as well
+        local_path = os.path.join("static", "Сводный_отчет_Tectum.xlsx")
+        try:
+            with open(local_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception as local_err:
+            print(f"Error saving local excel file: {local_err}")
+            
+        web_url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+        
+        # Log to AuditLog
+        db.add(models.AuditLog(
+            user_name=request.session.get("user_email") or f"user_{user_id}",
+            action="UPDATE",
+            target_table="shifts",
+            target_id=0,
+            details=f"Ручная синхронизация отчета с SharePoint выполнена успешно. Ссылка: {web_url}"
+        ))
+        db.commit()
+        return {"message": "Синхронизация выполнена успешно", "url": web_url}
+    except Exception as e:
+        error_msg = str(e)
+        if "423" in error_msg or "Locked" in error_msg:
+            raise HTTPException(status_code=423, detail="Файл отчета все еще заблокирован в SharePoint (кто-то открыл его в Excel Online). Закройте файл и попробуйте снова.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Ошибка синхронизации: {error_msg}")
 
 @app.get("/api/dashboard/view_archive")
 def view_archive():

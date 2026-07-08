@@ -159,8 +159,9 @@
                         </div>
 
                         <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
-                        <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                        <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
                             <button class="btn-success" onclick="window.open('/api/dashboard/view_archive')" style="background: #217346; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">📁 Сводный отчет (Архив)</button>
+                            <button id="btn-sync-sharepoint" class="btn-secondary" onclick="syncSharepointReport()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 0.5rem;">🔄 Синхронизировать с SharePoint</button>
                         </div>
                     </div>
                 </div>
@@ -941,6 +942,6 @@
     </div>
     
 
-    <script src="/static/js/app.js?v=20260708_v3"> </script>
+    <script src="/static/js/app.js?v=20260708_v5"> </script>
 </body>
 </html>

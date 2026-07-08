@@ -590,12 +590,45 @@ async function closeShift() {
         method: 'PUT'
     });
     if (res.ok) {
-        alert("Смена закрыта!");
+        const data = await res.json();
+        if (data.warning) {
+            alert("Смена закрыта, но возникло предупреждение:\n\n" + data.warning + "\n\nВы можете скачать актуальный сводный отчет напрямую с сервера по ссылке:\n/static/Сводный_отчет_Tectum.xlsx");
+        } else {
+            alert("Смена закрыта!");
+        }
     } else {
         const err = await res.json();
         alert("Ошибка при закрытии смены: " + (err.detail || "Недостаточно прав"));
     }
     loadData();
+}
+
+async function syncSharepointReport() {
+    const btn = document.getElementById('btn-sync-sharepoint');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "⏳ Синхронизация...";
+    }
+    
+    try {
+        const res = await fetch('/api/dashboard/sync_sharepoint', {
+            method: 'POST'
+        });
+        if (res.ok) {
+            const data = await res.json();
+            alert("Успешно! Отчет синхронизирован с SharePoint.\n\nСсылка: " + data.url);
+        } else {
+            const err = await res.json();
+            alert("Ошибка синхронизации: " + (err.detail || "Неизвестная ошибка"));
+        }
+    } catch (e) {
+        alert("Произошла ошибка при отправке запроса: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "🔄 Синхронизировать с SharePoint";
+        }
+    }
 }
 
 
@@ -729,6 +762,12 @@ function applyShiftMode(shift) {
         btnCloseShift.style.display = canClose ? 'inline-block' : 'none';
     }
     
+    const btnSyncSP = document.getElementById('btn-sync-sharepoint');
+    if (btnSyncSP) {
+        const canSync = currentUser.role === 'admin' || currentUser.role === 'master';
+        btnSyncSP.style.display = canSync ? 'inline-block' : 'none';
+    }
+    
     // Disable inputs and buttons in production if closed or no shift
     const forms = ['zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'master-view', 'master-receipt-view'];
     forms.forEach(f => {
@@ -736,7 +775,7 @@ function applyShiftMode(shift) {
         if (el) {
             const inputs = el.querySelectorAll('input, select, button');
             inputs.forEach(input => {
-                if(input.id !== 'btn-close-shift' && !input.classList.contains('tab-btn') && input.innerText !== 'Обновить' && !input.getAttribute('onclick')?.includes('switchTab')) {
+                if(input.id !== 'btn-close-shift' && input.id !== 'btn-sync-sharepoint' && !input.classList.contains('tab-btn') && input.innerText !== 'Обновить' && !input.getAttribute('onclick')?.includes('switchTab')) {
                      let shouldDisable = isReadOnly;
                      if (f === 'master-view') {
                          shouldDisable = !!shift;
