@@ -1,3 +1,13 @@
+// Prevent aggressive caching of GET requests in mobile browsers
+const originalFetch = window.fetch;
+window.fetch = function (url, options) {
+    if (typeof url === 'string' && url.startsWith('/api/') && (!options || !options.method || options.method.toUpperCase() === 'GET')) {
+        const separator = url.includes('?') ? '&' : '?';
+        url = `${url}${separator}_ts=${Date.now()}`;
+    }
+    return originalFetch(url, options);
+};
+
 let currentAdmin = null;
 
 async function initAdminLogin() {
