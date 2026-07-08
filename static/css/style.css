@@ -387,6 +387,7 @@ button.btn-secondary:hover {
     grid-template-columns: 1.5fr 1fr;
     gap: 1.5rem;
     margin-bottom: 1.5rem;
+}
 .grid-weekly-charts {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
