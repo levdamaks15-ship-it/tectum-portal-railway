@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260705_v14">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260708_v2">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -120,7 +120,7 @@
             <!-- Статус операторов смены (виден всем ролям) -->
             <div class="glass-panel card" id="operators-status-block" style="margin-bottom: 1.5rem; display: none;">
                 <h4 style="margin-bottom: 0.5rem; text-align: center;">Статус отчетов операторов смены:</h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; font-size: 0.85rem;">
+                <div class="grid-operators-status" style="gap: 0.5rem; font-size: 0.85rem;">
                     <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-zo">
                         ЗО: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
                     </div>
@@ -220,7 +220,7 @@
                 </div>
 
                 <!-- Raw Materials Dashboards and Management Panel -->
-                <div class="glass-panel card" id="materials-dashboards-panel" style="display: none; grid-column: span 2;">
+                <div class="glass-panel card collapsible-card" id="materials-dashboards-panel" style="display: none; grid-column: span 2;">
                     <h3>📊 Дашборды сырья (Активная смена)</h3>
                     <div class="card-content">
                         <div class="two-col-grid" style="gap: 2rem;">
@@ -487,7 +487,7 @@
                             </select>
                         </div>
                         
-                        <div id="ds-defects-block" style="display: none; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;">
+                        <div id="ds-defects-block" class="grid-ds-defects" style="display: none; gap: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;">
                             <input type="number" id="def-chip" placeholder="Скол">
                             <input type="number" id="def-scratch" placeholder="Сдир">
                             <input type="number" id="def-bad-cut" placeholder="Плохой рез">
@@ -546,7 +546,7 @@
                     </div>
 
                     <!-- Графики производства и сырья -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+                    <div class="grid-weekly-charts" style="margin-top: 1.5rem;">
                         <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
                             <h4 style="text-align: center; margin-bottom: 0.5rem;">Формовка vs Кондиция (последние 7 смен)</h4>
                             <div class="chart-container">
@@ -565,7 +565,7 @@
                     <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
                         <h4 style="text-align: center; margin-bottom: 1rem; color: var(--danger-color);">Учет Простоев (Аналитика)</h4>
                         
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; text-align: center;">
+                        <div class="grid-downtime-kpis" style="margin-bottom: 1.5rem; text-align: center;">
                             <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
                                 <div style="font-size: 0.85rem; color: var(--text-secondary);">Общее время</div>
                                 <div style="font-size: 1.3rem; font-weight: bold;" id="kpi-dt-minutes">0 мин</div>
@@ -580,7 +580,7 @@
                             </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                        <div class="grid-downtime-charts">
                             <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
                                 <h4 style="text-align: center; margin-bottom: 0.5rem;">Топ Узлов (кол-во остановок)</h4>
                                 <div class="chart-container">
@@ -843,7 +843,7 @@
                     </div>
 
                     <!-- KPI Summary Cards -->
-                    <div id="daily-report-kpi-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div id="daily-report-kpi-container" class="grid-daily-kpis" style="margin-bottom: 1.5rem;">
                         <div class="kpi-card" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; text-align: center;">
                             <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Всего смен</div>
                             <div id="kpi-shifts-count" style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">0</div>
@@ -941,6 +941,6 @@
     </div>
     
 
-    <script src="/static/js/app.js?v=20260708_v1"> </script>
+    <script src="/static/js/app.js?v=20260708_v2"> </script>
 </body>
 </html>

@@ -109,3 +109,14 @@
 - **Решение:**
   1. **Восстановление функций в JS:** Разделили функции `logout()` и `applyRoleVisibility()` в [app.js](file:///d:/Antigravity_Project/tectum_portal/static/js/app.js). Добавлена защитная проверка на существование `currentUser` в начале `applyRoleVisibility()`.
   2. **Внедрение Cache-Buster:** В самое начало [app.js](file:///d:/Antigravity_Project/tectum_portal/static/js/app.js) и [admin.js](file:///d:/Antigravity_Project/tectum_portal/static/js/admin.js) добавлен глобальный перехватчик `fetch`. Теперь для всех GET-запросов к API (`/api/*`) автоматически дописывается параметр `_ts` с текущим временем (таймстампом). Это полностью исключает возврат устаревших данных из кэша мобильных браузеров.
+
+### 15. Мобильная адаптация дашборда сырья и устранение переполнения элементов
+- **Разворачиваемый дашборд сырья:**
+  - Карточке «Дашборды сырья (Активная смена)» ([materials-dashboards-panel](file:///d:/Antigravity_Project/tectum_portal/static/index.html#L223)) добавлен класс `collapsible-card`. Теперь на мобильных экранах её можно аккуратно сворачивать и разворачивать по клику на заголовок, как и другие карточки.
+  - В [app.js](file:///d:/Antigravity_Project/tectum_portal/static/js/app.js) скорректировано удаление класса `collapsible-card` для мобильных устройств. Теперь класс удаляется только на формах ввода операторов смены (`zo-view`, `lfm-view`, `stacker-view`, `destacker-view`, `qcd-view`), но сохраняется для дашборда сырья и панели управления за любые дни для всех ролей.
+- **Устранение вылезания элементов за границы:**
+  - **CSS-классы вместо инлайновых гридов:** Заменили инлайновые стили `grid-template-columns` с жестко прописанными лимитами `minmax` (320px, 280px, 180px и т.д.) на семантические классы: `.grid-weekly-charts`, `.grid-downtime-kpis`, `.grid-downtime-charts`, `.grid-daily-kpis`, `.grid-operators-status` в [index.html](file:///d:/Antigravity_Project/tectum_portal/static/index.html).
+  - **Медиа-запросы:** В [style.css](file:///d:/Antigravity_Project/tectum_portal/static/css/style.css) добавили адаптивное поведение. На экранах до 768px все эти гриды переключаются на режим `grid-template-columns: minmax(0, 1fr) !important`, выстраивая элементы строго в одну колонку без горизонтальной прокрутки.
+  - **Исправление ширины карточек:** Карточкам `#materials-dashboards-panel` и `#raw-materials-management-card` в медиа-запросе задали `grid-column: 1 / -1 !important` вместо `span 2`, чтобы они не ломали сетку и не вылезали за пределы экрана на телефонах.
+- **Сброс кэша стилей:**
+  - Обновили версии файлов `style.css`, `app.js` и `admin.js` в [index.html](file:///d:/Antigravity_Project/tectum_portal/static/index.html) и [admin.html](file:///d:/Antigravity_Project/tectum_portal/static/admin.html) до `?v=20260708_v2`, чтобы мобильные браузеры гарантированно скачали новые стили и разметку.

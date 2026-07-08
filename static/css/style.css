@@ -387,9 +387,38 @@ button.btn-secondary:hover {
     grid-template-columns: 1.5fr 1fr;
     gap: 1.5rem;
     margin-bottom: 1.5rem;
+.grid-weekly-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1rem;
+}
+.grid-downtime-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+.grid-downtime-charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+.grid-daily-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+}
+.grid-operators-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 @media (max-width: 768px) {
+    #materials-dashboards-panel, #raw-materials-management-card {
+        grid-column: 1 / -1 !important;
+    }
+    .grid-weekly-charts, .grid-downtime-kpis, .grid-downtime-charts, .grid-daily-kpis, .grid-operators-status {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
     html, body {
         font-size: 14px;
         max-width: 100%;

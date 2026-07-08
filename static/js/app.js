@@ -266,7 +266,7 @@ async function logout() {
     document.getElementById('main-app').style.display = 'none';
     document.getElementById('login-screen').style.display = 'block';
     document.getElementById('pin-input').value = '';
-       const views = ['master-view', 'master-receipt-view', 'zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'raw-materials-management-card'];
+       const views = ['master-view', 'master-receipt-view', 'zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view', 'raw-materials-management-card', 'materials-dashboards-panel'];
     views.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('collapsible-card');
@@ -393,10 +393,11 @@ function applyRoleVisibility() {
 
     // Для мобильных экранов: убираем аккордеон для операторов смены, оставляя только для master/admin
     const collapsibleCards = document.querySelectorAll('.collapsible-card');
+    const operatorFormIds = ['zo-view', 'lfm-view', 'stacker-view', 'destacker-view', 'qcd-view'];
     collapsibleCards.forEach(card => {
         card.classList.remove('expanded');
         if (role !== 'master' && role !== 'admin') {
-            if (card.style.display !== 'none') {
+            if (card.style.display !== 'none' && operatorFormIds.includes(card.id)) {
                 // Оператор смены видит только свою форму, убираем с неё функционал аккордеона
                 card.classList.remove('collapsible-card');
             }
