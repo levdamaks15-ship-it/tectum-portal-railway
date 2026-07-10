@@ -351,6 +351,11 @@ function applyRoleVisibility() {
         dashView.style.display = (role === 'master' || role === 'director' || role === 'technologist' || role === 'admin') ? 'block' : 'none';
     }
     
+    const weeklyCharts = document.getElementById('weekly-charts-container');
+    if (weeklyCharts) {
+        weeklyCharts.style.display = (role === 'master') ? 'none' : 'grid';
+    }
+    
     const planBoardView = document.getElementById('plan-board-view');
     if (planBoardView) {
         planBoardView.style.display = (role === 'master' || role === 'director' || role === 'technologist' || role === 'admin') ? 'block' : 'none';
@@ -1708,7 +1713,7 @@ async function renderDashboard() {
                         <td style="padding: 0.5rem; text-align: right; color: var(--success-color);">${row.qcd_condition.toLocaleString()}</td>
                         <td style="padding: 0.5rem; text-align: right; color: var(--accent-color);">${row.qcd_first_grade.toLocaleString()}</td>
                         <td style="padding: 0.5rem; text-align: right; color: var(--danger-color);">${row.qcd_defect.toLocaleString()}</td>
-                        <td style="padding: 0.5rem; text-align: right; color: ${devColor}; font-weight: bold;">${formattedDev} кг</td>
+                        <td style="padding: 0.5rem; text-align: right; color: var(--text-primary); font-weight: bold;">${row.fact_tons !== undefined ? row.fact_tons.toFixed(2) : '0.00'} т</td>
                     </tr>
                 `;
             });

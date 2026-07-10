@@ -1468,6 +1468,9 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
         # Общее отклонение по сырью в кг (Факт - Теория)
         deviation = fact_raw - theory_raw
 
+        # Фактический вес формовки в тоннах
+        fact_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in lfm_reports)
+
         report_data.append({
             "id": shift.id,
             "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
@@ -1478,7 +1481,8 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
             "qcd_condition": qcd_cond,
             "qcd_first_grade": qcd_fg,
             "qcd_defect": qcd_def,
-            "raw_deviation": round(deviation, 2)
+            "raw_deviation": round(deviation, 2),
+            "fact_tons": round(fact_tons, 2)
         })
         
     return report_data
