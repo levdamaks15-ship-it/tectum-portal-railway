@@ -87,10 +87,25 @@ function toggleDefectsGrid() {
 function recalcTonsAndGrades() {
     const sheets = parseFloat(document.getElementById('rep-sheets').value) || 0;
     const prodName = document.getElementById('rep-product').value;
+    
+    // Strict exact matching to find correct product norm (fixes the 3500*980 bug)
     const norm = productNorms[prodName];
     const weight = norm ? norm.weight_kg : 19.6;
-    const tons = (sheets * weight) / 1000;
-    document.getElementById('rep-tons-readonly').value = tons.toFixed(2);
+    const kgs = sheets * weight;
+    const tons = kgs / 1000;
+    
+    const kgEl = document.getElementById('rep-kg-readonly');
+    if (kgEl) {
+        kgEl.value = kgs.toFixed(2);
+    }
+    const tonsEl = document.getElementById('rep-tons-readonly');
+    if (tonsEl) {
+        tonsEl.value = tons.toFixed(3);
+    }
+}
+
+function onProductChange() {
+    recalcTonsAndGrades();
 }
 
 function recalcDefectTotal() {

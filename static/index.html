@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v8">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v9">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -320,16 +320,23 @@
                                     <input type="number" id="rep-sheets" placeholder="0" oninput="recalcTonsAndGrades()">
                                 </div>
                                 <div class="form-group">
-                                    <label>Выпуск в тоннах (авто)</label>
-                                    <input type="text" id="rep-tons-readonly" readonly placeholder="0.0" style="background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-color)">
-                                </div>
-                                <div class="form-group">
                                     <label>Сбросов наката (шт) [ЛФМ]</label>
                                     <input type="number" id="rep-resets" placeholder="0">
                                 </div>
                                 <div class="form-group">
                                     <label>Количество замесов (шт) [ЗО]</label>
                                     <input type="number" id="rep-batches" placeholder="0">
+                                </div>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                                <div class="form-group">
+                                    <label>Выпуск в килограммах (авто)</label>
+                                    <input type="text" id="rep-kg-readonly" readonly placeholder="0.00" style="background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-color)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Выпуск в тоннах (авто)</label>
+                                    <input type="text" id="rep-tons-readonly" readonly placeholder="0.000" style="background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-color)">
                                 </div>
                             </div>
                         </div>
@@ -920,6 +927,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260712_unified_v8"> </script>
+    <script src="/static/js/app.js?v=20260712_unified_v9"> </script>
 </body>
 </html>
