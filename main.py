@@ -2339,16 +2339,20 @@ def get_daily_report(
         lines_to_include = ["line_1", "line_2"]
 
     for i in range(num_days):
-        date_str = str(sd + timedelta(days=i))
-        plan_sheets = 0
-        fact_sheets = 0
-        plan_tons = 0.0
-        fact_tons = 0.0
-        first_grade = 0
-        defect = 0
+        dt = sd + timedelta(days=i)
+        date_str = str(dt)
+        day_num = dt.day
+        month_num = dt.month
         
-        for l_key in lines_to_include:
-            for s_name in ["День", "Ночь"]:
+        for s_name in ["День", "Ночь"]:
+            plan_sheets = 0
+            fact_sheets = 0
+            plan_tons = 0.0
+            fact_tons = 0.0
+            first_grade = 0
+            defect = 0
+            
+            for l_key in lines_to_include:
                 shift_data = data[l_key][date_str][s_name]
                 plan_sheets += shift_data["plan_sheets"]
                 fact_sheets += shift_data["sheets"]
@@ -2356,16 +2360,20 @@ def get_daily_report(
                 fact_tons += shift_data["tons"]
                 first_grade += shift_data["first_grade"]
                 defect += shift_data["defect"]
-                
-        days_list.append({
-            "date": date_str,
-            "plan_sheets": plan_sheets,
-            "fact_sheets": fact_sheets,
-            "plan_tons": plan_tons,
-            "fact_tons": fact_tons,
-            "first_grade": first_grade,
-            "defect": defect
-        })
+            
+            suffix = "Д" if s_name == "День" else "Н"
+            label = f"{day_num:02d}.{month_num:02d} ({suffix})"
+            
+            days_list.append({
+                "date": date_str,
+                "label": label,
+                "plan_sheets": plan_sheets,
+                "fact_sheets": fact_sheets,
+                "plan_tons": plan_tons,
+                "fact_tons": fact_tons,
+                "first_grade": first_grade,
+                "defect": defect
+            })
         
     total_shifts = sum(1 for s in shifts if (not line or ("1" in s.line and line == "lfm1") or ("2" in s.line and line == "lfm2") or line == "all"))
     total_fact_sheets = sum(d["fact_sheets"] for d in days_list)

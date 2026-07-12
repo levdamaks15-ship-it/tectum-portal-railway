@@ -1325,7 +1325,7 @@ function renderDailyReportCharts(days) {
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
 
-    const labels = days.map(d => d.date.split('-').slice(2).join('.'));
+    const labels = days.map(d => d.label || d.date.split('-').slice(2).join('.'));
     
     // Sheets Chart
     const ctxSheets = document.getElementById('chart-daily-sheets').getContext('2d');
