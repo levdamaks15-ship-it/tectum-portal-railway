@@ -249,7 +249,7 @@
 
             <!-- 1. PRODUCTION TAB (📝 Рапорт мастера) -->
             <div id="production-tab" style="display: block;">
-                <div style="max-width: 900px; margin: 0 auto;">
+                <div id="report-form-container" style="max-width: 900px; margin: 0 auto;">
                     
                     <!-- Accordion Section 1: Заголовок смены -->
                     <div class="glass-panel accordion-section" id="acc-header-section">
@@ -460,6 +460,20 @@
                         <button onclick="submitShiftReport()" class="btn-submit-huge" style="font-size: 1.2rem; padding: 1.2rem 3rem; border-radius: 12px; max-width: 400px; width: 100%;">💾 Сохранить рапорт смены</button>
                     </div>
 
+                </div>
+
+                <!-- Microsoft Forms-style Success Screen -->
+                <div id="report-success-screen" class="glass-panel" style="display: none; max-width: 600px; margin: 3rem auto; text-align: center; padding: 3rem 2rem; border-radius: 16px;">
+                    <div style="width: 80px; height: 80px; background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+                        <span style="font-size: 3rem; color: #22c55e;">✓</span>
+                    </div>
+                    <h2 style="margin-bottom: 1rem; color: white;">Рапорт успешно сохранен!</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; line-height: 1.5;">
+                        Данные смены успешно отправлены в базу данных и синхронизированы с облаком.
+                    </p>
+                    <button onclick="showNewReportForm()" class="btn-submit-huge" style="font-size: 1.1rem; padding: 1rem 2.5rem; border-radius: 8px; width: auto; max-width: 320px; display: inline-block;">
+                        📝 Заполнить еще один рапорт
+                    </button>
                 </div>
             </div>
 
@@ -918,6 +932,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260712_unified_v15"> </script>
+    <script src="/static/js/app.js?v=20260712_unified_v16"> </script>
 </body>
 </html>

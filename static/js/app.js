@@ -510,9 +510,13 @@ async function submitShiftReport() {
         });
         
         if (res.ok) {
-            alert("Рапорт успешно сохранен!");
+            const formContainer = document.getElementById('report-form-container');
+            const successScreen = document.getElementById('report-success-screen');
+            if (formContainer) formContainer.style.display = 'none';
+            if (successScreen) successScreen.style.display = 'block';
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             loadData();
-            switchTab('summary');
         } else {
             const err = await res.json();
             alert(`Ошибка сохранения: ${err.detail}`);
@@ -520,6 +524,61 @@ async function submitShiftReport() {
     } catch(e) {
         alert(`Сетевая ошибка: ${e.message}`);
     }
+}
+
+function resetReportForm() {
+    const dateEl = document.getElementById('rep-date');
+    if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+    
+    const batchEl = document.getElementById('rep-batch');
+    if (batchEl) batchEl.value = '';
+    
+    const productEl = document.getElementById('rep-product');
+    if (productEl) productEl.value = '';
+    
+    const numericIds = [
+        'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade', 'rep-qcd-defect',
+        'def-chip', 'def-scratch', 'def-bad-cut', 'def-stick-bottom', 'def-stick-top', 'def-broken', 'def-fell', 
+        'def-dent', 'def-thickness', 'def-delamination', 'def-edge',
+        'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4', 
+        'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton', 
+        'zo-asb-drain', 'zo-cem-drain',
+        'rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement', 'rec-cellulose', 'rec-crushed-slate', 
+        'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'
+    ];
+    
+    numericIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    
+    const hasDefectEl = document.getElementById('rep-has-defect');
+    if (hasDefectEl) {
+        hasDefectEl.value = 'no';
+        const container = document.getElementById('rep-defect-container');
+        if (container) container.style.display = 'none';
+    }
+    
+    const readOnlyIds = [
+        'rep-defect-total-readonly', 'zo-chr-total-readonly', 'zo-cem-total-readonly',
+        'rep-weight-kg-readonly', 'rep-weight-t-readonly'
+    ];
+    readOnlyIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+}
+
+function showNewReportForm() {
+    resetReportForm();
+    
+    const formContainer = document.getElementById('report-form-container');
+    const successScreen = document.getElementById('report-success-screen');
+    
+    if (successScreen) successScreen.style.display = 'none';
+    if (formContainer) formContainer.style.display = 'block';
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function closeShift() {
