@@ -2708,10 +2708,8 @@ def view_archive(db: Session = Depends(get_db)):
 @app.get("/api/dashboard/debug_summary")
 def debug_summary(db: Session = Depends(get_db)):
     shift = db.query(models.Shift).order_by(models.Shift.id.desc()).first()
-    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн рифленый").first()
-    norm_dict = {}
-    if norm:
-        norm_dict = {c.name: getattr(norm, c.name) for c in norm.__table__.columns}
+    norms = db.query(models.ProductNorm).all()
+    norms_list = [{"id": n.id, "product_name": repr(n.product_name), "norm_cement": n.norm_cement, "norm_chrysotile_5_65": n.norm_chrysotile_5_65} for n in norms]
     
     lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all() if shift else []
     lfm_reports_data = [{"id": r.id, "product_name": repr(r.product_name), "sheets": r.lfm_sheets} for r in lfm_reports]
@@ -2723,7 +2721,7 @@ def debug_summary(db: Session = Depends(get_db)):
         "date": str(shift.date) if shift else None,
         "product_name": repr(shift.product_name) if shift else None,
         "lfm_reports": lfm_reports_data,
-        "norm_for_8_voln_rifleny": norm_dict,
+        "all_norms_in_db": norms_list,
         "deviations": devs
     }
 
