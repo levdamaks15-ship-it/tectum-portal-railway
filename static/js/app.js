@@ -1739,8 +1739,8 @@ function exportDailyReportPDF() {
     });
     
     // Draw chart if exists
-    if (window.chartDailySheets) {
-        const chartImgSrc = window.chartDailySheets.canvas;
+    if (chartDailySheets) {
+        const chartImgSrc = chartDailySheets.canvas;
         // Calculate centered aspect ratio
         const chartW = cw - 160;
         const chartH = 600;
