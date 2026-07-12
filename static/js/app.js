@@ -1069,6 +1069,10 @@ function exportToExcelLocal() {
     XLSX.writeFile(wb, "tectum_production_report.xlsx");
 }
 
+function openSharePointReport() {
+    window.open('/api/dashboard/view_archive', '_blank');
+}
+
 // ----------------------------------------------------
 // DOWNTIMES TAB LOGIC
 // ----------------------------------------------------
