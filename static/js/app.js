@@ -294,6 +294,12 @@ function applyRoleVisibility() {
     document.getElementById('tab-btn-downtimes').style.display = canDowntime ? 'inline-block' : 'none';
     document.getElementById('tab-btn-analytics').style.display = canDowntime ? 'inline-block' : 'none';
     
+    // Hide active shift banner as unified report doesn't use manual open/close state
+    const activeShiftBanner = document.getElementById('active-shift-banner');
+    if (activeShiftBanner) {
+        activeShiftBanner.style.display = 'none';
+    }
+    
     // Switch to first visible tab
     if (canReport) {
         switchTab('production');
