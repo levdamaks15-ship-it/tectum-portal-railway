@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v9">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v10">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -369,7 +369,7 @@
 
                             <!-- Defects block: 11 видов дефектов -->
                             <div id="defects-detail-grid" style="display: none; background: rgba(0,0,0,0.1); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border); margin-bottom: 1.2rem;">
-                                <h4 style="margin-bottom: 0.8rem; color: var(--accent-color); font-size: 0.95rem;">Детализация брака Разборщика (листов)</h4>
+                                <h4 style="margin-bottom: 0.8rem; color: var(--accent-color); font-size: 0.95rem;">Детализация брака Дестакера (листов)</h4>
                                 <div class="form-grid-four">
                                     <div class="form-group"><label>Скол</label><input type="number" id="def-chip" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
                                     <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
@@ -383,17 +383,11 @@
                                     <div class="form-group"><label>Расслоение</label><input type="number" id="def-delamination" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
                                     <div class="form-group"><label>Кромка</label><input type="number" id="def-edge" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
                                 </div>
-                            </div>
-
-                            <div class="form-grid-three">
-                                <div class="form-group">
-                                    <label>Итого брака Разборщика (авто)</label>
+                                <div class="form-group" style="margin-top: 1rem; max-width: 300px;">
+                                    <label>Итого брака Дестакера (авто)</label>
                                     <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;">
                                 </div>
-                                <div class="form-group">
-                                    <label>Итоговый брак СКК / ОТК (листов)</label>
-                                    <input type="number" id="rep-qcd-defect" placeholder="0">
-                                </div>
+                                <input type="hidden" id="rep-qcd-defect" value="0">
                             </div>
                         </div>
                     </div>
@@ -927,6 +921,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260712_unified_v9"> </script>
+    <script src="/static/js/app.js?v=20260712_unified_v10"> </script>
 </body>
 </html>
