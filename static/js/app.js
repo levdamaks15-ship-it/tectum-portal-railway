@@ -1345,9 +1345,10 @@ function renderDailyReportCharts(days) {
                 {
                     label: 'План (листы)',
                     data: days.map(d => d.plan_sheets),
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    borderColor: 'rgba(255, 255, 255, 0.5)',
-                    borderWidth: 1,
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
                     type: 'line'
                 }
             ]
@@ -1380,9 +1381,10 @@ function renderDailyReportCharts(days) {
                 {
                     label: 'План (тонны)',
                     data: days.map(d => d.plan_tons),
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    borderColor: 'rgba(255, 255, 255, 0.5)',
-                    borderWidth: 1,
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderColor: '#dc3545',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
                     type: 'line'
                 }
             ]
