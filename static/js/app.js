@@ -716,7 +716,7 @@ function renderSummaryTable(rows) {
     }
 
     rows.forEach(r => {
-        const isEditable = (r.status === 'active' || currentUser.role === 'admin') && r.master_name !== 'Смена другого мастера';
+        const isEditable = currentUser && (currentUser.role === 'admin' || currentUser.role === 'master') && r.master_name !== 'Смена другого мастера';
         const editBtn = isEditable ? 
             `<button onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">✏️ Изменить</button>` : 
             `<span style="color: var(--text-secondary); font-size: 0.7rem;">🔒 Блок</span>`;
