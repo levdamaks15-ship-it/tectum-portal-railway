@@ -2177,34 +2177,88 @@ def get_shift_plan(db: Session, shift: models.Shift) -> int:
     return 2700 if shift.shift_name == "День" else 3300
 
 @app.get("/api/dashboard/daily_report")
-def get_daily_report(request: Request, start_date: str, end_date: str = None, line: str = None, shift_number: int = None, db: Session = Depends(get_db)):
+def get_daily_report(
+    request: Request,
+    start_date: str = None,
+    end_date: str = None,
+    line: str = None,
+    shift_number: int = None,
+    master_id: int = None,
+    db: Session = Depends(get_db)
+):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role") or "admin"
 
-    try:
-        sd = datetime.strptime(start_date, "%Y-%m-%d").date()
-    except:
-        raise HTTPException(400, "Invalid start_date format")
-        
-    if end_date:
+    # Dynamic date range calculation based on frontend params
+    sd = None
+    ed = None
+
+    if start_date:
         try:
-            ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+            sd = datetime.strptime(start_date, "%Y-%m-%d").date()
         except:
-            raise HTTPException(400, "Invalid end_date format")
+            raise HTTPException(400, "Invalid start_date format")
+        if end_date:
+            try:
+                ed = datetime.strptime(end_date, "%Y-%m-%d").date()
+            except:
+                raise HTTPException(400, "Invalid end_date format")
+        else:
+            ed = sd + timedelta(days=6)
     else:
-        ed = sd + timedelta(days=6)
-        
+        # Fallback to query parameters passed by app.js (month, week, day, range_type)
+        range_type = request.query_params.get("range_type", "month")
+        month = request.query_params.get("month")
+        week = request.query_params.get("week")
+        day = request.query_params.get("day")
+
+        if range_type == "month" and month:
+            try:
+                y, m = map(int, month.split('-'))
+                num_days = calendar.monthrange(y, m)[1]
+                sd = datetime(y, m, 1).date()
+                ed = datetime(y, m, num_days).date()
+            except Exception as e:
+                raise HTTPException(400, f"Invalid month format: {e}")
+        elif range_type == "week" and week:
+            try:
+                # Format: YYYY-Wxx
+                y, w = map(int, week.split('-W'))
+                sd = datetime.strptime(f"{y}-W{w}-1", "%G-W%V-%u").date()
+                ed = sd + timedelta(days=6)
+            except Exception as e:
+                raise HTTPException(400, f"Invalid week format: {e}")
+        elif range_type == "day" and day:
+            try:
+                sd = datetime.strptime(day, "%Y-%m-%d").date()
+                ed = sd
+            except Exception as e:
+                raise HTTPException(400, f"Invalid day format: {e}")
+        else:
+            # Fallback to current month if no dates are provided
+            now = datetime.now()
+            y, m = now.year, now.month
+            num_days = calendar.monthrange(y, m)[1]
+            sd = datetime(y, m, 1).date()
+            ed = datetime(y, m, num_days).date()
+
     num_days = (ed - sd).days + 1
 
-    shifts = db.query(models.Shift).filter(
+    shifts_query = db.query(models.Shift).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
-    ).all()
+    )
+    if master_id is not None:
+        shifts_query = shifts_query.filter(models.Shift.master_id == master_id)
+    shifts = shifts_query.all()
     
-    plan_boards = db.query(models.MonthlyPlanBoard).filter(
+    plan_boards_query = db.query(models.MonthlyPlanBoard).filter(
         models.MonthlyPlanBoard.date >= sd,
         models.MonthlyPlanBoard.date <= ed
-    ).all()
+    )
+    if master_id is not None:
+        plan_boards_query = plan_boards_query.filter(models.MonthlyPlanBoard.master_id == master_id)
+    plan_boards = plan_boards_query.all()
     
     if shift_number is not None:
         # Initialize plans to 0, because we will populate only matching shifts from pb
@@ -2274,10 +2328,63 @@ def get_daily_report(request: Request, start_date: str, end_date: str = None, li
             data[line_key][day_key][s_name]["plan_tons"] = data[line_key][day_key][s_name]["plan_sheets"] * avg_w / 1000.0
             data[line_key][day_key][s_name]["tons"] = data[line_key][day_key][s_name]["sheets"] * avg_w / 1000.0
             
+    # Now structure response as expected by app.js
+    days_list = []
+    lines_to_include = []
+    if line == "lfm1":
+        lines_to_include = ["line_1"]
+    elif line == "lfm2":
+        lines_to_include = ["line_2"]
+    else:
+        lines_to_include = ["line_1", "line_2"]
+
+    for i in range(num_days):
+        date_str = str(sd + timedelta(days=i))
+        plan_sheets = 0
+        fact_sheets = 0
+        plan_tons = 0.0
+        fact_tons = 0.0
+        first_grade = 0
+        defect = 0
+        
+        for l_key in lines_to_include:
+            for s_name in ["День", "Ночь"]:
+                shift_data = data[l_key][date_str][s_name]
+                plan_sheets += shift_data["plan_sheets"]
+                fact_sheets += shift_data["sheets"]
+                plan_tons += shift_data["plan_tons"]
+                fact_tons += shift_data["tons"]
+                first_grade += shift_data["first_grade"]
+                defect += shift_data["defect"]
+                
+        days_list.append({
+            "date": date_str,
+            "plan_sheets": plan_sheets,
+            "fact_sheets": fact_sheets,
+            "plan_tons": plan_tons,
+            "fact_tons": fact_tons,
+            "first_grade": first_grade,
+            "defect": defect
+        })
+        
+    total_shifts = sum(1 for s in shifts if (not line or ("1" in s.line and line == "lfm1") or ("2" in s.line and line == "lfm2") or line == "all"))
+    total_fact_sheets = sum(d["fact_sheets"] for d in days_list)
+    total_fact_tons = sum(d["fact_tons"] for d in days_list)
+    total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
+    
+    avg_plan_percent = (total_fact_sheets / total_plan_sheets * 100.0) if total_plan_sheets > 0 else 0.0
+    
+    total_first_grade = sum(d["first_grade"] for d in days_list)
+    total_defect = sum(d["defect"] for d in days_list)
+    defect_percent = (total_defect / (total_first_grade + total_defect) * 100.0) if (total_first_grade + total_defect) > 0 else 0.0
+    
     return {
-        "days": num_days,
-        "start_date": str(sd),
-        "data": data
+        "total_shifts": total_shifts,
+        "total_fact_sheets": total_fact_sheets,
+        "total_fact_tons": total_fact_tons,
+        "avg_plan_percent": avg_plan_percent,
+        "defect_percent": defect_percent,
+        "days": days_list
     }
 
 @app.get("/api/dashboard/export_daily_report")
