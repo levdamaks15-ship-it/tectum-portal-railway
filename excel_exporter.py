@@ -234,9 +234,15 @@ def generate_flat_report(db: Session) -> bytes:
         col_letter = get_column_letter(col[0].column)
         ws.column_dimensions[col_letter].width = max(max_len + 3, 11)
         
-    # Enable Autofilter
+    # Convert range to Excel Table (Formatted Table)
     if ws.max_row > 1:
-        ws.auto_filter.ref = f"A1:AO{ws.max_row}"
+        from openpyxl.worksheet.table import Table, TableStyleInfo
+        ref_range = f"A1:AO{ws.max_row}"
+        table = Table(displayName="TectumSummaryTable", ref=ref_range)
+        style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
+                               showLastColumn=False, showRowStripes=True, showColumnStripes=False)
+        table.tableStyleInfo = style
+        ws.add_table(table)
         
     out = io.BytesIO()
     wb.save(out)
