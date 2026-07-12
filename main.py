@@ -1881,7 +1881,7 @@ def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
 
     dt_query = db.query(models.Downtime)
 
-    if user_role == "master" and user_id:
+    if False and user_role == "master" and user_id:
         prod_query = prod_query.join(models.Shift).filter(models.Shift.master_id == user_id)
         defects_query = defects_query.join(models.Shift).filter(models.Shift.master_id == user_id)
         mats_query = mats_query.filter(models.Shift.master_id == user_id)
@@ -1950,7 +1950,7 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
 
     # Берем последние 7 смен (включая текущую)
     query = db.query(models.Shift)
-    if user_role == "master" and user_id:
+    if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
     shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(7).all()
     
@@ -2042,7 +2042,7 @@ def get_analytics_data(
 
     query = db.query(models.Downtime).join(models.Shift)
     
-    if user_role == "master" and user_id:
+    if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
     
     if start_date:
@@ -2232,8 +2232,8 @@ def get_daily_report(request: Request, start_date: str, end_date: str = None, li
             data[line_key][day_key][s_name]["plan_sheets"] = pb.plan_sheets or 0
             data[line_key][day_key][s_name]["plan_tons"] = (pb.plan_sheets or 0) * 19.6 / 1000.0
             
-            # Факт записываем только для текущего мастера (или если роль не master)
-            if user_role != "master" or pb.master_id == user_id:
+            # Записываем факт для всех
+            if True:
                 data[line_key][day_key][s_name]["sheets"] = pb.fact_sheets or 0
                 data[line_key][day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
                 data[line_key][day_key][s_name]["first_grade"] = pb.first_grade or 0
@@ -2241,8 +2241,8 @@ def get_daily_report(request: Request, start_date: str, end_date: str = None, li
             
     for s in shifts:
         if not s.date: continue
-        # Пропускаем смены других мастеров для роли master
-        if user_role == "master" and s.master_id != user_id:
+        # Не пропускаем смены других мастеров
+        if False and user_role == "master" and s.master_id != user_id:
             continue
         day_key = str(s.date)
         line_key = "line_1" if "1" in s.line else "line_2"
