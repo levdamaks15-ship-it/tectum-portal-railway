@@ -2705,6 +2705,24 @@ def view_archive(db: Session = Depends(get_db)):
                 detail=f"Не удалось открыть сводный отчет в SharePoint. Ошибка автозагрузки: {upload_err}. Исходная ошибка: {e}"
             )
 
+@app.get("/api/dashboard/test_match")
+def test_match(db: Session = Depends(get_db)):
+    output = []
+    shifts = db.query(models.Shift).order_by(models.Shift.id.desc()).limit(5).all()
+    for s in shifts:
+        output.append(f"Shift ID: {s.id}, Date: {s.date}, Product: {repr(s.product_name)}")
+        for r in s.lfm_reports:
+            output.append(f"  LFM Report Product: {repr(r.product_name)}, Sheets: {r.lfm_sheets}")
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == r.product_name).first()
+            if norm:
+                output.append(f"    FOUND NORM: {repr(norm.product_name)}, cement: {norm.norm_cement}, chrysotile_5_65: {norm.norm_chrysotile_5_65}")
+            else:
+                output.append(f"    NORM NOT FOUND for {repr(r.product_name)}!")
+                norm_approx = db.query(models.ProductNorm).filter(models.ProductNorm.product_name.ilike(r.product_name.strip())).first()
+                if norm_approx:
+                    output.append(f"      Approximate norm found: {repr(norm_approx.product_name)}")
+    return {"logs": "\n".join(output)}
+
 @app.get("/api/dashboard/export_week")
 def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
