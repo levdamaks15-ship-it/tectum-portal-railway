@@ -1607,6 +1607,22 @@ function renderDailyReportCharts(days) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textCol,
+                        generateLabels: function(chart) {
+                            return [
+                                { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
+                                { text: 'Факт (недовыполнение, День)', fillStyle: '#3b82f6', strokeStyle: '#3b82f6', lineWidth: 1 },
+                                { text: 'Факт (недовыполнение, Ночь)', fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 1 },
+                                { text: 'План День (2700)', fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
+                                { text: 'План Ночь (3300)', fillStyle: '#ef4444', strokeStyle: '#ef4444', lineWidth: 2 }
+                            ];
+                        }
+                    }
+                }
+            },
             scales: {
                 x: { ticks: { color: textCol } },
                 y: { ticks: { color: textCol } }
@@ -1654,6 +1670,22 @@ function renderDailyReportCharts(days) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textCol,
+                        generateLabels: function(chart) {
+                            return [
+                                { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
+                                { text: 'Факт (недовыполнение, День)', fillStyle: '#3b82f6', strokeStyle: '#3b82f6', lineWidth: 1 },
+                                { text: 'Факт (недовыполнение, Ночь)', fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 1 },
+                                { text: 'План День (52.9 т)', fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
+                                { text: 'План Ночь (64.7 т)', fillStyle: '#ef4444', strokeStyle: '#ef4444', lineWidth: 2 }
+                            ];
+                        }
+                    }
+                }
+            },
             scales: {
                 x: { ticks: { color: textCol } },
                 y: { ticks: { color: textCol } }
