@@ -18,10 +18,15 @@ let chartAnalyticsBottlenecks = null;
 let chartDailySheets = null;
 let chartDailyTons = null;
 
-// Intercept fetch to check for session timeout (401)
+// Intercept fetch to check for session timeout (401) and prevent aggressive caching
 const originalFetch = window.fetch;
 window.fetch = function (url, options) {
-    return originalFetch(url, options).then(response => {
+    let targetUrl = url;
+    if (typeof targetUrl === 'string' && targetUrl.startsWith('/api/') && (!options || !options.method || options.method.toUpperCase() === 'GET')) {
+        const separator = targetUrl.includes('?') ? '&' : '?';
+        targetUrl = `${targetUrl}${separator}_ts=${Date.now()}`;
+    }
+    return originalFetch(targetUrl, options).then(response => {
         if (response.status === 401 && !url.includes('/api/me/')) {
             alert("Ваша сессия истекла. Пожалуйста, войдите снова.");
             logout();
@@ -291,6 +296,7 @@ async function logout() {
     document.getElementById('login-screen').style.display = 'block';
     document.getElementById('pin-input').value = '';
     resetLoginSelection();
+    await loadUserGrid();
 }
 
 function applyRoleVisibility() {
@@ -1782,7 +1788,14 @@ async function init() {
             }
         }
         
-        // If not authenticated, render user selection grid for generic roles only
+        await loadUserGrid();
+    } catch(e) {
+        console.error("Init error:", e);
+    }
+}
+
+async function loadUserGrid() {
+    try {
         const gridRes = await fetch('/api/masters/');
         if (gridRes.ok) {
             const masters = await gridRes.json();
@@ -1862,6 +1875,6 @@ async function init() {
             }
         }
     } catch(e) {
-        console.error("Init error:", e);
+        console.error("Error loading user grid:", e);
     }
 }
