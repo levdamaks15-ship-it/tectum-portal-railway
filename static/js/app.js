@@ -1075,6 +1075,17 @@ async function loadDowntimeShifts() {
             if (select) {
                 select.innerHTML = '<option value="">-- Выберите смену --</option>' +
                     shifts.map(s => `<option value="${s.id}">${s.date} (${s.shift_name}) [${s.line}]</option>`).join('');
+                
+                // Select first shift by default if any exist
+                if (shifts.length > 0) {
+                    select.value = shifts[0].id;
+                    onJournalShiftChange();
+                } else {
+                    const list = document.getElementById('journal-downtimes-list');
+                    if (list) {
+                        list.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Нет созданных смен</td></tr>';
+                    }
+                }
             }
         }
     } catch(e) {
@@ -1084,7 +1095,7 @@ async function loadDowntimeShifts() {
 
 async function loadDowntimeDepartments() {
     try {
-        const res = await fetch('/api/downtimes/departments');
+        const res = await fetch('/api/downtimes/directory/departments');
         if (res.ok) {
             const depts = await res.json();
             const select = document.getElementById('journal-dt-dept');
@@ -1123,7 +1134,7 @@ async function onJournalDeptChange() {
     }
     
     try {
-        const res = await fetch(`/api/downtimes/nodes?department=${encodeURIComponent(dept)}`);
+        const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
         if (res.ok) {
             const nodes = await res.json();
             selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
@@ -1144,7 +1155,7 @@ async function onJournalNodeChange() {
     }
     
     try {
-        const res = await fetch(`/api/downtimes/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
+        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
         if (res.ok) {
             const breakdowns = await res.json();
             selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
@@ -1284,7 +1295,7 @@ async function onEditDeptChange(selectedNode = '', selectedBreakdown = '') {
         return;
     }
     
-    const res = await fetch(`/api/downtimes/nodes?department=${encodeURIComponent(dept)}`);
+    const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
     if (res.ok) {
         const nodes = await res.json();
         selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
@@ -1301,7 +1312,7 @@ async function onEditNodeChange(selectedBreakdown = '') {
     const node = document.getElementById('edit-dt-node').value;
     const selectBk = document.getElementById('edit-dt-breakdown');
     
-    const res = await fetch(`/api/downtimes/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
+    const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
     if (res.ok) {
         const breakdowns = await res.json();
         selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
