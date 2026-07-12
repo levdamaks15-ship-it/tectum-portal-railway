@@ -47,7 +47,7 @@ def seed_norms():
             "norm_crushed_slate": 0.231
         },
         {
-            "product_name": "Шифер 8 волн пиленый",
+            "product_name": "Шифер 8 волн рифленый",
             "weight_kg": 19.60,
             "norm_chrysotile_5_65": 2.31,
             "norm_cement": 14.93,
