@@ -2705,44 +2705,6 @@ def view_archive(db: Session = Depends(get_db)):
                 detail=f"Не удалось открыть сводный отчет в SharePoint. Ошибка автозагрузки: {upload_err}. Исходная ошибка: {e}"
             )
 
-@app.get("/api/dashboard/debug_summary")
-def debug_summary(db: Session = Depends(get_db)):
-    shift = db.query(models.Shift).order_by(models.Shift.id.desc()).first()
-    norms = db.query(models.ProductNorm).all()
-    norms_list = [{"id": n.id, "product_name": repr(n.product_name), "norm_cement": n.norm_cement, "norm_chrysotile_5_65": n.norm_chrysotile_5_65} for n in norms]
-    
-    lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all() if shift else []
-    lfm_reports_data = [{"id": r.id, "product_name": repr(r.product_name), "sheets": r.lfm_sheets} for r in lfm_reports]
-    
-    devs = calculate_shift_deviations(db, shift) if shift else {}
-    
-    return {
-        "shift_id": shift.id if shift else None,
-        "date": str(shift.date) if shift else None,
-        "product_name": repr(shift.product_name) if shift else None,
-        "lfm_reports": lfm_reports_data,
-        "all_norms_in_db": norms_list,
-        "deviations": devs
-    }
-
-@app.get("/api/dashboard/run_seed")
-def run_seed():
-    import seed_norms
-    import io
-    import sys
-    
-    old_stdout = sys.stdout
-    sys.stdout = buffer = io.StringIO()
-    try:
-        seed_norms.seed_norms()
-        logs = buffer.getvalue()
-        return {"status": "success", "logs": logs}
-    except Exception as e:
-        logs = buffer.getvalue()
-        return {"status": "error", "message": str(e), "logs": logs}
-    finally:
-        sys.stdout = old_stdout
-
 @app.get("/api/dashboard/export_week")
 def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
