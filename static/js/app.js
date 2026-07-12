@@ -341,8 +341,8 @@ async function loadData() {
                 document.getElementById('btn-close-shift').style.display = 
                     (currentUser.role === 'admin' || currentUser.role === 'master') ? 'inline-block' : 'none';
                 
-                // If editing active shift, prefill fields
-                prefillReportForm(activeShift);
+                // Do not prefill active shift on load - form should start fresh
+                // prefillReportForm(activeShift);
             } else {
                 activeShift = null;
                 document.getElementById('active-shift-display').innerText = 'Нет активной смены';
