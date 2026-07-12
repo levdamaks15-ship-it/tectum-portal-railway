@@ -1281,19 +1281,29 @@ function renderAnalyticsCharts(data) {
 // DAILY REPORT TAB LOGIC (📈 Месячная сводка выработки)
 // ----------------------------------------------------
 function toggleRangeControls() {
-    const rangeType = document.getElementById('daily-report-range-type').value;
-    document.getElementById('daily-report-month').style.display = rangeType === 'month' ? 'inline-block' : 'none';
-    document.getElementById('daily-report-week-select').style.display = rangeType === 'week' ? 'inline-block' : 'none';
-    document.getElementById('daily-report-day-picker').style.display = rangeType === 'day' ? 'inline-block' : 'none';
+    const rangeTypeSelect = document.getElementById('daily-report-range-type');
+    if (!rangeTypeSelect) return;
+    const rangeType = rangeTypeSelect.value;
+    
+    const monthEl = document.getElementById('daily-report-month');
+    if (monthEl) monthEl.style.display = rangeType === 'month' ? 'inline-block' : 'none';
+    
+    const weekEl = document.getElementById('daily-report-week-select');
+    if (weekEl) weekEl.style.display = rangeType === 'week' ? 'inline-block' : 'none';
 }
 
 async function loadDailyReport() {
-    const line = document.getElementById('daily-report-line').value;
-    const rangeType = document.getElementById('daily-report-range-type').value;
-    const brigade = document.getElementById('daily-report-brigade').value;
-    const month = document.getElementById('daily-report-month').value;
-    const week = document.getElementById('daily-report-week-select').value;
-    const day = document.getElementById('daily-report-day-picker').value;
+    const lineEl = document.getElementById('daily-report-line');
+    const rangeTypeEl = document.getElementById('daily-report-range-type');
+    const brigadeEl = document.getElementById('daily-report-brigade');
+    const monthEl = document.getElementById('daily-report-month');
+    const weekEl = document.getElementById('daily-report-week-select');
+    
+    const line = lineEl ? lineEl.value : 'lfm1';
+    const rangeType = rangeTypeEl ? rangeTypeEl.value : 'month';
+    const brigade = brigadeEl ? brigadeEl.value : '';
+    const month = monthEl ? monthEl.value : '';
+    const week = weekEl ? weekEl.value : '';
 
     let url = `/api/dashboard/daily_report?line=${line}&range_type=${rangeType}`;
     if (month) url += `&month=${month}`;
@@ -1327,6 +1337,21 @@ function renderDailyReportCharts(days) {
 
     const labels = days.map(d => d.label || d.date.split('-').slice(2).join('.'));
     
+    // Determine bar colors dynamically based on Day/Night shift and Plan fulfillment
+    const sheetsColors = days.map(d => {
+        const isDay = d.label && d.label.includes('(Д)');
+        const met = d.fact_sheets >= d.plan_sheets;
+        if (met && d.fact_sheets > 0) return '#22c55e'; // Green if plan is met
+        return isDay ? '#3b82f6' : '#8b5cf6'; // Blue for Day, Purple for Night
+    });
+
+    const tonsColors = days.map(d => {
+        const isDay = d.label && d.label.includes('(Д)');
+        const met = d.fact_tons >= d.plan_tons;
+        if (met && d.fact_tons > 0) return '#22c55e'; // Green if plan is met
+        return isDay ? '#3b82f6' : '#8b5cf6'; // Blue for Day, Purple for Night
+    });
+
     // Sheets Chart
     const ctxSheets = document.getElementById('chart-daily-sheets').getContext('2d');
     if (chartDailySheets) chartDailySheets.destroy();
@@ -1338,17 +1363,28 @@ function renderDailyReportCharts(days) {
                 {
                     label: 'Факт (листы)',
                     data: days.map(d => d.fact_sheets),
-                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
-                    borderColor: '#28a745',
+                    backgroundColor: sheetsColors,
+                    borderColor: sheetsColors,
                     borderWidth: 1
                 },
                 {
-                    label: 'План (листы)',
-                    data: days.map(d => d.plan_sheets),
-                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                    borderColor: '#dc3545',
+                    label: 'План День (2700)',
+                    data: Array(days.length).fill(2700),
+                    borderColor: '#ffc107', // Yellow
                     borderWidth: 2,
                     borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    type: 'line'
+                },
+                {
+                    label: 'План Ночь (3300)',
+                    data: Array(days.length).fill(3300),
+                    borderColor: '#ef4444', // Red
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
                     type: 'line'
                 }
             ]
@@ -1374,17 +1410,28 @@ function renderDailyReportCharts(days) {
                 {
                     label: 'Факт (тонны)',
                     data: days.map(d => d.fact_tons),
-                    backgroundColor: 'rgba(23, 162, 184, 0.8)',
-                    borderColor: '#17a2b8',
+                    backgroundColor: tonsColors,
+                    borderColor: tonsColors,
                     borderWidth: 1
                 },
                 {
-                    label: 'План (тонны)',
-                    data: days.map(d => d.plan_tons),
-                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                    borderColor: '#dc3545',
+                    label: 'План День (52.9 т)',
+                    data: Array(days.length).fill(52.92),
+                    borderColor: '#ffc107', // Yellow
                     borderWidth: 2,
                     borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    type: 'line'
+                },
+                {
+                    label: 'План Ночь (64.7 т)',
+                    data: Array(days.length).fill(64.68),
+                    borderColor: '#ef4444', // Red
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
                     type: 'line'
                 }
             ]

@@ -2222,12 +2222,31 @@ def get_daily_report(
                 raise HTTPException(400, f"Invalid month format: {e}")
         elif range_type == "week" and week:
             try:
-                # Format: YYYY-Wxx
-                y, w = map(int, week.split('-W'))
-                sd = datetime.strptime(f"{y}-W{w}-1", "%G-W%V-%u").date()
-                ed = sd + timedelta(days=6)
+                if not month:
+                    now = datetime.now()
+                    y, m = now.year, now.month
+                else:
+                    y, m = map(int, month.split('-'))
+                
+                week_num = int(week)
+                if week_num == 1:
+                    sd = datetime(y, m, 1).date()
+                    ed = datetime(y, m, 7).date()
+                elif week_num == 2:
+                    sd = datetime(y, m, 8).date()
+                    ed = datetime(y, m, 14).date()
+                elif week_num == 3:
+                    sd = datetime(y, m, 15).date()
+                    ed = datetime(y, m, 21).date()
+                elif week_num == 4:
+                    sd = datetime(y, m, 22).date()
+                    ed = datetime(y, m, 28).date()
+                elif week_num == 5:
+                    num_days = calendar.monthrange(y, m)[1]
+                    sd = datetime(y, m, 29).date()
+                    ed = datetime(y, m, num_days).date()
             except Exception as e:
-                raise HTTPException(400, f"Invalid week format: {e}")
+                raise HTTPException(400, f"Invalid week or month format: {e}")
         elif range_type == "day" and day:
             try:
                 sd = datetime.strptime(day, "%Y-%m-%d").date()

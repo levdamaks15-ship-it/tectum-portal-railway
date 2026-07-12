@@ -777,7 +777,6 @@
                         <select id="daily-report-range-type" onchange="toggleRangeControls(); loadDailyReport();" style="padding: 0.5rem; border-radius: 8px;">
                             <option value="month" selected>Весь месяц</option>
                             <option value="week">Конкретная неделя</option>
-                            <option value="day">Конкретный день</option>
                         </select>
 
                         <label style="font-size: 0.9rem; color: var(--text-secondary);">Смена мастера:</label>
@@ -794,8 +793,6 @@
                             <option value="4">Неделя 4 (22-28)</option>
                             <option value="5">Неделя 5 (29+)</option>
                         </select>
-
-                        <input type="date" id="daily-report-day-picker" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2); display: none;">
                         
                         <button onclick="exportDailyReportPDF()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">Выгрузить в PDF</button>
                     </div>
@@ -921,6 +918,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260712_unified_v13"> </script>
+    <script src="/static/js/app.js?v=20260712_unified_v14"> </script>
 </body>
 </html>
