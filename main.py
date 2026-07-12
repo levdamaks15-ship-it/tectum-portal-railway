@@ -2725,6 +2725,24 @@ def debug_summary(db: Session = Depends(get_db)):
         "deviations": devs
     }
 
+@app.get("/api/dashboard/run_seed")
+def run_seed():
+    import seed_norms
+    import io
+    import sys
+    
+    old_stdout = sys.stdout
+    sys.stdout = buffer = io.StringIO()
+    try:
+        seed_norms.seed_norms()
+        logs = buffer.getvalue()
+        return {"status": "success", "logs": logs}
+    except Exception as e:
+        logs = buffer.getvalue()
+        return {"status": "error", "message": str(e), "logs": logs}
+    finally:
+        sys.stdout = old_stdout
+
 @app.get("/api/dashboard/export_week")
 def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
