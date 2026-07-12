@@ -5,6 +5,18 @@ def seed_norms():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     
+    # Rename "Шифер 8 волн пиленый" to "Шифер 8 волн рифленый" if it exists
+    try:
+        existing_old = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн пиленый").first()
+        if existing_old:
+            existing_new = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн рифленый").first()
+            if not existing_new:
+                existing_old.product_name = "Шифер 8 волн рифленый"
+                db.commit()
+                print("Renamed 'Шифер 8 волн пиленый' to 'Шифер 8 волн рифленый'")
+    except Exception as rename_err:
+        print(f"Error renaming old product norm: {rename_err}")
+        
     norms_data = [
         {
             "product_name": "Шифер 7 волн",
