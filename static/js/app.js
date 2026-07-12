@@ -805,6 +805,12 @@ async function editReport(shiftId) {
         if (res.ok) {
             const shift = await res.json();
             prefillReportForm(shift);
+            
+            const formContainer = document.getElementById('report-form-container');
+            const successScreen = document.getElementById('report-success-screen');
+            if (successScreen) successScreen.style.display = 'none';
+            if (formContainer) formContainer.style.display = 'block';
+            
             switchTab('production');
             
             // Expand all accordion contents for editing

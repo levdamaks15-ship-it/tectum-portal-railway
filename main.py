@@ -1034,6 +1034,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     shift.master_id = data.master_id
     shift.batch_number = data.batch_number
     shift.product_name = data.product_name
+    shift.status = "closed"
     
     # Расход сырья
     shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20
