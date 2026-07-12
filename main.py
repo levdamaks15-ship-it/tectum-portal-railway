@@ -1179,8 +1179,27 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     db.commit()
 
 
+def sync_sharepoint_report_bg():
+    db = SessionLocal()
+    try:
+        file_bytes = excel_exporter.generate_flat_report(db)
+        filename = "Сводный_отчет_Tectum.xlsx"
+        local_path = os.path.join("static", filename)
+        try:
+            with open(local_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception as local_err:
+            print(f"Error saving local excel: {local_err}")
+            
+        m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+    except Exception as e:
+        print(f"Error in SharePoint background sync: {e}")
+    finally:
+        db.close()
+
+
 @app.post("/api/report")
-def save_shift_report(data: schemas.ShiftReportCreate, request: Request, db: Session = Depends(get_db)):
+def save_shift_report(data: schemas.ShiftReportCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id") or 9999
     user_role = request.session.get("user_role") or "admin"
     user_name = request.session.get("user_name") or "Админ"
@@ -1203,7 +1222,7 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, db: Ses
             shift_name=data.shift_name,
             line=data.line,
             master_id=data.master_id,
-            status="active"
+            status="closed"
         )
         db.add(shift)
         db.flush()
@@ -1215,11 +1234,15 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, db: Ses
             raise HTTPException(status_code=403, detail="Смена открыта другим мастером. Вы не можете ее редактировать.")
 
     save_report_internal(db, shift, data, user_name, is_new)
+    
+    # Trigger background SharePoint sync
+    background_tasks.add_task(sync_sharepoint_report_bg)
+    
     return {"status": "success", "shift_id": shift.id}
 
 
 @app.put("/api/report/{shift_id}")
-def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate, request: Request, db: Session = Depends(get_db)):
+def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     user_name = request.session.get("user_name", "Unknown")
@@ -1237,6 +1260,10 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
         raise HTTPException(status_code=403, detail="Смена закрыта. Только администратор может редактировать закрытую смену.")
         
     save_report_internal(db, shift, data, user_name, False)
+    
+    # Trigger background SharePoint sync
+    background_tasks.add_task(sync_sharepoint_report_bg)
+    
     return {"status": "success", "shift_id": shift.id}
 
 
