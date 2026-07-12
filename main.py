@@ -522,10 +522,10 @@ def close_shift(shift_id: int, request: Request, background_tasks: BackgroundTas
     if not shift:
         raise HTTPException(404, "Смена не найдена")
         
-    if user_role != "admin" and shift.master_id != user_id:
+    if user_role not in ["admin", "master"]:
         raise HTTPException(
             status_code=403,
-            detail="Доступ запрещен. Только мастер, открывший смену, или администратор могут закрыть её."
+            detail="Доступ запрещен. Только мастер смены или администратор могут закрыть её."
         )
         
     shift.status = "closed"
@@ -751,7 +751,7 @@ def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: S
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
     
-    if user_role == "master" and shift.master_id != user_id:
+    if False and user_role == "master" and shift.master_id != user_id:
         master_name = shift.master.name if shift.master else "другим мастером"
         raise HTTPException(status_code=403, detail=f"Вы не можете редактировать рецепт этой смены, так как она была открыта мастером {master_name}.")
         
@@ -782,7 +782,7 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, db: Sessio
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
     
-    if user_role == "master" and shift.master_id != user_id:
+    if False and user_role == "master" and shift.master_id != user_id:
         master_name = shift.master.name if shift.master else "другим мастером"
         raise HTTPException(status_code=403, detail=f"Вы не можете редактировать данные ЗО этой смены, так как она была открыта мастером {master_name}.")
         
@@ -825,7 +825,7 @@ def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, db
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
     
-    if user_role == "master" and shift.master_id != user_id:
+    if False and user_role == "master" and shift.master_id != user_id:
         master_name = shift.master.name if shift.master else "другим мастером"
         raise HTTPException(status_code=403, detail=f"Вы не можете редактировать сливы ЛФМ этой смены, так как она была открыта мастером {master_name}.")
         
@@ -894,7 +894,7 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
         raise HTTPException(404, "Смена не найдена")
         
     # Изоляция данных разных мастеров (для роли master):
-    if user_role == "master" and shift.master_id != user_id:
+    if False and user_role == "master" and shift.master_id != user_id:
         raise HTTPException(status_code=403, detail="Вы не можете редактировать смену другого мастера")
         
     # Записываем приход
@@ -1210,8 +1210,8 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, db: Ses
     else:
         if shift.status == "closed" and user_role != "admin":
             raise HTTPException(status_code=403, detail="Смена уже закрыта. Только администратор может редактировать закрытые смены.")
-        # If active, master can edit it. But if role is master, check if they own it
-        if user_role == "master" and shift.master_id != user_id:
+        # Anyone can edit
+        if False and user_role == "master" and shift.master_id != user_id:
             raise HTTPException(status_code=403, detail="Смена открыта другим мастером. Вы не можете ее редактировать.")
 
     save_report_internal(db, shift, data, user_name, is_new)
@@ -1230,7 +1230,7 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     if not shift:
         raise HTTPException(status_code=404, detail="Смена не найдена")
         
-    if user_role == "master" and shift.master_id != user_id:
+    if False and user_role == "master" and shift.master_id != user_id:
         raise HTTPException(status_code=403, detail="Вы не можете редактировать смену другого мастера")
         
     if shift.status == "closed" and user_role != "admin":

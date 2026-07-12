@@ -339,7 +339,7 @@ async function loadData() {
                 document.getElementById('active-shift-display').innerText = 
                     `${activeShift.date} [Смена: ${activeShift.shift_name}] [${activeShift.line}]`;
                 document.getElementById('btn-close-shift').style.display = 
-                    (currentUser.role === 'admin' || activeShift.master_id === currentUser.id) ? 'inline-block' : 'none';
+                    (currentUser.role === 'admin' || currentUser.role === 'master') ? 'inline-block' : 'none';
                 
                 // If editing active shift, prefill fields
                 prefillReportForm(activeShift);
