@@ -1269,7 +1269,7 @@ def get_report_summary(
     
     result = []
     for shift in shifts:
-        is_other_master = (user_role == "master" and shift.master_id != user_id)
+        is_other_master = False
         
         lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
         lfm_sheets = lfm.lfm_sheets if (lfm and not is_other_master) else 0
