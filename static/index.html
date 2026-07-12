@@ -451,7 +451,7 @@
                                 <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="rec-asbocarton" placeholder="0"></div>
                                 <div class="form-group"><label>Поддоны (шт)</label><input type="number" id="rec-pallets" placeholder="0"></div>
                                 <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="rec-fiberglass" placeholder="0"></div>
-                                <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="rec-laprol" placeholder="0"></div>
+<div class="form-group"><label>Лапрол (кг)</label><input type="number" id="rec-laprol" placeholder="0"></div>
                             </div>
                         </div>
                     </div>
@@ -481,14 +481,43 @@
             <div id="summary-tab" style="display: none;">
                 <!-- Filters row -->
                 <div class="glass-panel card" style="padding: 1.2rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
-                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Интервал</label>
+                        <select id="summary-filter-type" onchange="toggleSummaryFilterFields()" style="margin-bottom: 0;">
+                            <option value="dates" selected>Диапазон дат</option>
+                            <option value="month">Месяц</option>
+                            <option value="week">Неделя</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Date fields -->
+                    <div id="summary-field-date-from" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата с</label>
                         <input type="date" id="filter-date-from" style="margin-bottom: 0;">
                     </div>
-                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                    <div id="summary-field-date-to" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата по</label>
                         <input type="date" id="filter-date-to" style="margin-bottom: 0;">
                     </div>
+                    
+                    <!-- Month field -->
+                    <div id="summary-field-month" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Месяц</label>
+                        <input type="month" id="summary-filter-month" style="margin-bottom: 0;">
+                    </div>
+                    
+                    <!-- Week field -->
+                    <div id="summary-field-week" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Неделя</label>
+                        <select id="summary-filter-week" style="margin-bottom: 0;">
+                            <option value="1" selected>Неделя 1 (1-7)</option>
+                            <option value="2">Неделя 2 (8-14)</option>
+                            <option value="3">Неделя 3 (15-21)</option>
+                            <option value="4">Неделя 4 (22-28)</option>
+                            <option value="5">Неделя 5 (29+)</option>
+                        </select>
+                    </div>
+
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 120px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Линия</label>
                         <select id="filter-line" style="margin-bottom: 0;">
@@ -510,30 +539,56 @@
                 <!-- Table display -->
                 <div class="glass-panel card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
                     <h3 style="margin-bottom: 1rem;">Сводная таблица рапортов</h3>
-                    <div class="table-responsive-container" style="max-height: 400px; overflow-y: auto;">
+                    <div class="table-responsive-container" style="max-height: 480px; overflow: auto;">
                         <table class="table-glass-summary">
                             <thead>
                                 <tr>
-                                    <th>Действие</th>
-                                    <th>Дата</th>
-                                    <th>Смена</th>
-                                    <th>Линия</th>
-                                    <th>Мастер</th>
-                                    <th>Партия</th>
-                                    <th>Продукция</th>
-                                    <th>Замесы</th>
-                                    <th>Формовка (л)</th>
-                                    <th>Формовка (т)</th>
-                                    <th>Склад ГП (л)</th>
-                                    <th>1 Сорт (л)</th>
-                                    <th>Брак (л)</th>
-                                    <th>Асбест (кг)</th>
-                                    <th>Цемент (кг)</th>
-                                    <th>Статус</th>
+                                     <th>Действие</th>
+                                     <th>Дата</th>
+                                     <th>Партия</th>
+                                     <th>Линия</th>
+                                     <th>Смена</th>
+                                     <th>Мастер</th>
+                                     <th>Продукт</th>
+                                     <th>Замесы</th>
+                                     <th>Формовка<br>(листы)</th>
+                                     <th>Формовка<br>(тонны)</th>
+                                     <th>На склад<br>(ГП)</th>
+                                     <th>1 Сорт</th>
+                                     <th>Брак</th>
+                                     <th>Сбросы<br>наката</th>
+                                     <th>Слив<br>асб. (кг)</th>
+                                     <th>Слив<br>цем. (кг)</th>
+                                     <th>Расход<br>асб. 4-20 (кг)</th>
+                                     <th>Расход<br>асб. 5-65 (кг)</th>
+                                     <th>Расход<br>асб. 6-40 (кг)</th>
+                                     <th>Расход<br>асб. общ. (кг)</th>
+                                     <th>Расход<br>цем. С1 (кг)</th>
+                                     <th>Расход<br>цем. С2 (кг)</th>
+                                     <th>Расход<br>цем. С3 (кг)</th>
+                                     <th>Расход<br>цем. С4 (кг)</th>
+                                     <th>Расход<br>цем. общ. (кг)</th>
+                                     <th>Расход<br>асбокарт. (кг)</th>
+                                     <th>Расход<br>лапрол (кг)</th>
+                                     <th>Расход<br>целлюл. (кг)</th>
+                                     <th>Расход<br>стекловол. (кг)</th>
+                                     <th>Расход<br>дроб.шиф. (кг)</th>
+                                     <th>Расход<br>асбозурит (кг)</th>
+                                     <th>Откл.<br>асб. 4-20 (%)</th>
+                                     <th>Откл.<br>асб. 5-65 (%)</th>
+                                     <th>Откл.<br>асб. 6-40 (%)</th>
+                                     <th>Откл.<br>асб. общ. (%)</th>
+                                     <th>Откл.<br>цем. общ. (%)</th>
+                                     <th>Откл.<br>асбокарт. (%)</th>
+                                     <th>Откл.<br>лапрол (%)</th>
+                                     <th>Откл.<br>целлюл. (%)</th>
+                                     <th>Откл.<br>стекловол. (%)</th>
+                                     <th>Откл.<br>дроб.шиф. (%)</th>
+                                     <th>Откл.<br>асбозурит (%)</th>
                                 </tr>
                             </thead>
                             <tbody id="summary-table-body">
-                                <tr><td colspan="16" style="text-align: center; color: var(--text-secondary);">Выберите фильтры и нажмите "Применить"</td></tr>
+                                <tr><td colspan="42" style="text-align: center; color: var(--text-secondary);">Выберите фильтры и нажмите "Применить"</td></tr>
                             </tbody>
                         </table>
                     </div>

@@ -35,15 +35,15 @@ def generate_flat_report(db: Session) -> bytes:
     headers = [
         "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта",
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
-        "Кондиция (на склад) - СКК", "1-сорт - СКК", "Брак - СКК", "Сбросы наката",
-        "Расход Хризотила 4-20", "Расход Хризотила 5-65", "Расход Хризотила 6-40",
-        "Расход Цемента С1", "Расход Цемента С2", "Расход Цемента С3", "Расход Цемента С4",
-        "Расход Асбокартона", "Расход Лапрола", "Расход Целлюлозы", "Расход Стекловолокна",
-        "Расход Дробленого шифера", "Расход Асбозурита",
-        "Отклонение Хризотила 4-20", "Отклонение Хризотила 5-65", "Отклонение Хризотила 6-40",
-        "Отклонение Цемента С1", "Отклонение Цемента С2", "Отклонение Цемента С3", "Отклонение Цемента С4",
-        "Отклонение Асбокартона", "Отклонение Лапрола", "Отклонение Целлюлозы",
-        "Отклонение Стекловолокна", "Отклонение Дробленого шифера", "Отклонение Асбозурита"
+        "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы наката",
+        "Слив асб. (кг)", "Слив цем. (кг)",
+        "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
+        "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
+        "Расход Асбокартона (кг)", "Расход Лапрола (кг)", "Расход Целлюлозы (кг)", "Расход Стекловолокна (кг)",
+        "Расход Дробленого шифера (кг)", "Расход Асбозурита (кг)",
+        "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
+        "Отклонение Цемента общ. (%)", "Отклонение Асбокартона (%)", "Отклонение Лапрола (%)", "Отклонение Целлюлозы (%)",
+        "Отклонение Стекловолокна (%)", "Отклонение Дробленого шифера (%)", "Отклонение Асбозурита (%)"
     ]
     
     # Header styling (navy blue theme)
@@ -68,8 +68,8 @@ def generate_flat_report(db: Session) -> bytes:
         cell.alignment = center_align
         cell.border = border_thin
         
-    # Content rows
-    red_fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid") # Soft pastel red/orange
+    # Content rows style
+    red_fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid") # Soft pastel red
     green_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid") # Soft pastel green
     
     for s in shifts:
@@ -98,7 +98,7 @@ def generate_flat_report(db: Session) -> bytes:
         theory = {
             "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
             "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
-            "asbozurit": 0.0, "fiberglass": 0.0
+            "asbozurit": 0.0, "fiberglass": 0.0, "asbocarton": 0.0, "laprol": 0.0
         }
         for r in s.lfm_reports:
             norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == r.product_name).first()
@@ -129,44 +129,20 @@ def generate_flat_report(db: Session) -> bytes:
             "asbozurit": s.zo_asbozurit or 0.0,
         }
         
-        # Cement silo theoretical distribution
+        total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
+        total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
+        
         total_fact_cement = fact["cement_silo1"] + fact["cement_silo2"] + fact["cement_silo3"] + fact["cement_silo4"]
         theory_cement = theory["cement"]
-        if total_fact_cement > 0:
-            theory_cement_silo1 = theory_cement * (fact["cement_silo1"] / total_fact_cement)
-            theory_cement_silo2 = theory_cement * (fact["cement_silo2"] / total_fact_cement)
-            theory_cement_silo3 = theory_cement * (fact["cement_silo3"] / total_fact_cement)
-            theory_cement_silo4 = theory_cement * (fact["cement_silo4"] / total_fact_cement)
-        else:
-            theory_cement_silo1 = theory_cement / 4.0
-            theory_cement_silo2 = theory_cement / 4.0
-            theory_cement_silo3 = theory_cement / 4.0
-            theory_cement_silo4 = theory_cement / 4.0
-            
-        # Deviations calculation helper
-        # "Если по какому-то типу расход равен 0, то и отклонение по нему будет 0."
-        def dev_ton(fact_val, theory_val):
-            if fact_val == 0.0:
-                return 0.0
-            return (fact_val - theory_val) / 1000.0
-            
-        devs = {
-            "chrysotile_4_20": dev_ton(fact["chrysotile_4_20"], theory["chrysotile_4_20"]),
-            "chrysotile_5_65": dev_ton(fact["chrysotile_5_65"], theory["chrysotile_5_65"]),
-            "chrysotile_6_40": dev_ton(fact["chrysotile_6_40"], theory["chrysotile_6_40"]),
-            "cement_silo1": dev_ton(fact["cement_silo1"], theory_cement_silo1),
-            "cement_silo2": dev_ton(fact["cement_silo2"], theory_cement_silo2),
-            "cement_silo3": dev_ton(fact["cement_silo3"], theory_cement_silo3),
-            "cement_silo4": dev_ton(fact["cement_silo4"], theory_cement_silo4),
-            "asbocarton": dev_ton(fact["asbocarton"], 0.0),
-            "laprol": dev_ton(fact["laprol"], 0.0),
-            "cellulose": dev_ton(fact["cellulose"], theory["cellulose"]),
-            "fiberglass": dev_ton(fact["fiberglass"], theory["fiberglass"]),
-            "crushed_slate": dev_ton(fact["crushed_slate"], theory["crushed_slate"]),
-            "asbozurit": dev_ton(fact["asbozurit"], theory["asbozurit"]),
-        }
         
-        # Row data
+        # Percentage deviation helper
+        def get_pct_deviation(fact_val, theo_val):
+            if theo_val <= 0:
+                if fact_val == 0:
+                    return 0.0
+                return 100.0
+            return ((fact_val - theo_val) / theo_val) * 100.0
+            
         row_data = [
             date_str,
             batch_numbers,
@@ -181,40 +157,42 @@ def generate_flat_report(db: Session) -> bytes:
             qcd_first,
             qcd_defect,
             wind_resets,
-            # Factual (in tons!)
-            round(fact["chrysotile_4_20"] / 1000.0, 3),
-            round(fact["chrysotile_5_65"] / 1000.0, 3),
-            round(fact["chrysotile_6_40"] / 1000.0, 3),
-            round(fact["cement_silo1"] / 1000.0, 3),
-            round(fact["cement_silo2"] / 1000.0, 3),
-            round(fact["cement_silo3"] / 1000.0, 3),
-            round(fact["cement_silo4"] / 1000.0, 3),
-            round(fact["asbocarton"] / 1000.0, 3),
-            round(fact["laprol"] / 1000.0, 3),
-            round(fact["cellulose"] / 1000.0, 3),
-            round(fact["fiberglass"] / 1000.0, 3),
-            round(fact["crushed_slate"] / 1000.0, 3),
-            round(fact["asbozurit"] / 1000.0, 3),
-            # Deviations (in tons!)
-            round(devs["chrysotile_4_20"], 3),
-            round(devs["chrysotile_5_65"], 3),
-            round(devs["chrysotile_6_40"], 3),
-            round(devs["cement_silo1"], 3),
-            round(devs["cement_silo2"], 3),
-            round(devs["cement_silo3"], 3),
-            round(devs["cement_silo4"], 3),
-            round(devs["asbocarton"], 3),
-            round(devs["laprol"], 3),
-            round(devs["cellulose"], 3),
-            round(devs["fiberglass"], 3),
-            round(devs["crushed_slate"], 3),
-            round(devs["asbozurit"], 3),
+            s.zo_asb_drain or 0.0,
+            s.zo_cem_drain or 0.0,
+            fact["chrysotile_4_20"],
+            fact["chrysotile_5_65"],
+            fact["chrysotile_6_40"],
+            total_fact_asbestos,
+            fact["cement_silo1"],
+            fact["cement_silo2"],
+            fact["cement_silo3"],
+            fact["cement_silo4"],
+            total_fact_cement,
+            fact["asbocarton"],
+            fact["laprol"],
+            fact["cellulose"],
+            fact["fiberglass"],
+            fact["crushed_slate"],
+            fact["asbozurit"],
+            # Deviations (in %!)
+            get_pct_deviation(fact["chrysotile_4_20"], theory["chrysotile_4_20"]),
+            get_pct_deviation(fact["chrysotile_5_65"], theory["chrysotile_5_65"]),
+            get_pct_deviation(fact["chrysotile_6_40"], theory["chrysotile_6_40"]),
+            get_pct_deviation(total_fact_asbestos, total_theo_asbestos),
+            get_pct_deviation(total_fact_cement, theory_cement),
+            get_pct_deviation(fact["asbocarton"], theory["asbocarton"]),
+            get_pct_deviation(fact["laprol"], theory["laprol"]),
+            get_pct_deviation(fact["cellulose"], theory["cellulose"]),
+            get_pct_deviation(fact["fiberglass"], theory["fiberglass"]),
+            get_pct_deviation(fact["crushed_slate"], theory["crushed_slate"]),
+            get_pct_deviation(fact["asbozurit"], theory["asbozurit"])
         ]
         
         ws.append(row_data)
         
-        # Style and color the row
         curr_row = ws.max_row
+        
+        # Style cells
         for col_idx in range(1, len(headers) + 1):
             cell = ws.cell(row=curr_row, column=col_idx)
             cell.border = border_thin
@@ -225,13 +203,25 @@ def generate_flat_report(db: Session) -> bytes:
             else:
                 cell.alignment = Alignment(horizontal="right")
                 
-            # Deviation colors (cols 27 to 39)
-            if col_idx in range(27, 40):
+            # Defect cell (col 12)
+            if col_idx == 12:
+                val = cell.value
+                if val == 0:
+                    cell.fill = green_fill
+                else:
+                    cell.fill = red_fill
+                    
+            # Deviation cols (cols 31 to 41)
+            if col_idx in range(31, 42):
                 val = cell.value
                 if val is not None and isinstance(val, (int, float)):
+                    # Format as percentage string with sign
+                    sign = "+" if val > 0 else ""
+                    cell.value = f"{sign}{val:.2f}%"
+                    # Deviation color rules: > 0.1% red, otherwise green
                     if val > 0.1:
                         cell.fill = red_fill
-                    elif val < -0.1:
+                    else:
                         cell.fill = green_fill
                         
     # Auto-fit column widths
@@ -246,7 +236,7 @@ def generate_flat_report(db: Session) -> bytes:
         
     # Enable Autofilter
     if ws.max_row > 1:
-        ws.auto_filter.ref = f"A1:AM{ws.max_row}"
+        ws.auto_filter.ref = f"A1:AO{ws.max_row}"
         
     out = io.BytesIO()
     wb.save(out)

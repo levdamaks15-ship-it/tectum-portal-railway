@@ -599,11 +599,76 @@ async function closeShift() {
     }
 }
 
+function toggleSummaryFilterFields() {
+    const filterTypeSelect = document.getElementById('summary-filter-type');
+    if (!filterTypeSelect) return;
+    const filterType = filterTypeSelect.value;
+    
+    const dateFromEl = document.getElementById('summary-field-date-from');
+    if (dateFromEl) dateFromEl.style.display = filterType === 'dates' ? 'inline-block' : 'none';
+    
+    const dateToEl = document.getElementById('summary-field-date-to');
+    if (dateToEl) dateToEl.style.display = filterType === 'dates' ? 'inline-block' : 'none';
+    
+    const monthEl = document.getElementById('summary-field-month');
+    if (monthEl) monthEl.style.display = (filterType === 'month' || filterType === 'week') ? 'inline-block' : 'none';
+    
+    const weekEl = document.getElementById('summary-field-week');
+    if (weekEl) weekEl.style.display = filterType === 'week' ? 'inline-block' : 'none';
+}
+
 async function loadReportSummary() {
-    const from_date = document.getElementById('filter-date-from').value;
-    const to_date = document.getElementById('filter-date-to').value;
-    const line = document.getElementById('filter-line').value;
-    const master_id = document.getElementById('filter-master').value;
+    const filterTypeEl = document.getElementById('summary-filter-type');
+    const filterType = filterTypeEl ? filterTypeEl.value : 'dates';
+    let from_date = '';
+    let to_date = '';
+
+    if (filterType === 'dates') {
+        const fromEl = document.getElementById('filter-date-from');
+        const toEl = document.getElementById('filter-date-to');
+        from_date = fromEl ? fromEl.value : '';
+        to_date = toEl ? toEl.value : '';
+    } else {
+        const monthEl = document.getElementById('summary-filter-month');
+        const monthVal = monthEl ? monthEl.value : '';
+        if (!monthVal) {
+            alert("Пожалуйста, выберите месяц!");
+            return;
+        }
+        const [year, month] = monthVal.split('-').map(Number);
+        
+        if (filterType === 'month') {
+            from_date = `${year}-${String(month).padStart(2, '0')}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            to_date = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        } else if (filterType === 'week') {
+            const weekEl = document.getElementById('summary-filter-week');
+            const weekVal = weekEl ? parseInt(weekEl.value) : 1;
+            const mStr = String(month).padStart(2, '0');
+            if (weekVal === 1) {
+                from_date = `${year}-${mStr}-01`;
+                to_date = `${year}-${mStr}-07`;
+            } else if (weekVal === 2) {
+                from_date = `${year}-${mStr}-08`;
+                to_date = `${year}-${mStr}-14`;
+            } else if (weekVal === 3) {
+                from_date = `${year}-${mStr}-15`;
+                to_date = `${year}-${mStr}-21`;
+            } else if (weekVal === 4) {
+                from_date = `${year}-${mStr}-22`;
+                to_date = `${year}-${mStr}-28`;
+            } else if (weekVal === 5) {
+                from_date = `${year}-${mStr}-29`;
+                const lastDay = new Date(year, month, 0).getDate();
+                to_date = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
+            }
+        }
+    }
+
+    const lineEl = document.getElementById('filter-line');
+    const masterEl = document.getElementById('filter-master');
+    const line = lineEl ? lineEl.value : '';
+    const master_id = masterEl ? masterEl.value : '';
 
     let url = `/api/report/summary?from_date=${from_date}&to_date=${to_date}`;
     if (line) url += `&line=${encodeURIComponent(line)}`;
@@ -621,43 +686,107 @@ async function loadReportSummary() {
     }
 }
 
+function getDevCell(actual, theoretical) {
+    if (theoretical <= 0) {
+        if (actual === 0) return `<td style="color: var(--success-color); font-weight: 500;">0.00%</td>`;
+        return `<td style="color: var(--danger-color); font-weight: 500;">+100.00%</td>`;
+    }
+    const devPct = ((actual - theoretical) / theoretical) * 100;
+    const sign = devPct > 0 ? '+' : '';
+    // > 0.1% is red, otherwise (savings or minimal deviation) is green
+    const color = devPct > 0.1 ? 'var(--danger-color)' : 'var(--success-color)';
+    return `<td style="color: ${color}; font-weight: 500;">${sign}${devPct.toFixed(2)}%</td>`;
+}
+
 function renderSummaryTable(rows) {
     const tbody = document.getElementById('summary-table-body');
     if (!tbody) return;
     tbody.innerHTML = '';
     
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="16" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="42" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
         return;
     }
 
     rows.forEach(r => {
         const isEditable = (r.status === 'active' || currentUser.role === 'admin') && r.master_name !== 'Смена другого мастера';
         const editBtn = isEditable ? 
-            `<button onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">✏️ Изменить</button>` : 
-            `<span style="color: var(--text-secondary); font-size: 0.75rem;">🔒 Блок</span>`;
+            `<button onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">✏️ Изменить</button>` : 
+            `<span style="color: var(--text-secondary); font-size: 0.7rem;">🔒 Блок</span>`;
 
-        const totalAsbestos = (r.zo_usage.chrysotile_4_20 + r.zo_usage.chrysotile_5_65 + r.zo_usage.chrysotile_6_40).toFixed(0);
-        const totalCement = (r.zo_usage.cement_silo1 + r.zo_usage.cement_silo2 + r.zo_usage.cement_silo3 + r.zo_usage.cement_silo4).toFixed(0);
+        const u = r.zo_usage || {};
+        const chrys_4_20 = u.chrysotile_4_20 || 0;
+        const chrys_5_65 = u.chrysotile_5_65 || 0;
+        const chrys_6_40 = u.chrysotile_6_40 || 0;
+        const totalAsbestos = chrys_4_20 + chrys_5_65 + chrys_6_40;
+
+        const cem_1 = u.cement_silo1 || 0;
+        const cem_2 = u.cement_silo2 || 0;
+        const cem_3 = u.cement_silo3 || 0;
+        const cem_4 = u.cement_silo4 || 0;
+        const totalCement = cem_1 + cem_2 + cem_3 + cem_4;
+
+        // Defect color: 0 is green, anything else is red
+        const defectColor = r.defect === 0 ? 'var(--success-color)' : 'var(--danger-color)';
+
+        // Theoretical values for relative deviations
+        const theo = r.deviations && r.deviations.theoretical ? r.deviations.theoretical : {};
+        const t_4_20 = theo.chrysotile_4_20 || 0;
+        const t_5_65 = theo.chrysotile_5_65 || 0;
+        const t_6_40 = theo.chrysotile_6_40 || 0;
+        const totalTheoAsbestos = t_4_20 + t_5_65 + t_6_40;
+        const t_cement = theo.cement || 0;
+        const t_asbocarton = theo.asbocarton || 0;
+        const t_laprol = theo.laprol || 0;
+        const t_cellulose = theo.cellulose || 0;
+        const t_fiberglass = theo.fiberglass || 0;
+        const t_crushed_slate = theo.crushed_slate || 0;
+        const t_asbozurit = theo.asbozurit || 0;
 
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td>${editBtn}</td>
                 <td>${r.date}</td>
-                <td>${r.shift_name}</td>
-                <td>${r.line}</td>
-                <td style="font-weight: 500;">${r.master_name}</td>
                 <td>${r.batch_number}</td>
+                <td>${r.line}</td>
+                <td>${r.shift_name}</td>
+                <td style="font-weight: 500;">${r.master_name}</td>
                 <td>${r.product_name}</td>
                 <td>${r.zo_batches}</td>
                 <td style="font-weight: bold;">${r.lfm_sheets}</td>
-                <td>${r.lfm_tons}</td>
-                <td style="color: var(--success-color);">${r.warehouse_gp}</td>
+                <td>${r.lfm_tons.toFixed(2)}</td>
+                <td style="color: var(--success-color); font-weight: 500;">${r.warehouse_gp}</td>
                 <td>${r.first_grade}</td>
-                <td style="color: var(--danger-color); font-weight: bold;">${r.defect}</td>
-                <td>${totalAsbestos}</td>
-                <td>${totalCement}</td>
-                <td><span class="badge ${r.status === 'closed' ? 'badge-success' : 'badge-warning'}">${r.status}</span></td>
+                <td style="color: ${defectColor}; font-weight: bold;">${r.defect}</td>
+                <td>${r.lfm_wind_resets}</td>
+                <td>${(u.asb_drain || 0).toFixed(0)}</td>
+                <td>${(u.cem_drain || 0).toFixed(0)}</td>
+                <td>${chrys_4_20.toFixed(0)}</td>
+                <td>${chrys_5_65.toFixed(0)}</td>
+                <td>${chrys_6_40.toFixed(0)}</td>
+                <td style="font-weight: 500;">${totalAsbestos.toFixed(0)}</td>
+                <td>${cem_1.toFixed(0)}</td>
+                <td>${cem_2.toFixed(0)}</td>
+                <td>${cem_3.toFixed(0)}</td>
+                <td>${cem_4.toFixed(0)}</td>
+                <td style="font-weight: 500;">${totalCement.toFixed(0)}</td>
+                <td>${(u.asbocarton || 0).toFixed(0)}</td>
+                <td>${(u.laprol || 0).toFixed(0)}</td>
+                <td>${(u.cellulose || 0).toFixed(0)}</td>
+                <td>${(u.fiberglass || 0).toFixed(0)}</td>
+                <td>${(u.crushed_slate || 0).toFixed(0)}</td>
+                <td>${(u.asbozurit || 0).toFixed(0)}</td>
+                ${getDevCell(chrys_4_20, t_4_20)}
+                ${getDevCell(chrys_5_65, t_5_65)}
+                ${getDevCell(chrys_6_40, t_6_40)}
+                ${getDevCell(totalAsbestos, totalTheoAsbestos)}
+                ${getDevCell(totalCement, t_cement)}
+                ${getDevCell(u.asbocarton || 0, t_asbocarton)}
+                ${getDevCell(u.laprol || 0, t_laprol)}
+                ${getDevCell(u.cellulose || 0, t_cellulose)}
+                ${getDevCell(u.fiberglass || 0, t_fiberglass)}
+                ${getDevCell(u.crushed_slate || 0, t_crushed_slate)}
+                ${getDevCell(u.asbozurit || 0, t_asbozurit)}
             </tr>
         `;
     });
