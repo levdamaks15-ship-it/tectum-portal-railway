@@ -1308,7 +1308,6 @@ async function loadDailyReport() {
     let url = `/api/dashboard/daily_report?line=${line}&range_type=${rangeType}`;
     if (month) url += `&month=${month}`;
     if (week) url += `&week=${week}`;
-    if (day) url += `&day=${day}`;
     if (brigade) url += `&master_id=${brigade}`;
 
     try {
