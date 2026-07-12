@@ -299,12 +299,13 @@ function applyRoleVisibility() {
     // Master, Admin, Director, Technologist see all reports and summary
     const canReport = ['master', 'admin'].includes(r);
     const canViewSummary = ['master', 'admin', 'director', 'technologist'].includes(r);
+    const canViewMaterials = ['admin', 'director', 'technologist'].includes(r); // Hide from master, keep for admin/director/technologist
     const canDowntime = ['master', 'admin', 'mechanic', 'director', 'technologist'].includes(r);
     
     document.getElementById('tab-btn-production').style.display = canReport ? 'inline-block' : 'none';
     document.getElementById('tab-btn-summary').style.display = canViewSummary ? 'inline-block' : 'none';
     document.getElementById('tab-btn-daily-report').style.display = canViewSummary ? 'inline-block' : 'none';
-    document.getElementById('tab-btn-materials').style.display = canViewSummary ? 'inline-block' : 'none';
+    document.getElementById('tab-btn-materials').style.display = canViewMaterials ? 'inline-block' : 'none';
     
     document.getElementById('tab-btn-downtimes').style.display = canDowntime ? 'inline-block' : 'none';
     document.getElementById('tab-btn-analytics').style.display = canDowntime ? 'inline-block' : 'none';
