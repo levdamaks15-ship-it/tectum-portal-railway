@@ -2708,13 +2708,22 @@ def view_archive(db: Session = Depends(get_db)):
 @app.get("/api/dashboard/debug_summary")
 def debug_summary(db: Session = Depends(get_db)):
     shift = db.query(models.Shift).order_by(models.Shift.id.desc()).first()
-    if not shift:
-        return {"error": "No shifts"}
-    devs = calculate_shift_deviations(db, shift)
+    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн рифленый").first()
+    norm_dict = {}
+    if norm:
+        norm_dict = {c.name: getattr(norm, c.name) for c in norm.__table__.columns}
+    
+    lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all() if shift else []
+    lfm_reports_data = [{"id": r.id, "product_name": repr(r.product_name), "sheets": r.lfm_sheets} for r in lfm_reports]
+    
+    devs = calculate_shift_deviations(db, shift) if shift else {}
+    
     return {
-        "shift_id": shift.id,
-        "date": str(shift.date),
-        "product_name": shift.product_name,
+        "shift_id": shift.id if shift else None,
+        "date": str(shift.date) if shift else None,
+        "product_name": repr(shift.product_name) if shift else None,
+        "lfm_reports": lfm_reports_data,
+        "norm_for_8_voln_rifleny": norm_dict,
         "deviations": devs
     }
 
