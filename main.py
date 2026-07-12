@@ -2705,6 +2705,29 @@ def view_archive(db: Session = Depends(get_db)):
                 detail=f"Не удалось открыть сводный отчет в SharePoint. Ошибка автозагрузки: {upload_err}. Исходная ошибка: {e}"
             )
 
+@app.get("/api/dashboard/debug_norms")
+def debug_norms(db: Session = Depends(get_db)):
+    norms = db.query(models.ProductNorm).all()
+    shifts = db.query(models.Shift).order_by(models.Shift.id.desc()).limit(5).all()
+    shifts_data = []
+    for s in shifts:
+        lfm_data = []
+        for r in s.lfm_reports:
+            lfm_data.append({
+                "product_name": r.product_name,
+                "sheets": r.lfm_sheets
+            })
+        shifts_data.append({
+            "id": s.id,
+            "date": str(s.date),
+            "product_name": s.product_name,
+            "lfm_reports": lfm_data
+        })
+    return {
+        "norms": [n.product_name for n in norms],
+        "shifts": shifts_data
+    }
+
 @app.get("/api/dashboard/export_week")
 def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
