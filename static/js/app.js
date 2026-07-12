@@ -1637,10 +1637,105 @@ function renderDailyReportCharts(days) {
 
 function exportDailyReportPDF() {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
     
-    // Simple mock Cyrillic export or just use canvas image
-    alert("Экспорт PDF запущен. Отчет сгенерирован.");
+    // Get values from page
+    const titleText = document.getElementById('daily-report-title')?.innerText || "Месячный отчет выработки";
+    const lineVal = document.getElementById('daily-report-line')?.value || "Все линии";
+    const monthVal = document.getElementById('daily-report-month')?.value || "";
+    
+    const kpiShifts = document.getElementById('kpi-shifts-count')?.innerText || "0";
+    const kpiSheets = document.getElementById('kpi-total-sheets')?.innerText || "0";
+    const kpiTons = document.getElementById('kpi-total-tons')?.innerText || "0.0";
+    const kpiAvgPlan = document.getElementById('kpi-avg-plan-percent')?.innerText || "0%";
+    const kpiDefect = document.getElementById('kpi-defect-percent')?.innerText || "0%";
+
+    // Prepare a high-resolution canvas for print quality
+    const cw = 1600;
+    const ch = 1200;
+    const canvas = document.createElement('canvas');
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+    
+    // Header
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(titleText, cw / 2, 70);
+    
+    ctx.fillStyle = '#64748b';
+    ctx.font = '22px Arial';
+    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 115);
+    
+    // Draw horizontal line
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(80, 150);
+    ctx.lineTo(cw - 80, 150);
+    ctx.stroke();
+    
+    // Draw KPIs
+    const kpis = [
+        { label: "Всего смен", val: kpiShifts, color: '#1e293b' },
+        { label: "Выработка (Листы)", val: kpiSheets, color: '#3b82f6' },
+        { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981' },
+        { label: "Ср. % плана", val: kpiAvgPlan, color: '#f59e0b' },
+        { label: "Процент брака", val: kpiDefect, color: '#ef4444' }
+    ];
+    
+    const kpiW = (cw - 160) / 5;
+    kpis.forEach((k, idx) => {
+        const x = 80 + idx * kpiW;
+        const y = 180;
+        
+        // Draw card border
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(x + 10, y, kpiW - 20, 120);
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 10, y, kpiW - 20, 120);
+        
+        // Text
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '16px Arial';
+        ctx.fillText(k.label, x + kpiW / 2, y + 40);
+        
+        ctx.fillStyle = k.color;
+        ctx.font = 'bold 28px Arial';
+        ctx.fillText(k.val, x + kpiW / 2, y + 85);
+    });
+    
+    // Draw chart if exists
+    if (window.chartDailySheets) {
+        const chartImgSrc = window.chartDailySheets.canvas;
+        // Calculate centered aspect ratio
+        const chartW = cw - 160;
+        const chartH = 600;
+        ctx.drawImage(chartImgSrc, 80, 350, chartW, chartH);
+    } else {
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '24px Arial';
+        ctx.fillText("График не найден", cw / 2, 600);
+    }
+    
+    // Footer
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '14px Arial';
+    ctx.fillText(`Сгенерировано автоматически порталом Tectum. Дата экспорта: ${new Date().toLocaleString()}`, cw / 2, ch - 50);
+    
+    // Convert to PDF
+    const pdfData = canvas.toDataURL('image/jpeg', 0.95);
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    doc.addImage(pdfData, 'JPEG', 0, 0, 297, 210);
+    doc.save(`Tectum_Daily_Report_${monthVal}.pdf`);
 }
 
 // Window load init
