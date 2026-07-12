@@ -1378,7 +1378,7 @@ def get_materials_summary(
         
     query = db.query(models.Shift)
     
-    if user_role == "master" and user_id:
+    if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
         
     if start_date:
@@ -2455,7 +2455,7 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         for s in shifts:
             if not s.date or s.line != line_id: continue
             # Пропускаем смены других мастеров для роли master
-            if user_role == "master" and s.master_id != user_id:
+            if False and user_role == "master" and s.master_id != user_id:
                 continue
             day_key = str(s.date)
             if day_key not in day_data: continue
@@ -2655,7 +2655,7 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
         models.Shift.date >= sd,
         models.Shift.date <= ed
     )
-    if user_role == "master" and user_id:
+    if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
     shifts = query.order_by(models.Shift.date, models.Shift.id).all()
     
@@ -2738,7 +2738,7 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
         models.Shift.date >= sd,
         models.Shift.date <= ed
     )
-    if user_role == "master" and user_id:
+    if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
     shifts = query.order_by(models.Shift.date, models.Shift.id).all()
     
