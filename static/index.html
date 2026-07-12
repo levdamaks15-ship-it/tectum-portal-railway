@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260708_v3">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v7">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -20,6 +20,134 @@
         }
         .user-card:active {
             transform: translateY(0);
+        }
+        
+        /* Accordion styles */
+        .accordion-section {
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        .accordion-header {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .accordion-header:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .accordion-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .accordion-content {
+            padding: 1.5rem;
+            display: block;
+            border-top: 1px solid var(--glass-border);
+            animation: slideDown 0.2s ease-out;
+        }
+        .accordion-content.collapsed {
+            display: none;
+        }
+        .acc-toggle {
+            transition: transform 0.2s ease;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .accordion-section.collapsed .acc-toggle {
+            transform: rotate(-90deg);
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Dynamic forms grid */
+        .form-grid-three {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+        }
+        .form-grid-four {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.2rem;
+        }
+
+        /* Table styles */
+        .table-glass-summary {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+        .table-glass-summary th, .table-glass-summary td {
+            padding: 0.75rem 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            text-align: left;
+        }
+        .table-glass-summary th {
+            background: rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .table-glass-summary tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .table-glass-summary td.editable {
+            cursor: pointer;
+            position: relative;
+            background: rgba(255, 255, 255, 0.01);
+            transition: background 0.2s;
+        }
+        .table-glass-summary td.editable:hover {
+            background: rgba(230, 57, 70, 0.1);
+        }
+        .table-glass-summary td.editable::after {
+            content: "✏️";
+            position: absolute;
+            right: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.7rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .table-glass-summary td.editable:hover::after {
+            opacity: 0.6;
+        }
+
+        /* Card components */
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.2rem;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .tab-btn {
+            font-weight: 600;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
     </style>
 </head>
@@ -87,809 +215,660 @@
                 </div>
                 
                 <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-                    <button class="btn-secondary" onclick="resetLoginSelection()" style="width: auto; padding: 0.8rem 1.5rem;">⬅ Назад</button>
-                    <button onclick="login()" style="width: auto; padding: 0.8rem 2rem;">Войти</button>
+                    <button onclick="login()" style="width: auto; padding: 0.8rem 2.5rem; font-weight: bold;">Войти</button>
+                    <button onclick="resetLoginSelection()" class="btn-secondary" style="width: auto; padding: 0.8rem 2.5rem;">Назад</button>
                 </div>
-                <p id="login-error" style="color: var(--danger-color); margin-top: 1rem; display: none;"></p>
+                <p id="login-error" style="color: var(--danger-color); margin-top: 1rem; display: none; font-weight: 600;"></p>
             </div>
         </div>
 
+        <!-- Main App Screen -->
         <div id="main-app" style="display: none;">
-            <!-- Вкладки навигации -->
-            <div id="tabs-menu" class="tabs-container" style="display: none;">
-                <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📦 Производство</button>
+            <!-- Tabs Navigation -->
+            <div id="tabs-menu" class="tabs-container" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📝 Рапорт мастера</button>
+                <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📊 Сводка</button>
                 <button class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes')">⏱ Журнал Простоев</button>
                 <button class="tab-btn" id="tab-btn-analytics" onclick="switchTab('analytics')">📈 Аналитика простоев</button>
-                <button class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report')">📈 Месячная сводка</button>
+                <button class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report')">📈 Месячная сводка выработки</button>
                 <button class="tab-btn" id="tab-btn-materials" onclick="switchTab('materials')">🧪 Сводка по сырью</button>
             </div>
 
-            <!-- Секция активной смены (для ролей кроме Дестакера и СКК) -->
-            <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem; position: relative;">
+            <!-- Active Shift Banner -->
+            <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; padding: 1rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem; position: relative;">
                 <div id="readonly-badge" style="display:none; position: absolute; top: -10px; right: -10px; background: var(--danger-color); color: white; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">РЕЖИМ ПРОСМОТРА</div>
-                <div>Текущая смена: <strong id="active-shift-display" style="color: var(--accent-color)">Нет открытой смены</strong></div>
+                <div>Текущая смены: <strong id="active-shift-display" style="color: var(--accent-color)">Нет открытой смены</strong></div>
                 <div id="shift-dev-indicator" style="display:none; cursor: pointer; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; border-radius: 8px;" onclick="switchTab('materials')">
                     Отклонение по сырью: <strong id="shift-dev-val">0 кг</strong>
                 </div>
                 <div>
-                    <button onclick="loadData()" style="width: auto; padding: 0.5rem 1.5rem; background: var(--glass-border);">Обновить</button>
-                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()" style="display: none; width: auto; padding: 0.5rem 1.5rem;">Закрыть смену</button>
+                    <button onclick="loadData()" style="width: auto; padding: 0.5rem 1.2rem; background: var(--glass-border);">Обновить</button>
+                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()" style="display: none; width: auto; padding: 0.5rem 1.2rem;">Закрыть смену</button>
                 </div>
             </div>
 
-            <!-- Статус операторов смены (виден всем ролям) -->
-            <div class="glass-panel card" id="operators-status-block" style="margin-bottom: 1.5rem; display: none;">
-                <h4 style="margin-bottom: 0.5rem; text-align: center;">Статус отчетов операторов смены:</h4>
-                <div class="grid-operators-status" style="gap: 0.5rem; font-size: 0.85rem;">
-                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-zo">
-                        ЗО: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+            <!-- 1. PRODUCTION TAB (📝 Рапорт мастера) -->
+            <div id="production-tab" style="display: block;">
+                <div style="max-width: 900px; margin: 0 auto;">
+                    
+                    <!-- Accordion Section 1: Заголовок смены -->
+                    <div class="glass-panel accordion-section" id="acc-header-section">
+                        <div class="accordion-header" onclick="toggleAccordion('sec-header')">
+                            <h3>📋 1. Параметры смены</h3>
+                            <span class="acc-toggle">▼</span>
+                        </div>
+                        <div id="sec-header" class="accordion-content">
+                            <div class="form-grid-three">
+                                <div class="form-group">
+                                    <label>Дата рапорта</label>
+                                    <input type="date" id="rep-date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Смена</label>
+                                    <select id="rep-shift">
+                                        <option value="День">День</option>
+                                        <option value="Ночь">Ночь</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Линия</label>
+                                    <select id="rep-line">
+                                        <option value="Линия 1">Линия 1</option>
+                                        <option value="Линия 2">Линия 2</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Мастер смены</label>
+                                    <select id="rep-master">
+                                        <option value="">-- Выберите мастера --</option>
+                                        <!-- Masters loaded dynamically -->
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Номер партии</label>
+                                    <input type="text" id="rep-batch" placeholder="Например, 0154">
+                                </div>
+                                <div class="form-group">
+                                    <label>Выпускаемая продукция</label>
+                                    <select id="rep-product" onchange="onProductChange()">
+                                        <option value="">-- Выберите продукт --</option>
+                                        <option value="Шифер 7 волн">Шифер 7 волн</option>
+                                        <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
+                                        <option value="Шифер 8 волн">Шифер 8 волн</option>
+                                        <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
+                                        <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
+                                        <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
+                                        <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
+                                        <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
+                                        <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-lfm">
-                        ЛФМ: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+
+                    <!-- Accordion Section 2: Производство -->
+                    <div class="glass-panel accordion-section" id="acc-prod-section">
+                        <div class="accordion-header" onclick="toggleAccordion('sec-prod')">
+                            <h3>🏭 2. Выпуск (Производство)</h3>
+                            <span class="acc-toggle">▼</span>
+                        </div>
+                        <div id="sec-prod" class="accordion-content">
+                            <div class="form-grid-three">
+                                <div class="form-group">
+                                    <label>Сформовано (листов) [ЛФМ]</label>
+                                    <input type="number" id="rep-sheets" placeholder="0" oninput="recalcTonsAndGrades()">
+                                </div>
+                                <div class="form-group">
+                                    <label>Выпуск в тоннах (авто)</label>
+                                    <input type="text" id="rep-tons-readonly" readonly placeholder="0.0" style="background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-color)">
+                                </div>
+                                <div class="form-group">
+                                    <label>Сбросов наката (шт) [ЛФМ]</label>
+                                    <input type="number" id="rep-resets" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Количество замесов (шт) [ЗО]</label>
+                                    <input type="number" id="rep-batches" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-stacker">
-                        Стакер: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+
+                    <!-- Accordion Section 3: Переборка и Брак -->
+                    <div class="glass-panel accordion-section" id="acc-defect-section">
+                        <div class="accordion-header" onclick="toggleAccordion('sec-defect')">
+                            <h3>📦 3. Переборка и Брак</h3>
+                            <span class="acc-toggle">▼</span>
+                        </div>
+                        <div id="sec-defect" class="accordion-content">
+                            <div class="form-grid-three" style="margin-bottom: 1rem;">
+                                <div class="form-group">
+                                    <label>На склад ГП (кондиция, листов)</label>
+                                    <input type="number" id="rep-warehouse-gp" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>1 Сорт (листов)</label>
+                                    <input type="number" id="rep-first-grade" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Есть ли брак?</label>
+                                    <select id="rep-has-defect" onchange="toggleDefectsGrid()">
+                                        <option value="no">Нет брака</option>
+                                        <option value="yes">Да, зарегистрировать брак</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Defects block: 11 видов дефектов -->
+                            <div id="defects-detail-grid" style="display: none; background: rgba(0,0,0,0.1); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border); margin-bottom: 1.2rem;">
+                                <h4 style="margin-bottom: 0.8rem; color: var(--accent-color); font-size: 0.95rem;">Детализация брака Разборщика (листов)</h4>
+                                <div class="form-grid-four">
+                                    <div class="form-group"><label>Скол</label><input type="number" id="def-chip" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Плохой рез</label><input type="number" id="def-bad-cut" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Налип снизу</label><input type="number" id="def-stick-bottom" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Налип сверху</label><input type="number" id="def-stick-top" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Сломан</label><input type="number" id="def-broken" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Упал коробки</label><input type="number" id="def-fell" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Вмятина</label><input type="number" id="def-dent" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="def-thickness" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Расслоение</label><input type="number" id="def-delamination" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    <div class="form-group"><label>Кромка</label><input type="number" id="def-edge" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-grid-three">
+                                <div class="form-group">
+                                    <label>Итого брака Разборщика (авто)</label>
+                                    <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Итоговый брак СКК / ОТК (листов)</label>
+                                    <input type="number" id="rep-qcd-defect" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-destacker">
-                        Разборщик: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+
+                    <!-- Accordion Section 4: Расход сырья -->
+                    <div class="glass-panel accordion-section" id="acc-raw-section">
+                        <div class="accordion-header" onclick="toggleAccordion('sec-raw')">
+                            <h3>🧪 4. Расход сырья (ЗО / ЛФМ)</h3>
+                            <span class="acc-toggle">▼</span>
+                        </div>
+                        <div id="sec-raw" class="accordion-content">
+                            
+                            <h4 style="margin-bottom: 0.8rem; color: var(--primary-color); font-size: 0.95rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.4rem;">Хризотил (Асбест)</h4>
+                            <div class="form-grid-four" style="margin-bottom: 1.2rem;">
+                                <div class="form-group"><label>Марка 4-20 (кг)</label><input type="number" id="zo-chr-4-20" placeholder="0" class="chr-input" oninput="recalcChrTotal()"></div>
+                                <div class="form-group"><label>Марка 5-65 (кг)</label><input type="number" id="zo-chr-5-65" placeholder="0" class="chr-input" oninput="recalcChrTotal()"></div>
+                                <div class="form-group"><label>Марка 6-40 (кг)</label><input type="number" id="zo-chr-6-40" placeholder="0" class="chr-input" oninput="recalcChrTotal()"></div>
+                                <div class="form-group"><label>Асбест общий (авто)</label><input type="text" id="zo-chr-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;"></div>
+                            </div>
+
+                            <h4 style="margin-bottom: 0.8rem; color: var(--primary-color); font-size: 0.95rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.4rem;">Цемент по силосам</h4>
+                            <div class="form-grid-four" style="margin-bottom: 1.2rem;">
+                                <div class="form-group"><label>Силос 1 (кг)</label><input type="number" id="zo-cem-1" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
+                                <div class="form-group"><label>Силос 2 (кг)</label><input type="number" id="zo-cem-2" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
+                                <div class="form-group"><label>Силос 3 (кг)</label><input type="number" id="zo-cem-3" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
+                                <div class="form-group"><label>Силос 4 (кг)</label><input type="number" id="zo-cem-4" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
+                            </div>
+                            <div style="max-width: 250px; margin-bottom: 1.2rem;">
+                                <div class="form-group"><label>Цемент общий (авто)</label><input type="text" id="zo-cem-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;"></div>
+                            </div>
+
+                            <h4 style="margin-bottom: 0.8rem; color: var(--primary-color); font-size: 0.95rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.4rem;">Другие компоненты и сливы</h4>
+                            <div class="form-grid-three" style="margin-bottom: 1rem;">
+                                <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="zo-cellulose" placeholder="0"></div>
+                                <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="zo-crushed-slate" placeholder="0"></div>
+                                <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="zo-asbozurit" placeholder="0"></div>
+                                <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="zo-fiberglass" placeholder="0"></div>
+                                <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="zo-laprol" placeholder="0"></div>
+                                <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="zo-asbocarton" placeholder="0"></div>
+                                <div class="form-group"><label>Слив хризотила (кг) [ЗО]</label><input type="number" id="zo-asb-drain" placeholder="0"></div>
+                                <div class="form-group"><label>Слив цемента (кг) [ЗО]</label><input type="number" id="zo-cem-drain" placeholder="0"></div>
+                            </div>
+                        </div>
                     </div>
-                    <div style="background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 6px; text-align: center;" id="status-qcd">
-                        СКК: <span style="font-weight: bold; color: var(--danger-color);">Нет</span>
+
+                    <!-- Accordion Section 5: Приход сырья -->
+                    <div class="glass-panel accordion-section" id="acc-rec-section">
+                        <div class="accordion-header" onclick="toggleAccordion('sec-rec')">
+                            <h3>📥 5. Приход сырья (на склад)</h3>
+                            <span class="acc-toggle">▼</span>
+                        </div>
+                        <div id="sec-rec" class="accordion-content">
+                            <div class="form-grid-three">
+                                <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="rec-chr-4-20" placeholder="0"></div>
+                                <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="rec-chr-5-65" placeholder="0"></div>
+                                <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="rec-chr-6-40" placeholder="0"></div>
+                                <div class="form-group"><label>Цемент (кг)</label><input type="number" id="rec-cement" placeholder="0"></div>
+                                <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="rec-cellulose" placeholder="0"></div>
+                                <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="rec-crushed-slate" placeholder="0"></div>
+                                <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="rec-asbozurit" placeholder="0"></div>
+                                <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="rec-asbocarton" placeholder="0"></div>
+                                <div class="form-group"><label>Поддоны (шт)</label><input type="number" id="rec-pallets" placeholder="0"></div>
+                                <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="rec-fiberglass" placeholder="0"></div>
+                                <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="rec-laprol" placeholder="0"></div>
+                            </div>
+                        </div>
                     </div>
+
+                    <div style="margin: 2rem 0; text-align: center;">
+                        <button onclick="submitShiftReport()" class="btn-submit-huge" style="font-size: 1.2rem; padding: 1.2rem 3rem; border-radius: 12px; max-width: 400px; width: 100%;">💾 Сохранить рапорт смены</button>
+                    </div>
+
                 </div>
             </div>
 
-            <div id="production-tab" class="dashboard-grid">
-                
-                <!-- 1. Мастер -->
-                <div class="glass-panel card collapsible-card" id="master-view">
-                    <h3>Мастер (Управление сменой)</h3>
-                    <div class="card-content">
-                        <div style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
-                            <h4>Открыть смену</h4>
-                            <input type="date" id="shift-date" style="margin-bottom:0.5rem">
-                            <select id="shift-name" style="margin-bottom:0.5rem">
-                                <option value="День">День</option><option value="Ночь">Ночь</option>
-                            </select>
-                            <select id="shift-line" style="margin-bottom:0.5rem">
-                                <option value="Линия 1">Линия 1</option>
-                                <option value="Линия 2">Линия 2</option>
-                            </select>
-                            <button onclick="createShift()">Начать смену</button>
-                        </div>
-
-                        <div style="margin-top: 1rem;" id="master-dashboard-sync"></div>
-                        <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                            <button class="btn-success" onclick="window.open('/api/dashboard/view_archive')" style="background: #217346; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">📁 Сводный отчет (Архив)</button>
-                            <button id="btn-sync-sharepoint" class="btn-secondary" onclick="syncSharepointReport()" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 0.5rem;">🔄 Синхронизировать с SharePoint</button>
-                        </div>
+            <!-- 2. SUMMARY TAB (📊 Сводка и Дашборды) -->
+            <div id="summary-tab" style="display: none;">
+                <!-- Filters row -->
+                <div class="glass-panel card" style="padding: 1.2rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата с</label>
+                        <input type="date" id="filter-date-from" style="margin-bottom: 0;">
                     </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата по</label>
+                        <input type="date" id="filter-date-to" style="margin-bottom: 0;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 120px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Линия</label>
+                        <select id="filter-line" style="margin-bottom: 0;">
+                            <option value="">-- Все линии --</option>
+                            <option value="Линия 1">Линия 1</option>
+                            <option value="Линия 2">Линия 2</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Мастер</label>
+                        <select id="filter-master" style="margin-bottom: 0;">
+                            <option value="">-- Все мастера --</option>
+                        </select>
+                    </div>
+                    <button onclick="loadReportSummary()" class="btn-success" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0;">Применить</button>
+                    <button onclick="exportToExcelLocal()" class="btn-secondary" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0;">📥 Скачать Excel</button>
                 </div>
 
-
-
-                <!-- 1.2 Приход сырья для мастера -->
-                <div class="glass-panel card collapsible-card" id="master-receipt-view" style="display: none;">
-                    <h3>📥 Приход Сырья (на склад)</h3>
-                    <div class="card-content">
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Ввод сырья, поступившего на склад за текущую смену.</p>
-                        <div class="two-col-grid">
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 4-20 (кг)</label>
-                                <input type="number" id="rec-chr-4-20" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 5-65 (кг)</label>
-                                <input type="number" id="rec-chr-5-65" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Хризотил 6-40 (кг)</label>
-                                <input type="number" id="rec-chr-6-40" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Цемент (кг)</label>
-                                <input type="number" id="rec-cem" placeholder="0">
-                            </div>
-                             <div class="form-group">
-                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Асбокартон (кг)</label>
-                                 <input type="number" id="rec-asbocarton" placeholder="0">
-                             </div>
-                             <div class="form-group">
-                                 <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Поддоны (шт)</label>
-                                 <input type="number" id="rec-pallets" placeholder="0">
-                             </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Целлюлоза (кг)</label>
-                                <input type="number" id="rec-cel" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дробленый шифер (кг)</label>
-                                <input type="number" id="rec-slate" placeholder="0">
-                            </div>
-
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Стекловолокно (кг)</label>
-                                <input type="number" id="rec-fib" placeholder="0">
-                            </div>
-                            <div class="form-group">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Лапрол (кг)</label>
-                                <input type="number" id="rec-laprol" placeholder="0">
-                            </div>
-                        </div>
-                        <button onclick="updateReceipt()" style="margin-top: 1rem; width: 100%;">Сохранить приход</button>
-                    </div>
-                </div>
-
-                <!-- Raw Materials Dashboards and Management Panel -->
-                <div class="glass-panel card collapsible-card" id="materials-dashboards-panel" style="display: none; grid-column: span 2;">
-                    <h3>📊 Дашборды сырья (Активная смена)</h3>
-                    <div class="card-content">
-                        <div class="two-col-grid" style="gap: 2rem;">
-                            <!-- 1. Дашборд по сырью (Факт ЗО vs Теория ЛФМ) -->
-                            <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                                <h4 style="color: var(--primary-color); margin-bottom: 1.2rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">🧪 Эффективность расхода (Факт ЗО vs Теория ЛФМ)</h4>
-                                <div id="m-dash-efficiency-list" style="display: flex; flex-direction: column; gap: 1.2rem;">
-                                    <!-- Dynamic rows -->
-                                </div>
-                            </div>
-
-                            <!-- 2. Дашборд по учету сырья (Приход vs Расход) -->
-                            <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                                <h4 style="color: var(--warning-color); margin-bottom: 1.2rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">📦 Баланс Склада (Приход vs Расход ЗО)</h4>
-                                <div id="m-dash-balance-list" style="display: flex; flex-direction: column; gap: 1.2rem;">
-                                    <!-- Dynamic rows -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass-panel card collapsible-card" id="raw-materials-management-card" style="display: none; grid-column: span 2;">
-                    <h3>🎛 Панель управления сырьем</h3>
-                    <div class="card-content">
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
-                            Ввод и редактирование данных по приходу и расходу сырья за любой день. Приход автоматически связывается со списанием расхода от ЗО.
-                        </p>
-                        
-                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: flex-end; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
-                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Дата</label>
-                                <input type="date" id="manage-mat-date" style="margin-bottom: 0;">
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 120px;">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Смена</label>
-                                <select id="manage-mat-shift" style="margin-bottom: 0;">
-                                    <option value="День">День</option>
-                                    <option value="Ночь">Ночь</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 120px;">
-                                <label style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.2rem; display: block;">Линия</label>
-                                <select id="manage-mat-line" style="margin-bottom: 0;">
-                                    <option value="Линия 1">Линия 1</option>
-                                    <option value="Линия 2">Линия 2</option>
-                                </select>
-                            </div>
-                            <button onclick="loadManageMaterials()" style="height: 38px; width: auto; padding: 0 1.5rem; background: var(--accent-color); margin-bottom: 0;">Загрузить</button>
-                        </div>
-
-                        <div id="manage-materials-form-container" style="display: none;">
-                            <h4 id="manage-materials-title" style="margin-bottom: 1.5rem; color: var(--primary-color); font-size: 1.1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;"></h4>
-                            
-                            <div class="two-col-grid" style="gap: 2rem;">
-                                <!-- Приход сырья (Склад) -->
-                                <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                                    <h4 style="color: var(--primary-color); margin-bottom: 1.2rem; font-size: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">📥 Приход на склад</h4>
-                                    <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="m-rec-chr-4-20" placeholder="0"></div>
-                                    <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="m-rec-chr-5-65" placeholder="0"></div>
-                                    <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="m-rec-chr-6-40" placeholder="0"></div>
-                                    <div class="form-group"><label>Цемент (кг)</label><input type="number" id="m-rec-cem" placeholder="0"></div>
-                                    <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="m-rec-cel" placeholder="0"></div>
-                                    <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="m-rec-slate" placeholder="0"></div>
-                                    <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="m-rec-asbocarton" placeholder="0"></div>
-                                    <div class="form-group"><label>Поддоны (шт)</label><input type="number" id="m-rec-pallets" placeholder="0"></div>
-                                    <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="m-rec-fib" placeholder="0"></div>
-                                    <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="m-rec-laprol" placeholder="0"></div>
-                                </div>
-
-                                <!-- Расход ЗО -->
-                                <div style="background: rgba(255,255,255,0.02); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                                    <h4 style="color: var(--warning-color); margin-bottom: 1.2rem; font-size: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">🥣 Расход ЗО</h4>
-                                    <div class="form-group"><label>Хризотил 4-20 (кг)</label><input type="number" id="m-zo-chr-4-20" placeholder="0"></div>
-                                    <div class="form-group"><label>Хризотил 5-65 (кг)</label><input type="number" id="m-zo-chr-5-65" placeholder="0"></div>
-                                    <div class="form-group"><label>Хризотил 6-40 (кг)</label><input type="number" id="m-zo-chr-6-40" placeholder="0"></div>
-                                    
-                                    <h5 style="margin: 1.2rem 0 0.6rem 0; color: var(--accent-color); font-size: 0.95rem;">Цемент по силосам</h5>
-                                    <div class="form-group"><label>Силос 1 (кг)</label><input type="number" id="m-zo-cem-1" placeholder="0"></div>
-                                    <div class="form-group"><label>Силос 2 (кг)</label><input type="number" id="m-zo-cem-2" placeholder="0"></div>
-                                    <div class="form-group"><label>Силос 3 (кг)</label><input type="number" id="m-zo-cem-3" placeholder="0"></div>
-                                    <div class="form-group"><label>Силос 4 (кг)</label><input type="number" id="m-zo-cem-4" placeholder="0"></div>
-                                    
-                                    <h5 style="margin: 1.2rem 0 0.6rem 0; color: var(--accent-color); font-size: 0.95rem;">Прочие материалы</h5>
-                                    <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="m-zo-cel" placeholder="0"></div>
-                                    <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="m-zo-slate" placeholder="0"></div>
-                                    <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="m-zo-asb" placeholder="0"></div>
-                                    <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="m-zo-fib" placeholder="0"></div>
-                                    <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="m-zo-laprol" placeholder="0"></div>
-                                    <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="m-zo-asbocarton" placeholder="0"></div>
-                                    
-                                    <h5 style="margin: 1.2rem 0 0.6rem 0; color: var(--accent-color); font-size: 0.95rem;">Сливы и Замесы</h5>
-                                    <div class="form-group"><label>Слив хризотила (кг)</label><input type="number" id="m-zo-asb-drain" placeholder="0"></div>
-                                    <div class="form-group"><label>Слив цемента (кг)</label><input type="number" id="m-zo-cem-drain" placeholder="0"></div>
-                                    <div class="form-group"><label>Количество замесов (шт)</label><input type="number" id="m-zo-batches" placeholder="0"></div>
-                                </div>
-                            </div>
-                            
-                            <button onclick="saveManageMaterials()" style="margin-top: 2rem; width: 100%; font-size: 1.1rem; height: 48px;" class="btn-save">Сохранить изменения сырья</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. ЗО -->
-                <div class="glass-panel card mobile-form collapsible-card" id="zo-view">
-                    <h3 style="text-align: center;">Заготовительное отделение (ЗО)</h3>
-                    <div class="card-content">
-                        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Итог за смену (Расход)</p>
-                        
-                        <div class="form-group">
-                            <label>Хризотил 4-20 (кг)</label>
-                            <input type="number" id="zo-chr-4-20" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Хризотил 5-65 (кг)</label>
-                            <input type="number" id="zo-chr-5-65" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Хризотил 6-40 (кг)</label>
-                            <input type="number" id="zo-chr-6-40" placeholder="0">
-                        </div>
-                        
-                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Цемент по силосам</h4>
-                        <div class="form-group">
-                            <label>Силос 1 (кг)</label>
-                            <input type="number" id="zo-cem-1" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Силос 2 (кг)</label>
-                            <input type="number" id="zo-cem-2" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Силос 3 (кг)</label>
-                            <input type="number" id="zo-cem-3" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Силос 4 (кг)</label>
-                            <input type="number" id="zo-cem-4" placeholder="0">
-                        </div>
-                        
-                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Остальные компоненты</h4>
-                        <div class="form-group">
-                            <label>Целлюлоза (кг)</label>
-                            <input type="number" id="zo-cel" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Дробленый шифер (кг)</label>
-                            <input type="number" id="zo-slate" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Асбозурит (кг)</label>
-                            <input type="number" id="zo-asb" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Стекловолокно (кг)</label>
-                            <input type="number" id="zo-fib" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Лапрол (кг)</label>
-                            <input type="number" id="zo-laprol" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Асбокартон (кг)</label>
-                            <input type="number" id="zo-asbocarton" placeholder="0">
-                        </div>
-
-                        
-                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Замесы за смену</h4>
-                        <div class="form-group">
-                            <label>Количество замесов</label>
-                            <input type="number" id="zo-batches" placeholder="0">
-                        </div>
-
-                        <h4 style="margin-top: 1rem; color: var(--accent-color);">Сливы за смену (ЗО)</h4>
-                        <div class="form-group">
-                            <label>Слив хризотила (кг)</label>
-                            <input type="number" id="zo-asb-drain" placeholder="0">
-                        </div>
-                        <div class="form-group">
-                            <label>Слив цемента (кг)</label>
-                            <input type="number" id="zo-cem-drain" placeholder="0">
-                        </div>
-                        
-                        <button class="btn-submit-huge" id="btn-submit-zo" onclick="updateZO()">Отправить данные за смену</button>
-                        <p id="zo-lock-msg" style="display:none; color: var(--success-color); text-align: center; margin-top: 1rem;">Данные успешно отправлены. Для корректировки обратитесь к мастеру.</p>
-                    </div>
-                </div>
-
-                <!-- 3. ЛФМ -->
-                <div class="glass-panel card mobile-form collapsible-card" id="lfm-view">
-                    <h3 style="text-align: center;">Формовка (ЛФМ)</h3>
-                    <div class="card-content">
-                        <div class="form-group">
-                            <label>Выпускаемая продукция</label>
-                            <select id="lfm-product" style="font-size: 1.2rem; padding: 1rem; border-radius: 12px;">
-                                <option value="Шифер 7 волн">Шифер 7 волн</option>
-                                <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
-                                <option value="Шифер 8 волн">Шифер 8 волн</option>
-                                <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
-                                <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
-                                <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
-                                <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
-                                <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
-                                <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Сколько сформовано (листов)</label>
-                            <input type="number" id="lfm-sheets" placeholder="0">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Сбросов наката (шт)</label>
-                            <input type="number" id="lfm-resets" placeholder="0">
-                        </div>
-                        
-                        <button class="btn-submit-huge" id="btn-submit-lfm" onclick="addLFMReport()">Добавить отчет ЛФМ</button>
-                        
-                        <div id="lfm-reports-list" style="margin-top:1rem; font-size: 0.9rem;"></div>
-                        <div id="lfm-economics" style="margin-top: 1rem; color: var(--danger-color); font-weight: bold; font-size: 0.9rem;"></div>
-                        
-
-                    </div>
-                </div>
-
-
-                <!-- 4. Стакер -->
-                <div class="glass-panel card collapsible-card" id="stacker-view">
-                    <h3>Стакер (Укладчик)</h3>
-                    <div class="card-content">
-                        <div style="margin-bottom: 1.5rem;">
-                            <input type="text" id="batch-number" placeholder="Номер партии (напр. 0001)" style="margin-bottom:0.5rem">
-                            <select id="batch-product" style="margin-bottom:0.5rem">
-                                <option value="Шифер 7 волн">Шифер 7 волн</option>
-                                <option value="Шифер 7 волн 3500*980">Шифер 7 волн 3500*980</option>
-                                <option value="Шифер 8 волн">Шифер 8 волн</option>
-                                <option value="Шифер 8 волн глад">Шифер 8 волн глад</option>
-                                <option value="Шифер 8 волн пиленый">Шифер 8 волн пиленый</option>
-                                <option value="Шифер плоский 10 мм">Шифер плоский 10 мм</option>
-                                <option value="Шифер плоский 8 мм">Шифер плоский 8 мм</option>
-                                <option value="Шифер плоский 6 мм">Шифер плоский 6 мм</option>
-                                <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
-                            </select>
-                            <input type="number" id="batch-stacks" placeholder="Общее количество (листов)" style="margin-bottom:0.5rem">
-                            <button onclick="createBatch()">Создать партию</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 5. Разборщик -->
-                <div class="glass-panel card collapsible-card" id="destacker-view">
-                    <h3>Дестакер</h3>
-                    <div class="card-content">
-                        <select id="ds-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
-                        <input type="number" id="ds-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
-                        <input type="number" id="ds-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
-                        
-                        <div style="margin-bottom: 0.5rem;">
-                            <label>Был ли брак?</label>
-                            <select id="ds-has-defect" onchange="toggleDefectsBlock()">
-                                <option value="no">Нет</option>
-                                <option value="yes">Да</option>
-                            </select>
-                        </div>
-                        
-                        <div id="ds-defects-block" class="grid-ds-defects" style="display: none; gap: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--glass-border); padding: 0.5rem; border-radius: 8px;">
-                            <input type="number" id="def-chip" placeholder="Скол">
-                            <input type="number" id="def-scratch" placeholder="Сдир">
-                            <input type="number" id="def-bad-cut" placeholder="Плохой рез">
-                            <input type="number" id="def-stick-bottom" placeholder="Налип снизу">
-                            <input type="number" id="def-stick-top" placeholder="Налип сверху">
-                            <input type="number" id="def-broken" placeholder="Сломан">
-                            <input type="number" id="def-fell" placeholder="Упал коробки">
-                            <input type="number" id="def-dent" placeholder="Вмятина">
-                            <input type="number" id="def-thickness" placeholder="Не соотв. толщ.">
-                            <input type="number" id="def-delam" placeholder="Расслоение">
-                            <input type="number" id="def-edge" placeholder="Кромка">
-                        </div>
-                        
-                        <button onclick="updateDestacker()">Сохранить разборку</button>
-                    </div>
-                </div>
-
-                <!-- 6. СКК -->
-                <div class="glass-panel card collapsible-card" id="qcd-view">
-                    <h3>СКК (ОТК)</h3>
-                    <div class="card-content">
-                        <select id="qcd-batch-select" class="batch-selector" style="margin-bottom:0.5rem"><option value="">Выберите партию...</option></select>
-                        <input type="number" id="qcd-condition" placeholder="Кондиция (шт)" style="margin-bottom:0.5rem">
-                        <input type="number" id="qcd-first" placeholder="1 Сорт (шт)" style="margin-bottom:0.5rem">
-                        <input type="number" id="qcd-defect" placeholder="Количество брака (шт)" style="margin-bottom:0.5rem">
-                        <button onclick="updateQCD()">Сохранить контроль</button>
-                    </div>
-                </div>
-
-                <!-- 8. Аналитический Дашборд -->
-                <div class="glass-panel card" id="dashboard-view" style="grid-column: 1 / -1; display: none; margin-top: 1.5rem;">
-                    <h3>Аналитический Дашборд</h3>
-                    
-                    <!-- Таблица недельного отчета -->
-                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                        <h4 style="margin-bottom: 0.75rem;">Итоги работы за неделю (последние 7 смен)</h4>
-                        <div class="table-responsive-container">
-                            <table style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary); font-size: 0.85rem;">
-                                <thead>
-                                    <tr style="border-bottom: 2px solid var(--glass-border);">
-                                        <th style="padding: 0.5rem;">Дата / Смена</th>
-                                        <th style="padding: 0.5rem;">Линия</th>
-                                        <th style="padding: 0.5rem;">Мастер</th>
-                                        <th style="padding: 0.5rem; text-align: right;">Формовка (ЛФМ)</th>
-                                        <th style="padding: 0.5rem; text-align: right;">СКК Конд.</th>
-                                        <th style="padding: 0.5rem; text-align: right;">СКК 1 Сорт</th>
-                                        <th style="padding: 0.5rem; text-align: right;">СКК Брак</th>
-                                        <th style="padding: 0.5rem; text-align: right;">Формовка (т)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="weekly-report-table-body">
-                                    <!-- Данные генерируются из js -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Графики производства и сырья -->
-                    <div class="grid-weekly-charts" id="weekly-charts-container" style="margin-top: 1.5rem;">
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Формовка vs Кондиция (последние 7 смен)</h4>
-                            <div class="chart-container">
-                                <canvas id="chart-weekly-production"></canvas>
-                            </div>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Отклонение расхода сырья (кг)</h4>
-                            <div class="chart-container">
-                                <canvas id="chart-weekly-deviation"></canvas>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Учет Простоев -->
-                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
-                        <h4 style="text-align: center; margin-bottom: 1rem; color: var(--danger-color);">Учет Простоев (Аналитика)</h4>
-                        
-                        <div class="grid-downtime-kpis" style="margin-bottom: 1.5rem; text-align: center;">
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Общее время</div>
-                                <div style="font-size: 1.3rem; font-weight: bold;" id="kpi-dt-minutes">0 мин</div>
-                            </div>
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Потери (Тонны)</div>
-                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tons">0 т</div>
-                            </div>
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);">Финансовые потери</div>
-                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--danger-color);" id="kpi-dt-tenge">0 ₸</div>
-                            </div>
-                        </div>
-
-                        <div class="grid-downtime-charts">
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Топ Узлов (кол-во остановок)</h4>
-                                <div class="chart-container">
-                                    <canvas id="chart-dt-nodes"></canvas>
-                                </div>
-                            </div>
-
-                            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                                <h4 style="text-align: center; margin-bottom: 0.5rem;">Простои по категориям (мин)</h4>
-                                <div class="chart-container">
-                                    <canvas id="chart-dt-category"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
-                </div> <!-- End of production-tab -->
-
-                <div id="materials-tab" class="glass-panel card" style="display: none;">
-                    <h3>🧪 Сводка по сырью (Отклонения)</h3>
-                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br/>Положительное число означает перерасход сырья, отрицательное — экономию.</p>
-                    <div class="table-responsive-container" style="margin-top: 1rem;">
-                        <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
+                <!-- Table display -->
+                <div class="glass-panel card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;">Сводная таблица рапортов</h3>
+                    <div class="table-responsive-container" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table-glass-summary">
                             <thead>
                                 <tr>
-                                    <th>Материал</th>
-                                    <th>Факт ЗО (кг)</th>
-                                    <th>Теория ЛФМ (кг)</th>
-                                    <th>Отклонение (кг)</th>
-                                    <th>Уд. Факт (кг/лист)</th>
-                                    <th>Уд. Теория (кг/лист)</th>
-                                    <th>Уд. Отклонение (кг/лист)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="materials-report-list">
-                                <tr><td colspan="7" style="text-align:center; color: var(--text-secondary);">Загрузка отчета...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div id="downtimes-tab" class="glass-panel card" style="display: none;">
-                    <h3>⏱ Журнал Простоев (Текущая смена)</h3>
-                    
-                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                        <h4>Фиксация нового простоя</h4>
-                        <div class="grid-downtime-fix-form">
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Выбор смены</label>
-                                <select id="journal-dt-shift-select" onchange="onJournalShiftChange()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
-                                    <option value="">-- Выберите смену --</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Время начала</label>
-                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ">
-                            </div>
-                            <div id="wrapper-dt-end">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Время окончания</label>
-                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ">
-                            </div>
-
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
-                                <select id="journal-dt-dept" onchange="onJournalDeptChange()">
-                                    <option value="">-- Выберите участок --</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
-                                <select id="journal-dt-node" onchange="onJournalNodeChange()">
-                                    <option value="">-- Сначала выберите участок --</option>
-                                </select>
-                            </div>
-                            <div id="wrapper-dt-subnode" style="display: none;">
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Подузел</label>
-                                <select id="journal-dt-subnode" onchange="onJournalSubnodeChange()">
-                                    <option value="">-- Выберите подузел --</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
-                                <select id="journal-dt-breakdown" onchange="onJournalBreakdownChange()">
-                                    <option value="">-- Сначала выберите узел --</option>
-                                </select>
-                            </div>
-                            <div style="display: flex; align-items: center; height: 100%; padding-top: 1.2rem;">
-                                <label style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                    <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="width: auto; margin: 0;">
-                                    Ремонт с остановкой оборудования
-                                </label>
-                            </div>
-                        </div>
-                        <div style="margin-top: 1rem;">
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Описание / Комментарий</label>
-                            <input type="text" id="journal-dt-desc" placeholder="Подробная причина остановки">
-                        </div>
-                        <button id="btn-add-dt" onclick="addJournalDowntime()" style="margin-top: 1rem; width: auto; padding: 0.5rem 2rem;">Добавить простой</button>
-                    </div>
-
-                    <div class="table-responsive-container">
-                        <table class="table-glass">
-                            <thead>
-                                <tr>
+                                    <th>Действие</th>
+                                    <th>Дата</th>
                                     <th>Смена</th>
+                                    <th>Линия</th>
+                                    <th>Мастер</th>
+                                    <th>Партия</th>
+                                    <th>Продукция</th>
+                                    <th>Замесы</th>
+                                    <th>Формовка (л)</th>
+                                    <th>Формовка (т)</th>
+                                    <th>Склад ГП (л)</th>
+                                    <th>1 Сорт (л)</th>
+                                    <th>Брак (л)</th>
+                                    <th>Асбест (кг)</th>
+                                    <th>Цемент (кг)</th>
                                     <th>Статус</th>
-                                    <th>Начало</th>
-                                    <th>Конец</th>
-                                    <th>Длительность</th>
-                                    <th>Потери (Тонны / Тенге)</th>
-                                    <th>Участок / Узел / Кат.</th>
-                                    <th>Описание</th>
-                                    <th>Медиа</th>
-                                    <th>Действия</th>
                                 </tr>
                             </thead>
-                            <tbody id="journal-downtimes-list">
-                                <tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
+                            <tbody id="summary-table-body">
+                                <tr><td colspan="16" style="text-align: center; color: var(--text-secondary);">Выберите фильтры и нажмите "Применить"</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
+                <!-- Dashboards section -->
+                <div class="glass-panel card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1.2rem;">Производственные показатели</h3>
+                    <div class="grid-operators-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="kpi-card">
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Всего сформовано</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--accent-color)" id="dash-total-sheets">0 шт</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Всего сдано на склад</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--success-color)" id="dash-total-warehouse">0 шт</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Общий процент брака</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--danger-color)" id="dash-defect-rate">0.0%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div style="font-size: 0.8rem; color: var(--text-secondary);">Общий тоннаж</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: white" id="dash-total-tons">0.0 т</div>
+                        </div>
+                    </div>
 
-                <!-- Вкладка Аналитики Простоев -->
-                <div id="analytics-tab" class="glass-panel card" style="display: none;">
-                    <h3>📈 Аналитика Простоев Оборудования</h3>
-                    
-                    <!-- Фильтры -->
-                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <!-- Chart 1: Plan vs Fact Sheets -->
+                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                            <h4 style="text-align: center; margin-bottom: 0.8rem;">Формовка: План vs Факт (листы)</h4>
+                            <div style="position: relative; height: 260px; width: 100%;">
+                                <canvas id="chart-plan-fact-sheets"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Chart 2: Plan vs Fact Tons -->
+                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                            <h4 style="text-align: center; margin-bottom: 0.8rem;">Формовка: План vs Факт (тонны)</h4>
+                            <div style="position: relative; height: 260px; width: 100%;">
+                                <canvas id="chart-plan-fact-tons"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Materials Dashboard -->
+                <div class="glass-panel card" style="padding: 1.5rem;">
+                    <h3 style="margin-bottom: 1.2rem;">Баланс и Отклонения Сырья</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                            <h4 style="text-align: center; margin-bottom: 0.8rem;">Приход vs Расход сырья</h4>
+                            <div style="position: relative; height: 260px; width: 100%;">
+                                <canvas id="chart-materials-balance"></canvas>
+                            </div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                            <h4 style="text-align: center; margin-bottom: 0.8rem;">Сводное отклонение от норм (кг)</h4>
+                            <div style="position: relative; height: 260px; width: 100%;">
+                                <canvas id="chart-materials-deviations"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 3. DOWNTIMES TAB (⏱ Журнал Простоев) -->
+            <div id="downtimes-tab" class="glass-panel card" style="display: none;">
+                <h3>⏱ Журнал Простоев (Текущая смена)</h3>
+                
+                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h4>Фиксация нового простоя</h4>
+                    <div class="grid-downtime-fix-form">
                         <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата начала</label>
-                            <input type="date" id="analytics-start-date" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Выбор смены</label>
+                            <select id="journal-dt-shift-select" onchange="onJournalShiftChange()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
+                                <option value="">-- Выберите смену --</option>
+                            </select>
                         </div>
                         <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата окончания</label>
-                            <input type="date" id="analytics-end-date" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Время начала</label>
+                            <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ">
+                        </div>
+                        <div id="wrapper-dt-end">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Время окончания</label>
+                            <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ">
                         </div>
                         <div>
                             <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
-                            <select id="analytics-dept" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
-                                <option value="">-- Все участки --</option>
+                            <select id="journal-dt-dept" onchange="onJournalDeptChange()">
+                                <option value="">-- Выберите участок --</option>
                             </select>
                         </div>
-                        <button onclick="loadAnalyticsData()" style="width: auto; padding: 0.5rem 1.5rem; background: var(--primary-color);">Применить фильтры</button>
-                    </div>
-
-                    <!-- KPI карточки -->
-                    <div class="grid-analytics-kpis">
-                        <div style="background: rgba(220, 53, 69, 0.15); border: 1px solid rgba(220, 53, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
-                            <h4 style="color: #ff6b6b; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                🛑 С остановкой оборудования
-                            </h4>
-                            <div class="grid-kpi-two-col">
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Время простоев</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-min">0 мин</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Кол-во случаев</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-count">0</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tons">0.0 т</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери фин.</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tenge">0 ₸</div>
-                                </div>
-                            </div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
+                            <select id="journal-dt-node" onchange="onJournalNodeChange()">
+                                <option value="">-- Сначала выберите участок --</option>
+                            </select>
                         </div>
-                        
-                        <div style="background: rgba(40, 167, 69, 0.15); border: 1px solid rgba(40, 167, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
-                            <h4 style="color: #28a745; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                                ⚡ Без остановки оборудования
-                            </h4>
-                            <div class="grid-kpi-two-col">
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Время ремонта</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-min">0 мин</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Кол-во случаев</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-count">0</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tons">0.0 т</div>
-                                </div>
-                                <div>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери фин.</div>
-                                    <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tenge">0 ₸</div>
-                                </div>
-                            </div>
+                        <div id="wrapper-dt-subnode" style="display: none;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Подузел</label>
+                            <select id="journal-dt-subnode" onchange="onJournalSubnodeChange()">
+                                <option value="">-- Выберите подузел --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
+                            <select id="journal-dt-breakdown" onchange="onJournalBreakdownChange()">
+                                <option value="">-- Сначала выберите узел --</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: center; height: 100%; padding-top: 1.2rem;">
+                            <label style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="width: auto; margin: 0;">
+                                Ремонт с остановкой оборудования
+                            </label>
                         </div>
                     </div>
-
-                    <!-- Графики первого уровня -->
-                    <div class="grid-trend-analytics">
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
-                            <h4 style="text-align: center; margin-bottom: 1rem;">Динамика простоев по дням (минут)</h4>
-                            <canvas id="chart-analytics-trend" style="max-height: 300px;"></canvas>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
-                            <h4 style="text-align: center; margin-bottom: 1rem;">Структура простоев по категориям</h4>
-                            <canvas id="chart-analytics-categories" style="max-height: 300px;"></canvas>
-                        </div>
+                    <div style="margin-top: 1rem;">
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Описание / Комментарий</label>
+                        <input type="text" id="journal-dt-desc" placeholder="Подробная причина остановки">
                     </div>
-
-                    <!-- Узкие места -->
-                    <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; min-height: 350px; margin-top: 1.5rem;">
-                        <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Узкие места: Топ-10 узлов оборудования по времени остановки (минут)</h4>
-                        <canvas id="chart-analytics-bottlenecks" style="max-height: 300px;"></canvas>
-                    </div>
+                    <button id="btn-add-dt" onclick="addJournalDowntime()" style="margin-top: 1rem; width: auto; padding: 0.5rem 2rem;">Добавить простой</button>
                 </div>
 
-                <div id="daily-report-tab" class="glass-panel card" style="display: none;">
-                    <div class="report-filters-row">
-                        <h3 id="daily-report-title">Месячная сводка выработки</h3>
-                        <div class="report-filters-wrapper">
-                            <label style="font-size: 0.9rem; color: var(--text-secondary);">Линия:</label>
-                            <select id="daily-report-line" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px;">
-                                <option value="lfm1">Линия 1 (ЛФМ-1)</option>
-                                <option value="lfm2">Линия 2 (ЛФМ-2)</option>
-                            </select>
-                            
-                            <label style="font-size: 0.9rem; color: var(--text-secondary);">Интервал:</label>
-                            <select id="daily-report-range-type" onchange="toggleRangeControls(); loadDailyReport();" style="padding: 0.5rem; border-radius: 8px;">
-                                <option value="month" selected>Весь месяц</option>
-                                <option value="week">Конкретная неделя</option>
-                                <option value="day">Конкретный день</option>
-                            </select>
-
-                            <label style="font-size: 0.9rem; color: var(--text-secondary);">Бригада:</label>
-                            <select id="daily-report-brigade" onchange="loadDailyReport();" style="padding: 0.5rem; border-radius: 8px;">
-                                <option value="" selected>Все смены</option>
-                                <option value="1">Смена 1</option>
-                                <option value="2">Смена 2</option>
-                                <option value="3">Смена 3</option>
-                                <option value="4">Смена 4</option>
-                            </select>
-
-                            <input type="month" id="daily-report-month" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
-                            
-                            <select id="daily-report-week-select" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; display: none;">
-                                <option value="1" selected>Неделя 1 (1-7)</option>
-                                <option value="2">Неделя 2 (8-14)</option>
-                                <option value="3">Неделя 3 (15-21)</option>
-                                <option value="4">Неделя 4 (22-28)</option>
-                                <option value="5">Неделя 5 (29+)</option>
-                            </select>
-
-                            <input type="date" id="daily-report-day-picker" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2); display: none;">
-                            
-                            <button onclick="exportDailyReportPDF()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">Выгрузить в PDF</button>
-                        </div>
-                    </div>
-
-                    <!-- KPI Summary Cards -->
-                    <div id="daily-report-kpi-container" class="grid-daily-kpis" style="margin-bottom: 1.5rem;">
-                        <div class="kpi-card" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; text-align: center;">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Всего смен</div>
-                            <div id="kpi-shifts-count" style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">0</div>
-                        </div>
-                        <div class="kpi-card" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; text-align: center;">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка (Листы)</div>
-                            <div id="kpi-total-sheets" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0</div>
-                        </div>
-                        <div class="kpi-card" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; text-align: center;">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка (Тонны)</div>
-                            <div id="kpi-total-tons" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0.0</div>
-                        </div>
-                        <div class="kpi-card" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; text-align: center;">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Средний % выполнения плана</div>
-                            <div id="kpi-avg-plan-percent" style="font-size: 1.5rem; font-weight: bold; color: #eab308;">0%</div>
-                        </div>
-                        <div class="kpi-card" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; text-align: center;">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Общий процент брака</div>
-                            <div id="kpi-defect-percent" style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);">0%</div>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производительность (в Листах)</h4>
-                            <div style="position: relative; height: 300px; width: 100%;">
-                                <canvas id="chart-daily-sheets"></canvas>
-                            </div>
-                        </div>
-                        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
-                            <h4 style="text-align: center; margin-bottom: 0.5rem;">Производительность (в Тоннах)</h4>
-                            <div style="position: relative; height: 300px; width: 100%;">
-                                <canvas id="chart-daily-tons"></canvas>
-                            </div>
-                        </div>
-                    </div>
+                <div class="table-responsive-container">
+                    <table class="table-glass">
+                        <thead>
+                            <tr>
+                                <th>Смена</th>
+                                <th>Статус</th>
+                                <th>Начало</th>
+                                <th>Конец</th>
+                                <th>Длительность</th>
+                                <th>Потери (Тонны / Тенге)</th>
+                                <th>Участок / Узел / Кат.</th>
+                                <th>Описание</th>
+                                <th>Медиа</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="journal-downtimes-list">
+                            <tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-
-
             </div>
+
+            <!-- 4. ANALYTICS TAB (📈 Аналитика простоев) -->
+            <div id="analytics-tab" class="glass-panel card" style="display: none;">
+                <h3>📈 Аналитика Простоев Оборудования</h3>
+                
+                <!-- Filters -->
+                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата начала</label>
+                        <input type="date" id="analytics-start-date" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата окончания</label>
+                        <input type="date" id="analytics-end-date" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
+                        <select id="analytics-dept" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                            <option value="">-- Все участки --</option>
+                        </select>
+                    </div>
+                    <button onclick="loadAnalyticsData()" style="width: auto; padding: 0.5rem 1.5rem; background: var(--primary-color);">Применить фильтры</button>
+                </div>
+
+                <!-- KPI карточки -->
+                <div class="grid-analytics-kpis">
+                    <div style="background: rgba(220, 53, 69, 0.15); border: 1px solid rgba(220, 53, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
+                        <h4 style="color: #ff6b6b; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            🛑 С остановкой оборудования
+                        </h4>
+                        <div class="grid-kpi-two-col">
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Время простоев</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-min">0 мин</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Кол-во случаев</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-count">0</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tons">0.0 т</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери фин.</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tenge">0 ₸</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(40, 167, 69, 0.15); border: 1px solid rgba(40, 167, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
+                        <h4 style="color: #28a745; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            ⚡ Без остановки оборудования
+                        </h4>
+                        <div class="grid-kpi-two-col">
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Время ремонта</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-min">0 мин</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Кол-во случаев</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-count">0</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tons">0.0 т</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери фин.</div>
+                                <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tenge">0 ₸</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Графики -->
+                <div class="grid-trend-analytics">
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
+                        <h4 style="text-align: center; margin-bottom: 1rem;">Динамика простоев по дням (минут)</h4>
+                        <canvas id="chart-analytics-trend" style="max-height: 300px;"></canvas>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
+                        <h4 style="text-align: center; margin-bottom: 1rem;">Структура простоев по категориям</h4>
+                        <canvas id="chart-analytics-categories" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- Узкие места -->
+                <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; min-height: 350px; margin-top: 1.5rem;">
+                    <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Узкие места: Топ-10 узлов оборудования по времени остановки (минут)</h4>
+                    <canvas id="chart-analytics-bottlenecks" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+
+            <!-- 5. DAILY REPORT TAB (📈 Месячная сводка выработки) -->
+            <div id="daily-report-tab" class="glass-panel card" style="display: none;">
+                <div class="report-filters-row">
+                    <h3 id="daily-report-title">Месячная сводка выработки</h3>
+                    <div class="report-filters-wrapper">
+                        <label style="font-size: 0.9rem; color: var(--text-secondary);">Линия:</label>
+                        <select id="daily-report-line" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px;">
+                            <option value="lfm1">Линия 1 (ЛФМ-1)</option>
+                            <option value="lfm2">Линия 2 (ЛФМ-2)</option>
+                        </select>
+                        
+                        <label style="font-size: 0.9rem; color: var(--text-secondary);">Интервал:</label>
+                        <select id="daily-report-range-type" onchange="toggleRangeControls(); loadDailyReport();" style="padding: 0.5rem; border-radius: 8px;">
+                            <option value="month" selected>Весь месяц</option>
+                            <option value="week">Конкретная неделя</option>
+                            <option value="day">Конкретный день</option>
+                        </select>
+
+                        <label style="font-size: 0.9rem; color: var(--text-secondary);">Смена мастера:</label>
+                        <select id="daily-report-brigade" onchange="loadDailyReport();" style="padding: 0.5rem; border-radius: 8px;">
+                            <option value="" selected>Все мастера</option>
+                        </select>
+
+                        <input type="month" id="daily-report-month" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                        
+                        <select id="daily-report-week-select" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; display: none;">
+                            <option value="1" selected>Неделя 1 (1-7)</option>
+                            <option value="2">Неделя 2 (8-14)</option>
+                            <option value="3">Неделя 3 (15-21)</option>
+                            <option value="4">Неделя 4 (22-28)</option>
+                            <option value="5">Неделя 5 (29+)</option>
+                        </select>
+
+                        <input type="date" id="daily-report-day-picker" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2); display: none;">
+                        
+                        <button onclick="exportDailyReportPDF()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">Выгрузить в PDF</button>
+                    </div>
+                </div>
+
+                <!-- KPI Summary Cards -->
+                <div id="daily-report-kpi-container" class="grid-daily-kpis" style="margin-bottom: 1.5rem;">
+                    <div class="kpi-card">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Всего смен</div>
+                        <div id="kpi-shifts-count" style="font-size: 1.5rem; font-weight: bold; color: var(--text-primary);">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка (Листы)</div>
+                        <div id="kpi-total-sheets" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка (Тонны)</div>
+                        <div id="kpi-total-tons" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0.0</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Средний % выполнения плана</div>
+                        <div id="kpi-avg-plan-percent" style="font-size: 1.5rem; font-weight: bold; color: #eab308;">0%</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Общий процент брака</div>
+                        <div id="kpi-defect-percent" style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);">0%</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                        <h4 style="text-align: center; margin-bottom: 0.5rem;">Производительность (в Листах)</h4>
+                        <div style="position: relative; height: 300px; width: 100%;">
+                            <canvas id="chart-daily-sheets"></canvas>
+                        </div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;">
+                        <h4 style="text-align: center; margin-bottom: 0.5rem;">Производительность (в Тоннах)</h4>
+                        <div style="position: relative; height: 300px; width: 100%;">
+                            <canvas id="chart-daily-tons"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. MATERIALS TAB (🧪 Сводка по сырью) -->
+            <div id="materials-tab" class="glass-panel card" style="display: none;">
+                <h3>🧪 Сводка по сырью (Отклонения)</h3>
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br/>Положительное число означает перерасход сырья, отрицательное — экономию.</p>
+                <div class="table-responsive-container" style="margin-top: 1rem;">
+                    <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
+                        <thead>
+                            <tr>
+                                <th>Материал</th>
+                                <th>Факт ЗО (кг)</th>
+                                <th>Теория ЛФМ (кг)</th>
+                                <th>Отклонение (кг)</th>
+                                <th>Уд. Факт (кг/лист)</th>
+                                <th>Уд. Теория (кг/лист)</th>
+                                <th>Уд. Отклонение (кг/лист)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materials-report-list">
+                            <tr><td colspan="7" style="text-align:center; color: var(--text-secondary);">Загрузка отчета...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
     
-    <!-- Модальное окно редактирования простоя -->
-    <div id="edit-dt-modal" class="glass-panel card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 500px; box-shadow: 0 0 20px rgba(0,0,0,0.8); background: rgba(30, 41, 59, 0.95);">
+    <!-- Modal for editing downtimes -->
+    <div id="edit-dt-modal" class="glass-panel card" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; width: 90%; max-width: 500px; box-shadow: 0 0 20px rgba(0,0,0,0.8); background: rgba(30, 41, 59, 0.95); padding: 1.5rem;">
         <h3 style="margin-bottom: 1rem; color: var(--accent-color);">Редактирование простоя</h3>
         <input type="hidden" id="edit-dt-id">
         <div class="two-col-grid" style="margin-bottom: 1rem;">
@@ -937,11 +916,10 @@
         </div>
         <div style="display:flex; gap: 1rem;">
             <button onclick="submitEditDowntime()">Сохранить изменения</button>
-            <button onclick="closeEditDowntimeModal()" style="background: rgba(255,255,255,0.1);">Отмена</button>
+            <button onclick="closeEditDowntimeModal()" style="background: rgba(255,255,255,0.1); color: white;">Отмена</button>
         </div>
     </div>
     
-
-    <script src="/static/js/app.js?v=20260708_v5"> </script>
+    <script src="/static/js/app.js?v=20260712_unified_v7"> </script>
 </body>
 </html>

@@ -103,4 +103,20 @@ with engine.connect() as conn:
     else:
         print("Column 'sharepoint_url' already exists in 'shifts'.")
 
+    # Check Shift columns for master unified report fields
+    for col in ['batch_number', 'product_name']:
+        res_shift_col = conn.execute(text(f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='shifts' AND column_name='{col}';
+        """)).fetchone()
+        if not res_shift_col:
+            print(f"Adding column '{col}' to table 'shifts'...")
+            conn.execute(text(f"ALTER TABLE shifts ADD COLUMN {col} VARCHAR(255) DEFAULT '';"))
+            conn.commit()
+            print(f"Column '{col}' added successfully.")
+        else:
+            print(f"Column '{col}' already exists in 'shifts'.")
+
+
 

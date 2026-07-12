@@ -33,6 +33,19 @@ async def lifespan(app: FastAPI):
     import sqlite3
     try:
         conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE shifts ADD COLUMN batch_number VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE shifts ADD COLUMN product_name VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
+    
+    try:
+        conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE monthly_plan_board ADD COLUMN first_grade INTEGER DEFAULT 0")
         conn.commit()
         conn.close()
@@ -196,6 +209,20 @@ async def lifespan(app: FastAPI):
         db.close()
     
     seed_norms.seed_norms()
+
+    # Seed generic master profile 'Мастер смены'
+    db = SessionLocal()
+    try:
+        generic_master = db.query(models.Master).filter(models.Master.name == "Мастер смены").first()
+        if not generic_master:
+            generic_master = models.Master(name="Мастер смены", pin="1234", role="master")
+            db.add(generic_master)
+            db.commit()
+            print("Successfully seeded 'Мастер смены' profile.")
+    except Exception as e:
+        print(f"Error seeding generic master: {e}")
+    finally:
+        db.close()
 
     # SharePoint directories bootstrap/sync check
     db = SessionLocal()
@@ -907,6 +934,521 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
     
     db.commit()
     return {"status": "success"}
+
+
+
+def calculate_shift_deviations(db: Session, shift: models.Shift):
+    # Find LFM reports for the shift
+    lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all()
+    product_counts = {}
+    for r in lfm_reports:
+        product_counts[r.product_name] = product_counts.get(r.product_name, 0) + r.lfm_sheets
+        
+    theoretical = {
+        "chrysotile_4_20": 0.0,
+        "chrysotile_5_65": 0.0,
+        "chrysotile_6_40": 0.0,
+        "cement": 0.0,
+        "cellulose": 0.0,
+        "crushed_slate": 0.0,
+        "asbozurit": 0.0,
+        "fiberglass": 0.0,
+        "asbocarton": 0.0,
+        "laprol": 0.0
+    }
+    
+    for prod_name, sheets in product_counts.items():
+        norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == prod_name).first()
+        if norm:
+            theoretical["chrysotile_4_20"] += sheets * (norm.norm_chrysotile_4_20 or 0.0)
+            theoretical["chrysotile_5_65"] += sheets * (norm.norm_chrysotile_5_65 or 0.0)
+            theoretical["chrysotile_6_40"] += sheets * (norm.norm_chrysotile_6_40 or 0.0)
+            theoretical["cement"] += sheets * (norm.norm_cement or 0.0)
+            theoretical["cellulose"] += sheets * (norm.norm_cellulose or 0.0)
+            theoretical["crushed_slate"] += sheets * (norm.norm_crushed_slate or 0.0)
+            theoretical["asbozurit"] += sheets * (norm.norm_asbozurit or 0.0)
+            theoretical["fiberglass"] += sheets * (norm.norm_fiberglass or 0.0)
+            
+    actual = {
+        "chrysotile_4_20": shift.zo_chrysotile_4_20 or 0.0,
+        "chrysotile_5_65": shift.zo_chrysotile_5_65 or 0.0,
+        "chrysotile_6_40": shift.zo_chrysotile_6_40 or 0.0,
+        "cement": shift.zo_cement or 0.0,
+        "cellulose": shift.zo_cellulose or 0.0,
+        "crushed_slate": shift.zo_crushed_slate or 0.0,
+        "asbozurit": shift.zo_asbozurit or 0.0,
+        "fiberglass": shift.zo_fiberglass or 0.0,
+        "asbocarton": shift.zo_asbocarton or 0.0,
+        "laprol": shift.zo_laprol or 0.0
+    }
+    
+    deviations = {}
+    for mat in theoretical.keys():
+        deviations[mat] = round(actual[mat] - theoretical[mat], 2)
+        
+    return {
+        "theoretical": theoretical,
+        "actual": actual,
+        "deviations": deviations
+    }
+
+
+def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftReportCreate, user_name: str, is_new: bool):
+    # Old values logging
+    old_values = {}
+    if not is_new:
+        old_values = {
+            "master_id": shift.master_id,
+            "batch_number": shift.batch_number,
+            "product_name": shift.product_name,
+            "zo_batches": shift.zo_batches,
+            "zo_chrysotile_4_20": shift.zo_chrysotile_4_20,
+            "zo_chrysotile_5_65": shift.zo_chrysotile_5_65,
+            "zo_chrysotile_6_40": shift.zo_chrysotile_6_40,
+            "zo_cement_silo1": shift.zo_cement_silo1,
+            "zo_cement_silo2": shift.zo_cement_silo2,
+            "zo_cement_silo3": shift.zo_cement_silo3,
+            "zo_cement_silo4": shift.zo_cement_silo4,
+            "zo_cellulose": shift.zo_cellulose,
+            "zo_crushed_slate": shift.zo_crushed_slate,
+            "zo_asbozurit": shift.zo_asbozurit,
+            "zo_fiberglass": shift.zo_fiberglass,
+            "zo_laprol": shift.zo_laprol,
+            "zo_asbocarton": shift.zo_asbocarton,
+            "zo_asb_drain": shift.zo_asb_drain,
+            "zo_cem_drain": shift.zo_cem_drain,
+            "receipt_chrysotile_4_20": shift.receipt_chrysotile_4_20,
+            "receipt_chrysotile_5_65": shift.receipt_chrysotile_5_65,
+            "receipt_chrysotile_6_40": shift.receipt_chrysotile_6_40,
+            "receipt_cement": shift.receipt_cement,
+            "receipt_cellulose": shift.receipt_cellulose,
+            "receipt_crushed_slate": shift.receipt_crushed_slate,
+            "receipt_asbozurit": shift.receipt_asbozurit,
+            "receipt_asbocarton": shift.receipt_asbocarton,
+            "receipt_pallets": shift.receipt_pallets,
+            "receipt_fiberglass": shift.receipt_fiberglass,
+            "receipt_laprol": shift.receipt_laprol
+        }
+
+    # Update Shift fields
+    shift.master_id = data.master_id
+    shift.batch_number = data.batch_number
+    shift.product_name = data.product_name
+    
+    # Расход сырья
+    shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20
+    shift.zo_chrysotile_5_65 = data.zo_chrysotile_5_65
+    shift.zo_chrysotile_6_40 = data.zo_chrysotile_6_40
+    shift.zo_cement_silo1 = data.zo_cement_silo1
+    shift.zo_cement_silo2 = data.zo_cement_silo2
+    shift.zo_cement_silo3 = data.zo_cement_silo3
+    shift.zo_cement_silo4 = data.zo_cement_silo4
+    shift.zo_cement = (data.zo_cement_silo1 or 0) + (data.zo_cement_silo2 or 0) + (data.zo_cement_silo3 or 0) + (data.zo_cement_silo4 or 0)
+    shift.zo_cellulose = data.zo_cellulose
+    shift.zo_crushed_slate = data.zo_crushed_slate
+    shift.zo_asbozurit = data.zo_asbozurit
+    shift.zo_fiberglass = data.zo_fiberglass
+    shift.zo_laprol = data.zo_laprol
+    shift.zo_asbocarton = data.zo_asbocarton
+    shift.zo_asb_drain = data.zo_asb_drain
+    shift.zo_cem_drain = data.zo_cem_drain
+    shift.zo_batches = data.zo_batches
+    shift.zo_submitted = True
+
+    # Приход сырья
+    shift.receipt_chrysotile_4_20 = data.receipt_chrysotile_4_20
+    shift.receipt_chrysotile_5_65 = data.receipt_chrysotile_5_65
+    shift.receipt_chrysotile_6_40 = data.receipt_chrysotile_6_40
+    shift.receipt_cement = data.receipt_cement
+    shift.receipt_cellulose = data.receipt_cellulose
+    shift.receipt_crushed_slate = data.receipt_crushed_slate
+    shift.receipt_asbozurit = data.receipt_asbozurit
+    shift.receipt_asbocarton = data.receipt_asbocarton
+    shift.receipt_pallets = data.receipt_pallets
+    shift.receipt_fiberglass = data.receipt_fiberglass
+    shift.receipt_laprol = data.receipt_laprol
+
+    # Update LFM report
+    lfm_report = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
+    if not lfm_report:
+        lfm_report = models.LFMReport(shift_id=shift.id)
+        db.add(lfm_report)
+    lfm_report.product_name = data.product_name
+    lfm_report.lfm_sheets = data.lfm_sheets
+    lfm_report.lfm_wind_resets = data.lfm_wind_resets
+    lfm_report.formed_1st_grade = data.first_grade
+    lfm_report.formed_defect = data.qcd_defect
+    lfm_report.transferred_to_warehouse = data.warehouse_gp
+
+    # Update Batch
+    batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+    if not batch:
+        batch = models.Batch(shift_id=shift.id)
+        db.add(batch)
+    batch.batch_number = data.batch_number
+    batch.product_name = data.product_name
+    batch.status = "qcd_checked"
+    batch.stacked_stacks = data.lfm_sheets
+    batch.ds_condition = data.warehouse_gp
+    batch.ds_first_grade = data.first_grade
+    
+    # Calculate defect sum
+    ds_defect_sum = (
+        data.ds_defect_chip + data.ds_defect_scratch + data.ds_defect_bad_cut +
+        data.ds_defect_stick_bottom + data.ds_defect_stick_top + data.ds_defect_broken +
+        data.ds_defect_fell_box + data.ds_defect_dent + data.ds_defect_thickness +
+        data.ds_defect_delamination + data.ds_defect_edge
+    )
+    batch.ds_defect = ds_defect_sum
+    batch.ds_defect_chip = data.ds_defect_chip
+    batch.ds_defect_scratch = data.ds_defect_scratch
+    batch.ds_defect_bad_cut = data.ds_defect_bad_cut
+    batch.ds_defect_stick_bottom = data.ds_defect_stick_bottom
+    batch.ds_defect_stick_top = data.ds_defect_stick_top
+    batch.ds_defect_broken = data.ds_defect_broken
+    batch.ds_defect_fell_box = data.ds_defect_fell_box
+    batch.ds_defect_dent = data.ds_defect_dent
+    batch.ds_defect_thickness = data.ds_defect_thickness
+    batch.ds_defect_delamination = data.ds_defect_delamination
+    batch.ds_defect_edge = data.ds_defect_edge
+
+    batch.qcd_condition = data.warehouse_gp
+    batch.qcd_first_grade = data.first_grade
+    batch.qcd_defect = data.qcd_defect
+
+    db.commit()
+
+    # Sync to MonthlyPlanBoard (which also writes AuditLog)
+    sync_lfm_to_plan_board(shift.id, db)
+
+    # Write AuditLog for the shift update
+    if is_new:
+        db.add(models.AuditLog(
+            user_name=user_name,
+            action="CREATE",
+            target_table="shifts",
+            target_id=shift.id,
+            details=f"Создан новый единый рапорт мастера для смены {shift.id} ({data.date} {data.shift_name} {data.line})"
+        ))
+    else:
+        new_values = {
+            "master_id": shift.master_id,
+            "batch_number": shift.batch_number,
+            "product_name": shift.product_name,
+            "zo_batches": shift.zo_batches,
+            "zo_chrysotile_4_20": shift.zo_chrysotile_4_20,
+            "zo_chrysotile_5_65": shift.zo_chrysotile_5_65,
+            "zo_chrysotile_6_40": shift.zo_chrysotile_6_40,
+            "zo_cement_silo1": shift.zo_cement_silo1,
+            "zo_cement_silo2": shift.zo_cement_silo2,
+            "zo_cement_silo3": shift.zo_cement_silo3,
+            "zo_cement_silo4": shift.zo_cement_silo4,
+            "zo_cellulose": shift.zo_cellulose,
+            "zo_crushed_slate": shift.zo_crushed_slate,
+            "zo_asbozurit": shift.zo_asbozurit,
+            "zo_fiberglass": shift.zo_fiberglass,
+            "zo_laprol": shift.zo_laprol,
+            "zo_asbocarton": shift.zo_asbocarton,
+            "zo_asb_drain": shift.zo_asb_drain,
+            "zo_cem_drain": shift.zo_cem_drain,
+            "receipt_chrysotile_4_20": shift.receipt_chrysotile_4_20,
+            "receipt_chrysotile_5_65": shift.receipt_chrysotile_5_65,
+            "receipt_chrysotile_6_40": shift.receipt_chrysotile_6_40,
+            "receipt_cement": shift.receipt_cement,
+            "receipt_cellulose": shift.receipt_cellulose,
+            "receipt_crushed_slate": shift.receipt_crushed_slate,
+            "receipt_asbozurit": shift.receipt_asbozurit,
+            "receipt_asbocarton": shift.receipt_asbocarton,
+            "receipt_pallets": shift.receipt_pallets,
+            "receipt_fiberglass": shift.receipt_fiberglass,
+            "receipt_laprol": shift.receipt_laprol
+        }
+        changes = []
+        for k, old_v in old_values.items():
+            new_v = new_values.get(k)
+            if old_v != new_v:
+                changes.append(f"{k}: {old_v} -> {new_v}")
+        if changes:
+            db.add(models.AuditLog(
+                user_name=user_name,
+                action="UPDATE",
+                target_table="shifts",
+                target_id=shift.id,
+                details=f"Обновлен рапорт мастера смены {shift.id}. Изменения: " + ", ".join(changes)
+            ))
+    db.commit()
+
+
+@app.post("/api/report")
+def save_shift_report(data: schemas.ShiftReportCreate, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id") or 9999
+    user_role = request.session.get("user_role") or "admin"
+    user_name = request.session.get("user_name") or "Админ"
+        
+    if user_role not in ["master", "admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастера или администраторы могут сохранять рапорты.")
+        
+    # Check if shift exists or create it
+    shift = db.query(models.Shift).filter(
+        models.Shift.date == data.date,
+        models.Shift.shift_name == data.shift_name,
+        models.Shift.line == data.line
+    ).first()
+    
+    is_new = False
+    if not shift:
+        is_new = True
+        shift = models.Shift(
+            date=data.date,
+            shift_name=data.shift_name,
+            line=data.line,
+            master_id=data.master_id,
+            status="active"
+        )
+        db.add(shift)
+        db.flush()
+    else:
+        if shift.status == "closed" and user_role != "admin":
+            raise HTTPException(status_code=403, detail="Смена уже закрыта. Только администратор может редактировать закрытые смены.")
+        # If active, master can edit it. But if role is master, check if they own it
+        if user_role == "master" and shift.master_id != user_id:
+            raise HTTPException(status_code=403, detail="Смена открыта другим мастером. Вы не можете ее редактировать.")
+
+    save_report_internal(db, shift, data, user_name, is_new)
+    return {"status": "success", "shift_id": shift.id}
+
+
+@app.put("/api/report/{shift_id}")
+def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    if not user_id or not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Смена не найдена")
+        
+    if user_role == "master" and shift.master_id != user_id:
+        raise HTTPException(status_code=403, detail="Вы не можете редактировать смену другого мастера")
+        
+    if shift.status == "closed" and user_role != "admin":
+        raise HTTPException(status_code=403, detail="Смена закрыта. Только администратор может редактировать закрытую смену.")
+        
+    save_report_internal(db, shift, data, user_name, False)
+    return {"status": "success", "shift_id": shift.id}
+
+
+@app.get("/api/report/summary")
+def get_report_summary(
+    request: Request,
+    from_date: str = None,
+    to_date: str = None,
+    line: str = None,
+    master_id: int = None,
+    db: Session = Depends(get_db)
+):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    query = db.query(models.Shift)
+    
+    if from_date:
+        query = query.filter(models.Shift.date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+    if to_date:
+        query = query.filter(models.Shift.date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+    if line:
+        query = query.filter(models.Shift.line == line)
+    if master_id:
+        query = query.filter(models.Shift.master_id == master_id)
+        
+    shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+    
+    result = []
+    for shift in shifts:
+        is_other_master = (user_role == "master" and shift.master_id != user_id)
+        
+        lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
+        lfm_sheets = lfm.lfm_sheets if (lfm and not is_other_master) else 0
+        lfm_resets = lfm.lfm_wind_resets if (lfm and not is_other_master) else 0
+        
+        batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+        warehouse_gp = batch.ds_condition if (batch and not is_other_master) else 0
+        first_grade = batch.ds_first_grade if (batch and not is_other_master) else 0
+        qcd_defect = batch.qcd_defect if (batch and not is_other_master) else 0
+        
+        ds_defects = {
+            "ds_defect_chip": batch.ds_defect_chip if (batch and not is_other_master) else 0,
+            "ds_defect_scratch": batch.ds_defect_scratch if (batch and not is_other_master) else 0,
+            "ds_defect_bad_cut": batch.ds_defect_bad_cut if (batch and not is_other_master) else 0,
+            "ds_defect_stick_bottom": batch.ds_defect_stick_bottom if (batch and not is_other_master) else 0,
+            "ds_defect_stick_top": batch.ds_defect_stick_top if (batch and not is_other_master) else 0,
+            "ds_defect_broken": batch.ds_defect_broken if (batch and not is_other_master) else 0,
+            "ds_defect_fell_box": batch.ds_defect_fell_box if (batch and not is_other_master) else 0,
+            "ds_defect_dent": batch.ds_defect_dent if (batch and not is_other_master) else 0,
+            "ds_defect_thickness": batch.ds_defect_thickness if (batch and not is_other_master) else 0,
+            "ds_defect_delamination": batch.ds_defect_delamination if (batch and not is_other_master) else 0,
+            "ds_defect_edge": batch.ds_defect_edge if (batch and not is_other_master) else 0,
+        }
+        
+        product_name = shift.product_name if not is_other_master else "Скрыто"
+        batch_number = shift.batch_number if not is_other_master else "Скрыто"
+        master_name = "Смена другого мастера" if is_other_master else (shift.master.name if shift.master else "Н/Д")
+        
+        lfm_tons = round(lfm_sheets * get_product_finished_weight_kg(db, product_name) / 1000.0, 2) if (lfm_sheets and not is_other_master) else 0.0
+        
+        dev_data = {"theoretical": {}, "actual": {}, "deviations": {}}
+        if not is_other_master:
+            dev_data = calculate_shift_deviations(db, shift)
+            
+        result.append({
+            "shift_id": shift.id,
+            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+            "shift_name": shift.shift_name,
+            "line": shift.line,
+            "master_id": shift.master_id,
+            "master_name": master_name,
+            "batch_number": batch_number,
+            "product_name": product_name,
+            "status": shift.status,
+            
+            "plan_sheets": shift.plan_sheets or 0,
+            "plan_tons": shift.plan_tons or 0.0,
+            
+            "lfm_sheets": lfm_sheets,
+            "lfm_wind_resets": lfm_resets,
+            "lfm_tons": lfm_tons,
+            "zo_batches": shift.zo_batches if not is_other_master else 0,
+            
+            "warehouse_gp": warehouse_gp,
+            "first_grade": first_grade,
+            "defect": qcd_defect,
+            "ds_defects": ds_defects,
+            
+            "receipts": {
+                "chrysotile_4_20": shift.receipt_chrysotile_4_20 if not is_other_master else 0.0,
+                "chrysotile_5_65": shift.receipt_chrysotile_5_65 if not is_other_master else 0.0,
+                "chrysotile_6_40": shift.receipt_chrysotile_6_40 if not is_other_master else 0.0,
+                "cement": shift.receipt_cement if not is_other_master else 0.0,
+                "cellulose": shift.receipt_cellulose if not is_other_master else 0.0,
+                "crushed_slate": shift.receipt_crushed_slate if not is_other_master else 0.0,
+                "asbozurit": shift.receipt_asbozurit if not is_other_master else 0.0,
+                "asbocarton": shift.receipt_asbocarton if not is_other_master else 0.0,
+                "pallets": shift.receipt_pallets if not is_other_master else 0.0,
+                "fiberglass": shift.receipt_fiberglass if not is_other_master else 0.0,
+                "laprol": shift.receipt_laprol if not is_other_master else 0.0
+            },
+            "zo_usage": {
+                "chrysotile_4_20": shift.zo_chrysotile_4_20 if not is_other_master else 0.0,
+                "chrysotile_5_65": shift.zo_chrysotile_5_65 if not is_other_master else 0.0,
+                "chrysotile_6_40": shift.zo_chrysotile_6_40 if not is_other_master else 0.0,
+                "cement_silo1": shift.zo_cement_silo1 if not is_other_master else 0.0,
+                "cement_silo2": shift.zo_cement_silo2 if not is_other_master else 0.0,
+                "cement_silo3": shift.zo_cement_silo3 if not is_other_master else 0.0,
+                "cement_silo4": shift.zo_cement_silo4 if not is_other_master else 0.0,
+                "cellulose": shift.zo_cellulose if not is_other_master else 0.0,
+                "crushed_slate": shift.zo_crushed_slate if not is_other_master else 0.0,
+                "asbozurit": shift.zo_asbozurit if not is_other_master else 0.0,
+                "fiberglass": shift.zo_fiberglass if not is_other_master else 0.0,
+                "laprol": shift.zo_laprol if not is_other_master else 0.0,
+                "asbocarton": shift.zo_asbocarton if not is_other_master else 0.0,
+                "asb_drain": shift.zo_asb_drain if not is_other_master else 0.0,
+                "cem_drain": shift.zo_cem_drain if not is_other_master else 0.0
+            },
+            "deviations": dev_data
+        })
+        
+    return result
+
+
+@app.get("/api/report/materials_summary")
+def get_materials_summary(
+    request: Request,
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db)
+):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    query = db.query(models.Shift)
+    
+    if user_role == "master" and user_id:
+        query = query.filter(models.Shift.master_id == user_id)
+        
+    if start_date:
+        query = query.filter(models.Shift.date >= datetime.strptime(start_date, "%Y-%m-%d").date())
+    if end_date:
+        query = query.filter(models.Shift.date <= datetime.strptime(end_date, "%Y-%m-%d").date())
+        
+    shifts = query.order_by(models.Shift.date.asc()).all()
+    
+    materials = [
+        "chrysotile_4_20", "chrysotile_5_65", "chrysotile_6_40",
+        "cement", "cellulose", "crushed_slate", "asbozurit",
+        "asbocarton", "fiberglass", "laprol"
+    ]
+    
+    totals = {m: {"receipt": 0.0, "zo": 0.0, "deviation": 0.0} for m in materials}
+    daily_breakdown = []
+    
+    for shift in shifts:
+        zo_cem = (shift.zo_cement_silo1 or 0) + (shift.zo_cement_silo2 or 0) + (shift.zo_cement_silo3 or 0) + (shift.zo_cement_silo4 or 0)
+        
+        shift_mats = {
+            "chrysotile_4_20": {"receipt": shift.receipt_chrysotile_4_20 or 0.0, "zo": shift.zo_chrysotile_4_20 or 0.0},
+            "chrysotile_5_65": {"receipt": shift.receipt_chrysotile_5_65 or 0.0, "zo": shift.zo_chrysotile_5_65 or 0.0},
+            "chrysotile_6_40": {"receipt": shift.receipt_chrysotile_6_40 or 0.0, "zo": shift.zo_chrysotile_6_40 or 0.0},
+            "cement": {"receipt": shift.receipt_cement or 0.0, "zo": zo_cem},
+            "cellulose": {"receipt": shift.receipt_cellulose or 0.0, "zo": shift.zo_cellulose or 0.0},
+            "crushed_slate": {"receipt": shift.receipt_crushed_slate or 0.0, "zo": shift.zo_crushed_slate or 0.0},
+            "asbozurit": {"receipt": shift.receipt_asbozurit or 0.0, "zo": shift.zo_asbozurit or 0.0},
+            "asbocarton": {"receipt": shift.receipt_asbocarton or 0.0, "zo": shift.zo_asbocarton or 0.0},
+            "fiberglass": {"receipt": shift.receipt_fiberglass or 0.0, "zo": shift.zo_fiberglass or 0.0},
+            "laprol": {"receipt": shift.receipt_laprol or 0.0, "zo": shift.zo_laprol or 0.0}
+        }
+        
+        dev_info = calculate_shift_deviations(db, shift)
+        shift_devs = dev_info["deviations"]
+        
+        day_entry = {
+            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+            "shift_name": shift.shift_name,
+            "line": shift.line,
+            "materials": {}
+        }
+        
+        for m in materials:
+            r = shift_mats[m]["receipt"]
+            z = shift_mats[m]["zo"]
+            d = shift_devs.get(m, round(z - r, 2)) if m != "cement" else shift_devs.get("cement", round(z - r, 2))
+            
+            day_entry["materials"][m] = {
+                "receipt": round(r, 2),
+                "zo": round(z, 2),
+                "deviation": round(d, 2)
+            }
+            
+            totals[m]["receipt"] += r
+            totals[m]["zo"] += z
+            totals[m]["deviation"] += d
+            
+        daily_breakdown.append(day_entry)
+        
+    for m in materials:
+        totals[m]["receipt"] = round(totals[m]["receipt"], 2)
+        totals[m]["zo"] = round(totals[m]["zo"], 2)
+        totals[m]["deviation"] = round(totals[m]["deviation"], 2)
+        
+    return {
+        "totals": totals,
+        "daily": daily_breakdown
+    }
 
 
 def sync_lfm_to_plan_board(shift_id: int, db: Session):

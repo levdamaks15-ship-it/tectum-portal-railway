@@ -293,3 +293,68 @@ class RawMaterialsBulkUpdate(BaseModel):
     zo_batches: int = 0
 
 
+class ShiftReportCreate(BaseModel):
+    date: date
+    shift_name: str
+    line: str
+    master_id: int
+    batch_number: str
+    product_name: str
+    
+    # Производство / ЛФМ
+    lfm_sheets: int = 0
+    lfm_wind_resets: int = 0
+    zo_batches: int = 0
+    
+    # Переборка / Брак
+    warehouse_gp: int = 0
+    first_grade: int = 0
+    has_defect: str = "no"
+    
+    # Детализация брака (Дестакер)
+    ds_defect_chip: int = 0
+    ds_defect_scratch: int = 0
+    ds_defect_bad_cut: int = 0
+    ds_defect_stick_bottom: int = 0
+    ds_defect_stick_top: int = 0
+    ds_defect_broken: int = 0
+    ds_defect_fell_box: int = 0
+    ds_defect_dent: int = 0
+    ds_defect_thickness: int = 0
+    ds_defect_delamination: int = 0
+    ds_defect_edge: int = 0
+    
+    # Итоговый брак СКК
+    qcd_defect: int = 0
+
+    # Расход сырья (ЗО)
+    zo_chrysotile_4_20: float = 0.0
+    zo_chrysotile_5_65: float = 0.0
+    zo_chrysotile_6_40: float = 0.0
+    zo_cement_silo1: float = 0.0
+    zo_cement_silo2: float = 0.0
+    zo_cement_silo3: float = 0.0
+    zo_cement_silo4: float = 0.0
+    zo_cellulose: float = 0.0
+    zo_crushed_slate: float = 0.0
+    zo_asbozurit: float = 0.0
+    zo_fiberglass: float = 0.0
+    zo_laprol: float = 0.0
+    zo_asbocarton: float = 0.0
+    zo_asb_drain: float = 0.0
+    zo_cem_drain: float = 0.0
+
+    # Приход сырья (Склад)
+    receipt_chrysotile_4_20: float = 0.0
+    receipt_chrysotile_5_65: float = 0.0
+    receipt_chrysotile_6_40: float = 0.0
+    receipt_cement: float = 0.0
+    receipt_cellulose: float = 0.0
+    receipt_crushed_slate: float = 0.0
+    receipt_asbozurit: float = 0.0
+    receipt_asbocarton: float = 0.0
+    receipt_pallets: float = 0.0
+    receipt_fiberglass: float = 0.0
+    receipt_laprol: float = 0.0
+
+

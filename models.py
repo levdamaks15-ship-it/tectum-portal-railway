@@ -20,6 +20,8 @@ class Shift(Base):
     line = Column(String) # "Линия 1", "Линия 2"
     status = Column(String, default="active") # active, closed
     sharepoint_url = Column(String(500), nullable=True)
+    batch_number = Column(String, default="", nullable=True)
+    product_name = Column(String, default="", nullable=True)
     
     # План
     plan_sheets = Column(Integer, default=0)
