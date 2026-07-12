@@ -2685,13 +2685,24 @@ def sync_sharepoint_manually(request: Request, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail=f"Ошибка синхронизации: {error_msg}")
 
 @app.get("/api/dashboard/view_archive")
-def view_archive():
+def view_archive(db: Session = Depends(get_db)):
     try:
         url = m365_integration.get_file_web_url("Сводный_отчет_Tectum.xlsx", folder="Reports")
         return RedirectResponse(url=url)
     except Exception as e:
-        print("Ошибка получения ссылки из SharePoint, отдаем локальный файл:", e)
-        return RedirectResponse(url="/api/dashboard/export_shift")
+        print("Ошибка получения ссылки из SharePoint, пробуем сгенерировать и загрузить отчет:", e)
+        try:
+            file_bytes = excel_exporter.generate_flat_report(db)
+            filename = "Сводный_отчет_Tectum.xlsx"
+            url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+            return RedirectResponse(url=url)
+        except Exception as upload_err:
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Не удалось открыть сводный отчет в SharePoint. Ошибка автозагрузки: {upload_err}. Исходная ошибка: {e}"
+            )
 
 @app.get("/api/dashboard/export_week")
 def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
