@@ -321,6 +321,8 @@ def sync_directories_from_excel_bytes(file_bytes: bytes, db: Session):
                 p_name = ws_norm.cell(row=row_idx, column=1).value
                 if not p_name: continue
                 p_name = str(p_name).strip()
+                if p_name == "Шифер 8 волн пиленый":
+                    p_name = "Шифер 8 волн рифленый"
                 
                 weight = float(ws_norm.cell(row=row_idx, column=2).value or 0.0)
                 n_c4 = float(ws_norm.cell(row=row_idx, column=3).value or 0.0)
