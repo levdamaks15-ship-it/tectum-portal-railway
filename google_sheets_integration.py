@@ -218,14 +218,16 @@ def sync_report_to_google_sheets(db: Session):
         ).execute()
         existing_rows = [headers]
 
-    # Сначала очистим старые строки данных на листе (с А2 по АО1000)
-    # Это гарантирует, что если старые тестовые смены удалены из БД, они удалятся и из Google Sheets
-    service.spreadsheets().values().clear(
+    # Вместо clear() делаем жесткую перезапись диапазона A2:AO1000 пустыми значениями
+    # Это решает проблему Умной Таблицы, не сдвигая строки вниз
+    empty_block = [["" for _ in range(len(headers))] for _ in range(999)]
+    service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A2:AO1000"
+        range=f"'{sheet_name}'!A2:AO1000",
+        valueInputOption="USER_ENTERED",
+        body={"values": empty_block}
     ).execute()
     
-    # Сбрасываем row_mapping, так как мы только что очистили все строки данных
     row_mapping = {}
     
     # Очищаем старые правила условного форматирования для этого листа
