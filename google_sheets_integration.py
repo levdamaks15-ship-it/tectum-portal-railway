@@ -15,9 +15,15 @@ def get_sheets_service():
     if not os.path.exists(CREDENTIALS_PATH):
         raise FileNotFoundError(f"Файл ключа Google не найден по пути: {CREDENTIALS_PATH}")
     
-    # Загружаем credentials сервисного аккаунта
-    creds = service_account.Credentials.from_service_account_file(
-        CREDENTIALS_PATH,
+    # Считываем JSON и исправляем переносы строк в private_key для Linux
+    with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+        info = json.load(f)
+    
+    if "private_key" in info:
+        info["private_key"] = info["private_key"].replace("\\n", "\n")
+        
+    creds = service_account.Credentials.from_service_account_info(
+        info,
         scopes=["https://www.googleapis.com/auth/spreadsheets"]
     )
     return build("sheets", "v4", credentials=creds)
