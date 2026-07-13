@@ -1180,6 +1180,8 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     db.commit()
 
 
+import google_sheets_integration
+
 def sync_sharepoint_report_bg():
     db = SessionLocal()
     try:
@@ -1193,8 +1195,11 @@ def sync_sharepoint_report_bg():
             print(f"Error saving local excel: {local_err}")
             
         m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+        
+        # Запускаем синхронизацию с Google Таблицами
+        google_sheets_integration.sync_report_to_google_sheets(db)
     except Exception as e:
-        print(f"Error in SharePoint background sync: {e}")
+        print(f"Error in SharePoint/Google background sync: {e}")
     finally:
         db.close()
 
