@@ -198,6 +198,20 @@ def sync_report_to_google_sheets(db: Session):
         range=f"'{sheet_name}'!A1:AO1000"
     ).execute()
     
+    # Очищаем старые правила условного форматирования для этого листа
+    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    existing_rules = sheet_meta.get("conditionalFormats", [])
+    if existing_rules:
+        clear_requests = []
+        for idx in range(len(existing_rules) - 1, -1, -1):
+            clear_requests.append({
+                "deleteConditionalFormatRule": {
+                    "sheetId": sheet_id,
+                    "index": idx
+                }
+            })
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": clear_requests}).execute()
+    
     # Записываем новые данные
     service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
@@ -396,7 +410,7 @@ def sync_report_to_google_sheets(db: Session):
                     "booleanRule": {
                         "condition": {
                             "type": "NUMBER_GREATER",
-                            "values": [{"userEnteredValue": "0.001"}]
+                            "values": [{"userEnteredValue": "0,001"}]
                         },
                         "format": {
                             "backgroundColor": {"red": 252/255.0, "green": 228/255.0, "blue": 214/255.0} # Soft red
@@ -418,8 +432,8 @@ def sync_report_to_google_sheets(db: Session):
                     }],
                     "booleanRule": {
                         "condition": {
-                            "type": "NUMBER_LESS_THAN_OR_EQUAL",
-                            "values": [{"userEnteredValue": "0.001"}]
+                            "type": "NUMBER_LESS_THAN_EQ",
+                            "values": [{"userEnteredValue": "0,001"}]
                         },
                         "format": {
                             "backgroundColor": {"red": 226/255.0, "green": 239/255.0, "blue": 218/255.0} # Soft green
