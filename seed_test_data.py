@@ -111,10 +111,12 @@ def seed_test_data():
     )
     db.add(batch2)
     db.commit()
+    id1 = shift1.id
+    id2 = shift2.id
     db.close()
     
-    print(f"Shift 04.06 ID: {shift1.id}")
-    print(f"Shift 15.06 ID: {shift2.id}")
+    print(f"Shift 04.06 ID: {id1}")
+    print(f"Shift 15.06 ID: {id2}")
 
 if __name__ == '__main__':
     seed_test_data()

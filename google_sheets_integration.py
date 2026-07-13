@@ -192,12 +192,32 @@ def sync_report_to_google_sheets(db: Session):
         
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
-    # Сначала очистим старые данные
-    service.spreadsheets().values().clear(
+    # 1. Получаем текущие данные на листе, чтобы узнать, какие строки уже есть
+    result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
         range=f"'{sheet_name}'!A1:AO1000"
     ).execute()
+    existing_rows = result.get("values", [])
     
+    # 2. Инициализируем или находим индексы строк для обновления
+    # Ключ: (Дата, Линия, Смена)
+    row_mapping = {}
+    if len(existing_rows) > 1:
+        for idx, row in enumerate(existing_rows[1:], start=2): # 1-based index, row 1 is header
+            if len(row) >= 4:
+                key = (row[0], row[2], row[3]) # (Дата, Линия, Смена)
+                row_mapping[key] = idx
+                
+    # Записываем шапку, если лист вообще пустой
+    if not existing_rows:
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": [headers]}
+        ).execute()
+        existing_rows = [headers]
+
     # Очищаем старые правила условного форматирования для этого листа
     sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     existing_rules = sheet_meta.get("conditionalFormats", [])
@@ -211,14 +231,29 @@ def sync_report_to_google_sheets(db: Session):
                 }
             })
         service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": clear_requests}).execute()
-    
-    # Записываем новые данные
-    service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1",
-        valueInputOption="USER_ENTERED",
-        body={"values": rows_data}
-    ).execute()
+        
+    # Синхронизируем строки по одной (или добавляем новые)
+    # Начиная со строки 2 (так как rows_data[0] - это headers, мы их пропускаем)
+    for row in rows_data[1:]:
+        key = (row[0], row[2], row[3])
+        if key in row_mapping:
+            # Обновляем существующую строку
+            row_idx = row_mapping[key]
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A{row_idx}:AO{row_idx}",
+                valueInputOption="USER_ENTERED",
+                body={"values": [row]}
+            ).execute()
+        else:
+            # Дописываем новую строку в конец умной таблицы
+            service.spreadsheets().values().append(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                insertDataOption="INSERT_ROWS",
+                body={"values": [row]}
+            ).execute()
     
     # 3. Применяем форматирование (Navy Blue заголовок, стили, границы, цвета)
     total_rows = len(rows_data)
