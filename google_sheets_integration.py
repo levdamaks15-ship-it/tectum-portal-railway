@@ -483,3 +483,214 @@ def sync_report_to_google_sheets(db: Session):
     body = {"requests": requests}
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
     print("Синхронизация отчета с Google Таблицами выполнена успешно.")
+
+
+def export_norms_to_google_sheets(db: Session):
+    """
+    Создает или обновляет лист 'Нормативы' в Google Таблице, выгружая текущие нормативы
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        return
+        
+    service = get_sheets_service()
+    sheet_name = "Нормативы"
+    
+    # 1. Проверяем существование листа
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+    
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 50,
+                            "columnCount": 11
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    
+    headers = [
+        "Продукция", "Вес готового листа (кг)", 
+        "Норма Хризотил 4-20", "Норма Хризотил 5-65", "Норма Хризотил 6-40",
+        "Норма Цемент", "Норма Целлюлоза", "Норма Дробленый шифер", 
+        "Норма Асбозурит", "Норма Стекловолокно"
+    ]
+    
+    norms = db.query(models.ProductNorm).all()
+    rows_data = [headers]
+    for n in norms:
+        rows_data.append([
+            n.product_name,
+            n.weight_kg or 19.6,
+            n.norm_chrysotile_4_20 or 0.0,
+            n.norm_chrysotile_5_65 or 0.0,
+            n.norm_chrysotile_6_40 or 0.0,
+            n.norm_cement or 0.0,
+            n.norm_cellulose or 0.0,
+            n.norm_crushed_slate or 0.0,
+            n.norm_asbozurit or 0.0,
+            n.norm_fiberglass or 0.0
+        ])
+        
+    # Очищаем старые значения
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:K50"
+    ).execute()
+    
+    # Записываем новые значения
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1",
+        valueInputOption="USER_ENTERED",
+        body={"values": rows_data}
+    ).execute()
+    
+    # Форматирование шапки
+    requests = [
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {
+                            "red": 31/255.0,
+                            "green": 78/255.0,
+                            "blue": 120/255.0
+                        },
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        # Границы и шрифты
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": len(rows_data),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat"
+            }
+        },
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
+                }
+            }
+        }
+    ]
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    print("Нормативы успешно экспортированы в Google Таблицу.")
+
+
+def sync_norms_from_google_sheets(db: Session):
+    """
+    Считывает измененные нормативы с листа 'Нормативы' Google Таблицы и записывает их в БД.
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        raise ValueError("GOOGLE_SPREADSHEET_ID не настроен")
+        
+    service = get_sheets_service()
+    sheet_name = "Нормативы"
+    
+    result = service.spreadsheets().values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:K50"
+    ).execute()
+    
+    rows = result.get("values", [])
+    if not rows:
+        raise ValueError("Лист 'Нормативы' пустой или не найден")
+        
+    header = rows[0]
+    if "Продукция" not in header:
+        raise ValueError("Неверный формат шапки листа 'Нормативы'")
+        
+    # Вспомогательная функция для безопасного парсинга float
+    def safe_float(val):
+        if val is None:
+            return 0.0
+        val_str = str(val).strip().replace(" ", "").replace(",", ".")
+        if not val_str:
+            return 0.0
+        try:
+            return float(val_str)
+        except ValueError:
+            return 0.0
+            
+    # Начинаем синхронизацию
+    # Сначала удаляем старые нормы, чтобы перезаписать
+    db.query(models.ProductNorm).delete()
+    
+    for row in rows[1:]:
+        if not row or not row[0]:
+            continue
+            
+        p_name = str(row[0]).strip()
+        # Трансляция пиленого шифера в рифленый на лету
+        if p_name == "Шифер 8 волн пиленый":
+            p_name = "Шифер 8 волн рифленый"
+            
+        weight = safe_float(row[1] if len(row) > 1 else 19.6)
+        n_c4 = safe_float(row[2] if len(row) > 2 else 0.0)
+        n_c5 = safe_float(row[3] if len(row) > 3 else 0.0)
+        n_c6 = safe_float(row[4] if len(row) > 4 else 0.0)
+        n_cem = safe_float(row[5] if len(row) > 5 else 0.0)
+        n_cel = safe_float(row[6] if len(row) > 6 else 0.0)
+        n_sl = safe_float(row[7] if len(row) > 7 else 0.0)
+        n_asb = safe_float(row[8] if len(row) > 8 else 0.0)
+        n_fib = safe_float(row[9] if len(row) > 9 else 0.0)
+        
+        db.add(models.ProductNorm(
+            product_name=p_name,
+            weight_kg=weight,
+            norm_chrysotile_4_20=n_c4,
+            norm_chrysotile_5_65=n_c5,
+            norm_chrysotile_6_40=n_c6,
+            norm_cement=n_cem,
+            norm_cellulose=n_cel,
+            norm_crushed_slate=n_sl,
+            norm_asbozurit=n_asb,
+            norm_fiberglass=n_fib
+        ))
+        
+    db.commit()
+    print("Нормативы успешно обновлены из Google Таблицы.")
+

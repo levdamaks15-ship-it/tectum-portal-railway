@@ -911,6 +911,21 @@
             <div id="materials-tab" class="glass-panel card" style="display: none;">
                 <h3>🧪 Сводка по сырью (Отклонения)</h3>
                 <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br/>Положительное число означает перерасход сырья, отрицательное — экономию.</p>
+                
+                <!-- Панель Технолога: Управление нормативами расхода из Google Sheets -->
+                <div id="technologist-norms-panel" style="display: none; background: rgba(31, 78, 120, 0.15); border: 1px solid rgba(31, 78, 120, 0.3); padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; margin-top: 1rem;">
+                    <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #7cb9e8; display: flex; align-items: center; gap: 6px;">⚙️ Панель Технолога: Управление нормативами</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Вы можете изменить нормы расхода сырья на вкладке <strong>«Нормативы»</strong> в вашем Google Документе, а затем применить их на портале, нажав кнопку ниже.
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <button onclick="syncNormsFromGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
+                            🔄 Синхронизировать нормы из Google
+                        </button>
+                        <span id="norms-sync-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
+                    </div>
+                </div>
+
                 <div class="table-responsive-container" style="margin-top: 1rem;">
                     <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
                         <thead>
@@ -987,6 +1002,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260712_unified_v28"> </script>
+    <script src="/static/js/app.js?v=20260713_norms_v1"> </script>
 </body>
 </html>

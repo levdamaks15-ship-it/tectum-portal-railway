@@ -1273,6 +1273,33 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     return {"status": "success", "shift_id": shift.id}
 
 
+@app.post("/api/norms/sync_from_google")
+def sync_norms_from_google_sheets_endpoint(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    
+    if not user_id or not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    if user_role not in ["admin", "technologist"]:
+        raise HTTPException(status_code=403, detail="Доступ разрешен только Технологу или Администратору")
+        
+    try:
+        google_sheets_integration.sync_norms_from_google_sheets(db)
+        # Записываем действие в AuditLog
+        db.add(models.AuditLog(
+            user_name=user_name,
+            action="IMPORT",
+            target_table="product_norms",
+            details="Синхронизация нормативов расхода сырья из Google Sheets"
+        ))
+        db.commit()
+        return {"status": "success", "message": "Нормативы успешно обновлены из Google Sheets"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
 @app.get("/api/report/summary")
 def get_report_summary(
     request: Request,

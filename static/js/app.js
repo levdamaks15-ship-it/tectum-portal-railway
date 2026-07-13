@@ -316,6 +316,12 @@ function applyRoleVisibility() {
     document.getElementById('tab-btn-downtimes').style.display = canDowntime ? 'inline-block' : 'none';
     document.getElementById('tab-btn-analytics').style.display = canDowntime ? 'inline-block' : 'none';
     
+    // Показываем панель управления нормативами только для Технолога и Админа
+    const normsPanel = document.getElementById('technologist-norms-panel');
+    if (normsPanel) {
+        normsPanel.style.display = ['admin', 'technologist'].includes(r) ? 'block' : 'none';
+    }
+    
     // Hide active shift banner as unified report doesn't use manual open/close state
     const activeShiftBanner = document.getElementById('active-shift-banner');
     if (activeShiftBanner) {
@@ -1795,6 +1801,41 @@ function exportDailyReportPDF() {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.addImage(pdfData, 'JPEG', 0, 0, 297, 210);
     doc.save(`Tectum_Daily_Report_${monthVal}.pdf`);
+}
+
+async function syncNormsFromGoogle() {
+    const statusEl = document.getElementById('norms-sync-status');
+    if (statusEl) {
+        statusEl.innerText = "⏳ Синхронизация...";
+        statusEl.style.color = "var(--text-secondary)";
+    }
+    
+    try {
+        const res = await fetch('/api/norms/sync_from_google', {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === 'success') {
+            if (statusEl) {
+                statusEl.innerText = "✅ Нормативы успешно обновлены!";
+                statusEl.style.color = "#22c55e";
+            }
+            // Перезагружаем нормы на клиенте
+            await loadProductNorms();
+        } else {
+            if (statusEl) {
+                statusEl.innerText = `❌ Ошибка: ${data.detail || 'Не удалось обновить'}`;
+                statusEl.style.color = "var(--danger-color)";
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        if (statusEl) {
+            statusEl.innerText = "❌ Ошибка сети при синхронизации";
+            statusEl.style.color = "var(--danger-color)";
+        }
+    }
 }
 
 // Window load init
