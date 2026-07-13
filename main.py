@@ -1194,10 +1194,40 @@ def sync_sharepoint_report_bg():
         except Exception as local_err:
             print(f"Error saving local excel: {local_err}")
             
-        m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
-        
-        # Запускаем синхронизацию с Google Таблицами
-        google_sheets_integration.sync_report_to_google_sheets(db)
+        try:
+            m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+        except Exception as sp_err:
+            db.add(models.AuditLog(
+                user_name="System Background Sync",
+                action="ERROR",
+                target_table="shifts",
+                target_id=0,
+                details=f"Ошибка загрузки сводного отчета в SharePoint: {str(sp_err)}"
+            ))
+            db.commit()
+            raise sp_err
+            
+        try:
+            # Запускаем синхронизацию с Google Таблицами
+            google_sheets_integration.sync_report_to_google_sheets(db)
+            db.add(models.AuditLog(
+                user_name="System Background Sync",
+                action="UPDATE",
+                target_table="shifts",
+                target_id=0,
+                details="Сводный отчет успешно синхронизирован с Google Таблицами в фоновом режиме."
+            ))
+            db.commit()
+        except Exception as gs_err:
+            db.add(models.AuditLog(
+                user_name="System Background Sync",
+                action="ERROR",
+                target_table="shifts",
+                target_id=0,
+                details=f"Ошибка синхронизации с Google Таблицами: {str(gs_err)}"
+            ))
+            db.commit()
+            raise gs_err
     except Exception as e:
         print(f"Error in SharePoint/Google background sync: {e}")
     finally:
