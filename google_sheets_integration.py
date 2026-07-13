@@ -12,10 +12,25 @@ SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google_credentials.json")
 
 def get_sheets_service():
+    # 1. Сначала пробуем загрузить из переменной окружения (для Railway/Render)
+    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if creds_json:
+        try:
+            info = json.loads(creds_json)
+            if "private_key" in info:
+                info["private_key"] = info["private_key"].replace("\\n", "\n")
+            creds = service_account.Credentials.from_service_account_info(
+                info,
+                scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            )
+            return build("sheets", "v4", credentials=creds)
+        except Exception as env_err:
+            print(f"Ошибка парсинга GOOGLE_CREDENTIALS_JSON из переменных окружения: {env_err}")
+
+    # 2. Если переменной нет, считываем локальный файл
     if not os.path.exists(CREDENTIALS_PATH):
         raise FileNotFoundError(f"Файл ключа Google не найден по пути: {CREDENTIALS_PATH}")
     
-    # Считываем JSON и исправляем переносы строк в private_key для Linux
     with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
         info = json.load(f)
     
