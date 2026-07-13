@@ -49,6 +49,16 @@ def sync_report_to_google_sheets(db: Session):
     # 1. Извлекаем данные из БД (все смены без фильтра по статусу "closed")
     shifts = db.query(models.Shift).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
     
+    # Записываем отладочный лог в AuditLog
+    db.add(models.AuditLog(
+        user_name="System Debug Sheets",
+        action="INFO",
+        target_table="shifts",
+        target_id=0,
+        details=f"Синхронизация Google Sheets: найдено {len(shifts)} смен в базе данных."
+    ))
+    db.commit()
+    
     headers = [
         "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта",
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
