@@ -46,8 +46,8 @@ def sync_report_to_google_sheets(db: Session):
     
     service = get_sheets_service()
     
-    # 1. Извлекаем данные из БД
-    shifts = db.query(models.Shift).filter(models.Shift.status == "closed").order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
+    # 1. Извлекаем данные из БД (все смены без фильтра по статусу "closed")
+    shifts = db.query(models.Shift).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
     
     headers = [
         "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта",
