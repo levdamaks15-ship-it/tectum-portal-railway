@@ -2744,6 +2744,33 @@ def sync_sharepoint_manually(request: Request, db: Session = Depends(get_db)):
         else:
             raise HTTPException(status_code=500, detail=f"Ошибка синхронизации: {error_msg}")
 
+@app.post("/api/dashboard/sync_google_sheets_manual")
+def sync_google_sheets_manual(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
+    if user_role not in ["master", "admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастера или администраторы могут запускать выгрузку.")
+        
+    try:
+        google_sheets_integration.sync_report_to_google_sheets(db)
+        
+        # Log to AuditLog
+        db.add(models.AuditLog(
+            user_name=request.session.get("user_email") or f"user_{user_id}",
+            action="UPDATE",
+            target_table="shifts",
+            target_id=0,
+            details="Выполнена ручная выгрузка сводного отчета в Google Таблицы."
+        ))
+        db.commit()
+        return {"message": "Выгрузка в Google Таблицы выполнена успешно!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка выгрузки в Google: {str(e)}")
+
 @app.get("/api/dashboard/view_archive")
 def view_archive(db: Session = Depends(get_db)):
     try:

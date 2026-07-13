@@ -1087,8 +1087,26 @@ function exportToExcelLocal() {
     XLSX.writeFile(wb, "tectum_production_report.xlsx");
 }
 
-function openSharePointReport() {
-    window.open('/api/dashboard/view_archive', '_blank');
+function downloadExcelLocal() {
+    window.open('/api/dashboard/export_shift', '_blank');
+}
+
+async function syncGoogleSheetsManually() {
+    try {
+        const res = await fetch('/api/dashboard/sync_google_sheets_manual', {
+            method: 'POST'
+        });
+        if (res.ok) {
+            const data = await res.json();
+            alert(data.message || 'Синхронизация с Google Таблицами выполнена успешно!');
+        } else {
+            const err = await res.json();
+            alert('Ошибка: ' + (err.detail || 'Не удалось выполнить выгрузку в Google Таблицы'));
+        }
+    } catch(e) {
+        console.error(e);
+        alert('Ошибка сети или сервера при выгрузке');
+    }
 }
 
 // ----------------------------------------------------
