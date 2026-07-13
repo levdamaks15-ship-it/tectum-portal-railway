@@ -1300,6 +1300,33 @@ def sync_norms_from_google_sheets_endpoint(request: Request, db: Session = Depen
         raise HTTPException(status_code=500, detail=str(err))
 
 
+@app.post("/api/downtimes/directory/sync_from_google")
+def sync_downtime_directory_from_google_sheets_endpoint(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    
+    if not user_id or not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    if user_role not in ["admin", "mechanic", "technologist"]:
+        raise HTTPException(status_code=403, detail="Доступ разрешен только Механику, Технологу или Администратору")
+        
+    try:
+        google_sheets_integration.sync_downtime_directory_from_google_sheets(db)
+        # Записываем действие в AuditLog
+        db.add(models.AuditLog(
+            user_name=user_name,
+            action="IMPORT",
+            target_table="downtime_directory",
+            details="Синхронизация справочника простоев из Google Sheets"
+        ))
+        db.commit()
+        return {"status": "success", "message": "Справочник простоев успешно обновлен из Google Sheets"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+
 @app.get("/api/report/summary")
 def get_report_summary(
     request: Request,

@@ -694,3 +694,179 @@ def sync_norms_from_google_sheets(db: Session):
     db.commit()
     print("Нормативы успешно обновлены из Google Таблицы.")
 
+
+def export_downtime_directory_to_google_sheets(db: Session):
+    """
+    Создает или обновляет лист 'Справочник простоев' в Google Таблице
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        return
+        
+    service = get_sheets_service()
+    sheet_name = "Справочник простоев"
+    
+    # 1. Проверяем существование листа
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+    
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 300,
+                            "columnCount": 5
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    
+    headers = ["Участок", "Узел", "Поломка", "Категория", "Комментарий"]
+    
+    dirs = db.query(models.DowntimeDirectory).all()
+    rows_data = [headers]
+    for d in dirs:
+        rows_data.append([
+            d.department or "",
+            d.node or "",
+            d.breakdown or "",
+            d.category or "Механические",
+            d.comment or ""
+        ])
+        
+    # Очищаем старые значения
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:E300"
+    ).execute()
+    
+    # Записываем новые значения
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1",
+        valueInputOption="USER_ENTERED",
+        body={"values": rows_data}
+    ).execute()
+    
+    # Форматирование
+    requests = [
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {
+                            "red": 31/255.0,
+                            "green": 78/255.0,
+                            "blue": 120/255.0
+                        },
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": len(rows_data),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat"
+            }
+        },
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
+                }
+            }
+        }
+    ]
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    print("Справочник простоев успешно экспортирован в Google Таблицу.")
+
+
+def sync_downtime_directory_from_google_sheets(db: Session):
+    """
+    Считывает измененные простои с листа 'Справочник простоев' Google Таблицы и записывает их в БД.
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        raise ValueError("GOOGLE_SPREADSHEET_ID не настроен")
+        
+    service = get_sheets_service()
+    sheet_name = "Справочник простоев"
+    
+    result = service.spreadsheets().values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:E300"
+    ).execute()
+    
+    rows = result.get("values", [])
+    if not rows:
+        raise ValueError("Лист 'Справочник простоев' пустой или не найден")
+        
+    header = rows[0]
+    if "Участок" not in header or "Поломка" not in header:
+        raise ValueError("Неверный формат шапки листа 'Справочник простоев'")
+        
+    db.query(models.DowntimeDirectory).delete()
+    
+    for row in rows[1:]:
+        if not row or len(row) < 3:
+            continue
+            
+        dept = str(row[0]).strip()
+        node = str(row[1]).strip() if row[1] else "Общее"
+        bd = str(row[2]).strip()
+        
+        if not dept or not bd:
+            continue
+            
+        cat = str(row[3]).strip() if len(row) > 3 and row[3] else "Механические"
+        comm = str(row[4]).strip() if len(row) > 4 and row[4] else ""
+        
+        db.add(models.DowntimeDirectory(
+            department=dept,
+            node=node,
+            breakdown=bd,
+            category=cat,
+            comment=comm
+        ))
+        
+    db.commit()
+    print("Справочник простоев успешно обновлен из Google Таблицы.")
+
+

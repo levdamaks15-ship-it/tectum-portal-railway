@@ -660,6 +660,20 @@
             <div id="downtimes-tab" class="glass-panel card" style="display: none;">
                 <h3>⏱ Журнал Простоев (Текущая смена)</h3>
                 
+                <!-- Панель Механика: Управление справочником простоев из Google Sheets -->
+                <div id="mechanic-downtimes-panel" style="display: none; background: rgba(31, 78, 120, 0.15); border: 1px solid rgba(31, 78, 120, 0.3); padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; margin-top: 1rem;">
+                    <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #7cb9e8; display: flex; align-items: center; gap: 6px;">⚙️ Панель Механика: Управление справочником</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Вы можете изменить справочник причин простоев на вкладке <strong>«Справочник простоев»</strong> в вашем Google Документе, а затем применить изменения на портале, нажав кнопку ниже.
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <button onclick="syncDowntimesFromGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
+                            🔄 Синхронизировать справочник из Google
+                        </button>
+                        <span id="downtimes-sync-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
+                    </div>
+                </div>
+                
                 <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h4>Фиксация нового простоя</h4>
                     <div class="grid-downtime-fix-form">
@@ -1002,6 +1016,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260713_norms_v1"> </script>
+    <script src="/static/js/app.js?v=20260713_downtimes_v2"> </script>
 </body>
 </html>

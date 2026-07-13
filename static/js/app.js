@@ -322,6 +322,12 @@ function applyRoleVisibility() {
         normsPanel.style.display = ['admin', 'technologist'].includes(r) ? 'block' : 'none';
     }
     
+    // Показываем панель управления простоев только для Механика, Технолога и Админа
+    const dtPanel = document.getElementById('mechanic-downtimes-panel');
+    if (dtPanel) {
+        dtPanel.style.display = ['admin', 'mechanic', 'technologist'].includes(r) ? 'block' : 'none';
+    }
+    
     // Hide active shift banner as unified report doesn't use manual open/close state
     const activeShiftBanner = document.getElementById('active-shift-banner');
     if (activeShiftBanner) {
@@ -1823,6 +1829,41 @@ async function syncNormsFromGoogle() {
             }
             // Перезагружаем нормы на клиенте
             await loadProductNorms();
+        } else {
+            if (statusEl) {
+                statusEl.innerText = `❌ Ошибка: ${data.detail || 'Не удалось обновить'}`;
+                statusEl.style.color = "var(--danger-color)";
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        if (statusEl) {
+            statusEl.innerText = "❌ Ошибка сети при синхронизации";
+            statusEl.style.color = "var(--danger-color)";
+        }
+    }
+}
+
+async function syncDowntimesFromGoogle() {
+    const statusEl = document.getElementById('downtimes-sync-status');
+    if (statusEl) {
+        statusEl.innerText = "⏳ Синхронизация...";
+        statusEl.style.color = "var(--text-secondary)";
+    }
+    
+    try {
+        const res = await fetch('/api/downtimes/directory/sync_from_google', {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.status === 'success') {
+            if (statusEl) {
+                statusEl.innerText = "✅ Справочник простоев обновлен!";
+                statusEl.style.color = "#22c55e";
+            }
+            // Перезагружаем разделы и причины на клиенте
+            loadDowntimeDepartments();
         } else {
             if (statusEl) {
                 statusEl.innerText = `❌ Ошибка: ${data.detail || 'Не удалось обновить'}`;
