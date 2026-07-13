@@ -246,7 +246,7 @@ def sync_report_to_google_sheets(db: Session):
     if len(rows_data) > 1:
         service.spreadsheets().values().update(
             spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A2:AO{len(rows_data)}",
+            range=f"'{sheet_name}'!A2",
             valueInputOption="USER_ENTERED",
             body={"values": rows_data[1:]}
         ).execute()
