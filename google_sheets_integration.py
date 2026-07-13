@@ -242,28 +242,14 @@ def sync_report_to_google_sheets(db: Session):
             })
         service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": clear_requests}).execute()
         
-    # Синхронизируем строки по одной (или добавляем новые)
-    # Начиная со строки 2 (так как rows_data[0] - это headers, мы их пропускаем)
-    for row in rows_data[1:]:
-        key = (row[0], row[2], row[3])
-        if key in row_mapping:
-            # Обновляем существующую строку
-            row_idx = row_mapping[key]
-            service.spreadsheets().values().update(
-                spreadsheetId=SPREADSHEET_ID,
-                range=f"'{sheet_name}'!A{row_idx}:AO{row_idx}",
-                valueInputOption="USER_ENTERED",
-                body={"values": [row]}
-            ).execute()
-        else:
-            # Дописываем новую строку в конец умной таблицы
-            service.spreadsheets().values().append(
-                spreadsheetId=SPREADSHEET_ID,
-                range=f"'{sheet_name}'!A1",
-                valueInputOption="USER_ENTERED",
-                insertDataOption="INSERT_ROWS",
-                body={"values": [row]}
-            ).execute()
+    # Записываем все строки данных разом, начиная с ячейки A2
+    if len(rows_data) > 1:
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A2:AO{len(rows_data)}",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data[1:]}
+        ).execute()
     
     # 3. Применяем форматирование (Navy Blue заголовок, стили, границы, цвета)
     total_rows = len(rows_data)
