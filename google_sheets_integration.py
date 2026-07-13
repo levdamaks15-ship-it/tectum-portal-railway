@@ -218,6 +218,16 @@ def sync_report_to_google_sheets(db: Session):
         ).execute()
         existing_rows = [headers]
 
+    # Сначала очистим старые строки данных на листе (с А2 по АО1000)
+    # Это гарантирует, что если старые тестовые смены удалены из БД, они удалятся и из Google Sheets
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A2:AO1000"
+    ).execute()
+    
+    # Сбрасываем row_mapping, так как мы только что очистили все строки данных
+    row_mapping = {}
+    
     # Очищаем старые правила условного форматирования для этого листа
     sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     existing_rules = sheet_meta.get("conditionalFormats", [])
@@ -259,7 +269,7 @@ def sync_report_to_google_sheets(db: Session):
     total_rows = len(rows_data)
     
     requests = [
-        # Устанавливаем шрифт Calibri 11pt для всех ячеек
+        # Устанавливаем только шрифт Calibri 11pt для всех ячеек, НЕ меняя цвет текста (чтобы не перекрывать белый цвет Умной Таблицы)
         {
             "repeatCell": {
                 "range": {
@@ -277,10 +287,10 @@ def sync_report_to_google_sheets(db: Session):
                         }
                     }
                 },
-                "fields": "userEnteredFormat.textFormat"
+                "fields": "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
             }
         },
-        # Стилизация заголовка (Строка 1): Цвет фона #1F4E78, белый жирный текст
+        # Стилизация заголовка (Строка 1): Выравнивание и жирный текст (Цвета берем из встроенных стилей Умной Таблицы)
         {
             "repeatCell": {
                 "range": {
@@ -292,20 +302,14 @@ def sync_report_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "backgroundColor": {
-                            "red": 31/255.0,
-                            "green": 78/255.0,
-                            "blue": 120/255.0
-                        },
                         "textFormat": {
-                            "bold": True,
-                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                            "bold": True
                         },
                         "horizontalAlignment": "CENTER",
                         "verticalAlignment": "MIDDLE"
                     }
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"
             }
         },
         # Форматирование отклонений (колонки 31-41, индексы 30-40) как проценты (+0.00% / -0.00%)
