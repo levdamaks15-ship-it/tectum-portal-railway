@@ -1205,7 +1205,7 @@ async function onJournalNodeChange() {
         if (res.ok) {
             const breakdowns = await res.json();
             selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
-                breakdowns.map(b => `<option value="${b}">${b}</option>`).join('');
+                breakdowns.map(b => `<option value="${b.breakdown}" title="${b.comment || ''}">${b.breakdown}</option>`).join('');
         }
     } catch(e) {
         console.error(e);
@@ -1362,7 +1362,7 @@ async function onEditNodeChange(selectedBreakdown = '') {
     if (res.ok) {
         const breakdowns = await res.json();
         selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
-            breakdowns.map(b => `<option value="${b}">${b}</option>`).join('');
+            breakdowns.map(b => `<option value="${b.breakdown}" title="${b.comment || ''}">${b.breakdown}</option>`).join('');
         if (selectedBreakdown) {
             selectBk.value = selectedBreakdown;
         }
