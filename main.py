@@ -1119,6 +1119,12 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
 
     db.commit()
 
+    # Export receipt data to Google Sheets (new sheet "Приход сырья")
+    try:
+        google_sheets_integration.export_receipt_to_google_sheets(db)
+    except Exception as gs_err:
+        print(f"Ошибка экспорта прихода сырья в Google Sheets: {gs_err}")
+
     # Sync to MonthlyPlanBoard (which also writes AuditLog)
     sync_lfm_to_plan_board(shift.id, db)
 

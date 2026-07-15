@@ -893,3 +893,247 @@ def sync_downtime_directory_from_google_sheets(db: Session):
     print("Справочник простоев успешно обновлен из Google Таблицы.")
 
 
+def export_receipt_to_google_sheets(db: Session):
+    """
+    Создает или обновляет лист 'Приход сырья' в Google Таблице,
+    выгружая данные прихода сырья из всех смен (история накопления).
+    Вызывается при сохранении сменного рапорта мастера.
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        print("Экспорт прихода сырья в Google Таблицы пропущен: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
+        return
+
+    service = get_sheets_service()
+    sheet_name = "Приход сырья"
+
+    # 1. Проверяем существование листа, если нет — создаем
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 1000,
+                            "columnCount": 16
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+    # 2. Формируем заголовки
+    headers = [
+        "Дата", "Смена", "Линия", "Мастер",
+        "Хризотил 4-20 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
+        "Цемент (кг)", "Целлюлоза (кг)", "Дробленый шифер (кг)",
+        "Асбозурит (кг)", "Асбокартон (кг)", "Паллеты (шт)",
+        "Стекловолокно (кг)", "Лапрол (кг)"
+    ]
+
+    # 3. Собираем данные из БД — все смены, у которых есть хоть какое-то значение прихода
+    shifts = db.query(models.Shift).filter(
+        # Хотя бы одно поле прихода заполнено
+        (models.Shift.receipt_chrysotile_4_20 != 0) |
+        (models.Shift.receipt_chrysotile_5_65 != 0) |
+        (models.Shift.receipt_chrysotile_6_40 != 0) |
+        (models.Shift.receipt_cement != 0) |
+        (models.Shift.receipt_cellulose != 0) |
+        (models.Shift.receipt_crushed_slate != 0) |
+        (models.Shift.receipt_asbozurit != 0) |
+        (models.Shift.receipt_asbocarton != 0) |
+        (models.Shift.receipt_pallets != 0) |
+        (models.Shift.receipt_fiberglass != 0) |
+        (models.Shift.receipt_laprol != 0)
+    ).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
+
+    rows_data = []
+    rows_data.append(headers)
+
+    for s in shifts:
+        date_str = s.date.strftime("%d.%m.%Y") if s.date else ""
+        row = [
+            date_str,
+            s.shift_name or "",
+            s.line or "",
+            s.master.name if s.master else "",
+            s.receipt_chrysotile_4_20 or 0.0,
+            s.receipt_chrysotile_5_65 or 0.0,
+            s.receipt_chrysotile_6_40 or 0.0,
+            s.receipt_cement or 0.0,
+            s.receipt_cellulose or 0.0,
+            s.receipt_crushed_slate or 0.0,
+            s.receipt_asbozurit or 0.0,
+            s.receipt_asbocarton or 0.0,
+            s.receipt_pallets or 0.0,
+            s.receipt_fiberglass or 0.0,
+            s.receipt_laprol or 0.0,
+        ]
+        rows_data.append(row)
+
+    # 4. Полностью перезаписываем лист (очищаем и пишем заново)
+    total_rows = len(rows_data)
+
+    # Очищаем старые данные
+    empty_block = [["" for _ in range(len(headers))] for _ in range(1000)]
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:O1000",
+        valueInputOption="USER_ENTERED",
+        body={"values": empty_block}
+    ).execute()
+
+    # Записываем данные
+    if rows_data:
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+
+    # 5. Форматирование
+    requests = [
+        # Шрифт Calibri 11pt для всех ячеек
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
+            }
+        },
+        # Стилизация заголовка: navy-blue фон, белый жирный текст, выравнивание по центру
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {
+                            "red": 31/255.0,
+                            "green": 78/255.0,
+                            "blue": 120/255.0
+                        },
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        # Выравнивание текста: левое для первых 4 колонок (текстовые), правое для числовых
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 4
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 4
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 4,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "RIGHT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Сетка границ
+        {
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}}
+            }
+        },
+        # Авто-размер ширины колонок
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
+                }
+            }
+        }
+    ]
+
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    print(f"Экспорт прихода сырья в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} смен.")
+
+
