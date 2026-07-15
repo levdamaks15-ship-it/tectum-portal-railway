@@ -1263,13 +1263,13 @@ async function addJournalDowntime() {
         end_time: document.getElementById('journal-dt-end').value || null,
         department: document.getElementById('journal-dt-dept').value,
         node: document.getElementById('journal-dt-node').value,
-        breakdown: document.getElementById('journal-dt-breakdown').value,
+        description: document.getElementById('journal-dt-breakdown').value,
         comment: document.getElementById('journal-dt-desc').value,
         is_equipment_downtime: document.getElementById('journal-dt-is-equipment-stop').checked,
-        media_files: []
+        media_urls: null
     };
 
-    if (!data.start_time || !data.department || !data.node || !data.breakdown) {
+    if (!data.start_time || !data.department || !data.node || !data.description) {
         alert("Заполните начало, участок, узел и причину простоя!");
         return;
     }
@@ -1286,7 +1286,11 @@ async function addJournalDowntime() {
             onJournalShiftChange();
         } else {
             const err = await res.json();
-            alert(`Ошибка: ${err.detail}`);
+            if (Array.isArray(err.detail)) {
+                alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
+            } else {
+                alert(`Ошибка: ${err.detail}`);
+            }
         }
     } catch(e) {
         alert(e.message);
@@ -1376,9 +1380,10 @@ async function submitEditDowntime() {
         end_time: document.getElementById('edit-dt-end').value || null,
         department: document.getElementById('edit-dt-dept').value,
         node: document.getElementById('edit-dt-node').value,
-        breakdown: document.getElementById('edit-dt-breakdown').value,
+        description: document.getElementById('edit-dt-breakdown').value,
         comment: document.getElementById('edit-dt-desc').value,
-        is_equipment_downtime: document.getElementById('edit-dt-is-equipment-stop').checked
+        is_equipment_downtime: document.getElementById('edit-dt-is-equipment-stop').checked,
+        media_urls: null
     };
 
     try {
@@ -1393,7 +1398,11 @@ async function submitEditDowntime() {
             onJournalShiftChange();
         } else {
             const err = await res.json();
-            alert(err.detail);
+            if (Array.isArray(err.detail)) {
+                alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
+            } else {
+                alert(`Ошибка: ${err.detail}`);
+            }
         }
     } catch(e) {
         alert(e.message);
