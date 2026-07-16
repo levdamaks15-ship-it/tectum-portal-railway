@@ -2807,6 +2807,32 @@ def sync_google_sheets_manual(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка выгрузки в Google: {str(e)}")
 
+@app.post("/api/dashboard/sync_downtimes_to_google")
+def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
+    if user_role not in ["master", "admin", "director", "mechanic"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен.")
+        
+    try:
+        google_sheets_integration.export_downtimes_to_google_sheets(db)
+        
+        db.add(models.AuditLog(
+            user_name=request.session.get("user_email") or f"user_{user_id}",
+            action="UPDATE",
+            target_table="downtimes",
+            target_id=0,
+            details="Выполнена ручная выгрузка простоев в Google Таблицы."
+        ))
+        db.commit()
+        return {"message": "Выгрузка простоев в Google Таблицы выполнена успешно!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка выгрузки простоев в Google: {str(e)}")
+
 @app.get("/api/dashboard/view_archive")
 def view_archive(db: Session = Depends(get_db)):
     try:

@@ -2029,3 +2029,31 @@ async function loadUserGrid() {
         console.error("Error loading user grid:", e);
     }
 }
+
+async function exportDowntimesToGoogle() {
+    const statusEl = document.getElementById('downtimes-sync-status');
+    if (statusEl) {
+        statusEl.textContent = '⏳ Экспорт простоев...';
+        statusEl.style.color = 'var(--accent-color)';
+    }
+    
+    try {
+        const res = await fetch('/api/dashboard/sync_downtimes_to_google', { method: 'POST' });
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.detail || 'Ошибка экспорта');
+        }
+        
+        if (statusEl) {
+            statusEl.textContent = '✅ ' + data.message;
+            statusEl.style.color = '#22c55e';
+        }
+    } catch(e) {
+        console.error('Export downtimes error:', e);
+        if (statusEl) {
+            statusEl.textContent = '❌ ' + (e.message || 'Ошибка');
+            statusEl.style.color = 'var(--danger-color)';
+        }
+    }
+}

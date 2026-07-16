@@ -1137,3 +1137,234 @@ def export_receipt_to_google_sheets(db: Session):
     print(f"Экспорт прихода сырья в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} смен.")
 
 
+def export_downtimes_to_google_sheets(db: Session):
+    """
+    Создает или обновляет лист 'Простои' в Google Таблице,
+    выгружая данные о простоях из всех смен (история накопления).
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        print("Экспорт простоев в Google Таблицы пропущен: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
+        return
+
+    service = get_sheets_service()
+    sheet_name = "Простои"
+
+    # 1. Проверяем существование листа, если нет — создаем
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 2000,
+                            "columnCount": 14
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+    # 2. Формируем заголовки
+    headers = [
+        "Дата", "Смена", "Линия", "Мастер",
+        "Участок", "Узел", "Описание поломки", "Категория",
+        "Время начала", "Время конца", "Длительность (мин)",
+        "Потеряно тонн", "Потеряно тенге", "Статус"
+    ]
+
+    # 3. Собираем данные из БД — все простои с информацией о смене
+    downtimes = db.query(models.Downtime).join(models.Shift).order_by(
+        models.Shift.date.asc(), models.Shift.id.asc(), models.Downtime.start_time.asc()
+    ).all()
+
+    rows_data = []
+    rows_data.append(headers)
+
+    for d in downtimes:
+        shift = d.shift
+        date_str = shift.date.strftime("%d.%m.%Y") if shift.date else ""
+        row = [
+            date_str,
+            shift.shift_name or "",
+            shift.line or "",
+            shift.master.name if shift.master else "",
+            d.department or "",
+            d.node or "",
+            d.description or "",
+            d.category or "",
+            d.start_time or "",
+            d.end_time or "",
+            d.duration or 0,
+            d.lost_tons or 0.0,
+            d.lost_tenge or 0.0,
+            d.status or "",
+        ]
+        rows_data.append(row)
+
+    # 4. Полностью перезаписываем лист (очищаем и пишем заново)
+    total_rows = len(rows_data)
+
+    # Очищаем старые данные
+    empty_block = [["" for _ in range(len(headers))] for _ in range(2000)]
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:N2000",
+        valueInputOption="USER_ENTERED",
+        body={"values": empty_block}
+    ).execute()
+
+    # Записываем данные
+    if rows_data:
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+
+    # 5. Форматирование
+    requests = [
+        # Шрифт Calibri 11pt для всех ячеек
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
+            }
+        },
+        # Стилизация заголовка: navy-blue фон, белый жирный текст, выравнивание по центру
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {
+                            "red": 31/255.0,
+                            "green": 78/255.0,
+                            "blue": 120/255.0
+                        },
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        # Выравнивание текста
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 4
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 4
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 4,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "RIGHT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Сетка границ
+        {
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
+                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}}
+            }
+        },
+        # Авто-размер ширины колонок
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
+                }
+            }
+        }
+    ]
+
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    print(f"Экспорт простоев в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} записей.")
+
+

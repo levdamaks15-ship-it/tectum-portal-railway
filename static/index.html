@@ -667,9 +667,12 @@
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
                         Вы можете изменить справочник причин простоев на вкладке <strong>«Справочник простоев»</strong> в вашем Google Документе, а затем применить изменения на портале, нажав кнопку ниже.
                     </p>
-                    <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                         <button onclick="syncDowntimesFromGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
                             🔄 Синхронизировать справочник из Google
+                        </button>
+                        <button onclick="exportDowntimesToGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
+                            📤 Экспорт простоев в Google
                         </button>
                         <span id="downtimes-sync-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
                     </div>
