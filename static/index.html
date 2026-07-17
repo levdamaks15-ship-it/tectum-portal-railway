@@ -671,20 +671,44 @@
                         <button onclick="syncDowntimesFromGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
                             🔄 Синхронизировать справочник из Google
                         </button>
-                        <button onclick="exportDowntimesToGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
-                            📤 Экспорт простоев в Google
-                        </button>
                         <span id="downtimes-sync-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
                     </div>
+                </div>
+                
+                <!-- Кнопка экспорта простоев в Google Sheets, видна всем с доступом к вкладке -->
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin-bottom: 1rem;">
+                    <button onclick="exportDowntimesToGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; background: #0f9d58; border-color: #0f9d58;">
+                        📤 Экспорт простоев в Google Таблицы
+                    </button>
+                    <span id="downtimes-export-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
                 </div>
                 
                 <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h4>Фиксация нового простоя</h4>
                     <div class="grid-downtime-fix-form">
+                        <input type="hidden" id="journal-dt-active-shift-id">
                         <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Выбор смены</label>
-                            <select id="journal-dt-shift-select" onchange="onJournalShiftChange()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
-                                <option value="">-- Выберите смену --</option>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата</label>
+                            <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Смена</label>
+                            <select id="journal-dt-shift-name" onchange="loadDowntimesByParams()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
+                                <option value="День">День</option>
+                                <option value="Ночь">Ночь</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Линия</label>
+                            <select id="journal-dt-line" onchange="loadDowntimesByParams()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
+                                <option value="Линия 1">Линия 1</option>
+                                <option value="Линия 2">Линия 2</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Мастер</label>
+                            <select id="journal-dt-master-select" onchange="loadDowntimesByParams()" style="padding: 0.4rem; border-radius: 8px; width: 100%;">
+                                <option value="">-- Выберите мастера --</option>
                             </select>
                         </div>
                         <div>
@@ -742,7 +766,7 @@
                                 <th>Начало</th>
                                 <th>Конец</th>
                                 <th>Длительность</th>
-                                <th>Потери (Тонны / Тенге)</th>
+                                <th>Потери (Тонны)</th>
                                 <th>Участок / Узел / Кат.</th>
                                 <th>Описание</th>
                                 <th>Медиа</th>
@@ -798,10 +822,6 @@
                                 <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
                                 <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tons">0.0 т</div>
                             </div>
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери фин.</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tenge">0 ₸</div>
-                            </div>
                         </div>
                     </div>
                     
@@ -821,10 +841,6 @@
                             <div>
                                 <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
                                 <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tons">0.0 т</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери фин.</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tenge">0 ₸</div>
                             </div>
                         </div>
                     </div>
@@ -1020,6 +1036,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260715_downtimes_v3"> </script>
+    <script src="/static/js/app.js?v=20260718_v5"> </script>
 </body>
 </html>

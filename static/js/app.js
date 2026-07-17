@@ -179,6 +179,15 @@ function setupTimePickers() {
         locale: "ru",
         defaultDate: new Date()
     });
+
+    flatpickr("#journal-dt-date", {
+        dateFormat: "Y-m-d",
+        locale: "ru",
+        defaultDate: new Date(),
+        onChange: function(selectedDates, dateStr, instance) {
+            loadDowntimesByParams();
+        }
+    });
     
     flatpickr("#filter-date-from", {
         dateFormat: "Y-m-d",
@@ -224,6 +233,11 @@ async function loadMasters() {
             }
             if (filterMaster) {
                 filterMaster.innerHTML = '<option value="">-- Все мастера --</option>' + 
+                    mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+            }
+            const dtMaster = document.getElementById('journal-dt-master-select');
+            if (dtMaster) {
+                dtMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
             }
             const brigadeSelect = document.getElementById('daily-report-brigade');
@@ -373,7 +387,7 @@ async function loadData() {
     }
     
     // Populate downtime shift dropdowns
-    loadDowntimeShifts();
+    loadDowntimesByParams();
     loadDowntimeDepartments();
 }
 
@@ -1109,30 +1123,47 @@ async function syncGoogleSheetsManually() {
     }
 }
 
-// ----------------------------------------------------
-// DOWNTIMES TAB LOGIC
-// ----------------------------------------------------
-async function loadDowntimeShifts() {
+async function loadDowntimesByParams() {
+    const dateInput = document.getElementById('journal-dt-date');
+    const shiftNameInput = document.getElementById('journal-dt-shift-name');
+    const lineInput = document.getElementById('journal-dt-line');
+    const masterSelect = document.getElementById('journal-dt-master-select');
+    
+    if (!dateInput || !shiftNameInput || !lineInput) return;
+    
+    const date = dateInput.value;
+    const shift_name = shiftNameInput.value;
+    const line = lineInput.value;
+    const master_id = masterSelect ? masterSelect.value : '';
+    
+    if (!date) return;
+    
     try {
-        const res = await fetch('/api/shifts/all');
+        let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`;
+        if (master_id) {
+            url += `&master_id=${master_id}`;
+        }
+        const res = await fetch(url);
         if (res.ok) {
-            const shifts = await res.json();
-            const select = document.getElementById('journal-dt-shift-select');
-            if (select) {
-                select.innerHTML = '<option value="">-- Выберите смену --</option>' +
-                    shifts.map(s => `<option value="${s.id}">${s.date} (${s.shift_name}) [${s.line}]</option>`).join('');
-                
-                // Select first shift by default if any exist
-                if (shifts.length > 0) {
-                    select.value = shifts[0].id;
-                    onJournalShiftChange();
-                } else {
-                    const list = document.getElementById('journal-downtimes-list');
-                    if (list) {
-                        list.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Нет созданных смен</td></tr>';
-                    }
-                }
-            }
+            const shift = await res.json();
+            document.getElementById('journal-dt-active-shift-id').value = shift.id;
+            renderDowntimesTable(shift);
+        } else {
+            console.error("Failed to load/create shift for parameters");
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function refreshDowntimesTable() {
+    const shiftId = document.getElementById('journal-dt-active-shift-id').value;
+    if (!shiftId) return;
+    try {
+        const res = await fetch(`/api/shifts/${shiftId}`);
+        if (res.ok) {
+            const shift = await res.json();
+            renderDowntimesTable(shift);
         }
     } catch(e) {
         console.error(e);
@@ -1150,21 +1181,6 @@ async function loadDowntimeDepartments() {
             
             if (select) select.innerHTML = optHtml;
             if (editSelect) editSelect.innerHTML = optHtml;
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-async function onJournalShiftChange() {
-    const shiftId = document.getElementById('journal-dt-shift-select').value;
-    if (!shiftId) return;
-    
-    try {
-        const res = await fetch(`/api/shifts/${shiftId}`);
-        if (res.ok) {
-            const shift = await res.json();
-            renderDowntimesTable(shift);
         }
     } catch(e) {
         console.error(e);
@@ -1241,7 +1257,7 @@ function renderDowntimesTable(shift) {
                 <td>${d.start_time}</td>
                 <td>${d.end_time || '-'}</td>
                 <td style="font-weight: bold;">${durationStr}</td>
-                <td>${d.lost_tons ? d.lost_tons.toFixed(2) : '0.00'} т / ${d.lost_tenge ? d.lost_tenge.toLocaleString() : '0'} ₸</td>
+                <td>${d.lost_tons ? d.lost_tons.toFixed(2) : '0.00'} т</td>
                 <td>${d.department} / ${d.node} / ${isEquipment}</td>
                 <td>${d.comment || '-'}</td>
                 <td>${mediaHtml}</td>
@@ -1252,9 +1268,9 @@ function renderDowntimesTable(shift) {
 }
 
 async function addJournalDowntime() {
-    const shiftId = document.getElementById('journal-dt-shift-select').value;
+    const shiftId = document.getElementById('journal-dt-active-shift-id').value;
     if (!shiftId) {
-        alert("Выберите смену!");
+        alert("Выберите смену или заполните параметры смены!");
         return;
     }
     
@@ -1283,7 +1299,7 @@ async function addJournalDowntime() {
         
         if (res.ok) {
             alert("Простой успешно зафиксирован!");
-            onJournalShiftChange();
+            refreshDowntimesTable();
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {
@@ -1303,7 +1319,7 @@ async function deleteDowntime(id) {
         const res = await fetch(`/api/downtimes/${id}`, { method: 'DELETE' });
         if (res.ok) {
             alert("Запись удалена!");
-            onJournalShiftChange();
+            refreshDowntimesTable();
         }
     } catch(e) {
         alert(e.message);
@@ -1395,7 +1411,7 @@ async function submitEditDowntime() {
         if (res.ok) {
             alert("Простой обновлен!");
             closeEditDowntimeModal();
-            onJournalShiftChange();
+            refreshDowntimesTable();
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {
@@ -1438,12 +1454,10 @@ function renderAnalyticsKPIs(data) {
     document.getElementById('analytics-kpi-stop-min').innerText = data.total_stop_minutes + ' мин';
     document.getElementById('analytics-kpi-stop-count').innerText = data.total_stop_count;
     document.getElementById('analytics-kpi-stop-tons').innerText = data.total_stop_lost_tons.toFixed(1) + ' т';
-    document.getElementById('analytics-kpi-stop-tenge').innerText = data.total_stop_lost_tenge.toLocaleString() + ' ₸';
 
     document.getElementById('analytics-kpi-nonstop-min').innerText = data.total_nonstop_minutes + ' мин';
     document.getElementById('analytics-kpi-nonstop-count').innerText = data.total_nonstop_count;
     document.getElementById('analytics-kpi-nonstop-tons').innerText = data.total_nonstop_lost_tons.toFixed(1) + ' т';
-    document.getElementById('analytics-kpi-nonstop-tenge').innerText = data.total_nonstop_lost_tenge.toLocaleString() + ' ₸';
 }
 
 function renderAnalyticsCharts(data) {

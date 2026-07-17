@@ -63,7 +63,7 @@ class DowntimeBase(BaseModel):
     category: Optional[str] = None
     department: Optional[str] = None
     node: str
-    description: str
+    description: Optional[str] = None
     media_urls: Optional[str] = None
     status: Optional[str] = "pending"
     is_equipment_downtime: Optional[bool] = True
@@ -75,8 +75,8 @@ class Downtime(DowntimeBase):
     id: int
     shift_id: int
     duration: int
-    lost_tons: float
-    lost_tenge: float
+    lost_tons: Optional[float] = 0.0
+    lost_tenge: Optional[float] = 0.0
     status: str
 
     class Config:

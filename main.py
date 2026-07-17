@@ -263,6 +263,30 @@ async def add_no_cache_headers(request: Request, call_next):
 TONS_PER_HOUR = 5.0
 PRICE_PER_TON = 100000.0
 
+def calculate_downtime_losses(duration_minutes: int, shift: models.Shift, db: Session) -> tuple[float, float]:
+    if duration_minutes <= 0:
+        return 0.0, 0.0
+        
+    product_name = shift.product_name
+    if not product_name and shift.lfm_reports:
+        product_name = shift.lfm_reports[-1].product_name
+        
+    if not product_name:
+        product_name = "Шифер 8 волн рифленый"
+        
+    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
+    weight_kg = norm.weight_kg if (norm and norm.weight_kg) else 19.6
+    
+    sheets_per_cycle = 1 if product_name == "Шифер 7 волн 3500*980" else 2
+    
+    total_seconds = duration_minutes * 60
+    cycles = total_seconds / 26.0
+    lost_sheets = cycles * sheets_per_cycle
+    lost_tons = (lost_sheets * weight_kg) / 1000.0
+    lost_tenge = lost_tons * PRICE_PER_TON
+    
+    return lost_tons, lost_tenge
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1786,8 +1810,7 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, db: Session = D
         except Exception:
             duration = 0
             
-    lost_tons = (duration / 60.0) * TONS_PER_HOUR
-    lost_tenge = lost_tons * PRICE_PER_TON
+    lost_tons, lost_tenge = calculate_downtime_losses(duration, shift, db)
     
     status = "resolved" if data.end_time else "pending"
     
@@ -1838,8 +1861,11 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, db: Session = Depe
         except Exception:
             duration = 0
             
-    lost_tons = (duration / 60.0) * TONS_PER_HOUR
-    lost_tenge = lost_tons * PRICE_PER_TON
+    shift = dt.shift
+    if not shift:
+        shift = db.query(models.Shift).get(dt.shift_id)
+        
+    lost_tons, lost_tenge = calculate_downtime_losses(duration, shift, db)
     
     status = "resolved" if data.end_time else "pending"
     
