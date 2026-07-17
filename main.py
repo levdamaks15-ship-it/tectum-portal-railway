@@ -288,6 +288,17 @@ def calculate_downtime_losses(duration_minutes: int, shift: models.Shift, db: Se
     
     return lost_tons, lost_tenge
 
+def sync_downtimes_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.export_downtimes_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing downtimes to Google Sheets: {e}")
+    finally:
+        db.close()
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -1797,7 +1808,7 @@ async def upload_media(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/shifts/{shift_id}/downtimes", response_model=schemas.Downtime)
-def create_downtime(shift_id: int, data: schemas.DowntimeCreate, db: Session = Depends(get_db)):
+def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404)
     
@@ -1845,10 +1856,11 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, db: Session = D
     db.add(db_dt)
     db.commit()
     db.refresh(db_dt)
+    background_tasks.add_task(sync_downtimes_bg)
     return db_dt
 
 @app.put("/api/downtimes/{dt_id}", response_model=schemas.Downtime)
-def update_downtime(dt_id: int, data: schemas.DowntimeCreate, db: Session = Depends(get_db)):
+def update_downtime(dt_id: int, data: schemas.DowntimeCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404)
     
@@ -1900,16 +1912,17 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, db: Session = Depe
     dt.status = status
     
     db.commit()
-
     db.refresh(dt)
+    background_tasks.add_task(sync_downtimes_bg)
     return dt
 
 @app.delete("/api/downtimes/{dt_id}")
-def delete_downtime(dt_id: int, db: Session = Depends(get_db)):
+def delete_downtime(dt_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404)
     db.delete(dt)
     db.commit()
+    background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
 
 # --- ПАРТИИ (Стакер) ---
