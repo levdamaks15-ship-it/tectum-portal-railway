@@ -499,6 +499,52 @@ def get_active_shifts(db: Session = Depends(get_db)):
 def get_all_shifts(db: Session = Depends(get_db)):
     return db.query(models.Shift).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
 
+@app.get("/api/shifts/by_params", response_model=schemas.Shift)
+def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    if user_role not in ["master", "admin", "director", "technologist"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
+        
+    shift = db.query(models.Shift).filter(
+        models.Shift.date == parsed_date,
+        models.Shift.shift_name == shift_name,
+        models.Shift.line == line
+    ).first()
+    
+    if not shift:
+        # Автоматически создаем закрытую смену с переданным master_id, либо текущего пользователя, либо первого мастера в БД
+        final_master_id = master_id if master_id else user_id
+        if not final_master_id or user_role not in ["master"]:
+            if not final_master_id:
+                first_master = db.query(models.Master).filter(models.Master.role == "master").first()
+                if first_master:
+                    final_master_id = first_master.id
+                else:
+                    final_master_id = user_id
+                    
+        shift = models.Shift(
+            date=parsed_date,
+            shift_name=shift_name,
+            line=line,
+            master_id=final_master_id,
+            status="closed",
+            plan_sheets=0,
+            plan_tons=0.0
+        )
+        db.add(shift)
+        db.commit()
+        db.refresh(shift)
+        
+    return shift
+
 @app.get("/api/shifts/{shift_id}", response_model=schemas.Shift)
 def get_single_shift(shift_id: int, db: Session = Depends(get_db)):
     shift = db.query(models.Shift).get(shift_id)
@@ -861,52 +907,6 @@ def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, db
     shift.lfm_cem_drain = data.cem_drain
     db.commit()
     return {"message": "LFM drains updated"}
-
-@app.get("/api/shifts/by_params", response_model=schemas.Shift)
-def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    if user_role not in ["master", "admin", "director", "technologist"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
-    try:
-        parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
-        
-    shift = db.query(models.Shift).filter(
-        models.Shift.date == parsed_date,
-        models.Shift.shift_name == shift_name,
-        models.Shift.line == line
-    ).first()
-    
-    if not shift:
-        # Автоматически создаем закрытую смену с переданным master_id, либо текущего пользователя, либо первого мастера в БД
-        final_master_id = master_id if master_id else user_id
-        if not final_master_id or user_role not in ["master"]:
-            if not final_master_id:
-                first_master = db.query(models.Master).filter(models.Master.role == "master").first()
-                if first_master:
-                    final_master_id = first_master.id
-                else:
-                    final_master_id = user_id
-                    
-        shift = models.Shift(
-            date=parsed_date,
-            shift_name=shift_name,
-            line=line,
-            master_id=final_master_id,
-            status="closed",
-            plan_sheets=0,
-            plan_tons=0.0
-        )
-        db.add(shift)
-        db.commit()
-        db.refresh(shift)
-        
-    return shift
 
 @app.post("/api/shifts/{shift_id}/raw_materials_bulk")
 def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdate, request: Request, db: Session = Depends(get_db)):
