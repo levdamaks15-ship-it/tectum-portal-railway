@@ -101,13 +101,22 @@ def sync_report_to_google_sheets(db: Session):
     rows_data.append(headers)
     
     for s in shifts:
+        # Проверяем, есть ли плановые или фактические показатели производства в смене
+        plan_sheets_check = s.plan_sheets or 0
+        formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
+        warehouse_gp_check = sum(b.qcd_condition for b in s.batches)
+        zo_batches_check = s.zo_batches or 0
+        
+        if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
+            continue
+            
         date_str = s.date.strftime("%d.%m.%Y") if s.date else ""
         batch_numbers = ", ".join(b.batch_number for b in s.batches if b.batch_number)
         product_names = ", ".join(set(r.product_name for r in s.lfm_reports if r.product_name))
-        formovka_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
+        formovka_sheets = formovka_sheets_check
         formovka_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) for r in s.lfm_reports) / 1000.0
         
-        qcd_condition = sum(b.qcd_condition for b in s.batches)
+        qcd_condition = warehouse_gp_check
         qcd_first = sum(b.qcd_first_grade for b in s.batches)
         qcd_defect = sum(b.qcd_defect for b in s.batches)
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
