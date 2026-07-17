@@ -1437,11 +1437,21 @@ def get_report_summary(
         is_other_master = False
         
         lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
-        lfm_sheets = lfm.lfm_sheets if (lfm and not is_other_master) else 0
+        batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+        
+        # Фильтруем абсолютно пустые смены без факта производства и без плана
+        lfm_sheets_check = lfm.lfm_sheets if lfm else 0
+        warehouse_gp_check = batch.ds_condition if batch else 0
+        zo_batches_check = shift.zo_batches or 0
+        plan_sheets_check = shift.plan_sheets or 0
+        
+        if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted:
+            continue
+            
+        lfm_sheets = lfm_sheets_check if not is_other_master else 0
         lfm_resets = lfm.lfm_wind_resets if (lfm and not is_other_master) else 0
         
-        batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
-        warehouse_gp = batch.ds_condition if (batch and not is_other_master) else 0
+        warehouse_gp = warehouse_gp_check if not is_other_master else 0
         first_grade = batch.ds_first_grade if (batch and not is_other_master) else 0
         qcd_defect = batch.qcd_defect if (batch and not is_other_master) else 0
         
