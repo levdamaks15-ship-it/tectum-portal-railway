@@ -511,7 +511,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
     return db.query(models.Shift).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
 
 @app.get("/api/shifts/by_params", response_model=schemas.Shift)
-def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, db: Session = Depends(get_db)):
+def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -531,6 +531,9 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
     ).first()
     
     if not shift:
+        if not create_if_not_exists:
+            raise HTTPException(status_code=404, detail="Смена не найдена")
+            
         # Автоматически создаем закрытую смену с переданным master_id, либо текущего пользователя, либо первого мастера в БД
         final_master_id = master_id if master_id else user_id
         if not final_master_id or user_role not in ["master"]:

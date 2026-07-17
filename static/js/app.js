@@ -1151,7 +1151,8 @@ async function loadDowntimesByParams() {
             document.getElementById('journal-dt-active-shift-id').value = shift.id;
             renderDowntimesTable(shift);
         } else {
-            console.error("Failed to load/create shift for parameters");
+            document.getElementById('journal-dt-active-shift-id').value = '';
+            renderDowntimesTable({ downtimes: [] });
         }
     } catch(e) {
         console.error(e);
@@ -1270,10 +1271,45 @@ function renderDowntimesTable(shift) {
 }
 
 async function addJournalDowntime() {
-    const shiftId = document.getElementById('journal-dt-active-shift-id').value;
-    if (!shiftId) {
-        alert("Выберите смену или заполните параметры смены!");
+    let shiftId = document.getElementById('journal-dt-active-shift-id').value;
+    
+    const dateInput = document.getElementById('journal-dt-date');
+    const shiftNameInput = document.getElementById('journal-dt-shift-name');
+    const lineInput = document.getElementById('journal-dt-line');
+    const masterSelect = document.getElementById('journal-dt-master-select');
+    
+    if (!dateInput || !shiftNameInput || !lineInput) return;
+    
+    const date = dateInput.value;
+    const shift_name = shiftNameInput.value;
+    const line = lineInput.value;
+    const master_id = masterSelect ? masterSelect.value : '';
+    
+    if (!date) {
+        alert("Выберите дату!");
         return;
+    }
+    
+    if (!shiftId) {
+        try {
+            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}&create_if_not_exists=true`;
+            if (master_id) {
+                url += `&master_id=${master_id}`;
+            }
+            const createRes = await fetch(url);
+            if (createRes.ok) {
+                const createdShift = await createRes.json();
+                shiftId = createdShift.id;
+                document.getElementById('journal-dt-active-shift-id').value = shiftId;
+            } else {
+                alert("Не удалось создать рапорт смены для добавления простоя!");
+                return;
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Ошибка сети при создании рапорта смены!");
+            return;
+        }
     }
     
     const data = {
