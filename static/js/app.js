@@ -161,6 +161,8 @@ function switchTab(tabId) {
         loadDailyReport();
     } else if (tabId === 'materials') {
         loadMaterialsTab();
+    } else if (tabId === 'downtimes') {
+        loadDowntimesByParams();
     }
 }
 

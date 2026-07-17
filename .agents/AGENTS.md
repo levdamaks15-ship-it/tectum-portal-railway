@@ -107,4 +107,5 @@ ALWAYS write and update planning artifacts, such as `implementation_plan.md` and
 
 ## Integration and Environment Variables Rules
 - **Railway/Render Environment Variables Reminder**: При разработке или изменении интеграций с внешними API и сервисами (Google Sheets API, SharePoint API, Telegram Bot API и др.), требующих конфиденциальных токенов, ключей или идентификаторов (например, `GOOGLE_SPREADSHEET_ID`), агент ОБЯЗАН напомнить пользователю добавить эти переменные окружения в панель управления хостинга (например, во вкладку Variables на Railway или Render). Агент не должен предполагать, что локальный файл `.env` автоматически синхронизируется с облачной инфраструктурой.
+- **Использование только облачной БД (Railway / PostgreSQL)**: Вся рабочая инфраструктура проекта развернута на Railway и использует исключительно облачную базу данных PostgreSQL (Flexible Server). Любые миграции, импорт данных и синхронизации должны выполняться и отлаживаться с привязкой к облачной БД через переменную окружения `DATABASE_URL`. Использование локальной базы данных SQLite (`tectum.db`) полностью упразднено для продакшн-задач.
 
