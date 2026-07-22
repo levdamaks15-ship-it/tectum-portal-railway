@@ -503,7 +503,7 @@ def get_masters(db: Session = Depends(get_db)):
     return db.query(models.Master).all()
 
 # --- УПРАВЛЕНИЕ СМЕНОЙ ---
-@app.post("/api/shifts/", response_model=schemas.Shift)
+@app.post("/api/shifts/")
 def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
@@ -522,11 +522,11 @@ def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Dep
     db.refresh(db_shift)
     return db_shift
 
-@app.get("/api/shifts/active", response_model=list[schemas.Shift])
+@app.get("/api/shifts/active")
 def get_active_shifts(db: Session = Depends(get_db)):
     return db.query(models.Shift).filter(models.Shift.status == "active").all()
 
-@app.get("/api/shifts/all", response_model=list[schemas.Shift])
+@app.get("/api/shifts/all")
 def get_all_shifts(db: Session = Depends(get_db)):
     try:
         return db.query(models.Shift).options(
@@ -540,7 +540,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
         print(f"Error in get_all_shifts: {err}\n{traceback.format_exc()}")
         return []
 
-@app.get("/api/shifts/by_params", response_model=schemas.Shift)
+@app.get("/api/shifts/by_params")
 def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
@@ -589,7 +589,7 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
         
     return shift
 
-@app.get("/api/shifts/{shift_id}", response_model=schemas.Shift)
+@app.get("/api/shifts/{shift_id}")
 def get_single_shift(shift_id: int, db: Session = Depends(get_db)):
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
