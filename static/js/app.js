@@ -469,7 +469,7 @@ function prefillReportForm(shift) {
 }
 
 async function submitShiftReport() {
-    const data = {
+    const data = {\n        master_id: parseInt(master_id) || null,
         date: document.getElementById('rep-date').value,
         shift_name: document.getElementById('rep-shift').value,
         line: document.getElementById('rep-line').value,
@@ -1296,7 +1296,7 @@ async function addJournalDowntime() {
         }
     }
     
-    const data = {
+    const data = {\n        master_id: parseInt(master_id) || null,
         start_time: document.getElementById('journal-dt-start').value,
         end_time: document.getElementById('journal-dt-end').value || null,
         department: document.getElementById('journal-dt-dept').value,
@@ -1413,7 +1413,7 @@ async function onEditNodeChange(selectedBreakdown = '') {
 
 async function submitEditDowntime() {
     const id = document.getElementById('edit-dt-id').value;
-    const data = {
+    const data = {\n        master_id: parseInt(master_id) || null,
         start_time: document.getElementById('edit-dt-start').value,
         end_time: document.getElementById('edit-dt-end').value || null,
         department: document.getElementById('edit-dt-dept').value,
@@ -2148,7 +2148,7 @@ async function addReceipt() {
         return;
     }
     
-    const data = {
+    const data = {\n        master_id: parseInt(master_id) || null,
         chrysotile_4_20: parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0,
         chrysotile_5_65: parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0,
         chrysotile_6_40: parseFloat(document.getElementById('rec-chr-6-40').value) || 0.0,

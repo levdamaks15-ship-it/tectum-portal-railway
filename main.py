@@ -1355,6 +1355,7 @@ def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCrea
 
     receipt = models.RawMaterialReceipt(
         shift_id=shift.id,
+        master_id=data.master_id,
         chrysotile_4_20=data.chrysotile_4_20,
         chrysotile_5_65=data.chrysotile_5_65,
         chrysotile_6_40=data.chrysotile_6_40,
@@ -3913,4 +3914,14 @@ def clear_plan_board(user_name: str = "Администратор", db: Session 
         return {"status": "ok", "deleted_count": count}
     except Exception as e:
         db.rollback()
-        raise HTTPException(500, f"Ошибка очистки: {str(e)}")
+        raise HTTPException(500, f"Ошибка очистки: {str(e)}")        try:
+            if driver == 'postgresql':
+                db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER REFERENCES masters(id);"))
+            else:
+                db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;"))
+            db.commit()
+            print("Added master_id to raw_material_receipts")
+        except Exception:
+            db.rollback()
+
+

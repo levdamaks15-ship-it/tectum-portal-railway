@@ -64,7 +64,10 @@ class RawMaterialReceipt(Base):
     __tablename__ = "raw_material_receipts"
     id = Column(Integer, primary_key=True, index=True)
     shift_id = Column(Integer, ForeignKey("shifts.id"))
+    master_id = Column(Integer, ForeignKey("masters.id"), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    master = relationship("Master")
     
     chrysotile_4_20 = Column(Float, default=0.0)
     chrysotile_5_65 = Column(Float, default=0.0)
