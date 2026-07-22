@@ -927,7 +927,7 @@ def export_receipt_to_google_sheets(db: Session):
                         "title": sheet_name,
                         "gridProperties": {
                             "rowCount": 1000,
-                            "columnCount": 16
+                            "columnCount": 18
                         }
                     }
                 }
@@ -942,48 +942,56 @@ def export_receipt_to_google_sheets(db: Session):
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
         "Хризотил 4-20 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
-        "Цемент (кг)", "Целлюлоза (кг)", "Дробленый шифер (кг)",
+        "Цемент С1 (кг)", "Цемент С2 (кг)", "Цемент С3 (кг)", "Цемент С4 (кг)", 
+        "Целлюлоза (кг)", "Дробленый шифер (кг)",
         "Асбозурит (кг)", "Асбокартон (кг)", "Паллеты (шт)",
         "Стекловолокно (кг)", "Лапрол (кг)"
     ]
 
-    # 3. Собираем данные из БД — все смены, у которых есть хоть какое-то значение прихода
-    shifts = db.query(models.Shift).filter(
-        # Хотя бы одно поле прихода заполнено
-        (models.Shift.receipt_chrysotile_4_20 != 0) |
-        (models.Shift.receipt_chrysotile_5_65 != 0) |
-        (models.Shift.receipt_chrysotile_6_40 != 0) |
-        (models.Shift.receipt_cement != 0) |
-        (models.Shift.receipt_cellulose != 0) |
-        (models.Shift.receipt_crushed_slate != 0) |
-        (models.Shift.receipt_asbozurit != 0) |
-        (models.Shift.receipt_asbocarton != 0) |
-        (models.Shift.receipt_pallets != 0) |
-        (models.Shift.receipt_fiberglass != 0) |
-        (models.Shift.receipt_laprol != 0)
-    ).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
+    # 3. Собираем данные из БД — все смены, у которых есть хоть какой-то приход
+    # Фильтруем смены: выгружаем только те, у которых len(s.receipts) > 0
+    shifts = db.query(models.Shift).filter(models.Shift.receipts.any()).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
 
     rows_data = []
     rows_data.append(headers)
 
     for s in shifts:
         date_str = s.date.strftime("%d.%m.%Y") if s.date else ""
+        
+        sum_chrysotile_4_20 = sum(r.chrysotile_4_20 for r in s.receipts)
+        sum_chrysotile_5_65 = sum(r.chrysotile_5_65 for r in s.receipts)
+        sum_chrysotile_6_40 = sum(r.chrysotile_6_40 for r in s.receipts)
+        sum_cement_silo1 = sum(r.cement_silo1 for r in s.receipts)
+        sum_cement_silo2 = sum(r.cement_silo2 for r in s.receipts)
+        sum_cement_silo3 = sum(r.cement_silo3 for r in s.receipts)
+        sum_cement_silo4 = sum(r.cement_silo4 for r in s.receipts)
+        sum_cellulose = sum(r.cellulose for r in s.receipts)
+        sum_crushed_slate = sum(r.crushed_slate for r in s.receipts)
+        sum_asbozurit = sum(r.asbozurit for r in s.receipts)
+        sum_asbocarton = sum(r.asbocarton for r in s.receipts)
+        sum_pallets = sum(r.pallets for r in s.receipts)
+        sum_fiberglass = sum(r.fiberglass for r in s.receipts)
+        sum_laprol = sum(r.laprol for r in s.receipts)
+        
         row = [
             date_str,
             s.shift_name or "",
             s.line or "",
             s.master.name if s.master else "",
-            s.receipt_chrysotile_4_20 or 0.0,
-            s.receipt_chrysotile_5_65 or 0.0,
-            s.receipt_chrysotile_6_40 or 0.0,
-            s.receipt_cement or 0.0,
-            s.receipt_cellulose or 0.0,
-            s.receipt_crushed_slate or 0.0,
-            s.receipt_asbozurit or 0.0,
-            s.receipt_asbocarton or 0.0,
-            s.receipt_pallets or 0.0,
-            s.receipt_fiberglass or 0.0,
-            s.receipt_laprol or 0.0,
+            sum_chrysotile_4_20,
+            sum_chrysotile_5_65,
+            sum_chrysotile_6_40,
+            sum_cement_silo1,
+            sum_cement_silo2,
+            sum_cement_silo3,
+            sum_cement_silo4,
+            sum_cellulose,
+            sum_crushed_slate,
+            sum_asbozurit,
+            sum_asbocarton,
+            sum_pallets,
+            sum_fiberglass,
+            sum_laprol,
         ]
         rows_data.append(row)
 
@@ -994,7 +1002,7 @@ def export_receipt_to_google_sheets(db: Session):
     empty_block = [["" for _ in range(len(headers))] for _ in range(1000)]
     service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:O1000",
+        range=f"'{sheet_name}'!A1:R1000",
         valueInputOption="USER_ENTERED",
         body={"values": empty_block}
     ).execute()

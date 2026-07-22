@@ -90,18 +90,6 @@ class ShiftBase(BaseModel):
     plan_sheets: Optional[int] = 0
     plan_tons: Optional[float] = 0.0
     
-    receipt_chrysotile_4_20: float = 0.0
-    receipt_chrysotile_5_65: float = 0.0
-    receipt_chrysotile_6_40: Optional[float] = 0
-    receipt_cement: Optional[float] = 0
-    receipt_cellulose: Optional[float] = 0
-    receipt_crushed_slate: Optional[float] = 0
-    receipt_asbozurit: Optional[float] = 0
-    receipt_asbocarton: Optional[float] = 0.0
-    receipt_pallets: Optional[float] = 0.0
-    receipt_fiberglass: Optional[float] = 0
-    receipt_laprol: Optional[float] = 0
-    
     zo_chrysotile_4_20: Optional[float] = 0
     zo_chrysotile_5_65: Optional[float] = 0
     zo_chrysotile_6_40: Optional[float] = 0
@@ -125,6 +113,33 @@ class ShiftBase(BaseModel):
     zo_submitted: Optional[bool] = False
 
 
+class RawMaterialReceiptBase(BaseModel):
+    chrysotile_4_20: float = 0.0
+    chrysotile_5_65: float = 0.0
+    chrysotile_6_40: float = 0.0
+    cement_silo1: float = 0.0
+    cement_silo2: float = 0.0
+    cement_silo3: float = 0.0
+    cement_silo4: float = 0.0
+    cellulose: float = 0.0
+    crushed_slate: float = 0.0
+    asbozurit: float = 0.0
+    asbocarton: float = 0.0
+    pallets: float = 0.0
+    fiberglass: float = 0.0
+    laprol: float = 0.0
+
+class RawMaterialReceiptCreate(RawMaterialReceiptBase):
+    pass
+
+class RawMaterialReceipt(RawMaterialReceiptBase):
+    id: int
+    shift_id: int
+    timestamp: str
+
+    class Config:
+        from_attributes = True
+
 class ShiftCreate(ShiftBase):
     master_id: int
 
@@ -136,6 +151,7 @@ class Shift(ShiftBase):
     batches: List[Batch] = []
     lfm_reports: List[LFMReport] = []
     downtimes: List[Downtime] = []
+    receipts: List[RawMaterialReceipt] = []
     master: Optional['Master'] = None
 
     class Config:
@@ -264,17 +280,6 @@ class DowntimeDirectory(DowntimeDirectoryBase):
 
 
 class RawMaterialsBulkUpdate(BaseModel):
-    receipt_chrysotile_4_20: float = 0.0
-    receipt_chrysotile_5_65: float = 0.0
-    receipt_chrysotile_6_40: float = 0.0
-    receipt_cement: float = 0.0
-    receipt_cellulose: float = 0.0
-    receipt_crushed_slate: float = 0.0
-    receipt_asbocarton: float = 0.0
-    receipt_pallets: float = 0.0
-    receipt_fiberglass: float = 0.0
-    receipt_laprol: float = 0.0
-
     zo_chrysotile_4_20: float = 0.0
     zo_chrysotile_5_65: float = 0.0
     zo_chrysotile_6_40: float = 0.0
@@ -343,18 +348,4 @@ class ShiftReportCreate(BaseModel):
     zo_asbocarton: float = 0.0
     zo_asb_drain: float = 0.0
     zo_cem_drain: float = 0.0
-
-    # Приход сырья (Склад)
-    receipt_chrysotile_4_20: float = 0.0
-    receipt_chrysotile_5_65: float = 0.0
-    receipt_chrysotile_6_40: float = 0.0
-    receipt_cement: float = 0.0
-    receipt_cellulose: float = 0.0
-    receipt_crushed_slate: float = 0.0
-    receipt_asbozurit: float = 0.0
-    receipt_asbocarton: float = 0.0
-    receipt_pallets: float = 0.0
-    receipt_fiberglass: float = 0.0
-    receipt_laprol: float = 0.0
-
 

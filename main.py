@@ -1058,18 +1058,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             "zo_laprol": shift.zo_laprol,
             "zo_asbocarton": shift.zo_asbocarton,
             "zo_asb_drain": shift.zo_asb_drain,
-            "zo_cem_drain": shift.zo_cem_drain,
-            "receipt_chrysotile_4_20": shift.receipt_chrysotile_4_20,
-            "receipt_chrysotile_5_65": shift.receipt_chrysotile_5_65,
-            "receipt_chrysotile_6_40": shift.receipt_chrysotile_6_40,
-            "receipt_cement": shift.receipt_cement,
-            "receipt_cellulose": shift.receipt_cellulose,
-            "receipt_crushed_slate": shift.receipt_crushed_slate,
-            "receipt_asbozurit": shift.receipt_asbozurit,
-            "receipt_asbocarton": shift.receipt_asbocarton,
-            "receipt_pallets": shift.receipt_pallets,
-            "receipt_fiberglass": shift.receipt_fiberglass,
-            "receipt_laprol": shift.receipt_laprol
+            "zo_cem_drain": shift.zo_cem_drain
         }
 
     # Update Shift fields
@@ -1097,19 +1086,6 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     shift.zo_cem_drain = data.zo_cem_drain
     shift.zo_batches = data.zo_batches
     shift.zo_submitted = True
-
-    # Приход сырья
-    shift.receipt_chrysotile_4_20 = data.receipt_chrysotile_4_20
-    shift.receipt_chrysotile_5_65 = data.receipt_chrysotile_5_65
-    shift.receipt_chrysotile_6_40 = data.receipt_chrysotile_6_40
-    shift.receipt_cement = data.receipt_cement
-    shift.receipt_cellulose = data.receipt_cellulose
-    shift.receipt_crushed_slate = data.receipt_crushed_slate
-    shift.receipt_asbozurit = data.receipt_asbozurit
-    shift.receipt_asbocarton = data.receipt_asbocarton
-    shift.receipt_pallets = data.receipt_pallets
-    shift.receipt_fiberglass = data.receipt_fiberglass
-    shift.receipt_laprol = data.receipt_laprol
 
     # Update LFM report
     lfm_report = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
@@ -1349,6 +1325,78 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     background_tasks.add_task(sync_sharepoint_report_bg)
     
     return {"status": "success", "shift_id": shift.id}
+
+
+@app.post("/api/shifts/{shift_id}/receipts")
+def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    if not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Смена не найдена")
+
+    receipt = models.RawMaterialReceipt(
+        shift_id=shift.id,
+        chrysotile_4_20=data.chrysotile_4_20,
+        chrysotile_5_65=data.chrysotile_5_65,
+        chrysotile_6_40=data.chrysotile_6_40,
+        cement_silo1=data.cement_silo1,
+        cement_silo2=data.cement_silo2,
+        cement_silo3=data.cement_silo3,
+        cement_silo4=data.cement_silo4,
+        cellulose=data.cellulose,
+        crushed_slate=data.crushed_slate,
+        asbozurit=data.asbozurit,
+        asbocarton=data.asbocarton,
+        pallets=data.pallets,
+        fiberglass=data.fiberglass,
+        laprol=data.laprol
+    )
+    db.add(receipt)
+    
+    db.add(models.AuditLog(
+        user_name=user_name,
+        action="CREATE",
+        target_table="raw_material_receipts",
+        target_id=shift_id,
+        details=f"Добавлен приход сырья для смены {shift.date} {shift.shift_name}"
+    ))
+    db.commit()
+    
+    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    
+    return {"status": "success", "receipt_id": receipt.id}
+
+
+@app.delete("/api/receipts/{receipt_id}")
+def delete_raw_material_receipt(receipt_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    if not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    receipt = db.query(models.RawMaterialReceipt).get(receipt_id)
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Приход сырья не найден")
+
+    shift = receipt.shift
+    db.delete(receipt)
+    
+    db.add(models.AuditLog(
+        user_name=user_name,
+        action="DELETE",
+        target_table="raw_material_receipts",
+        target_id=receipt_id,
+        details=f"Удален приход сырья для смены {shift.date if shift else 'Unknown'}"
+    ))
+    db.commit()
+    
+    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    
+    return {"status": "success"}
 
 
 @app.post("/api/norms/sync_from_google")

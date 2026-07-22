@@ -28,17 +28,7 @@ class Shift(Base):
     plan_tons = Column(Float, default=0.0)
     
     # --- 1. Склад (Приход сырья) ---
-    receipt_chrysotile_4_20 = Column(Float, default=0.0)
-    receipt_chrysotile_5_65 = Column(Float, default=0.0)
-    receipt_chrysotile_6_40 = Column(Float, default=0)
-    receipt_cement = Column(Float, default=0)
-    receipt_cellulose = Column(Float, default=0)
-    receipt_crushed_slate = Column(Float, default=0)
-    receipt_asbozurit = Column(Float, default=0)
-    receipt_asbocarton = Column(Float, default=0.0)
-    receipt_pallets = Column(Float, default=0.0)
-    receipt_fiberglass = Column(Float, default=0)
-    receipt_laprol = Column(Float, default=0)
+    # Поля прихода сырья вынесены в отдельную таблицу RawMaterialReceipt
     
     # ЗО ФАКТ РАСХОД
     zo_chrysotile_4_20 = Column(Float, default=0)
@@ -68,6 +58,32 @@ class Shift(Base):
     batches = relationship("Batch", back_populates="shift")
     lfm_reports = relationship("LFMReport", back_populates="shift")
     downtimes = relationship("Downtime", back_populates="shift")
+    receipts = relationship("RawMaterialReceipt", back_populates="shift", cascade="all, delete-orphan")
+
+class RawMaterialReceipt(Base):
+    __tablename__ = "raw_material_receipts"
+    id = Column(Integer, primary_key=True, index=True)
+    shift_id = Column(Integer, ForeignKey("shifts.id"))
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    chrysotile_4_20 = Column(Float, default=0.0)
+    chrysotile_5_65 = Column(Float, default=0.0)
+    chrysotile_6_40 = Column(Float, default=0.0)
+    
+    cement_silo1 = Column(Float, default=0.0)
+    cement_silo2 = Column(Float, default=0.0)
+    cement_silo3 = Column(Float, default=0.0)
+    cement_silo4 = Column(Float, default=0.0)
+    
+    cellulose = Column(Float, default=0.0)
+    crushed_slate = Column(Float, default=0.0)
+    asbozurit = Column(Float, default=0.0)
+    asbocarton = Column(Float, default=0.0)
+    pallets = Column(Float, default=0.0)
+    fiberglass = Column(Float, default=0.0)
+    laprol = Column(Float, default=0.0)
+    
+    shift = relationship("Shift", back_populates="receipts")
 
 class Downtime(Base):
     __tablename__ = "downtimes"

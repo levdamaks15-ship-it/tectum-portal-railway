@@ -228,6 +228,7 @@ async function loadMasters() {
             // Populate dropdowns
             const repMaster = document.getElementById('rep-master');
             const filterMaster = document.getElementById('filter-master');
+            const recMaster = document.getElementById('rec-master');
             
             if (repMaster) {
                 repMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
@@ -235,6 +236,10 @@ async function loadMasters() {
             }
             if (filterMaster) {
                 filterMaster.innerHTML = '<option value="">-- Все мастера --</option>' + 
+                    mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+            }
+            if (recMaster) {
+                recMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
             }
             const dtMaster = document.getElementById('journal-dt-master-select');
@@ -421,18 +426,9 @@ function prefillReportForm(shift) {
     document.getElementById('zo-asb-drain').value = shift.zo_asb_drain || '0';
     document.getElementById('zo-cem-drain').value = shift.zo_cem_drain || '0';
 
-    // Raw materials receipt
-    document.getElementById('rec-chr-4-20').value = shift.receipt_chrysotile_4_20 || '0';
-    document.getElementById('rec-chr-5-65').value = shift.receipt_chrysotile_5_65 || '0';
-    document.getElementById('rec-chr-6-40').value = shift.receipt_chrysotile_6_40 || '0';
-    document.getElementById('rec-cement').value = shift.receipt_cement || '0';
-    document.getElementById('rec-cellulose').value = shift.receipt_cellulose || '0';
-    document.getElementById('rec-crushed-slate').value = shift.receipt_crushed_slate || '0';
-    document.getElementById('rec-asbozurit').value = shift.receipt_asbozurit || '0';
-    document.getElementById('rec-asbocarton').value = shift.receipt_asbocarton || '0';
-    document.getElementById('rec-pallets').value = shift.receipt_pallets || '0';
-    document.getElementById('rec-fiberglass').value = shift.receipt_fiberglass || '0';
-    document.getElementById('rec-laprol').value = shift.receipt_laprol || '0';
+    // Raw materials receipt 
+    // Data is loaded via dedicated endpoint
+    loadReceipts(shift);
 
     // Fetch shift reports to populate production/defect sheets
     fetch(`/api/report/summary?from_date=${shift.date}&to_date=${shift.date}&line=${encodeURIComponent(shift.line)}`)
@@ -517,19 +513,7 @@ async function submitShiftReport() {
         zo_laprol: parseFloat(document.getElementById('zo-laprol').value) || 0.0,
         zo_asbocarton: parseFloat(document.getElementById('zo-asbocarton').value) || 0.0,
         zo_asb_drain: parseFloat(document.getElementById('zo-asb-drain').value) || 0.0,
-        zo_cem_drain: parseFloat(document.getElementById('zo-cem-drain').value) || 0.0,
-
-        receipt_chrysotile_4_20: parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0,
-        receipt_chrysotile_5_65: parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0,
-        receipt_chrysotile_6_40: parseFloat(document.getElementById('rec-chr-6-40').value) || 0.0,
-        receipt_cement: parseFloat(document.getElementById('rec-cement').value) || 0.0,
-        receipt_cellulose: parseFloat(document.getElementById('rec-cellulose').value) || 0.0,
-        receipt_crushed_slate: parseFloat(document.getElementById('rec-crushed-slate').value) || 0.0,
-        receipt_asbozurit: parseFloat(document.getElementById('rec-asbozurit').value) || 0.0,
-        receipt_asbocarton: parseFloat(document.getElementById('rec-asbocarton').value) || 0.0,
-        receipt_pallets: parseFloat(document.getElementById('rec-pallets').value) || 0.0,
-        receipt_fiberglass: parseFloat(document.getElementById('rec-fiberglass').value) || 0.0,
-        receipt_laprol: parseFloat(document.getElementById('rec-laprol').value) || 0.0
+        zo_cem_drain: parseFloat(document.getElementById('zo-cem-drain').value) || 0.0
     };
 
     if (!data.date || !data.shift_name || !data.line || isNaN(data.master_id) || !data.product_name) {
@@ -578,7 +562,7 @@ function resetReportForm() {
         'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4', 
         'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton', 
         'zo-asb-drain', 'zo-cem-drain',
-        'rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement', 'rec-cellulose', 'rec-crushed-slate', 
+        'rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 
         'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'
     ];
     
@@ -2107,5 +2091,134 @@ async function exportDowntimesToGoogle() {
             statusEl.textContent = '❌ ' + (e.message || 'Ошибка');
             statusEl.style.color = 'var(--danger-color)';
         }
+    }
+}
+
+
+// --- Raw Material Receipts Logic ---
+async function loadReceipts(shift) {
+    if (!shift || !shift.id) return;
+    try {
+        const res = await fetch(`/api/shifts/${shift.id}`);
+        if (res.ok) {
+            const shiftData = await res.json();
+            renderReceiptsTable(shiftData.receipts || [], shiftData);
+        }
+    } catch(e) {
+        console.error('Error loading receipts:', e);
+    }
+}
+
+function renderReceiptsTable(receipts, shiftData) {
+    const tbody = document.getElementById('receipts-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    if (!receipts || receipts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">Нет добавленных приходов сырья</td></tr>';
+        return;
+    }
+
+    const sDate = shiftData ? shiftData.date : '-';
+    const sName = shiftData ? shiftData.shift_name : '-';
+    const mName = shiftData && shiftData.master ? shiftData.master.name : '-';
+
+    receipts.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${sDate}</td>
+            <td>${sName}</td>
+            <td>${mName}</td>
+            <td>
+                <button type="button" class="btn-danger btn-sm" onclick="deleteReceipt(${r.id})">❌</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function addReceipt() {
+    const date = document.getElementById('rec-date').value;
+    const shift_name = document.getElementById('rec-shift').value;
+    const line = document.getElementById('rec-line').value;
+    const master_id = document.getElementById('rec-master').value;
+    
+    if (!date || !shift_name || !line || !master_id) {
+        alert("Пожалуйста, заполните параметры смены (Дата, Смена, Линия, Мастер) перед добавлением прихода сырья.");
+        return;
+    }
+    
+    const data = {
+        chrysotile_4_20: parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0,
+        chrysotile_5_65: parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0,
+        chrysotile_6_40: parseFloat(document.getElementById('rec-chr-6-40').value) || 0.0,
+        cement_silo1: parseFloat(document.getElementById('rec-cement-1').value) || 0.0,
+        cement_silo2: parseFloat(document.getElementById('rec-cement-2').value) || 0.0,
+        cement_silo3: parseFloat(document.getElementById('rec-cement-3').value) || 0.0,
+        cement_silo4: parseFloat(document.getElementById('rec-cement-4').value) || 0.0,
+        cellulose: parseFloat(document.getElementById('rec-cellulose').value) || 0.0,
+        crushed_slate: parseFloat(document.getElementById('rec-crushed-slate').value) || 0.0,
+        asbozurit: parseFloat(document.getElementById('rec-asbozurit').value) || 0.0,
+        asbocarton: parseFloat(document.getElementById('rec-asbocarton').value) || 0.0,
+        pallets: parseFloat(document.getElementById('rec-pallets').value) || 0.0,
+        fiberglass: parseFloat(document.getElementById('rec-fiberglass').value) || 0.0,
+        laprol: parseFloat(document.getElementById('rec-laprol').value) || 0.0
+    };
+    
+    try {
+        // Find or create shift first
+        let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}&master_id=${master_id}&create_if_not_exists=true`;
+        const shiftRes = await fetch(url);
+        if (!shiftRes.ok) throw new Error("Не удалось определить или создать смену");
+        
+        const shift = await shiftRes.json();
+        
+        const res = await fetch(`/api/shifts/${shift.id}/receipts`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        if (res.ok) {
+            // Clear fields
+            ['rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            loadReceipts(shift);
+        } else {
+            const err = await res.json();
+            alert("Ошибка при добавлении прихода: " + (err.detail || 'Неизвестная ошибка'));
+        }
+    } catch(e) {
+        alert("Ошибка: " + e.message);
+    }
+}
+
+async function deleteReceipt(receiptId) {
+    if (!confirm("Вы уверены, что хотите удалить этот приход сырья?")) return;
+    
+    try {
+        const res = await fetch(`/api/receipts/${receiptId}`, {
+            method: 'DELETE'
+        });
+        
+        if (res.ok) {
+            // Reload receipts for the currently selected shift
+            const date = document.getElementById('rep-date').value;
+            const shift_name = document.getElementById('rep-shift').value;
+            const line = document.getElementById('rep-line').value;
+            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`;
+            const shiftRes = await fetch(url);
+            if (shiftRes.ok) {
+                const shift = await shiftRes.json();
+                loadReceipts(shift);
+            }
+        } else {
+            const err = await res.json();
+            alert("Ошибка при удалении: " + (err.detail || 'Неизвестная ошибка'));
+        }
+    } catch(e) {
+        alert("Ошибка: " + e.message);
     }
 }
