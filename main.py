@@ -715,7 +715,37 @@ def download_shift_passport(shift_id: int, request: Request, db: Session = Depen
         except Exception as inner_e:
             raise HTTPException(500, f"Не удалось сгенерировать сводный отчет: {str(e)} | fallback error: {str(inner_e)}")
 
-@app.post("/api/admin/sync_directories_sharepoint")
+
+@app.post("/api/admin/sync_directories_google")
+def sync_directories_google(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        import google_sheets_integration
+        google_sheets_integration.sync_norms_from_google_sheets(db)
+        google_sheets_integration.sync_downtime_directory_from_google_sheets(db)
+        
+        db.add(models.AuditLog(
+            user_id=user_id,
+            action="SYNC_DIRECTORIES",
+            entity="Directories",
+            entity_id=0,
+            details="Синхронизация нормативов и справочника простоев из Google Sheets"
+        ))
+        db.commit()
+        return {"status": "success", "message": "Справочники успешно синхронизированы из Google Sheets"}
+    except Exception as e:
+        import traceback
+        err_msg = f"Ошибка синхронизации: {str(e)}"
+        print(f"{err_msg}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=err_msg)
+\n@app.post("/api/admin/sync_directories_sharepoint")
 def sync_directories_sharepoint(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
@@ -1479,7 +1509,7 @@ def get_report_summary(
             zo_batches_check = shift.zo_batches or 0
             plan_sheets_check = shift.plan_sheets or 0
         
-            if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted and not shift.receipts and not shift.downtimes:
+            if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted and not shift.downtimes:
                 continue
             
             lfm_sheets = lfm_sheets_check if not is_other_master else 0
