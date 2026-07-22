@@ -948,50 +948,38 @@ def export_receipt_to_google_sheets(db: Session):
         "Стекловолокно (кг)", "Лапрол (кг)"
     ]
 
-    # 3. Собираем данные из БД — все смены, у которых есть хоть какой-то приход
-    # Фильтруем смены: выгружаем только те, у которых len(s.receipts) > 0
-    shifts = db.query(models.Shift).filter(models.Shift.receipts.any()).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
+    # 3. Собираем данные из БД — все записи прихода сырья
+    # Выгружаем каждую запись прихода как отдельную строку
+    receipts = db.query(models.RawMaterialReceipt).join(models.Shift).order_by(models.Shift.date.asc(), models.RawMaterialReceipt.id.asc()).all()
 
     rows_data = []
     rows_data.append(headers)
 
-    for s in shifts:
-        date_str = s.date.strftime("%d.%m.%Y") if s.date else ""
-        
-        sum_chrysotile_4_20 = sum(r.chrysotile_4_20 for r in s.receipts)
-        sum_chrysotile_5_65 = sum(r.chrysotile_5_65 for r in s.receipts)
-        sum_chrysotile_6_40 = sum(r.chrysotile_6_40 for r in s.receipts)
-        sum_cement_silo1 = sum(r.cement_silo1 for r in s.receipts)
-        sum_cement_silo2 = sum(r.cement_silo2 for r in s.receipts)
-        sum_cement_silo3 = sum(r.cement_silo3 for r in s.receipts)
-        sum_cement_silo4 = sum(r.cement_silo4 for r in s.receipts)
-        sum_cellulose = sum(r.cellulose for r in s.receipts)
-        sum_crushed_slate = sum(r.crushed_slate for r in s.receipts)
-        sum_asbozurit = sum(r.asbozurit for r in s.receipts)
-        sum_asbocarton = sum(r.asbocarton for r in s.receipts)
-        sum_pallets = sum(r.pallets for r in s.receipts)
-        sum_fiberglass = sum(r.fiberglass for r in s.receipts)
-        sum_laprol = sum(r.laprol for r in s.receipts)
+    for r in receipts:
+        date_str = r.shift.date.strftime("%d.%m.%Y") if r.shift and r.shift.date else ""
+        shift_name = r.shift.shift_name or ""
+        line = r.shift.line or ""
+        master_name = r.master.name if r.master else (r.shift.master.name if r.shift and r.shift.master else "")
         
         row = [
             date_str,
-            s.shift_name or "",
-            s.line or "",
-            s.master.name if s.master else "",
-            sum_chrysotile_4_20,
-            sum_chrysotile_5_65,
-            sum_chrysotile_6_40,
-            sum_cement_silo1,
-            sum_cement_silo2,
-            sum_cement_silo3,
-            sum_cement_silo4,
-            sum_cellulose,
-            sum_crushed_slate,
-            sum_asbozurit,
-            sum_asbocarton,
-            sum_pallets,
-            sum_fiberglass,
-            sum_laprol,
+            shift_name,
+            line,
+            master_name,
+            r.chrysotile_4_20 or 0.0,
+            r.chrysotile_5_65 or 0.0,
+            r.chrysotile_6_40 or 0.0,
+            r.cement_silo1 or 0.0,
+            r.cement_silo2 or 0.0,
+            r.cement_silo3 or 0.0,
+            r.cement_silo4 or 0.0,
+            r.cellulose or 0.0,
+            r.crushed_slate or 0.0,
+            r.asbozurit or 0.0,
+            r.asbocarton or 0.0,
+            r.pallets or 0.0,
+            r.fiberglass or 0.0,
+            r.laprol or 0.0,
         ]
         rows_data.append(row)
 
