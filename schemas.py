@@ -113,7 +113,8 @@ class ShiftBase(BaseModel):
     zo_submitted: Optional[bool] = False
 
 
-class RawMaterialReceiptBase(BaseModel):\n    master_id: Optional[int] = None
+class RawMaterialReceiptBase(BaseModel):
+    master_id: Optional[int] = None
     chrysotile_4_20: float = 0.0
     chrysotile_5_65: float = 0.0
     chrysotile_6_40: float = 0.0
