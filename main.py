@@ -526,11 +526,11 @@ def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Dep
 def get_active_shifts(db: Session = Depends(get_db)):
     return db.query(models.Shift).filter(models.Shift.status == "active").all()
 
-@app.get("/api/shifts/all")
+@app.get("/api/shifts/all", response_model=list[schemas.Shift])
 def get_all_shifts(db: Session = Depends(get_db)):
     return db.query(models.Shift).options(
         selectinload(models.Shift.master),
-        selectinload(models.Shift.receipts),
+        selectinload(models.Shift.receipts).selectinload(models.RawMaterialReceipt.master),
         selectinload(models.Shift.batches),
         selectinload(models.Shift.lfm_reports),
         selectinload(models.Shift.downtimes)
