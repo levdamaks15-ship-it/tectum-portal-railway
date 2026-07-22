@@ -34,6 +34,25 @@ async def lifespan(app: FastAPI):
     import sqlite3
     try:
         conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;")
+        conn.commit()
+        conn.close()
+    except: pass
+    
+    # PG version
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER REFERENCES masters(id);"))
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+    try:
+        conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE shifts ADD COLUMN batch_number VARCHAR(255)")
         conn.commit()
         conn.close()
@@ -3914,14 +3933,6 @@ def clear_plan_board(user_name: str = "Администратор", db: Session 
         return {"status": "ok", "deleted_count": count}
     except Exception as e:
         db.rollback()
-        raise HTTPException(500, f"Ошибка очистки: {str(e)}")        try:
-            if driver == 'postgresql':
-                db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER REFERENCES masters(id);"))
-            else:
-                db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;"))
-            db.commit()
-            print("Added master_id to raw_material_receipts")
-        except Exception:
-            db.rollback()
+        raise HTTPException(500, f"Ошибка очистки: {str(e)}")
 
 
