@@ -1493,7 +1493,7 @@ def get_report_summary(
         zo_batches_check = shift.zo_batches or 0
         plan_sheets_check = shift.plan_sheets or 0
         
-        if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted:
+        if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted and not shift.receipts and not shift.downtimes:
             continue
             
         lfm_sheets = lfm_sheets_check if not is_other_master else 0
