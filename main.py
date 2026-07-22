@@ -40,14 +40,22 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
     
-    # PG version
+    # PG version - ensure master_id column exists
     try:
         db = SessionLocal()
         driver = db.bind.dialect.name if db.bind else 'unknown'
         if driver == 'postgresql':
-            db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER REFERENCES masters(id);"))
-        db.commit()
-    except Exception:
+            from sqlalchemy import text
+            col_exists = db.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='raw_material_receipts' AND column_name='master_id'"
+            )).fetchone()
+            if not col_exists:
+                print("Adding master_id column to raw_material_receipts on PostgreSQL...")
+                db.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER REFERENCES masters(id);"))
+                db.commit()
+                print("master_id column added successfully.")
+    except Exception as e:
+        print(f"Warning: could not add master_id column: {e}")
         db.rollback()
     finally:
         db.close()
@@ -541,7 +549,7 @@ def get_active_shifts(db: Session = Depends(get_db)):
 def get_all_shifts(db: Session = Depends(get_db)):
     return db.query(models.Shift).options(
         selectinload(models.Shift.master),
-        selectinload(models.Shift.receipts).selectinload(models.RawMaterialReceipt.master),
+        selectinload(models.Shift.receipts),
         selectinload(models.Shift.batches),
         selectinload(models.Shift.lfm_reports),
         selectinload(models.Shift.downtimes)
