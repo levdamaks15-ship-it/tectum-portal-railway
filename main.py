@@ -745,7 +745,7 @@ def sync_directories_google(request: Request, db: Session = Depends(get_db)):
         err_msg = f"Ошибка синхронизации: {str(e)}"
         print(f"{err_msg}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=err_msg)
-\n@app.post("/api/admin/sync_directories_sharepoint")
+@app.post("/api/admin/sync_directories_sharepoint")
 def sync_directories_sharepoint(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
