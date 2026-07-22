@@ -528,17 +528,13 @@ def get_active_shifts(db: Session = Depends(get_db)):
 
 @app.get("/api/shifts/all")
 def get_all_shifts(db: Session = Depends(get_db)):
-    try:
-        return db.query(models.Shift).options(
-            selectinload(models.Shift.receipts),
-            selectinload(models.Shift.batches),
-            selectinload(models.Shift.lfm_reports),
-            selectinload(models.Shift.downtimes)
-        ).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
-    except Exception as err:
-        import traceback
-        print(f"Error in get_all_shifts: {err}\n{traceback.format_exc()}")
-        return []
+    return db.query(models.Shift).options(
+        selectinload(models.Shift.master),
+        selectinload(models.Shift.receipts),
+        selectinload(models.Shift.batches),
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.downtimes)
+    ).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
 
 @app.get("/api/shifts/by_params")
 def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
