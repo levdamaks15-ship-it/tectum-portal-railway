@@ -13,7 +13,7 @@ import import_aci_excel
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy import or_, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from contextlib import asynccontextmanager
 import seed_norms
 import calendar
@@ -530,10 +530,10 @@ def get_active_shifts(db: Session = Depends(get_db)):
 def get_all_shifts(db: Session = Depends(get_db)):
     try:
         return db.query(models.Shift).options(
-            joinedload(models.Shift.receipts),
-            joinedload(models.Shift.batches),
-            joinedload(models.Shift.lfm_reports),
-            joinedload(models.Shift.downtimes)
+            selectinload(models.Shift.receipts),
+            selectinload(models.Shift.batches),
+            selectinload(models.Shift.lfm_reports),
+            selectinload(models.Shift.downtimes)
         ).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
     except Exception as err:
         import traceback
