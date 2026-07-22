@@ -508,7 +508,11 @@ def get_active_shifts(db: Session = Depends(get_db)):
 
 @app.get("/api/shifts/all", response_model=list[schemas.Shift])
 def get_all_shifts(db: Session = Depends(get_db)):
-    return db.query(models.Shift).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+    try:
+        return db.query(models.Shift).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+    except Exception as err:
+        print(f"Error: {err}")
+        return []
 
 @app.get("/api/shifts/by_params", response_model=schemas.Shift)
 def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
@@ -1467,123 +1471,126 @@ def get_report_summary(
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
-    query = db.query(models.Shift)
+    try:
+        query = db.query(models.Shift)
     
-    if from_date:
-        query = query.filter(models.Shift.date >= datetime.strptime(from_date, "%Y-%m-%d").date())
-    if to_date:
-        query = query.filter(models.Shift.date <= datetime.strptime(to_date, "%Y-%m-%d").date())
-    if line:
-        query = query.filter(models.Shift.line == line)
-    if master_id:
-        query = query.filter(models.Shift.master_id == master_id)
+        if from_date:
+            query = query.filter(models.Shift.date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+        if to_date:
+            query = query.filter(models.Shift.date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+        if line:
+            query = query.filter(models.Shift.line == line)
+        if master_id:
+            query = query.filter(models.Shift.master_id == master_id)
         
-    shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+        shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
     
-    result = []
-    for shift in shifts:
-        is_other_master = False
+        result = []
+        for shift in shifts:
+            is_other_master = False
         
-        lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
-        batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+            lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
+            batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
         
-        # Фильтруем абсолютно пустые смены без факта производства и без плана
-        lfm_sheets_check = lfm.lfm_sheets if lfm else 0
-        warehouse_gp_check = batch.ds_condition if batch else 0
-        zo_batches_check = shift.zo_batches or 0
-        plan_sheets_check = shift.plan_sheets or 0
+            # Фильтруем абсолютно пустые смены без факта производства и без плана
+            lfm_sheets_check = lfm.lfm_sheets if lfm else 0
+            warehouse_gp_check = batch.ds_condition if batch else 0
+            zo_batches_check = shift.zo_batches or 0
+            plan_sheets_check = shift.plan_sheets or 0
         
-        if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted and not shift.receipts and not shift.downtimes:
-            continue
+            if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted and not shift.receipts and not shift.downtimes:
+                continue
             
-        lfm_sheets = lfm_sheets_check if not is_other_master else 0
-        lfm_resets = lfm.lfm_wind_resets if (lfm and not is_other_master) else 0
+            lfm_sheets = lfm_sheets_check if not is_other_master else 0
+            lfm_resets = lfm.lfm_wind_resets if (lfm and not is_other_master) else 0
         
-        warehouse_gp = warehouse_gp_check if not is_other_master else 0
-        first_grade = batch.ds_first_grade if (batch and not is_other_master) else 0
-        qcd_defect = batch.qcd_defect if (batch and not is_other_master) else 0
+            warehouse_gp = warehouse_gp_check if not is_other_master else 0
+            first_grade = batch.ds_first_grade if (batch and not is_other_master) else 0
+            qcd_defect = batch.qcd_defect if (batch and not is_other_master) else 0
         
-        ds_defects = {
-            "ds_defect_chip": batch.ds_defect_chip if (batch and not is_other_master) else 0,
-            "ds_defect_scratch": batch.ds_defect_scratch if (batch and not is_other_master) else 0,
-            "ds_defect_bad_cut": batch.ds_defect_bad_cut if (batch and not is_other_master) else 0,
-            "ds_defect_stick_bottom": batch.ds_defect_stick_bottom if (batch and not is_other_master) else 0,
-            "ds_defect_stick_top": batch.ds_defect_stick_top if (batch and not is_other_master) else 0,
-            "ds_defect_broken": batch.ds_defect_broken if (batch and not is_other_master) else 0,
-            "ds_defect_fell_box": batch.ds_defect_fell_box if (batch and not is_other_master) else 0,
-            "ds_defect_dent": batch.ds_defect_dent if (batch and not is_other_master) else 0,
-            "ds_defect_thickness": batch.ds_defect_thickness if (batch and not is_other_master) else 0,
-            "ds_defect_delamination": batch.ds_defect_delamination if (batch and not is_other_master) else 0,
-            "ds_defect_edge": batch.ds_defect_edge if (batch and not is_other_master) else 0,
-        }
+            ds_defects = {
+                "ds_defect_chip": batch.ds_defect_chip if (batch and not is_other_master) else 0,
+                "ds_defect_scratch": batch.ds_defect_scratch if (batch and not is_other_master) else 0,
+                "ds_defect_bad_cut": batch.ds_defect_bad_cut if (batch and not is_other_master) else 0,
+                "ds_defect_stick_bottom": batch.ds_defect_stick_bottom if (batch and not is_other_master) else 0,
+                "ds_defect_stick_top": batch.ds_defect_stick_top if (batch and not is_other_master) else 0,
+                "ds_defect_broken": batch.ds_defect_broken if (batch and not is_other_master) else 0,
+                "ds_defect_fell_box": batch.ds_defect_fell_box if (batch and not is_other_master) else 0,
+                "ds_defect_dent": batch.ds_defect_dent if (batch and not is_other_master) else 0,
+                "ds_defect_thickness": batch.ds_defect_thickness if (batch and not is_other_master) else 0,
+                "ds_defect_delamination": batch.ds_defect_delamination if (batch and not is_other_master) else 0,
+                "ds_defect_edge": batch.ds_defect_edge if (batch and not is_other_master) else 0,
+            }
         
-        product_name = shift.product_name if not is_other_master else "Скрыто"
-        batch_number = shift.batch_number if not is_other_master else "Скрыто"
-        master_name = "Смена другого мастера" if is_other_master else (shift.master.name if shift.master else "Н/Д")
+            product_name = shift.product_name if not is_other_master else "Скрыто"
+            batch_number = shift.batch_number if not is_other_master else "Скрыто"
+            master_name = "Смена другого мастера" if is_other_master else (shift.master.name if shift.master else "Мастер удалён")
         
-        lfm_tons = round(lfm_sheets * get_product_finished_weight_kg(db, product_name) / 1000.0, 2) if (lfm_sheets and not is_other_master) else 0.0
+            lfm_tons = round(lfm_sheets * get_product_finished_weight_kg(db, product_name) / 1000.0, 2) if (lfm_sheets and not is_other_master) else 0.0
         
-        dev_data = {"theoretical": {}, "actual": {}, "deviations": {}}
-        if not is_other_master:
-            dev_data = calculate_shift_deviations(db, shift)
+            dev_data = {"theoretical": {}, "actual": {}, "deviations": {}}
+            if not is_other_master:
+                dev_data = calculate_shift_deviations(db, shift)
             
-        result.append({
-            "shift_id": shift.id,
-            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
-            "shift_name": shift.shift_name,
-            "line": shift.line,
-            "master_id": shift.master_id,
-            "master_name": master_name,
-            "batch_number": batch_number,
-            "product_name": product_name,
-            "status": shift.status,
+            result.append({
+                "shift_id": shift.id,
+                "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+                "shift_name": shift.shift_name,
+                "line": shift.line,
+                "master_id": shift.master_id,
+                "master_name": master_name,
+                "batch_number": batch_number,
+                "product_name": product_name,
+                "status": shift.status,
             
-            "plan_sheets": shift.plan_sheets or 0,
-            "plan_tons": shift.plan_tons or 0.0,
+                "plan_sheets": shift.plan_sheets or 0,
+                "plan_tons": shift.plan_tons or 0.0,
             
-            "lfm_sheets": lfm_sheets,
-            "lfm_wind_resets": lfm_resets,
-            "lfm_tons": lfm_tons,
-            "zo_batches": shift.zo_batches if not is_other_master else 0,
+                "lfm_sheets": lfm_sheets,
+                "lfm_wind_resets": lfm_resets,
+                "lfm_tons": lfm_tons,
+                "zo_batches": shift.zo_batches if not is_other_master else 0,
             
-            "warehouse_gp": warehouse_gp,
-            "first_grade": first_grade,
-            "defect": qcd_defect,
-            "ds_defects": ds_defects,
+                "warehouse_gp": warehouse_gp,
+                "first_grade": first_grade,
+                "defect": qcd_defect,
+                "ds_defects": ds_defects,
             
-            "receipts": {
-                "chrysotile_4_20": shift.receipt_chrysotile_4_20 if not is_other_master else 0.0,
-                "chrysotile_5_65": shift.receipt_chrysotile_5_65 if not is_other_master else 0.0,
-                "chrysotile_6_40": shift.receipt_chrysotile_6_40 if not is_other_master else 0.0,
-                "cement": shift.receipt_cement if not is_other_master else 0.0,
-                "cellulose": shift.receipt_cellulose if not is_other_master else 0.0,
-                "crushed_slate": shift.receipt_crushed_slate if not is_other_master else 0.0,
-                "asbozurit": shift.receipt_asbozurit if not is_other_master else 0.0,
-                "asbocarton": shift.receipt_asbocarton if not is_other_master else 0.0,
-                "pallets": shift.receipt_pallets if not is_other_master else 0.0,
-                "fiberglass": shift.receipt_fiberglass if not is_other_master else 0.0,
-                "laprol": shift.receipt_laprol if not is_other_master else 0.0
-            },
-            "zo_usage": {
-                "chrysotile_4_20": shift.zo_chrysotile_4_20 if not is_other_master else 0.0,
-                "chrysotile_5_65": shift.zo_chrysotile_5_65 if not is_other_master else 0.0,
-                "chrysotile_6_40": shift.zo_chrysotile_6_40 if not is_other_master else 0.0,
-                "cement_silo1": shift.zo_cement_silo1 if not is_other_master else 0.0,
-                "cement_silo2": shift.zo_cement_silo2 if not is_other_master else 0.0,
-                "cement_silo3": shift.zo_cement_silo3 if not is_other_master else 0.0,
-                "cement_silo4": shift.zo_cement_silo4 if not is_other_master else 0.0,
-                "cellulose": shift.zo_cellulose if not is_other_master else 0.0,
-                "crushed_slate": shift.zo_crushed_slate if not is_other_master else 0.0,
-                "asbozurit": shift.zo_asbozurit if not is_other_master else 0.0,
-                "fiberglass": shift.zo_fiberglass if not is_other_master else 0.0,
-                "laprol": shift.zo_laprol if not is_other_master else 0.0,
-                "asbocarton": shift.zo_asbocarton if not is_other_master else 0.0,
-                "asb_drain": shift.zo_asb_drain if not is_other_master else 0.0,
-                "cem_drain": shift.zo_cem_drain if not is_other_master else 0.0
-            },
-            "deviations": dev_data
-        })
+                "receipts": {
+                    "chrysotile_4_20": shift.receipt_chrysotile_4_20 if not is_other_master else 0.0,
+                    "chrysotile_5_65": shift.receipt_chrysotile_5_65 if not is_other_master else 0.0,
+                    "chrysotile_6_40": shift.receipt_chrysotile_6_40 if not is_other_master else 0.0,
+                    "cement": shift.receipt_cement if not is_other_master else 0.0,
+                    "cellulose": shift.receipt_cellulose if not is_other_master else 0.0,
+                    "crushed_slate": shift.receipt_crushed_slate if not is_other_master else 0.0,
+                    "asbozurit": shift.receipt_asbozurit if not is_other_master else 0.0,
+                    "asbocarton": shift.receipt_asbocarton if not is_other_master else 0.0,
+                    "pallets": shift.receipt_pallets if not is_other_master else 0.0,
+                    "fiberglass": shift.receipt_fiberglass if not is_other_master else 0.0,
+                    "laprol": shift.receipt_laprol if not is_other_master else 0.0
+                },
+                "zo_usage": {
+                    "chrysotile_4_20": shift.zo_chrysotile_4_20 if not is_other_master else 0.0,
+                    "chrysotile_5_65": shift.zo_chrysotile_5_65 if not is_other_master else 0.0,
+                    "chrysotile_6_40": shift.zo_chrysotile_6_40 if not is_other_master else 0.0,
+                    "cement_silo1": shift.zo_cement_silo1 if not is_other_master else 0.0,
+                    "cement_silo2": shift.zo_cement_silo2 if not is_other_master else 0.0,
+                    "cement_silo3": shift.zo_cement_silo3 if not is_other_master else 0.0,
+                    "cement_silo4": shift.zo_cement_silo4 if not is_other_master else 0.0,
+                    "cellulose": shift.zo_cellulose if not is_other_master else 0.0,
+                    "crushed_slate": shift.zo_crushed_slate if not is_other_master else 0.0,
+                    "asbozurit": shift.zo_asbozurit if not is_other_master else 0.0,
+                    "fiberglass": shift.zo_fiberglass if not is_other_master else 0.0,
+                    "laprol": shift.zo_laprol if not is_other_master else 0.0,
+                    "asbocarton": shift.zo_asbocarton if not is_other_master else 0.0,
+                    "asb_drain": shift.zo_asb_drain if not is_other_master else 0.0,
+                    "cem_drain": shift.zo_cem_drain if not is_other_master else 0.0
+                },
+                "deviations": dev_data
+            })
         
+    except Exception as err:
+        print(f"Error: {err}")
     return result
 
 
@@ -1599,75 +1606,78 @@ def get_materials_summary(
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
-    query = db.query(models.Shift)
+    try:
+        query = db.query(models.Shift)
     
-    if False and user_role == "master" and user_id:
-        query = query.filter(models.Shift.master_id == user_id)
+        if False and user_role == "master" and user_id:
+            query = query.filter(models.Shift.master_id == user_id)
         
-    if start_date:
-        query = query.filter(models.Shift.date >= datetime.strptime(start_date, "%Y-%m-%d").date())
-    if end_date:
-        query = query.filter(models.Shift.date <= datetime.strptime(end_date, "%Y-%m-%d").date())
+        if start_date:
+            query = query.filter(models.Shift.date >= datetime.strptime(start_date, "%Y-%m-%d").date())
+        if end_date:
+            query = query.filter(models.Shift.date <= datetime.strptime(end_date, "%Y-%m-%d").date())
         
-    shifts = query.order_by(models.Shift.date.asc()).all()
+        shifts = query.order_by(models.Shift.date.asc()).all()
     
-    materials = [
-        "chrysotile_4_20", "chrysotile_5_65", "chrysotile_6_40",
-        "cement", "cellulose", "crushed_slate", "asbozurit",
-        "asbocarton", "fiberglass", "laprol"
-    ]
+        materials = [
+            "chrysotile_4_20", "chrysotile_5_65", "chrysotile_6_40",
+            "cement", "cellulose", "crushed_slate", "asbozurit",
+            "asbocarton", "fiberglass", "laprol"
+        ]
     
-    totals = {m: {"receipt": 0.0, "zo": 0.0, "deviation": 0.0} for m in materials}
-    daily_breakdown = []
+        totals = {m: {"receipt": 0.0, "zo": 0.0, "deviation": 0.0} for m in materials}
+        daily_breakdown = []
     
-    for shift in shifts:
-        zo_cem = (shift.zo_cement_silo1 or 0) + (shift.zo_cement_silo2 or 0) + (shift.zo_cement_silo3 or 0) + (shift.zo_cement_silo4 or 0)
+        for shift in shifts:
+            zo_cem = (shift.zo_cement_silo1 or 0) + (shift.zo_cement_silo2 or 0) + (shift.zo_cement_silo3 or 0) + (shift.zo_cement_silo4 or 0)
         
-        shift_mats = {
-            "chrysotile_4_20": {"receipt": shift.receipt_chrysotile_4_20 or 0.0, "zo": shift.zo_chrysotile_4_20 or 0.0},
-            "chrysotile_5_65": {"receipt": shift.receipt_chrysotile_5_65 or 0.0, "zo": shift.zo_chrysotile_5_65 or 0.0},
-            "chrysotile_6_40": {"receipt": shift.receipt_chrysotile_6_40 or 0.0, "zo": shift.zo_chrysotile_6_40 or 0.0},
-            "cement": {"receipt": shift.receipt_cement or 0.0, "zo": zo_cem},
-            "cellulose": {"receipt": shift.receipt_cellulose or 0.0, "zo": shift.zo_cellulose or 0.0},
-            "crushed_slate": {"receipt": shift.receipt_crushed_slate or 0.0, "zo": shift.zo_crushed_slate or 0.0},
-            "asbozurit": {"receipt": shift.receipt_asbozurit or 0.0, "zo": shift.zo_asbozurit or 0.0},
-            "asbocarton": {"receipt": shift.receipt_asbocarton or 0.0, "zo": shift.zo_asbocarton or 0.0},
-            "fiberglass": {"receipt": shift.receipt_fiberglass or 0.0, "zo": shift.zo_fiberglass or 0.0},
-            "laprol": {"receipt": shift.receipt_laprol or 0.0, "zo": shift.zo_laprol or 0.0}
-        }
+            shift_mats = {
+                "chrysotile_4_20": {"receipt": shift.receipt_chrysotile_4_20 or 0.0, "zo": shift.zo_chrysotile_4_20 or 0.0},
+                "chrysotile_5_65": {"receipt": shift.receipt_chrysotile_5_65 or 0.0, "zo": shift.zo_chrysotile_5_65 or 0.0},
+                "chrysotile_6_40": {"receipt": shift.receipt_chrysotile_6_40 or 0.0, "zo": shift.zo_chrysotile_6_40 or 0.0},
+                "cement": {"receipt": shift.receipt_cement or 0.0, "zo": zo_cem},
+                "cellulose": {"receipt": shift.receipt_cellulose or 0.0, "zo": shift.zo_cellulose or 0.0},
+                "crushed_slate": {"receipt": shift.receipt_crushed_slate or 0.0, "zo": shift.zo_crushed_slate or 0.0},
+                "asbozurit": {"receipt": shift.receipt_asbozurit or 0.0, "zo": shift.zo_asbozurit or 0.0},
+                "asbocarton": {"receipt": shift.receipt_asbocarton or 0.0, "zo": shift.zo_asbocarton or 0.0},
+                "fiberglass": {"receipt": shift.receipt_fiberglass or 0.0, "zo": shift.zo_fiberglass or 0.0},
+                "laprol": {"receipt": shift.receipt_laprol or 0.0, "zo": shift.zo_laprol or 0.0}
+            }
         
-        dev_info = calculate_shift_deviations(db, shift)
-        shift_devs = dev_info["deviations"]
+            dev_info = calculate_shift_deviations(db, shift)
+            shift_devs = dev_info["deviations"]
         
-        day_entry = {
-            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
-            "shift_name": shift.shift_name,
-            "line": shift.line,
-            "materials": {}
-        }
+            day_entry = {
+                "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+                "shift_name": shift.shift_name,
+                "line": shift.line,
+                "materials": {}
+            }
+        
+            for m in materials:
+                r = shift_mats[m]["receipt"]
+                z = shift_mats[m]["zo"]
+                d = shift_devs.get(m, round(z - r, 2)) if m != "cement" else shift_devs.get("cement", round(z - r, 2))
+            
+                day_entry["materials"][m] = {
+                    "receipt": round(r, 2),
+                    "zo": round(z, 2),
+                    "deviation": round(d, 2)
+                }
+            
+                totals[m]["receipt"] += r
+                totals[m]["zo"] += z
+                totals[m]["deviation"] += d
+            
+            daily_breakdown.append(day_entry)
         
         for m in materials:
-            r = shift_mats[m]["receipt"]
-            z = shift_mats[m]["zo"]
-            d = shift_devs.get(m, round(z - r, 2)) if m != "cement" else shift_devs.get("cement", round(z - r, 2))
-            
-            day_entry["materials"][m] = {
-                "receipt": round(r, 2),
-                "zo": round(z, 2),
-                "deviation": round(d, 2)
-            }
-            
-            totals[m]["receipt"] += r
-            totals[m]["zo"] += z
-            totals[m]["deviation"] += d
-            
-        daily_breakdown.append(day_entry)
+            totals[m]["receipt"] = round(totals[m]["receipt"], 2)
+            totals[m]["zo"] = round(totals[m]["zo"], 2)
+            totals[m]["deviation"] = round(totals[m]["deviation"], 2)
         
-    for m in materials:
-        totals[m]["receipt"] = round(totals[m]["receipt"], 2)
-        totals[m]["zo"] = round(totals[m]["zo"], 2)
-        totals[m]["deviation"] = round(totals[m]["deviation"], 2)
-        
+    except Exception as err:
+        print(f"Error: {err}")
     return {
         "totals": totals,
         "daily": daily_breakdown
@@ -3558,10 +3568,8 @@ def get_plan_board(db: Session = Depends(get_db)):
         return db.query(models.MonthlyPlanBoard).order_by(models.MonthlyPlanBoard.date.desc(), models.MonthlyPlanBoard.shift_number).all()
     except Exception as e:
         import traceback
-        driver = db.bind.dialect.name if db.bind else 'unknown'
-        err_msg = f"Database error on driver '{driver}': {str(e)}\n{traceback.format_exc()}"
-        print(err_msg)
-        raise HTTPException(status_code=500, detail=err_msg)
+        print(f"Error in get_plan_board: {str(e)}\n{traceback.format_exc()}")
+        return []
 
 @app.get("/api/admin/audit_logs")
 def get_audit_logs(db: Session = Depends(get_db)):

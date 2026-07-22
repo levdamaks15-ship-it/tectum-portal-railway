@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import date
+from datetime import date, datetime
 
 class BatchBase(BaseModel):
     batch_number: str
@@ -135,7 +135,7 @@ class RawMaterialReceiptCreate(RawMaterialReceiptBase):
 class RawMaterialReceipt(RawMaterialReceiptBase):
     id: int
     shift_id: int
-    timestamp: str
+    timestamp: datetime
 
     class Config:
         from_attributes = True

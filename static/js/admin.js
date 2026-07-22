@@ -590,16 +590,7 @@ async function editShift(id) {
             masterSelect.innerHTML += `<option value="${m.id}" ${selected}>${m.name}</option>`;
         });
         
-        document.getElementById('shift-edit-receipt-chr420').value = shift.receipt_chrysotile_4_20 || 0;
-        document.getElementById('shift-edit-receipt-chr565').value = shift.receipt_chrysotile_5_65 || 0;
-        document.getElementById('shift-edit-receipt-chr640').value = shift.receipt_chrysotile_6_40 || 0;
-        document.getElementById('shift-edit-receipt-cement').value = shift.receipt_cement || 0;
-        document.getElementById('shift-edit-receipt-cellulose').value = shift.receipt_cellulose || 0;
-        document.getElementById('shift-edit-receipt-slate').value = shift.receipt_crushed_slate || 0;
-        document.getElementById('shift-edit-receipt-asbocarton').value = shift.receipt_asbocarton || 0;
-        document.getElementById('shift-edit-receipt-pallets').value = shift.receipt_pallets || 0;
-        document.getElementById('shift-edit-receipt-fiberglass').value = shift.receipt_fiberglass || 0;
-        document.getElementById('shift-edit-receipt-laprol').value = shift.receipt_laprol || 0;
+        
         
         document.getElementById('shift-edit-zo-chr420').value = shift.zo_chrysotile_4_20 || 0;
         document.getElementById('shift-edit-zo-chr565').value = shift.zo_chrysotile_5_65 || 0;
@@ -638,16 +629,7 @@ async function saveShiftEdit() {
         plan_sheets: parseInt(document.getElementById('shift-edit-plan-sheets').value) || 0,
         plan_tons: parseFloat(document.getElementById('shift-edit-plan-tons').value) || 0,
         
-        receipt_chrysotile_4_20: parseFloat(document.getElementById('shift-edit-receipt-chr420').value) || 0,
-        receipt_chrysotile_5_65: parseFloat(document.getElementById('shift-edit-receipt-chr565').value) || 0,
-        receipt_chrysotile_6_40: parseFloat(document.getElementById('shift-edit-receipt-chr640').value) || 0,
-        receipt_cement: parseFloat(document.getElementById('shift-edit-receipt-cement').value) || 0,
-        receipt_cellulose: parseFloat(document.getElementById('shift-edit-receipt-cellulose').value) || 0,
-        receipt_crushed_slate: parseFloat(document.getElementById('shift-edit-receipt-slate').value) || 0,
-        receipt_asbocarton: parseFloat(document.getElementById('shift-edit-receipt-asbocarton').value) || 0,
-        receipt_pallets: parseFloat(document.getElementById('shift-edit-receipt-pallets').value) || 0,
-        receipt_fiberglass: parseFloat(document.getElementById('shift-edit-receipt-fiberglass').value) || 0,
-        receipt_laprol: parseFloat(document.getElementById('shift-edit-receipt-laprol').value) || 0,
+        
         
         zo_chrysotile_4_20: parseFloat(document.getElementById('shift-edit-zo-chr420').value) || 0,
         zo_chrysotile_5_65: parseFloat(document.getElementById('shift-edit-zo-chr565').value) || 0,
