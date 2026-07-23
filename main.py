@@ -1796,13 +1796,24 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
             return
             
         final_master_id = master_id if master_id is not None else (matching_shifts[0].master_id if matching_shifts else None)
+        if isinstance(shift_date, str):
+            try:
+                dt_obj = datetime.strptime(shift_date, "%Y-%m-%d").date()
+                is_monday = dt_obj.weekday() == 0
+            except:
+                is_monday = False
+        else:
+            is_monday = shift_date.weekday() == 0
+            
+        default_plan_sheets = 0 if is_monday and shift_name == "День" else (2700 if shift_name == "День" else 3300)
+        
         # Create a new plan board row if it doesn't exist
         pb_row = models.MonthlyPlanBoard(
             date=shift_date,
             shift_name=shift_name,
             line=pb_line,
             master_id=final_master_id,
-            plan_sheets=0,
+            plan_sheets=default_plan_sheets,
             fact_sheets=total_sheets,
             first_grade=total_1st,
             defect=total_defect
@@ -2861,6 +2872,53 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         'Content-Disposition': f'attachment; filename="{filename}"'
     }
     return Response(content=out.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
+@app.post("/api/admin/fix_plan_boards")
+def fix_plan_boards(request: Request, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    try:
+        boards = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.plan_sheets == 0).all()
+        updated_count = 0
+        for pb in boards:
+            date_val = pb.date
+            is_monday = False
+            if isinstance(date_val, str):
+                try:
+                    dt_obj = datetime.strptime(date_val, "%Y-%m-%d").date()
+                    is_monday = dt_obj.weekday() == 0
+                except:
+                    pass
+            else:
+                try:
+                    is_monday = date_val.weekday() == 0
+                except:
+                    pass
+                    
+            if is_monday and pb.shift_name == "День":
+                continue
+                
+            correct_plan = 2700 if pb.shift_name == "День" else 3300
+            pb.plan_sheets = correct_plan
+            updated_count += 1
+            
+            log_entry = models.AuditLog(
+                timestamp=datetime.utcnow(),
+                user_name="System Admin",
+                action="UPDATE",
+                target_table="monthly_plan_board",
+                target_id=pb.id,
+                details=f"Исправление нулевого плана. Установлен план {correct_plan}."
+            )
+            db.add(log_entry)
+            
+        db.commit()
+        return {"success": True, "updated_count": updated_count}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/dashboard/shift_board")
 def get_shift_board(month: str, db: Session = Depends(get_db)):
