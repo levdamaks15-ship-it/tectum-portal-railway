@@ -2782,7 +2782,20 @@ def get_daily_report(
                 "defect": defect
             })
         
-    total_shifts = sum(1 for s in shifts if (not line or ("1" in s.line and line == "lfm1") or ("2" in s.line and line == "lfm2") or line == "all"))
+    total_shifts = 0
+    for s in shifts:
+        if line and not (("1" in s.line and line == "lfm1") or ("2" in s.line and line == "lfm2") or line == "all"):
+            continue
+        
+        lfm_sheets = sum((r.lfm_sheets or 0) for r in s.lfm_reports) if getattr(s, 'lfm_reports', None) else 0
+        warehouse_gp = sum((b.ds_condition or 0) for b in s.batches) if getattr(s, 'batches', None) else 0
+        plan_sheets = s.plan_sheets or 0
+        zo_batches = s.zo_batches or 0
+        
+        if plan_sheets == 0 and lfm_sheets == 0 and warehouse_gp == 0 and zo_batches == 0 and not getattr(s, 'zo_submitted', False):
+            continue
+            
+        total_shifts += 1
     total_fact_sheets = sum(d["fact_sheets"] for d in days_list)
     total_fact_tons = sum(d["fact_tons"] for d in days_list)
     total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
