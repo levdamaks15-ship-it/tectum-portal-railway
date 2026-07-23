@@ -1739,13 +1739,14 @@ def get_materials_summary(
 
 def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Session, master_id: int = None):
     # Map shift line to plan board line
-    pb_line = "ЛФМ-1" if shift_line == "Линия 1" else "ЛФМ-2"
+    is_line_1 = "1" in shift_line
+    pb_line = "ЛФМ-1" if is_line_1 else "ЛФМ-2"
     
     # Find all shifts matching the date, name, and line
     matching_shifts = db.query(models.Shift).filter(
         models.Shift.date == shift_date,
         models.Shift.shift_name == shift_name,
-        models.Shift.line == shift_line
+        models.Shift.line.like("%1%" if is_line_1 else "%2%")
     ).all()
     
     shift_ids = [s.id for s in matching_shifts]
@@ -3992,5 +3993,17 @@ def clear_plan_board(user_name: str = "Администратор", db: Session 
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Ошибка очистки: {str(e)}")
+
+@app.get("/api/admin/fix_phantoms")
+def fix_phantoms(db: Session = Depends(get_db)):
+    try:
+        pbs = db.query(models.MonthlyPlanBoard).all()
+        count = 0
+        for pb in pbs:
+            sync_lfm_to_plan_board(pb.date, pb.shift_name, pb.line, db, pb.master_id)
+            count += 1
+        return {"status": "ok", "message": f"Processed {count} plan board records. Phantom facts have been zeroed out."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
