@@ -2469,8 +2469,9 @@ def get_analytics_data(
         serialized_downtimes.append({
             "id": dt.id,
             "date": date_str,
-            "shift": dt.shift.shift if dt.shift else "",
+            "shift": dt.shift.shift_name if dt.shift else "",
             "line": dt.shift.line if dt.shift else "",
+            "master": dt.shift.master.name if dt.shift and dt.shift.master else "Н/Д",
             "department": dt.department or "",
             "node": dt.node or "",
             "category": dt.category or "",
