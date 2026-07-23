@@ -113,6 +113,37 @@ function onProductChange() {
     recalcTonsAndGrades();
 }
 
+function saveLastLineAndShift(line, shiftName) {
+    if (line) localStorage.setItem('lastLine', line);
+    if (shiftName) localStorage.setItem('lastShift', shiftName);
+}
+
+function restoreLastLineAndShift() {
+    const savedLine = localStorage.getItem('lastLine');
+    const savedShift = localStorage.getItem('lastShift');
+    
+    if (savedLine) {
+        const repLine = document.getElementById('rep-line');
+        const recLine = document.getElementById('rec-line');
+        const dtLine = document.getElementById('journal-dt-line');
+        
+        if (repLine) repLine.value = savedLine;
+        if (recLine) recLine.value = savedLine;
+        if (dtLine) dtLine.value = savedLine;
+    }
+    
+    if (savedShift) {
+        const repShift = document.getElementById('rep-shift');
+        const recShift = document.getElementById('rec-shift');
+        const dtShift = document.getElementById('journal-dt-shift-name');
+        
+        if (repShift) repShift.value = savedShift;
+        if (recShift) recShift.value = savedShift;
+        if (dtShift) dtShift.value = savedShift;
+    }
+}
+
+
 function recalcDefectTotal() {
     let total = 0;
     document.querySelectorAll('.defect-input').forEach(input => {
@@ -529,6 +560,7 @@ async function submitShiftReport() {
         });
         
         if (res.ok) {
+            saveLastLineAndShift(data.line, data.shift_name);
             const formContainer = document.getElementById('report-form-container');
             const successScreen = document.getElementById('report-success-screen');
             if (formContainer) formContainer.style.display = 'none';
@@ -590,6 +622,7 @@ function resetReportForm() {
 
 function showNewReportForm() {
     resetReportForm();
+    restoreLastLineAndShift();
     
     const formContainer = document.getElementById('report-form-container');
     const successScreen = document.getElementById('report-success-screen');
@@ -1320,6 +1353,7 @@ async function addJournalDowntime() {
         });
         
         if (res.ok) {
+            saveLastLineAndShift(line, shift_name);
             alert("Простой успешно зафиксирован!");
             refreshDowntimesTable();
         } else {
@@ -1955,6 +1989,7 @@ window.addEventListener('DOMContentLoaded', () => {
 async function init() {
     initTheme();
     setupTimePickers();
+    restoreLastLineAndShift();
     
     // Check session me
     try {
@@ -2181,6 +2216,7 @@ async function addReceipt() {
         });
         
         if (res.ok) {
+            saveLastLineAndShift(line, shift_name);
             // Clear fields
             ['rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'].forEach(id => {
                 const el = document.getElementById(id);

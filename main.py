@@ -1200,7 +1200,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
         print(f"Ошибка экспорта прихода сырья в Google Sheets: {gs_err}")
 
     # Sync to MonthlyPlanBoard (which also writes AuditLog)
-    sync_lfm_to_plan_board(shift.id, db)
+    sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
 
     # Write AuditLog for the shift update
     if is_new:
@@ -1737,29 +1737,39 @@ def get_materials_summary(
     }
 
 
-def sync_lfm_to_plan_board(shift_id: int, db: Session):
-    shift = db.query(models.Shift).get(shift_id)
-    if not shift:
-        return
-        
+def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Session, master_id: int = None):
     # Map shift line to plan board line
-    pb_line = "ЛФМ-1" if shift.line == "Линия 1" else "ЛФМ-2"
+    pb_line = "ЛФМ-1" if shift_line == "Линия 1" else "ЛФМ-2"
     
-    # Calculate sum of sheets, 1st grade, defect from LFM reports for this shift
-    lfm_stats = db.query(
-        func.sum(models.LFMReport.lfm_sheets).label("total_sheets"),
-        func.sum(models.LFMReport.formed_1st_grade).label("total_1st"),
-        func.sum(models.LFMReport.formed_defect).label("total_defect")
-    ).filter(models.LFMReport.shift_id == shift_id).first()
+    # Find all shifts matching the date, name, and line
+    matching_shifts = db.query(models.Shift).filter(
+        models.Shift.date == shift_date,
+        models.Shift.shift_name == shift_name,
+        models.Shift.line == shift_line
+    ).all()
     
-    total_sheets = int(lfm_stats.total_sheets or 0)
-    total_1st = int(lfm_stats.total_1st or 0)
-    total_defect = int(lfm_stats.total_defect or 0)
+    shift_ids = [s.id for s in matching_shifts]
+    
+    total_sheets = 0
+    total_1st = 0
+    total_defect = 0
+    
+    if shift_ids:
+        # Calculate sum of sheets, 1st grade, defect from LFM reports for these shifts
+        lfm_stats = db.query(
+            func.sum(models.LFMReport.lfm_sheets).label("total_sheets"),
+            func.sum(models.LFMReport.formed_1st_grade).label("total_1st"),
+            func.sum(models.LFMReport.formed_defect).label("total_defect")
+        ).filter(models.LFMReport.shift_id.in_(shift_ids)).first()
+        
+        total_sheets = int(lfm_stats.total_sheets or 0) if lfm_stats else 0
+        total_1st = int(lfm_stats.total_1st or 0) if lfm_stats else 0
+        total_defect = int(lfm_stats.total_defect or 0) if lfm_stats else 0
     
     # Find corresponding MonthlyPlanBoard row
     pb_row = db.query(models.MonthlyPlanBoard).filter(
-        models.MonthlyPlanBoard.date == shift.date,
-        models.MonthlyPlanBoard.shift_name == shift.shift_name,
+        models.MonthlyPlanBoard.date == shift_date,
+        models.MonthlyPlanBoard.shift_name == shift_name,
         models.MonthlyPlanBoard.line == pb_line
     ).first()
     
@@ -1776,16 +1786,21 @@ def sync_lfm_to_plan_board(shift_id: int, db: Session):
             action="UPDATE",
             target_table="monthly_plan_board",
             target_id=pb_row.id,
-            details=f"Смена {shift_id} LFM sync. Факт обновлен: {old_fact} -> {total_sheets} листов. 1 сорт: {total_1st}, Брак: {total_defect}."
+            details=f"Синхронизация {shift_line} {shift_date} {shift_name}. Факт обновлен: {old_fact} -> {total_sheets}. 1 сорт: {total_1st}, Брак: {total_defect}."
         )
         db.add(log_entry)
     else:
+        # If there are no shifts and no fact, don't create a phantom row
+        if total_sheets == 0 and not shift_ids:
+            return
+            
+        final_master_id = master_id if master_id is not None else (matching_shifts[0].master_id if matching_shifts else None)
         # Create a new plan board row if it doesn't exist
         pb_row = models.MonthlyPlanBoard(
-            date=shift.date,
-            shift_name=shift.shift_name,
+            date=shift_date,
+            shift_name=shift_name,
             line=pb_line,
-            master_id=shift.master_id,
+            master_id=final_master_id,
             plan_sheets=0,
             fact_sheets=total_sheets,
             first_grade=total_1st,
@@ -1800,7 +1815,7 @@ def sync_lfm_to_plan_board(shift_id: int, db: Session):
             action="CREATE",
             target_table="monthly_plan_board",
             target_id=pb_row.id,
-            details=f"Создана новая запись план-борда для смены {shift_id}. Факт: {total_sheets} листов. 1 сорт: {total_1st}, Брак: {total_defect}."
+            details=f"Создана новая запись план-борда для {shift_line} {shift_date} {shift_name}. Факт: {total_sheets}. 1 сорт: {total_1st}, Брак: {total_defect}."
         )
         db.add(log_entry)
         
@@ -1816,7 +1831,7 @@ def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, db: Session 
     db.commit()
     
     # Sync LFM sheets to plan board fact
-    sync_lfm_to_plan_board(shift_id, db)
+    sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     return {"status": "ok"}
 
 @app.get("/api/downtimes/directory/departments")
@@ -3375,6 +3390,9 @@ def admin_update_shift(shift_id: int, data: dict, request: Request, db: Session 
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
     
+    old_date, old_shift_name, old_line = shift.date, shift.shift_name, shift.line
+    old_master_id = shift.master_id
+    
     old_values = {}
     new_values = {}
     
@@ -3401,6 +3419,11 @@ def admin_update_shift(shift_id: int, data: dict, request: Request, db: Session 
         )
         db.add(log_entry)
         db.commit()
+        
+        # Sync plan boards for old and new parameters
+        sync_lfm_to_plan_board(old_date, old_shift_name, old_line, db, old_master_id)
+        if shift.date != old_date or shift.shift_name != old_shift_name or shift.line != old_line:
+            sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     else:
         db.commit()
     return {"status": "ok"}
@@ -3411,6 +3434,8 @@ def admin_delete_shift(shift_id: int, request: Request, db: Session = Depends(ge
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
     
+    shift_date, shift_name, shift_line, master_id = shift.date, shift.shift_name, shift.line, shift.master_id
+    
     db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).delete()
     db.query(models.Batch).filter(models.Batch.shift_id == shift_id).delete()
     db.query(models.Downtime).filter(models.Downtime.shift_id == shift_id).delete()
@@ -3419,11 +3444,15 @@ def admin_delete_shift(shift_id: int, request: Request, db: Session = Depends(ge
         timestamp=datetime.utcnow(),
         user_name=admin.name,
         action=f"Удаление смены ID {shift_id}",
-        details=f"Удалена смена за {shift.date} ({shift.shift_name}, Линия {shift.line}) и все связанные с ней отчеты, партии и простои."
+        details=f"Удалена смена за {shift_date} ({shift_name}, Линия {shift_line}) и все связанные с ней отчеты, партии и простои."
     )
     db.add(log_entry)
     db.delete(shift)
     db.commit()
+    
+    # Sync to clear phantom facts from plan board
+    sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
+    
     return {"status": "ok"}
 
 @app.put("/api/admin/lfm/{report_id}")
@@ -3452,7 +3481,9 @@ def admin_update_lfm(report_id: int, data: dict, request: Request, db: Session =
         db.add(log_entry)
         db.commit()
         # Sync with plan board
-        sync_lfm_to_plan_board(report.shift_id, db)
+        shift = db.query(models.Shift).get(report.shift_id)
+        if shift:
+            sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     else:
         db.commit()
     return {"status": "ok"}
@@ -3463,7 +3494,11 @@ def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get
     report = db.query(models.LFMReport).get(report_id)
     if not report: raise HTTPException(404, "Отчет ЛФМ не найден")
     shift_id = report.shift_id
-    
+    shift = db.query(models.Shift).get(shift_id)
+    shift_date, shift_name, shift_line, master_id = None, None, None, None
+    if shift:
+        shift_date, shift_name, shift_line, master_id = shift.date, shift.shift_name, shift.line, shift.master_id
+        
     log_entry = models.AuditLog(
         timestamp=datetime.utcnow(),
         user_name=admin.name,
@@ -3474,7 +3509,8 @@ def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get
     db.delete(report)
     db.commit()
     # Sync with plan board
-    sync_lfm_to_plan_board(shift_id, db)
+    if shift:
+        sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
     return {"status": "ok"}
 
 @app.put("/api/admin/batches/{batch_id}")
