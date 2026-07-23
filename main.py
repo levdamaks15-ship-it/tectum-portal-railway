@@ -271,6 +271,41 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Auto-fix 0 plan_sheets in MonthlyPlanBoard
+    db = SessionLocal()
+    try:
+        boards = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.plan_sheets == 0).all()
+        updated_count = 0
+        for pb in boards:
+            date_val = pb.date
+            is_monday = False
+            if isinstance(date_val, str):
+                try:
+                    dt_obj = datetime.datetime.strptime(date_val, "%Y-%m-%d").date()
+                    is_monday = dt_obj.weekday() == 0
+                except:
+                    pass
+            else:
+                try:
+                    is_monday = date_val.weekday() == 0
+                except:
+                    pass
+                    
+            if is_monday and pb.shift_name == "День":
+                continue
+                
+            correct_plan = 2700 if pb.shift_name == "День" else 3300
+            pb.plan_sheets = correct_plan
+            updated_count += 1
+            
+        if updated_count > 0:
+            db.commit()
+            print(f"Auto-fixed {updated_count} plan_boards with 0 plan_sheets.")
+    except Exception as e:
+        print(f"Error auto-fixing plan boards: {e}")
+    finally:
+        db.close()
+
     yield
 
 app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan)
