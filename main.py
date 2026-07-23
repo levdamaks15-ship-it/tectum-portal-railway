@@ -2433,6 +2433,7 @@ def get_analytics_data(
     by_category = {}
     node_durations = {}
     trend_data = {}
+    serialized_downtimes = []
     
     for dt in downtimes:
         dur = dt.duration or 0
@@ -2464,6 +2465,22 @@ def get_analytics_data(
             
         shift_date = dt.shift.date
         date_str = shift_date.strftime("%Y-%m-%d") if shift_date else "Не указана"
+        
+        serialized_downtimes.append({
+            "id": dt.id,
+            "date": date_str,
+            "shift": dt.shift.shift if dt.shift else "",
+            "line": dt.shift.line if dt.shift else "",
+            "department": dt.department or "",
+            "node": dt.node or "",
+            "category": dt.category or "",
+            "is_equipment_downtime": dt.is_equipment_downtime,
+            "duration": dur,
+            "lost_tons": tons,
+            "lost_tenge": tenge,
+            "description": dt.description or ""
+        })
+        date_str = shift_date.strftime("%Y-%m-%d") if shift_date else "Не указана"
         if date_str not in trend_data:
             trend_data[date_str] = {}
         trend_data[date_str][cat] = trend_data[date_str].get(cat, 0) + dur
@@ -2491,7 +2508,8 @@ def get_analytics_data(
         },
         "by_category": by_category,
         "bottlenecks": bottlenecks,
-        "trend": sorted_trend
+        "trend": sorted_trend,
+        "downtimes": serialized_downtimes
     }
 
 # --- НОРМЫ РАСХОДА И ОТЧЕТ ПО СЫРЬЮ ---

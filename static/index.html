@@ -883,6 +883,32 @@
                     <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Узкие места: Топ-10 узлов оборудования по времени остановки (минут)</h4>
                     <canvas id="chart-analytics-bottlenecks" style="max-height: 300px;"></canvas>
                 </div>
+                
+                <!-- Таблица сводки простоев -->
+                <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 1rem; color: var(--accent-color);">Сводная таблица простоев</h4>
+                    <div class="table-responsive-container" style="max-height: 480px; overflow: auto;">
+                        <table class="table-glass-summary">
+                            <thead>
+                                <tr>
+                                     <th>Дата</th>
+                                     <th>Смена</th>
+                                     <th>Линия</th>
+                                     <th>Участок</th>
+                                     <th>Узел / Оборудование</th>
+                                     <th>Категория</th>
+                                     <th>Остановка</th>
+                                     <th>Длительность (мин)</th>
+                                     <th>Потери (т)</th>
+                                     <th>Описание</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-table-body">
+                                <tr><td colspan="10" style="text-align:center;">Загрузка...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- 5. DAILY REPORT TAB (📈 Месячная сводка выработки) -->

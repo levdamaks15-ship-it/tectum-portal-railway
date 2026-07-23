@@ -1500,6 +1500,7 @@ async function loadAnalyticsData() {
             const data = await res.json();
             renderAnalyticsKPIs(data);
             renderAnalyticsCharts(data);
+            renderAnalyticsTable(data);
         }
     } catch(e) {
         console.error(e);
@@ -1507,13 +1508,15 @@ async function loadAnalyticsData() {
 }
 
 function renderAnalyticsKPIs(data) {
-    document.getElementById('analytics-kpi-stop-min').innerText = data.total_stop_minutes + ' мин';
-    document.getElementById('analytics-kpi-stop-count').innerText = data.total_stop_count;
-    document.getElementById('analytics-kpi-stop-tons').innerText = data.total_stop_lost_tons.toFixed(1) + ' т';
+    const kpi = data.kpis || { with_stop: {}, without_stop: {} };
+    
+    document.getElementById('analytics-kpi-stop-min').innerText = (kpi.with_stop.duration || 0) + ' мин';
+    document.getElementById('analytics-kpi-stop-count').innerText = (kpi.with_stop.count || 0);
+    document.getElementById('analytics-kpi-stop-tons').innerText = (kpi.with_stop.lost_tons || 0).toFixed(1) + ' т';
 
-    document.getElementById('analytics-kpi-nonstop-min').innerText = data.total_nonstop_minutes + ' мин';
-    document.getElementById('analytics-kpi-nonstop-count').innerText = data.total_nonstop_count;
-    document.getElementById('analytics-kpi-nonstop-tons').innerText = data.total_nonstop_lost_tons.toFixed(1) + ' т';
+    document.getElementById('analytics-kpi-nonstop-min').innerText = (kpi.without_stop.duration || 0) + ' мин';
+    document.getElementById('analytics-kpi-nonstop-count').innerText = (kpi.without_stop.count || 0);
+    document.getElementById('analytics-kpi-nonstop-tons').innerText = (kpi.without_stop.lost_tons || 0).toFixed(1) + ' т';
 }
 
 function renderAnalyticsCharts(data) {
@@ -1524,8 +1527,9 @@ function renderAnalyticsCharts(data) {
     const ctxTrend = document.getElementById('chart-analytics-trend').getContext('2d');
     if (chartAnalyticsTrend) chartAnalyticsTrend.destroy();
     
-    const dates = Object.keys(data.daily_minutes || {}).sort();
-    const minutes = dates.map(d => data.daily_minutes[d]);
+    const trendData = data.trend || {};
+    const dates = Object.keys(trendData).sort();
+    const minutes = dates.map(d => Object.values(trendData[d]).reduce((a,b) => a+b, 0));
 
     chartAnalyticsTrend = new Chart(ctxTrend, {
         type: 'line',
@@ -1553,8 +1557,9 @@ function renderAnalyticsCharts(data) {
     const ctxCats = document.getElementById('chart-analytics-categories').getContext('2d');
     if (chartAnalyticsCategories) chartAnalyticsCategories.destroy();
     
-    const cats = Object.keys(data.categories || {});
-    const catMins = Object.values(data.categories || {});
+    const byCategory = data.by_category || {};
+    const cats = Object.keys(byCategory);
+    const catMins = cats.map(c => byCategory[c].with_stop + byCategory[c].without_stop);
 
     chartAnalyticsCategories = new Chart(ctxCats, {
         type: 'doughnut',
@@ -1600,6 +1605,40 @@ function renderAnalyticsCharts(data) {
             }
         }
     });
+}
+
+function renderAnalyticsTable(data) {
+    const tbody = document.getElementById('analytics-table-body');
+    if (!tbody) return;
+    
+    const downtimes = data.downtimes || [];
+    if (downtimes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Нет данных за выбранный период</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    downtimes.forEach(dt => {
+        const stopBadge = dt.is_equipment_downtime ? 
+            '<span class="badge" style="background: rgba(220, 53, 69, 0.2); color: #ff6b6b; padding: 2px 6px;">Да</span>' : 
+            '<span class="badge" style="background: rgba(40, 167, 69, 0.2); color: #28a745; padding: 2px 6px;">Нет</span>';
+            
+        html += `
+            <tr>
+                <td>${dt.date || '-'}</td>
+                <td>${dt.shift || '-'}</td>
+                <td>${dt.line || '-'}</td>
+                <td>${dt.department || '-'}</td>
+                <td>${dt.node || '-'}</td>
+                <td>${dt.category || '-'}</td>
+                <td>${stopBadge}</td>
+                <td style="font-weight: bold;">${dt.duration || 0}</td>
+                <td style="color: ${dt.is_equipment_downtime ? '#ff6b6b' : '#28a745'};">${(dt.lost_tons || 0).toFixed(2)}</td>
+                <td style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${dt.description || ''}">${dt.description || ''}</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
 }
 
 // ----------------------------------------------------
