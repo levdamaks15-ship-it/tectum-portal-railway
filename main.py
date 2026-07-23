@@ -582,13 +582,25 @@ def get_active_shifts(db: Session = Depends(get_db)):
 
 @app.get("/api/shifts/all", response_model=list[schemas.Shift])
 def get_all_shifts(db: Session = Depends(get_db)):
-    return db.query(models.Shift).options(
+    shifts = db.query(models.Shift).options(
         selectinload(models.Shift.master),
         selectinload(models.Shift.receipts),
         selectinload(models.Shift.batches),
         selectinload(models.Shift.lfm_reports),
         selectinload(models.Shift.downtimes)
     ).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+    
+    result = []
+    for shift in shifts:
+        lfm_sheets = sum((r.lfm_sheets or 0) for r in shift.lfm_reports) if shift.lfm_reports else 0
+        warehouse_gp = sum((b.ds_condition or 0) for b in shift.batches) if shift.batches else 0
+        plan_sheets = shift.plan_sheets or 0
+        zo_batches = shift.zo_batches or 0
+        
+        if plan_sheets == 0 and lfm_sheets == 0 and warehouse_gp == 0 and zo_batches == 0 and not shift.zo_submitted:
+            continue
+        result.append(shift)
+    return result
 
 @app.get("/api/shifts/by_params")
 def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
@@ -1586,7 +1598,7 @@ def get_report_summary(
             zo_batches_check = shift.zo_batches or 0
             plan_sheets_check = shift.plan_sheets or 0
         
-            if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted and not shift.downtimes:
+            if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted:
                 continue
             
             lfm_sheets = lfm_sheets_check if not is_other_master else 0
