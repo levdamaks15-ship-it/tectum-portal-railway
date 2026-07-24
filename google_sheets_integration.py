@@ -1166,7 +1166,7 @@ def export_downtimes_to_google_sheets(db: Session):
                         "title": sheet_name,
                         "gridProperties": {
                             "rowCount": 2000,
-                            "columnCount": 14
+                            "columnCount": 13
                         }
                     }
                 }
@@ -1180,9 +1180,9 @@ def export_downtimes_to_google_sheets(db: Session):
     # 2. Формируем заголовки
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
-        "Участок", "Узел", "Описание поломки", "Категория",
+        "Участок", "Узел", "Описание поломки", "Описание / Комментарий", "Категория",
         "Время начала", "Время конца", "Длительность (мин)",
-        "Потеряно тонн", "Потеряно тенге", "Статус"
+        "Потеряно тонн", "Остановка оборудования"
     ]
 
     # 3. Собираем данные из БД — все простои с информацией о смене
@@ -1204,13 +1204,13 @@ def export_downtimes_to_google_sheets(db: Session):
             d.department or "",
             d.node or "",
             d.description or "",
+            d.comment or "",
             d.category or "",
             d.start_time or "",
             d.end_time or "",
             d.duration or 0,
             d.lost_tons or 0.0,
-            d.lost_tenge or 0.0,
-            d.status or "",
+            "Да" if d.is_equipment_downtime else "Нет"
         ]
         rows_data.append(row)
 

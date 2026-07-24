@@ -727,6 +727,9 @@ button.btn-secondary:hover {
     white-space: nowrap;
 }
 .table-glass-summary th {
-    background: var(--table-header-bg);
+    background: var(--surface-color);
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }

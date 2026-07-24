@@ -64,6 +64,7 @@ class DowntimeBase(BaseModel):
     department: Optional[str] = None
     node: str
     description: Optional[str] = None
+    comment: Optional[str] = None
     media_urls: Optional[str] = None
     status: Optional[str] = "pending"
     is_equipment_downtime: Optional[bool] = True

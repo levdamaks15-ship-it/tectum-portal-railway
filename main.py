@@ -115,6 +115,13 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE downtimes ADD COLUMN comment VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
+
     # Migrations for Shift (Asbocarton & Drains)
     try:
         conn = sqlite3.connect("tectum.db")
@@ -178,6 +185,7 @@ async def lifespan(app: FastAPI):
             ("downtimes", "department", "VARCHAR(255)"),
             ("downtime_directory", "category", "VARCHAR(255)"),
             ("downtimes", "is_equipment_downtime", "BOOLEAN DEFAULT TRUE"),
+            ("downtimes", "comment", "VARCHAR(255)"),
             ("shifts", "zo_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "lfm_asb_drain", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0.0"),
@@ -603,7 +611,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
     return result
 
 @app.get("/api/shifts/by_params")
-def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
+def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -616,11 +624,12 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
     except ValueError:
         raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
         
-    shift = db.query(models.Shift).filter(
+    query = db.query(models.Shift).filter(
         models.Shift.date == parsed_date,
         models.Shift.shift_name == shift_name,
         models.Shift.line == line
-    ).first()
+    )
+    shift = query.first()
     
     if not shift:
         if not create_if_not_exists:
@@ -641,6 +650,7 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
             shift_name=shift_name,
             line=line,
             master_id=final_master_id,
+            product_name=product_name,
             status="closed",
             plan_sheets=0,
             plan_tons=0.0
@@ -2782,7 +2792,7 @@ def get_daily_report(
                 "defect": defect
             })
         
-    total_shifts = 0
+            unique_shifts = set()
     for s in shifts:
         if line and not (("1" in s.line and line == "lfm1") or ("2" in s.line and line == "lfm2") or line == "all"):
             continue
@@ -2795,7 +2805,9 @@ def get_daily_report(
         if plan_sheets == 0 and lfm_sheets == 0 and warehouse_gp == 0 and zo_batches == 0 and not getattr(s, 'zo_submitted', False):
             continue
             
-        total_shifts += 1
+        unique_shifts.add((s.date, s.shift_name, s.line))
+            
+    total_shifts = len(unique_shifts)
     total_fact_sheets = sum(d["fact_sheets"] for d in days_list)
     total_fact_tons = sum(d["fact_tons"] for d in days_list)
     total_plan_sheets = sum(d["plan_sheets"] for d in days_list)

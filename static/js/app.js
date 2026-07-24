@@ -109,8 +109,38 @@ function recalcTonsAndGrades() {
     }
 }
 
-function onProductChange() {
+async function onProductChange() {
     recalcTonsAndGrades();
+    
+    const date = document.getElementById('rep-date').value;
+    const shiftName = document.getElementById('rep-shift').value;
+    const line = document.getElementById('rep-line').value;
+    const productName = document.getElementById('rep-product').value;
+    
+    if (date && shiftName && line && productName) {
+        try {
+            const url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shiftName)}&line=${encodeURIComponent(line)}&product_name=${encodeURIComponent(productName)}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const shift = await res.json();
+                prefillReportForm(shift);
+            } else if (res.status === 404) {
+                // Not found, so we are creating a new product report.
+                // Clear the form but keep the selected date/shift/line/product/master/batch
+                const masterId = document.getElementById('rep-master').value;
+                const batchNum = document.getElementById('rep-batch').value;
+                resetReportForm();
+                document.getElementById('rep-date').value = date;
+                document.getElementById('rep-shift').value = shiftName;
+                document.getElementById('rep-line').value = line;
+                document.getElementById('rep-product').value = productName;
+                document.getElementById('rep-master').value = masterId;
+                document.getElementById('rep-batch').value = batchNum;
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    }
 }
 
 function saveLastLineAndShift(line, shiftName) {
@@ -210,7 +240,10 @@ function setupTimePickers() {
     flatpickr("#rep-date", {
         dateFormat: "Y-m-d",
         locale: "ru",
-        defaultDate: new Date()
+        defaultDate: new Date(),
+        onChange: function(selectedDates, dateStr, instance) {
+            if (typeof onProductChange === 'function') onProductChange();
+        }
     });
 
     flatpickr("#journal-dt-date", {
@@ -621,8 +654,10 @@ function resetReportForm() {
 }
 
 function showNewReportForm() {
+    const masterId = document.getElementById('rep-master').value;
     resetReportForm();
     restoreLastLineAndShift();
+    document.getElementById('rep-master').value = masterId;
     
     const formContainer = document.getElementById('report-form-container');
     const successScreen = document.getElementById('report-success-screen');
@@ -2030,6 +2065,9 @@ async function init() {
     setupTimePickers();
     restoreLastLineAndShift();
     
+    document.getElementById('rep-shift')?.addEventListener('change', onProductChange);
+    document.getElementById('rep-line')?.addEventListener('change', onProductChange);
+    
     // Check session me
     try {
         const res = await fetch('/api/me/');
@@ -2262,6 +2300,7 @@ async function addReceipt() {
                 if (el) el.value = '';
             });
             loadReceipts(shift);
+            alert("Приход сырья успешно добавлен!");
         } else {
             const err = await res.json();
             alert("Ошибка при добавлении прихода: " + (err.detail || 'Неизвестная ошибка'));

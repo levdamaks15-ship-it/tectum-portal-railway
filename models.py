@@ -99,6 +99,7 @@ class Downtime(Base):
     department = Column(String, nullable=True)
     node = Column(String)
     description = Column(String, nullable=True)
+    comment = Column(String, nullable=True)
     media_urls = Column(String, nullable=True) # JSON string
     is_active = Column(Boolean, default=True)
     lost_tons = Column(Float, default=0.0)
