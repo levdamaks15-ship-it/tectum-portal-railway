@@ -1913,18 +1913,18 @@ function exportDailyReportPDF() {
     ctx.fillStyle = '#1e293b';
     ctx.font = 'bold 42px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(titleText, cw / 2, 70);
+    ctx.fillText(titleText, cw / 2, 120);
     
     ctx.fillStyle = '#64748b';
     ctx.font = '24px Arial';
-    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 120);
+    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 170);
     
     // Draw horizontal line
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(80, 160);
-    ctx.lineTo(cw - 80, 160);
+    ctx.moveTo(80, 200);
+    ctx.lineTo(cw - 80, 200);
     ctx.stroke();
     
     // Draw KPIs
@@ -1939,7 +1939,7 @@ function exportDailyReportPDF() {
     const kpiW = (cw - 160) / 5;
     kpis.forEach((k, idx) => {
         const x = 80 + idx * kpiW;
-        const y = 190;
+        const y = 230;
         
         // Draw card border (add gap between cards)
         const cardW = kpiW - 30;
@@ -1983,7 +1983,7 @@ function exportDailyReportPDF() {
         tmpCtx.fillRect(0, 0, tmp.width, tmp.height);
         tmpCtx.drawImage(chartImgSrc, 0, 0);
         
-        ctx.drawImage(tmp, 80, 380, chartW, chartH);
+        ctx.drawImage(tmp, 80, 420, chartW, chartH);
     } else {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#94a3b8';
