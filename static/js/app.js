@@ -1899,7 +1899,7 @@ function exportDailyReportPDF() {
 
     // Prepare a high-resolution canvas for print quality
     const cw = 1600;
-    const ch = 1200;
+    const ch = 1131; // 1600 / 1.414 (A4 aspect ratio) to prevent stretching
     const canvas = document.createElement('canvas');
     canvas.width = cw;
     canvas.height = ch;
@@ -1911,20 +1911,20 @@ function exportDailyReportPDF() {
     
     // Header
     ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 36px Arial';
+    ctx.font = 'bold 42px Arial';
     ctx.textAlign = 'center';
     ctx.fillText(titleText, cw / 2, 70);
     
     ctx.fillStyle = '#64748b';
-    ctx.font = '22px Arial';
-    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 115);
+    ctx.font = '24px Arial';
+    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 120);
     
     // Draw horizontal line
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(80, 150);
-    ctx.lineTo(cw - 80, 150);
+    ctx.moveTo(80, 160);
+    ctx.lineTo(cw - 80, 160);
     ctx.stroke();
     
     // Draw KPIs
@@ -1939,29 +1939,31 @@ function exportDailyReportPDF() {
     const kpiW = (cw - 160) / 5;
     kpis.forEach((k, idx) => {
         const x = 80 + idx * kpiW;
-        const y = 180;
+        const y = 190;
         
-        // Draw card border
+        // Draw card border (add gap between cards)
+        const cardW = kpiW - 30;
+        const cardX = x + 15;
         ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(x + 10, y, kpiW - 20, 120);
+        ctx.fillRect(cardX, y, cardW, 140);
         ctx.strokeStyle = '#e2e8f0';
         ctx.lineWidth = 1;
-        ctx.strokeRect(x + 10, y, kpiW - 20, 120);
+        ctx.strokeRect(cardX, y, cardW, 140);
         
         // Text
         ctx.textAlign = 'center';
         ctx.fillStyle = '#64748b';
-        ctx.font = '16px Arial';
+        ctx.font = '20px Arial';
         ctx.fillText(k.label, x + kpiW / 2, y + 40);
         
         ctx.fillStyle = k.color;
-        ctx.font = 'bold 28px Arial';
-        ctx.fillText(k.val, x + kpiW / 2, y + 80);
+        ctx.font = 'bold 36px Arial';
+        ctx.fillText(k.val, x + kpiW / 2, y + 90);
         
         if (k.subtext) {
             ctx.fillStyle = '#94a3b8';
-            ctx.font = '14px Arial';
-            ctx.fillText(k.subtext, x + kpiW / 2, y + 105);
+            ctx.font = '16px Arial';
+            ctx.fillText(k.subtext, x + kpiW / 2, y + 120);
         }
     });
     
@@ -1981,7 +1983,7 @@ function exportDailyReportPDF() {
         tmpCtx.fillRect(0, 0, tmp.width, tmp.height);
         tmpCtx.drawImage(chartImgSrc, 0, 0);
         
-        ctx.drawImage(tmp, 80, 350, chartW, chartH);
+        ctx.drawImage(tmp, 80, 380, chartW, chartH);
     } else {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#94a3b8';
