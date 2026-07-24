@@ -419,6 +419,12 @@ function applyRoleVisibility() {
         activeShiftBanner.style.display = 'none';
     }
     
+    // Hide Google Sheets export button from master role
+    const btnExportGoogleSheets = document.getElementById('btn-export-google-sheets');
+    if (btnExportGoogleSheets) {
+        btnExportGoogleSheets.style.display = ['admin', 'director', 'technologist'].includes(r) ? 'inline-flex' : 'none';
+    }
+    
     // Switch to first visible tab
     if (canReport) {
         switchTab('production');
@@ -796,10 +802,7 @@ function renderSummaryTable(rows) {
     }
 
     rows.forEach(r => {
-        const isEditable = currentUser && (currentUser.role === 'admin' || currentUser.role === 'master') && r.master_name !== 'Смена другого мастера';
-        const editBtn = isEditable ? 
-            `<button onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">✏️ Изменить</button>` : 
-            `<span style="color: var(--text-secondary); font-size: 0.7rem;">🔒 Блок</span>`;
+
 
         const u = r.zo_usage || {};
         const chrys_4_20 = u.chrysotile_4_20 || 0;
@@ -832,7 +835,6 @@ function renderSummaryTable(rows) {
 
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td>${editBtn}</td>
                 <td>${r.date}</td>
                 <td>${r.batch_number}</td>
                 <td>${r.line}</td>
@@ -1719,7 +1721,9 @@ async function loadDailyReport() {
             document.getElementById('kpi-total-sheets').innerText = data.total_fact_sheets.toLocaleString();
             document.getElementById('kpi-total-tons').innerText = data.total_fact_tons.toFixed(1);
             document.getElementById('kpi-avg-plan-percent').innerText = Math.round(data.avg_plan_percent) + '%';
-            document.getElementById('kpi-defect-percent').innerText = data.defect_percent.toFixed(1) + '%';
+            document.getElementById('kpi-plan-fact-detail').innerText = `План: ${(data.total_plan_sheets || 0).toLocaleString()} / Факт: ${(data.total_fact_sheets || 0).toLocaleString()}`;
+            document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(1) + '%';
+            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} / 1 сорт: ${(data.total_first_grade || 0).toLocaleString()}`;
 
             // Renders charts
             renderDailyReportCharts(data.days);
@@ -1889,7 +1893,9 @@ function exportDailyReportPDF() {
     const kpiSheets = document.getElementById('kpi-total-sheets')?.innerText || "0";
     const kpiTons = document.getElementById('kpi-total-tons')?.innerText || "0.0";
     const kpiAvgPlan = document.getElementById('kpi-avg-plan-percent')?.innerText || "0%";
+    const kpiPlanDetail = document.getElementById('kpi-plan-fact-detail')?.innerText || "";
     const kpiDefect = document.getElementById('kpi-defect-percent')?.innerText || "0%";
+    const kpiDefectDetail = document.getElementById('kpi-defect-detail')?.innerText || "";
 
     // Prepare a high-resolution canvas for print quality
     const cw = 1600;
@@ -1923,11 +1929,11 @@ function exportDailyReportPDF() {
     
     // Draw KPIs
     const kpis = [
-        { label: "Всего смен", val: kpiShifts, color: '#1e293b' },
-        { label: "Выработка (Листы)", val: kpiSheets, color: '#3b82f6' },
-        { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981' },
-        { label: "Ср. % плана", val: kpiAvgPlan, color: '#f59e0b' },
-        { label: "Процент брака", val: kpiDefect, color: '#ef4444' }
+        { label: "Всего смен", val: kpiShifts, color: '#1e293b', subtext: "Смен с выработкой" },
+        { label: "Выработка (Листы)", val: kpiSheets, color: '#3b82f6', subtext: "" },
+        { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981', subtext: "" },
+        { label: "Ср. % плана", val: kpiAvgPlan, color: '#f59e0b', subtext: kpiPlanDetail },
+        { label: "Процент брака", val: kpiDefect, color: '#ef4444', subtext: kpiDefectDetail }
     ];
     
     const kpiW = (cw - 160) / 5;
@@ -1950,16 +1956,32 @@ function exportDailyReportPDF() {
         
         ctx.fillStyle = k.color;
         ctx.font = 'bold 28px Arial';
-        ctx.fillText(k.val, x + kpiW / 2, y + 85);
+        ctx.fillText(k.val, x + kpiW / 2, y + 80);
+        
+        if (k.subtext) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px Arial';
+            ctx.fillText(k.subtext, x + kpiW / 2, y + 105);
+        }
     });
     
     // Draw chart if exists
     if (chartDailySheets) {
         const chartImgSrc = chartDailySheets.canvas;
-        // Calculate centered aspect ratio
+        // Calculate proportional aspect ratio based on chart width
         const chartW = cw - 160;
-        const chartH = 600;
-        ctx.drawImage(chartImgSrc, 80, 350, chartW, chartH);
+        const chartH = chartImgSrc.height * (chartW / chartImgSrc.width);
+        
+        // Add chart logic to prevent transparent background to black issue in PDF
+        const tmp = document.createElement('canvas');
+        tmp.width = chartImgSrc.width;
+        tmp.height = chartImgSrc.height;
+        const tmpCtx = tmp.getContext('2d');
+        tmpCtx.fillStyle = 'white';
+        tmpCtx.fillRect(0, 0, tmp.width, tmp.height);
+        tmpCtx.drawImage(chartImgSrc, 0, 0);
+        
+        ctx.drawImage(tmp, 80, 350, chartW, chartH);
     } else {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#94a3b8';

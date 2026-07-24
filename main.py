@@ -2730,16 +2730,21 @@ def get_daily_report(
             
         total_w = 0
         total_s = 0
+        total_1st = 0
+        total_def = 0
         for r in s.lfm_reports:
             w_kg = get_product_finished_weight_kg(db, r.product_name)
-            data[line_key][day_key][s_name]["first_grade"] += (r.formed_1st_grade or 0)
-            data[line_key][day_key][s_name]["defect"] += (r.formed_defect or 0)
+            total_1st += (r.formed_1st_grade or 0)
+            total_def += (r.formed_defect or 0)
             total_w += w_kg * r.lfm_sheets
             total_s += r.lfm_sheets
             
         if total_s > 0:
+            # Overwrite only if pb had 0, or we are filtering by specific shift_number
             if data[line_key][day_key][s_name]["sheets"] == 0 or shift_number is not None:
                 data[line_key][day_key][s_name]["sheets"] = total_s
+                data[line_key][day_key][s_name]["first_grade"] = total_1st
+                data[line_key][day_key][s_name]["defect"] = total_def
             avg_w = total_w / total_s
             
             data[line_key][day_key][s_name]["plan_tons"] = data[line_key][day_key][s_name]["plan_sheets"] * avg_w / 1000.0
@@ -2822,6 +2827,9 @@ def get_daily_report(
         "total_shifts": total_shifts,
         "total_fact_sheets": total_fact_sheets,
         "total_fact_tons": total_fact_tons,
+        "total_plan_sheets": total_plan_sheets,
+        "total_first_grade": total_first_grade,
+        "total_defect": total_defect,
         "avg_plan_percent": avg_plan_percent,
         "defect_percent": defect_percent,
         "days": days_list
