@@ -1723,7 +1723,7 @@ async function loadDailyReport() {
             document.getElementById('kpi-avg-plan-percent').innerText = Math.round(data.avg_plan_percent) + '%';
             document.getElementById('kpi-plan-fact-detail').innerText = `План: ${(data.total_plan_sheets || 0).toLocaleString()} / Факт: ${(data.total_fact_sheets || 0).toLocaleString()}`;
             document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(1) + '%';
-            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} / 1 сорт: ${(data.total_first_grade || 0).toLocaleString()}`;
+            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} / Формовка: ${(data.total_fact_sheets || 0).toLocaleString()}`;
 
             // Renders charts
             renderDailyReportCharts(data.days);

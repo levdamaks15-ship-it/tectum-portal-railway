@@ -2821,7 +2821,7 @@ def get_daily_report(
     
     total_first_grade = sum(d["first_grade"] for d in days_list)
     total_defect = sum(d["defect"] for d in days_list)
-    defect_percent = (total_defect / (total_first_grade + total_defect) * 100.0) if (total_first_grade + total_defect) > 0 else 0.0
+    defect_percent = (total_defect / total_fact_sheets * 100.0) if total_fact_sheets > 0 else 0.0
     
     return {
         "total_shifts": total_shifts,
