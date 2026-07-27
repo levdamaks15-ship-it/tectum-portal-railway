@@ -2586,6 +2586,7 @@ def get_daily_report(
 ):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role") or "admin"
+    range_type_param = request.query_params.get("range_type")
 
     # Dynamic date range calculation based on frontend params
     sd = None
@@ -2664,6 +2665,18 @@ def get_daily_report(
             ed = datetime(y, m, num_days).date()
 
     num_days = (ed - sd).days + 1
+
+    if not range_type_param:
+        if num_days >= 28:
+            effective_range_type = "month"
+        elif num_days == 7:
+            effective_range_type = "week"
+        elif num_days == 1:
+            effective_range_type = "day"
+        else:
+            effective_range_type = "custom"
+    else:
+        effective_range_type = range_type_param
 
     shifts_query = db.query(models.Shift).filter(
         models.Shift.date >= sd,
@@ -2819,8 +2832,23 @@ def get_daily_report(
     total_shifts = len(unique_shifts)
     total_fact_sheets = sum(d["fact_sheets"] for d in days_list)
     total_fact_tons = sum(d["fact_tons"] for d in days_list)
-    total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
-    
+
+    if master_id is None and shift_number is None:
+        if effective_range_type == "month" or num_days >= 28:
+            total_plan_sheets = 160000 * len(lines_to_include)
+        elif effective_range_type == "week" and num_days == 7:
+            total_plan_sheets = 39300 * len(lines_to_include)
+        else:
+            total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
+    else:
+        total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
+
+    if total_fact_sheets > 0:
+        avg_period_weight = (total_fact_tons * 1000.0) / total_fact_sheets
+        total_plan_tons = round((total_plan_sheets * avg_period_weight) / 1000.0, 2)
+    else:
+        total_plan_tons = round((total_plan_sheets * 19.6) / 1000.0, 2)
+
     avg_plan_percent = (total_fact_sheets / total_plan_sheets * 100.0) if total_plan_sheets > 0 else 0.0
     
     total_first_grade = sum(d["first_grade"] for d in days_list)
@@ -2832,6 +2860,7 @@ def get_daily_report(
         "total_fact_sheets": total_fact_sheets,
         "total_fact_tons": total_fact_tons,
         "total_plan_sheets": total_plan_sheets,
+        "total_plan_tons": total_plan_tons,
         "total_first_grade": total_first_grade,
         "total_defect": total_defect,
         "avg_plan_percent": avg_plan_percent,

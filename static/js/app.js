@@ -1784,6 +1784,10 @@ async function loadDailyReport() {
             document.getElementById('kpi-shifts-count').innerText = data.total_shifts;
             document.getElementById('kpi-total-sheets').innerText = data.total_fact_sheets.toLocaleString();
             document.getElementById('kpi-total-tons').innerText = data.total_fact_tons.toFixed(1);
+            const tonsDetailEl = document.getElementById('kpi-tons-detail');
+            if (tonsDetailEl) {
+                tonsDetailEl.innerText = `План: ${(data.total_plan_tons || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} / Факт: ${(data.total_fact_tons || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}`;
+            }
             document.getElementById('kpi-avg-plan-percent').innerText = Math.round(data.avg_plan_percent) + '%';
             document.getElementById('kpi-plan-fact-detail').innerText = `План: ${(data.total_plan_sheets || 0).toLocaleString()} / Факт: ${(data.total_fact_sheets || 0).toLocaleString()}`;
             document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(1) + '%';
