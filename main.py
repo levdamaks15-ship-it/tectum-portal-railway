@@ -2816,6 +2816,8 @@ def get_daily_report(
                 data[line_key][day_key][s_name]["first_grade"] = pb.first_grade or 0
                 data[line_key][day_key][s_name]["defect"] = pb.defect or 0
             
+    processed_slots = set()
+    accumulate_sheets_slots = set()
     for s in shifts:
         if not s.date: continue
         # Не пропускаем смены других мастеров
@@ -2846,15 +2848,29 @@ def get_daily_report(
             total_s += r.lfm_sheets
             
         if total_s > 0:
-            # Overwrite only if pb had 0, or we are filtering by specific shift_number
-            if data[line_key][day_key][s_name]["sheets"] == 0 or shift_number is not None:
-                data[line_key][day_key][s_name]["sheets"] = total_s
-                data[line_key][day_key][s_name]["first_grade"] = total_1st
-                data[line_key][day_key][s_name]["defect"] = total_def
-            avg_w = total_w / total_s
+            slot_key = (line_key, day_key, s_name)
+            if slot_key not in processed_slots:
+                processed_slots.add(slot_key)
+                data[line_key][day_key][s_name]["tons"] = 0.0
+                if data[line_key][day_key][s_name]["sheets"] == 0 or shift_number is not None:
+                    accumulate_sheets_slots.add(slot_key)
+                    data[line_key][day_key][s_name]["sheets"] = 0
+                    data[line_key][day_key][s_name]["first_grade"] = 0
+                    data[line_key][day_key][s_name]["defect"] = 0
             
-            data[line_key][day_key][s_name]["plan_tons"] = data[line_key][day_key][s_name]["plan_sheets"] * avg_w / 1000.0
-            data[line_key][day_key][s_name]["tons"] = data[line_key][day_key][s_name]["sheets"] * avg_w / 1000.0
+            data[line_key][day_key][s_name]["tons"] += total_w / 1000.0
+            if slot_key in accumulate_sheets_slots:
+                data[line_key][day_key][s_name]["sheets"] += total_s
+                data[line_key][day_key][s_name]["first_grade"] += total_1st
+                data[line_key][day_key][s_name]["defect"] += total_def
+            
+    for line_k in data:
+        for day_k in data[line_k]:
+            for s_nm in ["День", "Ночь"]:
+                slot_info = data[line_k][day_k][s_nm]
+                if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
+                    avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
+                    slot_info["plan_tons"] = slot_info["plan_sheets"] * avg_w / 1000.0
             
     # Now structure response as expected by app.js
     days_list = []
@@ -3027,6 +3043,8 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
                     day_data[day_key][s_name]["first_grade"] = pb.first_grade or 0
                     day_data[day_key][s_name]["defect"] = pb.defect or 0
         
+        processed_slots = set()
+        accumulate_sheets_slots = set()
         for s in shifts:
             if not s.date or s.line != line_id: continue
             # Пропускаем смены других мастеров для роли master
@@ -3045,12 +3063,24 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
                 total_s += r.lfm_sheets
                 
             if total_s > 0:
-                if day_data[day_key][s_name]["sheets"] == 0:
-                    day_data[day_key][s_name]["sheets"] = total_s
-                avg_w = total_w / total_s
+                slot_key = (day_key, s_name)
+                if slot_key not in processed_slots:
+                    processed_slots.add(slot_key)
+                    day_data[day_key][s_name]["tons"] = 0.0
+                    if day_data[day_key][s_name]["sheets"] == 0:
+                        accumulate_sheets_slots.add(slot_key)
+                        day_data[day_key][s_name]["sheets"] = 0
                 
-                day_data[day_key][s_name]["plan_tons"] = day_data[day_key][s_name]["plan_sheets"] * avg_w / 1000.0
-                day_data[day_key][s_name]["tons"] = day_data[day_key][s_name]["sheets"] * avg_w / 1000.0
+                day_data[day_key][s_name]["tons"] += total_w / 1000.0
+                if slot_key in accumulate_sheets_slots:
+                    day_data[day_key][s_name]["sheets"] += total_s
+                
+        for day_k in day_data:
+            for s_nm in ["День", "Ночь"]:
+                slot_info = day_data[day_k][s_nm]
+                if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
+                    avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
+                    slot_info["plan_tons"] = slot_info["plan_sheets"] * avg_w / 1000.0
                 
         row_idx = 2
         for i in range(num_days):
@@ -3381,14 +3411,15 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
                 if pb and pb.plan_sheets is not None:
                     plan_sheets = pb.plan_sheets
                     
-                s = next((shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key), None)
+                slot_shifts = [shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key]
+                s = slot_shifts[0] if slot_shifts else None
                 
                 show_fact = (user_role != "master" or (pb and pb.master_id == user_id) or (s and s.master_id == user_id))
                 total_sheets = pb.fact_sheets if (pb and show_fact) else 0
                 
                 if s and show_fact:
-                    sum_lfm_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
-                    sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in s.lfm_reports)
+                    sum_lfm_sheets = sum(r.lfm_sheets for sh in slot_shifts for r in sh.lfm_reports)
+                    sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for sh in slot_shifts for r in sh.lfm_reports)
                     avg_w = (sum_lfm_tons / sum_lfm_sheets) if sum_lfm_sheets > 0 else (19.6/1000)
                     if total_sheets == 0 and sum_lfm_sheets > 0:
                         total_sheets = sum_lfm_sheets
@@ -3399,7 +3430,7 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
                     total_sheets = pb.fact_sheets if (pb and show_fact) else 0
                     
                 plan_tons = plan_sheets * avg_w
-                total_tons = total_sheets * avg_w
+                total_tons = sum_lfm_tons if (s and show_fact and sum_lfm_sheets > 0) else (total_sheets * avg_w)
                 
                 ws.append([str(d), s_name, master_name, l_key, plan_sheets, total_sheets, round(plan_tons, 2), round(total_tons, 2)])
     out = io.BytesIO()
@@ -3451,14 +3482,15 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                 if pb and pb.plan_sheets is not None:
                     plan_sheets = pb.plan_sheets
                     
-                s = next((shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key), None)
+                slot_shifts = [shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key]
+                s = slot_shifts[0] if slot_shifts else None
                 
                 show_fact = (user_role != "master" or (pb and pb.master_id == user_id) or (s and s.master_id == user_id))
                 total_sheets = pb.fact_sheets if (pb and show_fact) else 0
                 
                 if s and show_fact:
-                    sum_lfm_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
-                    sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in s.lfm_reports)
+                    sum_lfm_sheets = sum(r.lfm_sheets for sh in slot_shifts for r in sh.lfm_reports)
+                    sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for sh in slot_shifts for r in sh.lfm_reports)
                     avg_w = (sum_lfm_tons / sum_lfm_sheets) if sum_lfm_sheets > 0 else (19.6/1000)
                     if total_sheets == 0 and sum_lfm_sheets > 0:
                         total_sheets = sum_lfm_sheets
@@ -3467,11 +3499,11 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                         ds_first = pb.first_grade
                         ds_defect = pb.defect
                     else:
-                        ds_first = sum(b.ds_first_grade for b in s.batches)
-                        ds_defect = sum(b.ds_defect for b in s.batches)
+                        ds_first = sum(b.ds_first_grade for sh in slot_shifts for b in sh.batches)
+                        ds_defect = sum(b.ds_defect for sh in slot_shifts for b in sh.batches)
                         
-                    qcd_first = sum(b.qcd_first_grade for b in s.batches)
-                    qcd_defect = sum(b.qcd_defect for b in s.batches)
+                    qcd_first = sum(b.qcd_first_grade for sh in slot_shifts for b in sh.batches)
+                    qcd_defect = sum(b.qcd_defect for sh in slot_shifts for b in sh.batches)
                     
                     sanitary_note = ""
                     for dt in s.downtimes:
@@ -3493,7 +3525,7 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                     shift_id = None
                     
                 plan_tons = plan_sheets * avg_w
-                total_tons = total_sheets * avg_w
+                total_tons = sum_lfm_tons if (s and show_fact and sum_lfm_sheets > 0) else (total_sheets * avg_w)
                 
                 data.append({
                     "id": shift_id,
