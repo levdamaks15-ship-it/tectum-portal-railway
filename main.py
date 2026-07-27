@@ -2627,21 +2627,25 @@ def get_daily_report(
                     y, m = map(int, month.split('-'))
                 
                 week_num = int(week)
-                if week_num == 1:
+                num_days = calendar.monthrange(y, m)[1]
+                d_curr = datetime(y, m, 1).date()
+                d_end = datetime(y, m, num_days).date()
+                weeks = []
+                while d_curr <= d_end:
+                    w_start = d_curr
+                    days_to_sunday = 6 - d_curr.weekday()  # 0 is Mon, 6 is Sun
+                    w_end_calc = d_curr + timedelta(days=days_to_sunday)
+                    w_end = min(w_end_calc, d_end)
+                    weeks.append((w_start, w_end))
+                    d_curr = w_end + timedelta(days=1)
+                
+                idx = week_num - 1
+                if 0 <= idx < len(weeks):
+                    sd, ed = weeks[idx]
+                elif len(weeks) > 0:
+                    sd, ed = weeks[-1]
+                else:
                     sd = datetime(y, m, 1).date()
-                    ed = datetime(y, m, 7).date()
-                elif week_num == 2:
-                    sd = datetime(y, m, 8).date()
-                    ed = datetime(y, m, 14).date()
-                elif week_num == 3:
-                    sd = datetime(y, m, 15).date()
-                    ed = datetime(y, m, 21).date()
-                elif week_num == 4:
-                    sd = datetime(y, m, 22).date()
-                    ed = datetime(y, m, 28).date()
-                elif week_num == 5:
-                    num_days = calendar.monthrange(y, m)[1]
-                    sd = datetime(y, m, 29).date()
                     ed = datetime(y, m, num_days).date()
             except Exception as e:
                 raise HTTPException(400, f"Invalid week or month format: {e}")

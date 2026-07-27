@@ -692,6 +692,63 @@ async function closeShift() {
     }
 }
 
+function getWeeksOfMonth(year, month) {
+    const weeks = [];
+    const lastDay = new Date(year, month, 0).getDate();
+    let d = 1;
+    while (d <= lastDay) {
+        const wStart = d;
+        const dateObj = new Date(year, month - 1, d);
+        let dayOfWeek = dateObj.getDay(); // 0 is Sun, 1 is Mon... 6 is Sat
+        let daysToSunday = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
+        let wEnd = Math.min(d + daysToSunday, lastDay);
+        weeks.push({ start: wStart, end: wEnd });
+        d = wEnd + 1;
+    }
+    return weeks;
+}
+
+function updateWeekOptions(monthStr, selectId) {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+    let year, month;
+    if (monthStr && monthStr.includes('-')) {
+        const parts = monthStr.split('-');
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10);
+    } else {
+        const now = new Date();
+        year = now.getFullYear();
+        month = now.getMonth() + 1;
+    }
+    const weeks = getWeeksOfMonth(year, month);
+    const currentVal = selectEl.value || '1';
+    selectEl.innerHTML = '';
+    const mStr = String(month).padStart(2, '0');
+    weeks.forEach((w, idx) => {
+        const weekNum = idx + 1;
+        const sStr = String(w.start).padStart(2, '0');
+        const eStr = String(w.end).padStart(2, '0');
+        const opt = document.createElement('option');
+        opt.value = weekNum;
+        opt.textContent = `Неделя ${weekNum} (${sStr}.${mStr} - ${eStr}.${mStr})`;
+        if (String(weekNum) === String(currentVal)) {
+            opt.selected = true;
+        }
+        selectEl.appendChild(opt);
+    });
+    if (!selectEl.value && selectEl.options.length > 0) {
+        selectEl.options[0].selected = true;
+    }
+}
+
+function onSummaryMonthChange() {
+    const monthEl = document.getElementById('summary-filter-month');
+    if (monthEl) {
+        updateWeekOptions(monthEl.value, 'summary-filter-week');
+    }
+}
+
 function toggleSummaryFilterFields() {
     const filterTypeSelect = document.getElementById('summary-filter-type');
     if (!filterTypeSelect) return;
@@ -707,7 +764,13 @@ function toggleSummaryFilterFields() {
     if (monthEl) monthEl.style.display = (filterType === 'month' || filterType === 'week') ? 'inline-block' : 'none';
     
     const weekEl = document.getElementById('summary-field-week');
-    if (weekEl) weekEl.style.display = filterType === 'week' ? 'inline-block' : 'none';
+    if (weekEl) {
+        weekEl.style.display = filterType === 'week' ? 'inline-block' : 'none';
+        if (filterType === 'week') {
+            const mVal = document.getElementById('summary-filter-month')?.value;
+            updateWeekOptions(mVal, 'summary-filter-week');
+        }
+    }
 }
 
 async function loadReportSummary() {
@@ -721,7 +784,7 @@ async function loadReportSummary() {
         const toEl = document.getElementById('filter-date-to');
         from_date = fromEl ? fromEl.value : '';
         to_date = toEl ? toEl.value : '';
-    } else {
+    } else if (filterType === 'month' || filterType === 'week') {
         const monthEl = document.getElementById('summary-filter-month');
         const monthVal = monthEl ? monthEl.value : '';
         if (!monthVal) {
@@ -736,25 +799,13 @@ async function loadReportSummary() {
             to_date = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
         } else if (filterType === 'week') {
             const weekEl = document.getElementById('summary-filter-week');
-            const weekVal = weekEl ? parseInt(weekEl.value) : 1;
+            const weekVal = weekEl ? parseInt(weekEl.value, 10) : 1;
+            const weeks = getWeeksOfMonth(year, month);
+            const idx = weekVal - 1;
+            const selectedWeek = (idx >= 0 && idx < weeks.length) ? weeks[idx] : (weeks.length > 0 ? weeks[0] : { start: 1, end: 7 });
             const mStr = String(month).padStart(2, '0');
-            if (weekVal === 1) {
-                from_date = `${year}-${mStr}-01`;
-                to_date = `${year}-${mStr}-07`;
-            } else if (weekVal === 2) {
-                from_date = `${year}-${mStr}-08`;
-                to_date = `${year}-${mStr}-14`;
-            } else if (weekVal === 3) {
-                from_date = `${year}-${mStr}-15`;
-                to_date = `${year}-${mStr}-21`;
-            } else if (weekVal === 4) {
-                from_date = `${year}-${mStr}-22`;
-                to_date = `${year}-${mStr}-28`;
-            } else if (weekVal === 5) {
-                from_date = `${year}-${mStr}-29`;
-                const lastDay = new Date(year, month, 0).getDate();
-                to_date = `${year}-${mStr}-${String(lastDay).padStart(2, '0')}`;
-            }
+            from_date = `${year}-${mStr}-${String(selectedWeek.start).padStart(2, '0')}`;
+            to_date = `${year}-${mStr}-${String(selectedWeek.end).padStart(2, '0')}`;
         }
     }
 
@@ -1681,13 +1732,26 @@ function renderAnalyticsTable(data) {
 // ----------------------------------------------------
 // DAILY REPORT TAB LOGIC (📈 Месячная сводка выработки)
 // ----------------------------------------------------
+function onDailyReportMonthChange() {
+    const monthEl = document.getElementById('daily-report-month');
+    if (monthEl) {
+        updateWeekOptions(monthEl.value, 'daily-report-week-select');
+    }
+    loadDailyReport();
+}
+
 function toggleRangeControls() {
     const rangeTypeSelect = document.getElementById('daily-report-range-type');
     if (!rangeTypeSelect) return;
     const rangeType = rangeTypeSelect.value;
     
     const monthEl = document.getElementById('daily-report-month');
-    if (monthEl) monthEl.style.display = rangeType === 'month' ? 'inline-block' : 'none';
+    if (monthEl) {
+        monthEl.style.display = (rangeType === 'month' || rangeType === 'week') ? 'inline-block' : 'none';
+        if (rangeType === 'week') {
+            updateWeekOptions(monthEl.value, 'daily-report-week-select');
+        }
+    }
     
     const weekEl = document.getElementById('daily-report-week-select');
     if (weekEl) weekEl.style.display = rangeType === 'week' ? 'inline-block' : 'none';
@@ -2079,7 +2143,16 @@ window.addEventListener('DOMContentLoaded', () => {
     // Current date default for month picker
     const now = new Date();
     const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    document.getElementById('daily-report-month').value = yearMonth;
+    const dailyMonthEl = document.getElementById('daily-report-month');
+    if (dailyMonthEl) {
+        dailyMonthEl.value = yearMonth;
+        updateWeekOptions(yearMonth, 'daily-report-week-select');
+    }
+    const summaryMonthEl = document.getElementById('summary-filter-month');
+    if (summaryMonthEl) {
+        if (!summaryMonthEl.value) summaryMonthEl.value = yearMonth;
+        updateWeekOptions(summaryMonthEl.value, 'summary-filter-week');
+    }
 
     init();
 });

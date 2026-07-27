@@ -546,18 +546,18 @@
                     <!-- Month field -->
                     <div id="summary-field-month" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Месяц</label>
-                        <input type="month" id="summary-filter-month" style="margin-bottom: 0;">
+                        <input type="month" id="summary-filter-month" onchange="onSummaryMonthChange()" style="margin-bottom: 0;">
                     </div>
                     
                     <!-- Week field -->
                     <div id="summary-field-week" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Неделя</label>
                         <select id="summary-filter-week" style="margin-bottom: 0;">
-                            <option value="1" selected>Неделя 1 (1-7)</option>
-                            <option value="2">Неделя 2 (8-14)</option>
-                            <option value="3">Неделя 3 (15-21)</option>
-                            <option value="4">Неделя 4 (22-28)</option>
-                            <option value="5">Неделя 5 (29+)</option>
+                            <option value="1" selected>Неделя 1</option>
+                            <option value="2">Неделя 2</option>
+                            <option value="3">Неделя 3</option>
+                            <option value="4">Неделя 4</option>
+                            <option value="5">Неделя 5</option>
                         </select>
                     </div>
 
@@ -933,14 +933,14 @@
                             <option value="" selected>Все мастера</option>
                         </select>
 
-                        <input type="month" id="daily-report-month" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                        <input type="month" id="daily-report-month" onchange="onDailyReportMonthChange()" style="padding: 0.5rem; border-radius: 8px; background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
                         
                         <select id="daily-report-week-select" onchange="loadDailyReport()" style="padding: 0.5rem; border-radius: 8px; display: none;">
-                            <option value="1" selected>Неделя 1 (1-7)</option>
-                            <option value="2">Неделя 2 (8-14)</option>
-                            <option value="3">Неделя 3 (15-21)</option>
-                            <option value="4">Неделя 4 (22-28)</option>
-                            <option value="5">Неделя 5 (29+)</option>
+                            <option value="1" selected>Неделя 1</option>
+                            <option value="2">Неделя 2</option>
+                            <option value="3">Неделя 3</option>
+                            <option value="4">Неделя 4</option>
+                            <option value="5">Неделя 5</option>
                         </select>
                         
                         <button onclick="exportDailyReportPDF()" style="background: #217346; width: auto; padding: 0.5rem 1.5rem;">Выгрузить в PDF</button>
@@ -1085,6 +1085,6 @@
         </div>
     </div>
     
-    <script src="/static/js/app.js?v=20260718_v7"> </script>
+    <script src="/static/js/app.js?v=20260727_v1"> </script>
 </body>
 </html>
