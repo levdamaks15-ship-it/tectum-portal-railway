@@ -26,7 +26,7 @@ def get_shift_plan(db: Session, shift) -> int:
     return 2700 if shift.shift_name == "День" else 3300
 
 def generate_flat_report(db: Session) -> bytes:
-    shifts = db.query(models.Shift).filter(models.Shift.status == "closed").order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.id.asc()).all()
+    shifts = db.query(models.Shift).filter(models.Shift.status == "closed").order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
     
     wb = openpyxl.Workbook()
     ws = wb.active
