@@ -312,12 +312,7 @@ async function clearOperationalData() {
     }
 }
 
-// Handle enter key in login
-document.getElementById('admin-pin').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-        adminLogin();
-    }
-});
+
 
 // --- PLAN BOARD ---
 async function loadPlanBoard() {
@@ -496,7 +491,25 @@ async function loadAuditLogs() {
         if (!tbody) return;
         tbody.innerHTML = '';
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Нет за�// --- SHIFTS CRUD & UNIFIED MANAGEMENT ---
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Нет записей</td></tr>';
+            return;
+        }
+        data.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${log.timestamp || ''}</td>
+                <td>${log.user_name || ''} (${log.user_role || ''})</td>
+                <td>${log.action || ''}</td>
+                <td style="white-space: pre-wrap; font-size: 0.85rem;">${log.details || ''}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("Error loading audit logs:", e);
+    }
+}
+
+// --- SHIFTS CRUD & UNIFIED MANAGEMENT ---
 
 let allMastersCached = [];
 let allShiftsCached = [];
@@ -965,46 +978,6 @@ async function deleteDowntimeRow(id) {
             if (activeUnifiedDetails?.shift?.id) {
                 openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
             }
-        } else {
-            alert("Ошибка удаления");
-        }
-    } catch (e) {
-        console.error(e);
-    }
-}
-department: document.getElementById('edit-downtime-department').value || null,
-        node: document.getElementById('edit-downtime-node').value || '',
-        description: document.getElementById('edit-downtime-reason').value,
-        lost_tons: parseFloat(document.getElementById('edit-downtime-lost-tons').value) || 0.0,
-        lost_tenge: parseFloat(document.getElementById('edit-downtime-lost-tenge').value) || 0.0,
-        status: document.getElementById('edit-downtime-status').value || 'pending',
-        category: document.getElementById('edit-downtime-category').value,
-        is_equipment_downtime: document.getElementById('edit-downtime-is-equipment-stop').checked
-    };
-    try {
-        const res = await fetch(`/api/admin/downtimes/${id}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        if (res.ok) {
-            document.getElementById('edit-downtime-modal').style.display = 'none';
-            showShiftDetails(activeShiftDetails.shift.id);
-        } else {
-            alert("Ошибка сохранения простоя");
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-
-async function deleteDowntimeRow(id) {
-    if (!confirm("Удалить эту запись о простое?")) return;
-    try {
-        const res = await fetch(`/api/admin/downtimes/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            showShiftDetails(activeShiftDetails.shift.id);
         } else {
             alert("Ошибка удаления");
         }
