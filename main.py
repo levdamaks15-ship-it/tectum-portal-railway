@@ -596,7 +596,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
         selectinload(models.Shift.batches),
         selectinload(models.Shift.lfm_reports),
         selectinload(models.Shift.downtimes)
-    ).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+    ).order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.id.desc()).all()
     
     result = []
     for shift in shifts:
@@ -1593,7 +1593,7 @@ def get_report_summary(
         if master_id:
             query = query.filter(models.Shift.master_id == master_id)
         
-        shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+        shifts = query.order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.id.desc()).all()
     
         result = []
         for shift in shifts:
@@ -1727,7 +1727,7 @@ def get_materials_summary(
         if end_date:
             query = query.filter(models.Shift.date <= datetime.strptime(end_date, "%Y-%m-%d").date())
         
-        shifts = query.order_by(models.Shift.date.asc()).all()
+        shifts = query.order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.id.asc()).all()
     
         materials = [
             "chrysotile_4_20", "chrysotile_5_65", "chrysotile_6_40",
@@ -2331,7 +2331,7 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
     query = db.query(models.Shift)
     if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
-    shifts = query.order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(7).all()
+    shifts = query.order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.id.desc()).limit(7).all()
     
     report_data = []
     for shift in shifts:
@@ -3065,7 +3065,7 @@ def get_shift_board(month: str, db: Session = Depends(get_db)):
     shifts = db.query(models.Shift).filter(
         models.Shift.date >= month_start,
         models.Shift.date <= month_end
-    ).order_by(models.Shift.date, models.Shift.id).all()
+    ).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.id.asc()).all()
     
     board = {}
     for s in shifts:
@@ -3249,7 +3249,7 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
     )
     if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
-    shifts = query.order_by(models.Shift.date, models.Shift.id).all()
+    shifts = query.order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.id.asc()).all()
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -3332,7 +3332,7 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
     )
     if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
-    shifts = query.order_by(models.Shift.date, models.Shift.id).all()
+    shifts = query.order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.id.asc()).all()
     
     plan_boards = db.query(models.MonthlyPlanBoard).filter(
         models.MonthlyPlanBoard.date >= sd,

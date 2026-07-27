@@ -55,10 +55,10 @@ class Shift(Base):
 
     
     master = relationship("Master")
-    batches = relationship("Batch", back_populates="shift")
-    lfm_reports = relationship("LFMReport", back_populates="shift")
-    downtimes = relationship("Downtime", back_populates="shift")
-    receipts = relationship("RawMaterialReceipt", back_populates="shift", cascade="all, delete-orphan")
+    batches = relationship("Batch", back_populates="shift", order_by="Batch.id")
+    lfm_reports = relationship("LFMReport", back_populates="shift", order_by="LFMReport.id")
+    downtimes = relationship("Downtime", back_populates="shift", order_by="Downtime.start_time")
+    receipts = relationship("RawMaterialReceipt", back_populates="shift", cascade="all, delete-orphan", order_by="RawMaterialReceipt.id")
 
 class RawMaterialReceipt(Base):
     __tablename__ = "raw_material_receipts"

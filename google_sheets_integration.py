@@ -68,7 +68,7 @@ def sync_report_to_google_sheets(db: Session):
     service = get_sheets_service()
     
     # 1. Извлекаем данные из БД (все смены без фильтра по статусу "closed")
-    shifts = db.query(models.Shift).order_by(models.Shift.date.asc(), models.Shift.id.asc()).all()
+    shifts = db.query(models.Shift).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.id.asc()).all()
     
     # Записываем отладочный лог в AuditLog
     db.add(models.AuditLog(
@@ -950,7 +950,7 @@ def export_receipt_to_google_sheets(db: Session):
 
     # 3. Собираем данные из БД — все записи прихода сырья
     # Выгружаем каждую запись прихода как отдельную строку
-    receipts = db.query(models.RawMaterialReceipt).join(models.Shift).order_by(models.Shift.date.asc(), models.RawMaterialReceipt.id.asc()).all()
+    receipts = db.query(models.RawMaterialReceipt).join(models.Shift).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.RawMaterialReceipt.id.asc()).all()
 
     rows_data = []
     rows_data.append(headers)
@@ -1187,7 +1187,7 @@ def export_downtimes_to_google_sheets(db: Session):
 
     # 3. Собираем данные из БД — все простои с информацией о смене
     downtimes = db.query(models.Downtime).join(models.Shift).order_by(
-        models.Shift.date.asc(), models.Shift.id.asc(), models.Downtime.start_time.asc()
+        models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Downtime.start_time.asc(), models.Downtime.id.asc()
     ).all()
 
     rows_data = []
