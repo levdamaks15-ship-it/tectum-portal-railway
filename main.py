@@ -314,6 +314,38 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Clean up historical NULL values in database (Rule 5.8)
+    db = SessionLocal()
+    try:
+        from sqlalchemy import text
+        cleanup_queries = [
+            "UPDATE lfm_reports SET lfm_wind_resets = 0 WHERE lfm_wind_resets IS NULL",
+            "UPDATE lfm_reports SET formed_1st_grade = 0 WHERE formed_1st_grade IS NULL",
+            "UPDATE lfm_reports SET formed_defect = 0 WHERE formed_defect IS NULL",
+            "UPDATE lfm_reports SET transferred_to_warehouse = 0 WHERE transferred_to_warehouse IS NULL",
+            "UPDATE batches SET ds_condition = 0 WHERE ds_condition IS NULL",
+            "UPDATE batches SET ds_first_grade = 0 WHERE ds_first_grade IS NULL",
+            "UPDATE batches SET ds_defect = 0 WHERE ds_defect IS NULL",
+            "UPDATE batches SET qcd_condition = 0 WHERE qcd_condition IS NULL",
+            "UPDATE batches SET qcd_first_grade = 0 WHERE qcd_first_grade IS NULL",
+            "UPDATE batches SET qcd_defect = 0 WHERE qcd_defect IS NULL",
+            "UPDATE shifts SET batch_number = '' WHERE batch_number IS NULL",
+            "UPDATE shifts SET product_name = '' WHERE product_name IS NULL",
+            "UPDATE shifts SET status = 'active' WHERE status IS NULL"
+        ]
+        for q in cleanup_queries:
+            try:
+                db.execute(text(q))
+            except Exception:
+                pass
+        db.commit()
+        print("Historical NULL values cleaned up successfully.")
+    except Exception as e:
+        print(f"Error cleaning up historical NULLs: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
     yield
 
 app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan)
@@ -587,7 +619,12 @@ def auth_logout(request: Request):
 
 @app.get("/api/masters/")
 def get_masters(db: Session = Depends(get_db)):
-    return db.query(models.Master).all()
+    try:
+        return db.query(models.Master).all()
+    except Exception as e:
+        import traceback
+        print(f"Error in get_masters: {str(e)}\n{traceback.format_exc()}")
+        return []
 
 # --- УПРАВЛЕНИЕ СМЕНОЙ ---
 @app.post("/api/shifts/")
@@ -611,29 +648,44 @@ def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Dep
 
 @app.get("/api/shifts/active")
 def get_active_shifts(db: Session = Depends(get_db)):
-    return db.query(models.Shift).filter(models.Shift.status == "active").all()
+    try:
+        return db.query(models.Shift).filter(models.Shift.status == "active").all()
+    except Exception as e:
+        import traceback
+        print(f"Error in get_active_shifts: {str(e)}\n{traceback.format_exc()}")
+        return []
 
 @app.get("/api/shifts/all", response_model=list[schemas.Shift])
 def get_all_shifts(db: Session = Depends(get_db)):
-    shifts = db.query(models.Shift).options(
-        selectinload(models.Shift.master),
-        selectinload(models.Shift.receipts),
-        selectinload(models.Shift.batches),
-        selectinload(models.Shift.lfm_reports),
-        selectinload(models.Shift.downtimes)
-    ).order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.batch_number.desc(), models.Shift.id.desc()).all()
-    
-    result = []
-    for shift in shifts:
-        lfm_sheets = sum((r.lfm_sheets or 0) for r in shift.lfm_reports) if shift.lfm_reports else 0
-        warehouse_gp = sum((b.ds_condition or 0) for b in shift.batches) if shift.batches else 0
-        plan_sheets = shift.plan_sheets or 0
-        zo_batches = shift.zo_batches or 0
+    try:
+        shifts = db.query(models.Shift).options(
+            selectinload(models.Shift.master),
+            selectinload(models.Shift.receipts),
+            selectinload(models.Shift.batches),
+            selectinload(models.Shift.lfm_reports),
+            selectinload(models.Shift.downtimes)
+        ).order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.batch_number.desc(), models.Shift.id.desc()).all()
         
-        if plan_sheets == 0 and lfm_sheets == 0 and warehouse_gp == 0 and zo_batches == 0 and not shift.zo_submitted:
-            continue
-        result.append(shift)
-    return result
+        result = []
+        for shift in shifts:
+            try:
+                lfm_sheets = sum((r.lfm_sheets or 0) for r in shift.lfm_reports) if shift.lfm_reports else 0
+                warehouse_gp = sum((b.ds_condition or 0) for b in shift.batches) if shift.batches else 0
+                plan_sheets = shift.plan_sheets or 0
+                zo_batches = shift.zo_batches or 0
+                
+                if plan_sheets == 0 and lfm_sheets == 0 and warehouse_gp == 0 and zo_batches == 0 and not shift.zo_submitted:
+                    continue
+                schemas.Shift.from_orm(shift)
+                result.append(shift)
+            except Exception as item_err:
+                print(f"Warning: skipping shift ID {shift.id} in get_all_shifts due to validation error: {item_err}")
+                continue
+        return result
+    except Exception as e:
+        import traceback
+        print(f"Error in get_all_shifts: {str(e)}\n{traceback.format_exc()}")
+        return []
 
 @app.get("/api/shifts/by_params")
 def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, batch_number: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):

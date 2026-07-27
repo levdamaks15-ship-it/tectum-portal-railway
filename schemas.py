@@ -1,8 +1,52 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+from pydantic_core import PydanticUndefined
 from typing import List, Optional
 from datetime import date, datetime
 
-class BatchBase(BaseModel):
+class ORMBaseModel(BaseModel):
+    @model_validator(mode='before')
+    @classmethod
+    def replace_nulls_with_defaults(cls, data):
+        if not isinstance(data, dict):
+            new_data = {}
+            for name, field in cls.model_fields.items():
+                val = getattr(data, name, None)
+                if val is None:
+                    if field.default is not None and field.default is not PydanticUndefined:
+                        new_data[name] = field.default
+                    elif field.default is PydanticUndefined:
+                        if field.annotation == int or field.annotation == Optional[int]:
+                            new_data[name] = 0
+                        elif field.annotation == float or field.annotation == Optional[float]:
+                            new_data[name] = 0.0
+                        elif field.annotation == str or field.annotation == Optional[str]:
+                            new_data[name] = ""
+                        elif field.annotation == bool or field.annotation == Optional[bool]:
+                            new_data[name] = False
+                        else:
+                            new_data[name] = None
+                    else:
+                        new_data[name] = None
+                else:
+                    new_data[name] = val
+            return new_data
+        else:
+            for name, field in cls.model_fields.items():
+                if data.get(name) is None:
+                    if field.default is not None and field.default is not PydanticUndefined:
+                        data[name] = field.default
+                    elif field.default is PydanticUndefined:
+                        if field.annotation == int or field.annotation == Optional[int]:
+                            data[name] = 0
+                        elif field.annotation == float or field.annotation == Optional[float]:
+                            data[name] = 0.0
+                        elif field.annotation == str or field.annotation == Optional[str]:
+                            data[name] = ""
+                        elif field.annotation == bool or field.annotation == Optional[bool]:
+                            data[name] = False
+            return data
+
+class BatchBase(ORMBaseModel):
     batch_number: str
     product_name: str
     status: str = "stacked"
@@ -34,12 +78,12 @@ class BatchCreate(BatchBase):
 
 class Batch(BatchBase):
     id: int
-    shift_id: int
+    shift_id: Optional[int] = 0
 
     class Config:
         from_attributes = True
 
-class LFMReportBase(BaseModel):
+class LFMReportBase(ORMBaseModel):
     product_name: str
     lfm_sheets: int = 0
     lfm_wind_resets: int = 0
@@ -52,12 +96,12 @@ class LFMReportCreate(LFMReportBase):
 
 class LFMReport(LFMReportBase):
     id: int
-    shift_id: int
+    shift_id: Optional[int] = 0
 
     class Config:
         from_attributes = True
 
-class DowntimeBase(BaseModel):
+class DowntimeBase(ORMBaseModel):
     start_time: str
     end_time: Optional[str] = None
     category: Optional[str] = None
@@ -74,16 +118,16 @@ class DowntimeCreate(DowntimeBase):
 
 class Downtime(DowntimeBase):
     id: int
-    shift_id: int
-    duration: int
+    shift_id: Optional[int] = 0
+    duration: Optional[int] = 0
     lost_tons: Optional[float] = 0.0
     lost_tenge: Optional[float] = 0.0
-    status: str
+    status: Optional[str] = "pending"
 
     class Config:
         from_attributes = True
 
-class ShiftBase(BaseModel):
+class ShiftBase(ORMBaseModel):
     date: date
     shift_name: str
     line: str
@@ -117,7 +161,7 @@ class ShiftBase(BaseModel):
     zo_submitted: Optional[bool] = False
 
 
-class RawMaterialReceiptBase(BaseModel):
+class RawMaterialReceiptBase(ORMBaseModel):
     master_id: Optional[int] = None
     chrysotile_4_20: float = 0.0
     chrysotile_5_65: float = 0.0
@@ -139,7 +183,7 @@ class RawMaterialReceiptCreate(RawMaterialReceiptBase):
 
 class RawMaterialReceipt(RawMaterialReceiptBase):
     id: int
-    shift_id: int
+    shift_id: Optional[int] = 0
     timestamp: datetime
 
     class Config:
@@ -150,8 +194,8 @@ class ShiftCreate(ShiftBase):
 
 class Shift(ShiftBase):
     id: int
-    master_id: int
-    status: str
+    master_id: Optional[int] = 0
+    status: Optional[str] = "active"
     sharepoint_url: Optional[str] = None
     batches: List[Batch] = []
     lfm_reports: List[LFMReport] = []
@@ -162,7 +206,7 @@ class Shift(ShiftBase):
     class Config:
         from_attributes = True
 
-class MasterBase(BaseModel):
+class MasterBase(ORMBaseModel):
     name: str
     role: str
     email: Optional[str] = None
@@ -176,7 +220,7 @@ class Master(MasterBase):
     class Config:
         from_attributes = True
 
-class ZOUpdate(BaseModel):
+class ZOUpdate(ORMBaseModel):
     chrysotile_4_20: float
     chrysotile_5_65: float
     chrysotile_6_40: float
@@ -193,13 +237,13 @@ class ZOUpdate(BaseModel):
     batches: int = 0
     submitted: bool = False
 
-class MasterUpdate(BaseModel):
+class MasterUpdate(ORMBaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
     pin: Optional[str] = None
     email: Optional[str] = None
 
-class ProductNormBase(BaseModel):
+class ProductNormBase(ORMBaseModel):
     product_name: str
     weight_kg: float = 0.0
     norm_chrysotile_4_20: float = 0.0
@@ -214,7 +258,7 @@ class ProductNormBase(BaseModel):
 class ProductNormCreate(ProductNormBase):
     pass
 
-class ProductNormUpdate(BaseModel):
+class ProductNormUpdate(ORMBaseModel):
     product_name: Optional[str] = None
     weight_kg: Optional[float] = None
     norm_chrysotile_4_20: Optional[float] = None
@@ -232,7 +276,7 @@ class ProductNorm(ProductNormBase):
     class Config:
         from_attributes = True
 
-class MaterialDeviation(BaseModel):
+class MaterialDeviation(ORMBaseModel):
     material: str
     actual: float
     theoretical: float
@@ -241,12 +285,12 @@ class MaterialDeviation(BaseModel):
     unit_theoretical: Optional[float] = 0.0
     unit_deviation: Optional[float] = 0.0
 
-class RawMaterialReport(BaseModel):
+class RawMaterialReport(ORMBaseModel):
     shift_id: int
     total_deviation_kg: float
     details: List[MaterialDeviation]
 
-class MonthlyPlanBoardBase(BaseModel):
+class MonthlyPlanBoardBase(ORMBaseModel):
     date: date
     shift_name: str
     shift_number: int
@@ -267,7 +311,7 @@ class MonthlyPlanBoard(MonthlyPlanBoardBase):
     class Config:
         from_attributes = True
 
-class DowntimeDirectoryBase(BaseModel):
+class DowntimeDirectoryBase(ORMBaseModel):
     department: str
     node: str
     breakdown: str
@@ -284,7 +328,7 @@ class DowntimeDirectory(DowntimeDirectoryBase):
         from_attributes = True
 
 
-class RawMaterialsBulkUpdate(BaseModel):
+class RawMaterialsBulkUpdate(ORMBaseModel):
     zo_chrysotile_4_20: float = 0.0
     zo_chrysotile_5_65: float = 0.0
     zo_chrysotile_6_40: float = 0.0
@@ -303,7 +347,7 @@ class RawMaterialsBulkUpdate(BaseModel):
     zo_batches: int = 0
 
 
-class ShiftReportCreate(BaseModel):
+class ShiftReportCreate(ORMBaseModel):
     date: date
     shift_name: str
     line: str
@@ -355,7 +399,7 @@ class ShiftReportCreate(BaseModel):
     zo_cem_drain: float = 0.0
 
 
-class AdminShiftReportUpdate(BaseModel):
+class AdminShiftReportUpdate(ORMBaseModel):
     date: Optional[str] = None
     shift_name: Optional[str] = None
     line: Optional[str] = None
