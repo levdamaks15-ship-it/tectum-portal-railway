@@ -1784,7 +1784,76 @@ async function loadDailyReport() {
         if (res.ok) {
             const data = await res.json();
             
-            // Set KPIs
+            // Calculate Today / MTD KPIs (up to today or worked shifts)
+            const now = new Date();
+            const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            
+            let todayPlanTons = 0;
+            let todayFactTons = 0;
+            let todayPlanSheets = 0;
+            let todayFactSheets = 0;
+
+            if (data.days && Array.isArray(data.days)) {
+                data.days.forEach(s => {
+                    if (s.date < todayStr || (s.date === todayStr && (s.fact_sheets > 0 || s.fact_tons > 0))) {
+                        todayPlanTons += (s.plan_tons || 0);
+                        todayFactTons += (s.fact_tons || 0);
+                        todayPlanSheets += (s.plan_sheets || 0);
+                        todayFactSheets += (s.fact_sheets || 0);
+                    }
+                });
+            }
+
+            const diffTons = todayFactTons - todayPlanTons;
+            const diffSheets = todayFactSheets - todayPlanSheets;
+
+            const elTodayTons = document.getElementById('kpi-today-tons');
+            if (elTodayTons) elTodayTons.innerText = todayFactTons.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+            const elTodaySheets = document.getElementById('kpi-today-sheets');
+            if (elTodaySheets) elTodaySheets.innerText = `${todayFactSheets.toLocaleString()} листов`;
+
+            const elTodayPlanTons = document.getElementById('kpi-today-plan-tons');
+            if (elTodayPlanTons) elTodayPlanTons.innerText = todayPlanTons.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+            const elTodayPlanSheets = document.getElementById('kpi-today-plan-sheets');
+            if (elTodayPlanSheets) elTodayPlanSheets.innerText = `${todayPlanSheets.toLocaleString()} листов`;
+
+            const elDiffTons = document.getElementById('kpi-today-diff-tons');
+            const elDiffTonsDetail = document.getElementById('kpi-today-diff-tons-detail');
+            if (elDiffTons) {
+                if (diffTons > 0.05) {
+                    elDiffTons.innerText = `+${diffTons.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}`;
+                    elDiffTons.style.color = '#22c55e';
+                    if (elDiffTonsDetail) elDiffTonsDetail.innerText = 'Перевыполнение плана!';
+                } else if (diffTons < -0.05) {
+                    elDiffTons.innerText = diffTons.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+                    elDiffTons.style.color = '#8b5cf6';
+                    if (elDiffTonsDetail) elDiffTonsDetail.innerText = 'Отставание от плана';
+                } else {
+                    elDiffTons.innerText = '0.0';
+                    elDiffTons.style.color = '#22c55e';
+                    if (elDiffTonsDetail) elDiffTonsDetail.innerText = 'В норме';
+                }
+            }
+
+            const elDiffSheets = document.getElementById('kpi-today-diff-sheets');
+            const elDiffSheetsDetail = document.getElementById('kpi-today-diff-sheets-detail');
+            if (elDiffSheets) {
+                if (diffSheets > 0) {
+                    elDiffSheets.innerText = `+${diffSheets.toLocaleString()}`;
+                    elDiffSheets.style.color = '#22c55e';
+                    if (elDiffSheetsDetail) elDiffSheetsDetail.innerText = 'Перевыполнение плана!';
+                } else if (diffSheets < 0) {
+                    elDiffSheets.innerText = diffSheets.toLocaleString();
+                    elDiffSheets.style.color = '#8b5cf6';
+                    if (elDiffSheetsDetail) elDiffSheetsDetail.innerText = 'Отставание от плана';
+                } else {
+                    elDiffSheets.innerText = '0';
+                    elDiffSheets.style.color = '#22c55e';
+                    if (elDiffSheetsDetail) elDiffSheetsDetail.innerText = 'В норме';
+                }
+            }
+
+            // Set Total Month KPIs
             document.getElementById('kpi-total-sheets').innerText = data.total_fact_sheets.toLocaleString();
             document.getElementById('kpi-total-tons').innerText = data.total_fact_tons.toFixed(1);
             const tonsDetailEl = document.getElementById('kpi-tons-detail');
@@ -2011,6 +2080,16 @@ function exportDailyReportPDF() {
     const kpiDefect = document.getElementById('kpi-defect-percent')?.innerText || "0%";
     const kpiDefectDetail = document.getElementById('kpi-defect-detail')?.innerText || "";
 
+    // Today / MTD KPIs
+    const kpiTodayTons = document.getElementById('kpi-today-tons')?.innerText || "0.0";
+    const kpiTodaySheets = document.getElementById('kpi-today-sheets')?.innerText || "";
+    const kpiTodayPlanTons = document.getElementById('kpi-today-plan-tons')?.innerText || "0.0";
+    const kpiTodayPlanSheets = document.getElementById('kpi-today-plan-sheets')?.innerText || "";
+    const kpiTodayDiffTons = document.getElementById('kpi-today-diff-tons')?.innerText || "0.0";
+    const kpiTodayDiffTonsDetail = document.getElementById('kpi-today-diff-tons-detail')?.innerText || "";
+    const kpiTodayDiffSheets = document.getElementById('kpi-today-diff-sheets')?.innerText || "0";
+    const kpiTodayDiffSheetsDetail = document.getElementById('kpi-today-diff-sheets-detail')?.innerText || "";
+
     // Prepare a high-resolution canvas for print quality
     const cw = 1600;
     const ch = 1131; // 1600 / 1.414 (A4 aspect ratio) to prevent stretching
@@ -2025,28 +2104,74 @@ function exportDailyReportPDF() {
     
     // Header
     ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 42px Arial';
+    ctx.font = 'bold 38px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(titleText, cw / 2, 120);
+    ctx.fillText(titleText, cw / 2, 80);
     
     ctx.fillStyle = '#64748b';
-    ctx.font = '24px Arial';
-    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 170);
+    ctx.font = '22px Arial';
+    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 120);
     
     // Draw horizontal line
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(80, 200);
-    ctx.lineTo(cw - 80, 200);
+    ctx.moveTo(80, 140);
+    ctx.lineTo(cw - 80, 140);
     ctx.stroke();
     
-    // Draw KPIs
+    // Row 1: Today MTD KPIs
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#16a34a';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText("ФАКТИЧЕСКИЕ ПОКАЗАТЕЛИ НА ТЕКУЩУЮ ДАТУ", 80, 175);
+
+    const todayKpis = [
+        { label: "Выработка (Тонны)", val: kpiTodayTons, color: '#16a34a', subtext: kpiTodaySheets },
+        { label: "План на сегодня (Тонны)", val: kpiTodayPlanTons, color: '#2563eb', subtext: kpiTodayPlanSheets },
+        { label: "Отклонение (Тонны)", val: kpiTodayDiffTons, color: '#ca8a04', subtext: kpiTodayDiffTonsDetail },
+        { label: "Отклонение (Листы)", val: kpiTodayDiffSheets, color: '#7c3aed', subtext: kpiTodayDiffSheetsDetail }
+    ];
+    
+    const todayW = (cw - 160) / 4;
+    todayKpis.forEach((k, idx) => {
+        const x = 80 + idx * todayW;
+        const y = 190;
+        const cardW = todayW - 20;
+        const cardX = x + 10;
+        ctx.fillStyle = '#f0fdf4';
+        ctx.fillRect(cardX, y, cardW, 110);
+        ctx.strokeStyle = '#bbf7d0';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cardX, y, cardW, 110);
+        
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#475569';
+        ctx.font = '18px Arial';
+        ctx.fillText(k.label, x + todayW / 2, y + 30);
+        
+        ctx.fillStyle = k.color;
+        ctx.font = 'bold 30px Arial';
+        ctx.fillText(k.val, x + todayW / 2, y + 70);
+        
+        if (k.subtext) {
+            ctx.fillStyle = '#64748b';
+            ctx.font = '15px Arial';
+            ctx.fillText(k.subtext, x + todayW / 2, y + 95);
+        }
+    });
+
+    // Row 2: Total Month KPIs
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748b';
+    ctx.font = 'bold 20px Arial';
+    ctx.fillText("ИТОГОВЫЕ ПРОГНОЗНЫЕ ПОКАЗАТЕЛИ ЗА ВЕСЬ МЕСЯЦ", 80, 335);
+
     const kpis = [
         { label: "Выработка (Листы)", val: kpiSheets, color: '#3b82f6', subtext: "" },
         { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981', subtext: kpiTonsDetail },
-        { label: "Отставание (Листы)", val: kpiLagSheets, color: '#8b5cf6', subtext: kpiLagSheetsDetail },
-        { label: "Отставание (Тонны)", val: kpiLagTons, color: '#6366f1', subtext: kpiLagTonsDetail },
+        { label: "Остаток (Листы)", val: kpiLagSheets, color: '#8b5cf6', subtext: kpiLagSheetsDetail },
+        { label: "Остаток (Тонны)", val: kpiLagTons, color: '#6366f1', subtext: kpiLagTonsDetail },
         { label: "Ср. % плана", val: kpiAvgPlan, color: '#f59e0b', subtext: kpiPlanDetail },
         { label: "Процент брака", val: kpiDefect, color: '#ef4444', subtext: kpiDefectDetail }
     ];
@@ -2054,42 +2179,38 @@ function exportDailyReportPDF() {
     const kpiW = (cw - 160) / 6;
     kpis.forEach((k, idx) => {
         const x = 80 + idx * kpiW;
-        const y = 230;
+        const y = 350;
         
-        // Draw card border (add gap between cards)
-        const cardW = kpiW - 30;
-        const cardX = x + 15;
+        const cardW = kpiW - 20;
+        const cardX = x + 10;
         ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(cardX, y, cardW, 140);
+        ctx.fillRect(cardX, y, cardW, 110);
         ctx.strokeStyle = '#e2e8f0';
         ctx.lineWidth = 1;
-        ctx.strokeRect(cardX, y, cardW, 140);
+        ctx.strokeRect(cardX, y, cardW, 110);
         
-        // Text
         ctx.textAlign = 'center';
         ctx.fillStyle = '#64748b';
-        ctx.font = '20px Arial';
-        ctx.fillText(k.label, x + kpiW / 2, y + 40);
+        ctx.font = '17px Arial';
+        ctx.fillText(k.label, x + kpiW / 2, y + 30);
         
         ctx.fillStyle = k.color;
-        ctx.font = 'bold 36px Arial';
-        ctx.fillText(k.val, x + kpiW / 2, y + 90);
+        ctx.font = 'bold 28px Arial';
+        ctx.fillText(k.val, x + kpiW / 2, y + 70);
         
         if (k.subtext) {
             ctx.fillStyle = '#94a3b8';
-            ctx.font = '16px Arial';
-            ctx.fillText(k.subtext, x + kpiW / 2, y + 120);
+            ctx.font = '14px Arial';
+            ctx.fillText(k.subtext, x + kpiW / 2, y + 95);
         }
     });
     
     // Draw chart if exists
     if (chartDailySheets) {
         const chartImgSrc = chartDailySheets.canvas;
-        // Calculate proportional aspect ratio based on chart width
         const chartW = cw - 160;
-        const chartH = chartImgSrc.height * (chartW / chartImgSrc.width);
+        const chartH = Math.min(560, chartImgSrc.height * (chartW / chartImgSrc.width));
         
-        // Add chart logic to prevent transparent background to black issue in PDF
         const tmp = document.createElement('canvas');
         tmp.width = chartImgSrc.width;
         tmp.height = chartImgSrc.height;
@@ -2098,12 +2219,12 @@ function exportDailyReportPDF() {
         tmpCtx.fillRect(0, 0, tmp.width, tmp.height);
         tmpCtx.drawImage(chartImgSrc, 0, 0);
         
-        ctx.drawImage(tmp, 80, 420, chartW, chartH);
+        ctx.drawImage(tmp, 80, 490, chartW, chartH);
     } else {
         ctx.textAlign = 'center';
         ctx.fillStyle = '#94a3b8';
         ctx.font = '24px Arial';
-        ctx.fillText("График не найден", cw / 2, 600);
+        ctx.fillText("График не найден", cw / 2, 700);
     }
     
     // Footer
