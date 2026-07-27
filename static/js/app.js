@@ -112,14 +112,18 @@ function recalcTonsAndGrades() {
 async function onProductChange() {
     recalcTonsAndGrades();
     
-    const date = document.getElementById('rep-date').value;
-    const shiftName = document.getElementById('rep-shift').value;
-    const line = document.getElementById('rep-line').value;
-    const productName = document.getElementById('rep-product').value;
+    const date = document.getElementById('rep-date')?.value;
+    const shiftName = document.getElementById('rep-shift')?.value;
+    const line = document.getElementById('rep-line')?.value;
+    const productName = document.getElementById('rep-product')?.value;
+    const batchNumber = document.getElementById('rep-batch')?.value;
     
     if (date && shiftName && line && productName) {
         try {
-            const url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shiftName)}&line=${encodeURIComponent(line)}&product_name=${encodeURIComponent(productName)}`;
+            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shiftName)}&line=${encodeURIComponent(line)}&product_name=${encodeURIComponent(productName)}`;
+            if (batchNumber) {
+                url += `&batch_number=${encodeURIComponent(batchNumber)}`;
+            }
             const res = await fetch(url);
             if (res.ok) {
                 const shift = await res.json();
@@ -127,15 +131,15 @@ async function onProductChange() {
             } else if (res.status === 404) {
                 // Not found, so we are creating a new product report.
                 // Clear the form but keep the selected date/shift/line/product/master/batch
-                const masterId = document.getElementById('rep-master').value;
-                const batchNum = document.getElementById('rep-batch').value;
+                const masterId = document.getElementById('rep-master')?.value;
+                const batchNum = document.getElementById('rep-batch')?.value;
                 resetReportForm();
-                document.getElementById('rep-date').value = date;
-                document.getElementById('rep-shift').value = shiftName;
-                document.getElementById('rep-line').value = line;
-                document.getElementById('rep-product').value = productName;
-                document.getElementById('rep-master').value = masterId;
-                document.getElementById('rep-batch').value = batchNum;
+                if (document.getElementById('rep-date')) document.getElementById('rep-date').value = date;
+                if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
+                if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
+                if (document.getElementById('rep-product')) document.getElementById('rep-product').value = productName;
+                if (document.getElementById('rep-master')) document.getElementById('rep-master').value = masterId || '';
+                if (document.getElementById('rep-batch')) document.getElementById('rep-batch').value = batchNum || '';
             }
         } catch(e) {
             console.error(e);
@@ -2211,6 +2215,9 @@ async function init() {
     
     document.getElementById('rep-shift')?.addEventListener('change', onProductChange);
     document.getElementById('rep-line')?.addEventListener('change', onProductChange);
+    document.getElementById('rep-product')?.addEventListener('change', onProductChange);
+    document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
+    document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
     
     // Check session me
     try {

@@ -611,7 +611,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
     return result
 
 @app.get("/api/shifts/by_params")
-def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
+def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, batch_number: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -629,6 +629,10 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
         models.Shift.shift_name == shift_name,
         models.Shift.line == line
     )
+    if product_name:
+        query = query.filter(models.Shift.product_name == product_name)
+    if batch_number:
+        query = query.filter(models.Shift.batch_number == batch_number)
     shift = query.first()
     
     if not shift:
@@ -650,7 +654,8 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
             shift_name=shift_name,
             line=line,
             master_id=final_master_id,
-            product_name=product_name,
+            product_name=product_name or "",
+            batch_number=batch_number or "",
             status="closed",
             plan_sheets=0,
             plan_tons=0.0
@@ -1381,11 +1386,16 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
         raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастера или администраторы могут сохранять рапорты.")
         
     # Check if shift exists or create it
-    shift = db.query(models.Shift).filter(
+    query = db.query(models.Shift).filter(
         models.Shift.date == data.date,
         models.Shift.shift_name == data.shift_name,
         models.Shift.line == data.line
-    ).first()
+    )
+    if data.product_name:
+        query = query.filter(models.Shift.product_name == data.product_name)
+    if data.batch_number:
+        query = query.filter(models.Shift.batch_number == data.batch_number)
+    shift = query.first()
     
     is_new = False
     if not shift:
@@ -1395,6 +1405,8 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
             shift_name=data.shift_name,
             line=data.line,
             master_id=data.master_id,
+            product_name=data.product_name or "",
+            batch_number=data.batch_number or "",
             status="closed"
         )
         db.add(shift)
