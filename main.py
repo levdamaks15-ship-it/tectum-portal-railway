@@ -2837,7 +2837,7 @@ def get_daily_report(
         if effective_range_type == "month" or num_days >= 28:
             total_plan_sheets = 160000 * len(lines_to_include)
         elif effective_range_type == "week" and num_days == 7:
-            total_plan_sheets = 39300 * len(lines_to_include)
+            total_plan_sheets = 39000 * len(lines_to_include)
         else:
             total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
     else:
