@@ -87,9 +87,12 @@ class ShiftBase(BaseModel):
     date: date
     shift_name: str
     line: str
+    batch_number: Optional[str] = None
+    product_name: Optional[str] = None
     
     plan_sheets: Optional[int] = 0
     plan_tons: Optional[float] = 0.0
+
     
     zo_chrysotile_4_20: Optional[float] = 0
     zo_chrysotile_5_65: Optional[float] = 0
@@ -350,4 +353,57 @@ class ShiftReportCreate(BaseModel):
     zo_asbocarton: float = 0.0
     zo_asb_drain: float = 0.0
     zo_cem_drain: float = 0.0
+
+
+class AdminShiftReportUpdate(BaseModel):
+    date: Optional[str] = None
+    shift_name: Optional[str] = None
+    line: Optional[str] = None
+    master_id: Optional[int] = None
+    batch_number: Optional[str] = None
+    product_name: Optional[str] = None
+    status: Optional[str] = None
+    
+    # Производство / ЛФМ
+    lfm_sheets: Optional[int] = None
+    lfm_wind_resets: Optional[int] = None
+    zo_batches: Optional[int] = None
+    
+    # Переборка / Брак
+    warehouse_gp: Optional[int] = None
+    first_grade: Optional[int] = None
+    has_defect: Optional[str] = None
+    
+    # Детализация брака (Дестакер)
+    ds_defect_chip: Optional[int] = None
+    ds_defect_scratch: Optional[int] = None
+    ds_defect_bad_cut: Optional[int] = None
+    ds_defect_stick_bottom: Optional[int] = None
+    ds_defect_stick_top: Optional[int] = None
+    ds_defect_broken: Optional[int] = None
+    ds_defect_fell_box: Optional[int] = None
+    ds_defect_dent: Optional[int] = None
+    ds_defect_thickness: Optional[int] = None
+    ds_defect_delamination: Optional[int] = None
+    ds_defect_edge: Optional[int] = None
+    
+    # Итоговый брак СКК
+    qcd_defect: Optional[int] = None
+
+    # Расход сырья (ЗО)
+    zo_chrysotile_4_20: Optional[float] = None
+    zo_chrysotile_5_65: Optional[float] = None
+    zo_chrysotile_6_40: Optional[float] = None
+    zo_cement_silo1: Optional[float] = None
+    zo_cement_silo2: Optional[float] = None
+    zo_cement_silo3: Optional[float] = None
+    zo_cement_silo4: Optional[float] = None
+    zo_cellulose: Optional[float] = None
+    zo_crushed_slate: Optional[float] = None
+    zo_asbozurit: Optional[float] = None
+    zo_fiberglass: Optional[float] = None
+    zo_laprol: Optional[float] = None
+    zo_asbocarton: Optional[float] = None
+    zo_asb_drain: Optional[float] = None
+    zo_cem_drain: Optional[float] = None
 

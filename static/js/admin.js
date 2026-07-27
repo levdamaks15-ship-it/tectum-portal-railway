@@ -10,56 +10,49 @@ window.fetch = function (url, options) {
 
 let currentAdmin = null;
 
-async function initAdminLogin() {
-    try {
-        const res = await fetch('/api/masters/');
-        const masters = await res.json();
-        const select = document.getElementById('admin-name');
-        select.innerHTML = '';
-        
-        const admins = masters.filter(m => m.role === 'admin' || m.role === 'director' || m.role === 'technologist');
-        admins.forEach(a => {
-            select.innerHTML += `<option value="${a.name}">${a.name} (${a.role})</option>`;
+function initAdminLogin() {
+    const pinInput = document.getElementById('admin-pin');
+    if (pinInput) {
+        pinInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') adminLogin();
         });
-    } catch (e) {
-        console.error(e);
+        pinInput.focus();
     }
 }
 
 async function adminLogin() {
     const pin = document.getElementById('admin-pin').value;
-    const name = document.getElementById('admin-name').value;
-    if (!pin || !name) return;
+    if (!pin) return;
 
     try {
-        const loginRes = await fetch('/api/login/', {
+        const loginRes = await fetch('/api/admin/login', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ name: name, pin: pin })
+            body: JSON.stringify({ pin: pin })
         });
 
         if (loginRes.ok) {
             const data = await loginRes.json();
-            if (data.role === 'admin' || data.role === 'director' || data.role === 'technologist') {
-                currentAdmin = data;
-                document.getElementById('admin-login-screen').style.display = 'none';
-                document.getElementById('admin-app').style.display = 'flex';
-                loadMasters();
-                loadNorms();
-            } else {
-                throw new Error("Нет прав");
-            }
+            currentAdmin = data;
+            document.getElementById('admin-login-screen').style.display = 'none';
+            document.getElementById('admin-app').style.display = 'flex';
+            loadMasters();
+            loadNorms();
         } else {
-            throw new Error("Неверный ПИН-код");
+            throw new Error("Неверный ПИН-код или нет прав");
         }
     } catch (e) {
-        document.getElementById('admin-login-error').innerText = "Неверный ПИН-код или нет прав.";
-        document.getElementById('admin-login-error').style.display = 'block';
+        const errEl = document.getElementById('admin-login-error');
+        if (errEl) {
+            errEl.innerText = "Неверный ПИН-код или нет прав администратора.";
+            errEl.style.display = 'block';
+        }
     }
 }
 
 // Call init on load
 window.addEventListener('DOMContentLoaded', initAdminLogin);
+
 
 
 function switchAdminTab(tabId) {
@@ -98,7 +91,12 @@ function closeModals() {
     if (shiftDetailsModal) shiftDetailsModal.style.display = 'none';
     const dtDirModal = document.getElementById('downtime-dir-modal');
     if (dtDirModal) dtDirModal.style.display = 'none';
+    const uniModal = document.getElementById('unified-shift-modal');
+    if (uniModal) uniModal.style.display = 'none';
+    const editDtModal = document.getElementById('edit-downtime-modal');
+    if (editDtModal) editDtModal.style.display = 'none';
 }
+
 
 
 // --- MASTERS CRUD ---
@@ -498,184 +496,404 @@ async function loadAuditLogs() {
         if (!tbody) return;
         tbody.innerHTML = '';
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Нет записей</td></tr>`;
-            return;
-        }
-        data.forEach(log => {
-            const dateObj = new Date(log.timestamp);
-            const timeStr = dateObj.toLocaleString('ru-RU');
-            tbody.innerHTML += `
-                <tr>
-                    <td>${timeStr}</td>
-                    <td>${log.user_name || 'Система'}</td>
-                    <td><strong style="color: ${log.action === 'DELETE' ? 'var(--danger-color)' : log.action === 'UPDATE' ? 'var(--accent-color)' : 'var(--success-color)'};">${log.action}</strong></td>
-                    <td>${log.target_table}</td>
-                    <td style="font-size: 0.85rem; max-width: 400px; word-break: break-all;">${log.details || ''}</td>
-                </tr>
-            `;
-        });
-    } catch (e) {
-        console.error(e);
-        const tbody = document.getElementById('audit-logs-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:red;">Ошибка загрузки логов</td></tr>`;
-    }
-}
-
-// --- SHIFTS CRUD & FULL PRODUCTION DATA EDITING ---
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Нет за�// --- SHIFTS CRUD & UNIFIED MANAGEMENT ---
 
 let allMastersCached = [];
+let allShiftsCached = [];
+let currentShiftPeriod = 'week';
+let activeUnifiedDetails = null;
 
 async function loadShifts() {
     try {
-        const res = await fetch('/api/shifts/all');
-        const shifts = await res.json();
-        
-        const mastersRes = await fetch('/api/masters/');
+        const [shiftsRes, mastersRes] = await Promise.all([
+            fetch('/api/shifts/all'),
+            fetch('/api/masters/')
+        ]);
+        allShiftsCached = await shiftsRes.json();
         allMastersCached = await mastersRes.json();
         
-        const tbody = document.getElementById('shifts-table-body');
-        tbody.innerHTML = '';
-        
-        if (shifts.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Смен не обнаружено</td></tr>`;
-            return;
+        // Populate master filter dropdown
+        const masterSelect = document.getElementById('filter-master');
+        if (masterSelect) {
+            const currentVal = masterSelect.value;
+            masterSelect.innerHTML = '<option value="">Все мастера</option>';
+            allMastersCached.filter(m => m.role === 'master').forEach(m => {
+                masterSelect.innerHTML += `<option value="${m.id}" ${m.id == currentVal ? 'selected' : ''}>${m.name}</option>`;
+            });
         }
-        
-        shifts.forEach(s => {
-            const master = allMastersCached.find(m => m.id === s.master_id);
-            const masterName = master ? master.name : `ID: ${s.master_id}`;
-            const statusStyle = s.status === 'active' ? 'color: var(--success-color); font-weight: bold;' : 'color: var(--text-secondary);';
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td>${s.id}</td>
-                    <td>${s.date}</td>
-                    <td>${s.shift_name}</td>
-                    <td>${s.line}</td>
-                    <td>${masterName}</td>
-                    <td style="${statusStyle}">${s.status}</td>
-                    <td>
-                        <button class="action-btn btn-edit" title="Редактировать смену и сырье" onclick="editShift(${s.id})"><i class="fa-solid fa-pen-to-square"></i></button>
-                        <button class="action-btn" title="Производственные отчеты (ЛФМ, партии, простои)" style="background: var(--warning-color); color: black;" onclick="showShiftDetails(${s.id})"><i class="fa-solid fa-industry"></i></button>
-                        <button class="action-btn btn-delete" title="Удалить смену полностью" onclick="deleteShift(${s.id})"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        });
+
+        // Populate product filter dropdown
+        const productSelect = document.getElementById('filter-product');
+        if (productSelect) {
+            const currentVal = productSelect.value;
+            const uniqueProducts = new Set([
+                'Шифер 8 волн рифленый', 'Шифер 8 волн цветной', 'Шифер 7 волн 3500*980',
+                'Трубы безнапорные', 'Плоский лист'
+            ]);
+            allShiftsCached.forEach(s => {
+                if (s.product_name) uniqueProducts.add(s.product_name);
+                if (s.lfm_reports) s.lfm_reports.forEach(r => { if (r.product_name) uniqueProducts.add(r.product_name); });
+                if (s.batches) s.batches.forEach(b => { if (b.product_name) uniqueProducts.add(b.product_name); });
+            });
+            productSelect.innerHTML = '<option value="">Вся продукция</option>';
+            Array.from(uniqueProducts).sort().forEach(p => {
+                productSelect.innerHTML += `<option value="${p}" ${p === currentVal ? 'selected' : ''}>${p}</option>`;
+            });
+        }
+
+        filterShifts();
     } catch (e) {
-        console.error(e);
-        alert("Ошибка при загрузке смен");
+        console.error("Error loading shifts:", e);
+        const tbody = document.getElementById('shifts-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--danger-color);">Ошибка при загрузке смен</td></tr>`;
     }
 }
 
-async function editShift(id) {
+function setShiftPeriod(period) {
+    currentShiftPeriod = period;
+    document.querySelectorAll('[id^="filter-period-"]').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(255,255,255,0.1)';
+    });
+    const activeBtn = document.getElementById('filter-period-' + period);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = 'var(--accent-color)';
+    }
+    filterShifts();
+}
+
+function resetShiftFilters() {
+    const lineEl = document.getElementById('filter-line'); if (lineEl) lineEl.value = '';
+    const masterEl = document.getElementById('filter-master'); if (masterEl) masterEl.value = '';
+    const prodEl = document.getElementById('filter-product'); if (prodEl) prodEl.value = '';
+    const searchEl = document.getElementById('filter-search'); if (searchEl) searchEl.value = '';
+    setShiftPeriod('week');
+}
+
+function filterShifts() {
+    const lineFilter = document.getElementById('filter-line')?.value || '';
+    const masterFilter = document.getElementById('filter-master')?.value || '';
+    const prodFilter = document.getElementById('filter-product')?.value || '';
+    const searchFilter = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+    
+    const now = new Date();
+    let cutoffDate = null;
+    if (currentShiftPeriod === 'week') {
+        cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (currentShiftPeriod === 'month') {
+        cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const filtered = allShiftsCached.filter(s => {
+        if (cutoffDate) {
+            const sDate = new Date(s.date);
+            if (sDate < cutoffDate) return false;
+        }
+        if (lineFilter && !s.line.includes(lineFilter)) return false;
+        if (masterFilter && s.master_id != masterFilter) return false;
+        
+        // Product matching
+        const sProd = s.product_name || (s.lfm_reports?.[0]?.product_name) || (s.batches?.[0]?.product_name) || '';
+        if (prodFilter && sProd !== prodFilter) {
+            const hasProd = (s.lfm_reports || []).some(r => r.product_name === prodFilter) ||
+                            (s.batches || []).some(b => b.product_name === prodFilter);
+            if (!hasProd) return false;
+        }
+
+        // Search matching
+        if (searchFilter) {
+            const batchNum = s.batch_number || (s.batches?.[0]?.batch_number) || '';
+            const masterObj = allMastersCached.find(m => m.id === s.master_id);
+            const mName = masterObj ? masterObj.name.toLowerCase() : '';
+            const matchId = s.id.toString().includes(searchFilter);
+            const matchBatch = batchNum.toLowerCase().includes(searchFilter);
+            const matchDate = s.date.includes(searchFilter);
+            const matchMaster = mName.includes(searchFilter);
+            if (!matchId && !matchBatch && !matchDate && !matchMaster) return false;
+        }
+        return true;
+    });
+
+    const tbody = document.getElementById('shifts-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Смен по выбранным фильтрам не найдено</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(s => {
+        const master = allMastersCached.find(m => m.id === s.master_id);
+        const masterName = master ? master.name : `ID: ${s.master_id}`;
+        
+        const lfmSheets = (s.lfm_reports || []).reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
+        const warehouseGp = (s.batches || []).reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const firstGrade = (s.batches || []).reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) ||
+                           (s.lfm_reports || []).reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const destackerDefect = (s.batches || []).reduce((acc, b) => acc + (b.ds_defect || 0), 0);
+        const qcdDefect = (s.batches || []).reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
+
+        const prodName = s.product_name || (s.lfm_reports?.[0]?.product_name) || (s.batches?.[0]?.product_name) || 'Шифер 8 волн рифленый';
+        const batchNum = s.batch_number || (s.batches?.[0]?.batch_number) || '-';
+
+        const shiftBadgeColor = s.shift_name === 'День' ? 'background: rgba(255, 193, 7, 0.2); color: #ffc107;' : 'background: rgba(13, 110, 253, 0.2); color: #6ea8fe;';
+        const statusBadge = s.status === 'active' 
+            ? `<span style="color: var(--success-color); font-size: 0.8rem;"><i class="fa-solid fa-circle-check"></i> active</span>`
+            : `<span style="color: var(--text-secondary); font-size: 0.8rem;"><i class="fa-solid fa-lock"></i> closed</span>`;
+
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
+                <td style="font-weight: bold; color: var(--text-secondary);">#${s.id}</td>
+                <td>
+                    <div style="font-weight: 500;">${s.date}</div>
+                    <div style="margin-top: 0.2rem; display: flex; gap: 0.5rem; align-items: center;">
+                        <span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; ${shiftBadgeColor}">${s.shift_name}</span>
+                        ${statusBadge}
+                    </div>
+                </td>
+                <td>
+                    <div style="font-weight: 500;">${s.line}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">${masterName}</div>
+                </td>
+                <td>
+                    <div style="font-weight: 500; color: white;">${prodName}</div>
+                    <div style="font-size: 0.85rem; color: var(--accent-color);">Партия: <b>${batchNum}</b></div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.8rem; font-size: 0.85rem;">
+                        <div>ЛФМ: <b style="color: var(--primary-color);">${lfmSheets}</b></div>
+                        <div>Склад: <b style="color: var(--success-color);">${warehouseGp}</b></div>
+                        <div>1 сорт: <b>${firstGrade}</b></div>
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.8rem; font-size: 0.85rem;">
+                        <div>Дест: <b style="color: ${destackerDefect > 0 ? 'var(--danger-color)' : 'var(--text-secondary)'};">${destackerDefect}</b></div>
+                        <div>ОТК: <b style="color: ${qcdDefect > 0 ? 'var(--danger-color)' : 'var(--text-secondary)'};">${qcdDefect}</b></div>
+                    </div>
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn btn-edit" title="Редактировать рапорт и сырье" onclick="openUnifiedShiftModal(${s.id})" style="padding: 0.5rem 0.8rem; width: auto; font-size: 0.85rem; margin-right: 0.3rem;"><i class="fa-solid fa-pen-to-square"></i> Изменить</button>
+                    <button class="action-btn btn-delete" title="Удалить рапорт" onclick="deleteShift(${s.id})" style="padding: 0.5rem; width: auto;"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
     try {
-        const res = await fetch(`/api/admin/shifts/${id}/details`);
-        if (!res.ok) throw new Error("Не удалось загрузить данные смены");
-        const data = await res.json();
-        const shift = data.shift;
-        
-        document.getElementById('shift-edit-id').value = shift.id;
-        document.getElementById('shift-edit-date').value = shift.date;
-        document.getElementById('shift-edit-name').value = shift.shift_name;
-        document.getElementById('shift-edit-line').value = shift.line;
-        document.getElementById('shift-edit-status').value = shift.status;
-        document.getElementById('shift-edit-plan-sheets').value = shift.plan_sheets || 0;
-        document.getElementById('shift-edit-plan-tons').value = shift.plan_tons || 0;
-        
-        const masterSelect = document.getElementById('shift-edit-master');
+        const res = await fetch(`/api/admin/shifts/${shiftId}/details`);
+        if (!res.ok) throw new Error("Не удалось загрузить данные рапорта смены");
+        activeUnifiedDetails = await res.json();
+        const shift = activeUnifiedDetails.shift;
+        const lfm = activeUnifiedDetails.lfm_reports || [];
+        const batches = activeUnifiedDetails.batches || [];
+        const downtimes = activeUnifiedDetails.downtimes || [];
+
+        document.getElementById('unified-shift-id').value = shift.id;
+        document.getElementById('unified-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Редактирование рапорта № ${shift.id}`;
+        document.getElementById('unified-modal-subtitle').innerText = `${shift.date} • ${shift.shift_name} • ${shift.line}`;
+
+        // Tab 1: Metadata
+        document.getElementById('uni-date').value = shift.date;
+        document.getElementById('uni-shift-name').value = shift.shift_name;
+        document.getElementById('uni-line').value = shift.line.replace('Линия ', '').trim() || "1";
+        document.getElementById('uni-status').value = shift.status || 'active';
+
+        const masterSelect = document.getElementById('uni-master');
         masterSelect.innerHTML = '';
         allMastersCached.filter(m => m.role === 'master').forEach(m => {
-            const selected = m.id === shift.master_id ? 'selected' : '';
-            masterSelect.innerHTML += `<option value="${m.id}" ${selected}>${m.name}</option>`;
+            masterSelect.innerHTML += `<option value="${m.id}" ${m.id === shift.master_id ? 'selected' : ''}>${m.name}</option>`;
         });
-        
-        
-        
-        document.getElementById('shift-edit-zo-chr420').value = shift.zo_chrysotile_4_20 || 0;
-        document.getElementById('shift-edit-zo-chr565').value = shift.zo_chrysotile_5_65 || 0;
-        document.getElementById('shift-edit-zo-chr640').value = shift.zo_chrysotile_6_40 || 0;
-        document.getElementById('shift-edit-zo-cement-s1').value = shift.zo_cement_silo1 || 0;
-        document.getElementById('shift-edit-zo-cement-s2').value = shift.zo_cement_silo2 || 0;
-        document.getElementById('shift-edit-zo-cement-s3').value = shift.zo_cement_silo3 || 0;
-        document.getElementById('shift-edit-zo-cement-s4').value = shift.zo_cement_silo4 || 0;
-        document.getElementById('shift-edit-zo-cellulose').value = shift.zo_cellulose || 0;
-        document.getElementById('shift-edit-zo-slate').value = shift.zo_crushed_slate || 0;
-        document.getElementById('shift-edit-zo-asbozurit').value = shift.zo_asbozurit || 0;
-        document.getElementById('shift-edit-zo-fiberglass').value = shift.zo_fiberglass || 0;
-        document.getElementById('shift-edit-zo-laprol').value = shift.zo_laprol || 0;
-        document.getElementById('shift-edit-zo-asbocarton').value = shift.zo_asbocarton || 0;
-        document.getElementById('shift-edit-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
-        document.getElementById('shift-edit-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
-        document.getElementById('shift-edit-zo-asb-drain').value = shift.zo_asb_drain || 0;
-        document.getElementById('shift-edit-zo-cem-drain').value = shift.zo_cem_drain || 0;
-        document.getElementById('shift-edit-zo-batches').value = shift.zo_batches || 0;
-        
-        document.getElementById('shift-modal').style.display = 'flex';
+
+        const prodSelect = document.getElementById('uni-product');
+        prodSelect.innerHTML = '';
+        const standardProds = [
+            'Шифер 8 волн рифленый', 'Шифер 8 волн цветной', 'Шифер 7 волн 3500*980',
+            'Трубы безнапорные', 'Плоский лист'
+        ];
+        const currentProd = shift.product_name || (lfm[0]?.product_name) || (batches[0]?.product_name) || 'Шифер 8 волн рифленый';
+        if (!standardProds.includes(currentProd)) standardProds.push(currentProd);
+        standardProds.forEach(p => {
+            prodSelect.innerHTML += `<option value="${p}" ${p === currentProd ? 'selected' : ''}>${p}</option>`;
+        });
+
+        document.getElementById('uni-batch-number').value = shift.batch_number || (batches[0]?.batch_number) || '';
+
+        // Tab 2: Production
+        const lfmSheetsVal = lfm.reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
+        const lfmWindVal = lfm.reduce((acc, r) => acc + (r.lfm_wind_resets || 0), 0);
+        const whGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const firstGradeVal = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const qcdDefectVal = batches.reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
+
+        document.getElementById('uni-lfm-sheets').value = lfmSheetsVal;
+        document.getElementById('uni-lfm-wind-resets').value = lfmWindVal;
+        document.getElementById('uni-zo-batches').value = shift.zo_batches || 0;
+        document.getElementById('uni-warehouse-gp').value = whGpVal;
+        document.getElementById('uni-first-grade').value = firstGradeVal;
+        document.getElementById('uni-qcd-defect').value = qcdDefectVal;
+
+        // Tab 3: Raw Materials
+        document.getElementById('uni-zo-chr420').value = shift.zo_chrysotile_4_20 || 0;
+        document.getElementById('uni-zo-chr565').value = shift.zo_chrysotile_5_65 || 0;
+        document.getElementById('uni-zo-chr640').value = shift.zo_chrysotile_6_40 || 0;
+        document.getElementById('uni-zo-cement-s1').value = shift.zo_cement_silo1 || 0;
+        document.getElementById('uni-zo-cement-s2').value = shift.zo_cement_silo2 || 0;
+        document.getElementById('uni-zo-cement-s3').value = shift.zo_cement_silo3 || 0;
+        document.getElementById('uni-zo-cement-s4').value = shift.zo_cement_silo4 || 0;
+        document.getElementById('uni-zo-cellulose').value = shift.zo_cellulose || 0;
+        document.getElementById('uni-zo-slate').value = shift.zo_crushed_slate || 0;
+        document.getElementById('uni-zo-asbozurit').value = shift.zo_asbozurit || 0;
+        document.getElementById('uni-zo-fiberglass').value = shift.zo_fiberglass || 0;
+        document.getElementById('uni-zo-laprol').value = shift.zo_laprol || 0;
+        document.getElementById('uni-zo-asbocarton').value = shift.zo_asbocarton || 0;
+        document.getElementById('uni-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
+        document.getElementById('uni-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
+        document.getElementById('uni-zo-asb-drain').value = shift.zo_asb_drain || 0;
+        document.getElementById('uni-zo-cem-drain').value = shift.zo_cem_drain || 0;
+
+        // Tab 4: Destacker Defects
+        document.getElementById('uni-def-chip').value = batches.reduce((acc, b) => acc + (b.ds_defect_chip || 0), 0);
+        document.getElementById('uni-def-scratch').value = batches.reduce((acc, b) => acc + (b.ds_defect_scratch || 0), 0);
+        document.getElementById('uni-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.ds_defect_bad_cut || 0), 0);
+        document.getElementById('uni-def-stick-bottom').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_bottom || 0), 0);
+        document.getElementById('uni-def-stick-top').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_top || 0), 0);
+        document.getElementById('uni-def-broken').value = batches.reduce((acc, b) => acc + (b.ds_defect_broken || 0), 0);
+        document.getElementById('uni-def-fell-box').value = batches.reduce((acc, b) => acc + (b.ds_defect_fell_box || 0), 0);
+        document.getElementById('uni-def-dent').value = batches.reduce((acc, b) => acc + (b.ds_defect_dent || 0), 0);
+        document.getElementById('uni-def-thickness').value = batches.reduce((acc, b) => acc + (b.ds_defect_thickness || 0), 0);
+        document.getElementById('uni-def-delamination').value = batches.reduce((acc, b) => acc + (b.ds_defect_delamination || 0), 0);
+        document.getElementById('uni-def-edge').value = batches.reduce((acc, b) => acc + (b.ds_defect_edge || 0), 0);
+
+        // Tab 5: Downtimes
+        const dtTbody = document.getElementById('uni-downtimes-body');
+        dtTbody.innerHTML = '';
+        if (downtimes.length === 0) {
+            dtTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: var(--text-secondary);">Нет зафиксированных простоев за смену</td></tr>`;
+        } else {
+            downtimes.forEach(d => {
+                dtTbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: 500;">${d.start_time || '-'}</td>
+                        <td><b style="color: var(--warning-color);">${d.duration}</b> мин</td>
+                        <td>${d.description}</td>
+                        <td><span style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${d.category || 'Не указана'}</span></td>
+                        <td style="white-space: nowrap;">
+                            <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
+                            <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        switchUnifiedTab(targetTab);
+        document.getElementById('unified-shift-modal').style.display = 'flex';
     } catch (e) {
         console.error(e);
-        alert(e.message);
+        alert("Ошибка при открытии рапорта: " + e.message);
     }
 }
 
-async function saveShiftEdit() {
-    const id = document.getElementById('shift-edit-id').value;
-    const data = {
-        date: document.getElementById('shift-edit-date').value,
-        shift_name: document.getElementById('shift-edit-name').value,
-        line: document.getElementById('shift-edit-line').value,
-        master_id: parseInt(document.getElementById('shift-edit-master').value),
-        status: document.getElementById('shift-edit-status').value,
-        plan_sheets: parseInt(document.getElementById('shift-edit-plan-sheets').value) || 0,
-        plan_tons: parseFloat(document.getElementById('shift-edit-plan-tons').value) || 0,
-        
-        
-        
-        zo_chrysotile_4_20: parseFloat(document.getElementById('shift-edit-zo-chr420').value) || 0,
-        zo_chrysotile_5_65: parseFloat(document.getElementById('shift-edit-zo-chr565').value) || 0,
-        zo_chrysotile_6_40: parseFloat(document.getElementById('shift-edit-zo-chr640').value) || 0,
-        zo_cement_silo1: parseFloat(document.getElementById('shift-edit-zo-cement-s1').value) || 0,
-        zo_cement_silo2: parseFloat(document.getElementById('shift-edit-zo-cement-s2').value) || 0,
-        zo_cement_silo3: parseFloat(document.getElementById('shift-edit-zo-cement-s3').value) || 0,
-        zo_cement_silo4: parseFloat(document.getElementById('shift-edit-zo-cement-s4').value) || 0,
-        zo_cement: (parseFloat(document.getElementById('shift-edit-zo-cement-s1').value) || 0) +
-                   (parseFloat(document.getElementById('shift-edit-zo-cement-s2').value) || 0) +
-                   (parseFloat(document.getElementById('shift-edit-zo-cement-s3').value) || 0) +
-                   (parseFloat(document.getElementById('shift-edit-zo-cement-s4').value) || 0),
-        zo_cellulose: parseFloat(document.getElementById('shift-edit-zo-cellulose').value) || 0,
-        zo_crushed_slate: parseFloat(document.getElementById('shift-edit-zo-slate').value) || 0,
-        zo_asbozurit: parseFloat(document.getElementById('shift-edit-zo-asbozurit').value) || 0,
-        zo_fiberglass: parseFloat(document.getElementById('shift-edit-zo-fiberglass').value) || 0,
-        zo_laprol: parseFloat(document.getElementById('shift-edit-zo-laprol').value) || 0,
-        zo_asbocarton: parseFloat(document.getElementById('shift-edit-zo-asbocarton').value) || 0,
-        lfm_asb_drain: parseFloat(document.getElementById('shift-edit-lfm-asb-drain').value) || 0,
-        lfm_cem_drain: parseFloat(document.getElementById('shift-edit-lfm-cem-drain').value) || 0,
-        zo_asb_drain: parseFloat(document.getElementById('shift-edit-zo-asb-drain').value) || 0,
-        zo_cem_drain: parseFloat(document.getElementById('shift-edit-zo-cem-drain').value) || 0,
-        zo_batches: parseInt(document.getElementById('shift-edit-zo-batches').value) || 0
+function switchUnifiedTab(tabName) {
+    document.querySelectorAll('.unified-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('[id^="btn-tab-"]').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(255,255,255,0.1)';
+    });
+    
+    const targetEl = document.getElementById('unified-tab-' + tabName);
+    if (targetEl) targetEl.style.display = 'block';
+    
+    const targetBtn = document.getElementById('btn-tab-' + tabName);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+        targetBtn.style.background = 'var(--accent-color)';
+    }
+}
+
+async function saveUnifiedShiftReport() {
+    const shiftId = document.getElementById('unified-shift-id').value;
+    const lineVal = document.getElementById('uni-line').value;
+    const lineFormatted = lineVal.toLowerCase().includes('линия') ? lineVal : `Линия ${lineVal}`;
+
+    const payload = {
+        date: document.getElementById('uni-date').value,
+        shift_name: document.getElementById('uni-shift-name').value,
+        line: lineFormatted,
+        master_id: parseInt(document.getElementById('uni-master').value),
+        status: document.getElementById('uni-status').value,
+        product_name: document.getElementById('uni-product').value,
+        batch_number: document.getElementById('uni-batch-number').value.trim(),
+
+        lfm_sheets: parseInt(document.getElementById('uni-lfm-sheets').value) || 0,
+        lfm_wind_resets: parseInt(document.getElementById('uni-lfm-wind-resets').value) || 0,
+        zo_batches: parseInt(document.getElementById('uni-zo-batches').value) || 0,
+        warehouse_gp: parseInt(document.getElementById('uni-warehouse-gp').value) || 0,
+        first_grade: parseInt(document.getElementById('uni-first-grade').value) || 0,
+        qcd_defect: parseInt(document.getElementById('uni-qcd-defect').value) || 0,
+
+        zo_chrysotile_4_20: parseFloat(document.getElementById('uni-zo-chr420').value) || 0,
+        zo_chrysotile_5_65: parseFloat(document.getElementById('uni-zo-chr565').value) || 0,
+        zo_chrysotile_6_40: parseFloat(document.getElementById('uni-zo-chr640').value) || 0,
+        zo_cement_silo1: parseFloat(document.getElementById('uni-zo-cement-s1').value) || 0,
+        zo_cement_silo2: parseFloat(document.getElementById('uni-zo-cement-s2').value) || 0,
+        zo_cement_silo3: parseFloat(document.getElementById('uni-zo-cement-s3').value) || 0,
+        zo_cement_silo4: parseFloat(document.getElementById('uni-zo-cement-s4').value) || 0,
+        zo_cement: (parseFloat(document.getElementById('uni-zo-cement-s1').value) || 0) +
+                   (parseFloat(document.getElementById('uni-zo-cement-s2').value) || 0) +
+                   (parseFloat(document.getElementById('uni-zo-cement-s3').value) || 0) +
+                   (parseFloat(document.getElementById('uni-zo-cement-s4').value) || 0),
+        zo_cellulose: parseFloat(document.getElementById('uni-zo-cellulose').value) || 0,
+        zo_crushed_slate: parseFloat(document.getElementById('uni-zo-slate').value) || 0,
+        zo_asbozurit: parseFloat(document.getElementById('uni-zo-asbozurit').value) || 0,
+        zo_fiberglass: parseFloat(document.getElementById('uni-zo-fiberglass').value) || 0,
+        zo_laprol: parseFloat(document.getElementById('uni-zo-laprol').value) || 0,
+        zo_asbocarton: parseFloat(document.getElementById('uni-zo-asbocarton').value) || 0,
+        lfm_asb_drain: parseFloat(document.getElementById('uni-lfm-asb-drain').value) || 0,
+        lfm_cem_drain: parseFloat(document.getElementById('uni-lfm-cem-drain').value) || 0,
+        zo_asb_drain: parseFloat(document.getElementById('uni-zo-asb-drain').value) || 0,
+        zo_cem_drain: parseFloat(document.getElementById('uni-zo-cem-drain').value) || 0,
+
+        destacker_defect_chip: parseInt(document.getElementById('uni-def-chip').value) || 0,
+        destacker_defect_scratch: parseInt(document.getElementById('uni-def-scratch').value) || 0,
+        destacker_defect_bad_cut: parseInt(document.getElementById('uni-def-bad-cut').value) || 0,
+        destacker_defect_stick_bottom: parseInt(document.getElementById('uni-def-stick-bottom').value) || 0,
+        destacker_defect_stick_top: parseInt(document.getElementById('uni-def-stick-top').value) || 0,
+        destacker_defect_broken: parseInt(document.getElementById('uni-def-broken').value) || 0,
+        destacker_defect_fell_box: parseInt(document.getElementById('uni-def-fell-box').value) || 0,
+        destacker_defect_dent: parseInt(document.getElementById('uni-def-dent').value) || 0,
+        destacker_defect_thickness: parseInt(document.getElementById('uni-def-thickness').value) || 0,
+        destacker_defect_delamination: parseInt(document.getElementById('uni-def-delamination').value) || 0,
+        destacker_defect_edge: parseInt(document.getElementById('uni-def-edge').value) || 0
     };
 
-    
     try {
-        const res = await fetch(`/api/admin/shifts/${id}`, {
+        const res = await fetch(`/api/admin/shift_report/${shiftId}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
+            body: JSON.stringify(payload)
         });
         if (res.ok) {
             closeModals();
             loadShifts();
+            alert("Рапорт смены успешно обновлен и синхронизирован!");
         } else {
-            alert("Ошибка при сохранении смены");
+            const err = await res.json();
+            alert("Ошибка при сохранении рапорта: " + (err.detail || res.statusText));
         }
     } catch (e) {
         console.error(e);
-        alert("Ошибка сети");
+        alert("Ошибка сети при сохранении рапорта");
     }
 }
 
 async function deleteShift(id) {
-    if (!confirm("ВНИМАНИЕ! Удаление смены удалит все связанные отчеты ЛФМ, партии и простои.\nВы уверены, что хотите удалить смену полностью?")) return;
+    if (!confirm("ВНИМАНИЕ! Удаление рапорта смены удалит все связанные отчеты ЛФМ, партии и простои.\nВы уверены, что хотите удалить эту смену полностью?")) return;
     try {
         const res = await fetch(`/api/admin/shifts/${id}`, { method: 'DELETE' });
         if (res.ok) {
@@ -685,229 +903,7 @@ async function deleteShift(id) {
         }
     } catch (e) {
         console.error(e);
-    }
-}
-
-// --- SUB-DATA MANAGEMENT (LFM, BATCHES, DOWNTIMES) ---
-
-let activeShiftDetails = null;
-
-async function showShiftDetails(shiftId) {
-    try {
-        const res = await fetch(`/api/admin/shifts/${shiftId}/details`);
-        if (!res.ok) throw new Error("Не удалось получить данные смены");
-        activeShiftDetails = await res.json();
-        
-        document.getElementById('shift-details-title').innerText = `Производственные данные смены № ${shiftId} (${activeShiftDetails.shift.date})`;
-        
-        const lfmTbody = document.getElementById('shift-details-lfm-body');
-        lfmTbody.innerHTML = '';
-        if (activeShiftDetails.lfm_reports.length === 0) {
-            lfmTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Нет отчетов ЛФМ</td></tr>`;
-        } else {
-            activeShiftDetails.lfm_reports.forEach(r => {
-                lfmTbody.innerHTML += `
-                    <tr>
-                        <td>${r.product_name}</td>
-                        <td>${r.lfm_sheets}</td>
-                        <td>${r.lfm_wind_resets}</td>
-                        <td>${r.formed_1st_grade}</td>
-                        <td>${r.formed_defect}</td>
-                        <td>
-                            <button class="action-btn btn-edit" onclick='editLfmRow(${JSON.stringify(r)})'><i class="fa-solid fa-pen"></i></button>
-                            <button class="action-btn btn-delete" onclick="deleteLfmRow(${r.id})"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-        
-        const batchTbody = document.getElementById('shift-details-batches-body');
-        batchTbody.innerHTML = '';
-        if (activeShiftDetails.batches.length === 0) {
-            batchTbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">Нет созданных партий</td></tr>`;
-        } else {
-            activeShiftDetails.batches.forEach(b => {
-                batchTbody.innerHTML += `
-                    <tr>
-                        <td>${b.batch_number}</td>
-                        <td>${b.product_name}</td>
-                        <td>${b.stacked_stacks}</td>
-                        <td>${b.ds_first_grade}</td>
-                        <td>${b.ds_defect}</td>
-                        <td>${b.qcd_first_grade}</td>
-                        <td>${b.qcd_defect}</td>
-                        <td>
-                            <button class="action-btn btn-edit" onclick='editBatchRow(${JSON.stringify(b)})'><i class="fa-solid fa-pen"></i></button>
-                            <button class="action-btn btn-delete" onclick="deleteBatchRow(${b.id})"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        const dtTbody = document.getElementById('shift-details-downtimes-body');
-        dtTbody.innerHTML = '';
-        if (activeShiftDetails.downtimes.length === 0) {
-            dtTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Нет записей о простоях</td></tr>`;
-        } else {
-            activeShiftDetails.downtimes.forEach(d => {
-                dtTbody.innerHTML += `
-                    <tr>
-                        <td>${d.start_time || '-'}</td>
-                        <td>${d.duration}</td>
-                        <td>${d.description}</td>
-                        <td><span class="badge" style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${d.category || 'Не указана'}</span></td>
-                        <td>
-                            <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})'><i class="fa-solid fa-pen"></i></button>
-                            <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        document.getElementById('shift-details-modal').style.display = 'flex';
-
-    } catch (e) {
-        console.error(e);
-        alert(e.message);
-    }
-}
-
-function editLfmRow(r) {
-    document.getElementById('edit-lfm-id').value = r.id;
-    document.getElementById('edit-lfm-product').value = r.product_name;
-    document.getElementById('edit-lfm-sheets').value = r.lfm_sheets;
-    document.getElementById('edit-lfm-wind-resets').value = r.lfm_wind_resets;
-    document.getElementById('edit-lfm-formed-1st').value = r.formed_1st_grade;
-    document.getElementById('edit-lfm-formed-defect').value = r.formed_defect;
-    document.getElementById('edit-lfm-transferred').value = r.transferred_to_warehouse || 0;
-    document.getElementById('edit-lfm-modal').style.display = 'flex';
-}
-
-async function saveLfmEdit() {
-    const id = document.getElementById('edit-lfm-id').value;
-    const data = {
-        product_name: document.getElementById('edit-lfm-product').value,
-        lfm_sheets: parseInt(document.getElementById('edit-lfm-sheets').value) || 0,
-        lfm_wind_resets: parseInt(document.getElementById('edit-lfm-wind-resets').value) || 0,
-        formed_1st_grade: parseInt(document.getElementById('edit-lfm-formed-1st').value) || 0,
-        formed_defect: parseInt(document.getElementById('edit-lfm-formed-defect').value) || 0,
-        transferred_to_warehouse: parseInt(document.getElementById('edit-lfm-transferred').value) || 0
-    };
-    try {
-        const res = await fetch(`/api/admin/lfm/${id}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        if (res.ok) {
-            document.getElementById('edit-lfm-modal').style.display = 'none';
-            showShiftDetails(activeShiftDetails.shift.id);
-        } else {
-            alert("Ошибка сохранения отчета ЛФМ");
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-async function deleteLfmRow(id) {
-    if (!confirm("Удалить этот отчет ЛФМ?")) return;
-    try {
-        const res = await fetch(`/api/admin/lfm/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            showShiftDetails(activeShiftDetails.shift.id);
-        } else {
-            alert("Ошибка удаления");
-        }
-    } catch (e) {
-        console.error(e);
-    }
-}
-
-function editBatchRow(b) {
-    document.getElementById('edit-batch-id').value = b.id;
-    document.getElementById('edit-batch-number').value = b.batch_number;
-    document.getElementById('edit-batch-product').value = b.product_name;
-    document.getElementById('edit-batch-stacked-stacks').value = b.stacked_stacks;
-    document.getElementById('edit-batch-ds-condition').value = b.ds_condition || 0;
-    document.getElementById('edit-batch-ds-first-grade').value = b.ds_first_grade || 0;
-    document.getElementById('edit-batch-ds-defect').value = b.ds_defect || 0;
-
-    document.getElementById('edit-batch-ds-defect-chip').value = b.ds_defect_chip || 0;
-    document.getElementById('edit-batch-ds-defect-scratch').value = b.ds_defect_scratch || 0;
-    document.getElementById('edit-batch-ds-defect-bad-cut').value = b.ds_defect_bad_cut || 0;
-    document.getElementById('edit-batch-ds-defect-stick-bottom').value = b.ds_defect_stick_bottom || 0;
-    document.getElementById('edit-batch-ds-defect-stick-top').value = b.ds_defect_stick_top || 0;
-    document.getElementById('edit-batch-ds-defect-broken').value = b.ds_defect_broken || 0;
-    document.getElementById('edit-batch-ds-defect-fell-box').value = b.ds_defect_fell_box || 0;
-    document.getElementById('edit-batch-ds-defect-dent').value = b.ds_defect_dent || 0;
-    document.getElementById('edit-batch-ds-defect-thickness').value = b.ds_defect_thickness || 0;
-    document.getElementById('edit-batch-ds-defect-delamination').value = b.ds_defect_delamination || 0;
-    document.getElementById('edit-batch-ds-defect-edge').value = b.ds_defect_edge || 0;
-
-    document.getElementById('edit-batch-qcd-condition').value = b.qcd_condition || 0;
-    document.getElementById('edit-batch-qcd-first-grade').value = b.qcd_first_grade || 0;
-    document.getElementById('edit-batch-qcd-defect').value = b.qcd_defect || 0;
-    document.getElementById('edit-batch-modal').style.display = 'flex';
-}
-
-async function saveBatchEdit() {
-    const id = document.getElementById('edit-batch-id').value;
-    const data = {
-        batch_number: document.getElementById('edit-batch-number').value,
-        product_name: document.getElementById('edit-batch-product').value,
-        stacked_stacks: parseInt(document.getElementById('edit-batch-stacked-stacks').value) || 0,
-        ds_condition: parseInt(document.getElementById('edit-batch-ds-condition').value) || 0,
-        ds_first_grade: parseInt(document.getElementById('edit-batch-ds-first-grade').value) || 0,
-        ds_defect: parseInt(document.getElementById('edit-batch-ds-defect').value) || 0,
-
-        ds_defect_chip: parseInt(document.getElementById('edit-batch-ds-defect-chip').value) || 0,
-        ds_defect_scratch: parseInt(document.getElementById('edit-batch-ds-defect-scratch').value) || 0,
-        ds_defect_bad_cut: parseInt(document.getElementById('edit-batch-ds-defect-bad-cut').value) || 0,
-        ds_defect_stick_bottom: parseInt(document.getElementById('edit-batch-ds-defect-stick-bottom').value) || 0,
-        ds_defect_stick_top: parseInt(document.getElementById('edit-batch-ds-defect-stick-top').value) || 0,
-        ds_defect_broken: parseInt(document.getElementById('edit-batch-ds-defect-broken').value) || 0,
-        ds_defect_fell_box: parseInt(document.getElementById('edit-batch-ds-defect-fell-box').value) || 0,
-        ds_defect_dent: parseInt(document.getElementById('edit-batch-ds-defect-dent').value) || 0,
-        ds_defect_thickness: parseInt(document.getElementById('edit-batch-ds-defect-thickness').value) || 0,
-        ds_defect_delamination: parseInt(document.getElementById('edit-batch-ds-defect-delamination').value) || 0,
-        ds_defect_edge: parseInt(document.getElementById('edit-batch-ds-defect-edge').value) || 0,
-
-        qcd_condition: parseInt(document.getElementById('edit-batch-qcd-condition').value) || 0,
-        qcd_first_grade: parseInt(document.getElementById('edit-batch-qcd-first-grade').value) || 0,
-        qcd_defect: parseInt(document.getElementById('edit-batch-qcd-defect').value) || 0
-    };
-    try {
-        const res = await fetch(`/api/admin/batches/${id}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        if (res.ok) {
-            document.getElementById('edit-batch-modal').style.display = 'none';
-            showShiftDetails(activeShiftDetails.shift.id);
-        } else {
-            alert("Ошибка сохранения партии");
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-async function deleteBatchRow(id) {
-    if (!confirm("Удалить эту партию?")) return;
-    try {
-        const res = await fetch(`/api/admin/batches/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-            showShiftDetails(activeShiftDetails.shift.id);
-        } else {
-            alert("Ошибка удаления");
-        }
-    } catch (e) {
-        console.error(e);
+        alert("Ошибка сети при удалении");
     }
 }
 
@@ -934,6 +930,49 @@ async function saveDowntimeEdit() {
         end_time: document.getElementById('edit-downtime-end-time').value || null,
         duration: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
         department: document.getElementById('edit-downtime-department').value || null,
+        node: document.getElementById('edit-downtime-node').value || '',
+        description: document.getElementById('edit-downtime-reason').value,
+        lost_tons: parseFloat(document.getElementById('edit-downtime-lost-tons').value) || 0.0,
+        lost_tenge: parseFloat(document.getElementById('edit-downtime-lost-tenge').value) || 0.0,
+        status: document.getElementById('edit-downtime-status').value || 'pending',
+        category: document.getElementById('edit-downtime-category').value,
+        is_equipment_downtime: document.getElementById('edit-downtime-is-equipment-stop').checked
+    };
+    try {
+        const res = await fetch(`/api/admin/downtimes/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) {
+            document.getElementById('edit-downtime-modal').style.display = 'none';
+            if (activeUnifiedDetails?.shift?.id) {
+                openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
+            }
+        } else {
+            alert("Ошибка сохранения простоя");
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function deleteDowntimeRow(id) {
+    if (!confirm("Удалить эту запись о простое?")) return;
+    try {
+        const res = await fetch(`/api/admin/downtimes/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            if (activeUnifiedDetails?.shift?.id) {
+                openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
+            }
+        } else {
+            alert("Ошибка удаления");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+department: document.getElementById('edit-downtime-department').value || null,
         node: document.getElementById('edit-downtime-node').value || '',
         description: document.getElementById('edit-downtime-reason').value,
         lost_tons: parseFloat(document.getElementById('edit-downtime-lost-tons').value) || 0.0,

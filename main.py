@@ -381,6 +381,18 @@ def sync_downtimes_bg():
     finally:
         db.close()
 
+def sync_google_sheets_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.sync_report_to_google_sheets(db)
+        google_sheets_integration.export_receipt_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing reports/receipts to Google Sheets: {e}")
+    finally:
+        db.close()
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -425,6 +437,9 @@ class LoginRequest(BaseModel):
     name: str
     pin: str
 
+class AdminLoginRequest(BaseModel):
+    pin: str
+
 @app.post("/api/login/")
 def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
     master = db.query(models.Master).filter(models.Master.name == data.name, models.Master.pin == data.pin).first()
@@ -434,6 +449,16 @@ def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
     request.session["user_name"] = master.name
     request.session["user_role"] = master.role
     return {"id": master.id, "name": master.name, "role": master.role}
+
+@app.post("/api/admin/login")
+def admin_login(data: AdminLoginRequest, request: Request, db: Session = Depends(get_db)):
+    admin = db.query(models.Master).filter(models.Master.pin == data.pin, models.Master.role.in_(["admin", "director", "technologist"])).first()
+    if not admin:
+        raise HTTPException(status_code=400, detail="Неверный ПИН-код или нет прав администратора")
+    request.session["user_id"] = admin.id
+    request.session["user_name"] = admin.name
+    request.session["user_role"] = admin.role
+    return {"id": admin.id, "name": admin.name, "role": admin.role}
 
 @app.get("/api/me/")
 def get_current_user(request: Request, db: Session = Depends(get_db)):
@@ -3593,7 +3618,7 @@ def admin_get_shift_details(shift_id: int, request: Request, db: Session = Depen
     }
 
 @app.put("/api/admin/shifts/{shift_id}")
-def admin_update_shift(shift_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+def admin_update_shift(shift_id: int, data: dict, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
@@ -3634,10 +3659,157 @@ def admin_update_shift(shift_id: int, data: dict, request: Request, db: Session 
             sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     else:
         db.commit()
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
+@app.put("/api/admin/shift_report/{shift_id}")
+def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Смена не найдена")
+        
+    old_date, old_shift_name, old_line = shift.date, shift.shift_name, shift.line
+    old_master_id = shift.master_id
+    
+    changes = []
+    
+    # 1. Update Shift metadata and raw materials
+    if data.date is not None and shift.date != data.date:
+        changes.append(f"date: {shift.date} -> {data.date}")
+        shift.date = data.date
+    if data.shift_name is not None and shift.shift_name != data.shift_name:
+        changes.append(f"shift_name: {shift.shift_name} -> {data.shift_name}")
+        shift.shift_name = data.shift_name
+    if data.line is not None and shift.line != data.line:
+        changes.append(f"line: {shift.line} -> {data.line}")
+        shift.line = data.line
+    if data.master_id is not None and shift.master_id != data.master_id:
+        changes.append(f"master_id: {shift.master_id} -> {data.master_id}")
+        shift.master_id = data.master_id
+    if data.batch_number is not None and shift.batch_number != data.batch_number:
+        changes.append(f"batch_number: {shift.batch_number} -> {data.batch_number}")
+        shift.batch_number = data.batch_number
+    if data.product_name is not None and shift.product_name != data.product_name:
+        changes.append(f"product_name: {shift.product_name} -> {data.product_name}")
+        shift.product_name = data.product_name
+    if data.status is not None and shift.status != data.status:
+        changes.append(f"status: {shift.status} -> {data.status}")
+        shift.status = data.status
+        
+    # ZO raw materials
+    zo_fields = [
+        "zo_batches", "zo_chrysotile_4_20", "zo_chrysotile_5_65", "zo_chrysotile_6_40",
+        "zo_cement_silo1", "zo_cement_silo2", "zo_cement_silo3", "zo_cement_silo4",
+        "zo_cellulose", "zo_crushed_slate", "zo_asbozurit", "zo_fiberglass",
+        "zo_laprol", "zo_asbocarton", "zo_asb_drain", "zo_cem_drain"
+    ]
+    for f_name in zo_fields:
+        val = getattr(data, f_name, None)
+        if val is not None:
+            old_val = getattr(shift, f_name, 0)
+            if old_val != val:
+                changes.append(f"{f_name}: {old_val} -> {val}")
+                setattr(shift, f_name, val)
+                
+    # 2. Update LFM Report
+    lfm_report = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).first()
+    if not lfm_report:
+        lfm_report = models.LFMReport(
+            shift_id=shift_id,
+            product_name=shift.product_name or "",
+            lfm_sheets=data.lfm_sheets or 0,
+            lfm_wind_resets=data.lfm_wind_resets or 0,
+            transferred_to_warehouse=data.warehouse_gp or 0,
+            formed_1st_grade=data.first_grade or 0,
+            formed_defect=data.qcd_defect or 0
+        )
+        db.add(lfm_report)
+        changes.append("Создан новый LFMReport")
+    else:
+        if data.lfm_sheets is not None and lfm_report.lfm_sheets != data.lfm_sheets:
+            changes.append(f"lfm_sheets: {lfm_report.lfm_sheets} -> {data.lfm_sheets}")
+            lfm_report.lfm_sheets = data.lfm_sheets
+        if data.lfm_wind_resets is not None and lfm_report.lfm_wind_resets != data.lfm_wind_resets:
+            changes.append(f"lfm_wind_resets: {lfm_report.lfm_wind_resets} -> {data.lfm_wind_resets}")
+            lfm_report.lfm_wind_resets = data.lfm_wind_resets
+        if data.warehouse_gp is not None and lfm_report.transferred_to_warehouse != data.warehouse_gp:
+            changes.append(f"transferred_to_warehouse: {lfm_report.transferred_to_warehouse} -> {data.warehouse_gp}")
+            lfm_report.transferred_to_warehouse = data.warehouse_gp
+        if data.first_grade is not None and lfm_report.formed_1st_grade != data.first_grade:
+            changes.append(f"formed_1st_grade: {lfm_report.formed_1st_grade} -> {data.first_grade}")
+            lfm_report.formed_1st_grade = data.first_grade
+        if data.qcd_defect is not None and lfm_report.formed_defect != data.qcd_defect:
+            changes.append(f"formed_defect: {lfm_report.formed_defect} -> {data.qcd_defect}")
+            lfm_report.formed_defect = data.qcd_defect
+        if data.product_name is not None and lfm_report.product_name != data.product_name:
+            lfm_report.product_name = data.product_name
+            
+    # 3. Update Batch
+    batch = db.query(models.Batch).filter(models.Batch.shift_id == shift_id).first()
+    if not batch:
+        batch = models.Batch(
+            shift_id=shift_id,
+            batch_number=shift.batch_number or "",
+            product_name=shift.product_name or "",
+            status="stacked"
+        )
+        db.add(batch)
+        changes.append("Создана новая партия Batch")
+    else:
+        batch.batch_number = shift.batch_number or ""
+        batch.product_name = shift.product_name or ""
+        
+    if data.warehouse_gp is not None:
+        batch.ds_condition = data.warehouse_gp
+        batch.qcd_condition = data.warehouse_gp
+    if data.first_grade is not None:
+        batch.ds_first_grade = data.first_grade
+        batch.qcd_first_grade = data.first_grade
+    if data.qcd_defect is not None:
+        batch.qcd_defect = data.qcd_defect
+        
+    ds_defect_fields = [
+        "ds_defect_chip", "ds_defect_scratch", "ds_defect_bad_cut", "ds_defect_stick_bottom",
+        "ds_defect_stick_top", "ds_defect_broken", "ds_defect_fell_box", "ds_defect_dent",
+        "ds_defect_thickness", "ds_defect_delamination", "ds_defect_edge"
+    ]
+    total_ds_defect = 0
+    for f_name in ds_defect_fields:
+        val = getattr(data, f_name, None)
+        if val is not None:
+            old_val = getattr(batch, f_name, 0)
+            if old_val != val:
+                changes.append(f"{f_name}: {old_val} -> {val}")
+                setattr(batch, f_name, val)
+            total_ds_defect += val
+        else:
+            total_ds_defect += getattr(batch, f_name, 0) or 0
+    batch.ds_defect = total_ds_defect
+    
+    if changes:
+        log_entry = models.AuditLog(
+            timestamp=datetime.utcnow(),
+            user_name=admin.name,
+            action=f"Комплексное редактирование смены ID {shift_id}",
+            details="Изменения: " + ", ".join(changes)
+        )
+        db.add(log_entry)
+        
+    db.commit()
+    
+    # Sync plan boards for old and new parameters
+    sync_lfm_to_plan_board(old_date, old_shift_name, old_line, db, old_master_id)
+    if shift.date != old_date or shift.shift_name != old_shift_name or shift.line != old_line:
+        sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
+        
+    # Trigger background Google Sheets sync
+    background_tasks.add_task(sync_google_sheets_bg)
+    
+    return {"status": "ok", "shift_id": shift_id}
+
 @app.delete("/api/admin/shifts/{shift_id}")
-def admin_delete_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
+def admin_delete_shift(shift_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
@@ -3660,7 +3832,7 @@ def admin_delete_shift(shift_id: int, request: Request, db: Session = Depends(ge
     
     # Sync to clear phantom facts from plan board
     sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
-    
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 @app.put("/api/admin/lfm/{report_id}")
@@ -3768,7 +3940,7 @@ def admin_delete_batch(batch_id: int, request: Request, db: Session = Depends(ge
     return {"status": "ok"}
 
 @app.put("/api/admin/downtimes/{downtime_id}")
-def admin_update_downtime(downtime_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+def admin_update_downtime(downtime_id: int, data: dict, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     dt = db.query(models.Downtime).get(downtime_id)
     if not dt: raise HTTPException(404, "Простой не найден")
@@ -3794,10 +3966,11 @@ def admin_update_downtime(downtime_id: int, data: dict, request: Request, db: Se
         db.commit()
     else:
         db.commit()
+    background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
 
 @app.delete("/api/admin/downtimes/{downtime_id}")
-def admin_delete_downtime(downtime_id: int, request: Request, db: Session = Depends(get_db)):
+def admin_delete_downtime(downtime_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     dt = db.query(models.Downtime).get(downtime_id)
     if not dt: raise HTTPException(404, "Простой не найден")
@@ -3811,6 +3984,7 @@ def admin_delete_downtime(downtime_id: int, request: Request, db: Session = Depe
     db.add(log_entry)
     db.delete(dt)
     db.commit()
+    background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
 
 @app.post("/api/admin/norms/", response_model=schemas.ProductNorm)
