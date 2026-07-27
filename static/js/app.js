@@ -1781,13 +1781,51 @@ async function loadDailyReport() {
             const data = await res.json();
             
             // Set KPIs
-            document.getElementById('kpi-shifts-count').innerText = data.total_shifts;
             document.getElementById('kpi-total-sheets').innerText = data.total_fact_sheets.toLocaleString();
             document.getElementById('kpi-total-tons').innerText = data.total_fact_tons.toFixed(1);
             const tonsDetailEl = document.getElementById('kpi-tons-detail');
             if (tonsDetailEl) {
                 tonsDetailEl.innerText = `План: ${(data.total_plan_tons || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} / Факт: ${(data.total_fact_tons || 0).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}`;
             }
+
+            const lagSheetsEl = document.getElementById('kpi-lag-sheets');
+            const lagSheetsDetailEl = document.getElementById('kpi-lag-sheets-detail');
+            if (lagSheetsEl) {
+                const lagS = data.lag_sheets || 0;
+                if (lagS > 0) {
+                    lagSheetsEl.innerText = lagS.toLocaleString();
+                    lagSheetsEl.style.color = '#8b5cf6';
+                    if (lagSheetsDetailEl) lagSheetsDetailEl.innerText = 'Недовыполнение';
+                } else if (lagS < 0) {
+                    lagSheetsEl.innerText = '0';
+                    lagSheetsEl.style.color = '#22c55e';
+                    if (lagSheetsDetailEl) lagSheetsDetailEl.innerText = `Перевыполнение: +${Math.abs(lagS).toLocaleString()}`;
+                } else {
+                    lagSheetsEl.innerText = '0';
+                    lagSheetsEl.style.color = '#22c55e';
+                    if (lagSheetsDetailEl) lagSheetsDetailEl.innerText = 'План выполнен';
+                }
+            }
+
+            const lagTonsEl = document.getElementById('kpi-lag-tons');
+            const lagTonsDetailEl = document.getElementById('kpi-lag-tons-detail');
+            if (lagTonsEl) {
+                const lagT = data.lag_tons || 0;
+                if (lagT > 0) {
+                    lagTonsEl.innerText = lagT.toFixed(1);
+                    lagTonsEl.style.color = '#8b5cf6';
+                    if (lagTonsDetailEl) lagTonsDetailEl.innerText = 'Недовыполнение';
+                } else if (lagT < 0) {
+                    lagTonsEl.innerText = '0.0';
+                    lagTonsEl.style.color = '#22c55e';
+                    if (lagTonsDetailEl) lagTonsDetailEl.innerText = `Перевыполнение: +${Math.abs(lagT).toFixed(1)} т`;
+                } else {
+                    lagTonsEl.innerText = '0.0';
+                    lagTonsEl.style.color = '#22c55e';
+                    if (lagTonsDetailEl) lagTonsDetailEl.innerText = 'План выполнен';
+                }
+            }
+
             document.getElementById('kpi-avg-plan-percent').innerText = Math.round(data.avg_plan_percent) + '%';
             document.getElementById('kpi-plan-fact-detail').innerText = `План: ${(data.total_plan_sheets || 0).toLocaleString()} / Факт: ${(data.total_fact_sheets || 0).toLocaleString()}`;
             document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(1) + '%';
@@ -1957,9 +1995,13 @@ function exportDailyReportPDF() {
     const lineVal = document.getElementById('daily-report-line')?.value || "Все линии";
     const monthVal = document.getElementById('daily-report-month')?.value || "";
     
-    const kpiShifts = document.getElementById('kpi-shifts-count')?.innerText || "0";
     const kpiSheets = document.getElementById('kpi-total-sheets')?.innerText || "0";
     const kpiTons = document.getElementById('kpi-total-tons')?.innerText || "0.0";
+    const kpiTonsDetail = document.getElementById('kpi-tons-detail')?.innerText || "";
+    const kpiLagSheets = document.getElementById('kpi-lag-sheets')?.innerText || "0";
+    const kpiLagSheetsDetail = document.getElementById('kpi-lag-sheets-detail')?.innerText || "";
+    const kpiLagTons = document.getElementById('kpi-lag-tons')?.innerText || "0.0";
+    const kpiLagTonsDetail = document.getElementById('kpi-lag-tons-detail')?.innerText || "";
     const kpiAvgPlan = document.getElementById('kpi-avg-plan-percent')?.innerText || "0%";
     const kpiPlanDetail = document.getElementById('kpi-plan-fact-detail')?.innerText || "";
     const kpiDefect = document.getElementById('kpi-defect-percent')?.innerText || "0%";
@@ -1997,14 +2039,15 @@ function exportDailyReportPDF() {
     
     // Draw KPIs
     const kpis = [
-        { label: "Всего смен", val: kpiShifts, color: '#1e293b', subtext: "Смен с выработкой" },
         { label: "Выработка (Листы)", val: kpiSheets, color: '#3b82f6', subtext: "" },
-        { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981', subtext: "" },
+        { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981', subtext: kpiTonsDetail },
+        { label: "Отставание (Листы)", val: kpiLagSheets, color: '#8b5cf6', subtext: kpiLagSheetsDetail },
+        { label: "Отставание (Тонны)", val: kpiLagTons, color: '#6366f1', subtext: kpiLagTonsDetail },
         { label: "Ср. % плана", val: kpiAvgPlan, color: '#f59e0b', subtext: kpiPlanDetail },
         { label: "Процент брака", val: kpiDefect, color: '#ef4444', subtext: kpiDefectDetail }
     ];
     
-    const kpiW = (cw - 160) / 5;
+    const kpiW = (cw - 160) / 6;
     kpis.forEach((k, idx) => {
         const x = 80 + idx * kpiW;
         const y = 230;

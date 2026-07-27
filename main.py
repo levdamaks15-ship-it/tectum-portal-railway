@@ -2855,12 +2855,17 @@ def get_daily_report(
     total_defect = sum(d["defect"] for d in days_list)
     defect_percent = (total_defect / total_fact_sheets * 100.0) if total_fact_sheets > 0 else 0.0
     
+    lag_sheets = total_plan_sheets - total_fact_sheets
+    lag_tons = round(total_plan_tons - total_fact_tons, 2)
+    
     return {
         "total_shifts": total_shifts,
         "total_fact_sheets": total_fact_sheets,
         "total_fact_tons": total_fact_tons,
         "total_plan_sheets": total_plan_sheets,
         "total_plan_tons": total_plan_tons,
+        "lag_sheets": lag_sheets,
+        "lag_tons": lag_tons,
         "total_first_grade": total_first_grade,
         "total_defect": total_defect,
         "avg_plan_percent": avg_plan_percent,
