@@ -2650,6 +2650,23 @@ def get_product_raw_weight_kg(db: Session, product_name: str) -> float:
         (norm.norm_fiberglass or 0)
     )
 
+def get_last_produced_weight_kg(db: Session, line_identifier: str, before_date_str: str = None) -> float:
+    try:
+        q = db.query(models.Shift).filter(models.Shift.line.like(f"%{line_identifier}%"))
+        if before_date_str:
+            q = q.filter(models.Shift.date <= before_date_str)
+        shifts = q.order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(100).all()
+        if not shifts:
+            shifts = db.query(models.Shift).filter(models.Shift.line.like(f"%{line_identifier}%")).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
+        for s in shifts:
+            if s.lfm_reports:
+                for r in reversed(s.lfm_reports):
+                    if r.lfm_sheets > 0 and r.product_name:
+                        return get_product_finished_weight_kg(db, r.product_name)
+    except Exception as e:
+        print(f"Error in get_last_produced_weight_kg: {e}")
+    return 19.6
+
 def get_shift_plan(db: Session, shift: models.Shift) -> int:
     if shift.plan_sheets is not None and shift.plan_sheets > 0:
         return shift.plan_sheets
@@ -2864,13 +2881,23 @@ def get_daily_report(
                 data[line_key][day_key][s_name]["first_grade"] += total_1st
                 data[line_key][day_key][s_name]["defect"] += total_def
             
-    for line_k in data:
-        for day_k in data[line_k]:
-            for s_nm in ["День", "Ночь"]:
-                slot_info = data[line_k][day_k][s_nm]
-                if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
-                    avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
-                    slot_info["plan_tons"] = slot_info["plan_sheets"] * avg_w / 1000.0
+    last_known_weight = {}
+    for l_k in data:
+        line_name_for_q = "1" if l_k == "line_1" else "2"
+        last_known_weight[l_k] = get_last_produced_weight_kg(db, line_name_for_q, str(sd))
+
+    for i in range(num_days):
+        day_k = str(sd + timedelta(days=i))
+        for s_nm in ["День", "Ночь"]:
+            for l_k in data:
+                if day_k in data[l_k] and s_nm in data[l_k][day_k]:
+                    slot_info = data[l_k][day_k][s_nm]
+                    if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
+                        avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
+                        slot_info["plan_tons"] = slot_info["plan_sheets"] * avg_w / 1000.0
+                        last_known_weight[l_k] = avg_w
+                    else:
+                        slot_info["plan_tons"] = slot_info["plan_sheets"] * last_known_weight[l_k] / 1000.0
             
     # Now structure response as expected by app.js
     days_list = []
@@ -3075,12 +3102,18 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
                 if slot_key in accumulate_sheets_slots:
                     day_data[day_key][s_name]["sheets"] += total_s
                 
-        for day_k in day_data:
-            for s_nm in ["День", "Ночь"]:
-                slot_info = day_data[day_k][s_nm]
-                if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
-                    avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
-                    slot_info["plan_tons"] = slot_info["plan_sheets"] * avg_w / 1000.0
+        last_w = get_last_produced_weight_kg(db, "1" if line_id == "lfm1" else "2", str(sd))
+        for i in range(num_days):
+            day_k = str(sd + timedelta(days=i))
+            if day_k in day_data:
+                for s_nm in ["День", "Ночь"]:
+                    slot_info = day_data[day_k][s_nm]
+                    if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
+                        avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
+                        slot_info["plan_tons"] = slot_info["plan_sheets"] * avg_w / 1000.0
+                        last_w = avg_w
+                    else:
+                        slot_info["plan_tons"] = slot_info["plan_sheets"] * last_w / 1000.0
                 
         row_idx = 2
         for i in range(num_days):
@@ -3402,6 +3435,7 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
         active_lines = {"ЛФМ-2"}
 
     for l_key in active_lines:
+        last_w = get_last_produced_weight_kg(db, "1" if "1" in l_key else "2", str(sd)) / 1000.0
         for i in range(7):
             d = sd + timedelta(days=i)
             for s_name in ["День", "Ночь"]:
@@ -3420,12 +3454,16 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
                 if s and show_fact:
                     sum_lfm_sheets = sum(r.lfm_sheets for sh in slot_shifts for r in sh.lfm_reports)
                     sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for sh in slot_shifts for r in sh.lfm_reports)
-                    avg_w = (sum_lfm_tons / sum_lfm_sheets) if sum_lfm_sheets > 0 else (19.6/1000)
+                    if sum_lfm_sheets > 0:
+                        avg_w = (sum_lfm_tons / sum_lfm_sheets)
+                        last_w = avg_w
+                    else:
+                        avg_w = last_w
                     if total_sheets == 0 and sum_lfm_sheets > 0:
                         total_sheets = sum_lfm_sheets
                     master_name = s.master.name if s.master else "Н/Д"
                 else:
-                    avg_w = 19.6 / 1000.0
+                    avg_w = last_w
                     master_name = "Н/Д" if show_fact else "Смена др. мастера"
                     total_sheets = pb.fact_sheets if (pb and show_fact) else 0
                     
@@ -3472,6 +3510,7 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
     data = []
     
     for l_key in active_lines:
+        last_w = get_last_produced_weight_kg(db, "1" if "1" in l_key else "2", str(sd)) / 1000.0
         for i in range(7):
             d = sd + timedelta(days=i)
             day_str = str(d)
@@ -3491,7 +3530,11 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                 if s and show_fact:
                     sum_lfm_sheets = sum(r.lfm_sheets for sh in slot_shifts for r in sh.lfm_reports)
                     sum_lfm_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for sh in slot_shifts for r in sh.lfm_reports)
-                    avg_w = (sum_lfm_tons / sum_lfm_sheets) if sum_lfm_sheets > 0 else (19.6/1000)
+                    if sum_lfm_sheets > 0:
+                        avg_w = (sum_lfm_tons / sum_lfm_sheets)
+                        last_w = avg_w
+                    else:
+                        avg_w = last_w
                     if total_sheets == 0 and sum_lfm_sheets > 0:
                         total_sheets = sum_lfm_sheets
                         
@@ -3515,7 +3558,7 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                     master_name = s.master.name if s.master else "Н/Д"
                     shift_id = s.id
                 else:
-                    avg_w = 19.6 / 1000.0
+                    avg_w = last_w
                     ds_first = pb.first_grade if (pb and show_fact) else 0
                     ds_defect = pb.defect if (pb and show_fact) else 0
                     qcd_first = 0
