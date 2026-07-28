@@ -1794,11 +1794,9 @@ async function loadDailyReport() {
             let todayFactSheets = 0;
 
             let passedDates = new Set();
-            let allDates = new Set();
 
             if (data.days && Array.isArray(data.days)) {
                 data.days.forEach(s => {
-                    allDates.add(s.date);
                     if (s.date < todayStr || (s.date === todayStr && (s.fact_sheets > 0 || s.fact_tons > 0))) {
                         todayFactTons += (s.fact_tons || 0);
                         todayFactSheets += (s.fact_sheets || 0);
@@ -1807,10 +1805,35 @@ async function loadDailyReport() {
                 });
             }
 
+            // Определяем общее количество дней в периоде (неделя = 7, месяц = количество дней в месяце)
+            let totalDays = 31;
+            const urlParams = new URLSearchParams(window.location.search);
+            const range = document.getElementById('range-type') ? document.getElementById('range-type').value : 'month';
+            if (range === 'week') {
+                totalDays = 7;
+            } else {
+                // Если выбран конкретный месяц
+                const monthVal = document.getElementById('month-select') ? document.getElementById('month-select').value : '';
+                if (monthVal) {
+                    const [yyyy, mm] = monthVal.split('-');
+                    totalDays = new Date(yyyy, parseInt(mm), 0).getDate();
+                } else {
+                    totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                }
+            }
+
+            // Считаем сколько дней прошло в выбранном периоде
+            let daysPassedCount = passedDates.size;
+            // Для более честного расчета, если мы смотрим текущий месяц, можно считать прошедшие дни по календарю:
+            if (range === 'month' && (!document.getElementById('month-select') || !document.getElementById('month-select').value || document.getElementById('month-select').value === (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0')))) {
+                daysPassedCount = now.getDate();
+            } else if (range === 'week' && (!document.getElementById('week-select') || !document.getElementById('week-select').value)) {
+                let dayOfWeek = now.getDay(); // 0 = Sunday
+                daysPassedCount = dayOfWeek === 0 ? 7 : dayOfWeek;
+            }
+
             // Вычисляем план на сегодня пропорционально потолку (например 160 000 или 39 000)
             let totalPlanSheetsLimit = data.total_plan_sheets || 160000;
-            let totalDays = allDates.size > 0 ? allDates.size : 31;
-            let daysPassedCount = passedDates.size;
             
             todayPlanSheets = Math.round(totalPlanSheetsLimit / totalDays * daysPassedCount);
             
