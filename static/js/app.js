@@ -202,6 +202,7 @@ function recalcCemTotal() {
 }
 
 function switchTab(tabId) {
+    sessionStorage.setItem('active_tab', tabId);
     // Hide all tabs
     const tabs = ['production', 'summary', 'downtimes', 'analytics', 'daily-report', 'materials'];
     tabs.forEach(t => {
@@ -429,8 +430,13 @@ function applyRoleVisibility() {
         btnExportGoogleSheets.style.display = ['admin', 'director', 'technologist'].includes(r) ? 'inline-flex' : 'none';
     }
     
-    // Switch to first visible tab
-    if (canReport) {
+    // Switch to saved tab or first visible tab
+    const savedTab = sessionStorage.getItem('active_tab');
+    const savedTabBtn = savedTab ? document.getElementById(`tab-btn-${savedTab}`) : null;
+    
+    if (savedTab && savedTabBtn && savedTabBtn.style.display !== 'none') {
+        switchTab(savedTab);
+    } else if (canReport) {
         switchTab('production');
     } else if (canViewSummary) {
         switchTab('summary');
