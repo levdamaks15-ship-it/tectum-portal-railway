@@ -603,6 +603,7 @@ async function submitShiftReport() {
         });
         
         if (res.ok) {
+            clearReportDraft();
             saveLastLineAndShift(data.line, data.shift_name);
             const formContainer = document.getElementById('report-form-container');
             const successScreen = document.getElementById('report-success-screen');
@@ -2350,6 +2351,89 @@ async function syncDowntimesFromGoogle() {
     }
 }
 
+// --- Auto-Save Draft Logic ---
+const REPORT_FIELDS = [
+    'rep-date', 'rep-shift', 'rep-line', 'rep-master', 'rep-batch', 'rep-product',
+    'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade',
+    'rep-has-defect', 'def-chip', 'def-scratch', 'def-bad-cut', 'def-stick-bottom',
+    'def-stick-top', 'def-broken', 'def-fell', 'def-dent', 'def-thickness',
+    'def-delamination', 'def-edge', 'rep-qcd-defect',
+    'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
+    'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol',
+    'zo-asbocarton', 'zo-asb-drain', 'zo-cem-drain'
+];
+
+let draftSaveTimeout = null;
+
+function saveReportDraft() {
+    const draft = {};
+    REPORT_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            draft[id] = el.value;
+        }
+    });
+    localStorage.setItem('shift_report_draft', JSON.stringify(draft));
+    
+    const indicator = document.getElementById('draft-indicator');
+    if (indicator) {
+        indicator.textContent = '✓ Черновик сохранен локально';
+        indicator.style.opacity = '1';
+        clearTimeout(draftSaveTimeout);
+        draftSaveTimeout = setTimeout(() => {
+            indicator.style.opacity = '0';
+        }, 2000);
+    }
+}
+
+function loadReportDraft() {
+    const saved = localStorage.getItem('shift_report_draft');
+    if (saved) {
+        try {
+            const draft = JSON.parse(saved);
+            let hasData = false;
+            REPORT_FIELDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && draft[id] !== undefined && draft[id] !== '') {
+                    el.value = draft[id];
+                    hasData = true;
+                }
+            });
+            if (hasData) {
+                if (typeof recalcTonsAndGrades === 'function') recalcTonsAndGrades();
+                if (typeof recalcDefectTotal === 'function') recalcDefectTotal();
+                if (typeof toggleDefectsGrid === 'function') toggleDefectsGrid();
+                
+                const indicator = document.getElementById('draft-indicator');
+                if (indicator) {
+                    indicator.textContent = '✓ Черновик восстановлен';
+                    indicator.style.opacity = '1';
+                    setTimeout(() => {
+                        indicator.style.opacity = '0';
+                    }, 3000);
+                }
+            }
+        } catch (e) {
+            console.error("Error loading draft", e);
+        }
+    }
+}
+
+function clearReportDraft() {
+    localStorage.removeItem('shift_report_draft');
+}
+
+function attachDraftListeners() {
+    REPORT_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', saveReportDraft);
+            el.addEventListener('change', saveReportDraft);
+        }
+    });
+}
+// ------------------------------
+
 // Window load init
 window.addEventListener('DOMContentLoaded', () => {
     // Current date default for month picker
@@ -2366,7 +2450,10 @@ window.addEventListener('DOMContentLoaded', () => {
         updateWeekOptions(summaryMonthEl.value, 'summary-filter-week');
     }
 
-    init();
+    init().then(() => {
+        attachDraftListeners();
+        loadReportDraft();
+    });
 });
 
 async function init() {
