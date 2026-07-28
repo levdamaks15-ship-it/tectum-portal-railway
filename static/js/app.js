@@ -1793,16 +1793,33 @@ async function loadDailyReport() {
             let todayPlanSheets = 0;
             let todayFactSheets = 0;
 
+            let passedDates = new Set();
+            let allDates = new Set();
+
             if (data.days && Array.isArray(data.days)) {
                 data.days.forEach(s => {
+                    allDates.add(s.date);
                     if (s.date < todayStr || (s.date === todayStr && (s.fact_sheets > 0 || s.fact_tons > 0))) {
-                        todayPlanTons += (s.plan_tons || 0);
                         todayFactTons += (s.fact_tons || 0);
-                        todayPlanSheets += (s.plan_sheets || 0);
                         todayFactSheets += (s.fact_sheets || 0);
+                        passedDates.add(s.date);
                     }
                 });
             }
+
+            // Вычисляем план на сегодня пропорционально потолку (например 160 000 или 39 000)
+            let totalPlanSheetsLimit = data.total_plan_sheets || 160000;
+            let totalDays = allDates.size > 0 ? allDates.size : 31;
+            let daysPassedCount = passedDates.size;
+            
+            todayPlanSheets = Math.round(totalPlanSheetsLimit / totalDays * daysPassedCount);
+            
+            // Динамический расчет веса (если производим шифер 7 волн, будет учтен его реальный вес ~17.07 кг)
+            let avgWeight = 19.6;
+            if (data.total_fact_sheets > 0 && data.total_fact_tons > 0) {
+                avgWeight = (data.total_fact_tons * 1000.0) / data.total_fact_sheets;
+            }
+            todayPlanTons = (todayPlanSheets * avgWeight) / 1000.0;
 
             const diffTons = todayFactTons - todayPlanTons;
             const diffSheets = todayFactSheets - todayPlanSheets;
