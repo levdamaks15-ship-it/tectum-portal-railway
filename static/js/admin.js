@@ -67,6 +67,8 @@ function switchAdminTab(tabId) {
     document.getElementById('tab-audit-logs').style.display = 'none';
     const tabDowntimes = document.getElementById('tab-downtimes-dir');
     if (tabDowntimes) tabDowntimes.style.display = 'none';
+    const tabDowntimesLog = document.getElementById('tab-downtimes-log');
+    if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
     
     document.getElementById('tab-' + tabId).style.display = 'block';
 
@@ -78,6 +80,8 @@ function switchAdminTab(tabId) {
         loadShifts();
     } else if (tabId === 'downtimes-dir') {
         loadDowntimesDir();
+    } else if (tabId === 'downtimes-log') {
+        loadDowntimesLog();
     }
 
 }
@@ -959,8 +963,11 @@ async function saveDowntimeEdit() {
         });
         if (res.ok) {
             document.getElementById('edit-downtime-modal').style.display = 'none';
-            if (activeUnifiedDetails?.shift?.id) {
+            if (typeof activeUnifiedDetails !== 'undefined' && activeUnifiedDetails?.shift?.id) {
                 openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
+            }
+            if (document.getElementById('tab-downtimes-log') && document.getElementById('tab-downtimes-log').style.display === 'block') {
+                loadDowntimesLog();
             }
         } else {
             alert("Ошибка сохранения простоя");
@@ -975,8 +982,11 @@ async function deleteDowntimeRow(id) {
     try {
         const res = await fetch(`/api/admin/downtimes/${id}`, { method: 'DELETE' });
         if (res.ok) {
-            if (activeUnifiedDetails?.shift?.id) {
+            if (typeof activeUnifiedDetails !== 'undefined' && activeUnifiedDetails?.shift?.id) {
                 openUnifiedShiftModal(activeUnifiedDetails.shift.id, 'downtimes');
+            }
+            if (document.getElementById('tab-downtimes-log') && document.getElementById('tab-downtimes-log').style.display === 'block') {
+                loadDowntimesLog();
             }
         } else {
             alert("Ошибка удаления");
@@ -1202,3 +1212,50 @@ async function uploadAciReport() {
 
 
 
+
+// --- DOWNTIMES LOG ---
+async function loadDowntimesLog() {
+    try {
+        const res = await fetch('/api/admin/downtimes/all');
+        if (!res.ok) throw new Error('Не удалось загрузить простои');
+        const data = await res.json();
+        const tbody = document.getElementById('downtimes-log-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Нет данных</td></tr>`;
+            return;
+        }
+        
+        data.forEach(d => {
+            const shiftDate = d.shift_date || 'Н/Д';
+            const shiftName = d.shift_name || 'Н/Д';
+            const line = d.shift_line || 'Н/Д';
+            const startTime = d.start_time || '-';
+            const endTime = d.end_time || '-';
+            const duration = d.duration || 0;
+            const category = d.category || '-';
+            const reason = d.description || '-';
+            const node = d.node || '-';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${shiftDate} ${shiftName}</td>
+                    <td>${line}</td>
+                    <td>${startTime} - ${endTime}</td>
+                    <td>${duration}</td>
+                    <td>${node} / ${reason}</td>
+                    <td><span style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${category}</span></td>
+                    <td style="white-space: nowrap;">
+                        <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error(e);
+        const tbody = document.getElementById('downtimes-log-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
+    }
+}

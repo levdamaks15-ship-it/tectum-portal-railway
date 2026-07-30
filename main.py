@@ -4070,6 +4070,40 @@ def admin_delete_batch(batch_id: int, request: Request, db: Session = Depends(ge
     db.commit()
     return {"status": "ok"}
 
+@app.get("/api/admin/downtimes/all")
+def get_all_admin_downtimes(
+    limit: int = 200, 
+    offset: int = 0,
+    request: Request = None, 
+    db: Session = Depends(get_db)
+):
+    admin = check_admin_session(request, db)
+    downtimes = db.query(models.Downtime).join(models.Shift).order_by(models.Shift.date.desc(), models.Downtime.id.desc()).offset(offset).limit(limit).all()
+    
+    result = []
+    for d in downtimes:
+        d_dict = {
+            "id": d.id,
+            "shift_id": d.shift_id,
+            "start_time": d.start_time,
+            "end_time": d.end_time,
+            "duration": d.duration,
+            "category": d.category,
+            "department": d.department,
+            "node": d.node,
+            "description": d.description,
+            "status": d.status,
+            "is_equipment_downtime": d.is_equipment_downtime,
+            "lost_tons": d.lost_tons,
+            "lost_tenge": d.lost_tenge
+        }
+        if d.shift:
+            d_dict["shift_date"] = d.shift.date
+            d_dict["shift_line"] = d.shift.line
+            d_dict["shift_name"] = d.shift.shift_name
+        result.append(d_dict)
+    return result
+
 @app.put("/api/admin/downtimes/{downtime_id}")
 def admin_update_downtime(downtime_id: int, data: dict, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)

@@ -90,6 +90,7 @@
             <div class="admin-nav-item" onclick="switchAdminTab('cleanup')" id="nav-cleanup"><i class="fa-solid fa-trash-can"></i> Очистка данных</div>
             <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-dir')" id="nav-downtimes-dir"><i class="fa-solid fa-list-check"></i> Справочник простоев</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('downtimes-log')" id="nav-downtimes-log"><i class="fa-solid fa-clock"></i> Журнал простоев</div>
             
             <a href="/analytics" style="text-decoration: none;">
                 <div class="admin-nav-item" style="color: #60a5fa; margin-top: 1rem;"><i class="fa-solid fa-chart-pie"></i> Аналитика простоев (Техсовет)</div>
@@ -197,6 +198,29 @@
                             </tr>
                         </thead>
                         <tbody id="norms-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Downtimes Log Tab -->
+            <div id="tab-downtimes-log" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-clock"></i> Журнал простоев (редактирование)</h2>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>Дата / Смена</th>
+                                <th>Линия</th>
+                                <th>Время</th>
+                                <th>Длит.</th>
+                                <th>Узел / Причина</th>
+                                <th>Категория</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="downtimes-log-table-body"></tbody>
                     </table>
                 </div>
             </div>
