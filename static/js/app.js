@@ -1294,6 +1294,7 @@ async function loadDowntimeDepartments() {
         const res = await fetch('/api/downtimes/directory/departments');
         if (res.ok) {
             const depts = await res.json();
+            depts.sort((a, b) => a.localeCompare(b));
             const select = document.getElementById('journal-dt-dept');
             const editSelect = document.getElementById('edit-dt-dept');
             const optHtml = '<option value="">-- Выберите участок --</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
@@ -1318,6 +1319,7 @@ async function onJournalDeptChange() {
         const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
         if (res.ok) {
             const nodes = await res.json();
+            nodes.sort((a, b) => a.localeCompare(b));
             selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
                 nodes.map(n => `<option value="${n}">${n}</option>`).join('');
         }
@@ -1339,6 +1341,7 @@ async function onJournalNodeChange() {
         const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
         if (res.ok) {
             const breakdowns = await res.json();
+            breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
             selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
                 breakdowns.map(b => `<option value="${b.breakdown}">${b.breakdown}</option>`).join('');
         }
@@ -1519,6 +1522,7 @@ async function onEditDeptChange(selectedNode = '', selectedBreakdown = '') {
     const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
     if (res.ok) {
         const nodes = await res.json();
+        nodes.sort((a, b) => a.localeCompare(b));
         selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
             nodes.map(n => `<option value="${n}">${n}</option>`).join('');
         if (selectedNode) {
@@ -1536,6 +1540,7 @@ async function onEditNodeChange(selectedBreakdown = '') {
     const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
     if (res.ok) {
         const breakdowns = await res.json();
+        breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
         selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
             breakdowns.map(b => `<option value="${b.breakdown}">${b.breakdown}</option>`).join('');
         if (selectedBreakdown) {
@@ -2438,6 +2443,52 @@ function attachDraftListeners() {
         }
     });
 }
+
+// --- Downtime Draft Logic ---
+const DOWNTIME_CONTEXT_FIELDS = [
+    'journal-dt-date', 'journal-dt-shift-name', 'journal-dt-line', 'journal-dt-master-select'
+];
+
+function saveDowntimeContext() {
+    const context = {};
+    DOWNTIME_CONTEXT_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            context[id] = el.value;
+        }
+    });
+    localStorage.setItem('downtime_context', JSON.stringify(context));
+}
+
+function loadDowntimeContext() {
+    const saved = localStorage.getItem('downtime_context');
+    if (saved) {
+        try {
+            const context = JSON.parse(saved);
+            DOWNTIME_CONTEXT_FIELDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && context[id] !== undefined && context[id] !== '') {
+                    el.value = context[id];
+                }
+            });
+            if (typeof loadDowntimesByParams === 'function') {
+                loadDowntimesByParams();
+            }
+        } catch (e) {
+            console.error("Error loading downtime context", e);
+        }
+    }
+}
+
+function attachDowntimeContextListeners() {
+    DOWNTIME_CONTEXT_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', saveDowntimeContext);
+            el.addEventListener('change', saveDowntimeContext);
+        }
+    });
+}
 // ------------------------------
 
 // Window load init
@@ -2459,6 +2510,8 @@ window.addEventListener('DOMContentLoaded', () => {
     init().then(() => {
         attachDraftListeners();
         loadReportDraft();
+        attachDowntimeContextListeners();
+        loadDowntimeContext();
     });
 });
 

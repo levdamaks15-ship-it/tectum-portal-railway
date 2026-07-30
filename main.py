@@ -3678,6 +3678,10 @@ def get_materials_report(shift_id: int, db: Session = Depends(get_db)):
 def read_admin():
     return FileResponse("static/admin.html")
 
+@app.get("/analytics")
+def read_analytics():
+    return FileResponse("static/analytics.html")
+
 @app.post("/api/admin/masters/", response_model=schemas.Master)
 def create_master(master: schemas.MasterCreate, db: Session = Depends(get_db)):
     db_master = models.Master(**master.model_dump())
