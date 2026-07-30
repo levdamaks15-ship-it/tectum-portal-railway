@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tectum - Аналитика Простоев</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v12">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .analytics-container {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .btn-nav {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-nav:hover { background: rgba(255,255,255,0.2); }
+        
+        .filters-panel {
+            background: rgba(10, 15, 30, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .preset-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            grid-column: 1 / -1;
+        }
+        .preset-buttons button {
+            background: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .preset-buttons button.active, .preset-buttons button:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .kpi-card {
+            background: rgba(20, 25, 45, 0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 0.5rem 0;
+        }
+        .kpi-trend {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .trend-up { color: var(--danger-color); } /* For downtime, up is bad */
+        .trend-down { color: var(--success-color); } /* Down is good */
+        .trend-neutral { color: var(--text-secondary); }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-card {
+            background: rgba(10, 15, 30, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        /* Advanced Pivot Table Styles */
+        .pivot-table-wrapper {
+            background: rgba(10, 15, 30, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+        .pivot-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .pivot-table th, .pivot-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .pivot-table th {
+            font-weight: bold;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .pivot-table th:hover { color: white; }
+        .row-category {
+            font-weight: bold;
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+        }
+        .row-node {
+            display: none; /* hidden by default */
+        }
+        .row-node td:first-child {
+            padding-left: 3rem;
+            color: #aaa;
+        }
+        .expanded .row-node {
+            display: table-row;
+        }
+        .chevron {
+            transition: transform 0.3s;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .expanded .chevron {
+            transform: rotate(90deg);
+        }
+        .diff-col {
+            font-size: 0.9em;
+        }
+        
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay">
+        <i class="fa-solid fa-spinner fa-spin fa-2xl mb-4"></i>
+        <p style="margin-top:20px;">Загрузка аналитики...</p>
+    </div>
+
+    <div class="analytics-container">
+        <div class="header-actions">
+            <h1><i class="fa-solid fa-chart-pie"></i> Аналитика простоев (Техсовет)</h1>
+            <div>
+                <a href="/admin" class="btn-nav"><i class="fa-solid fa-arrow-left"></i> Админ-панель</a>
+                <a href="/" class="btn-nav"><i class="fa-solid fa-house"></i> Главная</a>
+            </div>
+        </div>
+
+        <div class="filters-panel">
+            <div class="preset-buttons" id="preset-buttons">
+                <button data-preset="today">Сегодня</button>
+                <button data-preset="yesterday">Вчера</button>
+                <button data-preset="this_week" class="active">Эта неделя</button>
+                <button data-preset="last_week">Прошлая неделя</button>
+                <button data-preset="this_month">Этот месяц</button>
+            </div>
+            
+            <div class="form-group">
+                <label>Период (С)</label>
+                <input type="date" id="filter-date-from">
+            </div>
+            <div class="form-group">
+                <label>Период (По)</label>
+                <input type="date" id="filter-date-to">
+            </div>
+            <div class="form-group">
+                <label>Линия</label>
+                <select id="filter-line">
+                    <option value="all">Все линии</option>
+                    <option value="1">Линия 1</option>
+                    <option value="2">Линия 2</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="filter-category">
+                    <option value="all">Все категории</option>
+                    <option value="Механические">Механические</option>
+                    <option value="Электрические">Электрические</option>
+                    <option value="Технологические">Технологические</option>
+                    <option value="Прочие">Прочие</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Мастер</label>
+                <select id="filter-master">
+                    <option value="all">Все мастера</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="kpi-row">
+            <div class="kpi-card">
+                <h3>Суммарный простой</h3>
+                <div class="kpi-value" id="kpi-hours">0 ч 00 м</div>
+                <div class="kpi-trend" id="kpi-trend-hours">--</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Потери выработки</h3>
+                <div class="kpi-value" id="kpi-tons">0 т</div>
+                <div class="kpi-trend" id="kpi-trend-tons">--</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Кол-во инцидентов</h3>
+                <div class="kpi-value" id="kpi-count">0</div>
+                <div class="kpi-trend" id="kpi-trend-count">--</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <h3>Топ узких мест (по длительности)</h3>
+                <canvas id="chart-bottlenecks"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>Распределение по категориям</h3>
+                <canvas id="chart-categories"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom: 2rem;">
+            <h3>Динамика простоев по дням (Минуты)</h3>
+            <div style="position: relative; height: 300px; width: 100%;">
+                <canvas id="chart-timeline"></canvas>
+            </div>
+        </div>
+
+        <div class="pivot-table-wrapper">
+            <h3 style="margin-bottom: 1rem; display: flex; justify-content: space-between;">
+                Сводная таблица (Pivot)
+                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);">Сравнение с предыдущим аналогичным периодом</span>
+            </h3>
+            <table class="pivot-table" id="pivot-table">
+                <thead>
+                    <tr>
+                        <th data-sort="name">Категория / Узел <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="duration">Время (мин) <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="duration_diff">Разница (мин) <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="tons">Потери (т) <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="count">Инциденты <i class="fa-solid fa-sort"></i></th>
+                    </tr>
+                </thead>
+                <tbody id="pivot-table-body">
+                    <!-- Dynamic Content -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/static/js/analytics.js?v=1"></script>
+</body>
+</html>
