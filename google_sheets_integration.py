@@ -987,12 +987,9 @@ def export_receipt_to_google_sheets(db: Session):
     total_rows = len(rows_data)
 
     # Очищаем старые данные
-    empty_block = [["" for _ in range(len(headers))] for _ in range(1000)]
-    service.spreadsheets().values().update(
+    service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:R1000",
-        valueInputOption="USER_ENTERED",
-        body={"values": empty_block}
+        range=f"'{sheet_name}'"
     ).execute()
 
     # Записываем данные
@@ -1166,7 +1163,7 @@ def export_downtimes_to_google_sheets(db: Session):
                         "title": sheet_name,
                         "gridProperties": {
                             "rowCount": 2000,
-                            "columnCount": 13
+                            "columnCount": 14
                         }
                     }
                 }
@@ -1218,12 +1215,9 @@ def export_downtimes_to_google_sheets(db: Session):
     total_rows = len(rows_data)
 
     # Очищаем старые данные
-    empty_block = [["" for _ in range(len(headers))] for _ in range(2000)]
-    service.spreadsheets().values().update(
+    service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:N2000",
-        valueInputOption="USER_ENTERED",
-        body={"values": empty_block}
+        range=f"'{sheet_name}'"
     ).execute()
 
     # Записываем данные
