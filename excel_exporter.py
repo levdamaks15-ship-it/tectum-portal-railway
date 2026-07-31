@@ -73,6 +73,15 @@ def generate_flat_report(db: Session) -> bytes:
     green_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid") # Soft pastel green
     
     for s in shifts:
+        # Проверяем, есть ли плановые или фактические показатели производства в смене
+        plan_sheets_check = s.plan_sheets or 0
+        formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
+        warehouse_gp_check = sum(b.qcd_condition for b in s.batches)
+        zo_batches_check = s.zo_batches or 0
+        
+        if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
+            continue
+
         # Date
         date_str = s.date.strftime("%d.%m.%Y") if s.date else ""
         
