@@ -63,6 +63,8 @@ function switchAdminTab(tabId) {
     document.getElementById('tab-norms').style.display = 'none';
     document.getElementById('tab-plan-board').style.display = 'none';
     document.getElementById('tab-shifts').style.display = 'none';
+    const tabReceipts = document.getElementById('tab-receipts');
+    if (tabReceipts) tabReceipts.style.display = 'none';
     document.getElementById('tab-cleanup').style.display = 'none';
     document.getElementById('tab-audit-logs').style.display = 'none';
     const tabDowntimes = document.getElementById('tab-downtimes-dir');
@@ -78,6 +80,8 @@ function switchAdminTab(tabId) {
         loadAuditLogs();
     } else if (tabId === 'shifts') {
         loadShifts();
+    } else if (tabId === 'receipts') {
+        loadAdminReceipts();
     } else if (tabId === 'downtimes-dir') {
         loadDowntimesDir();
     } else if (tabId === 'downtimes-log') {
@@ -98,6 +102,9 @@ function closeModals() {
     const uniModal = document.getElementById('unified-shift-modal');
     if (uniModal) uniModal.style.display = 'none';
     const editDtModal = document.getElementById('edit-downtime-modal');
+    if (editDtModal) editDtModal.style.display = 'none';
+    const receiptModal = document.getElementById('edit-receipt-modal');
+    if (receiptModal) receiptModal.style.display = 'none';
     if (editDtModal) editDtModal.style.display = 'none';
 }
 
@@ -1259,3 +1266,163 @@ async function loadDowntimesLog() {
         if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
     }
 }
+
+// ==========================================
+// RECEIPTS ADMIN LOGIC
+// ==========================================
+
+let currentReceiptPeriod = 'week';
+
+function setReceiptPeriod(period) {
+    currentReceiptPeriod = period;
+    document.querySelectorAll('#tab-receipts .filter-btn').forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'rgba(255,255,255,0.1)';
+    });
+    const btn = document.getElementById(`filter-receipt-period-${period}`);
+    if(btn) {
+        btn.classList.add('active');
+        btn.style.background = 'var(--accent-color)';
+    }
+    loadAdminReceipts();
+}
+
+async function loadAdminReceipts() {
+    const tbody = document.getElementById('receipts-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Загрузка...</td></tr>';
+    
+    let url = '/api/admin/receipts';
+    
+    if (currentReceiptPeriod !== 'all') {
+        const today = new Date();
+        const start = new Date();
+        if (currentReceiptPeriod === 'week') {
+            start.setDate(today.getDate() - 7);
+        } else if (currentReceiptPeriod === 'month') {
+            start.setMonth(today.getMonth() - 1);
+        }
+        url += `?start_date=${start.toISOString().split('T')[0]}&end_date=${today.toISOString().split('T')[0]}`;
+    }
+
+    try {
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` } });
+        if (!res.ok) {
+            if(res.status === 401) { logoutAdmin(); return; }
+            throw new Error('Failed to fetch receipts');
+        }
+        const data = await res.json();
+        
+        tbody.innerHTML = '';
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Нет данных</td></tr>';
+            return;
+        }
+
+        data.forEach(r => {
+            const shiftDate = r.shift_date ? formatDate(r.shift_date) : '';
+            const shiftName = r.shift_name || '';
+            const line = r.shift_line ? `Линия ${r.shift_line}` : '';
+            const master = r.master_name || '';
+            
+            const cement = (r.cement_silo1 + r.cement_silo2 + r.cement_silo3 + r.cement_silo4).toFixed(1);
+            const chrysotile = `${r.chrysotile_4_20.toFixed(1)} / ${r.chrysotile_5_65.toFixed(1)} / ${r.chrysotile_6_40.toFixed(1)}`;
+            const cellulose = r.cellulose.toFixed(1);
+            const others1 = `${r.crushed_slate.toFixed(1)} / ${r.asbozurit.toFixed(1)} / ${r.asbocarton.toFixed(1)}`;
+            const others2 = `${r.pallets.toFixed(1)} / ${r.fiberglass.toFixed(1)} / ${r.laprol.toFixed(1)}`;
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${r.id}</td>
+                    <td>${shiftDate} ${shiftName}</td>
+                    <td>${line}<br><small style="color:var(--text-secondary)">${master}</small></td>
+                    <td>${cement}</td>
+                    <td>${chrysotile}</td>
+                    <td>${cellulose}</td>
+                    <td>${others1}</td>
+                    <td>${others2}</td>
+                    <td style="white-space: nowrap; text-align: right;">
+                        <button class="action-btn btn-edit" onclick='editReceiptRow(${JSON.stringify(r).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn btn-delete" onclick="deleteReceiptRow(${r.id})" style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:red;">Ошибка загрузки</td></tr>';
+    }
+}
+
+function editReceiptRow(r) {
+    document.getElementById('edit-receipt-id').value = r.id;
+    document.getElementById('edit-receipt-cement1').value = r.cement_silo1;
+    document.getElementById('edit-receipt-cement2').value = r.cement_silo2;
+    document.getElementById('edit-receipt-cement3').value = r.cement_silo3;
+    document.getElementById('edit-receipt-cement4').value = r.cement_silo4;
+    document.getElementById('edit-receipt-c420').value = r.chrysotile_4_20;
+    document.getElementById('edit-receipt-c565').value = r.chrysotile_5_65;
+    document.getElementById('edit-receipt-c640').value = r.chrysotile_6_40;
+    document.getElementById('edit-receipt-cellulose').value = r.cellulose;
+    document.getElementById('edit-receipt-crushed').value = r.crushed_slate;
+    document.getElementById('edit-receipt-asbozurit').value = r.asbozurit;
+    document.getElementById('edit-receipt-asbocarton').value = r.asbocarton;
+    document.getElementById('edit-receipt-pallets').value = r.pallets;
+    document.getElementById('edit-receipt-fiberglass').value = r.fiberglass;
+    document.getElementById('edit-receipt-laprol').value = r.laprol;
+    
+    document.getElementById('edit-receipt-modal').style.display = 'block';
+}
+
+async function saveReceiptEdit() {
+    const id = document.getElementById('edit-receipt-id').value;
+    const data = {
+        cement_silo1: parseFloat(document.getElementById('edit-receipt-cement1').value) || 0,
+        cement_silo2: parseFloat(document.getElementById('edit-receipt-cement2').value) || 0,
+        cement_silo3: parseFloat(document.getElementById('edit-receipt-cement3').value) || 0,
+        cement_silo4: parseFloat(document.getElementById('edit-receipt-cement4').value) || 0,
+        chrysotile_4_20: parseFloat(document.getElementById('edit-receipt-c420').value) || 0,
+        chrysotile_5_65: parseFloat(document.getElementById('edit-receipt-c565').value) || 0,
+        chrysotile_6_40: parseFloat(document.getElementById('edit-receipt-c640').value) || 0,
+        cellulose: parseFloat(document.getElementById('edit-receipt-cellulose').value) || 0,
+        crushed_slate: parseFloat(document.getElementById('edit-receipt-crushed').value) || 0,
+        asbozurit: parseFloat(document.getElementById('edit-receipt-asbozurit').value) || 0,
+        asbocarton: parseFloat(document.getElementById('edit-receipt-asbocarton').value) || 0,
+        pallets: parseFloat(document.getElementById('edit-receipt-pallets').value) || 0,
+        fiberglass: parseFloat(document.getElementById('edit-receipt-fiberglass').value) || 0,
+        laprol: parseFloat(document.getElementById('edit-receipt-laprol').value) || 0
+    };
+    
+    try {
+        const res = await fetch(`/api/admin/receipts/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('admin_token')}`
+            },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error('Failed to update receipt');
+        closeModal('edit-receipt-modal');
+        loadAdminReceipts();
+    } catch (e) {
+        console.error(e);
+        alert('Ошибка при сохранении');
+    }
+}
+
+async function deleteReceiptRow(id) {
+    if(!confirm('Вы уверены, что хотите удалить этот приход сырья? Это действие нельзя отменить.')) return;
+    try {
+        const res = await fetch(`/api/admin/receipts/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('admin_token')}` }
+        });
+        if (!res.ok) throw new Error('Failed to delete');
+        loadAdminReceipts();
+    } catch(e) {
+        console.error(e);
+        alert('Ошибка при удалении');
+    }
+}
+

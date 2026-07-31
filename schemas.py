@@ -189,6 +189,29 @@ class RawMaterialReceipt(RawMaterialReceiptBase):
     class Config:
         from_attributes = True
 
+class RawMaterialReceiptUpdate(ORMBaseModel):
+    master_id: Optional[int] = None
+    chrysotile_4_20: Optional[float] = None
+    chrysotile_5_65: Optional[float] = None
+    chrysotile_6_40: Optional[float] = None
+    cement_silo1: Optional[float] = None
+    cement_silo2: Optional[float] = None
+    cement_silo3: Optional[float] = None
+    cement_silo4: Optional[float] = None
+    cellulose: Optional[float] = None
+    crushed_slate: Optional[float] = None
+    asbozurit: Optional[float] = None
+    asbocarton: Optional[float] = None
+    pallets: Optional[float] = None
+    fiberglass: Optional[float] = None
+    laprol: Optional[float] = None
+
+class RawMaterialReceiptAdminResponse(RawMaterialReceipt):
+    shift_date: Optional[str] = None
+    shift_name: Optional[str] = None
+    shift_line: Optional[str] = None
+    master_name: Optional[str] = None
+
 class ShiftCreate(ShiftBase):
     master_id: int
 

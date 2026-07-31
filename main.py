@@ -4152,6 +4152,92 @@ def admin_delete_downtime(downtime_id: int, request: Request, background_tasks: 
     background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
 
+@app.get("/api/admin/receipts")
+def get_all_admin_receipts(
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+    request: Request = None, 
+    db: Session = Depends(get_db)
+):
+    admin = check_admin_session(request, db)
+    query = db.query(models.RawMaterialReceipt).join(models.Shift)
+    
+    if start_date:
+        query = query.filter(models.Shift.date >= start_date)
+    if end_date:
+        query = query.filter(models.Shift.date <= end_date)
+        
+    receipts = query.order_by(models.Shift.date.desc(), models.RawMaterialReceipt.id.desc()).all()
+    
+    result = []
+    for r in receipts:
+        r_dict = schemas.RawMaterialReceipt.model_validate(r).model_dump()
+        if r.shift:
+            r_dict["shift_date"] = r.shift.date
+            r_dict["shift_line"] = r.shift.line
+            r_dict["shift_name"] = r.shift.shift_name
+        if r.master:
+            r_dict["master_name"] = r.master.name
+        else:
+            r_dict["master_name"] = "Н/Д"
+        result.append(r_dict)
+    return result
+
+@app.put("/api/admin/receipts/{receipt_id}")
+def admin_update_receipt(receipt_id: int, data: schemas.RawMaterialReceiptUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    r = db.query(models.RawMaterialReceipt).get(receipt_id)
+    if not r: raise HTTPException(404, "Приход сырья не найден")
+    
+    old_values = {}
+    new_values = {}
+    update_data = data.model_dump(exclude_unset=True)
+    
+    for key, val in update_data.items():
+        if hasattr(r, key):
+            old_val = getattr(r, key)
+            if old_val != val:
+                old_values[key] = str(old_val)
+                new_values[key] = str(val)
+                setattr(r, key, val)
+                
+    if old_values:
+        log_entry = models.AuditLog(
+            timestamp=datetime.utcnow(),
+            user_name=admin.name,
+            action=f"Редактирование прихода сырья ID {receipt_id}",
+            details=f"Смена {r.shift_id}. Изменено: {old_values} -> {new_values}",
+            target_table="raw_material_receipts",
+            target_id=receipt_id
+        )
+        db.add(log_entry)
+        db.commit()
+    else:
+        db.commit()
+    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    return {"status": "ok"}
+
+@app.delete("/api/admin/receipts/{receipt_id}")
+def admin_delete_receipt(receipt_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    r = db.query(models.RawMaterialReceipt).get(receipt_id)
+    if not r: raise HTTPException(404, "Приход сырья не найден")
+    
+    log_entry = models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_name=admin.name,
+        action=f"Удаление прихода сырья ID {receipt_id}",
+        details=f"Смена {r.shift_id}. Цемент: {r.cement_silo1 + r.cement_silo2 + r.cement_silo3 + r.cement_silo4}, Хризотил 4-20: {r.chrysotile_4_20}",
+        target_table="raw_material_receipts",
+        target_id=receipt_id
+    )
+    db.add(log_entry)
+    db.delete(r)
+    db.commit()
+    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    return {"status": "ok"}
+
+
 @app.post("/api/admin/norms/", response_model=schemas.ProductNorm)
 def create_norm(norm: schemas.ProductNormCreate, db: Session = Depends(get_db)):
     db_norm = models.ProductNorm(**norm.model_dump())
