@@ -329,6 +329,9 @@ async def lifespan(app: FastAPI):
             "UPDATE batches SET qcd_condition = 0 WHERE qcd_condition IS NULL",
             "UPDATE batches SET qcd_first_grade = 0 WHERE qcd_first_grade IS NULL",
             "UPDATE batches SET qcd_defect = 0 WHERE qcd_defect IS NULL",
+            "UPDATE batches SET qcd_condition = ds_condition WHERE qcd_condition = 0 AND ds_condition > 0",
+            "UPDATE batches SET qcd_first_grade = ds_first_grade WHERE qcd_first_grade = 0 AND ds_first_grade > 0",
+            "UPDATE batches SET qcd_defect = ds_defect WHERE qcd_defect = 0 AND ds_defect > 0",
             "UPDATE shifts SET batch_number = '' WHERE batch_number IS NULL",
             "UPDATE shifts SET product_name = '' WHERE product_name IS NULL",
             "UPDATE shifts SET status = 'active' WHERE status IS NULL"
@@ -1328,7 +1331,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
 
     batch.qcd_condition = data.warehouse_gp
     batch.qcd_first_grade = data.first_grade
-    batch.qcd_defect = data.qcd_defect
+    batch.qcd_defect = ds_defect_sum
 
     db.commit()
 
@@ -3917,6 +3920,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         else:
             total_ds_defect += getattr(batch, f_name, 0) or 0
     batch.ds_defect = total_ds_defect
+    batch.qcd_defect = total_ds_defect
     
     if changes:
         log_entry = models.AuditLog(
