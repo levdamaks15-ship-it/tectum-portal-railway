@@ -1691,12 +1691,12 @@ def get_report_summary(
         for shift in shifts:
             is_other_master = False
         
-            lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
-            batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+            lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all()
+            batches = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).all()
         
             # Фильтруем абсолютно пустые смены без факта производства и без плана
-            lfm_sheets_check = lfm.lfm_sheets if lfm else 0
-            warehouse_gp_check = batch.ds_condition if batch else 0
+            lfm_sheets_check = sum((l.lfm_sheets or 0) for l in lfm_reports) if lfm_reports else 0
+            warehouse_gp_check = sum((b.ds_condition or 0) for b in batches) if batches else 0
             zo_batches_check = shift.zo_batches or 0
             plan_sheets_check = shift.plan_sheets or 0
         
@@ -1704,25 +1704,26 @@ def get_report_summary(
                 continue
             
             lfm_sheets = lfm_sheets_check if not is_other_master else 0
-            lfm_resets = lfm.lfm_wind_resets if (lfm and not is_other_master) else 0
+            lfm_resets = sum((l.lfm_wind_resets or 0) for l in lfm_reports) if (lfm_reports and not is_other_master) else 0
         
             warehouse_gp = warehouse_gp_check if not is_other_master else 0
-            first_grade = batch.ds_first_grade if (batch and not is_other_master) else 0
-            qcd_defect = batch.qcd_defect if (batch and not is_other_master) else 0
+            first_grade = sum((b.ds_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
+            qcd_defect = sum((b.qcd_defect or 0) for b in batches) if (batches and not is_other_master) else 0
         
             ds_defects = {
-                "ds_defect_chip": batch.ds_defect_chip if (batch and not is_other_master) else 0,
-                "ds_defect_scratch": batch.ds_defect_scratch if (batch and not is_other_master) else 0,
-                "ds_defect_bad_cut": batch.ds_defect_bad_cut if (batch and not is_other_master) else 0,
-                "ds_defect_stick_bottom": batch.ds_defect_stick_bottom if (batch and not is_other_master) else 0,
-                "ds_defect_stick_top": batch.ds_defect_stick_top if (batch and not is_other_master) else 0,
-                "ds_defect_broken": batch.ds_defect_broken if (batch and not is_other_master) else 0,
-                "ds_defect_fell_box": batch.ds_defect_fell_box if (batch and not is_other_master) else 0,
-                "ds_defect_dent": batch.ds_defect_dent if (batch and not is_other_master) else 0,
-                "ds_defect_thickness": batch.ds_defect_thickness if (batch and not is_other_master) else 0,
-                "ds_defect_delamination": batch.ds_defect_delamination if (batch and not is_other_master) else 0,
-                "ds_defect_edge": batch.ds_defect_edge if (batch and not is_other_master) else 0,
+                "ds_defect_chip": sum((b.ds_defect_chip or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_scratch": sum((b.ds_defect_scratch or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_bad_cut": sum((b.ds_defect_bad_cut or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_stick_bottom": sum((b.ds_defect_stick_bottom or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_stick_top": sum((b.ds_defect_stick_top or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_broken": sum((b.ds_defect_broken or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_fell_box": sum((b.ds_defect_fell_box or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_dent": sum((b.ds_defect_dent or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_thickness": sum((b.ds_defect_thickness or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_delamination": sum((b.ds_defect_delamination or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_edge": sum((b.ds_defect_edge or 0) for b in batches) if (batches and not is_other_master) else 0,
             }
+
         
             product_name = shift.product_name if not is_other_master else "Скрыто"
             batch_number = shift.batch_number if not is_other_master else "Скрыто"
