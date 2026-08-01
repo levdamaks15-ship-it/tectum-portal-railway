@@ -184,7 +184,7 @@ class RawMaterialReceiptCreate(RawMaterialReceiptBase):
 class RawMaterialReceipt(RawMaterialReceiptBase):
     id: int
     shift_id: Optional[int] = 0
-    timestamp: datetime
+    timestamp: Optional[datetime] = None
 
     class Config:
         from_attributes = True
