@@ -1320,7 +1320,7 @@ async function loadAdminReceipts() {
         }
 
         data.forEach(r => {
-            const shiftDate = r.shift_date ? formatDate(r.shift_date) : '';
+            const shiftDate = r.shift_date ? r.shift_date.split('-').reverse().join('.') : '';
             const shiftName = r.shift_name || '';
             const line = r.shift_line ? `Линия ${r.shift_line}` : '';
             const master = r.master_name || '';
