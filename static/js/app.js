@@ -1817,29 +1817,15 @@ async function loadDailyReport() {
                 });
             }
 
-            // Определяем общее количество дней в периоде (неделя = 7, месяц = количество дней в месяце)
-            let totalDays = 31;
-            const urlParams = new URLSearchParams(window.location.search);
-            const range = document.getElementById('range-type') ? document.getElementById('range-type').value : 'month';
-            if (range === 'week') {
-                totalDays = 7;
-            } else {
-                // Если выбран конкретный месяц
-                const monthVal = document.getElementById('month-select') ? document.getElementById('month-select').value : '';
-                if (monthVal) {
-                    const [yyyy, mm] = monthVal.split('-');
-                    totalDays = new Date(yyyy, parseInt(mm), 0).getDate();
-                } else {
-                    totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-                }
-            }
+            // Определяем общее количество дней в периоде (используем длину массива от бэкенда, чтобы корректно считать неполные недели)
+            let totalDays = (data.days && data.days.length > 0) ? data.days.length : 31;
 
             // Считаем сколько дней прошло в выбранном периоде
             let daysPassedCount = passedDates.size;
             // Для более честного расчета, если мы смотрим текущий месяц, можно считать прошедшие дни по календарю:
-            if (range === 'month' && (!document.getElementById('month-select') || !document.getElementById('month-select').value || document.getElementById('month-select').value === (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0')))) {
+            if (range === 'month' && (!monthEl || !monthEl.value || monthEl.value === (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0')))) {
                 daysPassedCount = now.getDate();
-            } else if (range === 'week' && (!document.getElementById('week-select') || !document.getElementById('week-select').value)) {
+            } else if (range === 'week' && (!weekEl || !weekEl.value)) {
                 let dayOfWeek = now.getDay(); // 0 = Sunday
                 daysPassedCount = dayOfWeek === 0 ? 7 : dayOfWeek;
             }
