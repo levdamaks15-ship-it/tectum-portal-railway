@@ -1817,8 +1817,8 @@ async function loadDailyReport() {
                 });
             }
 
-            // Определяем общее количество дней в периоде (используем длину массива от бэкенда, чтобы корректно считать неполные недели)
-            let totalDays = (data.days && data.days.length > 0) ? data.days.length : 31;
+            // Определяем общее количество дней в периоде (делим длину массива на 2, так как бэкенд отдает по 2 смены на каждый день)
+            let totalDays = (data.days && data.days.length > 0) ? (data.days.length / 2) : 31;
 
             // Считаем сколько дней прошло в выбранном периоде
             let daysPassedCount = passedDates.size;
