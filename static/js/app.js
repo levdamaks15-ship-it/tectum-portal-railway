@@ -1823,9 +1823,9 @@ async function loadDailyReport() {
             // Считаем сколько дней прошло в выбранном периоде
             let daysPassedCount = passedDates.size;
             // Для более честного расчета, если мы смотрим текущий месяц, можно считать прошедшие дни по календарю:
-            if (range === 'month' && (!monthEl || !monthEl.value || monthEl.value === (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0')))) {
+            if (rangeType === 'month' && (!monthEl || !monthEl.value || monthEl.value === (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0')))) {
                 daysPassedCount = now.getDate();
-            } else if (range === 'week' && (!weekEl || !weekEl.value)) {
+            } else if (rangeType === 'week' && (!weekEl || !weekEl.value)) {
                 let dayOfWeek = now.getDay(); // 0 = Sunday
                 daysPassedCount = dayOfWeek === 0 ? 7 : dayOfWeek;
             }
