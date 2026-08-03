@@ -2738,17 +2738,20 @@ def get_daily_report(
                     y, m = map(int, month.split('-'))
                 
                 week_num = int(week)
-                num_days = calendar.monthrange(y, m)[1]
-                d_curr = datetime(y, m, 1).date()
-                d_end = datetime(y, m, num_days).date()
+                first_day_of_month = datetime(y, m, 1).date()
+                diff = -first_day_of_month.weekday()
+                current_monday = first_day_of_month + timedelta(days=diff)
+                
+                if m == 12:
+                    first_day_of_next_month = datetime(y + 1, 1, 1).date()
+                else:
+                    first_day_of_next_month = datetime(y, m + 1, 1).date()
+                
                 weeks = []
-                while d_curr <= d_end:
-                    w_start = d_curr
-                    days_to_sunday = 6 - d_curr.weekday()  # 0 is Mon, 6 is Sun
-                    w_end_calc = d_curr + timedelta(days=days_to_sunday)
-                    w_end = min(w_end_calc, d_end)
-                    weeks.append((w_start, w_end))
-                    d_curr = w_end + timedelta(days=1)
+                while current_monday < first_day_of_next_month:
+                    current_sunday = current_monday + timedelta(days=6)
+                    weeks.append((current_monday, current_sunday))
+                    current_monday += timedelta(days=7)
                 
                 idx = week_num - 1
                 if 0 <= idx < len(weeks):
@@ -2756,6 +2759,7 @@ def get_daily_report(
                 elif len(weeks) > 0:
                     sd, ed = weeks[-1]
                 else:
+                    num_days = calendar.monthrange(y, m)[1]
                     sd = datetime(y, m, 1).date()
                     ed = datetime(y, m, num_days).date()
             except Exception as e:

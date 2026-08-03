@@ -705,17 +705,36 @@ async function closeShift() {
 
 function getWeeksOfMonth(year, month) {
     const weeks = [];
-    const lastDay = new Date(year, month, 0).getDate();
-    let d = 1;
-    while (d <= lastDay) {
-        const wStart = d;
-        const dateObj = new Date(year, month - 1, d);
-        let dayOfWeek = dateObj.getDay(); // 0 is Sun, 1 is Mon... 6 is Sat
-        let daysToSunday = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
-        let wEnd = Math.min(d + daysToSunday, lastDay);
-        weeks.push({ start: wStart, end: wEnd });
-        d = wEnd + 1;
+    const firstDayOfMonth = new Date(year, month - 1, 1);
+    
+    let dayOfWeek = firstDayOfMonth.getDay();
+    let diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    
+    let currentMonday = new Date(year, month - 1, 1 + diff);
+    const firstDayOfNextMonth = new Date(year, month, 1);
+    
+    while (currentMonday < firstDayOfNextMonth) {
+        const currentSunday = new Date(currentMonday);
+        currentSunday.setDate(currentMonday.getDate() + 6);
+        
+        const sy = currentMonday.getFullYear();
+        const sm = String(currentMonday.getMonth() + 1).padStart(2, '0');
+        const sd = String(currentMonday.getDate()).padStart(2, '0');
+        
+        const ey = currentSunday.getFullYear();
+        const em = String(currentSunday.getMonth() + 1).padStart(2, '0');
+        const ed = String(currentSunday.getDate()).padStart(2, '0');
+        
+        weeks.push({
+            startStr: `${sy}-${sm}-${sd}`,
+            endStr: `${ey}-${em}-${ed}`,
+            startDisplay: `${sd}.${sm}`,
+            endDisplay: `${ed}.${em}`
+        });
+        
+        currentMonday.setDate(currentMonday.getDate() + 7);
     }
+    
     return weeks;
 }
 
@@ -735,14 +754,11 @@ function updateWeekOptions(monthStr, selectId) {
     const weeks = getWeeksOfMonth(year, month);
     const currentVal = selectEl.value || '1';
     selectEl.innerHTML = '';
-    const mStr = String(month).padStart(2, '0');
     weeks.forEach((w, idx) => {
         const weekNum = idx + 1;
-        const sStr = String(w.start).padStart(2, '0');
-        const eStr = String(w.end).padStart(2, '0');
         const opt = document.createElement('option');
         opt.value = weekNum;
-        opt.textContent = `Неделя ${weekNum} (${sStr}.${mStr} - ${eStr}.${mStr})`;
+        opt.textContent = `Неделя ${weekNum} (${w.startDisplay} - ${w.endDisplay})`;
         if (String(weekNum) === String(currentVal)) {
             opt.selected = true;
         }
@@ -813,10 +829,11 @@ async function loadReportSummary() {
             const weekVal = weekEl ? parseInt(weekEl.value, 10) : 1;
             const weeks = getWeeksOfMonth(year, month);
             const idx = weekVal - 1;
-            const selectedWeek = (idx >= 0 && idx < weeks.length) ? weeks[idx] : (weeks.length > 0 ? weeks[0] : { start: 1, end: 7 });
-            const mStr = String(month).padStart(2, '0');
-            from_date = `${year}-${mStr}-${String(selectedWeek.start).padStart(2, '0')}`;
-            to_date = `${year}-${mStr}-${String(selectedWeek.end).padStart(2, '0')}`;
+            const selectedWeek = (idx >= 0 && idx < weeks.length) ? weeks[idx] : (weeks.length > 0 ? weeks[0] : null);
+            if (selectedWeek) {
+                from_date = selectedWeek.startStr;
+                to_date = selectedWeek.endStr;
+            }
         }
     }
 
