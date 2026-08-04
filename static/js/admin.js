@@ -1360,16 +1360,16 @@ function editReceiptRow(r) {
     document.getElementById('edit-receipt-cement2').value = r.cement_silo2;
     document.getElementById('edit-receipt-cement3').value = r.cement_silo3;
     document.getElementById('edit-receipt-cement4').value = r.cement_silo4;
-    document.getElementById('edit-receipt-c420').value = r.chrysotile_4_20;
-    document.getElementById('edit-receipt-c565').value = r.chrysotile_5_65;
-    document.getElementById('edit-receipt-c640').value = r.chrysotile_6_40;
+    document.getElementById('edit-receipt-c420').value = r.chrysotile_4_20 / 50;
+    document.getElementById('edit-receipt-c565').value = r.chrysotile_5_65 / 50;
+    document.getElementById('edit-receipt-c640').value = r.chrysotile_6_40 / 50;
     document.getElementById('edit-receipt-cellulose').value = r.cellulose;
     document.getElementById('edit-receipt-crushed').value = r.crushed_slate;
     document.getElementById('edit-receipt-asbozurit').value = r.asbozurit;
     document.getElementById('edit-receipt-asbocarton').value = r.asbocarton;
     document.getElementById('edit-receipt-pallets').value = r.pallets;
     document.getElementById('edit-receipt-fiberglass').value = r.fiberglass;
-    document.getElementById('edit-receipt-laprol').value = r.laprol;
+    document.getElementById('edit-receipt-laprol').value = r.laprol / 200;
     
     document.getElementById('edit-receipt-modal').style.display = 'block';
 }
@@ -1381,16 +1381,16 @@ async function saveReceiptEdit() {
         cement_silo2: parseFloat(document.getElementById('edit-receipt-cement2').value) || 0,
         cement_silo3: parseFloat(document.getElementById('edit-receipt-cement3').value) || 0,
         cement_silo4: parseFloat(document.getElementById('edit-receipt-cement4').value) || 0,
-        chrysotile_4_20: parseFloat(document.getElementById('edit-receipt-c420').value) || 0,
-        chrysotile_5_65: parseFloat(document.getElementById('edit-receipt-c565').value) || 0,
-        chrysotile_6_40: parseFloat(document.getElementById('edit-receipt-c640').value) || 0,
+        chrysotile_4_20: (parseFloat(document.getElementById('edit-receipt-c420').value) || 0) * 50,
+        chrysotile_5_65: (parseFloat(document.getElementById('edit-receipt-c565').value) || 0) * 50,
+        chrysotile_6_40: (parseFloat(document.getElementById('edit-receipt-c640').value) || 0) * 50,
         cellulose: parseFloat(document.getElementById('edit-receipt-cellulose').value) || 0,
         crushed_slate: parseFloat(document.getElementById('edit-receipt-crushed').value) || 0,
         asbozurit: parseFloat(document.getElementById('edit-receipt-asbozurit').value) || 0,
         asbocarton: parseFloat(document.getElementById('edit-receipt-asbocarton').value) || 0,
         pallets: parseFloat(document.getElementById('edit-receipt-pallets').value) || 0,
         fiberglass: parseFloat(document.getElementById('edit-receipt-fiberglass').value) || 0,
-        laprol: parseFloat(document.getElementById('edit-receipt-laprol').value) || 0
+        laprol: (parseFloat(document.getElementById('edit-receipt-laprol').value) || 0) * 200
     };
     
     try {

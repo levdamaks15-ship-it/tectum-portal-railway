@@ -2723,9 +2723,9 @@ async function addReceipt() {
     
     const data = {
         master_id: parseInt(master_id) || null,
-        chrysotile_4_20: parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0,
-        chrysotile_5_65: parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0,
-        chrysotile_6_40: parseFloat(document.getElementById('rec-chr-6-40').value) || 0.0,
+        chrysotile_4_20: (parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0) * 50,
+        chrysotile_5_65: (parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0) * 50,
+        chrysotile_6_40: (parseFloat(document.getElementById('rec-chr-6-40').value) || 0.0) * 50,
         cement_silo1: parseFloat(document.getElementById('rec-cement-1').value) || 0.0,
         cement_silo2: parseFloat(document.getElementById('rec-cement-2').value) || 0.0,
         cement_silo3: parseFloat(document.getElementById('rec-cement-3').value) || 0.0,
@@ -2736,7 +2736,7 @@ async function addReceipt() {
         asbocarton: parseFloat(document.getElementById('rec-asbocarton').value) || 0.0,
         pallets: parseFloat(document.getElementById('rec-pallets').value) || 0.0,
         fiberglass: parseFloat(document.getElementById('rec-fiberglass').value) || 0.0,
-        laprol: parseFloat(document.getElementById('rec-laprol').value) || 0.0
+        laprol: (parseFloat(document.getElementById('rec-laprol').value) || 0.0) * 200
     };
     
     try {
