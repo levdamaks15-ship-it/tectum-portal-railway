@@ -411,16 +411,18 @@
                                 }
                                 @media (max-width: 768px) {
                                     .rm-grid {
-                                        min-width: 650px;
+                                        grid-template-columns: minmax(90px, 1.5fr) 1fr 1fr 1fr;
+                                        gap: 0.3rem;
                                     }
-                                    .rm-grid .rm-header:first-child,
-                                    .rm-grid .rm-label-row {
-                                        position: sticky;
-                                        left: 0;
-                                        background: var(--surface-color);
-                                        z-index: 10;
-                                        padding-left: 5px;
-                                        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+                                    .rm-header {
+                                        font-size: 0.7rem;
+                                    }
+                                    .rm-label-row {
+                                        font-size: 0.75rem;
+                                    }
+                                    .rm-grid input[type="number"], .rm-grid input[type="text"] {
+                                        padding: 0.3rem;
+                                        font-size: 0.8rem;
                                     }
                                 }
                                 .rm-header {
@@ -454,7 +456,7 @@
                                 }
                             </style>
 
-                            <div style="overflow-x: auto; padding-bottom: 10px;">
+                            <div>
                                 <div class="rm-grid" id="rm-calculator-grid">
                                     <div class="rm-header">Материал</div>
                                     <div class="rm-header" id="rm-header-siloA">Силос 1</div>
