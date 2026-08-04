@@ -451,18 +451,64 @@ class ShiftReportCreate(ORMBaseModel):
 
     # Расход сырья (ЗО)
     zo_chrysotile_4_20: float = 0.0
+    zo_chrysotile_4_20_silo1: float = 0.0
+    zo_chrysotile_4_20_silo2: float = 0.0
+    zo_chrysotile_4_20_silo3: float = 0.0
+    zo_chrysotile_4_20_silo4: float = 0.0
+    
     zo_chrysotile_5_65: float = 0.0
+    zo_chrysotile_5_65_silo1: float = 0.0
+    zo_chrysotile_5_65_silo2: float = 0.0
+    zo_chrysotile_5_65_silo3: float = 0.0
+    zo_chrysotile_5_65_silo4: float = 0.0
+    
     zo_chrysotile_6_40: float = 0.0
+    zo_chrysotile_6_40_silo1: float = 0.0
+    zo_chrysotile_6_40_silo2: float = 0.0
+    zo_chrysotile_6_40_silo3: float = 0.0
+    zo_chrysotile_6_40_silo4: float = 0.0
+    
     zo_cement_silo1: float = 0.0
     zo_cement_silo2: float = 0.0
     zo_cement_silo3: float = 0.0
     zo_cement_silo4: float = 0.0
+    
     zo_cellulose: float = 0.0
+    zo_cellulose_silo1: float = 0.0
+    zo_cellulose_silo2: float = 0.0
+    zo_cellulose_silo3: float = 0.0
+    zo_cellulose_silo4: float = 0.0
+    
     zo_crushed_slate: float = 0.0
+    zo_crushed_slate_silo1: float = 0.0
+    zo_crushed_slate_silo2: float = 0.0
+    zo_crushed_slate_silo3: float = 0.0
+    zo_crushed_slate_silo4: float = 0.0
+    
     zo_asbozurit: float = 0.0
+    zo_asbozurit_silo1: float = 0.0
+    zo_asbozurit_silo2: float = 0.0
+    zo_asbozurit_silo3: float = 0.0
+    zo_asbozurit_silo4: float = 0.0
+    
     zo_fiberglass: float = 0.0
+    zo_fiberglass_silo1: float = 0.0
+    zo_fiberglass_silo2: float = 0.0
+    zo_fiberglass_silo3: float = 0.0
+    zo_fiberglass_silo4: float = 0.0
+    
     zo_laprol: float = 0.0
+    zo_laprol_silo1: float = 0.0
+    zo_laprol_silo2: float = 0.0
+    zo_laprol_silo3: float = 0.0
+    zo_laprol_silo4: float = 0.0
+    
     zo_asbocarton: float = 0.0
+    zo_asbocarton_silo1: float = 0.0
+    zo_asbocarton_silo2: float = 0.0
+    zo_asbocarton_silo3: float = 0.0
+    zo_asbocarton_silo4: float = 0.0
+    
     zo_asb_drain: float = 0.0
     zo_cem_drain: float = 0.0
 
@@ -504,18 +550,64 @@ class AdminShiftReportUpdate(ORMBaseModel):
 
     # Расход сырья (ЗО)
     zo_chrysotile_4_20: Optional[float] = None
+    zo_chrysotile_4_20_silo1: Optional[float] = None
+    zo_chrysotile_4_20_silo2: Optional[float] = None
+    zo_chrysotile_4_20_silo3: Optional[float] = None
+    zo_chrysotile_4_20_silo4: Optional[float] = None
+    
     zo_chrysotile_5_65: Optional[float] = None
+    zo_chrysotile_5_65_silo1: Optional[float] = None
+    zo_chrysotile_5_65_silo2: Optional[float] = None
+    zo_chrysotile_5_65_silo3: Optional[float] = None
+    zo_chrysotile_5_65_silo4: Optional[float] = None
+    
     zo_chrysotile_6_40: Optional[float] = None
+    zo_chrysotile_6_40_silo1: Optional[float] = None
+    zo_chrysotile_6_40_silo2: Optional[float] = None
+    zo_chrysotile_6_40_silo3: Optional[float] = None
+    zo_chrysotile_6_40_silo4: Optional[float] = None
+    
     zo_cement_silo1: Optional[float] = None
     zo_cement_silo2: Optional[float] = None
     zo_cement_silo3: Optional[float] = None
     zo_cement_silo4: Optional[float] = None
+    
     zo_cellulose: Optional[float] = None
+    zo_cellulose_silo1: Optional[float] = None
+    zo_cellulose_silo2: Optional[float] = None
+    zo_cellulose_silo3: Optional[float] = None
+    zo_cellulose_silo4: Optional[float] = None
+    
     zo_crushed_slate: Optional[float] = None
+    zo_crushed_slate_silo1: Optional[float] = None
+    zo_crushed_slate_silo2: Optional[float] = None
+    zo_crushed_slate_silo3: Optional[float] = None
+    zo_crushed_slate_silo4: Optional[float] = None
+    
     zo_asbozurit: Optional[float] = None
+    zo_asbozurit_silo1: Optional[float] = None
+    zo_asbozurit_silo2: Optional[float] = None
+    zo_asbozurit_silo3: Optional[float] = None
+    zo_asbozurit_silo4: Optional[float] = None
+    
     zo_fiberglass: Optional[float] = None
+    zo_fiberglass_silo1: Optional[float] = None
+    zo_fiberglass_silo2: Optional[float] = None
+    zo_fiberglass_silo3: Optional[float] = None
+    zo_fiberglass_silo4: Optional[float] = None
+    
     zo_laprol: Optional[float] = None
+    zo_laprol_silo1: Optional[float] = None
+    zo_laprol_silo2: Optional[float] = None
+    zo_laprol_silo3: Optional[float] = None
+    zo_laprol_silo4: Optional[float] = None
+    
     zo_asbocarton: Optional[float] = None
+    zo_asbocarton_silo1: Optional[float] = None
+    zo_asbocarton_silo2: Optional[float] = None
+    zo_asbocarton_silo3: Optional[float] = None
+    zo_asbocarton_silo4: Optional[float] = None
+    
     zo_asb_drain: Optional[float] = None
     zo_cem_drain: Optional[float] = None
 
