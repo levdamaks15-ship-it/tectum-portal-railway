@@ -136,7 +136,8 @@ async function onProductChange() {
                 resetReportForm();
                 if (document.getElementById('rep-date')) document.getElementById('rep-date').value = date;
                 if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
-                if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;\n                if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
+                if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
+                if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
                 if (document.getElementById('rep-product')) document.getElementById('rep-product').value = productName;
                 if (document.getElementById('rep-master')) document.getElementById('rep-master').value = masterId || '';
                 if (document.getElementById('rep-batch')) document.getElementById('rep-batch').value = batchNum || '';
@@ -481,7 +482,8 @@ async function loadData() {
 function prefillReportForm(shift) {
     document.getElementById('rep-date').value = shift.date;
     document.getElementById('rep-shift').value = shift.shift_name;
-    document.getElementById('rep-line').value = shift.line;\n    if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
+    document.getElementById('rep-line').value = shift.line;
+    if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
     document.getElementById('rep-master').value = shift.master_id || '';
     document.getElementById('rep-batch').value = shift.batch_number || '';
     document.getElementById('rep-product').value = shift.product_name || '';
