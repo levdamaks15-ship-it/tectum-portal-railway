@@ -122,6 +122,48 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
+
+    # Migrations for Raw Material Silos Breakdown
+    silo_materials = [
+        'chrysotile_4_20', 'chrysotile_5_65', 'chrysotile_6_40',
+        'cellulose', 'crushed_slate', 'asbozurit', 'fiberglass', 'laprol', 'asbocarton'
+    ]
+    
+    # 1. SQLite Migrations
+    try:
+        conn = sqlite3.connect("tectum.db")
+        for mat in silo_materials:
+            for s in range(1, 5):
+                col_name = f"zo_{mat}_silo{s}"
+                try:
+                    conn.execute(f"ALTER TABLE shifts ADD COLUMN {col_name} FLOAT DEFAULT 0.0")
+                except:
+                    pass
+        conn.commit()
+        conn.close()
+    except:
+        pass
+        
+    # 2. PG Migrations
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            for mat in silo_materials:
+                for s in range(1, 5):
+                    col_name = f"zo_{mat}_silo{s}"
+                    try:
+                        db.execute(text(f"ALTER TABLE shifts ADD COLUMN IF NOT EXISTS {col_name} FLOAT DEFAULT 0.0"))
+                    except Exception as pg_err:
+                        pass
+            db.commit()
+    except Exception as e:
+        print(f"Warning: could not run PG migrations for silo columns: {e}")
+        if 'db' in locals(): db.rollback()
+    finally:
+        if 'db' in locals(): db.close()
+
     # Migrations for Shift (Asbocarton & Drains)
     try:
         conn = sqlite3.connect("tectum.db")
@@ -1266,20 +1308,66 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     shift.status = "closed"
     
     # Расход сырья
-    shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20
-    shift.zo_chrysotile_5_65 = data.zo_chrysotile_5_65
-    shift.zo_chrysotile_6_40 = data.zo_chrysotile_6_40
+    shift.zo_chrysotile_4_20_silo1 = data.zo_chrysotile_4_20_silo1
+    shift.zo_chrysotile_4_20_silo2 = data.zo_chrysotile_4_20_silo2
+    shift.zo_chrysotile_4_20_silo3 = data.zo_chrysotile_4_20_silo3
+    shift.zo_chrysotile_4_20_silo4 = data.zo_chrysotile_4_20_silo4
+    shift.zo_chrysotile_4_20 = (data.zo_chrysotile_4_20_silo1 or 0) + (data.zo_chrysotile_4_20_silo2 or 0) + (data.zo_chrysotile_4_20_silo3 or 0) + (data.zo_chrysotile_4_20_silo4 or 0)
+    
+    shift.zo_chrysotile_5_65_silo1 = data.zo_chrysotile_5_65_silo1
+    shift.zo_chrysotile_5_65_silo2 = data.zo_chrysotile_5_65_silo2
+    shift.zo_chrysotile_5_65_silo3 = data.zo_chrysotile_5_65_silo3
+    shift.zo_chrysotile_5_65_silo4 = data.zo_chrysotile_5_65_silo4
+    shift.zo_chrysotile_5_65 = (data.zo_chrysotile_5_65_silo1 or 0) + (data.zo_chrysotile_5_65_silo2 or 0) + (data.zo_chrysotile_5_65_silo3 or 0) + (data.zo_chrysotile_5_65_silo4 or 0)
+    
+    shift.zo_chrysotile_6_40_silo1 = data.zo_chrysotile_6_40_silo1
+    shift.zo_chrysotile_6_40_silo2 = data.zo_chrysotile_6_40_silo2
+    shift.zo_chrysotile_6_40_silo3 = data.zo_chrysotile_6_40_silo3
+    shift.zo_chrysotile_6_40_silo4 = data.zo_chrysotile_6_40_silo4
+    shift.zo_chrysotile_6_40 = (data.zo_chrysotile_6_40_silo1 or 0) + (data.zo_chrysotile_6_40_silo2 or 0) + (data.zo_chrysotile_6_40_silo3 or 0) + (data.zo_chrysotile_6_40_silo4 or 0)
+    
     shift.zo_cement_silo1 = data.zo_cement_silo1
     shift.zo_cement_silo2 = data.zo_cement_silo2
     shift.zo_cement_silo3 = data.zo_cement_silo3
     shift.zo_cement_silo4 = data.zo_cement_silo4
     shift.zo_cement = (data.zo_cement_silo1 or 0) + (data.zo_cement_silo2 or 0) + (data.zo_cement_silo3 or 0) + (data.zo_cement_silo4 or 0)
-    shift.zo_cellulose = data.zo_cellulose
-    shift.zo_crushed_slate = data.zo_crushed_slate
-    shift.zo_asbozurit = data.zo_asbozurit
-    shift.zo_fiberglass = data.zo_fiberglass
-    shift.zo_laprol = data.zo_laprol
-    shift.zo_asbocarton = data.zo_asbocarton
+    
+    shift.zo_cellulose_silo1 = data.zo_cellulose_silo1
+    shift.zo_cellulose_silo2 = data.zo_cellulose_silo2
+    shift.zo_cellulose_silo3 = data.zo_cellulose_silo3
+    shift.zo_cellulose_silo4 = data.zo_cellulose_silo4
+    shift.zo_cellulose = (data.zo_cellulose_silo1 or 0) + (data.zo_cellulose_silo2 or 0) + (data.zo_cellulose_silo3 or 0) + (data.zo_cellulose_silo4 or 0)
+    
+    shift.zo_crushed_slate_silo1 = data.zo_crushed_slate_silo1
+    shift.zo_crushed_slate_silo2 = data.zo_crushed_slate_silo2
+    shift.zo_crushed_slate_silo3 = data.zo_crushed_slate_silo3
+    shift.zo_crushed_slate_silo4 = data.zo_crushed_slate_silo4
+    shift.zo_crushed_slate = (data.zo_crushed_slate_silo1 or 0) + (data.zo_crushed_slate_silo2 or 0) + (data.zo_crushed_slate_silo3 or 0) + (data.zo_crushed_slate_silo4 or 0)
+    
+    shift.zo_asbozurit_silo1 = data.zo_asbozurit_silo1
+    shift.zo_asbozurit_silo2 = data.zo_asbozurit_silo2
+    shift.zo_asbozurit_silo3 = data.zo_asbozurit_silo3
+    shift.zo_asbozurit_silo4 = data.zo_asbozurit_silo4
+    shift.zo_asbozurit = (data.zo_asbozurit_silo1 or 0) + (data.zo_asbozurit_silo2 or 0) + (data.zo_asbozurit_silo3 or 0) + (data.zo_asbozurit_silo4 or 0)
+    
+    shift.zo_fiberglass_silo1 = data.zo_fiberglass_silo1
+    shift.zo_fiberglass_silo2 = data.zo_fiberglass_silo2
+    shift.zo_fiberglass_silo3 = data.zo_fiberglass_silo3
+    shift.zo_fiberglass_silo4 = data.zo_fiberglass_silo4
+    shift.zo_fiberglass = (data.zo_fiberglass_silo1 or 0) + (data.zo_fiberglass_silo2 or 0) + (data.zo_fiberglass_silo3 or 0) + (data.zo_fiberglass_silo4 or 0)
+    
+    shift.zo_laprol_silo1 = data.zo_laprol_silo1
+    shift.zo_laprol_silo2 = data.zo_laprol_silo2
+    shift.zo_laprol_silo3 = data.zo_laprol_silo3
+    shift.zo_laprol_silo4 = data.zo_laprol_silo4
+    shift.zo_laprol = (data.zo_laprol_silo1 or 0) + (data.zo_laprol_silo2 or 0) + (data.zo_laprol_silo3 or 0) + (data.zo_laprol_silo4 or 0)
+    
+    shift.zo_asbocarton_silo1 = data.zo_asbocarton_silo1
+    shift.zo_asbocarton_silo2 = data.zo_asbocarton_silo2
+    shift.zo_asbocarton_silo3 = data.zo_asbocarton_silo3
+    shift.zo_asbocarton_silo4 = data.zo_asbocarton_silo4
+    shift.zo_asbocarton = (data.zo_asbocarton_silo1 or 0) + (data.zo_asbocarton_silo2 or 0) + (data.zo_asbocarton_silo3 or 0) + (data.zo_asbocarton_silo4 or 0)
+    
     shift.zo_asb_drain = data.zo_asb_drain
     shift.zo_cem_drain = data.zo_cem_drain
     shift.zo_batches = data.zo_batches

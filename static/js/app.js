@@ -490,22 +490,55 @@ function prefillReportForm(shift) {
     document.getElementById('rep-batches').value = shift.zo_batches || '0';
     
     // Raw materials zo
-    document.getElementById('zo-chr-4-20').value = shift.zo_chrysotile_4_20 || '0';
-    document.getElementById('zo-chr-5-65').value = shift.zo_chrysotile_5_65 || '0';
-    document.getElementById('zo-chr-6-40').value = shift.zo_chrysotile_6_40 || '0';
-    document.getElementById('zo-cem-1').value = shift.zo_cement_silo1 || '0';
-    document.getElementById('zo-cem-2').value = shift.zo_cement_silo2 || '0';
-    document.getElementById('zo-cem-3').value = shift.zo_cement_silo3 || '0';
-    document.getElementById('zo-cem-4').value = shift.zo_cement_silo4 || '0';
-    document.getElementById('zo-cellulose').value = shift.zo_cellulose || '0';
-    document.getElementById('zo-crushed-slate').value = shift.zo_crushed_slate || '0';
-    document.getElementById('zo-asbozurit').value = shift.zo_asbozurit || '0';
-    document.getElementById('zo-fiberglass').value = shift.zo_fiberglass || '0';
-    document.getElementById('zo-laprol').value = shift.zo_laprol || '0';
-    document.getElementById('zo-asbocarton').value = shift.zo_asbocarton || '0';
-    document.getElementById('zo-asb-drain').value = shift.zo_asb_drain || '0';
-    document.getElementById('zo-cem-drain').value = shift.zo_cem_drain || '0';
+    const materials = [
+        {dbKey: 'zo_chrysotile_4_20', uiKey: 'chr-4-20', hiddenKey: 'zo-chr-4-20'},
+        {dbKey: 'zo_chrysotile_5_65', uiKey: 'chr-5-65', hiddenKey: 'zo-chr-5-65'},
+        {dbKey: 'zo_chrysotile_6_40', uiKey: 'chr-6-40', hiddenKey: 'zo-chr-6-40'},
+        {dbKey: 'zo_cement', uiKey: 'cem', hiddenKey: 'zo-cem'},
+        {dbKey: 'zo_cellulose', uiKey: 'cellulose', hiddenKey: 'zo-cel'},
+        {dbKey: 'zo_crushed_slate', uiKey: 'crushed-slate', hiddenKey: 'zo-csl'},
+        {dbKey: 'zo_asbozurit', uiKey: 'asbozurit', hiddenKey: 'zo-asb'},
+        {dbKey: 'zo_fiberglass', uiKey: 'fiberglass', hiddenKey: 'zo-fib'},
+        {dbKey: 'zo_laprol', uiKey: 'laprol', hiddenKey: 'zo-lap'},
+        {dbKey: 'zo_asbocarton', uiKey: 'asbocarton', hiddenKey: 'zo-car'}
+    ];
+    
+    materials.forEach(mat => {
+        // DB total
+        const zoTarget = document.getElementById(`zo-${mat.uiKey}`);
+        if(zoTarget) zoTarget.value = shift[mat.dbKey] || '0';
+        
+        // Hidden inputs 1-4
+        if(document.getElementById(`${mat.hiddenKey}-1`)) {
+            document.getElementById(`${mat.hiddenKey}-1`).value = shift[`${mat.dbKey}_silo1`] || '0';
+            document.getElementById(`${mat.hiddenKey}-2`).value = shift[`${mat.dbKey}_silo2`] || '0';
+            document.getElementById(`${mat.hiddenKey}-3`).value = shift[`${mat.dbKey}_silo3`] || '0';
+            document.getElementById(`${mat.hiddenKey}-4`).value = shift[`${mat.dbKey}_silo4`] || '0';
+        }
+        
+        // Form inputs A and B
+        if (shift.line === 'Линия 1') {
+            const calcA = document.getElementById(`calc-${mat.uiKey}-A`);
+            if(calcA) calcA.value = shift[`${mat.dbKey}_silo1`] || '0';
+            const calcB = document.getElementById(`calc-${mat.uiKey}-B`);
+            if(calcB) calcB.value = shift[`${mat.dbKey}_silo2`] || '0';
+        } else {
+            const calcA = document.getElementById(`calc-${mat.uiKey}-A`);
+            if(calcA) calcA.value = shift[`${mat.dbKey}_silo3`] || '0';
+            const calcB = document.getElementById(`calc-${mat.uiKey}-B`);
+            if(calcB) calcB.value = shift[`${mat.dbKey}_silo4`] || '0';
+        }
+    });
 
+    const simpleRMs = [
+        {dbKey: 'zo_asb_drain', uiKey: 'asb-drain'},
+        {dbKey: 'zo_cem_drain', uiKey: 'cem-drain'}
+    ];
+    simpleRMs.forEach(rm => {
+        const val = shift[rm.dbKey] || '0';
+        const zoTarget = document.getElementById(`zo-${rm.uiKey}`);
+        if(zoTarget) zoTarget.value = val;
+    });
     // Raw materials receipt 
     // Data is loaded via dedicated endpoint
     loadReceipts(shift);
@@ -579,14 +612,65 @@ async function submitShiftReport() {
         
         qcd_defect: parseInt(document.getElementById('rep-qcd-defect').value) || 0,
 
+
+        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0,
+        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0,
+        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0,
+        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0,
+        
+        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0,
+        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('zo-chr-5-65-2')?.value) || 0.0,
+        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('zo-chr-5-65-3')?.value) || 0.0,
+        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('zo-chr-5-65-4')?.value) || 0.0,
+        
+        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('zo-chr-6-40-1')?.value) || 0.0,
+        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('zo-chr-6-40-2')?.value) || 0.0,
+        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0,
+        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0,
+        
+        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1').value) || 0.0,
+        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2').value) || 0.0,
+        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3').value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4').value) || 0.0,
+        
+        zo_cellulose_silo1: parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0,
+        zo_cellulose_silo2: parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0,
+        zo_cellulose_silo3: parseFloat(document.getElementById('zo-cel-3')?.value) || 0.0,
+        zo_cellulose_silo4: parseFloat(document.getElementById('zo-cel-4')?.value) || 0.0,
+        
+        zo_crushed_slate_silo1: parseFloat(document.getElementById('zo-csl-1')?.value) || 0.0,
+        zo_crushed_slate_silo2: parseFloat(document.getElementById('zo-csl-2')?.value) || 0.0,
+        zo_crushed_slate_silo3: parseFloat(document.getElementById('zo-csl-3')?.value) || 0.0,
+        zo_crushed_slate_silo4: parseFloat(document.getElementById('zo-csl-4')?.value) || 0.0,
+        
+        zo_asbozurit_silo1: parseFloat(document.getElementById('zo-asb-1')?.value) || 0.0,
+        zo_asbozurit_silo2: parseFloat(document.getElementById('zo-asb-2')?.value) || 0.0,
+        zo_asbozurit_silo3: parseFloat(document.getElementById('zo-asb-3')?.value) || 0.0,
+        zo_asbozurit_silo4: parseFloat(document.getElementById('zo-asb-4')?.value) || 0.0,
+        
+        zo_fiberglass_silo1: parseFloat(document.getElementById('zo-fib-1')?.value) || 0.0,
+        zo_fiberglass_silo2: parseFloat(document.getElementById('zo-fib-2')?.value) || 0.0,
+        zo_fiberglass_silo3: parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0,
+        zo_fiberglass_silo4: parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0,
+        
+        zo_laprol_silo1: parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
+        zo_laprol_silo2: parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0,
+        zo_laprol_silo3: parseFloat(document.getElementById('zo-lap-3')?.value) || 0.0,
+        zo_laprol_silo4: parseFloat(document.getElementById('zo-lap-4')?.value) || 0.0,
+        
+        zo_asbocarton_silo1: parseFloat(document.getElementById('zo-car-1')?.value) || 0.0,
+        zo_asbocarton_silo2: parseFloat(document.getElementById('zo-car-2')?.value) || 0.0,
+        zo_asbocarton_silo3: parseFloat(document.getElementById('zo-car-3')?.value) || 0.0,
+        zo_asbocarton_silo4: parseFloat(document.getElementById('zo-car-4')?.value) || 0.0,
+        
         zo_chrysotile_4_20: parseFloat(document.getElementById('zo-chr-4-20').value) || 0.0,
+parseFloat(document.getElementById('zo-chr-4-20').value) || 0.0,
         zo_chrysotile_5_65: parseFloat(document.getElementById('zo-chr-5-65').value) || 0.0,
         zo_chrysotile_6_40: parseFloat(document.getElementById('zo-chr-6-40').value) || 0.0,
         zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1').value) || 0.0,
         zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2').value) || 0.0,
         zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3').value) || 0.0,
-        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4').value) || 0.0,
-        zo_cellulose: parseFloat(document.getElementById('zo-cellulose').value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4').value) || 0.0,\n        zo_cellulose: parseFloat(document.getElementById('zo-cellulose').value) || 0.0,
         zo_crushed_slate: parseFloat(document.getElementById('zo-crushed-slate').value) || 0.0,
         zo_asbozurit: parseFloat(document.getElementById('zo-asbozurit').value) || 0.0,
         zo_fiberglass: parseFloat(document.getElementById('zo-fiberglass').value) || 0.0,
@@ -645,7 +729,14 @@ function resetReportForm() {
         'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton', 
         'zo-asb-drain', 'zo-cem-drain',
         'rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 
-        'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol'
+        'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol',
+        
+        // New calculator inputs
+        'calc-chr-4-20-A', 'calc-chr-4-20-B', 'calc-chr-5-65-A', 'calc-chr-5-65-B', 'calc-chr-6-40-A', 'calc-chr-6-40-B',
+        'calc-cem-A', 'calc-cem-B', 'calc-cellulose-A', 'calc-cellulose-B', 'calc-crushed-slate-A', 'calc-crushed-slate-B',
+        'calc-asbozurit-A', 'calc-asbozurit-B', 'calc-fiberglass-A', 'calc-fiberglass-B', 'calc-laprol-A', 'calc-laprol-B',
+        'calc-asbocarton-A', 'calc-asbocarton-B', 'calc-asb-drain-A', 'calc-asb-drain-B', 'calc-cem-drain-A', 'calc-cem-drain-B',
+        'zo-chr-total-readonly', 'zo-cem-total-readonly'
     ];
     
     numericIds.forEach(id => {

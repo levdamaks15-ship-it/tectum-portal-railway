@@ -399,42 +399,264 @@
                             <h3>🧪 4. Расход сырья (ЗО / ЛФМ)</h3>
                             <span class="acc-toggle">▼</span>
                         </div>
-                        <div id="sec-raw" class="accordion-content">
+                                                                        <div id="sec-raw" class="accordion-content">
+                            <style>
+                                .rm-grid {
+                                    display: grid;
+                                    grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr;
+                                    gap: 0.8rem;
+                                    align-items: center;
+                                    margin-bottom: 1.5rem;
+                                    padding: 0.5rem 0;
+                                }
+                                @media (max-width: 768px) {
+                                    .rm-grid {
+                                        overflow-x: auto;
+                                        min-width: 700px;
+                                    }
+                                }
+                                .rm-header {
+                                    font-weight: 600;
+                                    color: var(--text-secondary);
+                                    font-size: 0.85rem;
+                                    padding-bottom: 0.5rem;
+                                    border-bottom: 1px solid var(--glass-border);
+                                }
+                                .rm-grid .form-group {
+                                    margin-bottom: 0;
+                                }
+                                .rm-grid input[type="number"], .rm-grid input[type="text"] {
+                                    padding: 0.6rem;
+                                    text-align: right;
+                                    width: 100%;
+                                    font-size: 0.95rem;
+                                    border-radius: 6px;
+                                    border: 1px solid var(--glass-border);
+                                    background: rgba(255, 255, 255, 0.05);
+                                    color: var(--text-primary);
+                                }
+                                .rm-grid input[type="number"]:focus {
+                                    border-color: var(--accent-color);
+                                    outline: none;
+                                }
+                                .rm-label-row {
+                                    font-size: 0.95rem;
+                                    color: var(--text-primary);
+                                    font-weight: 500;
+                                }
+                            </style>
+
+                            <div style="overflow-x: auto; padding-bottom: 10px;">
+                                <div class="rm-grid" id="rm-calculator-grid">
+                                    <div class="rm-header">Материал</div>
+                                    <div class="rm-header" id="rm-header-siloA">Силос 1</div>
+                                    <div class="rm-header" id="rm-header-siloB">Силос 2</div>
+                                    <div class="rm-header" style="text-align: right;">Итого (в базу)</div>
+                                    
+                                    <!-- Хризотил 4-20 -->
+                                    <div class="rm-label-row">Хризотил 4-20 (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-A" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-B" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-chr-4-20" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Хризотил 5-65 -->
+                                    <div class="rm-label-row">Хризотил 5-65 (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-A" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-B" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-chr-5-65" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Хризотил 6-40 -->
+                                    <div class="rm-label-row">Хризотил 6-40 (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-A" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-B" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-chr-6-40" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
+
+                                    <!-- Цемент -->
+                                    <div class="rm-label-row" style="font-weight: 600; color: var(--primary-color);">Цемент (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-cem-A" oninput="calcCem()" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-B" oninput="calcCem()" placeholder="0"></div>
+                                    <div class="form-group"><input type="text" id="zo-cem-total-readonly" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    
+                                    <!-- Скрытые поля цемента для сохранения в базу -->
+                                    <input type="hidden" id="zo-cem-1" value="0">
+                                    <input type="hidden" id="zo-cem-2" value="0">
+                                    <input type="hidden" id="zo-cem-3" value="0">
+                                    <input type="hidden" id="zo-cem-4" value="0">
+                                    <input type=\"hidden\" id=\"zo-chr-4-20-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-4-20-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-4-20-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-4-20-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-5-65-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-5-65-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-5-65-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-5-65-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-6-40-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-6-40-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-6-40-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-chr-6-40-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-cel-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-cel-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-cel-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-cel-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-csl-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-csl-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-csl-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-csl-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-asb-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-asb-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-asb-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-asb-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-fib-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-fib-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-fib-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-fib-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-lap-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-lap-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-lap-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-lap-4\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-car-1\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-car-2\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-car-3\" value=\"0\">
+                                    <input type=\"hidden\" id=\"zo-car-4\" value=\"0\">
+
+                                    
+                                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
+
+                                    <!-- Целлюлоза -->
+                                    <div class="rm-label-row">Целлюлоза (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-A" oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-B" oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-cellulose" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Дробленый шифер -->
+                                    <div class="rm-label-row">Дробленый шифер (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-A" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-B" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-crushed-slate" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Асбозурит -->
+                                    <div class="rm-label-row">Асбозурит (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-A" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-B" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-asbozurit" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Стекловолокно -->
+                                    <div class="rm-label-row">Стекловолокно (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-A" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-B" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-fiberglass" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Лапрол -->
+                                    <div class="rm-label-row">Лапрол (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-A" oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-B" oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-laprol" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Асбокартон -->
+                                    <div class="rm-label-row">Асбокартон (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-A" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-B" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-asbocarton" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+
+                                    <!-- Слив хризотила -->
+                                    <div class="rm-label-row" style="margin-top: 10px;">Слив хризотила (кг)</div>
+                                    <div></div>
+                                    <div></div>
+                                    <div class="form-group" style="margin-top: 10px;"><input type="number" id="zo-asb-drain" placeholder="0"></div>
+
+                                    <!-- Слив цемента -->
+                                    <div class="rm-label-row">Слив цемента (кг)</div>
+                                    <div></div>
+                                    <div></div>
+                                    <div class="form-group"><input type="number" id="zo-cem-drain" placeholder="0"></div>
+                                </div>
+                            </div>
                             
-                            <h4 style="margin-bottom: 0.8rem; color: var(--primary-color); font-size: 0.95rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.4rem;">Хризотил (Асбест)</h4>
-                            <div class="form-grid-four" style="margin-bottom: 1.2rem;">
-                                <div class="form-group"><label>Марка 4-20 (кг)</label><input type="number" id="zo-chr-4-20" placeholder="0" class="chr-input" oninput="recalcChrTotal()"></div>
-                                <div class="form-group"><label>Марка 5-65 (кг)</label><input type="number" id="zo-chr-5-65" placeholder="0" class="chr-input" oninput="recalcChrTotal()"></div>
-                                <div class="form-group"><label>Марка 6-40 (кг)</label><input type="number" id="zo-chr-6-40" placeholder="0" class="chr-input" oninput="recalcChrTotal()"></div>
-                                <div class="form-group"><label>Асбест общий (авто)</label><input type="text" id="zo-chr-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;"></div>
-                            </div>
+                            <script>
+function calcSumRM(key) {
+                                    const a = parseFloat(document.getElementById('calc-' + key + '-A')?.value) || 0;
+                                    const b = parseFloat(document.getElementById('calc-' + key + '-B')?.value) || 0;
+                                    const total = a + b;
+                                    const target = document.getElementById('zo-' + key);
+                                    if (target) target.value = total > 0 ? total : '';
+                                    
+                                    const line = document.getElementById('rep-line')?.value;
+                                    
+                                    // Reset specific hidden silos for this key
+                                    const hiddenKey = key === 'cellulose' ? 'zo-cel' : 
+                                                      key === 'crushed-slate' ? 'zo-csl' : 
+                                                      key === 'asbozurit' ? 'zo-asb' :
+                                                      key === 'fiberglass' ? 'zo-fib' :
+                                                      key === 'laprol' ? 'zo-lap' :
+                                                      key === 'asbocarton' ? 'zo-car' : 
+                                                      key.startsWith('chr') ? 'zo-' + key : 'zo-' + key;
+                                                      
+                                    if (document.getElementById(hiddenKey + '-1')) {
+                                        document.getElementById(hiddenKey + '-1').value = '0';
+                                        document.getElementById(hiddenKey + '-2').value = '0';
+                                        document.getElementById(hiddenKey + '-3').value = '0';
+                                        document.getElementById(hiddenKey + '-4').value = '0';
+                                        
+                                        if (line === 'Линия 1') {
+                                            document.getElementById(hiddenKey + '-1').value = a > 0 ? a : '0';
+                                            document.getElementById(hiddenKey + '-2').value = b > 0 ? b : '0';
+                                        } else if (line === 'Линия 2') {
+                                            document.getElementById(hiddenKey + '-3').value = a > 0 ? a : '0';
+                                            document.getElementById(hiddenKey + '-4').value = b > 0 ? b : '0';
+                                        }
+                                    }
+                                    
+                                    if(key.startsWith('chr-')){
+                                        if (typeof recalcChrTotal === 'function') recalcChrTotal();
+                                    }
+                                }
 
-                            <h4 style="margin-bottom: 0.8rem; color: var(--primary-color); font-size: 0.95rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.4rem;">Цемент по силосам</h4>
-                            <div class="form-grid-four" style="margin-bottom: 1.2rem;">
-                                <div class="form-group"><label>Силос 1 (кг)</label><input type="number" id="zo-cem-1" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
-                                <div class="form-group"><label>Силос 2 (кг)</label><input type="number" id="zo-cem-2" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
-                                <div class="form-group"><label>Силос 3 (кг)</label><input type="number" id="zo-cem-3" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
-                                <div class="form-group"><label>Силос 4 (кг)</label><input type="number" id="zo-cem-4" placeholder="0" class="cem-input" oninput="recalcCemTotal()"></div>
-                            </div>
-                            <div style="max-width: 250px; margin-bottom: 1.2rem;">
-                                <div class="form-group"><label>Цемент общий (авто)</label><input type="text" id="zo-cem-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;"></div>
-                            </div>
-
-                            <h4 style="margin-bottom: 0.8rem; color: var(--primary-color); font-size: 0.95rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.4rem;">Другие компоненты и сливы</h4>
-                            <div class="form-grid-three" style="margin-bottom: 1rem;">
-                                <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="zo-cellulose" placeholder="0"></div>
-                                <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="zo-crushed-slate" placeholder="0"></div>
-                                <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="zo-asbozurit" placeholder="0"></div>
-                                <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="zo-fiberglass" placeholder="0"></div>
-                                <div class="form-group"><label>Лапрол (кг)</label><input type="number" id="zo-laprol" placeholder="0"></div>
-                                <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="zo-asbocarton" placeholder="0"></div>
-                                <div class="form-group"><label>Слив хризотила (кг) [ЗО]</label><input type="number" id="zo-asb-drain" placeholder="0"></div>
-                                <div class="form-group"><label>Слив цемента (кг) [ЗО]</label><input type="number" id="zo-cem-drain" placeholder="0"></div>
-                            </div>
+                                function calcCem() {
+                                    const a = parseFloat(document.getElementById('calc-cem-A').value) || 0;
+                                    const b = parseFloat(document.getElementById('calc-cem-B').value) || 0;
+                                    const line = document.getElementById('rep-line')?.value;
+                                    
+                                    // Reset DB inputs
+                                    document.getElementById('zo-cem-1').value = '0';
+                                    document.getElementById('zo-cem-2').value = '0';
+                                    document.getElementById('zo-cem-3').value = '0';
+                                    document.getElementById('zo-cem-4').value = '0';\n                                    document.getElementById('zo-chr-4-20-1').value = '0';\n                                    document.getElementById('zo-chr-4-20-2').value = '0';\n                                    document.getElementById('zo-chr-4-20-3').value = '0';\n                                    document.getElementById('zo-chr-4-20-4').value = '0';\n                                    document.getElementById('zo-chr-5-65-1').value = '0';\n                                    document.getElementById('zo-chr-5-65-2').value = '0';\n                                    document.getElementById('zo-chr-5-65-3').value = '0';\n                                    document.getElementById('zo-chr-5-65-4').value = '0';\n                                    document.getElementById('zo-chr-6-40-1').value = '0';\n                                    document.getElementById('zo-chr-6-40-2').value = '0';\n                                    document.getElementById('zo-chr-6-40-3').value = '0';\n                                    document.getElementById('zo-chr-6-40-4').value = '0';\n                                    document.getElementById('zo-cel-1').value = '0';\n                                    document.getElementById('zo-cel-2').value = '0';\n                                    document.getElementById('zo-cel-3').value = '0';\n                                    document.getElementById('zo-cel-4').value = '0';\n                                    document.getElementById('zo-csl-1').value = '0';\n                                    document.getElementById('zo-csl-2').value = '0';\n                                    document.getElementById('zo-csl-3').value = '0';\n                                    document.getElementById('zo-csl-4').value = '0';\n                                    document.getElementById('zo-asb-1').value = '0';\n                                    document.getElementById('zo-asb-2').value = '0';\n                                    document.getElementById('zo-asb-3').value = '0';\n                                    document.getElementById('zo-asb-4').value = '0';\n                                    document.getElementById('zo-fib-1').value = '0';\n                                    document.getElementById('zo-fib-2').value = '0';\n                                    document.getElementById('zo-fib-3').value = '0';\n                                    document.getElementById('zo-fib-4').value = '0';\n                                    document.getElementById('zo-lap-1').value = '0';\n                                    document.getElementById('zo-lap-2').value = '0';\n                                    document.getElementById('zo-lap-3').value = '0';\n                                    document.getElementById('zo-lap-4').value = '0';\n                                    document.getElementById('zo-car-1').value = '0';\n                                    document.getElementById('zo-car-2').value = '0';\n                                    document.getElementById('zo-car-3').value = '0';\n                                    document.getElementById('zo-car-4').value = '0';
+                                    
+                                    if (line === 'Линия 1') {
+                                        document.getElementById('zo-cem-1').value = a > 0 ? a : '0';
+                                        document.getElementById('zo-cem-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-chr-4-20-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-chr-4-20-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-chr-5-65-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-chr-5-65-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-chr-6-40-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-chr-6-40-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-cel-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-cel-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-csl-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-csl-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-asb-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-asb-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-fib-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-fib-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-lap-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-lap-2').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-car-1').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-car-2').value = b > 0 ? b : '0';
+                                    } else {
+                                        document.getElementById('zo-cem-3').value = a > 0 ? a : '0';
+                                        document.getElementById('zo-cem-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-chr-4-20-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-chr-4-20-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-chr-5-65-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-chr-5-65-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-chr-6-40-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-chr-6-40-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-cel-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-cel-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-csl-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-csl-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-asb-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-asb-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-fib-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-fib-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-lap-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-lap-4').value = b > 0 ? b : '0';\n                                        document.getElementById('zo-car-3').value = a > 0 ? a : '0';\n                                        document.getElementById('zo-car-4').value = b > 0 ? b : '0';
+                                    }
+                                    
+                                    if (typeof recalcCemTotal === 'function') recalcCemTotal();
+                                }
+                                
+                                // Hook into line change to update headers
+                                document.addEventListener('DOMContentLoaded', () => {
+                                    const lineSelect = document.getElementById('rep-line');
+                                    if (lineSelect) {
+                                        lineSelect.addEventListener('change', () => {
+                                            const line = lineSelect.value;
+                                            if (line === 'Линия 1') {
+                                                document.getElementById('rm-header-siloA').innerText = 'Силос 1';
+                                                document.getElementById('rm-header-siloB').innerText = 'Силос 2';
+                                            } else {
+                                                document.getElementById('rm-header-siloA').innerText = 'Силос 3';
+                                                document.getElementById('rm-header-siloB').innerText = 'Силос 4';
+                                            }
+                                            // Recalculate cement mapping if line changes
+                                            calcCem();
+                                        });
+                                    }
+                                });
+                            </script>
                         </div>
                     </div>
-
-                    <div style="margin: 2rem 0; text-align: center;">
+<div style="margin: 2rem 0; text-align: center;">
                         <button onclick="submitShiftReport()" class="btn-submit-huge" style="font-size: 1.2rem; padding: 1.2rem 3rem; border-radius: 12px; max-width: 400px; width: 100%;">💾 Сохранить рапорт смены</button>
                         <div id="draft-indicator" style="margin-top: 10px; font-size: 0.9rem; color: #22c55e; opacity: 0; transition: opacity 0.5s;">✓ Черновик сохранен локально</div>
                     </div>
