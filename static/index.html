@@ -411,8 +411,16 @@
                                 }
                                 @media (max-width: 768px) {
                                     .rm-grid {
-                                        overflow-x: auto;
-                                        min-width: 700px;
+                                        min-width: 650px;
+                                    }
+                                    .rm-grid .rm-header:first-child,
+                                    .rm-grid .rm-label-row {
+                                        position: sticky;
+                                        left: 0;
+                                        background: var(--surface-color);
+                                        z-index: 10;
+                                        padding-left: 5px;
+                                        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
                                     }
                                 }
                                 .rm-header {
