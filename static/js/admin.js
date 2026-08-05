@@ -1403,7 +1403,7 @@ async function saveReceiptEdit() {
             body: JSON.stringify(data)
         });
         if (!res.ok) throw new Error('Failed to update receipt');
-        closeModal('edit-receipt-modal');
+        closeModals();
         loadAdminReceipts();
     } catch (e) {
         console.error(e);
