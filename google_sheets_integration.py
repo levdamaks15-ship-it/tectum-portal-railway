@@ -1193,16 +1193,34 @@ def export_downtimes_to_google_sheets(db: Session):
     for d in downtimes:
         shift = d.shift
         date_str = shift.date.strftime("%d.%m.%Y") if shift.date else ""
+        
+        b_dept = d.department or ""
+        b_node = d.node or ""
+        b_desc = d.description or ""
+        b_cat = d.category or ""
+        
+        if hasattr(d, 'breakdowns') and d.breakdowns:
+            try:
+                bk_list = json.loads(d.breakdowns)
+                if bk_list and isinstance(bk_list, list):
+                    # dict.fromkeys to keep unique order
+                    b_dept = ", ".join(list(dict.fromkeys([str(b.get('department') or 'Разное') for b in bk_list])))
+                    b_node = ";\n".join([f"[{b.get('department') or 'Разное'}] {b.get('node') or '-'}" for b in bk_list])
+                    b_desc = ";\n".join([f"[{b.get('department') or 'Разное'}] {b.get('description') or '-'}" for b in bk_list])
+                    b_cat = ", ".join(list(dict.fromkeys([str(b.get('category') or '') for b in bk_list if b.get('category')])))
+            except Exception as e:
+                print(f"Error parsing breakdowns for downtime {d.id}: {e}")
+
         row = [
             date_str,
             shift.shift_name or "",
             shift.line or "",
             shift.master.name if shift.master else "",
-            d.department or "",
-            d.node or "",
-            d.description or "",
+            b_dept,
+            b_node,
+            b_desc,
             d.comment or "",
-            d.category or "",
+            b_cat,
             d.start_time or "",
             d.end_time or "",
             d.duration or 0,

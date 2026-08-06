@@ -112,6 +112,7 @@ class DowntimeBase(ORMBaseModel):
     media_urls: Optional[str] = None
     status: Optional[str] = "pending"
     is_equipment_downtime: Optional[bool] = True
+    breakdowns: Optional[str] = None
 
 class DowntimeCreate(DowntimeBase):
     pass

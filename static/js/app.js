@@ -1541,19 +1541,48 @@ async function addJournalDowntime() {
         }
     }
     
+    // Collect breakdowns
+    const breakdownRows = document.querySelectorAll('#journal-dt-breakdowns-container .breakdown-row');
+    const breakdownsList = [];
+    let firstDept = "", firstNode = "", firstDesc = "";
+
+    breakdownRows.forEach(row => {
+        const dept = row.querySelector('.brk-dept').value;
+        const node = row.querySelector('.brk-node').value;
+        const selDesc = row.querySelector('.brk-desc').value;
+        const custDesc = row.querySelector('.brk-custom-desc').value;
+        const cat = row.querySelector('.brk-category').value;
+        
+        let desc = selDesc;
+        if (selDesc === '_CUSTOM_') {
+            desc = custDesc;
+        }
+        
+        if (dept && node && desc) {
+            breakdownsList.push({ department: dept, node: node, description: desc, category: cat });
+            if (!firstDept) { firstDept = dept; firstNode = node; firstDesc = desc; }
+        }
+    });
+
+    if (breakdownsList.length === 0) {
+        alert("Добавьте хотя бы одну поломку (участок, узел, причина)!");
+        return;
+    }
+
     const data = {
         start_time: document.getElementById('journal-dt-start').value,
         end_time: document.getElementById('journal-dt-end').value || null,
-        department: document.getElementById('journal-dt-dept').value,
-        node: document.getElementById('journal-dt-node').value,
-        description: document.getElementById('journal-dt-breakdown').value,
+        department: firstDept, // backwards compatibility
+        node: firstNode, // backwards compatibility
+        description: firstDesc, // backwards compatibility
         comment: document.getElementById('journal-dt-desc').value,
         is_equipment_downtime: document.getElementById('journal-dt-is-equipment-stop').checked,
-        media_urls: null
+        media_urls: null,
+        breakdowns: JSON.stringify(breakdownsList)
     };
 
-    if (!data.start_time || !data.department || !data.node || !data.description) {
-        alert("Заполните начало, участок, узел и причину простоя!");
+    if (!data.start_time) {
+        alert("Укажите время начала простоя!");
         return;
     }
 
@@ -1606,9 +1635,19 @@ async function openEditDowntimeModal(id) {
         document.getElementById('edit-dt-desc').value = d.comment || '';
         document.getElementById('edit-dt-is-equipment-stop').checked = d.is_equipment_downtime;
         
-        // Wait load depts
-        document.getElementById('edit-dt-dept').value = d.department;
-        await onEditDeptChange(d.node, d.breakdown);
+        document.getElementById('edit-dt-breakdowns-container').innerHTML = '';
+        if (d.breakdowns) {
+            try {
+                const bkList = JSON.parse(d.breakdowns);
+                for (const bk of bkList) {
+                    await addEditBreakdownRow(bk);
+                }
+            } catch(e) {
+                await addEditBreakdownRow({ department: d.department, node: d.node, description: d.description });
+            }
+        } else {
+            await addEditBreakdownRow({ department: d.department, node: d.node, description: d.description });
+        }
         
         document.getElementById('edit-dt-modal').style.display = 'block';
         setupTimePickers();
@@ -1661,15 +1700,44 @@ async function onEditNodeChange(selectedBreakdown = '') {
 
 async function submitEditDowntime() {
     const id = document.getElementById('edit-dt-id').value;
+    
+    const breakdownRows = document.querySelectorAll('#edit-dt-breakdowns-container .breakdown-row');
+    const breakdownsList = [];
+    let firstDept = "", firstNode = "", firstDesc = "";
+
+    breakdownRows.forEach(row => {
+        const dept = row.querySelector('.brk-dept').value;
+        const node = row.querySelector('.brk-node').value;
+        const selDesc = row.querySelector('.brk-desc').value;
+        const custDesc = row.querySelector('.brk-custom-desc').value;
+        const cat = row.querySelector('.brk-category').value;
+        
+        let desc = selDesc;
+        if (selDesc === '_CUSTOM_') {
+            desc = custDesc;
+        }
+        
+        if (dept && node && desc) {
+            breakdownsList.push({ department: dept, node: node, description: desc, category: cat });
+            if (!firstDept) { firstDept = dept; firstNode = node; firstDesc = desc; }
+        }
+    });
+
+    if (breakdownsList.length === 0) {
+        alert("Добавьте хотя бы одну поломку (участок, узел, причина)!");
+        return;
+    }
+    
     const data = {
         start_time: document.getElementById('edit-dt-start').value,
         end_time: document.getElementById('edit-dt-end').value || null,
-        department: document.getElementById('edit-dt-dept').value,
-        node: document.getElementById('edit-dt-node').value,
-        description: document.getElementById('edit-dt-breakdown').value,
+        department: firstDept,
+        node: firstNode,
+        description: firstDesc,
         comment: document.getElementById('edit-dt-desc').value,
         is_equipment_downtime: document.getElementById('edit-dt-is-equipment-stop').checked,
-        media_urls: null
+        media_urls: null,
+        breakdowns: JSON.stringify(breakdownsList)
     };
 
     try {
@@ -2889,5 +2957,171 @@ async function deleteReceipt(receiptId) {
         }
     } catch(e) {
         alert("Ошибка: " + e.message);
+    }
+}
+
+// ------------------------------------------------
+// DYNAMIC BREAKDOWNS LOGIC
+// ------------------------------------------------
+let breakdownRowCounter = 0;
+
+async function addJournalBreakdownRow(initialData = null) {
+    await addBreakdownRowInternal('journal-dt', initialData);
+}
+
+async function addEditBreakdownRow(initialData = null) {
+    await addBreakdownRowInternal('edit-dt', initialData);
+}
+
+async function addBreakdownRowInternal(prefix, initialData = null) {
+    const container = document.getElementById(`${prefix}-breakdowns-container`);
+    if (!container) return;
+    
+    const rowId = breakdownRowCounter++;
+    
+    const rowHtml = `
+        <div class="breakdown-row" id="${prefix}-brk-row-${rowId}" style="border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; background: rgba(255,255,255,0.02); position: relative;">
+            <button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="position: absolute; top: 0.5rem; right: 0.5rem; width: auto; padding: 0.2rem 0.6rem; font-size: 0.7rem; cursor: pointer; border: none; border-radius: 4px;">Удалить</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem; padding-right: 3rem;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
+                    <select class="brk-dept" onchange="onBrkDeptChange(this, '${prefix}')" style="margin-bottom:0;">
+                        <option value="">-- Выберите участок --</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
+                    <select class="brk-node" onchange="onBrkNodeChange(this, '${prefix}')" style="margin-bottom:0;">
+                        <option value="">-- Сначала выберите участок --</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
+                    <select class="brk-desc" onchange="onBrkDescChange(this)" style="margin-bottom:0;">
+                        <option value="">-- Сначала выберите узел --</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Кастомный текст (Свой вариант)</label>
+                    <input type="text" class="brk-custom-desc" placeholder="Введите свою поломку" style="display:none; margin-bottom:0;" />
+                </div>
+            </div>
+            <input type="hidden" class="brk-category" value="" />
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', rowHtml);
+    
+    const rowDiv = document.getElementById(`${prefix}-brk-row-${rowId}`);
+    const deptSelect = rowDiv.querySelector('.brk-dept');
+    
+    try {
+        const res = await fetch('/api/downtimes/directory/departments');
+        if (res.ok) {
+            const depts = await res.json();
+            depts.sort((a, b) => a.localeCompare(b));
+            deptSelect.innerHTML = '<option value="">-- Выберите участок --</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+            
+            if (initialData && initialData.department) {
+                deptSelect.value = initialData.department;
+                await onBrkDeptChange(deptSelect, prefix, initialData.node, initialData.description);
+                if (initialData.category) {
+                    rowDiv.querySelector('.brk-category').value = initialData.category;
+                }
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function onBrkDeptChange(selectElement, prefix, initialNode = null, initialDesc = null) {
+    const rowDiv = selectElement.closest('.breakdown-row');
+    const dept = selectElement.value;
+    const selectNode = rowDiv.querySelector('.brk-node');
+    
+    if (!dept) {
+        selectNode.innerHTML = '<option value="">-- Сначала выберите участок --</option>';
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
+        if (res.ok) {
+            const nodes = await res.json();
+            nodes.sort((a, b) => a.localeCompare(b));
+            selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
+                nodes.map(n => `<option value="${n}">${n}</option>`).join('');
+                
+            if (initialNode) {
+                selectNode.value = initialNode;
+                await onBrkNodeChange(selectNode, prefix, initialDesc);
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function onBrkNodeChange(selectElement, prefix, initialDesc = null) {
+    const rowDiv = selectElement.closest('.breakdown-row');
+    const dept = rowDiv.querySelector('.brk-dept').value;
+    const node = selectElement.value;
+    const selectBk = rowDiv.querySelector('.brk-desc');
+    
+    if (!dept || !node) {
+        selectBk.innerHTML = '<option value="">-- Сначала выберите узел --</option>';
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
+        if (res.ok) {
+            const breakdowns = await res.json();
+            breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
+            
+            selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
+                breakdowns.map(b => `<option value="${b.breakdown}" data-category="${b.category || ''}">${b.breakdown}</option>`).join('') +
+                '<option value="_CUSTOM_">✏️ Свой вариант (Ввести вручную)</option>';
+                
+            if (initialDesc) {
+                let exists = false;
+                for (let i = 0; i < selectBk.options.length; i++) {
+                    if (selectBk.options[i].value === initialDesc) {
+                        exists = true;
+                        break;
+                    }
+                }
+                
+                if (exists) {
+                    selectBk.value = initialDesc;
+                } else {
+                    selectBk.value = '_CUSTOM_';
+                    rowDiv.querySelector('.brk-custom-desc').value = initialDesc;
+                }
+                onBrkDescChange(selectBk);
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function onBrkDescChange(selectElement) {
+    const rowDiv = selectElement.closest('.breakdown-row');
+    const customInput = rowDiv.querySelector('.brk-custom-desc');
+    const categoryInput = rowDiv.querySelector('.brk-category');
+    
+    if (selectElement.value === '_CUSTOM_') {
+        customInput.style.display = 'block';
+        categoryInput.value = 'Разное';
+    } else {
+        customInput.style.display = 'none';
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        if (selectedOption) {
+            categoryInput.value = selectedOption.getAttribute('data-category') || '';
+        }
     }
 }

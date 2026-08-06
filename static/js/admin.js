@@ -800,11 +800,21 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
             dtTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 1.5rem; color: var(--text-secondary);">Нет зафиксированных простоев за смену</td></tr>`;
         } else {
             downtimes.forEach(d => {
+                let displayReason = d.description || '-';
+                if (d.breakdowns) {
+                    try {
+                        const bkList = JSON.parse(d.breakdowns);
+                        if (bkList && bkList.length > 0) {
+                            displayReason = bkList.map(b => `${b.node || ''} / ${b.description || ''}`).join('<br>');
+                        }
+                    } catch(e) {}
+                }
+                
                 dtTbody.innerHTML += `
                     <tr>
                         <td style="font-weight: 500;">${d.start_time || '-'}</td>
                         <td><b style="color: var(--warning-color);">${d.duration}</b> мин</td>
-                        <td>${d.description}</td>
+                        <td>${displayReason}</td>
                         <td><span style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${d.category || 'Не указана'}</span></td>
                         <td style="white-space: nowrap;">
                             <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
@@ -931,36 +941,78 @@ async function deleteShift(id) {
     }
 }
 
-function editDowntimeRow(d) {
+async function editDowntimeRow(d) {
     document.getElementById('edit-downtime-id').value = d.id;
     document.getElementById('edit-downtime-time').value = d.start_time || '';
     document.getElementById('edit-downtime-end-time').value = d.end_time || '';
     document.getElementById('edit-downtime-duration').value = d.duration || 0;
-    document.getElementById('edit-downtime-department').value = d.department || '';
-    document.getElementById('edit-downtime-node').value = d.node || '';
-    document.getElementById('edit-downtime-reason').value = d.description || '';
+    
     document.getElementById('edit-downtime-lost-tons').value = d.lost_tons || 0;
     document.getElementById('edit-downtime-lost-tenge').value = d.lost_tenge || 0;
     document.getElementById('edit-downtime-status').value = d.status || 'pending';
     document.getElementById('edit-downtime-category').value = d.category || 'Механические';
     document.getElementById('edit-downtime-is-equipment-stop').checked = d.is_equipment_downtime !== false;
+    
+    document.getElementById('admin-dt-breakdowns-container').innerHTML = '';
+    if (d.breakdowns) {
+        try {
+            const bkList = JSON.parse(d.breakdowns);
+            for (const bk of bkList) {
+                await addAdminBreakdownRow(bk);
+            }
+        } catch(e) {
+            await addAdminBreakdownRow({ department: d.department, node: d.node, description: d.description });
+        }
+    } else {
+        await addAdminBreakdownRow({ department: d.department, node: d.node, description: d.description });
+    }
+    
     document.getElementById('edit-downtime-modal').style.display = 'flex';
 }
 
 async function saveDowntimeEdit() {
     const id = document.getElementById('edit-downtime-id').value;
+    
+    const breakdownRows = document.querySelectorAll('#admin-dt-breakdowns-container .breakdown-row');
+    const breakdownsList = [];
+    let firstDept = "", firstNode = "", firstDesc = "";
+
+    breakdownRows.forEach(row => {
+        const dept = row.querySelector('.brk-dept').value;
+        const node = row.querySelector('.brk-node').value;
+        const selDesc = row.querySelector('.brk-desc').value;
+        const custDesc = row.querySelector('.brk-custom-desc').value;
+        const cat = row.querySelector('.brk-category').value;
+        
+        let desc = selDesc;
+        if (selDesc === '_CUSTOM_') {
+            desc = custDesc;
+        }
+        
+        if (dept && node && desc) {
+            breakdownsList.push({ department: dept, node: node, description: desc, category: cat });
+            if (!firstDept) { firstDept = dept; firstNode = node; firstDesc = desc; }
+        }
+    });
+
+    if (breakdownsList.length === 0) {
+        alert("Добавьте хотя бы одну поломку (участок, узел, причина)!");
+        return;
+    }
+    
     const data = {
         start_time: document.getElementById('edit-downtime-time').value || null,
         end_time: document.getElementById('edit-downtime-end-time').value || null,
         duration: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
-        department: document.getElementById('edit-downtime-department').value || null,
-        node: document.getElementById('edit-downtime-node').value || '',
-        description: document.getElementById('edit-downtime-reason').value,
+        department: firstDept,
+        node: firstNode,
+        description: firstDesc,
         lost_tons: parseFloat(document.getElementById('edit-downtime-lost-tons').value) || 0.0,
         lost_tenge: parseFloat(document.getElementById('edit-downtime-lost-tenge').value) || 0.0,
         status: document.getElementById('edit-downtime-status').value || 'pending',
         category: document.getElementById('edit-downtime-category').value,
-        is_equipment_downtime: document.getElementById('edit-downtime-is-equipment-stop').checked
+        is_equipment_downtime: document.getElementById('edit-downtime-is-equipment-stop').checked,
+        breakdowns: JSON.stringify(breakdownsList)
     };
     try {
         const res = await fetch(`/api/admin/downtimes/${id}`, {
@@ -1242,8 +1294,16 @@ async function loadDowntimesLog() {
             const endTime = d.end_time || '-';
             const duration = d.duration || 0;
             const category = d.category || '-';
-            const reason = d.description || '-';
-            const node = d.node || '-';
+            
+            let displayReason = `${d.node || '-'} / ${d.description || '-'}`;
+            if (d.breakdowns) {
+                try {
+                    const bkList = JSON.parse(d.breakdowns);
+                    if (bkList && bkList.length > 0) {
+                        displayReason = bkList.map(b => `${b.node || '-'} / ${b.description || '-'}`).join('<br>');
+                    }
+                } catch(e) {}
+            }
             
             tbody.innerHTML += `
                 <tr>
@@ -1251,7 +1311,7 @@ async function loadDowntimesLog() {
                     <td>${line}</td>
                     <td>${startTime} - ${endTime}</td>
                     <td>${duration}</td>
-                    <td>${node} / ${reason}</td>
+                    <td>${displayReason}</td>
                     <td><span style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${category}</span></td>
                     <td style="white-space: nowrap;">
                         <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
@@ -1422,7 +1482,164 @@ async function deleteReceiptRow(id) {
         loadAdminReceipts();
     } catch(e) {
         console.error(e);
-        alert('Ошибка при удалении');
+        alert('Ошибка удаления: ' + e.message);
     }
 }
 
+// ------------------------------------------------
+// DYNAMIC BREAKDOWNS LOGIC (ADMIN)
+// ------------------------------------------------
+let adminBreakdownRowCounter = 0;
+
+async function addAdminBreakdownRow(initialData = null) {
+    const container = document.getElementById(`admin-dt-breakdowns-container`);
+    if (!container) return;
+    
+    const rowId = adminBreakdownRowCounter++;
+    
+    const rowHtml = `
+        <div class="breakdown-row" id="admin-dt-brk-row-${rowId}" style="border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; background: rgba(255,255,255,0.02); position: relative;">
+            <button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="position: absolute; top: 0.5rem; right: 0.5rem; width: auto; padding: 0.2rem 0.6rem; font-size: 0.7rem; cursor: pointer; border: none; border-radius: 4px;">Удалить</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem; padding-right: 3rem;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
+                    <select class="brk-dept" onchange="onAdminBrkDeptChange(this)" style="margin-bottom:0;">
+                        <option value="">-- Выберите участок --</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
+                    <select class="brk-node" onchange="onAdminBrkNodeChange(this)" style="margin-bottom:0;">
+                        <option value="">-- Сначала выберите участок --</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
+                    <select class="brk-desc" onchange="onAdminBrkDescChange(this)" style="margin-bottom:0;">
+                        <option value="">-- Сначала выберите узел --</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Кастомный текст (Свой вариант)</label>
+                    <input type="text" class="brk-custom-desc" placeholder="Введите свою поломку" style="display:none; margin-bottom:0;" />
+                </div>
+            </div>
+            <input type="hidden" class="brk-category" value="" />
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', rowHtml);
+    
+    const rowDiv = document.getElementById(`admin-dt-brk-row-${rowId}`);
+    const deptSelect = rowDiv.querySelector('.brk-dept');
+    
+    try {
+        const res = await fetch('/api/downtimes/directory/departments');
+        if (res.ok) {
+            const depts = await res.json();
+            depts.sort((a, b) => a.localeCompare(b));
+            deptSelect.innerHTML = '<option value="">-- Выберите участок --</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+            
+            if (initialData && initialData.department) {
+                deptSelect.value = initialData.department;
+                await onAdminBrkDeptChange(deptSelect, initialData.node, initialData.description);
+                if (initialData.category) {
+                    rowDiv.querySelector('.brk-category').value = initialData.category;
+                }
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function onAdminBrkDeptChange(selectElement, initialNode = null, initialDesc = null) {
+    const rowDiv = selectElement.closest('.breakdown-row');
+    const dept = selectElement.value;
+    const selectNode = rowDiv.querySelector('.brk-node');
+    
+    if (!dept) {
+        selectNode.innerHTML = '<option value="">-- Сначала выберите участок --</option>';
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
+        if (res.ok) {
+            const nodes = await res.json();
+            nodes.sort((a, b) => a.localeCompare(b));
+            selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
+                nodes.map(n => `<option value="${n}">${n}</option>`).join('');
+                
+            if (initialNode) {
+                selectNode.value = initialNode;
+                await onAdminBrkNodeChange(selectNode, initialDesc);
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function onAdminBrkNodeChange(selectElement, initialDesc = null) {
+    const rowDiv = selectElement.closest('.breakdown-row');
+    const dept = rowDiv.querySelector('.brk-dept').value;
+    const node = selectElement.value;
+    const selectBk = rowDiv.querySelector('.brk-desc');
+    
+    if (!dept || !node) {
+        selectBk.innerHTML = '<option value="">-- Сначала выберите узел --</option>';
+        return;
+    }
+    
+    try {
+        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
+        if (res.ok) {
+            const breakdowns = await res.json();
+            breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
+            
+            selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
+                breakdowns.map(b => `<option value="${b.breakdown}" data-category="${b.category || ''}">${b.breakdown}</option>`).join('') +
+                '<option value="_CUSTOM_">✏️ Свой вариант (Ввести вручную)</option>';
+                
+            if (initialDesc) {
+                let exists = false;
+                for (let i = 0; i < selectBk.options.length; i++) {
+                    if (selectBk.options[i].value === initialDesc) {
+                        exists = true;
+                        break;
+                    }
+                }
+                
+                if (exists) {
+                    selectBk.value = initialDesc;
+                } else {
+                    selectBk.value = '_CUSTOM_';
+                    rowDiv.querySelector('.brk-custom-desc').value = initialDesc;
+                }
+                onAdminBrkDescChange(selectBk);
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function onAdminBrkDescChange(selectElement) {
+    const rowDiv = selectElement.closest('.breakdown-row');
+    const customInput = rowDiv.querySelector('.brk-custom-desc');
+    const categoryInput = rowDiv.querySelector('.brk-category');
+    
+    if (selectElement.value === '_CUSTOM_') {
+        customInput.style.display = 'block';
+        categoryInput.value = 'Разное';
+    } else {
+        customInput.style.display = 'none';
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        if (selectedOption) {
+            categoryInput.value = selectedOption.getAttribute('data-category') || '';
+        }
+    }
+}

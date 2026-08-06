@@ -152,6 +152,7 @@ class Downtime(Base):
     lost_tenge = Column(Float, default=0.0)
     status = Column(String, default="pending") # pending, resolved
     is_equipment_downtime = Column(Boolean, default=True)
+    breakdowns = Column(String, nullable=True) # JSON string of breakdown objects
 
     shift = relationship("Shift", back_populates="downtimes")
 

@@ -997,29 +997,13 @@ function calcSumRM(key) {
                             <label style="font-size: 0.8rem; color: var(--text-secondary);">Время окончания</label>
                             <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ">
                         </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
-                            <select id="journal-dt-dept" onchange="onJournalDeptChange()">
-                                <option value="">-- Выберите участок --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
-                            <select id="journal-dt-node" onchange="onJournalNodeChange()">
-                                <option value="">-- Сначала выберите участок --</option>
-                            </select>
-                        </div>
-                        <div id="wrapper-dt-subnode" style="display: none;">
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Подузел</label>
-                            <select id="journal-dt-subnode" onchange="onJournalSubnodeChange()">
-                                <option value="">-- Выберите подузел --</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
-                            <select id="journal-dt-breakdown" onchange="onJournalBreakdownChange()">
-                                <option value="">-- Сначала выберите узел --</option>
-                            </select>
+                        <!-- Блок поломок -->
+                        <div style="grid-column: 1 / -1; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+                            <label style="font-size: 0.9rem; color: var(--accent-color); font-weight: bold; margin-bottom: 1rem; display: block;">Список поломок / работ</label>
+                            <div id="journal-dt-breakdowns-container" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem;">
+                                <!-- Строки поломок будут добавляться через JS -->
+                            </div>
+                            <button class="btn-secondary" onclick="addJournalBreakdownRow()" style="width: auto; padding: 0.5rem 1.5rem; font-size: 0.85rem; border: 1px dashed var(--accent-color); background: rgba(255,255,255,0.05);">+ Добавить поломку</button>
                         </div>
                         <div style="display: flex; align-items: center; height: 100%; padding-top: 1.2rem;">
                             <label style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
@@ -1323,29 +1307,13 @@ function calcSumRM(key) {
             </div>
         </div>
 
-        <div style="margin-bottom: 1rem;">
-            <label>Участок / Отделение</label>
-            <select id="edit-dt-dept" onchange="onEditDeptChange()">
-                <option value="">-- Выберите участок --</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 1rem;">
-            <label>Узел / Оборудование</label>
-            <select id="edit-dt-node" onchange="onEditNodeChange()">
-                <option value="">-- Сначала выберите участок --</option>
-            </select>
-        </div>
-        <div id="wrapper-edit-dt-subnode" style="display: none; margin-bottom: 1rem;">
-            <label>Подузел</label>
-            <select id="edit-dt-subnode" onchange="onEditSubnodeChange()">
-                <option value="">-- Выберите подузел --</option>
-            </select>
-        </div>
-        <div style="margin-bottom: 1rem;">
-            <label>Поломка / Причина</label>
-            <select id="edit-dt-breakdown" onchange="onEditBreakdownChange()">
-                <option value="">-- Сначала выберите узел --</option>
-            </select>
+        <!-- Блок поломок -->
+        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); margin-bottom: 1rem;">
+            <label style="font-size: 0.9rem; color: var(--accent-color); font-weight: bold; margin-bottom: 1rem; display: block;">Список поломок / работ</label>
+            <div id="edit-dt-breakdowns-container" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem;">
+                <!-- Строки поломок будут добавляться через JS -->
+            </div>
+            <button class="btn-secondary" onclick="addEditBreakdownRow()" style="width: auto; padding: 0.5rem 1.5rem; font-size: 0.85rem; border: 1px dashed var(--accent-color); background: rgba(255,255,255,0.05);">+ Добавить поломку</button>
         </div>
         <div style="margin-bottom: 1.5rem;">
             <label>Описание / Комментарий</label>

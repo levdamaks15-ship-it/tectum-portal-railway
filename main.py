@@ -122,6 +122,13 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE downtimes ADD COLUMN breakdowns VARCHAR")
+        conn.commit()
+        conn.close()
+    except: pass
+
 
     # Migrations for Raw Material Silos Breakdown
     silo_materials = [
@@ -228,6 +235,7 @@ async def lifespan(app: FastAPI):
             ("downtime_directory", "category", "VARCHAR(255)"),
             ("downtimes", "is_equipment_downtime", "BOOLEAN DEFAULT TRUE"),
             ("downtimes", "comment", "VARCHAR(255)"),
+            ("downtimes", "breakdowns", "TEXT"),
             ("shifts", "zo_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "lfm_asb_drain", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0.0"),
