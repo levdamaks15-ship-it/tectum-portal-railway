@@ -399,6 +399,18 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Rename master
+    db = SessionLocal()
+    try:
+        master = db.query(models.Master).filter(models.Master.name == "Рожков П.").first()
+        if master:
+            master.name = "Рожко П."
+            db.commit()
+    except Exception as e:
+        db.rollback()
+    finally:
+        db.close()
+
     yield
 
 app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan)
