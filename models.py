@@ -200,8 +200,24 @@ class Batch(Base):
     
     # --- 6. СКК (ОТК) ---
     qcd_condition = Column(Integer, default=0) 
+    qcd_sorted_packs = Column(Integer, default=0)
     qcd_first_grade = Column(Integer, default=0)
+    qcd_first_grade_note = Column(String, nullable=True)
     qcd_defect = Column(Integer, default=0)
+    qcd_defect_note = Column(String, nullable=True)
+    
+    # Детализация брака (СКК)
+    qcd_defect_chip = Column(Integer, default=0)
+    qcd_defect_scratch = Column(Integer, default=0)
+    qcd_defect_bad_cut = Column(Integer, default=0)
+    qcd_defect_stick_bottom = Column(Integer, default=0)
+    qcd_defect_stick_top = Column(Integer, default=0)
+    qcd_defect_broken = Column(Integer, default=0)
+    qcd_defect_fell_box = Column(Integer, default=0)
+    qcd_defect_dent = Column(Integer, default=0)
+    qcd_defect_thickness = Column(Integer, default=0)
+    qcd_defect_delamination = Column(Integer, default=0)
+    qcd_defect_edge = Column(Integer, default=0)
     
     shift = relationship("Shift", back_populates="batches")
 

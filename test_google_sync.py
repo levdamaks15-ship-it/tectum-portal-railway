@@ -19,3 +19,13 @@ def test_sync():
 
 if __name__ == "__main__":
     test_sync()
+
+def sync_qcd_reports_bg():
+    print("Background task: Syncing QCD reports to Google Sheets...")
+    db = SessionLocal()
+    try:
+        google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing QCD reports to Google Sheets: {e}")
+    finally:
+        db.close()

@@ -222,6 +222,31 @@ async def lifespan(app: FastAPI):
             conn.commit()
             conn.close()
         except: pass
+        
+    # SQLite migrations for batches qcd columns
+    sqlite_batches_cols = [
+        ("qcd_sorted_packs", "INTEGER DEFAULT 0"),
+        ("qcd_first_grade_note", "VARCHAR(500)"),
+        ("qcd_defect_note", "VARCHAR(500)"),
+        ("qcd_defect_chip", "INTEGER DEFAULT 0"),
+        ("qcd_defect_scratch", "INTEGER DEFAULT 0"),
+        ("qcd_defect_bad_cut", "INTEGER DEFAULT 0"),
+        ("qcd_defect_stick_bottom", "INTEGER DEFAULT 0"),
+        ("qcd_defect_stick_top", "INTEGER DEFAULT 0"),
+        ("qcd_defect_broken", "INTEGER DEFAULT 0"),
+        ("qcd_defect_fell_box", "INTEGER DEFAULT 0"),
+        ("qcd_defect_dent", "INTEGER DEFAULT 0"),
+        ("qcd_defect_thickness", "INTEGER DEFAULT 0"),
+        ("qcd_defect_delamination", "INTEGER DEFAULT 0"),
+        ("qcd_defect_edge", "INTEGER DEFAULT 0")
+    ]
+    for col, col_def in sqlite_batches_cols:
+        try:
+            conn = sqlite3.connect("tectum.db")
+            conn.execute(f"ALTER TABLE batches ADD COLUMN {col} {col_def}")
+            conn.commit()
+            conn.close()
+        except: pass
 
     # PostgreSQL auto-migration for missing columns
     if "postgresql" in engine.url.drivername or "postgres" in engine.url.drivername:
@@ -241,7 +266,21 @@ async def lifespan(app: FastAPI):
             ("shifts", "lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "receipt_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "receipt_pallets", "DOUBLE PRECISION DEFAULT 0.0"),
-            ("shifts", "sharepoint_url", "VARCHAR(500)")
+            ("shifts", "sharepoint_url", "VARCHAR(500)"),
+            ("batches", "qcd_sorted_packs", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_first_grade_note", "VARCHAR(500)"),
+            ("batches", "qcd_defect_note", "VARCHAR(500)"),
+            ("batches", "qcd_defect_chip", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_scratch", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_bad_cut", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_stick_bottom", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_stick_top", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_broken", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_fell_box", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_dent", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_thickness", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_delamination", "INTEGER DEFAULT 0"),
+            ("batches", "qcd_defect_edge", "INTEGER DEFAULT 0")
         ]
         for table, col, col_def in pg_cols_to_add:
             try:
@@ -485,6 +524,7 @@ def sync_google_sheets_bg():
     try:
         google_sheets_integration.sync_report_to_google_sheets(db)
         google_sheets_integration.export_receipt_to_google_sheets(db)
+        google_sheets_integration.sync_qcd_to_sheet(db, google_sheets_integration.get_google_sheets_service())
     except Exception as e:
         print(f"Error syncing reports/receipts to Google Sheets: {e}")
     finally:
@@ -2401,20 +2441,23 @@ def update_destacker(batch_id: int, data: DestackerUpdate, db: Session = Depends
     return {"status": "ok"}
 
 class QCDUpdate(BaseModel):
-    qcd_condition: int
-    qcd_first_grade: int
-    qcd_defect: int
+    qcd_sorted_packs: int = 0
+    qcd_first_grade: int = 0
+    qcd_first_grade_note: Optional[str] = None
+    qcd_defect_note: Optional[str] = None
+    qcd_defect_chip: int = 0
+    qcd_defect_scratch: int = 0
+    qcd_defect_bad_cut: int = 0
+    qcd_defect_stick_bottom: int = 0
+    qcd_defect_stick_top: int = 0
+    qcd_defect_broken: int = 0
+    qcd_defect_fell_box: int = 0
+    qcd_defect_dent: int = 0
+    qcd_defect_thickness: int = 0
+    qcd_defect_delamination: int = 0
+    qcd_defect_edge: int = 0
 
-@app.post("/api/batches/{batch_id}/qcd")
-def update_qcd(batch_id: int, data: QCDUpdate, db: Session = Depends(get_db)):
-    batch = db.query(models.Batch).get(batch_id)
-    if not batch: raise HTTPException(404)
-    batch.qcd_condition = data.qcd_condition
-    batch.qcd_first_grade = data.qcd_first_grade
-    batch.qcd_defect = data.qcd_defect
-    batch.status = "qcd_checked"
-    db.commit()
-    return {"status": "ok"}
+
 
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
@@ -3791,7 +3834,7 @@ def get_materials_report(shift_id: int, db: Session = Depends(get_db)):
 # --- ADMIN PANEL ENDPOINTS ---
 
 @app.get("/admin")
-def read_admin():
+def serve_admin():
     return FileResponse("static/admin.html")
 
 @app.get("/analytics")

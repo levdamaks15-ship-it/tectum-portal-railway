@@ -70,8 +70,23 @@ class BatchBase(ORMBaseModel):
     ds_defect_edge: int = 0
     
     qcd_condition: int = 0
+    qcd_sorted_packs: int = 0
     qcd_first_grade: int = 0
+    qcd_first_grade_note: Optional[str] = None
     qcd_defect: int = 0
+    qcd_defect_note: Optional[str] = None
+    
+    qcd_defect_chip: int = 0
+    qcd_defect_scratch: int = 0
+    qcd_defect_bad_cut: int = 0
+    qcd_defect_stick_bottom: int = 0
+    qcd_defect_stick_top: int = 0
+    qcd_defect_broken: int = 0
+    qcd_defect_fell_box: int = 0
+    qcd_defect_dent: int = 0
+    qcd_defect_thickness: int = 0
+    qcd_defect_delamination: int = 0
+    qcd_defect_edge: int = 0
     
 class BatchCreate(BatchBase):
     pass

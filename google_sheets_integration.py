@@ -360,157 +360,8 @@ def sync_report_to_google_sheets(db: Session):
                 },
                 "fields": "userEnteredFormat.numberFormat"
             }
-        },
-        # Выравнивание текста: левое для текстовых колонок (0-5), правое для числовых (6-40)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 6,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "horizontalAlignment": "RIGHT"
-                    }
-                },
-                "fields": "userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Сетка границ
-        {
-            "updateBorders": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}}
-            }
-        },
-        # Авто-размер ширины колонок
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": len(headers)
-                }
-            }
         }
     ]
-    
-    # 4. Добавляем условное форматирование для Брак (колонка 12, индекс 11)
-    # Если Брак > 0 - красим в нежно-красный (#FCE4D6), если Брак = 0 - в нежно-зеленый (#E2EFDA)
-    requests.extend([
-        {
-            "addConditionalFormatRule": {
-                "rule": {
-                    "ranges": [{
-                        "sheetId": sheet_id,
-                        "startRowIndex": 1,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 11,
-                        "endColumnIndex": 12
-                    }],
-                    "booleanRule": {
-                        "condition": {
-                            "type": "NUMBER_GREATER",
-                            "values": [{"userEnteredValue": "0"}]
-                        },
-                        "format": {
-                            "backgroundColor": {"red": 252/255.0, "green": 228/255.0, "blue": 214/255.0} # Soft red
-                        }
-                    }
-                },
-                "index": 0
-            }
-        },
-        {
-            "addConditionalFormatRule": {
-                "rule": {
-                    "ranges": [{
-                        "sheetId": sheet_id,
-                        "startRowIndex": 1,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 11,
-                        "endColumnIndex": 12
-                    }],
-                    "booleanRule": {
-                        "condition": {
-                            "type": "NUMBER_EQ",
-                            "values": [{"userEnteredValue": "0"}]
-                        },
-                        "format": {
-                            "backgroundColor": {"red": 226/255.0, "green": 239/255.0, "blue": 218/255.0} # Soft green
-                        }
-                    }
-                },
-                "index": 1
-            }
-        }
-    ])
-    
-    # 5. Добавляем условное форматирование для Отклонений (колонки 31-41, индексы 30-40)
-    # Если Отклонение > 0.001 (0.1%) - красим в нежно-красный, если <= 0.001 - в нежно-зеленый
-    requests.extend([
-        {
-            "addConditionalFormatRule": {
-                "rule": {
-                    "ranges": [{
-                        "sheetId": sheet_id,
-                        "startRowIndex": 1,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 30,
-                        "endColumnIndex": 41
-                    }],
-                    "booleanRule": {
-                        "condition": {
-                            "type": "NUMBER_GREATER",
-                            "values": [{"userEnteredValue": "0,001"}]
-                        },
-                        "format": {
-                            "backgroundColor": {"red": 252/255.0, "green": 228/255.0, "blue": 214/255.0} # Soft red
-                        }
-                    }
-                },
-                "index": 2
-            }
-        },
-        {
-            "addConditionalFormatRule": {
-                "rule": {
-                    "ranges": [{
-                        "sheetId": sheet_id,
-                        "startRowIndex": 1,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 30,
-                        "endColumnIndex": 41
-                    }],
-                    "booleanRule": {
-                        "condition": {
-                            "type": "NUMBER_LESS_THAN_EQ",
-                            "values": [{"userEnteredValue": "0,001"}]
-                        },
-                        "format": {
-                            "backgroundColor": {"red": 226/255.0, "green": 239/255.0, "blue": 218/255.0} # Soft green
-                        }
-                    }
-                },
-                "index": 3
-            }
-        }
-    ])
     
     body = {"requests": requests}
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
@@ -1385,3 +1236,177 @@ def export_downtimes_to_google_sheets(db: Session):
     print(f"Экспорт простоев в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} записей.")
 
 
+
+
+def sync_qcd_reports_to_google_sheets(db: Session):
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        return
+        
+    service = get_sheets_service()
+    sheet_name = "Отчет СКК"
+    
+    # 1. Проверяем существование листа
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+    
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 1000,
+                            "columnCount": 25
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    
+    headers = [
+        "№ партии", "Смена", "Продукт", "Формовка, шт", 
+        "первый сорт (шт)", "% 1 сорта", "примечание (1 сорт)", 
+        "брак (шт)", "% брака", "примечание (брак)"
+    ]
+    
+    # Получаем все партии, сортируем по дате и номеру
+    batches = db.query(models.Batch).join(models.Shift).order_by(models.Shift.date.asc(), models.Batch.batch_number.asc()).all()
+    
+    rows_data = [headers]
+    for b in batches:
+        shift_name = b.shift.shift_name if b.shift else ""
+        product_name = b.product_name or ""
+        
+        # Данные мастера (ds_)
+        ds_cond = b.ds_condition or 0
+        ds_first = b.ds_first_grade or 0
+        ds_def = b.ds_defect or 0
+        
+        total_sheets = ds_cond + ds_first + ds_def
+        
+        pct_first = (ds_first / total_sheets) if total_sheets > 0 else 0
+        pct_defect = (ds_def / total_sheets) if total_sheets > 0 else 0
+        
+        # Поскольку у мастера нет отдельных полей для примечаний 1 сорта и брака,
+        # оставляем их пустыми или можно добавить поля в будущем.
+        note_first = ""
+        note_defect = ""
+        
+        rows_data.append([
+            b.batch_number or "",
+            shift_name,
+            product_name,
+            total_sheets,
+            ds_first,
+            pct_first,
+            note_first,
+            ds_def,
+            pct_defect,
+            note_defect
+        ])
+        
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:X1000"
+    ).execute()
+    
+    if len(rows_data) > 0:
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+        
+    requests = [
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {
+                            "red": 180/255.0,
+                            "green": 198/255.0,
+                            "blue": 231/255.0
+                        },
+                        "textFormat": {
+                            "bold": True
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        {
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(len(rows_data), 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
+                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
+                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
+                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
+                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
+                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}}
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(len(rows_data), 2),
+                    "startColumnIndex": 7,
+                    "endColumnIndex": 8
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "PERCENT",
+                            "pattern": "0.00%"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(len(rows_data), 2),
+                    "startColumnIndex": 10,
+                    "endColumnIndex": 11
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "PERCENT",
+                            "pattern": "0.00%"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        }
+    ]
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    print("Отчет СКК успешно экспортирован.")
