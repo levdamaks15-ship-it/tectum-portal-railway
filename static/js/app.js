@@ -2545,7 +2545,13 @@ const REPORT_FIELDS = [
     'def-delamination', 'def-edge', 'rep-qcd-defect',
     'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
     'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol',
-    'zo-asbocarton', 'zo-asb-drain', 'zo-cem-drain'
+    'zo-asbocarton', 'zo-asb-drain', 'zo-cem-drain',
+    
+    // Calculator inputs for draft saving
+    'calc-chr-4-20-A', 'calc-chr-4-20-B', 'calc-chr-5-65-A', 'calc-chr-5-65-B', 'calc-chr-6-40-A', 'calc-chr-6-40-B',
+    'calc-cem-A', 'calc-cem-B', 'calc-cellulose-A', 'calc-cellulose-B', 'calc-crushed-slate-A', 'calc-crushed-slate-B',
+    'calc-asbozurit-A', 'calc-asbozurit-B', 'calc-fiberglass-A', 'calc-fiberglass-B', 'calc-laprol-A', 'calc-laprol-B',
+    'calc-asbocarton-A', 'calc-asbocarton-B', 'calc-asb-drain-A', 'calc-asb-drain-B', 'calc-cem-drain-A', 'calc-cem-drain-B'
 ];
 
 let draftSaveTimeout = null;
