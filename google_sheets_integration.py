@@ -1269,9 +1269,9 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
     headers = [
-        "№ партии", "Смена", "Продукт", "Формовка, шт", 
-        "первый сорт (шт)", "% 1 сорта", "примечание (1 сорт)", 
-        "брак (шт)", "% брака", "примечание (брак)"
+        "№ партии", "Смены", "Продукт", "Формовка, шт", 
+        "ГП (шт)", "%", "первый сорт (шт)", "% ", "примечание", 
+        "брак (шт)", "%  ", "примечание "
     ]
     
     # Получаем все партии, сортируем по дате и номеру
@@ -1289,19 +1289,35 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         
         total_sheets = ds_cond + ds_first + ds_def
         
+        pct_cond = (ds_cond / total_sheets) if total_sheets > 0 else 0
         pct_first = (ds_first / total_sheets) if total_sheets > 0 else 0
         pct_defect = (ds_def / total_sheets) if total_sheets > 0 else 0
         
-        # Поскольку у мастера нет отдельных полей для примечаний 1 сорта и брака,
-        # оставляем их пустыми или можно добавить поля в будущем.
         note_first = ""
-        note_defect = ""
+        
+        # Собираем причины брака
+        def_parts = []
+        if b.ds_defect_chip: def_parts.append(f"Скол ({b.ds_defect_chip})")
+        if b.ds_defect_scratch: def_parts.append(f"Сдир ({b.ds_defect_scratch})")
+        if b.ds_defect_bad_cut: def_parts.append(f"Плохой рез ({b.ds_defect_bad_cut})")
+        if b.ds_defect_stick_bottom: def_parts.append(f"Налип снизу ({b.ds_defect_stick_bottom})")
+        if b.ds_defect_stick_top: def_parts.append(f"Налип сверху ({b.ds_defect_stick_top})")
+        if b.ds_defect_broken: def_parts.append(f"Сломан ({b.ds_defect_broken})")
+        if b.ds_defect_fell_box: def_parts.append(f"Упал коробки ({b.ds_defect_fell_box})")
+        if b.ds_defect_dent: def_parts.append(f"Вмятина ({b.ds_defect_dent})")
+        if b.ds_defect_thickness: def_parts.append(f"Не соотв. толщины ({b.ds_defect_thickness})")
+        if b.ds_defect_delamination: def_parts.append(f"Расслоение ({b.ds_defect_delamination})")
+        if b.ds_defect_edge: def_parts.append(f"Кромка ({b.ds_defect_edge})")
+        
+        note_defect = ", ".join(def_parts)
         
         rows_data.append([
             b.batch_number or "",
             shift_name,
             product_name,
             total_sheets,
+            ds_cond,
+            pct_cond,
             ds_first,
             pct_first,
             note_first,
@@ -1373,7 +1389,27 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 7,
+                    "startColumnIndex": 5, # % ГП
+                    "endColumnIndex": 6
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "PERCENT",
+                            "pattern": "0.00%"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(len(rows_data), 2),
+                    "startColumnIndex": 7, # % 1 сорта
                     "endColumnIndex": 8
                 },
                 "cell": {
@@ -1393,7 +1429,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 10,
+                    "startColumnIndex": 10, # % брака
                     "endColumnIndex": 11
                 },
                 "cell": {
