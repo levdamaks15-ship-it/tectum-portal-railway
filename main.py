@@ -530,6 +530,10 @@ def sync_google_sheets_bg():
     finally:
         db.close()
 
+@app.get("/api/system/env")
+def get_system_env():
+    return {"is_sandbox": os.environ.get("IS_SANDBOX", "false").lower() == "true"}
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")

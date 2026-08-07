@@ -153,6 +153,17 @@
     </style>
 </head>
 <body>
+    <script>
+        fetch('/api/system/env').then(res => res.json()).then(data => {
+            if (data.is_sandbox) {
+                const banner = document.createElement('div');
+                banner.style.cssText = "background: #ffcc00; color: #000; text-align: center; padding: 10px; font-weight: bold; font-size: 16px; position: sticky; top: 0; z-index: 10000; box-shadow: 0 2px 4px rgba(0,0,0,0.2);";
+                banner.innerHTML = "⚠️ ОБУЧАЮЩИЙ ПОРТАЛ — Данные не сохраняются в реальную базу ⚠️";
+                document.body.prepend(banner);
+                document.title = "[Обучение] " + document.title;
+            }
+        }).catch(e => console.error('Sandbox check failed:', e));
+    </script>
     <div class="container">
         <header class="header-main">
             <div class="header-logo-container">
