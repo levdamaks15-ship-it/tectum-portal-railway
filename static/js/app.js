@@ -4,7 +4,7 @@ let activeShift = null;
 let ssoActive = false;
 let productNorms = {};
 let mastersList = [];
-
+window.currentLoadedShiftId = null;
 // Chart instances
 let chartPlanSheets = null;
 let chartPlanTons = null;
@@ -109,7 +109,7 @@ function recalcTonsAndGrades() {
     }
 }
 
-async function onProductChange() {
+async function onProductChange(event) {
     recalcTonsAndGrades();
     
     const date = document.getElementById('rep-date')?.value;
@@ -127,13 +127,22 @@ async function onProductChange() {
             const res = await fetch(url);
             if (res.ok) {
                 const shift = await res.json();
+                window.currentLoadedShiftId = shift.id;
                 prefillReportForm(shift);
             } else if (res.status === 404) {
                 // Not found, so we are creating a new product report.
                 // Clear the form but keep the selected date/shift/line/product/master/batch
                 const masterId = document.getElementById('rep-master')?.value;
                 const batchNum = document.getElementById('rep-batch')?.value;
-                resetReportForm();
+                
+                // Determine what triggered the change. If it's a product or batch change, 
+                // we strictly clear per AGENTS.md rule. Otherwise, only clear if we are 
+                // transitioning AWAY from a previously loaded shift (to avoid wiping a new draft).
+                const isProductOrBatchChange = event && event.target && (event.target.id === 'rep-product' || event.target.id === 'rep-batch');
+                if (window.currentLoadedShiftId || isProductOrBatchChange) {
+                    resetReportForm();
+                }
+                
                 if (document.getElementById('rep-date')) document.getElementById('rep-date').value = date;
                 if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
                 if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
@@ -714,6 +723,7 @@ async function submitShiftReport() {
 }
 
 function resetReportForm() {
+    window.currentLoadedShiftId = null;
     const dateEl = document.getElementById('rep-date');
     if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
     
