@@ -733,3 +733,7 @@ button.btn-secondary:hover {
     top: 0;
     z-index: 10;
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

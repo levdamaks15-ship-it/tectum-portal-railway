@@ -5,6 +5,67 @@ let ssoActive = false;
 let productNorms = {};
 let mastersList = [];
 window.currentLoadedShiftId = null;
+
+// UX Helpers
+function showNotification(type, title, message) {
+    const modal = document.getElementById('universal-notification-modal');
+    const overlay = document.getElementById('universal-notification-overlay');
+    const iconContainer = document.getElementById('unm-icon');
+    const iconText = document.getElementById('unm-icon-text');
+    const titleEl = document.getElementById('unm-title');
+    const messageEl = document.getElementById('unm-message');
+    const btn = document.getElementById('unm-btn');
+
+    if (!modal || !overlay) return;
+
+    if (type === 'success') {
+        iconContainer.style.background = 'rgba(34, 197, 94, 0.2)';
+        iconContainer.style.border = '2px solid #22c55e';
+        iconText.style.color = '#22c55e';
+        iconText.innerHTML = '✓';
+        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
+    } else if (type === 'error') {
+        iconContainer.style.background = 'rgba(239, 68, 68, 0.2)';
+        iconContainer.style.border = '2px solid #ef4444';
+        iconText.style.color = '#ef4444';
+        iconText.innerHTML = '✕';
+        btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        btn.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.3)';
+    }
+
+    titleEl.innerText = title;
+    messageEl.innerText = message;
+
+    overlay.style.display = 'block';
+    modal.style.display = 'block';
+}
+
+function closeUniversalNotification() {
+    const overlay = document.getElementById('universal-notification-overlay');
+    const modal = document.getElementById('universal-notification-modal');
+    if (overlay) overlay.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+}
+
+function setButtonLoading(buttonId, isLoading, originalText = '') {
+    const btn = document.getElementById(buttonId);
+    if (!btn) return;
+    
+    if (isLoading) {
+        btn.disabled = true;
+        btn.dataset.originalText = btn.innerHTML;
+        btn.innerHTML = `<span style="display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-radius:50%; border-top-color:#fff; animation:spin 1s linear infinite; margin-right:8px; vertical-align:middle;"></span> Отправка...`;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'wait';
+    } else {
+        btn.disabled = false;
+        btn.innerHTML = btn.dataset.originalText || originalText;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+    }
+}
+
 // Chart instances
 let chartPlanSheets = null;
 let chartPlanTons = null;
@@ -693,10 +754,11 @@ async function submitShiftReport() {
     };
 
     if (!data.date || !data.shift_name || !data.line || isNaN(data.master_id) || !data.product_name) {
-        alert("Пожалуйста, заполните все обязательные поля заголовка смены!");
+        showNotification('error', 'Ошибка', "Пожалуйста, заполните все обязательные поля заголовка смены!");
         return;
     }
 
+    setButtonLoading('btn-submit-shift-report', true);
     try {
         const res = await fetch('/api/report', {
             method: 'POST',
@@ -714,12 +776,15 @@ async function submitShiftReport() {
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
             loadData();
+            showNotification('success', 'Смена отправлена!', 'Данные рапорта смены успешно загружены в облако.');
         } else {
             const err = await res.json();
-            alert(`Ошибка сохранения: ${err.detail}`);
+            showNotification('error', 'Ошибка сохранения', err.detail || 'Неизвестная ошибка сервера');
         }
     } catch(e) {
-        alert(`Сетевая ошибка: ${e.message}`);
+        showNotification('error', 'Сетевая ошибка', e.message);
+    } finally {
+        setButtonLoading('btn-submit-shift-report', false);
     }
 }
 
@@ -1526,9 +1591,10 @@ async function addJournalDowntime() {
     const master_id = masterSelect ? masterSelect.value : '';
     
     if (!date) {
-        alert("Выберите дату!");
+        showNotification('error', 'Ошибка', "Выберите дату!");
         return;
     }
+    setButtonLoading('btn-add-dt', true);
     
     if (!shiftId) {
         try {
@@ -1593,7 +1659,8 @@ async function addJournalDowntime() {
     };
 
     if (!data.start_time) {
-        alert("Укажите время начала простоя!");
+        showNotification('error', 'Ошибка', "Укажите время начала простоя!");
+        setButtonLoading('btn-add-dt', false);
         return;
     }
 
@@ -1606,18 +1673,20 @@ async function addJournalDowntime() {
         
         if (res.ok) {
             saveLastLineAndShift(line, shift_name);
-            alert("Простой успешно зафиксирован!");
+            showNotification('success', 'Отлично!', 'Простой успешно зафиксирован и отправлен в облако.');
             refreshDowntimesTable();
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {
-                alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
+                showNotification('error', 'Ошибка валидации', err.detail.map(e => e.msg).join("; "));
             } else {
-                alert(`Ошибка: ${err.detail}`);
+                showNotification('error', 'Ошибка', err.detail || 'Неизвестная ошибка сервера');
             }
         }
     } catch(e) {
-        alert(e.message);
+        showNotification('error', 'Сетевая ошибка', e.message);
+    } finally {
+        setButtonLoading('btn-add-dt', false);
     }
 }
 
@@ -2940,13 +3009,15 @@ async function addReceipt() {
                 if (el) el.value = '';
             });
             loadReceipts(shift);
-            alert("Приход сырья успешно добавлен!");
+            showNotification('success', 'Отлично!', 'Приход сырья успешно сохранен в облако.');
         } else {
             const err = await res.json();
-            alert("Ошибка при добавлении прихода: " + (err.detail || 'Неизвестная ошибка'));
+            showNotification('error', 'Ошибка сохранения', err.detail || 'Неизвестная ошибка');
         }
     } catch(e) {
-        alert("Ошибка: " + e.message);
+        showNotification('error', 'Сетевая ошибка', e.message);
+    } finally {
+        setButtonLoading('btn-submit-receipt', false);
     }
 }
 
