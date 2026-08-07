@@ -1238,6 +1238,14 @@ def export_downtimes_to_google_sheets(db: Session):
 
 
 
+from datetime import timedelta
+
+def get_iso_week_key(d):
+    # Returns (year, week) tuple for grouping
+    if not d:
+        return (0, 0)
+    return d.isocalendar()[:2]
+
 def sync_qcd_reports_to_google_sheets(db: Session):
     if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
         return
@@ -1256,8 +1264,9 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "properties": {
                         "title": sheet_name,
                         "gridProperties": {
-                            "rowCount": 1000,
-                            "columnCount": 25
+                            "rowCount": 2000,
+                            "columnCount": 25,
+                            "frozenRowCount": 1
                         }
                     }
                 }
@@ -1270,32 +1279,64 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     
     headers = [
         "№ партии", "Смены", "Продукт", "Формовка, шт", 
-        "ГП (шт)", "%", "первый сорт (шт)", "% ", "примечание", 
+        "первый сорт (шт)", "% ", "примечание", 
         "брак (шт)", "%  ", "примечание "
     ]
     
-    # Получаем все партии, сортируем по дате и номеру
     batches = db.query(models.Batch).join(models.Shift).order_by(models.Shift.date.asc(), models.Batch.batch_number.asc()).all()
     
     rows_data = [headers]
-    for b in batches:
-        shift_name = b.shift.shift_name if b.shift else ""
-        product_name = b.product_name or ""
+    summary_bold_rows = []
+    
+    if not batches:
+        return
         
-        # Данные мастера (ds_)
+    current_week = None
+    week_stats = {}  # {product_name: {"total": 0, "first": 0, "defect": 0}}
+    
+    def append_week_summaries(stats_dict):
+        rows_data.append(["" for _ in range(10)])
+        for prod, stats in stats_dict.items():
+            tot = stats["total"]
+            f = stats["first"]
+            d = stats["defect"]
+            pf = (f / tot) if tot > 0 else 0
+            pd = (d / tot) if tot > 0 else 0
+            rows_data.append([
+                "", "", f"{prod}:", tot, f, pf, "", d, pd, ""
+            ])
+            summary_bold_rows.append(len(rows_data) - 1)
+        rows_data.append(["" for _ in range(10)])
+
+    for b in batches:
+        shift_date = b.shift.date if b.shift else None
+        week_key = get_iso_week_key(shift_date)
+        
+        if current_week is not None and current_week != week_key:
+            append_week_summaries(week_stats)
+            week_stats = {}
+            
+        current_week = week_key
+        
+        shift_name = b.shift.shift_name if b.shift else ""
+        product_name = b.product_name or "Неизвестный продукт"
+        
+        if product_name not in week_stats:
+            week_stats[product_name] = {"total": 0, "first": 0, "defect": 0}
+            
         ds_cond = b.ds_condition or 0
         ds_first = b.ds_first_grade or 0
         ds_def = b.ds_defect or 0
-        
         total_sheets = ds_cond + ds_first + ds_def
         
-        pct_cond = (ds_cond / total_sheets) if total_sheets > 0 else 0
+        week_stats[product_name]["total"] += total_sheets
+        week_stats[product_name]["first"] += ds_first
+        week_stats[product_name]["defect"] += ds_def
+        
         pct_first = (ds_first / total_sheets) if total_sheets > 0 else 0
         pct_defect = (ds_def / total_sheets) if total_sheets > 0 else 0
-        
         note_first = ""
         
-        # Собираем причины брака
         def_parts = []
         if b.ds_defect_chip: def_parts.append(f"Скол ({b.ds_defect_chip})")
         if b.ds_defect_scratch: def_parts.append(f"Сдир ({b.ds_defect_scratch})")
@@ -1308,7 +1349,6 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         if b.ds_defect_thickness: def_parts.append(f"Не соотв. толщины ({b.ds_defect_thickness})")
         if b.ds_defect_delamination: def_parts.append(f"Расслоение ({b.ds_defect_delamination})")
         if b.ds_defect_edge: def_parts.append(f"Кромка ({b.ds_defect_edge})")
-        
         note_defect = ", ".join(def_parts)
         
         rows_data.append([
@@ -1316,8 +1356,6 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             shift_name,
             product_name,
             total_sheets,
-            ds_cond,
-            pct_cond,
             ds_first,
             pct_first,
             note_first,
@@ -1326,9 +1364,12 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             note_defect
         ])
         
+    if week_stats:
+        append_week_summaries(week_stats)
+        
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:X1000"
+        range=f"'{sheet_name}'!A1:Z2000"
     ).execute()
     
     if len(rows_data) > 0:
@@ -1340,6 +1381,30 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         ).execute()
         
     requests = [
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 1
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount"
+            }
+        },
+        {
+            "setBasicFilter": {
+                "filter": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": max(len(rows_data), 2),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    }
+                }
+            }
+        },
         {
             "repeatCell": {
                 "range": {
@@ -1389,7 +1454,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 5, # % ГП
+                    "startColumnIndex": 5, # % 1 сорта
                     "endColumnIndex": 6
                 },
                 "cell": {
@@ -1409,28 +1474,8 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 7, # % 1 сорта
-                    "endColumnIndex": 8
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "0.00%"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 10, # % брака
-                    "endColumnIndex": 11
+                    "startColumnIndex": 8, # % брака
+                    "endColumnIndex": 9
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1444,5 +1489,27 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             }
         }
     ]
+    
+    for r_idx in summary_bold_rows:
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": r_idx,
+                    "endRowIndex": r_idx + 1,
+                    "startColumnIndex": 2,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "bold": True
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.bold"
+            }
+        })
+        
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    print("Отчет СКК успешно экспортирован.")
+    print("Отчет СКК с итогами успешно экспортирован.")
