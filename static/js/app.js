@@ -174,6 +174,7 @@ function restoreLastLineAndShift() {
         if (repLine) repLine.value = savedLine;
         if (recLine) recLine.value = savedLine;
         if (dtLine) dtLine.value = savedLine;
+        if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
     }
     
     if (savedShift) {
@@ -2594,6 +2595,7 @@ function loadReportDraft() {
                 if (typeof recalcTonsAndGrades === 'function') recalcTonsAndGrades();
                 if (typeof recalcDefectTotal === 'function') recalcDefectTotal();
                 if (typeof toggleDefectsGrid === 'function') toggleDefectsGrid();
+                if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
                 
                 const indicator = document.getElementById('draft-indicator');
                 if (indicator) {
