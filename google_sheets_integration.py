@@ -1558,3 +1558,407 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
     print("Отчет СКК с итогами успешно экспортирован.")
+
+
+def sync_downtime_weekly_summary(db: Session):
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        print("Skipping export to Google Sheets: no real SPREADSHEET_ID")
+        return
+
+    service = get_sheets_service()
+    sheet_name = "Свод неделя"
+
+    # Create sheet if not exists
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 1000,
+                            "columnCount": 19,
+                            "frozenRowCount": 2
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+    # Prepare data
+    shifts = db.query(models.Shift).order_by(models.Shift.date.asc()).all()
+
+    summary = defaultdict(lambda: {
+        "start_date": None,
+        "end_date": None,
+        "plan_sheets": 0,
+        "plan_tons": 0.0,
+        "fact_sheets": 0,
+        "fact_tons": 0.0,
+        "downtimes": {
+            "Механические": 0,
+            "Электрические": 0,
+            "Технологические": 0,
+            "ТО и ППР": 0,
+            "Без остановки": 0
+        },
+        "days_worked": set()
+    })
+
+    for s in shifts:
+        if not s.date:
+            continue
+        if not s.line:
+            continue
+            
+        iso_y, iso_w, _ = s.date.isocalendar()
+        key = (iso_y, iso_w, s.line)
+        
+        entry = summary[key]
+        
+        if not entry["start_date"]:
+            start = s.date - datetime.timedelta(days=s.date.weekday())
+            end = start + datetime.timedelta(days=6)
+            entry["start_date"] = start
+            entry["end_date"] = end
+            
+        entry["days_worked"].add(s.date)
+        
+        plan_sh = s.plan_sheets or 0
+        entry["plan_sheets"] += plan_sh
+        
+        fact_sh_shift = 0
+        fact_tons_shift = 0.0
+        for r in s.lfm_reports:
+            sh = r.lfm_sheets or 0
+            w = get_product_finished_weight_kg(db, r.product_name)
+            fact_sh_shift += sh
+            fact_tons_shift += (sh * w) / 1000.0
+            
+        entry["fact_sheets"] += fact_sh_shift
+        entry["fact_tons"] += fact_tons_shift
+        
+        for d in s.downtimes:
+            cat = d.category
+            if not cat:
+                cat = "Механические"
+                
+            if cat == "Без простоя":
+                cat = "Без остановки"
+                
+            if cat not in entry["downtimes"]:
+                if "Механ" in cat: cat = "Механические"
+                elif "Электр" in cat: cat = "Электрические"
+                elif "Технол" in cat: cat = "Технологические"
+                elif "ППР" in cat or "ТО" in cat: cat = "ТО и ППР"
+                elif "Без" in cat: cat = "Без остановки"
+                else: cat = "Механические"
+                
+            entry["downtimes"][cat] += (d.duration or 0)
+
+    rows_data = []
+    
+    header_row_1 = [
+        "Линия", "Начало недели", "Конец недели", "План на неделю", "",
+        "Кол-во произведенной продукции", "", "Чистое время работы оборуд",
+        "Недопроизводство", "", "Производительность", "",
+        "Выполнение плана производства, тонна", "Кол-во отработ часов, ч",
+        "Простои", "", "", "", ""
+    ]
+    header_row_2 = [
+        "", "", "", "т", "л",
+        "т", "л", "ч",
+        "т", "л", "т/ч", "л/ч",
+        "%", "",
+        "Мех", "Энерг", "Технол", "ТО и ППР", "Без остановки"
+    ]
+    rows_data.append(header_row_1)
+    rows_data.append(header_row_2)
+
+    def format_hm(minutes):
+        if not minutes:
+            return "0:00"
+        h = int(minutes // 60)
+        m = int(minutes % 60)
+        return f"{h}:{m:02d}"
+
+    sorted_keys = sorted(summary.keys(), key=lambda x: (x[0], x[1], x[2]))
+    
+    for key in sorted_keys:
+        entry = summary[key]
+        
+        line = key[2]
+        sd = entry["start_date"].strftime("%d.%m.%Y")
+        ed = entry["end_date"].strftime("%d.%m.%Y")
+        
+        fact_sh = entry["fact_sheets"]
+        fact_tons = entry["fact_tons"]
+        plan_sh = entry["plan_sheets"]
+        
+        avg_weight = (fact_tons * 1000.0 / fact_sh) if fact_sh > 0 else 19.6
+        plan_tons = (plan_sh * avg_weight) / 1000.0
+        
+        total_hours_m = len(entry["days_worked"]) * 24
+        if total_hours_m == 0:
+            total_hours_m = 168
+            
+        dt = entry["downtimes"]
+        mech_m = dt["Механические"]
+        ener_m = dt["Электрические"]
+        tech_m = dt["Технологические"]
+        ppr_m = dt["ТО и ППР"]
+        bez_m = dt["Без остановки"]
+        
+        sum_stop_m = mech_m + ener_m + tech_m + ppr_m
+        sum_stop_h = sum_stop_m / 60.0
+        
+        clean_h = total_hours_m - sum_stop_h
+        
+        under_tons = plan_tons - fact_tons
+        under_sh = plan_sh - fact_sh
+        
+        prod_tons = (fact_tons / clean_h) if clean_h > 0 else 0
+        prod_sh = (fact_sh / clean_h) if clean_h > 0 else 0
+        
+        pct = (fact_tons / plan_tons) if plan_tons > 0 else 0
+        
+        row = [
+            line,
+            sd,
+            ed,
+            round(plan_tons, 1),
+            plan_sh,
+            round(fact_tons, 1),
+            fact_sh,
+            round(clean_h, 2),
+            round(under_tons, 2),
+            under_sh,
+            round(prod_tons, 2),
+            round(prod_sh, 1),
+            pct,
+            total_hours_m,
+            format_hm(mech_m),
+            format_hm(ener_m),
+            format_hm(tech_m),
+            format_hm(ppr_m),
+            format_hm(bez_m)
+        ]
+        rows_data.append(row)
+        
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:Z2000"
+    ).execute()
+
+    # Clear conditional formats or merges if needed, but since we recreate...
+    # Actually, we should clear merges first
+    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    existing_merges = sheet_meta.get("merges", [])
+    if existing_merges:
+        unmerge_requests = [{"unmergeCells": {"range": m}} for m in existing_merges]
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": unmerge_requests}).execute()
+
+    if rows_data:
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+        
+    requests = [
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 2
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount"
+            }
+        },
+        {
+            "setBasicFilter": {
+                "filter": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": max(len(rows_data), 3),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(header_row_1)
+                    }
+                }
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 2,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(header_row_1)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {
+                            "red": 31/255.0,
+                            "green": 78/255.0,
+                            "blue": 120/255.0
+                        },
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE",
+                        "wrapStrategy": "WRAP"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 2,
+                    "endRowIndex": max(len(rows_data), 3),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(header_row_1)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        {
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(len(rows_data), 3),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(header_row_1)
+                },
+                "top": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
+                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
+                "left": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
+                "right": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
+                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
+                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}}
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 2,
+                    "endRowIndex": max(len(rows_data), 3),
+                    "startColumnIndex": 12,
+                    "endColumnIndex": 13
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "PERCENT",
+                            "pattern": "0.0%"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 14,
+                    "endColumnIndex": 19
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                            "fontFamily": "Calibri",
+                            "fontSize": 11
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE",
+                        "wrapStrategy": "WRAP"
+                    }
+                },
+                "fields": "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+            }
+        }
+    ]
+    
+    merges = [
+        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 1},
+        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 1, "endColumnIndex": 2},
+        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 2, "endColumnIndex": 3},
+        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 3, "endColumnIndex": 5},
+        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 5, "endColumnIndex": 7},
+        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 7, "endColumnIndex": 8},
+        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 8, "endColumnIndex": 10},
+        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 10, "endColumnIndex": 12},
+        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 12, "endColumnIndex": 13},
+        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 13, "endColumnIndex": 14},
+        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 14, "endColumnIndex": 19},
+    ]
+    for m in merges:
+        requests.append({
+            "mergeCells": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": m["startRowIndex"],
+                    "endRowIndex": m["endRowIndex"],
+                    "startColumnIndex": m["startColumnIndex"],
+                    "endColumnIndex": m["endColumnIndex"]
+                },
+                "mergeType": "MERGE_ALL"
+            }
+        })
+        
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": len(header_row_1)
+            }
+        }
+    })
+
+    # Execute all format and merges
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    
+    # We need to set the value for the "Простои" merged cell (row 1, col 15) which is index 14
+    # Wait, the value is already there? No, I put it as "" in header_row_1!
+    # Ah, I should update header_row_1:
+    # header_row_1[14] = "Простои"
+    
+    print(f"Свод неделя успешно экспортирован. Выгружено {len(rows_data)-2} строк.")
+
