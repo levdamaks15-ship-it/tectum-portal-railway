@@ -1790,7 +1790,7 @@ def sync_downtime_weekly_summary(db: Session):
                 "filter": {
                     "range": {
                         "sheetId": sheet_id,
-                        "startRowIndex": 1,
+                        "startRowIndex": 0,
                         "endRowIndex": max(len(rows_data), 3),
                         "startColumnIndex": 0,
                         "endColumnIndex": len(header_row_1)
