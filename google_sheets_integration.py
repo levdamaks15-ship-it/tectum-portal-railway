@@ -1613,13 +1613,15 @@ def sync_downtime_weekly_summary(db: Session):
     })
 
     # 1. Unmerge cells first to avoid clear errors
-    existing_merges = get_merged_cells(service, SPREADSHEET_ID, sheet_id)
-    if existing_merges:
-        try:
-            unmerge_requests = [{"unmergeCells": {"range": m}} for m in existing_merges]
-            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": unmerge_requests}).execute()
-        except Exception as e:
-            print(f"Failed to unmerge cells: {e}")
+    sheet_meta = next((sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name), None)
+    if sheet_meta:
+        existing_merges = sheet_meta.get("merges", [])
+        if existing_merges:
+            try:
+                unmerge_requests = [{"unmergeCells": {"range": m}} for m in existing_merges]
+                service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": unmerge_requests}).execute()
+            except Exception as e:
+                print(f"Failed to unmerge cells: {e}")
 
     # 2. Clear entire sheet to avoid intersection errors
     try:
@@ -1793,6 +1795,75 @@ def sync_downtime_weekly_summary(db: Session):
             ).execute()
         except:
             pass
+
+    requests = []
+    # Merge cells vertically for single-column headers
+    for c in [0, 1, 2, 7, 12, 13]:
+        requests.append({
+            "mergeCells": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": c, "endColumnIndex": c+1},
+                "mergeType": "MERGE_ALL"
+            }
+        })
+    # Merge cells horizontally for multi-column headers
+    for start, end in [(3, 5), (5, 7), (8, 10), (10, 12), (14, 19)]:
+        requests.append({
+            "mergeCells": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": start, "endColumnIndex": end},
+                "mergeType": "MERGE_ALL"
+            }
+        })
+    # Set header styling
+    requests.append({
+        "repeatCell": {
+            "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 19},
+            "cell": {
+                "userEnteredFormat": {
+                    "backgroundColor": {"red": 0.2, "green": 0.2, "blue": 0.2},
+                    "horizontalAlignment": "CENTER",
+                    "verticalAlignment": "MIDDLE",
+                    "textFormat": {"bold": True, "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}, "fontSize": 10},
+                    "wrapStrategy": "WRAP"
+                }
+            },
+            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+        }
+    })
+    if rows_data:
+        requests.append({
+            "updateBorders": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": len(rows_data), "startColumnIndex": 0, "endColumnIndex": 19},
+                "top": {"style": "SOLID"},
+                "bottom": {"style": "SOLID"},
+                "left": {"style": "SOLID"},
+                "right": {"style": "SOLID"},
+                "innerHorizontal": {"style": "SOLID"},
+                "innerVertical": {"style": "SOLID"}
+            }
+        })
+        requests.append({
+            "setBasicFilter": {
+                "filter": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": len(rows_data),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": 19
+                    }
+                }
+            }
+        })
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": 19
+            }
+        }
+    })
 
     # Execute all format and merges
     try:
