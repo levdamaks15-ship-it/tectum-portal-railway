@@ -3521,8 +3521,8 @@ def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
         
     try:
         google_sheets_integration.export_downtimes_to_google_sheets(db)
-            from google_sheets_integration import sync_downtime_weekly_summary
-            sync_downtime_weekly_summary(db)
+        from google_sheets_integration import sync_downtime_weekly_summary
+        sync_downtime_weekly_summary(db)
         
         db.add(models.AuditLog(
             user_name=request.session.get("user_email") or f"user_{user_id}",
