@@ -1765,182 +1765,44 @@ def sync_downtime_weekly_summary(db: Session):
         unmerge_requests = [{"unmergeCells": {"range": m}} for m in existing_merges]
         service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": unmerge_requests}).execute()
 
-    if rows_data:
-        service.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows_data}
-        ).execute()
-        
-    requests = [
-        {
-            "updateSheetProperties": {
-                "properties": {
-                    "sheetId": sheet_id,
-                    "gridProperties": {
-                        "frozenRowCount": 2
-                    }
-                },
-                "fields": "gridProperties.frozenRowCount"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 2,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(header_row_1)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "backgroundColor": {
-                            "red": 31/255.0,
-                            "green": 78/255.0,
-                            "blue": 120/255.0
-                        },
-                        "textFormat": {
-                            "bold": True,
-                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
-                            "fontFamily": "Calibri",
-                            "fontSize": 11
-                        },
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE",
-                        "wrapStrategy": "WRAP"
-                    }
-                },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 2,
-                    "endRowIndex": max(len(rows_data), 3),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(header_row_1)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "fontFamily": "Calibri",
-                            "fontSize": 11
-                        },
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
-                    }
-                },
-                "fields": "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)"
-            }
-        },
-        {
-            "updateBorders": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": max(len(rows_data), 3),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(header_row_1)
-                },
-                "top": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
-                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
-                "left": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
-                "right": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
-                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}},
-                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0, "green": 0, "blue": 0}}
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 2,
-                    "endRowIndex": max(len(rows_data), 3),
-                    "startColumnIndex": 12,
-                    "endColumnIndex": 13
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "0.0%"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 14,
-                    "endColumnIndex": 19
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "bold": True,
-                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
-                            "fontFamily": "Calibri",
-                            "fontSize": 11
-                        },
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE",
-                        "wrapStrategy": "WRAP"
-                    }
-                },
-                "fields": "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
-            }
-        }
-    ]
-    
-    merges = [
-        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 0, "endColumnIndex": 1},
-        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 1, "endColumnIndex": 2},
-        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 2, "endColumnIndex": 3},
-        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 3, "endColumnIndex": 5},
-        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 5, "endColumnIndex": 7},
-        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 7, "endColumnIndex": 8},
-        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 8, "endColumnIndex": 10},
-        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 10, "endColumnIndex": 12},
-        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 12, "endColumnIndex": 13},
-        {"startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 13, "endColumnIndex": 14},
-        {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 14, "endColumnIndex": 19},
-    ]
-    for m in merges:
-        requests.append({
-            "mergeCells": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": m["startRowIndex"],
-                    "endRowIndex": m["endRowIndex"],
-                    "startColumnIndex": m["startColumnIndex"],
-                    "endColumnIndex": m["endColumnIndex"]
-                },
-                "mergeType": "MERGE_ALL"
-            }
-        })
-        
-    requests.append({
-        "autoResizeDimensions": {
-            "dimensions": {
-                "sheetId": sheet_id,
-                "dimension": "COLUMNS",
-                "startIndex": 0,
-                "endIndex": len(header_row_1)
-            }
-        }
-    })
+    try:
+        if rows_data:
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows_data}
+            ).execute()
+    except Exception as e:
+        import traceback
+        err = f"Error in update: {e}\n{traceback.format_exc()}"
+        print(err)
+        try:
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": [[err]]}
+            ).execute()
+        except:
+            pass
 
     # Execute all format and merges
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    try:
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    except Exception as e:
+        import traceback
+        err = f"Error in batchUpdate: {e}\n{traceback.format_exc()}"
+        print(err)
+        try:
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": [[err]]}
+            ).execute()
+        except:
+            pass
     
     # We need to set the value for the "Простои" merged cell (row 1, col 15) which is index 14
     # Wait, the value is already there? No, I put it as "" in header_row_1!
