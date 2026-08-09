@@ -2180,11 +2180,11 @@ def get_downtime_nodes(department: str, db: Session = Depends(get_db)):
 
 @app.get("/api/downtimes/directory/breakdowns")
 def get_downtime_breakdowns(department: str, node: str, db: Session = Depends(get_db)):
-    results = db.query(models.DowntimeDirectory.breakdown, models.DowntimeDirectory.comment).filter(
+    results = db.query(models.DowntimeDirectory.breakdown, models.DowntimeDirectory.comment, models.DowntimeDirectory.category).filter(
         models.DowntimeDirectory.department == department,
         models.DowntimeDirectory.node == node
     ).all()
-    return [{"breakdown": r[0], "comment": r[1]} for r in results if r[0]]
+    return [{"breakdown": r[0], "comment": r[1], "category": r[2]} for r in results if r[0]]
 
 @app.get("/api/downtimes/directory", response_model=list[schemas.DowntimeDirectory])
 def get_downtime_directory(db: Session = Depends(get_db)):
