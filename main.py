@@ -512,7 +512,7 @@ def sync_downtimes_bg():
     db = SessionLocal()
     try:
         google_sheets_integration.export_downtimes_to_google_sheets(db)
-        from google_sheets_integration import sync_downtime_weekly_summary, get_google_sheets_service
+        from google_sheets_integration import sync_downtime_weekly_summary, get_sheets_service
         try:
             sync_downtime_weekly_summary(db)
         except Exception as e:
@@ -522,7 +522,7 @@ def sync_downtimes_bg():
             try:
                 sheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
                 if sheet_id:
-                    service = get_google_sheets_service()
+                    service = get_sheets_service()
                     service.spreadsheets().values().update(
                         spreadsheetId=sheet_id,
                         range="'Свод неделя'!A1",
@@ -3538,7 +3538,7 @@ def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
         
     try:
         google_sheets_integration.export_downtimes_to_google_sheets(db)
-        from google_sheets_integration import sync_downtime_weekly_summary, get_google_sheets_service
+        from google_sheets_integration import sync_downtime_weekly_summary, get_sheets_service
         try:
             sync_downtime_weekly_summary(db)
         except Exception as e:
@@ -3548,7 +3548,7 @@ def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
             try:
                 sheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
                 if sheet_id:
-                    service = get_google_sheets_service()
+                    service = get_sheets_service()
                     service.spreadsheets().values().update(
                         spreadsheetId=sheet_id,
                         range="'Свод неделя'!A1",
