@@ -1459,6 +1459,46 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": max(len(rows_data), 2),
+                    "startColumnIndex": 3, 
+                    "endColumnIndex": 5
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "0"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(len(rows_data), 2),
+                    "startColumnIndex": 7,
+                    "endColumnIndex": 8
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "0"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(len(rows_data), 2),
                     "startColumnIndex": 5, # % 1 сорта
                     "endColumnIndex": 6
                 },
