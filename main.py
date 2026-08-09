@@ -512,8 +512,8 @@ def sync_downtimes_bg():
     db = SessionLocal()
     try:
         google_sheets_integration.export_downtimes_to_google_sheets(db)
-            from google_sheets_integration import sync_downtime_weekly_summary
-            sync_downtime_weekly_summary(db)
+        from google_sheets_integration import sync_downtime_weekly_summary
+        sync_downtime_weekly_summary(db)
     except Exception as e:
         print(f"Error syncing downtimes to Google Sheets: {e}")
     finally:
