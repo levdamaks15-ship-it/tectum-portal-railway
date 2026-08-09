@@ -1327,7 +1327,12 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         ds_cond = b.ds_condition or 0
         ds_first = b.ds_first_grade or 0
         ds_def = b.ds_defect or 0
-        total_sheets = ds_cond + ds_first + ds_def
+        
+        lfm_sheets = 0
+        if b.shift and b.shift.lfm_reports:
+            lfm_sheets = sum(r.lfm_sheets for r in b.shift.lfm_reports)
+            
+        total_sheets = lfm_sheets
         
         week_stats[product_name]["total"] += total_sheets
         week_stats[product_name]["first"] += ds_first
