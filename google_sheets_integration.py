@@ -1842,19 +1842,6 @@ def sync_downtime_weekly_summary(db: Session):
                 "innerVertical": {"style": "SOLID"}
             }
         })
-        requests.append({
-            "setBasicFilter": {
-                "filter": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 1,
-                        "endRowIndex": len(rows_data),
-                        "startColumnIndex": 0,
-                        "endColumnIndex": 19
-                    }
-                }
-            }
-        })
     requests.append({
         "autoResizeDimensions": {
             "dimensions": {
