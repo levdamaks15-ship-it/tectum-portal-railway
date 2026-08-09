@@ -1612,6 +1612,24 @@ def sync_downtime_weekly_summary(db: Session):
         "days_worked": set()
     })
 
+    # 1. Unmerge cells first to avoid clear errors
+    existing_merges = get_merged_cells(service, SPREADSHEET_ID, sheet_id)
+    if existing_merges:
+        try:
+            unmerge_requests = [{"unmergeCells": {"range": m}} for m in existing_merges]
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": unmerge_requests}).execute()
+        except Exception as e:
+            print(f"Failed to unmerge cells: {e}")
+
+    # 2. Clear entire sheet to avoid intersection errors
+    try:
+        service.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'"
+        ).execute()
+    except Exception as e:
+        print(f"Failed to clear sheet: {e}")
+
     for s in shifts:
         if not s.date:
             continue
@@ -1752,18 +1770,7 @@ def sync_downtime_weekly_summary(db: Session):
         ]
         rows_data.append(row)
         
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:Z2000"
-    ).execute()
 
-    # Clear conditional formats or merges if needed, but since we recreate...
-    # Actually, we should clear merges first
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    existing_merges = sheet_meta.get("merges", [])
-    if existing_merges:
-        unmerge_requests = [{"unmergeCells": {"range": m}} for m in existing_merges]
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": unmerge_requests}).execute()
 
     try:
         if rows_data:
