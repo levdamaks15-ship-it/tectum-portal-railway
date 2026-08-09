@@ -1,5 +1,6 @@
 import os
 import json
+from collections import defaultdict
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
@@ -1644,8 +1645,8 @@ def sync_downtime_weekly_summary(db: Session):
         entry = summary[key]
         
         if not entry["start_date"]:
-            start = s.date - datetime.timedelta(days=s.date.weekday())
-            end = start + datetime.timedelta(days=6)
+            start = s.date - timedelta(days=s.date.weekday())
+            end = start + timedelta(days=6)
             entry["start_date"] = start
             entry["end_date"] = end
             
