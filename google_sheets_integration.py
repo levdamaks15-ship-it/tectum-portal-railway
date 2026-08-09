@@ -1721,7 +1721,7 @@ def sync_downtime_weekly_summary(db: Session):
         
         fact_sh = entry["fact_sheets"]
         fact_tons = entry["fact_tons"]
-        plan_sh = entry["plan_sheets"]
+        plan_sh = 39000
         
         avg_weight = (fact_tons * 1000.0 / fact_sh) if fact_sh > 0 else 19.6
         plan_tons = (plan_sh * avg_weight) / 1000.0
@@ -1748,7 +1748,7 @@ def sync_downtime_weekly_summary(db: Session):
         prod_tons = (fact_tons / clean_h) if clean_h > 0 else 0
         prod_sh = (fact_sh / clean_h) if clean_h > 0 else 0
         
-        pct = (fact_tons / plan_tons) if plan_tons > 0 else 0
+        pct = round((fact_tons / plan_tons) * 100, 1) if plan_tons > 0 else 0
         
         row = [
             line,
