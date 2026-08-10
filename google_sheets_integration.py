@@ -1898,7 +1898,10 @@ def export_current_balance_to_google_sheets(db: Session):
         {"id": "chrysotile_4_20", "name": "Хризотил 4-20 (кг)"},
         {"id": "chrysotile_5_65", "name": "Хризотил 5-65 (кг)"},
         {"id": "chrysotile_6_40", "name": "Хризотил 6-40 (кг)"},
-        {"id": "cement", "name": "Цемент общ. (кг)"},
+        {"id": "cement_silo1", "name": "Цемент силос 1 (кг)"},
+        {"id": "cement_silo2", "name": "Цемент силос 2 (кг)"},
+        {"id": "cement_silo3", "name": "Цемент силос 3 (кг)"},
+        {"id": "cement_silo4", "name": "Цемент силос 4 (кг)"},
         {"id": "cellulose", "name": "Целлюлоза (кг)"},
         {"id": "crushed_slate", "name": "Дробленый шифер (кг)"},
         {"id": "asbozurit", "name": "Асбозурит (кг)"},
@@ -1963,7 +1966,10 @@ def export_current_balance_to_google_sheets(db: Session):
             rc["chrysotile_4_20"] += r.chrysotile_4_20 or 0.0
             rc["chrysotile_5_65"] += r.chrysotile_5_65 or 0.0
             rc["chrysotile_6_40"] += r.chrysotile_6_40 or 0.0
-            rc["cement"] += (r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0)
+            rc["cement_silo1"] += r.cement_silo1 or 0.0
+            rc["cement_silo2"] += r.cement_silo2 or 0.0
+            rc["cement_silo3"] += r.cement_silo3 or 0.0
+            rc["cement_silo4"] += r.cement_silo4 or 0.0
             rc["cellulose"] += r.cellulose or 0.0
             rc["crushed_slate"] += r.crushed_slate or 0.0
             rc["asbozurit"] += r.asbozurit or 0.0
@@ -1992,7 +1998,10 @@ def export_current_balance_to_google_sheets(db: Session):
         s_zo["chrysotile_4_20"] = s.zo_chrysotile_4_20 or 0.0
         s_zo["chrysotile_5_65"] = s.zo_chrysotile_5_65 or 0.0
         s_zo["chrysotile_6_40"] = s.zo_chrysotile_6_40 or 0.0
-        s_zo["cement"] = (s.zo_cement_silo1 or 0.0) + (s.zo_cement_silo2 or 0.0) + (s.zo_cement_silo3 or 0.0) + (s.zo_cement_silo4 or 0.0)
+        s_zo["cement_silo1"] = s.zo_cement_silo1 or 0.0
+        s_zo["cement_silo2"] = s.zo_cement_silo2 or 0.0
+        s_zo["cement_silo3"] = s.zo_cement_silo3 or 0.0
+        s_zo["cement_silo4"] = s.zo_cement_silo4 or 0.0
         s_zo["cellulose"] = s.zo_cellulose or 0.0
         s_zo["crushed_slate"] = s.zo_crushed_slate or 0.0
         s_zo["asbozurit"] = s.zo_asbozurit or 0.0
