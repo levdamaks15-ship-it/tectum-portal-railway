@@ -1881,7 +1881,7 @@ def sync_downtime_weekly_summary(db: Session):
 def export_current_balance_to_google_sheets(db: Session):
     """
     Создает или обновляет лист 'Остатки сырья' в Google Таблице,
-    вычисляя разницу между всем приходом и всем расходом ЗО.
+    формируя детализированный журнал по каждой смене (хронологически).
     """
     if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
         print("Экспорт остатков сырья в Google Таблицы пропущен: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
@@ -1893,29 +1893,6 @@ def export_current_balance_to_google_sheets(db: Session):
     # 1. Проверяем существование листа, если нет — создаем
     spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
     sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
-
-    if sheet_name not in sheets_titles:
-        body = {
-            "requests": [{
-                "addSheet": {
-                    "properties": {
-                        "title": sheet_name,
-                        "gridProperties": {
-                            "rowCount": 100,
-                            "columnCount": 4
-                        }
-                    }
-                }
-            }]
-        }
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-
-    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-
-    # 2. Вычисляем остатки
-    shifts = db.query(models.Shift).all()
-    receipts = db.query(models.RawMaterialReceipt).all()
 
     materials = [
         {"id": "chrysotile_4_20", "name": "Хризотил 4-20 (кг)"},
@@ -1931,43 +1908,114 @@ def export_current_balance_to_google_sheets(db: Session):
         {"id": "pallets", "name": "Паллеты (шт)"}
     ]
 
-    totals = {m["id"]: {"receipt": 0.0, "zo": 0.0} for m in materials}
+    total_cols = 4 + len(materials) * 3
 
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 1000,
+                            "columnCount": total_cols
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+    # 2. Собираем данные
+    from sqlalchemy import asc
+    shifts = db.query(models.Shift).order_by(asc(models.Shift.date), asc(models.Shift.id)).all()
+    receipts = db.query(models.RawMaterialReceipt).all()
+    
+    receipts_by_shift = {}
+    unassigned_receipts = []
+    
     for r in receipts:
-        totals["chrysotile_4_20"]["receipt"] += r.chrysotile_4_20 or 0.0
-        totals["chrysotile_5_65"]["receipt"] += r.chrysotile_5_65 or 0.0
-        totals["chrysotile_6_40"]["receipt"] += r.chrysotile_6_40 or 0.0
-        totals["cement"]["receipt"] += (r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0)
-        totals["cellulose"]["receipt"] += r.cellulose or 0.0
-        totals["crushed_slate"]["receipt"] += r.crushed_slate or 0.0
-        totals["asbozurit"]["receipt"] += r.asbozurit or 0.0
-        totals["asbocarton"]["receipt"] += r.asbocarton or 0.0
-        totals["fiberglass"]["receipt"] += r.fiberglass or 0.0
-        totals["laprol"]["receipt"] += r.laprol or 0.0
-        totals["pallets"]["receipt"] += r.pallets or 0.0
+        if r.shift_id:
+            if r.shift_id not in receipts_by_shift:
+                receipts_by_shift[r.shift_id] = []
+            receipts_by_shift[r.shift_id].append(r)
+        else:
+            unassigned_receipts.append(r)
 
-    for s in shifts:
-        totals["chrysotile_4_20"]["zo"] += s.zo_chrysotile_4_20 or 0.0
-        totals["chrysotile_5_65"]["zo"] += s.zo_chrysotile_5_65 or 0.0
-        totals["chrysotile_6_40"]["zo"] += s.zo_chrysotile_6_40 or 0.0
-        totals["cement"]["zo"] += (s.zo_cement_silo1 or 0.0) + (s.zo_cement_silo2 or 0.0) + (s.zo_cement_silo3 or 0.0) + (s.zo_cement_silo4 or 0.0)
-        totals["cellulose"]["zo"] += s.zo_cellulose or 0.0
-        totals["crushed_slate"]["zo"] += s.zo_crushed_slate or 0.0
-        totals["asbozurit"]["zo"] += s.zo_asbozurit or 0.0
-        totals["asbocarton"]["zo"] += s.zo_asbocarton or 0.0
-        totals["fiberglass"]["zo"] += s.zo_fiberglass or 0.0
-        totals["laprol"]["zo"] += s.zo_laprol or 0.0
-        # Для паллет расхода ЗО нет, оставляем 0
-
-    headers = ["Наименование сырья", "Всего приход", "Всего расход (ЗО)", "Текущий остаток"]
-    rows_data = [headers]
+    # 3. Формируем заголовки
+    header1 = ["Дата", "Смена", "Линия", "Мастер"]
+    header2 = ["", "", "", ""]
+    
     for m in materials:
-        r = totals[m["id"]]["receipt"]
-        z = totals[m["id"]]["zo"]
-        b = r - z
-        rows_data.append([m["name"], round(r, 2), round(z, 2), round(b, 2)])
+        header1.extend([m["name"], "", ""])
+        header2.extend(["Приход", "Расход (ЗО)", "Остаток"])
 
-    # 3. Полностью перезаписываем лист
+    rows_data = [header1, header2]
+    
+    running_balance = {m["id"]: 0.0 for m in materials}
+
+    def calc_receipts(r_list):
+        rc = {m["id"]: 0.0 for m in materials}
+        for r in r_list:
+            rc["chrysotile_4_20"] += r.chrysotile_4_20 or 0.0
+            rc["chrysotile_5_65"] += r.chrysotile_5_65 or 0.0
+            rc["chrysotile_6_40"] += r.chrysotile_6_40 or 0.0
+            rc["cement"] += (r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0)
+            rc["cellulose"] += r.cellulose or 0.0
+            rc["crushed_slate"] += r.crushed_slate or 0.0
+            rc["asbozurit"] += r.asbozurit or 0.0
+            rc["asbocarton"] += r.asbocarton or 0.0
+            rc["fiberglass"] += r.fiberglass or 0.0
+            rc["laprol"] += r.laprol or 0.0
+            rc["pallets"] += r.pallets or 0.0
+        return rc
+
+    # Обработка нераспределенных приходов (если есть)
+    if unassigned_receipts:
+        un_rc = calc_receipts(unassigned_receipts)
+        row = ["До начала учета", "-", "-", "-"]
+        for m in materials:
+            rc_val = un_rc[m["id"]]
+            zo_val = 0.0
+            running_balance[m["id"]] += rc_val
+            row.extend([round(rc_val, 2), round(zo_val, 2), round(running_balance[m["id"]], 2)])
+        rows_data.append(row)
+
+    # Обработка смен
+    for s in shifts:
+        s_rc = calc_receipts(receipts_by_shift.get(s.id, []))
+        
+        s_zo = {m["id"]: 0.0 for m in materials}
+        s_zo["chrysotile_4_20"] = s.zo_chrysotile_4_20 or 0.0
+        s_zo["chrysotile_5_65"] = s.zo_chrysotile_5_65 or 0.0
+        s_zo["chrysotile_6_40"] = s.zo_chrysotile_6_40 or 0.0
+        s_zo["cement"] = (s.zo_cement_silo1 or 0.0) + (s.zo_cement_silo2 or 0.0) + (s.zo_cement_silo3 or 0.0) + (s.zo_cement_silo4 or 0.0)
+        s_zo["cellulose"] = s.zo_cellulose or 0.0
+        s_zo["crushed_slate"] = s.zo_crushed_slate or 0.0
+        s_zo["asbozurit"] = s.zo_asbozurit or 0.0
+        s_zo["asbocarton"] = s.zo_asbocarton or 0.0
+        s_zo["fiberglass"] = s.zo_fiberglass or 0.0
+        s_zo["laprol"] = s.zo_laprol or 0.0
+        
+        row = [
+            s.date.strftime("%d.%m.%Y") if s.date else "Н/Д",
+            s.shift_name or "-",
+            s.line or "-",
+            s.master.name if s.master else "Н/Д"
+        ]
+        
+        for m in materials:
+            rc_val = s_rc[m["id"]]
+            zo_val = s_zo[m["id"]]
+            running_balance[m["id"]] += (rc_val - zo_val)
+            row.extend([round(rc_val, 2), round(zo_val, 2), round(running_balance[m["id"]], 2)])
+            
+        rows_data.append(row)
+
+    # 4. Полностью перезаписываем лист
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
         range=f"'{sheet_name}'"
@@ -1980,36 +2028,117 @@ def export_current_balance_to_google_sheets(db: Session):
         body={"values": rows_data}
     ).execute()
 
-    # 4. Форматирование шапки
-    body = {
-        "requests": [
-            {
-                "repeatCell": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": 1
-                    },
-                    "cell": {
-                        "userEnteredFormat": {
-                            "backgroundColor": {"red": 0.8, "green": 0.8, "blue": 0.8},
-                            "textFormat": {"bold": True}
+    # 5. Снимаем все объединения ячеек, чтобы избежать конфликтов при повторном форматировании
+    try:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=SPREADSHEET_ID,
+            body={
+                "requests": [{
+                    "unmergeCells": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 2,
+                            "startColumnIndex": 4,
+                            "endColumnIndex": total_cols
                         }
-                    },
-                    "fields": "userEnteredFormat(backgroundColor,textFormat)"
+                    }
+                }]
+            }
+        ).execute()
+    except Exception as e:
+        print(f"Skipping unmerge: {e}")
+
+    # 6. Форматирование (Заморозка, цвета, объединение ячеек)
+    requests = []
+    
+    # Объединение первой строки (имена материалов)
+    for i in range(len(materials)):
+        col_start = 4 + i * 3
+        requests.append({
+            "mergeCells": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": col_start,
+                    "endColumnIndex": col_start + 3
+                },
+                "mergeType": "MERGE_ALL"
+            }
+        })
+        
+    # Заморозка первых 4 колонок и 2 строк заголовков
+    requests.append({
+        "updateSheetProperties": {
+            "properties": {
+                "sheetId": sheet_id,
+                "gridProperties": {
+                    "frozenRowCount": 2,
+                    "frozenColumnCount": 4
                 }
             },
-            {
-                "autoResizeDimensions": {
-                    "dimensions": {
-                        "sheetId": sheet_id,
-                        "dimension": "COLUMNS",
-                        "startIndex": 0,
-                        "endIndex": 4
-                    }
+            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+        }
+    })
+    
+    # Оформление шапки (2 строки)
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": 2,
+                "startColumnIndex": 0,
+                "endColumnIndex": total_cols
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "backgroundColor": {"red": 31/255.0, "green": 78/255.0, "blue": 120/255.0}, # navy-blue
+                    "textFormat": {
+                        "bold": True,
+                        "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                        "fontSize": 11,
+                        "fontFamily": "Calibri"
+                    },
+                    "horizontalAlignment": "CENTER",
+                    "verticalAlignment": "MIDDLE"
                 }
+            },
+            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+        }
+    })
+    
+    # Рамки для всей таблицы
+    requests.append({
+        "updateBorders": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": len(rows_data),
+                "startColumnIndex": 0,
+                "endColumnIndex": total_cols
+            },
+            "top": {"style": "SOLID"},
+            "bottom": {"style": "SOLID"},
+            "left": {"style": "SOLID"},
+            "right": {"style": "SOLID"},
+            "innerHorizontal": {"style": "SOLID"},
+            "innerVertical": {"style": "SOLID"}
+        }
+    })
+    
+    # Автоподбор ширины
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": total_cols
             }
-        ]
-    }
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-    print("Синхронизация остатков сырья завершена.")
+        }
+    })
+
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    print(f"Синхронизация остатков сырья (разбивка по сменам) завершена. Выгружено {len(rows_data)-2} смен.")
