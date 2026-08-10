@@ -2819,14 +2819,26 @@ def get_analytics_data(
 def get_product_norms(db: Session = Depends(get_db)):
     return db.query(models.ProductNorm).all()
 
+_norms_cache = {}
+_norms_cache_time = 0
+
+def _get_norm_cached(db: Session, product_name: str):
+    global _norms_cache, _norms_cache_time
+    import time
+    if time.time() - _norms_cache_time > 60:
+        norms = db.query(models.ProductNorm).all()
+        _norms_cache = {n.product_name: n for n in norms}
+        _norms_cache_time = time.time()
+    return _norms_cache.get(product_name)
+
 def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
-    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
+    norm = _get_norm_cached(db, product_name)
     if not norm or not norm.weight_kg:
         return 19.6 # fallback for 8 волн
     return norm.weight_kg
 
 def get_product_raw_weight_kg(db: Session, product_name: str) -> float:
-    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
+    norm = _get_norm_cached(db, product_name)
     if not norm:
         return 18.2 # fallback
     return (
@@ -2978,7 +2990,9 @@ def get_daily_report(
     else:
         effective_range_type = range_type_param
 
-    shifts_query = db.query(models.Shift).filter(
+    shifts_query = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports)
+    ).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
     )
@@ -3212,7 +3226,9 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
     num_days = 14
     ed = sd + timedelta(days=num_days - 1)
     
-    shifts = db.query(models.Shift).filter(
+    shifts = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports)
+    ).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
     ).all()
@@ -3413,7 +3429,9 @@ def get_shift_board(month: str, db: Session = Depends(get_db)):
         
     month_start = datetime(y, m, 1).date()
     month_end = datetime(y, m, num_days).date()
-    shifts = db.query(models.Shift).filter(
+    shifts = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports)
+    ).filter(
         models.Shift.date >= month_start,
         models.Shift.date <= month_end
     ).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
@@ -3613,7 +3631,11 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
         
     ed = sd + timedelta(days=6)
     
-    query = db.query(models.Shift).filter(
+    query = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.receipts),
+        selectinload(models.Shift.downtimes)
+    ).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
     )
@@ -3702,7 +3724,11 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
         
     ed = sd + timedelta(days=6)
     
-    query = db.query(models.Shift).filter(
+    query = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.receipts),
+        selectinload(models.Shift.downtimes)
+    ).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
     )
