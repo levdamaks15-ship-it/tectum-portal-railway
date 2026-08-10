@@ -1891,7 +1891,7 @@ def get_report_summary(
         
             warehouse_gp = warehouse_gp_check if not is_other_master else 0
             first_grade = sum((b.ds_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
-            qcd_defect = sum((b.qcd_defect or 0) for b in batches) if (batches and not is_other_master) else 0
+            qcd_defect = sum((b.ds_defect or 0) for b in batches) if (batches and not is_other_master) else 0
         
             ds_defects = {
                 "ds_defect_chip": sum((b.ds_defect_chip or 0) for b in batches) if (batches and not is_other_master) else 0,
@@ -2089,16 +2089,19 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
     total_defect = 0
     
     if shift_ids:
-        # Calculate sum of sheets, 1st grade, defect from LFM reports for these shifts
+        # Calculate sum of sheets from LFM reports, and 1st grade, defect from batches for these shifts
         lfm_stats = db.query(
-            func.sum(models.LFMReport.lfm_sheets).label("total_sheets"),
-            func.sum(models.LFMReport.formed_1st_grade).label("total_1st"),
-            func.sum(models.LFMReport.formed_defect).label("total_defect")
+            func.sum(models.LFMReport.lfm_sheets).label("total_sheets")
         ).filter(models.LFMReport.shift_id.in_(shift_ids)).first()
         
+        batch_stats = db.query(
+            func.sum(models.Batch.ds_first_grade).label("total_1st"),
+            func.sum(models.Batch.ds_defect).label("total_defect")
+        ).filter(models.Batch.shift_id.in_(shift_ids)).first()
+        
         total_sheets = int(lfm_stats.total_sheets or 0) if lfm_stats else 0
-        total_1st = int(lfm_stats.total_1st or 0) if lfm_stats else 0
-        total_defect = int(lfm_stats.total_defect or 0) if lfm_stats else 0
+        total_1st = int(batch_stats.total_1st or 0) if batch_stats else 0
+        total_defect = int(batch_stats.total_defect or 0) if batch_stats else 0
     
     # Find corresponding MonthlyPlanBoard row
     pb_row = db.query(models.MonthlyPlanBoard).filter(
@@ -2500,9 +2503,9 @@ def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
     user_role = request.session.get("user_role") or "admin"
 
     prod_query = db.query(
-        func.sum(models.Batch.qcd_condition).label('condition'),
-        func.sum(models.Batch.qcd_first_grade).label('first_grade'),
-        func.sum(models.Batch.qcd_defect).label('defect')
+        func.sum(models.Batch.ds_condition).label('condition'),
+        func.sum(models.Batch.ds_first_grade).label('first_grade'),
+        func.sum(models.Batch.ds_defect).label('defect')
     )
 
     defects_query = db.query(
@@ -2619,9 +2622,9 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
         
         # 2. Считаем итог СКК
         qcd_stats = db.query(
-            func.sum(models.Batch.qcd_condition).label('condition'),
-            func.sum(models.Batch.qcd_first_grade).label('first_grade'),
-            func.sum(models.Batch.qcd_defect).label('defect')
+            func.sum(models.Batch.ds_condition).label('condition'),
+            func.sum(models.Batch.ds_first_grade).label('first_grade'),
+            func.sum(models.Batch.ds_defect).label('defect')
         ).filter(models.Batch.shift_id == shift.id).first()
         
         qcd_cond = qcd_stats.condition or 0
@@ -3067,10 +3070,12 @@ def get_daily_report(
         total_def = 0
         for r in s.lfm_reports:
             w_kg = get_product_finished_weight_kg(db, r.product_name)
-            total_1st += (r.formed_1st_grade or 0)
-            total_def += (r.formed_defect or 0)
             total_w += w_kg * r.lfm_sheets
             total_s += r.lfm_sheets
+            
+        for b in s.batches:
+            total_1st += (b.ds_first_grade or 0)
+            total_def += (b.ds_defect or 0)
             
         if total_s > 0:
             slot_key = (line_key, day_key, s_name)
@@ -3784,8 +3789,8 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                         ds_first = sum(b.ds_first_grade for sh in slot_shifts for b in sh.batches)
                         ds_defect = sum(b.ds_defect for sh in slot_shifts for b in sh.batches)
                         
-                    qcd_first = sum(b.qcd_first_grade for sh in slot_shifts for b in sh.batches)
-                    qcd_defect = sum(b.qcd_defect for sh in slot_shifts for b in sh.batches)
+                    qcd_first = sum(b.ds_first_grade for sh in slot_shifts for b in sh.batches)
+                    qcd_defect = sum(b.ds_defect for sh in slot_shifts for b in sh.batches)
                     
                     sanitary_note = ""
                     for dt in s.downtimes:
