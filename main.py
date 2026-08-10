@@ -549,6 +549,17 @@ def sync_google_sheets_bg():
     finally:
         db.close()
 
+def sync_receipts_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.export_receipt_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing receipts to Google Sheets: {e}")
+    finally:
+        db.close()
+
 @app.get("/api/system/env")
 def get_system_env():
     return {"is_sandbox": os.environ.get("IS_SANDBOX", "false").lower() == "true"}
@@ -1744,7 +1755,7 @@ def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCrea
     ))
     db.commit()
     
-    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    background_tasks.add_task(sync_receipts_bg)
     
     return {"status": "success", "receipt_id": receipt.id}
 
@@ -1772,7 +1783,7 @@ def delete_raw_material_receipt(receipt_id: int, request: Request, background_ta
     ))
     db.commit()
     
-    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    background_tasks.add_task(sync_receipts_bg)
     
     return {"status": "success"}
 
@@ -4417,7 +4428,7 @@ def admin_update_receipt(receipt_id: int, data: schemas.RawMaterialReceiptUpdate
         db.commit()
     else:
         db.commit()
-    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    background_tasks.add_task(sync_receipts_bg)
     return {"status": "ok"}
 
 @app.delete("/api/admin/receipts/{receipt_id}")
@@ -4437,7 +4448,7 @@ def admin_delete_receipt(receipt_id: int, request: Request, background_tasks: Ba
     db.add(log_entry)
     db.delete(r)
     db.commit()
-    background_tasks.add_task(google_sheets_integration.export_receipt_to_google_sheets, db)
+    background_tasks.add_task(sync_receipts_bg)
     return {"status": "ok"}
 
 
