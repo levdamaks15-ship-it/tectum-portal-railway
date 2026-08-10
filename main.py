@@ -2994,7 +2994,8 @@ def get_daily_report(
         effective_range_type = range_type_param
 
     shifts_query = db.query(models.Shift).options(
-        selectinload(models.Shift.lfm_reports)
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.batches)
     ).filter(
         models.Shift.date >= sd,
         models.Shift.date <= ed
