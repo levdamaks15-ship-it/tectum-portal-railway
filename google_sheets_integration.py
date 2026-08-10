@@ -1877,3 +1877,139 @@ def sync_downtime_weekly_summary(db: Session):
     
     print(f"Свод неделя успешно экспортирован. Выгружено {len(rows_data)-2} строк.")
 
+
+def export_current_balance_to_google_sheets(db: Session):
+    """
+    Создает или обновляет лист 'Остатки сырья' в Google Таблице,
+    вычисляя разницу между всем приходом и всем расходом ЗО.
+    """
+    if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
+        print("Экспорт остатков сырья в Google Таблицы пропущен: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
+        return
+
+    service = get_sheets_service()
+    sheet_name = "Остатки сырья"
+
+    # 1. Проверяем существование листа, если нет — создаем
+    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+
+    if sheet_name not in sheets_titles:
+        body = {
+            "requests": [{
+                "addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "rowCount": 100,
+                            "columnCount": 4
+                        }
+                    }
+                }
+            }]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+    # 2. Вычисляем остатки
+    shifts = db.query(models.Shift).all()
+    receipts = db.query(models.RawMaterialReceipt).all()
+
+    materials = [
+        {"id": "chrysotile_4_20", "name": "Хризотил 4-20 (кг)"},
+        {"id": "chrysotile_5_65", "name": "Хризотил 5-65 (кг)"},
+        {"id": "chrysotile_6_40", "name": "Хризотил 6-40 (кг)"},
+        {"id": "cement", "name": "Цемент общ. (кг)"},
+        {"id": "cellulose", "name": "Целлюлоза (кг)"},
+        {"id": "crushed_slate", "name": "Дробленый шифер (кг)"},
+        {"id": "asbozurit", "name": "Асбозурит (кг)"},
+        {"id": "asbocarton", "name": "Асбокартон (кг)"},
+        {"id": "fiberglass", "name": "Стекловолокно (кг)"},
+        {"id": "laprol", "name": "Лапрол (кг)"},
+        {"id": "pallets", "name": "Паллеты (шт)"}
+    ]
+
+    totals = {m["id"]: {"receipt": 0.0, "zo": 0.0} for m in materials}
+
+    for r in receipts:
+        totals["chrysotile_4_20"]["receipt"] += r.chrysotile_4_20 or 0.0
+        totals["chrysotile_5_65"]["receipt"] += r.chrysotile_5_65 or 0.0
+        totals["chrysotile_6_40"]["receipt"] += r.chrysotile_6_40 or 0.0
+        totals["cement"]["receipt"] += (r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0)
+        totals["cellulose"]["receipt"] += r.cellulose or 0.0
+        totals["crushed_slate"]["receipt"] += r.crushed_slate or 0.0
+        totals["asbozurit"]["receipt"] += r.asbozurit or 0.0
+        totals["asbocarton"]["receipt"] += r.asbocarton or 0.0
+        totals["fiberglass"]["receipt"] += r.fiberglass or 0.0
+        totals["laprol"]["receipt"] += r.laprol or 0.0
+        totals["pallets"]["receipt"] += r.pallets or 0.0
+
+    for s in shifts:
+        totals["chrysotile_4_20"]["zo"] += s.zo_chrysotile_4_20 or 0.0
+        totals["chrysotile_5_65"]["zo"] += s.zo_chrysotile_5_65 or 0.0
+        totals["chrysotile_6_40"]["zo"] += s.zo_chrysotile_6_40 or 0.0
+        totals["cement"]["zo"] += (s.zo_cement_silo1 or 0.0) + (s.zo_cement_silo2 or 0.0) + (s.zo_cement_silo3 or 0.0) + (s.zo_cement_silo4 or 0.0)
+        totals["cellulose"]["zo"] += s.zo_cellulose or 0.0
+        totals["crushed_slate"]["zo"] += s.zo_crushed_slate or 0.0
+        totals["asbozurit"]["zo"] += s.zo_asbozurit or 0.0
+        totals["asbocarton"]["zo"] += s.zo_asbocarton or 0.0
+        totals["fiberglass"]["zo"] += s.zo_fiberglass or 0.0
+        totals["laprol"]["zo"] += s.zo_laprol or 0.0
+        # Для паллет расхода ЗО нет, оставляем 0
+
+    headers = ["Наименование сырья", "Всего приход", "Всего расход (ЗО)", "Текущий остаток"]
+    rows_data = [headers]
+    for m in materials:
+        r = totals[m["id"]]["receipt"]
+        z = totals[m["id"]]["zo"]
+        b = r - z
+        rows_data.append([m["name"], round(r, 2), round(z, 2), round(b, 2)])
+
+    # 3. Полностью перезаписываем лист
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'"
+    ).execute()
+
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1",
+        valueInputOption="USER_ENTERED",
+        body={"values": rows_data}
+    ).execute()
+
+    # 4. Форматирование шапки
+    body = {
+        "requests": [
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {"red": 0.8, "green": 0.8, "blue": 0.8},
+                            "textFormat": {"bold": True}
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat)"
+                }
+            },
+            {
+                "autoResizeDimensions": {
+                    "dimensions": {
+                        "sheetId": sheet_id,
+                        "dimension": "COLUMNS",
+                        "startIndex": 0,
+                        "endIndex": 4
+                    }
+                }
+            }
+        ]
+    }
+    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+    print("Синхронизация остатков сырья завершена.")

@@ -543,6 +543,7 @@ def sync_google_sheets_bg():
     try:
         google_sheets_integration.sync_report_to_google_sheets(db)
         google_sheets_integration.export_receipt_to_google_sheets(db)
+        google_sheets_integration.export_current_balance_to_google_sheets(db)
         google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
     except Exception as e:
         print(f"Error syncing reports/receipts to Google Sheets: {e}")
@@ -555,6 +556,7 @@ def sync_receipts_bg():
     db = SessionLocal()
     try:
         google_sheets_integration.export_receipt_to_google_sheets(db)
+        google_sheets_integration.export_current_balance_to_google_sheets(db)
     except Exception as e:
         print(f"Error syncing receipts to Google Sheets: {e}")
     finally:
