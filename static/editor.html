@@ -68,6 +68,12 @@
                     return;
                 }
 
+                const config = data.config;
+                if (!config || !config.onlyofficeUrl) {
+                    showNotice('Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL.');
+                    return;
+                }
+
                 let ooUrl = config.onlyofficeUrl.trim().replace(/\/+$/, '');
                 if (!ooUrl.startsWith('http://') && !ooUrl.startsWith('https://')) {
                     ooUrl = 'https://' + ooUrl;
