@@ -5133,6 +5133,10 @@ def get_onlyoffice_config(file_id: int, request: Request, db: Session = Depends(
     mtime = int(file_stat.st_mtime) if file_stat else 0
     doc_key = f"doc_{doc.id}_{mtime}"
 
+    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").rstrip("/")
+    if onlyoffice_url and not onlyoffice_url.startswith(("http://", "https://")):
+        onlyoffice_url = f"https://{onlyoffice_url}"
+
     config = {
         "document": {
             "fileType": ext,
@@ -5151,7 +5155,7 @@ def get_onlyoffice_config(file_id: int, request: Request, db: Session = Depends(
                 "compactHeader": True,
             }
         },
-        "onlyofficeUrl": ONLYOFFICE_URL
+        "onlyofficeUrl": onlyoffice_url
     }
 
     return {"status": "success", "config": config}

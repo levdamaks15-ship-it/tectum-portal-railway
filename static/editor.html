@@ -68,14 +68,13 @@
                     return;
                 }
 
-                const config = data.config;
-                if (!config.onlyofficeUrl) {
-                    showNotice('Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL.');
-                    return;
+                let ooUrl = config.onlyofficeUrl.trim().replace(/\/+$/, '');
+                if (!ooUrl.startsWith('http://') && !ooUrl.startsWith('https://')) {
+                    ooUrl = 'https://' + ooUrl;
                 }
 
                 // Загружаем скрипт API OnlyOffice
-                const scriptUrl = `${config.onlyofficeUrl}/web-apps/apps/api/documentserver/api.js`;
+                const scriptUrl = `${ooUrl}/web-apps/apps/api/documentserver/api.js`;
                 const script = document.createElement('script');
                 script.src = scriptUrl;
                 script.onload = () => {
