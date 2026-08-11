@@ -3214,3 +3214,22 @@ function onBrkDescChange(selectElement) {
         }
     }
 }
+
+// Clear '0' on focus and restore on blur for number inputs
+document.addEventListener('focusin', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
+        if (e.target.value === '0') {
+            e.target.value = '';
+        }
+    }
+});
+
+document.addEventListener('focusout', function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
+        if (e.target.value === '') {
+            e.target.value = '0';
+            // Dispatch input event to trigger any dependent calculations
+            e.target.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+});
