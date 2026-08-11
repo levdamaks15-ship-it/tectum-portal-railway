@@ -4921,22 +4921,24 @@ def list_documents(parent_id: Optional[str] = Query(None), db: Session = Depends
             folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == cat_id).all()
             files = db.query(models.Document).filter(models.Document.category_id == cat_id).all()
             
-        data = []
+        folder_data = []
         for f in folders:
-            data.append({
+            folder_data.append({
                 "id": f"folder_{f.id}",
                 "name": f.name,
                 "mimeType": "application/vnd.google-apps.folder"
             })
+            
+        file_data = []
         for f in files:
-            data.append({
+            file_data.append({
                 "id": f"file_{f.id}",
                 "name": f.title,
                 "mimeType": f.mime_type or "application/octet-stream",
                 "webViewLink": f"/api/documents/download/{f.id}"
             })
             
-        return {"status": "success", "data": data}
+        return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
