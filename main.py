@@ -5078,6 +5078,7 @@ def delete_document(item_id: str, db: Session = Depends(get_db)):
         return {"status": "error", "message": str(e)}
 
 import mimetypes
+from urllib.parse import quote
 
 @app.get("/api/documents/download/{file_id}")
 def download_document(file_id: int, db: Session = Depends(get_db)):
@@ -5091,7 +5092,8 @@ def download_document(file_id: int, db: Session = Depends(get_db)):
         if guessed:
             mime_type = guessed
             
-    headers = {"Content-Disposition": f'inline; filename="{doc.title}"'}
+    encoded_filename = quote(doc.title)
+    headers = {"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
         
     return FileResponse(
         path=doc.file_path, 
