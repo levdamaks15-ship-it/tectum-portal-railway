@@ -60,6 +60,22 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Data migration: clean up document titles containing relative paths
+    try:
+        db = SessionLocal()
+        docs = db.query(models.Document).all()
+        cleaned_count = 0
+        for doc in docs:
+            if doc.title and ("/" in doc.title or "\\" in doc.title):
+                doc.title = os.path.basename(doc.title.replace("\\", "/"))
+                cleaned_count += 1
+        if cleaned_count > 0:
+            db.commit()
+            print(f"Cleaned {cleaned_count} document titles.")
+        db.close()
+    except Exception as e:
+        print(f"Warning: could not clean document titles: {e}")
+
     try:
         conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE shifts ADD COLUMN batch_number VARCHAR(255)")
@@ -4907,19 +4923,27 @@ UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/api/documents/list")
-def list_documents(parent_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
+def list_documents(
+    parent_id: Optional[str] = Query(None),
+    q: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
     try:
-        # Get folders
-        cat_id = None
-        if parent_id and parent_id.startswith("folder_"):
-            cat_id = int(parent_id.split("_")[1])
-            
-        if cat_id is None:
-            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == None).all()
-            files = db.query(models.Document).filter(models.Document.category_id == None).all()
+        if q and q.strip():
+            query_str = f"%{q.strip()}%"
+            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.name.ilike(query_str)).all()
+            files = db.query(models.Document).filter(models.Document.title.ilike(query_str)).all()
         else:
-            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == cat_id).all()
-            files = db.query(models.Document).filter(models.Document.category_id == cat_id).all()
+            cat_id = None
+            if parent_id and parent_id.startswith("folder_"):
+                cat_id = int(parent_id.split("_")[1])
+                
+            if cat_id is None:
+                folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == None).all()
+                files = db.query(models.Document).filter(models.Document.category_id == None).all()
+            else:
+                folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == cat_id).all()
+                files = db.query(models.Document).filter(models.Document.category_id == cat_id).all()
             
         folder_data = []
         for f in folders:
@@ -4980,8 +5004,9 @@ async def upload_document(
                     current_parent = existing_folder.id
             cat_id = current_parent
             
+        clean_title = os.path.basename(file.filename.replace("\\", "/"))
         new_doc = models.Document(
-            title=file.filename,
+            title=clean_title,
             category_id=cat_id,
             file_path=file_path,
             mime_type=file.content_type

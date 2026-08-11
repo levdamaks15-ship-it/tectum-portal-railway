@@ -3,177 +3,311 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tectum - База Знаний</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <title>База Знаний - Tectum Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            display: flex;
-            margin: 0;
-            background-color: var(--bg-color, #0f172a);
-            color: #fff;
             font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
         }
+
+        /* Sidebar Styles */
         .docs-sidebar {
             width: 280px;
-            background: rgba(15, 23, 42, 0.95);
-            border-right: 1px solid rgba(255,255,255,0.1);
-            padding: 1.5rem;
+            background: #1e293b;
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             flex-direction: column;
-            gap: 1rem;
-            min-height: 100vh;
+            padding: 1.5rem;
+            box-sizing: border-box;
         }
-        .docs-content {
-            flex: 1;
-            padding: 2rem;
-            overflow-y: auto;
-            background: radial-gradient(circle at top right, rgba(30,58,138,0.1), transparent 400px);
-        }
-        .folder-item {
-            padding: 0.8rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: #cbd5e1;
+
+        .sidebar-brand {
             display: flex;
             align-items: center;
             gap: 0.8rem;
-            font-weight: 500;
-        }
-        .folder-item i {
-            color: #60a5fa;
-            font-size: 1.2rem;
-        }
-        .folder-item:hover, .folder-item.active {
-            background: rgba(59, 130, 246, 0.15);
-            color: #fff;
-        }
-        .folder-item.active i {
+            font-size: 1.25rem;
+            font-weight: 700;
             color: #3b82f6;
-        }
-        .files-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        .file-card {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-            position: relative;
-        }
-        .file-card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(59, 130, 246, 0.5);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-        }
-        .file-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        .file-name {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #e2e8f0;
-            word-break: break-word;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .action-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 2rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        .btn-upload {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
+
+        .folder-tree-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 0.8rem;
+            font-weight: 600;
+        }
+
+        .folder-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.6rem 0.8rem;
+            color: #cbd5e1;
             border-radius: 8px;
             cursor: pointer;
-            font-weight: bold;
+            transition: all 0.2s;
+            margin-bottom: 0.2rem;
+            font-size: 0.95rem;
+        }
+
+        .folder-item:hover, .folder-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+        }
+
+        /* Main Content */
+        .docs-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 450px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.7rem 1rem 0.7rem 2.5rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(30, 41, 59, 0.8);
+            color: #fff;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: #1e293b;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .btn-action {
+            padding: 0.65rem 1.1rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            transition: 0.3s;
+            transition: all 0.2s;
+            font-size: 0.9rem;
         }
-        .btn-upload:hover {
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-            transform: scale(1.02);
-        }
+
         .btn-create-folder {
-            background: rgba(255,255,255,0.1);
+            background: #334155;
+            color: #f8fafc;
+        }
+        .btn-create-folder:hover { background: #475569; }
+
+        .btn-upload-folder {
+            background: #10b981;
             color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 0.8rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.3s;
         }
-        .btn-create-folder:hover {
-            background: rgba(255,255,255,0.2);
+        .btn-upload-folder:hover { background: #059669; }
+
+        .btn-upload-file {
+            background: #3b82f6;
+            color: white;
         }
+        .btn-upload-file:hover { background: #2563eb; }
+
         .btn-back {
             background: transparent;
             color: #94a3b8;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 1rem;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.4rem;
             margin-bottom: 1rem;
-            transition: 0.3s;
+            transition: all 0.2s;
+            font-size: 0.85rem;
         }
         .btn-back:hover {
             color: #fff;
+            border-color: #94a3b8;
         }
+
+        .page-title {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.6rem;
+            font-weight: 700;
+        }
+
+        /* Table / List View (Google Drive style) */
+        .docs-table {
+            display: flex;
+            flex-direction: column;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+        }
+
+        .docs-table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 100px;
+            padding: 0.8rem 1.2rem;
+            background: rgba(15, 23, 42, 0.8);
+            color: #94a3b8;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .docs-table-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 100px;
+            padding: 0.85rem 1.2rem;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background 0.2s;
+        }
+
+        .docs-table-row:last-child {
+            border-bottom: none;
+        }
+
+        .docs-table-row:hover {
+            background: rgba(51, 65, 85, 0.4);
+        }
+
+        .folder-row {
+            cursor: pointer;
+        }
+
+        .row-name {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            overflow: hidden;
+        }
+
+        .item-title {
+            color: #f1f5f9;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-link {
+            color: #f1f5f9;
+            font-weight: 500;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: color 0.2s;
+        }
+
+        .file-link:hover {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
+        .row-meta {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .row-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.4rem;
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            padding: 0.4rem 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon-download:hover {
+            color: #60a5fa;
+            background: rgba(96, 165, 250, 0.15);
+        }
+
+        .btn-icon-delete:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.4;
+        }
+
         .loading {
             text-align: center;
             padding: 3rem;
             color: #94a3b8;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
-        .file-delete-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            opacity: 0;
-            transition: 0.3s;
-        }
-        .file-card:hover .file-delete-btn {
-            opacity: 1;
-        }
-        .file-delete-btn:hover {
-            background: #ef4444;
-            color: white;
-        }
+
         /* Modal Styles */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -198,14 +332,13 @@
 </head>
 <body>
     <div class="docs-sidebar">
-        <div style="padding-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 1rem;">
-            <h2 style="margin: 0; color: #fff; font-size: 1.5rem;">База Знаний</h2>
-            <p style="margin: 0.5rem 0 0 0; color: #94a3b8; font-size: 0.9rem;">Tectum Portal</p>
+        <div class="sidebar-brand">
+            <i class="fas fa-folder-tree"></i> База Знаний
         </div>
         
+        <div class="folder-tree-title">Главные разделы</div>
         <div id="sidebar-folders">
-            <!-- Папки будут загружены сюда -->
-            <div class="loading">Загрузка папок...</div>
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
         </div>
         
         <div style="margin-top: auto;">
@@ -216,30 +349,35 @@
     </div>
 
     <div class="docs-content">
-        <div class="action-bar">
-            <div>
-                <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
-                    <i class="fas fa-arrow-left"></i> Назад
-                </button>
-                <h1 id="current-folder-name" style="margin: 0;">Главная директория</h1>
+        <div class="top-bar">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)">
             </div>
-            <div style="display: flex; gap: 1rem;">
-                <button class="btn-create-folder" onclick="showFolderModal()">
+            <div class="action-buttons">
+                <button class="btn-action btn-create-folder" onclick="showFolderModal()">
                     <i class="fas fa-folder-plus"></i> Новая папка
                 </button>
-                <button class="btn-upload" style="background: #10b981;" onclick="document.getElementById('folder-upload').click()">
+                <button class="btn-action btn-upload-folder" onclick="document.getElementById('folder-upload').click()">
                     <i class="fas fa-folder-open"></i> Загрузить папку
                 </button>
                 <input type="file" id="folder-upload" webkitdirectory directory multiple style="display: none;" onchange="handleFolderUpload(event)">
-                <button class="btn-upload" onclick="document.getElementById('file-upload').click()">
+                <button class="btn-action btn-upload-file" onclick="document.getElementById('file-upload').click()">
                     <i class="fas fa-cloud-upload-alt"></i> Загрузить файл
                 </button>
                 <input type="file" id="file-upload" style="display: none;" onchange="handleFileUpload(event)">
             </div>
         </div>
 
-        <div id="files-container" class="files-grid">
-            <!-- Файлы будут загружены сюда -->
+        <div>
+            <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
+                <i class="fas fa-arrow-left"></i> Назад
+            </button>
+            <h1 id="current-folder-name" class="page-title">Главная директория</h1>
+        </div>
+
+        <div id="files-container">
+            <!-- Файлы и папки загрузятся сюда в формате таблицы -->
         </div>
     </div>
 
@@ -253,7 +391,7 @@
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeFolderModal()">Отмена</button>
-                <button class="btn-upload" onclick="createFolder()">Создать</button>
+                <button class="btn-action btn-upload-file" onclick="createFolder()">Создать</button>
             </div>
         </div>
     </div>
@@ -262,55 +400,101 @@
         let currentFolderId = null;
         let parentFolderIdHistory = [];
         let folderNameHistory = [];
+        let searchTimeout = null;
 
-        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true) {
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function getFileIcon(mimeType, fileName = '') {
+            const name = fileName.toLowerCase();
+            if (mimeType.includes('pdf') || name.endsWith('.pdf')) {
+                return { icon: 'fas fa-file-pdf', color: '#ef4444' };
+            }
+            if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || name.endsWith('.xlsx') || name.endsWith('.xls')) {
+                return { icon: 'fas fa-file-excel', color: '#10b981' };
+            }
+            if (mimeType.includes('document') || mimeType.includes('word') || name.endsWith('.docx') || name.endsWith('.doc')) {
+                return { icon: 'fas fa-file-word', color: '#3b82f6' };
+            }
+            if (mimeType.includes('image') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+                return { icon: 'fas fa-file-image', color: '#f59e0b' };
+            }
+            return { icon: 'fas fa-file-alt', color: '#94a3b8' };
+        }
+
+        function getFileTypeName(fileName, mimeType) {
+            const ext = fileName.split('.').pop().toUpperCase();
+            if (ext && ext !== fileName.toUpperCase()) return `${ext} документ`;
+            return 'Документ';
+        }
+
+        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null) {
             const container = document.getElementById('files-container');
             const sidebar = document.getElementById('sidebar-folders');
             
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка документов...</div>';
-            if (!folderId) sidebar.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
             
             try {
                 let url = '/api/documents/list';
-                if (folderId) url += `?parent_id=${folderId}`;
+                const params = new URLSearchParams();
+                if (searchQuery) {
+                    params.append('q', searchQuery);
+                } else if (folderId) {
+                    params.append('parent_id', folderId);
+                }
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
                 
                 const res = await fetch(url);
                 const data = await res.json();
                 
                 if (data.status === 'success') {
-                    if (addToHistory && currentFolderId !== folderId) {
+                    if (addToHistory && currentFolderId !== folderId && !searchQuery) {
                         if (currentFolderId) {
                             parentFolderIdHistory.push(currentFolderId);
                             folderNameHistory.push(document.getElementById('current-folder-name').innerText);
                         }
                     }
                     
-                    currentFolderId = folderId;
+                    if (!searchQuery) {
+                        currentFolderId = folderId;
+                    }
                     document.getElementById('current-folder-name').innerText = folderName;
                     
                     const btnBack = document.getElementById('btn-back');
-                    if (parentFolderIdHistory.length > 0) {
-                        btnBack.style.display = 'flex';
+                    if (parentFolderIdHistory.length > 0 && !searchQuery) {
+                        btnBack.style.display = 'inline-flex';
                     } else {
                         btnBack.style.display = 'none';
                     }
 
-                    renderFiles(data.data.files);
-                    
-                    // Обновляем сайдбар только если мы в корне (или всегда показываем корневые папки?)
-                    // Давайте пока отрисуем папки в основной зоне и в сайдбаре
-                    if (!folderId) {
+                    if (!folderId && !searchQuery) {
                         renderSidebarFolders(data.data.folders);
                     }
-                    // Дорисуем папки и в основную зону
-                    renderMainAreaFolders(data.data.folders, data.data.files);
+                    
+                    renderItems(data.data.folders, data.data.files);
                     
                 } else {
-                    container.innerHTML = `<div style="color: #ef4444;">Ошибка: ${data.message}</div>`;
+                    container.innerHTML = `<div style="color: #ef4444; padding: 2rem;">Ошибка: ${data.message}</div>`;
                 }
             } catch (error) {
-                container.innerHTML = `<div style="color: #ef4444;">Ошибка загрузки данных</div>`;
+                container.innerHTML = `<div style="color: #ef4444; padding: 2rem;">Ошибка загрузки данных</div>`;
             }
+        }
+
+        function handleSearch(query) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const trimmed = query.trim();
+                if (trimmed.length > 0) {
+                    loadDocuments(null, `Результаты поиска: "${trimmed}"`, false, trimmed);
+                } else {
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                }
+            }, 300);
         }
 
         function renderSidebarFolders(folders) {
@@ -319,70 +503,90 @@
             folders.forEach(folder => {
                 const div = document.createElement('div');
                 div.className = 'folder-item';
-                div.innerHTML = `<i class="fas fa-folder"></i> ${folder.name}`;
+                div.innerHTML = `<i class="fas fa-folder"></i> ${escapeHtml(folder.name)}`;
                 div.onclick = () => {
-                    // Reset history when clicking from sidebar (returning to a root-level concept)
                     parentFolderIdHistory = [];
                     folderNameHistory = [];
+                    document.getElementById('search-input').value = '';
                     loadDocuments(folder.id, folder.name, false);
                 };
                 sidebar.appendChild(div);
             });
         }
 
-        function renderMainAreaFolders(folders, files) {
+        function renderItems(folders, files) {
             const container = document.getElementById('files-container');
             if (folders.length === 0 && files.length === 0) {
-                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 3rem;">Папка пуста</div>';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <p>В этой директории пока нет документов или папок</p>
+                    </div>
+                `;
                 return;
             }
-            
-            // Если есть файлы, они уже отрендерились. Нам нужно вставить папки в начало.
-            let foldersHtml = '';
+
+            let html = `
+                <div class="docs-table">
+                    <div class="docs-table-header">
+                        <div>Название</div>
+                        <div>Тип</div>
+                        <div style="text-align: right;">Действия</div>
+                    </div>
+            `;
+
+            // Вывод папок
             folders.forEach(folder => {
-                foldersHtml += `
-                    <div class="file-card" onclick="loadDocuments('${folder.id}', '${folder.name}')">
-                        <i class="fas fa-folder file-icon" style="color: #60a5fa;"></i>
-                        <div class="file-name">${folder.name}</div>
+                html += `
+                    <div class="docs-table-row folder-row" onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}')">
+                        <div class="row-name">
+                            <i class="fas fa-folder" style="color: #60a5fa; font-size: 1.2rem;"></i>
+                            <span class="item-title">${escapeHtml(folder.name)}</span>
+                        </div>
+                        <div class="row-meta">Папка</div>
+                        <div class="row-actions">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event)" title="Удалить папку">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
             });
-            
-            container.innerHTML = foldersHtml + container.innerHTML; // Prepend folders
-        }
 
-        function renderFiles(files) {
-            const container = document.getElementById('files-container');
-            container.innerHTML = '';
-            
+            // Вывод файлов
             files.forEach(file => {
-                const icon = getFileIcon(file.mimeType);
-                const div = document.createElement('div');
-                div.className = 'file-card';
-                div.innerHTML = `
-                    <button class="file-delete-btn" onclick="deleteFile('${file.id}', event)" title="Удалить файл">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    ${icon}
-                    <div class="file-name" title="${file.name}">${file.name}</div>
+                const iconInfo = getFileIcon(file.mimeType, file.name);
+                const typeName = getFileTypeName(file.name, file.mimeType);
+                html += `
+                    <div class="docs-table-row">
+                        <div class="row-name">
+                            <i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1.2rem;"></i>
+                            <a href="${file.webViewLink}" target="_blank" class="file-link" title="${escapeHtml(file.name)}">
+                                ${escapeHtml(file.name)}
+                            </a>
+                        </div>
+                        <div class="row-meta">${typeName}</div>
+                        <div class="row-actions">
+                            <a href="${file.webViewLink}" target="_blank" class="btn-icon btn-icon-download" title="Скачать / Открыть">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event)" title="Удалить файл">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
                 `;
-                div.onclick = () => window.open(file.webViewLink, '_blank');
-                container.appendChild(div);
             });
-        }
 
-        function getFileIcon(mimeType) {
-            if (mimeType.includes('pdf')) return '<i class="fas fa-file-pdf file-icon" style="color: #ef4444;"></i>';
-            if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return '<i class="fas fa-file-excel file-icon" style="color: #10b981;"></i>';
-            if (mimeType.includes('document') || mimeType.includes('word')) return '<i class="fas fa-file-word file-icon" style="color: #3b82f6;"></i>';
-            if (mimeType.includes('image')) return '<i class="fas fa-file-image file-icon" style="color: #f59e0b;"></i>';
-            return '<i class="fas fa-file-alt file-icon" style="color: #94a3b8;"></i>';
+            html += `</div>`;
+            container.innerHTML = html;
         }
 
         function goUp() {
             if (parentFolderIdHistory.length > 0) {
                 const prevId = parentFolderIdHistory.pop();
                 const prevName = folderNameHistory.pop();
+                document.getElementById('search-input').value = '';
                 loadDocuments(prevId, prevName, false);
             }
         }
@@ -397,15 +601,10 @@
                 formData.append('parent_id', currentFolderId);
             }
 
-            // Показать индикатор загрузки
             const container = document.getElementById('files-container');
-            const loadingHtml = `
-                <div class="file-card" style="border: 1px dashed #3b82f6;">
-                    <i class="fas fa-spinner fa-spin file-icon" style="color: #3b82f6;"></i>
-                    <div class="file-name">Загрузка...</div>
-                </div>
-            `;
-            container.innerHTML = loadingHtml + container.innerHTML;
+            container.innerHTML = `
+                <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка файла...</div>
+            ` + container.innerHTML;
 
             try {
                 const res = await fetch('/api/documents/upload', {
@@ -415,18 +614,17 @@
                 const data = await res.json();
                 
                 if (data.status === 'success') {
-                    // Перезагрузить текущую папку
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                 } else {
                     alert('Ошибка загрузки: ' + data.message);
-                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false); // Reload to remove spinner
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                 }
             } catch (error) {
                 alert('Ошибка соединения');
                 loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             }
             
-            event.target.value = ''; // Reset input
+            event.target.value = '';
         }
 
         async function handleFolderUpload(event) {
@@ -436,12 +634,8 @@
             const container = document.getElementById('files-container');
             const total = files.length;
             
-            // Показываем индикатор прогресса
             container.innerHTML = `
-                <div class="file-card" style="border: 1px dashed #10b981; grid-column: 1/-1;">
-                    <i class="fas fa-spinner fa-spin file-icon" style="color: #10b981;"></i>
-                    <div class="file-name" id="folder-upload-progress">Загрузка папки: 0 из ${total} файлов...</div>
-                </div>
+                <div class="loading" id="folder-upload-progress"><i class="fas fa-spinner fa-spin"></i> Загрузка папки: 0 из ${total} файлов...</div>
             ` + container.innerHTML;
 
             const progressEl = document.getElementById('folder-upload-progress');
@@ -467,24 +661,23 @@
                     });
                     successCount++;
                     if (progressEl) {
-                        progressEl.innerText = `Загрузка папки: ${successCount} из ${total} файлов...`;
+                        progressEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Загрузка папки: ${successCount} из ${total} файлов...`;
                     }
                 } catch (error) {
                     console.error('Ошибка загрузки файла:', file.name, error);
                 }
             }
             
-            // После завершения всех загрузок обновляем список
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
-            event.target.value = ''; // Reset input
+            event.target.value = '';
         }
 
-        async function deleteFile(fileId, event) {
+        async function deleteItem(itemId, event) {
             event.stopPropagation();
-            if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
+            if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
             try {
-                const res = await fetch(`/api/documents/${fileId}`, { method: 'DELETE' });
+                const res = await fetch(`/api/documents/${itemId}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (data.status === 'success') {
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
@@ -521,7 +714,6 @@
                     closeFolderModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     if (!currentFolderId) {
-                        // Если создали в корне, перезагружаем и сайдбар
                         loadDocuments(); 
                     }
                 } else {
@@ -532,7 +724,6 @@
             }
         }
 
-        // Запуск при загрузке страницы
         window.addEventListener('DOMContentLoaded', () => loadDocuments());
     </script>
 </body>
