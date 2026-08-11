@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tectum - База Знаний</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            background-color: var(--bg-color, #0f172a);
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+        }
+        .docs-sidebar {
+            width: 280px;
+            background: rgba(15, 23, 42, 0.95);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 100vh;
+        }
+        .docs-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background: radial-gradient(circle at top right, rgba(30,58,138,0.1), transparent 400px);
+        }
+        .folder-item {
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-weight: 500;
+        }
+        .folder-item i {
+            color: #60a5fa;
+            font-size: 1.2rem;
+        }
+        .folder-item:hover, .folder-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #fff;
+        }
+        .folder-item.active i {
+            color: #3b82f6;
+        }
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .file-card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+        .file-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .file-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .file-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #e2e8f0;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-upload {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: 0.3s;
+        }
+        .btn-upload:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            transform: scale(1.02);
+        }
+        .btn-create-folder {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .btn-create-folder:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .btn-back {
+            background: transparent;
+            color: #94a3b8;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            transition: 0.3s;
+        }
+        .btn-back:hover {
+            color: #fff;
+        }
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #94a3b8;
+            font-size: 1.2rem;
+        }
+        .file-delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: 0.3s;
+        }
+        .file-card:hover .file-delete-btn {
+            opacity: 1;
+        }
+        .file-delete-btn:hover {
+            background: #ef4444;
+            color: white;
+        }
+        /* Modal Styles */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: #1e293b; padding: 2.5rem; border-radius: 16px; width: 90%; max-width: 450px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .modal h3 { margin-top: 0; margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: #cbd5e1; }
+        .form-group input { 
+            width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); 
+            background: rgba(0,0,0,0.2); color: white; box-sizing: border-box;
+        }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; }
+        .btn-cancel { background: transparent; color: #94a3b8; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="docs-sidebar">
+        <div style="padding-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 1rem;">
+            <h2 style="margin: 0; color: #fff; font-size: 1.5rem;">База Знаний</h2>
+            <p style="margin: 0.5rem 0 0 0; color: #94a3b8; font-size: 0.9rem;">Tectum Portal</p>
+        </div>
+        
+        <div id="sidebar-folders">
+            <!-- Папки будут загружены сюда -->
+            <div class="loading">Загрузка папок...</div>
+        </div>
+        
+        <div style="margin-top: auto;">
+            <a href="/static/index.html" style="color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+                <i class="fas fa-home"></i> На главную
+            </a>
+        </div>
+    </div>
+
+    <div class="docs-content">
+        <div class="action-bar">
+            <div>
+                <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </button>
+                <h1 id="current-folder-name" style="margin: 0;">Главная директория</h1>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn-create-folder" onclick="showFolderModal()">
+                    <i class="fas fa-folder-plus"></i> Новая папка
+                </button>
+                <button class="btn-upload" onclick="document.getElementById('file-upload').click()">
+                    <i class="fas fa-cloud-upload-alt"></i> Загрузить файл
+                </button>
+                <input type="file" id="file-upload" style="display: none;" onchange="handleFileUpload(event)">
+            </div>
+        </div>
+
+        <div id="files-container" class="files-grid">
+            <!-- Файлы будут загружены сюда -->
+        </div>
+    </div>
+
+    <!-- Модалка новой папки -->
+    <div id="folder-modal" class="modal">
+        <div class="modal-content">
+            <h3>Создать новую папку</h3>
+            <div class="form-group">
+                <label>Название папки</label>
+                <input type="text" id="new-folder-name" placeholder="Например: Отдел кадров">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeFolderModal()">Отмена</button>
+                <button class="btn-upload" onclick="createFolder()">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFolderId = null;
+        let parentFolderIdHistory = [];
+        let folderNameHistory = [];
+
+        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true) {
+            const container = document.getElementById('files-container');
+            const sidebar = document.getElementById('sidebar-folders');
+            
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка документов...</div>';
+            if (!folderId) sidebar.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>';
+            
+            try {
+                let url = '/api/documents/list';
+                if (folderId) url += `?parent_id=${folderId}`;
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    if (addToHistory && currentFolderId !== folderId) {
+                        if (currentFolderId) {
+                            parentFolderIdHistory.push(currentFolderId);
+                            folderNameHistory.push(document.getElementById('current-folder-name').innerText);
+                        }
+                    }
+                    
+                    currentFolderId = folderId;
+                    document.getElementById('current-folder-name').innerText = folderName;
+                    
+                    const btnBack = document.getElementById('btn-back');
+                    if (parentFolderIdHistory.length > 0) {
+                        btnBack.style.display = 'flex';
+                    } else {
+                        btnBack.style.display = 'none';
+                    }
+
+                    renderFiles(data.data.files);
+                    
+                    // Обновляем сайдбар только если мы в корне (или всегда показываем корневые папки?)
+                    // Давайте пока отрисуем папки в основной зоне и в сайдбаре
+                    if (!folderId) {
+                        renderSidebarFolders(data.data.folders);
+                    }
+                    // Дорисуем папки и в основную зону
+                    renderMainAreaFolders(data.data.folders, data.data.files);
+                    
+                } else {
+                    container.innerHTML = `<div style="color: #ef4444;">Ошибка: ${data.message}</div>`;
+                }
+            } catch (error) {
+                container.innerHTML = `<div style="color: #ef4444;">Ошибка загрузки данных</div>`;
+            }
+        }
+
+        function renderSidebarFolders(folders) {
+            const sidebar = document.getElementById('sidebar-folders');
+            sidebar.innerHTML = '';
+            folders.forEach(folder => {
+                const div = document.createElement('div');
+                div.className = 'folder-item';
+                div.innerHTML = `<i class="fas fa-folder"></i> ${folder.name}`;
+                div.onclick = () => {
+                    // Reset history when clicking from sidebar (returning to a root-level concept)
+                    parentFolderIdHistory = [];
+                    folderNameHistory = [];
+                    loadDocuments(folder.id, folder.name, false);
+                };
+                sidebar.appendChild(div);
+            });
+        }
+
+        function renderMainAreaFolders(folders, files) {
+            const container = document.getElementById('files-container');
+            if (folders.length === 0 && files.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 3rem;">Папка пуста</div>';
+                return;
+            }
+            
+            // Если есть файлы, они уже отрендерились. Нам нужно вставить папки в начало.
+            let foldersHtml = '';
+            folders.forEach(folder => {
+                foldersHtml += `
+                    <div class="file-card" onclick="loadDocuments('${folder.id}', '${folder.name}')">
+                        <i class="fas fa-folder file-icon" style="color: #60a5fa;"></i>
+                        <div class="file-name">${folder.name}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = foldersHtml + container.innerHTML; // Prepend folders
+        }
+
+        function renderFiles(files) {
+            const container = document.getElementById('files-container');
+            container.innerHTML = '';
+            
+            files.forEach(file => {
+                const icon = getFileIcon(file.mimeType);
+                const div = document.createElement('div');
+                div.className = 'file-card';
+                div.innerHTML = `
+                    <button class="file-delete-btn" onclick="deleteFile('${file.id}', event)" title="Удалить файл">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    ${icon}
+                    <div class="file-name" title="${file.name}">${file.name}</div>
+                `;
+                div.onclick = () => window.open(file.webViewLink, '_blank');
+                container.appendChild(div);
+            });
+        }
+
+        function getFileIcon(mimeType) {
+            if (mimeType.includes('pdf')) return '<i class="fas fa-file-pdf file-icon" style="color: #ef4444;"></i>';
+            if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return '<i class="fas fa-file-excel file-icon" style="color: #10b981;"></i>';
+            if (mimeType.includes('document') || mimeType.includes('word')) return '<i class="fas fa-file-word file-icon" style="color: #3b82f6;"></i>';
+            if (mimeType.includes('image')) return '<i class="fas fa-file-image file-icon" style="color: #f59e0b;"></i>';
+            return '<i class="fas fa-file-alt file-icon" style="color: #94a3b8;"></i>';
+        }
+
+        function goUp() {
+            if (parentFolderIdHistory.length > 0) {
+                const prevId = parentFolderIdHistory.pop();
+                const prevName = folderNameHistory.pop();
+                loadDocuments(prevId, prevName, false);
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            if (currentFolderId) {
+                formData.append('parent_id', currentFolderId);
+            }
+
+            // Показать индикатор загрузки
+            const container = document.getElementById('files-container');
+            const loadingHtml = `
+                <div class="file-card" style="border: 1px dashed #3b82f6;">
+                    <i class="fas fa-spinner fa-spin file-icon" style="color: #3b82f6;"></i>
+                    <div class="file-name">Загрузка...</div>
+                </div>
+            `;
+            container.innerHTML = loadingHtml + container.innerHTML;
+
+            try {
+                const res = await fetch('/api/documents/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    // Перезагрузить текущую папку
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка загрузки: ' + data.message);
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false); // Reload to remove spinner
+                }
+            } catch (error) {
+                alert('Ошибка соединения');
+                loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+            }
+            
+            event.target.value = ''; // Reset input
+        }
+
+        async function deleteFile(fileId, event) {
+            event.stopPropagation();
+            if (!confirm('Вы уверены, что хотите удалить этот файл?')) return;
+
+            try {
+                const res = await fetch(`/api/documents/${fileId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка при удалении: ' + data.message);
+                }
+            } catch (error) {
+                alert('Ошибка соединения');
+            }
+        }
+
+        function showFolderModal() { document.getElementById('folder-modal').style.display = 'flex'; }
+        function closeFolderModal() { 
+            document.getElementById('folder-modal').style.display = 'none'; 
+            document.getElementById('new-folder-name').value = '';
+        }
+
+        async function createFolder() {
+            const name = document.getElementById('new-folder-name').value.trim();
+            if (!name) return;
+
+            const formData = new FormData();
+            formData.append('folder_name', name);
+            if (currentFolderId) formData.append('parent_id', currentFolderId);
+
+            try {
+                const res = await fetch('/api/documents/folders', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    closeFolderModal();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    if (!currentFolderId) {
+                        // Если создали в корне, перезагружаем и сайдбар
+                        loadDocuments(); 
+                    }
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (error) {
+                alert('Ошибка соединения');
+            }
+        }
+
+        // Запуск при загрузке страницы
+        window.addEventListener('DOMContentLoaded', () => loadDocuments());
+    </script>
+</body>
+</html>
