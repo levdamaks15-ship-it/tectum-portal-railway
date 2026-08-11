@@ -432,9 +432,8 @@
 
         function getWebViewLink(file) {
             const name = (file.name || '').toLowerCase();
-            const directUrl = window.location.origin + file.webViewLink;
             if (isEditableFile(name)) {
-                return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(directUrl)}`;
+                return `/static/editor.html?id=${file.id}`;
             }
             return file.webViewLink;
         }
