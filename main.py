@@ -4895,52 +4895,149 @@ def fix_phantoms(db: Session = Depends(get_db)):
 
 
 # ==========================================
-# API БАЗЫ ЗНАНИЙ (GOOGLE DRIVE)
+# API БАЗЫ ЗНАНИЙ (ЛОКАЛЬНОЕ ХРАНИЛИЩЕ)
 # ==========================================
-import google_drive_integration
-from fastapi import Form
+from fastapi import Form, UploadFile, File
+from fastapi.responses import FileResponse
+import os
+import uuid
+import shutil
+
+UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/api/documents/list")
-def list_documents(parent_id: Optional[str] = Query(None)):
+def list_documents(parent_id: Optional[str] = Query(None), db: Session = Depends(get_db)):
     try:
-        data = google_drive_integration.list_files_and_folders(parent_id)
+        # Get folders
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        if cat_id is None:
+            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == None).all()
+            files = db.query(models.Document).filter(models.Document.category_id == None).all()
+        else:
+            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == cat_id).all()
+            files = db.query(models.Document).filter(models.Document.category_id == cat_id).all()
+            
+        data = []
+        for f in folders:
+            data.append({
+                "id": f"folder_{f.id}",
+                "name": f.name,
+                "mimeType": "application/vnd.google-apps.folder"
+            })
+        for f in files:
+            data.append({
+                "id": f"file_{f.id}",
+                "name": f.title,
+                "mimeType": f.mime_type or "application/octet-stream",
+                "webViewLink": f"/api/documents/download/{f.id}"
+            })
+            
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"Drive API Error: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/documents/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    parent_id: Optional[str] = Form(None)
+    parent_id: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
 ):
     try:
-        file_bytes = await file.read()
-        uploaded_file = google_drive_integration.upload_file(
-            filename=file.filename,
-            mime_type=file.content_type,
-            file_bytes=file_bytes,
-            parent_id=parent_id
+        ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        new_doc = models.Document(
+            title=file.filename,
+            category_id=cat_id,
+            file_path=file_path,
+            mime_type=file.content_type
         )
-        return {"status": "success", "file": uploaded_file}
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+        
+        return {"status": "success", "file": {
+            "id": f"file_{new_doc.id}",
+            "name": new_doc.title,
+            "mimeType": new_doc.mime_type,
+            "webViewLink": f"/api/documents/download/{new_doc.id}"
+        }}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/documents/folders")
 def create_document_folder(
     folder_name: str = Form(...),
-    parent_id: Optional[str] = Form(None)
+    parent_id: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
 ):
     try:
-        folder = google_drive_integration.create_folder(folder_name, parent_id)
-        return {"status": "success", "folder": folder}
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        new_folder = models.DocumentCategory(
+            name=folder_name,
+            parent_id=cat_id
+        )
+        db.add(new_folder)
+        db.commit()
+        db.refresh(new_folder)
+        
+        return {"status": "success", "folder": {
+            "id": f"folder_{new_folder.id}",
+            "name": new_folder.name,
+            "mimeType": "application/vnd.google-apps.folder"
+        }}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.delete("/api/documents/{file_id}")
-def delete_document(file_id: str):
+@app.delete("/api/documents/{item_id}")
+def delete_document(item_id: str, db: Session = Depends(get_db)):
     try:
-        google_drive_integration.delete_file(file_id)
+        if item_id.startswith("folder_"):
+            cat_id = int(item_id.split("_")[1])
+            folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
+            if folder:
+                has_subfolders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == folder.id).first()
+                has_files = db.query(models.Document).filter(models.Document.category_id == folder.id).first()
+                if has_subfolders or has_files:
+                    return {"status": "error", "message": "Невозможно удалить: папка не пуста"}
+                db.delete(folder)
+                db.commit()
+        elif item_id.startswith("file_"):
+            file_id = int(item_id.split("_")[1])
+            doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+            if doc:
+                if os.path.exists(doc.file_path):
+                    os.remove(doc.file_path)
+                db.delete(doc)
+                db.commit()
+                
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/documents/download/{file_id}")
+def download_document(file_id: int, db: Session = Depends(get_db)):
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc or not os.path.exists(doc.file_path):
+        return {"status": "error", "message": "Файл не найден"}
+        
+    return FileResponse(
+        path=doc.file_path, 
+        filename=doc.title, 
+        media_type=doc.mime_type or "application/octet-stream"
+    )

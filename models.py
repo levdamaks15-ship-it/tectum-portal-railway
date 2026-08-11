@@ -270,4 +270,19 @@ class DowntimeDirectory(Base):
     category = Column(String, nullable=True)
     comment = Column(String, nullable=True)
 
+class DocumentCategory(Base):
+    __tablename__ = "document_categories"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    parent_id = Column(Integer, ForeignKey("document_categories.id"), nullable=True)
+
+class Document(Base):
+    __tablename__ = "documents"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    category_id = Column(Integer, ForeignKey("document_categories.id"))
+    file_path = Column(String)
+    mime_type = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 
