@@ -13,7 +13,7 @@ import import_aci_excel
 from datetime import datetime
 from pydantic import BaseModel
 from sqlalchemy import or_, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from contextlib import asynccontextmanager
 import seed_norms
 import calendar
@@ -1318,7 +1318,7 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
 
 def calculate_shift_deviations(db: Session, shift: models.Shift):
     # Find LFM reports for the shift
-    lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all()
+    lfm_reports = shift.lfm_reports
     product_counts = {}
     for r in lfm_reports:
         product_counts[r.product_name] = product_counts.get(r.product_name, 0) + r.lfm_sheets
@@ -1337,7 +1337,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
     }
     
     for prod_name, sheets in product_counts.items():
-        norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == prod_name).first()
+        norm = _get_norm_cached(db, prod_name)
         if norm:
             theoretical["chrysotile_4_20"] += sheets * (norm.norm_chrysotile_4_20 or 0.0)
             theoretical["chrysotile_5_65"] += sheets * (norm.norm_chrysotile_5_65 or 0.0)
@@ -1871,14 +1871,19 @@ def get_report_summary(
         if master_id:
             query = query.filter(models.Shift.master_id == master_id)
         
-        shifts = query.order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.batch_number.desc(), models.Shift.id.desc()).all()
+        shifts = query.options(
+            joinedload(models.Shift.master),
+            joinedload(models.Shift.batches),
+            joinedload(models.Shift.lfm_reports),
+            joinedload(models.Shift.receipts)
+        ).order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.batch_number.desc(), models.Shift.id.desc()).all()
     
         result = []
         for shift in shifts:
             is_other_master = False
         
-            lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all()
-            batches = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).all()
+            lfm_reports = shift.lfm_reports
+            batches = shift.batches
         
             # Фильтруем абсолютно пустые смены без факта производства и без плана
             lfm_sheets_check = sum((l.lfm_sheets or 0) for l in lfm_reports) if lfm_reports else 0
