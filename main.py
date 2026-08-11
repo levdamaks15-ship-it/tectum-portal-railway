@@ -761,7 +761,8 @@ def auth_logout(request: Request):
 @app.get("/api/masters/")
 def get_masters(db: Session = Depends(get_db)):
     try:
-        return db.query(models.Master).all()
+        masters = db.query(models.Master).all()
+        return sorted(masters, key=lambda m: (m.name != "Дауылбай М.", m.name))
     except Exception as e:
         import traceback
         print(f"Error in get_masters: {str(e)}\n{traceback.format_exc()}")
