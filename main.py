@@ -4946,6 +4946,7 @@ def list_documents(parent_id: Optional[str] = Query(None), db: Session = Depends
 async def upload_document(
     file: UploadFile = File(...),
     parent_id: Optional[str] = Form(None),
+    relative_path: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     try:
@@ -4959,6 +4960,25 @@ async def upload_document(
         cat_id = None
         if parent_id and parent_id.startswith("folder_"):
             cat_id = int(parent_id.split("_")[1])
+            
+        if relative_path:
+            parts = relative_path.split("/")[:-1]
+            current_parent = cat_id
+            for part in parts:
+                if not part: continue
+                existing_folder = db.query(models.DocumentCategory).filter(
+                    models.DocumentCategory.name == part,
+                    models.DocumentCategory.parent_id == current_parent
+                ).first()
+                if not existing_folder:
+                    new_folder = models.DocumentCategory(name=part, parent_id=current_parent)
+                    db.add(new_folder)
+                    db.commit()
+                    db.refresh(new_folder)
+                    current_parent = new_folder.id
+                else:
+                    current_parent = existing_folder.id
+            cat_id = current_parent
             
         new_doc = models.Document(
             title=file.filename,

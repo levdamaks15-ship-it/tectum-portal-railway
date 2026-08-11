@@ -227,6 +227,10 @@
                 <button class="btn-create-folder" onclick="showFolderModal()">
                     <i class="fas fa-folder-plus"></i> Новая папка
                 </button>
+                <button class="btn-upload" style="background: #10b981;" onclick="document.getElementById('folder-upload').click()">
+                    <i class="fas fa-folder-open"></i> Загрузить папку
+                </button>
+                <input type="file" id="folder-upload" webkitdirectory directory multiple style="display: none;" onchange="handleFolderUpload(event)">
                 <button class="btn-upload" onclick="document.getElementById('file-upload').click()">
                     <i class="fas fa-cloud-upload-alt"></i> Загрузить файл
                 </button>
@@ -422,6 +426,56 @@
                 loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             }
             
+            event.target.value = ''; // Reset input
+        }
+
+        async function handleFolderUpload(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            const container = document.getElementById('files-container');
+            const total = files.length;
+            
+            // Показываем индикатор прогресса
+            container.innerHTML = `
+                <div class="file-card" style="border: 1px dashed #10b981; grid-column: 1/-1;">
+                    <i class="fas fa-spinner fa-spin file-icon" style="color: #10b981;"></i>
+                    <div class="file-name" id="folder-upload-progress">Загрузка папки: 0 из ${total} файлов...</div>
+                </div>
+            ` + container.innerHTML;
+
+            const progressEl = document.getElementById('folder-upload-progress');
+            let successCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                if (currentFolderId) {
+                    formData.append('parent_id', currentFolderId);
+                }
+                
+                if (file.webkitRelativePath) {
+                    formData.append('relative_path', file.webkitRelativePath);
+                }
+
+                try {
+                    await fetch('/api/documents/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    successCount++;
+                    if (progressEl) {
+                        progressEl.innerText = `Загрузка папки: ${successCount} из ${total} файлов...`;
+                    }
+                } catch (error) {
+                    console.error('Ошибка загрузки файла:', file.name, error);
+                }
+            }
+            
+            // После завершения всех загрузок обновляем список
+            loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             event.target.value = ''; // Reset input
         }
 
