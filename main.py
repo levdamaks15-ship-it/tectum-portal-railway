@@ -5077,14 +5077,25 @@ def delete_document(item_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+import mimetypes
+
 @app.get("/api/documents/download/{file_id}")
 def download_document(file_id: int, db: Session = Depends(get_db)):
     doc = db.query(models.Document).filter(models.Document.id == file_id).first()
     if not doc or not os.path.exists(doc.file_path):
         return {"status": "error", "message": "Файл не найден"}
         
+    mime_type = doc.mime_type
+    if not mime_type or mime_type == "application/octet-stream":
+        guessed, _ = mimetypes.guess_type(doc.file_path)
+        if guessed:
+            mime_type = guessed
+            
+    headers = {"Content-Disposition": f'inline; filename="{doc.title}"'}
+        
     return FileResponse(
         path=doc.file_path, 
         filename=doc.title, 
-        media_type=doc.mime_type or "application/octet-stream"
+        media_type=mime_type or "application/octet-stream",
+        headers=headers
     )

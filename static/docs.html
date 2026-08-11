@@ -430,6 +430,15 @@
             return 'Документ';
         }
 
+        function getWebViewLink(file) {
+            const name = (file.name || '').toLowerCase();
+            const directUrl = window.location.origin + file.webViewLink;
+            if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.pptx') || name.endsWith('.ppt')) {
+                return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(directUrl)}`;
+            }
+            return file.webViewLink;
+        }
+
         async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null) {
             const container = document.getElementById('files-container');
             const sidebar = document.getElementById('sidebar-folders');
@@ -557,18 +566,22 @@
             files.forEach(file => {
                 const iconInfo = getFileIcon(file.mimeType, file.name);
                 const typeName = getFileTypeName(file.name, file.mimeType);
+                const viewUrl = getWebViewLink(file);
                 html += `
                     <div class="docs-table-row">
                         <div class="row-name">
                             <i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1.2rem;"></i>
-                            <a href="${file.webViewLink}" target="_blank" class="file-link" title="${escapeHtml(file.name)}">
+                            <a href="${viewUrl}" target="_blank" class="file-link" title="${escapeHtml(file.name)}">
                                 ${escapeHtml(file.name)}
                             </a>
                         </div>
                         <div class="row-meta">${typeName}</div>
                         <div class="row-actions">
-                            <a href="${file.webViewLink}" target="_blank" class="btn-icon btn-icon-download" title="Скачать / Открыть">
-                                <i class="fas fa-external-link-alt"></i>
+                            <a href="${viewUrl}" target="_blank" class="btn-icon btn-icon-download" title="Просмотреть в браузере">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="${file.webViewLink}" download class="btn-icon btn-icon-download" title="Скачать оригинальный файл">
+                                <i class="fas fa-download"></i>
                             </a>
                             <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event)" title="Удалить файл">
                                 <i class="fas fa-trash"></i>
