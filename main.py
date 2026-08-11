@@ -5101,3 +5101,81 @@ def download_document(file_id: int, db: Session = Depends(get_db)):
         media_type=mime_type or "application/octet-stream",
         headers=headers
     )
+
+# ==========================================
+# ONLYOFFICE INTEGRATION ENDPOINTS
+# ==========================================
+ONLYOFFICE_URL = os.getenv("ONLYOFFICE_URL", "").rstrip("/")
+
+def get_document_type(filename: str) -> str:
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+    if ext in ["xls", "xlsx", "csv", "ods"]:
+        return "cell"
+    if ext in ["ppt", "pptx", "odp"]:
+        return "slide"
+    return "word"
+
+@app.get("/api/documents/onlyoffice-config/{file_id}")
+def get_onlyoffice_config(file_id: int, request: Request, db: Session = Depends(get_db)):
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return {"status": "error", "message": "Документ не найден"}
+
+    base_url = str(request.base_url).rstrip("/")
+    if base_url.startswith("http://") and "up.railway.app" in base_url:
+        base_url = base_url.replace("http://", "https://")
+
+    ext = doc.title.split(".")[-1].lower() if "." in doc.title else "docx"
+    file_url = f"{base_url}/api/documents/download/{doc.id}"
+    callback_url = f"{base_url}/api/documents/onlyoffice-callback/{doc.id}"
+
+    file_stat = os.stat(doc.file_path) if os.path.exists(doc.file_path) else None
+    mtime = int(file_stat.st_mtime) if file_stat else 0
+    doc_key = f"doc_{doc.id}_{mtime}"
+
+    config = {
+        "document": {
+            "fileType": ext,
+            "key": doc_key,
+            "title": doc.title,
+            "url": file_url,
+        },
+        "documentType": get_document_type(doc.title),
+        "editorConfig": {
+            "callbackUrl": callback_url,
+            "lang": "ru",
+            "mode": "edit",
+            "customization": {
+                "autosave": True,
+                "forcesave": True,
+                "compactHeader": True,
+            }
+        },
+        "onlyofficeUrl": ONLYOFFICE_URL
+    }
+
+    return {"status": "success", "config": config}
+
+@app.post("/api/documents/onlyoffice-callback/{file_id}")
+async def onlyoffice_callback(file_id: int, request: Request, db: Session = Depends(get_db)):
+    try:
+        body = await request.json()
+        status = body.get("status")
+
+        if status in [2, 6]:
+            download_url = body.get("url")
+            if download_url:
+                doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+                if doc:
+                    import urllib.request
+                    req_obj = urllib.request.Request(download_url, headers={"User-Agent": "FastAPI-Backend"})
+                    with urllib.request.urlopen(req_obj, timeout=30) as resp:
+                        content = resp.read()
+                        with open(doc.file_path, "wb") as f:
+                            f.write(content)
+                    doc.uploaded_at = datetime.datetime.utcnow()
+                    db.commit()
+        return {"error": 0}
+    except Exception as e:
+        logger.error(f"OnlyOffice callback error: {e}")
+        return {"error": 1, "message": str(e)}

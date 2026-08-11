@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Онлайн-редактор - Tectum Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Inter', sans-serif;
+            background-color: #0f172a; color: #fff;
+        }
+        #editor-wrapper {
+            width: 100%; height: 100vh; display: flex; flex-direction: column;
+        }
+        #editor-container {
+            flex: 1; width: 100%; height: 100%;
+        }
+        .setup-notice {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; text-align: center; padding: 2rem; box-sizing: border-box;
+        }
+        .setup-card {
+            background: #1e293b; padding: 3rem; border-radius: 16px; max-width: 550px;
+            border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .setup-card i { font-size: 3.5rem; color: #3b82f6; margin-bottom: 1.5rem; }
+        .setup-card h2 { margin-top: 0; font-size: 1.5rem; }
+        .setup-card p { color: #94a3b8; line-height: 1.6; margin-bottom: 2rem; font-size: 0.95rem; }
+        .btn-back {
+            background: #3b82f6; color: white; padding: 0.8rem 1.5rem; border-radius: 8px;
+            text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-back:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div id="editor-wrapper">
+        <div id="setup-notice" class="setup-notice" style="display: none;">
+            <div class="setup-card">
+                <i class="fas fa-file-signature"></i>
+                <h2>Требуется подключение OnlyOffice</h2>
+                <p id="notice-message">Сервер онлайн-редактирования OnlyOffice еще не подключен в настройках Railway. Переменная <code>ONLYOFFICE_URL</code> не задана.</p>
+                <a href="javascript:window.close()" class="btn-back"><i class="fas fa-times"></i> Закрыть вкладку</a>
+            </div>
+        </div>
+        <div id="editor-container"></div>
+    </div>
+
+    <script>
+        async function initEditor() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const rawId = urlParams.get('id');
+            if (!rawId) {
+                showNotice('Не указан ID документа');
+                return;
+            }
+            
+            const fileId = rawId.replace('file_', '');
+            try {
+                const res = await fetch(`/api/documents/onlyoffice-config/${fileId}`);
+                const data = await res.json();
+
+                if (data.status !== 'success') {
+                    showNotice('Ошибка получения конфигурации: ' + data.message);
+                    return;
+                }
+
+                const config = data.config;
+                if (!config.onlyofficeUrl) {
+                    showNotice('Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL.');
+                    return;
+                }
+
+                // Загружаем скрипт API OnlyOffice
+                const scriptUrl = `${config.onlyofficeUrl}/web-apps/apps/api/documentserver/api.js`;
+                const script = document.createElement('script');
+                script.src = scriptUrl;
+                script.onload = () => {
+                    new DocsAPI.DocEditor("editor-container", {
+                        "document": config.document,
+                        "documentType": config.documentType,
+                        "editorConfig": config.editorConfig,
+                        "height": "100%",
+                        "width": "100%"
+                    });
+                };
+                script.onerror = () => {
+                    showNotice(`Не удалось подключиться к серверу OnlyOffice по адресу: ${config.onlyofficeUrl}. Проверьте доступность сервера.`);
+                };
+                document.head.appendChild(script);
+
+            } catch (err) {
+                showNotice('Ошибка подключения к серверу: ' + err.message);
+            }
+        }
+
+        function showNotice(msg) {
+            document.getElementById('editor-container').style.display = 'none';
+            document.getElementById('notice-message').innerText = msg;
+            document.getElementById('setup-notice').style.display = 'flex';
+        }
+
+        window.addEventListener('DOMContentLoaded', initEditor);
+    </script>
+</body>
+</html>

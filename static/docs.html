@@ -433,10 +433,15 @@
         function getWebViewLink(file) {
             const name = (file.name || '').toLowerCase();
             const directUrl = window.location.origin + file.webViewLink;
-            if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.pptx') || name.endsWith('.ppt')) {
+            if (isEditableFile(name)) {
                 return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(directUrl)}`;
             }
             return file.webViewLink;
+        }
+
+        function isEditableFile(fileName) {
+            const name = (fileName || '').toLowerCase();
+            return name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.pptx') || name.endsWith('.ppt');
         }
 
         async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null) {
@@ -577,6 +582,11 @@
                         </div>
                         <div class="row-meta">${typeName}</div>
                         <div class="row-actions">
+                            ${isEditableFile(file.name) ? `
+                                <a href="/static/editor.html?id=${file.id}" target="_blank" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать онлайн (OnlyOffice)">
+                                    <i class="fas fa-pen-to-square"></i>
+                                </a>
+                            ` : ''}
                             <a href="${viewUrl}" target="_blank" class="btn-icon btn-icon-download" title="Просмотреть в браузере">
                                 <i class="fas fa-eye"></i>
                             </a>
