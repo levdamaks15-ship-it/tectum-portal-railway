@@ -51,14 +51,8 @@
 
     <script>
         // Конфигурация инжектится бэкендом (FastAPI) в глобальную переменную window.OO_CONFIG
-        // и скрипт api.js добавляется в <head> на сервере.
         
         function initEditor() {
-            if (typeof DocsAPI === 'undefined') {
-                showNotice('Скрипт API OnlyOffice не загружен. Проверьте адрес сервера ONLYOFFICE_URL.');
-                return;
-            }
-
             if (!window.OO_CONFIG) {
                 showNotice('Ошибка: конфигурация редактора не найдена.');
                 return;
@@ -69,18 +63,28 @@
                 return;
             }
 
-            try {
-                const config = window.OO_CONFIG;
-                new DocsAPI.DocEditor("editor-container", {
-                    "document": config.document,
-                    "documentType": config.documentType,
-                    "editorConfig": config.editorConfig,
-                    "height": "100%",
-                    "width": "100%"
-                });
-            } catch (err) {
-                showNotice('Ошибка инициализации редактора: ' + err.message);
-            }
+            const config = window.OO_CONFIG;
+            const scriptUrl = `${config.onlyofficeUrl}/web-apps/apps/api/documents/api.js`;
+            
+            const script = document.createElement('script');
+            script.src = scriptUrl;
+            script.onload = () => {
+                try {
+                    new DocsAPI.DocEditor("editor-container", {
+                        "document": config.document,
+                        "documentType": config.documentType,
+                        "editorConfig": config.editorConfig,
+                        "height": "100%",
+                        "width": "100%"
+                    });
+                } catch (err) {
+                    showNotice('Ошибка инициализации редактора: ' + err.message);
+                }
+            };
+            script.onerror = () => {
+                showNotice(`Скрипт API OnlyOffice не загружен. Проверьте адрес: ${scriptUrl}`);
+            };
+            document.head.appendChild(script);
         }
 
         function showNotice(msg) {

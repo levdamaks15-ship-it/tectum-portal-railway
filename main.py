@@ -5149,7 +5149,13 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
     mtime = int(file_stat.st_mtime) if file_stat else 0
     doc_key = f"doc_{doc.id}_{mtime}"
 
-    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").rstrip("/")
+    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").strip()
+    
+    if "/web-apps" in onlyoffice_url:
+        onlyoffice_url = onlyoffice_url.split("/web-apps")[0]
+        
+    onlyoffice_url = onlyoffice_url.rstrip("/")
+    
     if onlyoffice_url and not onlyoffice_url.startswith(("http://", "https://")):
         onlyoffice_url = f"https://{onlyoffice_url}"
 
@@ -5182,12 +5188,8 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
         
     if not onlyoffice_url:
         config["error"] = "Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL."
-        script_tag = ""
-    else:
-        script_tag = f'<script src="{onlyoffice_url}/web-apps/apps/api/documents/api.js"></script>'
 
     injected_script = f"""
-    {script_tag}
     <script>
         window.OO_CONFIG = {json.dumps(config)};
     </script>
@@ -5214,7 +5216,13 @@ def get_onlyoffice_config(file_id: int, request: Request, db: Session = Depends(
     mtime = int(file_stat.st_mtime) if file_stat else 0
     doc_key = f"doc_{doc.id}_{mtime}"
 
-    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").rstrip("/")
+    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").strip()
+    
+    if "/web-apps" in onlyoffice_url:
+        onlyoffice_url = onlyoffice_url.split("/web-apps")[0]
+        
+    onlyoffice_url = onlyoffice_url.rstrip("/")
+    
     if onlyoffice_url and not onlyoffice_url.startswith(("http://", "https://")):
         onlyoffice_url = f"https://{onlyoffice_url}"
 
