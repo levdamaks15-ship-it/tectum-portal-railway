@@ -5186,14 +5186,14 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
     else:
         script_tag = f'<script src="{onlyoffice_url}/web-apps/apps/api/documentserver/api.js"></script>'
 
-    injected_script = f\"\"\"
+    injected_script = f"""
     {script_tag}
     <script>
         window.OO_CONFIG = {json.dumps(config)};
     </script>
-    \"\"\"
+    """
     
-    html_content = html_content.replace("</head>", f"{injected_script}\\n</head>")
+    html_content = html_content.replace("</head>", f"{injected_script}\n</head>")
     return HTMLResponse(content=html_content)
 
 @app.get("/api/documents/onlyoffice-config/{file_id}")
