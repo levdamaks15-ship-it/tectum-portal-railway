@@ -48,20 +48,45 @@
             font-weight: 600;
         }
 
-        .folder-item {
+        .folder-tree-node {
+            margin-left: 0.5rem;
+            border-left: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-left: 0.5rem;
+            display: none;
+        }
+        .folder-tree-node.expanded {
+            display: block;
+        }
+        .folder-item-wrapper {
             display: flex;
             align-items: center;
-            gap: 0.8rem;
-            padding: 0.6rem 0.8rem;
+            gap: 0.3rem;
+            margin-bottom: 0.2rem;
+        }
+        .folder-tree-toggle {
+            cursor: pointer;
+            width: 1.2rem;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+        .folder-tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+        .folder-item-tree {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0.6rem;
             color: #cbd5e1;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
-            margin-bottom: 0.2rem;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
-
-        .folder-item:hover, .folder-item.active {
+        .folder-item-tree:hover, .folder-item-tree.active {
             background: rgba(59, 130, 246, 0.15);
             color: #60a5fa;
         }
@@ -401,6 +426,7 @@
         let parentFolderIdHistory = [];
         let folderNameHistory = [];
         let searchTimeout = null;
+        let expandedFolders = new Set();
 
         function escapeHtml(text) {
             if (!text) return '';
@@ -484,9 +510,6 @@
                         btnBack.style.display = 'none';
                     }
 
-                    if (!folderId && !searchQuery) {
-                        renderSidebarFolders(data.data.folders);
-                    }
                     
                     renderItems(data.data.folders, data.data.files);
                     
@@ -510,21 +533,111 @@
             }, 300);
         }
 
-        function renderSidebarFolders(folders) {
-            const sidebar = document.getElementById('sidebar-folders');
-            sidebar.innerHTML = '';
-            folders.forEach(folder => {
-                const div = document.createElement('div');
-                div.className = 'folder-item';
-                div.innerHTML = `<i class="fas fa-folder"></i> ${escapeHtml(folder.name)}`;
-                div.onclick = () => {
-                    parentFolderIdHistory = [];
-                    folderNameHistory = [];
-                    document.getElementById('search-input').value = '';
-                    loadDocuments(folder.id, folder.name, false);
-                };
-                sidebar.appendChild(div);
-            });
+        async function loadSidebarTree() {
+            try {
+                const res = await fetch('/api/documents/tree');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const folders = data.data;
+                    const sidebar = document.getElementById('sidebar-folders');
+                    sidebar.innerHTML = '';
+                    
+                    const folderMap = {};
+                    const rootFolders = [];
+                    folders.forEach(f => {
+                        f.children = [];
+                        folderMap[f.id] = f;
+                    });
+                    
+                    folders.forEach(f => {
+                        if (f.parent_id && folderMap[f.parent_id]) {
+                            folderMap[f.parent_id].children.push(f);
+                        } else {
+                            rootFolders.push(f);
+                        }
+                    });
+                    
+                    rootFolders.forEach(root => {
+                        sidebar.appendChild(renderTreeNode(root));
+                    });
+                }
+            } catch (error) {
+                console.error("Tree load error:", error);
+            }
+        }
+
+        function renderTreeNode(folder) {
+            const wrapper = document.createElement('div');
+            
+            const header = document.createElement('div');
+            header.className = 'folder-item-wrapper';
+            
+            const toggle = document.createElement('div');
+            toggle.className = 'folder-tree-toggle';
+            if (folder.children && folder.children.length > 0) {
+                toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            } else {
+                toggle.innerHTML = '';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'folder-item-tree';
+            if (currentFolderId === folder.id) {
+                item.classList.add('active');
+            }
+            item.innerHTML = `<i class="fas fa-folder"></i> ${escapeHtml(folder.name)}`;
+            
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'folder-tree-node';
+            
+            if (expandedFolders.has(folder.id)) {
+                childrenContainer.classList.add('expanded');
+                toggle.classList.add('expanded');
+            }
+            
+            toggle.onclick = (e) => {
+                e.stopPropagation();
+                if (folder.children && folder.children.length > 0) {
+                    if (expandedFolders.has(folder.id)) {
+                        expandedFolders.delete(folder.id);
+                        childrenContainer.classList.remove('expanded');
+                        toggle.classList.remove('expanded');
+                    } else {
+                        expandedFolders.add(folder.id);
+                        childrenContainer.classList.add('expanded');
+                        toggle.classList.add('expanded');
+                    }
+                }
+            };
+            
+            item.onclick = () => {
+                expandedFolders.add(folder.id);
+                parentFolderIdHistory = [];
+                folderNameHistory = [];
+                document.getElementById('search-input').value = '';
+                
+                document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                if (folder.children && folder.children.length > 0) {
+                    childrenContainer.classList.add('expanded');
+                    toggle.classList.add('expanded');
+                }
+                
+                loadDocuments(folder.id, folder.name, false);
+            };
+            
+            header.appendChild(toggle);
+            header.appendChild(item);
+            wrapper.appendChild(header);
+            
+            if (folder.children && folder.children.length > 0) {
+                folder.children.forEach(child => {
+                    childrenContainer.appendChild(renderTreeNode(child));
+                });
+                wrapper.appendChild(childrenContainer);
+            }
+            
+            return wrapper;
         }
 
         function renderItems(folders, files) {
@@ -691,6 +804,7 @@
             }
             
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+            loadSidebarTree();
             event.target.value = '';
         }
 
@@ -703,6 +817,7 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
                 } else {
                     alert('Ошибка при удалении: ' + data.message);
                 }
@@ -738,6 +853,7 @@
                     if (!currentFolderId) {
                         loadDocuments(); 
                     }
+                    loadSidebarTree();
                 } else {
                     alert('Ошибка: ' + data.message);
                 }
@@ -746,7 +862,10 @@
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => loadDocuments());
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDocuments();
+            loadSidebarTree();
+        });
     </script>
 </body>
 </html>

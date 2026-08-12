@@ -4967,6 +4967,21 @@ def list_documents(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/documents/tree")
+def get_documents_tree(db: Session = Depends(get_db)):
+    try:
+        folders = db.query(models.DocumentCategory).all()
+        folder_data = []
+        for f in folders:
+            folder_data.append({
+                "id": f"folder_{f.id}",
+                "name": f.name,
+                "parent_id": f"folder_{f.parent_id}" if f.parent_id else None
+            })
+        return {"status": "success", "data": folder_data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/documents/upload")
 async def upload_document(
     file: UploadFile = File(...),
