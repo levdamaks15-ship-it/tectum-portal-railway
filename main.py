@@ -4923,6 +4923,22 @@ import shutil
 UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+def sort_folders_custom(folders):
+    order = {
+        "Должностные инструкции по всем сотрудникам": 0,
+        "ОТ и ТБ": 1,
+        "Отдел кадров": 2,
+        "Коммерческий департамент": 3,
+        "Договора с подрядчиками": 4,
+        "Технический директор": 5,
+        "Финансовый директор": 6,
+        "Главный технолог": 7,
+        "Начальник производства": 8,
+        "Служба контроля качества": 9,
+        "Бережливое производство": 10
+    }
+    return sorted(folders, key=lambda x: (order.get(x.name, 999), x.name))
+
 @app.get("/api/documents/list")
 def list_documents(
     parent_id: Optional[str] = Query(None),
@@ -4932,26 +4948,29 @@ def list_documents(
     try:
         if q and q.strip():
             query_str = f"%{q.strip()}%"
-            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.name.ilike(query_str)).all()
-            files = db.query(models.Document).filter(models.Document.title.ilike(query_str)).all()
+            folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.name.ilike(query_str)).order_by(models.DocumentCategory.name).all()
+            files = db.query(models.Document).filter(models.Document.title.ilike(query_str)).order_by(models.Document.title).all()
         else:
             cat_id = None
             if parent_id and parent_id.startswith("folder_"):
                 cat_id = int(parent_id.split("_")[1])
                 
             if cat_id is None:
-                folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == None).all()
-                files = db.query(models.Document).filter(models.Document.category_id == None).all()
+                folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == None).order_by(models.DocumentCategory.name).all()
+                files = db.query(models.Document).filter(models.Document.category_id == None).order_by(models.Document.title).all()
             else:
-                folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == cat_id).all()
-                files = db.query(models.Document).filter(models.Document.category_id == cat_id).all()
+                folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == cat_id).order_by(models.DocumentCategory.name).all()
+                files = db.query(models.Document).filter(models.Document.category_id == cat_id).order_by(models.Document.title).all()
             
+        folders = sort_folders_custom(folders)
+        
         folder_data = []
         for f in folders:
             folder_data.append({
                 "id": f"folder_{f.id}",
                 "name": f.name,
-                "mimeType": "application/vnd.google-apps.folder"
+                "mimeType": "application/vnd.google-apps.folder",
+                "created_at": f.id
             })
             
         file_data = []
@@ -4960,7 +4979,8 @@ def list_documents(
                 "id": f"file_{f.id}",
                 "name": f.title,
                 "mimeType": f.mime_type or "application/octet-stream",
-                "webViewLink": f"/api/documents/download/{f.id}"
+                "webViewLink": f"/api/documents/download/{f.id}",
+                "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else ""
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -4970,7 +4990,8 @@ def list_documents(
 @app.get("/api/documents/tree")
 def get_documents_tree(db: Session = Depends(get_db)):
     try:
-        folders = db.query(models.DocumentCategory).all()
+        folders = db.query(models.DocumentCategory).order_by(models.DocumentCategory.name).all()
+        folders = sort_folders_custom(folders)
         folder_data = []
         for f in folders:
             folder_data.append({

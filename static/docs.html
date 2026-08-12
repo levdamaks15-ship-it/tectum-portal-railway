@@ -416,11 +416,21 @@
             </div>
         </div>
 
-        <div>
-            <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
-                <i class="fas fa-arrow-left"></i> Назад
-            </button>
-            <h1 id="current-folder-name" class="page-title">Главная директория</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </button>
+                <h1 id="current-folder-name" class="page-title" style="margin-bottom: 0;">Главная директория</h1>
+            </div>
+            <div>
+                <select id="docs-sort" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: #1e293b; color: white;" onchange="applySort()">
+                    <option value="date_desc">Сначала новые (по дате)</option>
+                    <option value="date_asc">Сначала старые (по дате)</option>
+                    <option value="name_asc">По имени (А-Я)</option>
+                    <option value="name_desc">По имени (Я-А)</option>
+                </select>
+            </div>
         </div>
 
         <div id="files-container">
@@ -449,6 +459,61 @@
         let folderNameHistory = [];
         let searchTimeout = null;
         let expandedFolders = new Set();
+        let currentFoldersData = [];
+        let currentFilesData = [];
+
+        function applySort() {
+            const sortVal = document.getElementById('docs-sort').value;
+            let folders = [...currentFoldersData];
+            let files = [...currentFilesData];
+            
+            const sortBy = (arr, isFolder) => {
+                arr.sort((a, b) => {
+                    if (sortVal === 'name_asc') {
+                        return a.name.localeCompare(b.name);
+                    } else if (sortVal === 'name_desc') {
+                        return b.name.localeCompare(a.name);
+                    } else if (sortVal === 'date_desc') {
+                        const dateA = isFolder ? a.created_at : (a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0);
+                        const dateB = isFolder ? b.created_at : (b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0);
+                        return dateB - dateA;
+                    } else if (sortVal === 'date_asc') {
+                        const dateA = isFolder ? a.created_at : (a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0);
+                        const dateB = isFolder ? b.created_at : (b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0);
+                        return dateA - dateB;
+                    }
+                    return 0;
+                });
+            };
+            
+            sortBy(files, false);
+            sortBy(folders, true);
+            
+            const strictOrder = {
+                "Должностные инструкции по всем сотрудникам": 0,
+                "ОТ и ТБ": 1,
+                "Отдел кадров": 2,
+                "Коммерческий департамент": 3,
+                "Договора с подрядчиками": 4,
+                "Технический директор": 5,
+                "Финансовый директор": 6,
+                "Главный технолог": 7,
+                "Начальник производства": 8,
+                "Служба контроля качества": 9,
+                "Бережливое производство": 10
+            };
+            
+            folders.sort((a, b) => {
+                const orderA = strictOrder.hasOwnProperty(a.name) ? strictOrder[a.name] : 999;
+                const orderB = strictOrder.hasOwnProperty(b.name) ? strictOrder[b.name] : 999;
+                if (orderA !== orderB) {
+                    return orderA - orderB;
+                }
+                return 0;
+            });
+
+            renderItems(folders, files);
+        }
 
         function escapeHtml(text) {
             if (!text) return '';
@@ -476,6 +541,15 @@
             const ext = fileName.split('.').pop().toUpperCase();
             if (ext && ext !== fileName.toUpperCase()) return `${ext} документ`;
             return 'Документ';
+        }
+
+        function getFolderColor(name) {
+            const n = name.toLowerCase();
+            if (n.includes('техдир') || n.includes('техническ') || n.includes('финансов') || n.includes('начальник') || n.includes('кадров') || n.includes('коммерч')) return '#8b5cf6';
+            if (n.includes('скк') || n.includes('контроля') || n.includes('огм') || n.includes('сырь') || n.includes('опи') || n.includes('технолог') || n.includes('техсовет') || n.includes('бережлив')) return '#10b981';
+            if (n.includes('тб') || n.includes('норматив') || n.includes('договор') || n.includes('инструкци') || n.includes('регламент')) return '#f59e0b';
+            if (n.includes('аци') || n.includes('агб')) return '#ef4444';
+            return '#60a5fa';
         }
 
         function getWebViewLink(file) {
@@ -532,8 +606,9 @@
                         btnBack.style.display = 'none';
                     }
 
-                    
-                    renderItems(data.data.folders, data.data.files);
+                    currentFoldersData = data.data.folders;
+                    currentFilesData = data.data.files;
+                    applySort();
                     
                 } else {
                     container.innerHTML = `<div style="color: #ef4444; padding: 2rem;">Ошибка: ${data.message}</div>`;
@@ -604,10 +679,12 @@
             
             const item = document.createElement('div');
             item.className = 'folder-item-tree';
+            
+            const iconColor = getFolderColor(folder.name);
+            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor};"></i> ${escapeHtml(folder.name)}`;
             if (currentFolderId === folder.id) {
                 item.classList.add('active');
             }
-            item.innerHTML = `<i class="fas fa-folder"></i> ${escapeHtml(folder.name)}`;
             
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'folder-tree-node';
@@ -685,10 +762,11 @@
 
             // Вывод папок
             folders.forEach(folder => {
+                const iconColor = getFolderColor(folder.name);
                 html += `
                     <div class="docs-table-row folder-row" onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}')">
                         <div class="row-name">
-                            <i class="fas fa-folder" style="color: #60a5fa; font-size: 1.2rem;"></i>
+                            <i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.2rem;"></i>
                             <span class="item-title">${escapeHtml(folder.name)}</span>
                         </div>
                         <div class="row-meta">Папка</div>
