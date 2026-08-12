@@ -5184,7 +5184,7 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
         config["error"] = "Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL."
         script_tag = ""
     else:
-        script_tag = f'<script src="{onlyoffice_url}/web-apps/apps/api/documentserver/api.js"></script>'
+        script_tag = f'<script src="{onlyoffice_url}/web-apps/apps/api/documents/api.js"></script>'
 
     injected_script = f"""
     {script_tag}
