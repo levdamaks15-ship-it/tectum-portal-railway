@@ -1,12 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, BackgroundTasks, Query
 from typing import Optional
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models, schemas
 import os
 import asyncio
+import json
 import m365_integration
 import excel_exporter
 import import_aci_excel
@@ -5114,6 +5115,86 @@ def get_document_type(filename: str) -> str:
     if ext in ["ppt", "pptx", "odp"]:
         return "slide"
     return "word"
+
+@app.get("/editor")
+def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
+    if id.startswith("file_"):
+        try:
+            file_id = int(id.split("_")[1])
+        except ValueError:
+            return HTMLResponse("Неверный ID документа", status_code=400)
+    else:
+        try:
+            file_id = int(id)
+        except ValueError:
+            return HTMLResponse("Неверный ID документа", status_code=400)
+            
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return HTMLResponse("Документ не найден", status_code=404)
+
+    base_url = str(request.base_url).rstrip("/")
+    if base_url.startswith("http://") and "up.railway.app" in base_url:
+        base_url = base_url.replace("http://", "https://")
+
+    internal_base_url = os.getenv("INTERNAL_BACKEND_URL", "").rstrip("/")
+    if not internal_base_url:
+        internal_base_url = base_url
+
+    ext = doc.title.split(".")[-1].lower() if "." in doc.title else "docx"
+    file_url = f"{internal_base_url}/api/documents/download/{doc.id}"
+    callback_url = f"{internal_base_url}/api/documents/onlyoffice-callback/{doc.id}"
+
+    file_stat = os.stat(doc.file_path) if os.path.exists(doc.file_path) else None
+    mtime = int(file_stat.st_mtime) if file_stat else 0
+    doc_key = f"doc_{doc.id}_{mtime}"
+
+    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").rstrip("/")
+    if onlyoffice_url and not onlyoffice_url.startswith(("http://", "https://")):
+        onlyoffice_url = f"https://{onlyoffice_url}"
+
+    config = {
+        "document": {
+            "fileType": ext,
+            "key": doc_key,
+            "title": doc.title,
+            "url": file_url,
+        },
+        "documentType": get_document_type(doc.title),
+        "editorConfig": {
+            "callbackUrl": callback_url,
+            "lang": "ru",
+            "mode": "edit",
+            "customization": {
+                "autosave": True,
+                "forcesave": True,
+                "compactHeader": True,
+            }
+        },
+        "onlyofficeUrl": onlyoffice_url
+    }
+    
+    try:
+        with open("static/editor.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+    except Exception as e:
+        return HTMLResponse(f"Ошибка загрузки шаблона редактора: {e}", status_code=500)
+        
+    if not onlyoffice_url:
+        config["error"] = "Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL."
+        script_tag = ""
+    else:
+        script_tag = f'<script src="{onlyoffice_url}/web-apps/apps/api/documentserver/api.js"></script>'
+
+    injected_script = f\"\"\"
+    {script_tag}
+    <script>
+        window.OO_CONFIG = {json.dumps(config)};
+    </script>
+    \"\"\"
+    
+    html_content = html_content.replace("</head>", f"{injected_script}\\n</head>")
+    return HTMLResponse(content=html_content)
 
 @app.get("/api/documents/onlyoffice-config/{file_id}")
 def get_onlyoffice_config(file_id: int, request: Request, db: Session = Depends(get_db)):

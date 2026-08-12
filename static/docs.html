@@ -433,7 +433,7 @@
         function getWebViewLink(file) {
             const name = (file.name || '').toLowerCase();
             if (isEditableFile(name)) {
-                return `/static/editor.html?id=${file.id}`;
+                return `/editor?id=${file.id}`;
             }
             return file.webViewLink;
         }
@@ -582,7 +582,7 @@
                         <div class="row-meta">${typeName}</div>
                         <div class="row-actions">
                             ${isEditableFile(file.name) ? `
-                                <a href="/static/editor.html?id=${file.id}" target="_blank" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать онлайн (OnlyOffice)">
+                                <a href="/editor?id=${file.id}" target="_blank" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать онлайн (OnlyOffice)">
                                     <i class="fas fa-pen-to-square"></i>
                                 </a>
                             ` : ''}

@@ -50,55 +50,36 @@
     </div>
 
     <script>
-        async function initEditor() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const rawId = urlParams.get('id');
-            if (!rawId) {
-                showNotice('Не указан ID документа');
+        // Конфигурация инжектится бэкендом (FastAPI) в глобальную переменную window.OO_CONFIG
+        // и скрипт api.js добавляется в <head> на сервере.
+        
+        function initEditor() {
+            if (typeof DocsAPI === 'undefined') {
+                showNotice('Скрипт API OnlyOffice не загружен. Проверьте адрес сервера ONLYOFFICE_URL.');
                 return;
             }
-            
-            const fileId = rawId.replace('file_', '');
+
+            if (!window.OO_CONFIG) {
+                showNotice('Ошибка: конфигурация редактора не найдена.');
+                return;
+            }
+
+            if (window.OO_CONFIG.error) {
+                showNotice(window.OO_CONFIG.error);
+                return;
+            }
+
             try {
-                const res = await fetch(`/api/documents/onlyoffice-config/${fileId}`);
-                const data = await res.json();
-
-                if (data.status !== 'success') {
-                    showNotice('Ошибка получения конфигурации: ' + data.message);
-                    return;
-                }
-
-                const config = data.config;
-                if (!config || !config.onlyofficeUrl) {
-                    showNotice('Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL.');
-                    return;
-                }
-
-                let ooUrl = config.onlyofficeUrl.trim().replace(/\/+$/, '');
-                if (!ooUrl.startsWith('http://') && !ooUrl.startsWith('https://')) {
-                    ooUrl = 'https://' + ooUrl;
-                }
-
-                // Загружаем скрипт API OnlyOffice
-                const scriptUrl = `${ooUrl}/web-apps/apps/api/documents/api.js`;
-                const script = document.createElement('script');
-                script.src = scriptUrl;
-                script.onload = () => {
-                    new DocsAPI.DocEditor("editor-container", {
-                        "document": config.document,
-                        "documentType": config.documentType,
-                        "editorConfig": config.editorConfig,
-                        "height": "100%",
-                        "width": "100%"
-                    });
-                };
-                script.onerror = () => {
-                    showNotice(`Не удалось подключиться к серверу OnlyOffice по адресу: ${config.onlyofficeUrl}. Проверьте доступность сервера.`);
-                };
-                document.head.appendChild(script);
-
+                const config = window.OO_CONFIG;
+                new DocsAPI.DocEditor("editor-container", {
+                    "document": config.document,
+                    "documentType": config.documentType,
+                    "editorConfig": config.editorConfig,
+                    "height": "100%",
+                    "width": "100%"
+                });
             } catch (err) {
-                showNotice('Ошибка подключения к серверу: ' + err.message);
+                showNotice('Ошибка инициализации редактора: ' + err.message);
             }
         }
 
