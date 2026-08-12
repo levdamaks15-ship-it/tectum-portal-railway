@@ -5142,8 +5142,8 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
         internal_base_url = base_url
 
     ext = doc.title.split(".")[-1].lower() if "." in doc.title else "docx"
-    file_url = f"{internal_base_url}/api/documents/download/{doc.id}"
-    callback_url = f"{internal_base_url}/api/documents/onlyoffice-callback/{doc.id}"
+    file_url = f"{base_url}/api/documents/download/{doc.id}"
+    callback_url = f"{base_url}/api/documents/onlyoffice-callback/{doc.id}"
 
     file_stat = os.stat(doc.file_path) if os.path.exists(doc.file_path) else None
     mtime = int(file_stat.st_mtime) if file_stat else 0
