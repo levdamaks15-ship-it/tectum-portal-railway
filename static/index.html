@@ -174,7 +174,6 @@
                 </div>
             </div>
             <div class="header-actions">
-                <a href="/static/docs.html" class="tab-btn" style="text-decoration: none; display: flex; align-items: center; gap: 0.5rem;"><i class="fa-solid fa-folder-open"></i> База Знаний</a>
                 <button id="theme-toggle" onclick="toggleTheme()" class="tab-btn theme-toggle-btn">
                     🌓
                 </button>
@@ -210,7 +209,7 @@
             
             <div id="user-selection-section">
                 <p id="selection-title" style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Выберите раздел</p>
-                <div id="user-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; max-height: 50vh; overflow-y: auto; padding: 10px;">
+                <div id="user-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; max-height: 50vh; overflow-y: auto; padding: 10px;">
                     <!-- User cards injected by JS -->
                 </div>
                 <div id="back-to-main-container" style="display: none; text-align: center; margin-top: 1rem;">

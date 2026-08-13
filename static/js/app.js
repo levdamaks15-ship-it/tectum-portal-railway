@@ -2909,8 +2909,8 @@ function createCardHTML(title, subtitle, svgContent, onClickCode) {
             <div class="user-avatar-gradient" style="background: ${gradient}; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.2rem; box-shadow: 0 4px 15px ${shadowColor}; flex-shrink: 0;">
                 ${svgContent}
             </div>
-            <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.4rem; white-space: normal; line-height: 1.2; width: 100%; word-break: break-word;">${title}</div>
-            <div style="font-size: 0.72rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: normal; line-height: 1.2; width: 100%; word-break: break-word;">${subtitle}</div>
+            <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; width: 100%;">${title}</div>
+            <div style="font-size: 0.72rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; width: 100%;">${subtitle}</div>
         </div>
     `;
 }
