@@ -569,7 +569,32 @@
             return name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.pptx') || name.endsWith('.ppt');
         }
 
-        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null) {
+        function getFolderPasswordHeader() {
+            const pwd = sessionStorage.getItem('folder_password');
+            return pwd ? { 'X-Folder-Password': pwd } : {};
+        }
+
+        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
+            if (isProtected) {
+                let pwd = sessionStorage.getItem('folder_password');
+                if (!pwd) {
+                    pwd = prompt("Папка защищена паролем. Введите пароль:");
+                    if (!pwd) return;
+                    sessionStorage.setItem('folder_password', pwd);
+                }
+                const verifyRes = await fetch('/api/documents/verify-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_id: String(folderId), password: pwd })
+                });
+                const verifyData = await verifyRes.json();
+                if (verifyData.status !== 'success') {
+                    alert("Неверный пароль!");
+                    sessionStorage.removeItem('folder_password');
+                    return;
+                }
+            }
+
             const container = document.getElementById('files-container');
             const sidebar = document.getElementById('sidebar-folders');
             
@@ -685,7 +710,8 @@
             item.className = 'folder-item-tree';
             
             const iconColor = getFolderColor(folder.name);
-            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor};"></i> ${escapeHtml(folder.name)}`;
+            const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
+            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor};"></i> ${escapeHtml(folder.name)}${lockIcon}`;
             if (currentFolderId === folder.id) {
                 item.classList.add('active');
             }
@@ -726,7 +752,7 @@
                     toggle.classList.add('expanded');
                 }
                 
-                loadDocuments(folder.id, folder.name, false);
+                loadDocuments(folder.id, folder.name, false, null, folder.is_protected);
             };
             
             header.appendChild(toggle);
@@ -767,11 +793,12 @@
             // Вывод папок
             folders.forEach(folder => {
                 const iconColor = getFolderColor(folder.name);
+                const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
                 html += `
-                    <div class="docs-table-row folder-row" onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}')">
+                    <div class="docs-table-row folder-row" onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})">
                         <div class="row-name">
                             <i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.2rem;"></i>
-                            <span class="item-title">${escapeHtml(folder.name)}</span>
+                            <span class="item-title">${escapeHtml(folder.name)}${lockIcon}</span>
                         </div>
                         <div class="row-meta">Папка</div>
                         <div class="row-actions">
@@ -794,6 +821,7 @@
                             <i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1.2rem;"></i>
                             <a href="${viewUrl}" target="_blank" class="file-link" title="${escapeHtml(file.name)}">
                                 ${escapeHtml(file.name)}
+                                ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : ''}
                             </a>
                         </div>
                         <div class="row-meta">${typeName}</div>
@@ -806,9 +834,9 @@
                             <a href="${viewUrl}" target="_blank" class="btn-icon btn-icon-download" title="Просмотреть в браузере">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="${file.webViewLink}" download class="btn-icon btn-icon-download" title="Скачать оригинальный файл">
+                            <button onclick="downloadFile('${file.id.replace('file_','')}', '${escapeHtml(file.name)}', event)" class="btn-icon btn-icon-download" title="Скачать оригинальный файл" style="background:transparent;border:none;cursor:pointer;">
                                 <i class="fas fa-download"></i>
-                            </a>
+                            </button>
                             <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event)" title="Удалить файл">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -848,6 +876,7 @@
             try {
                 const res = await fetch('/api/documents/upload', {
                     method: 'POST',
+                    headers: getFolderPasswordHeader(),
                     body: formData
                 });
                 const data = await res.json();
@@ -896,6 +925,7 @@
                 try {
                     await fetch('/api/documents/upload', {
                         method: 'POST',
+                        headers: getFolderPasswordHeader(),
                         body: formData
                     });
                     successCount++;
@@ -917,7 +947,10 @@
             if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
             try {
-                const res = await fetch(`/api/documents/${itemId}`, { method: 'DELETE' });
+                const res = await fetch(`/api/documents/${itemId}`, { 
+                    method: 'DELETE',
+                    headers: getFolderPasswordHeader()
+                });
                 const data = await res.json();
                 if (data.status === 'success') {
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
@@ -947,6 +980,7 @@
             try {
                 const res = await fetch('/api/documents/folders', {
                     method: 'POST',
+                    headers: getFolderPasswordHeader(),
                     body: formData
                 });
                 const data = await res.json();
@@ -963,6 +997,30 @@
                 }
             } catch (error) {
                 alert('Ошибка соединения');
+            }
+        }
+
+        async function downloadFile(fileId, fileName, event) {
+            if (event) event.stopPropagation();
+            try {
+                const res = await fetch(`/api/documents/download/${fileId}`, { 
+                    headers: getFolderPasswordHeader() 
+                });
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Ошибка скачивания: Нет доступа');
+                }
+            } catch (e) {
+                console.error(e);
             }
         }
 

@@ -103,6 +103,7 @@
             <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-dir')" id="nav-downtimes-dir"><i class="fa-solid fa-list-check"></i> Справочник простоев</div>
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-log')" id="nav-downtimes-log"><i class="fa-solid fa-clock"></i> Журнал простоев</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('passwords')" id="nav-passwords"><i class="fa-solid fa-lock"></i> Пароли папок</div>
             <a href="/static/docs.html" class="admin-nav-item" style="display: block; text-decoration: none;"><i class="fa-solid fa-folder-open"></i> База Знаний (Drive)</a>
             
             <a href="/analytics" style="text-decoration: none;">
@@ -132,6 +133,23 @@
                             </tr>
                         </thead>
                         <tbody id="masters-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Passwords Tab -->
+            <div id="tab-passwords" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2>Управление паролями папок</h2>
+                </div>
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>Имя папки</th><th>Статус</th><th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="passwords-table-body"></tbody>
                     </table>
                 </div>
             </div>

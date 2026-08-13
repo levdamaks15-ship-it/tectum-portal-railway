@@ -71,6 +71,8 @@ function switchAdminTab(tabId) {
     if (tabDowntimes) tabDowntimes.style.display = 'none';
     const tabDowntimesLog = document.getElementById('tab-downtimes-log');
     if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
+    const tabPasswords = document.getElementById('tab-passwords');
+    if (tabPasswords) tabPasswords.style.display = 'none';
     
     document.getElementById('tab-' + tabId).style.display = 'block';
 
@@ -86,8 +88,9 @@ function switchAdminTab(tabId) {
         loadDowntimesDir();
     } else if (tabId === 'downtimes-log') {
         loadDowntimesLog();
+    } else if (tabId === 'passwords') {
+        loadPasswords();
     }
-
 }
 
 function closeModals() {
@@ -1641,5 +1644,68 @@ function onAdminBrkDescChange(selectElement) {
         if (selectedOption) {
             categoryInput.value = selectedOption.getAttribute('data-category') || '';
         }
+    }
+}
+
+// Password Management
+async function loadPasswords() {
+    try {
+        const res = await fetch('/api/admin/document-categories');
+        const data = await res.json();
+        const tbody = document.getElementById('passwords-table-body');
+        if (data.status === 'success') {
+            tbody.innerHTML = data.data.map(cat => `
+                <tr>
+                    <td>${cat.id}</td>
+                    <td>${cat.name}</td>
+                    <td>${cat.is_protected ? '<span style="color:red">Защищена</span>' : '<span style="color:green">Открыта</span>'}</td>
+                    <td>
+                        <button onclick="setPassword(${cat.id})" style="padding: 0.3rem 0.5rem;"><i class="fa-solid fa-key"></i> Установить пароль</button>
+                        ${cat.is_protected ? `<button onclick="clearPassword(${cat.id})" style="padding: 0.3rem 0.5rem; background: #e74c3c; margin-left: 0.5rem;"><i class="fa-solid fa-trash"></i> Сбросить</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+async function setPassword(catId) {
+    const pwd = prompt("Введите новый пароль для папки:");
+    if (!pwd) return;
+    try {
+        const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pwd})
+        });
+        if (res.ok) {
+            alert("Пароль успешно установлен");
+            loadPasswords();
+        } else {
+            alert("Ошибка установки пароля");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+async function clearPassword(catId) {
+    if (!confirm("Вы уверены, что хотите сбросить пароль? Папка станет общедоступной.")) return;
+    try {
+        const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: null})
+        });
+        if (res.ok) {
+            alert("Пароль сброшен");
+            loadPasswords();
+        } else {
+            alert("Ошибка сброса пароля");
+        }
+    } catch (e) {
+        console.error(e);
     }
 }

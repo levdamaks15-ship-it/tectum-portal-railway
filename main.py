@@ -8,6 +8,7 @@ import models, schemas
 import os
 import asyncio
 import json
+import hashlib
 import m365_integration
 import excel_exporter
 import import_aci_excel
@@ -145,6 +146,38 @@ async def lifespan(app: FastAPI):
         conn.commit()
         conn.close()
     except: pass
+    
+    # DocumentCategory password_hash migration
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE document_categories ADD COLUMN password_hash VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
+
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            col_exists = db.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='document_categories' AND column_name='password_hash'"
+            )).fetchone()
+            if not col_exists:
+                db.execute(text("ALTER TABLE document_categories ADD COLUMN password_hash VARCHAR(255);"))
+                db.commit()
+                
+        # Set default password for "Бережливое производство"
+        bp_folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.name == "Бережливое производство").first()
+        if bp_folder and not bp_folder.password_hash:
+            bp_folder.password_hash = hashlib.sha256("6282".encode()).hexdigest()
+            db.commit()
+    except Exception as e:
+        print(f"Warning: could not migrate document_categories password_hash: {e}")
+        db.rollback()
+    finally:
+        if 'db' in locals():
+            db.close()
 
 
     # Migrations for Raw Material Silos Breakdown
@@ -4943,6 +4976,22 @@ def sort_folders_custom(folders):
     }
     return sorted(folders, key=lambda x: (order.get(x.name, 999), x.name))
 
+from fastapi import Header
+
+def get_protected_ancestor(db: Session, folder_id: int):
+    current_id = folder_id
+    while current_id:
+        folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == current_id).first()
+        if not folder:
+            break
+        if folder.password_hash:
+            return folder
+        current_id = folder.parent_id
+    return None
+
+def is_folder_protected(db: Session, folder_id: int) -> bool:
+    return get_protected_ancestor(db, folder_id) is not None
+
 @app.get("/api/documents/list")
 def list_documents(
     parent_id: Optional[str] = Query(None),
@@ -4974,7 +5023,8 @@ def list_documents(
                 "id": f"folder_{f.id}",
                 "name": f.name,
                 "mimeType": "application/vnd.google-apps.folder",
-                "created_at": f.id
+                "created_at": f.id,
+                "is_protected": is_folder_protected(db, f.id)
             })
             
         file_data = []
@@ -4984,7 +5034,8 @@ def list_documents(
                 "name": f.title,
                 "mimeType": f.mime_type or "application/octet-stream",
                 "webViewLink": f"/api/documents/download/{f.id}",
-                "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else ""
+                "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else "",
+                "is_protected": is_folder_protected(db, f.category_id) if f.category_id else False
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -5001,9 +5052,72 @@ def get_documents_tree(db: Session = Depends(get_db)):
             folder_data.append({
                 "id": f"folder_{f.id}",
                 "name": f.name,
-                "parent_id": f"folder_{f.parent_id}" if f.parent_id else None
+                "parent_id": f"folder_{f.parent_id}" if f.parent_id else None,
+                "is_protected": is_folder_protected(db, f.id)
             })
         return {"status": "success", "data": folder_data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class VerifyPasswordRequest(BaseModel):
+    folder_id: str
+    password: str
+
+@app.post("/api/documents/verify-password")
+def verify_document_password(req: VerifyPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        cat_id = None
+        if req.folder_id and req.folder_id.startswith("folder_"):
+            cat_id = int(req.folder_id.split("_")[1])
+        if not cat_id:
+            return {"status": "error", "message": "Неверный ID папки"}
+            
+        protected_folder = get_protected_ancestor(db, cat_id)
+        if not protected_folder:
+            return {"status": "success"} # Не защищена
+            
+        hashed_pwd = hashlib.sha256(req.password.encode()).hexdigest()
+        if protected_folder.password_hash == hashed_pwd:
+            return {"status": "success"}
+        return {"status": "error", "message": "Неверный пароль"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/admin/document-categories")
+def admin_get_document_categories(request: Request, db: Session = Depends(get_db)):
+    if request.session.get("user_role") not in ["admin", "director", "technologist"]:
+        return {"status": "error", "message": "Access denied"}
+    try:
+        folders = db.query(models.DocumentCategory).order_by(models.DocumentCategory.name).all()
+        data = []
+        for f in folders:
+            data.append({
+                "id": f.id,
+                "name": f.name,
+                "is_protected": bool(f.password_hash)
+            })
+        return {"status": "success", "data": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class SetPasswordRequest(BaseModel):
+    password: Optional[str] = None
+
+@app.post("/api/admin/document-categories/{cat_id}/set-password")
+def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    if request.session.get("user_role") not in ["admin", "director", "technologist"]:
+        return {"status": "error", "message": "Access denied"}
+    try:
+        folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
+        if not folder:
+            return {"status": "error", "message": "Папка не найдена"}
+            
+        if req.password:
+            folder.password_hash = hashlib.sha256(req.password.encode()).hexdigest()
+        else:
+            folder.password_hash = None
+        db.commit()
+        return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -5012,19 +5126,26 @@ async def upload_document(
     file: UploadFile = File(...),
     parent_id: Optional[str] = Form(None),
     relative_path: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     try:
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+                    
         ext = os.path.splitext(file.filename)[1]
         unique_filename = f"{uuid.uuid4().hex}{ext}"
         file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-            
-        cat_id = None
-        if parent_id and parent_id.startswith("folder_"):
-            cat_id = int(parent_id.split("_")[1])
             
         if relative_path:
             parts = relative_path.split("/")[:-1]
@@ -5069,12 +5190,19 @@ async def upload_document(
 def create_document_folder(
     folder_name: str = Form(...),
     parent_id: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     try:
         cat_id = None
         if parent_id and parent_id.startswith("folder_"):
             cat_id = int(parent_id.split("_")[1])
+            
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
             
         new_folder = models.DocumentCategory(
             name=folder_name,
@@ -5093,8 +5221,27 @@ def create_document_folder(
         return {"status": "error", "message": str(e)}
 
 @app.delete("/api/documents/{item_id}")
-def delete_document(item_id: str, db: Session = Depends(get_db)):
+def delete_document(
+    item_id: str, 
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     try:
+        cat_id_to_check = None
+        if item_id.startswith("folder_"):
+            cat_id_to_check = int(item_id.split("_")[1])
+        elif item_id.startswith("file_"):
+            file_id = int(item_id.split("_")[1])
+            doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+            if doc:
+                cat_id_to_check = doc.category_id
+                
+        if cat_id_to_check is not None:
+            protected_folder = get_protected_ancestor(db, cat_id_to_check)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+
         if item_id.startswith("folder_"):
             cat_id = int(item_id.split("_")[1])
             folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
@@ -5122,10 +5269,20 @@ import mimetypes
 from urllib.parse import quote
 
 @app.get("/api/documents/download/{file_id}")
-def download_document(file_id: int, db: Session = Depends(get_db)):
+def download_document(
+    file_id: int, 
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     doc = db.query(models.Document).filter(models.Document.id == file_id).first()
     if not doc or not os.path.exists(doc.file_path):
         return {"status": "error", "message": "Файл не найден"}
+        
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Access Denied")
         
     mime_type = doc.mime_type
     if not mime_type or mime_type == "application/octet-stream":
