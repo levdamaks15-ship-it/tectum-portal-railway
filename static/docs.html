@@ -574,27 +574,34 @@
             return pwd ? { 'X-Folder-Password': pwd } : {};
         }
 
-        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
+        let currentFolderProtected = false;
+
+        async function ensurePassword(isProtected) {
+            if (!isProtected) return true;
+            let pwd = sessionStorage.getItem('folder_password');
+            if (!pwd) {
+                pwd = prompt("Для этого действия требуется пароль. Введите пароль:");
+                if (!pwd) return false;
+                sessionStorage.setItem('folder_password', pwd);
+            }
+            return true;
+        }
+
+        async function openFileLink(viewUrl, isProtected, event) {
+            if (event) event.preventDefault();
+            if (!await ensurePassword(isProtected)) return;
+            let finalUrl = viewUrl;
             if (isProtected) {
-                let pwd = sessionStorage.getItem('folder_password');
-                if (!pwd) {
-                    pwd = prompt("Папка защищена паролем. Введите пароль:");
-                    if (!pwd) return;
-                    sessionStorage.setItem('folder_password', pwd);
-                }
-                const verifyRes = await fetch('/api/documents/verify-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ folder_id: String(folderId), password: pwd })
-                });
-                const verifyData = await verifyRes.json();
-                if (verifyData.status !== 'success') {
-                    alert("Неверный пароль!");
-                    sessionStorage.removeItem('folder_password');
-                    return;
+                const pwd = sessionStorage.getItem('folder_password');
+                if (pwd) {
+                    finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pwd=' + encodeURIComponent(pwd);
                 }
             }
+            window.open(finalUrl, '_blank');
+        }
 
+        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
+            currentFolderProtected = isProtected;
             const container = document.getElementById('files-container');
             const sidebar = document.getElementById('sidebar-folders');
             
@@ -802,7 +809,7 @@
                         </div>
                         <div class="row-meta">Папка</div>
                         <div class="row-actions">
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event)" title="Удалить папку">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -819,7 +826,7 @@
                     <div class="docs-table-row">
                         <div class="row-name">
                             <i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1.2rem;"></i>
-                            <a href="${viewUrl}" target="_blank" class="file-link" title="${escapeHtml(file.name)}">
+                            <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="file-link" title="${escapeHtml(file.name)}">
                                 ${escapeHtml(file.name)}
                                 ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : ''}
                             </a>
@@ -827,17 +834,17 @@
                         <div class="row-meta">${typeName}</div>
                         <div class="row-actions">
                             ${isEditableFile(file.name) ? `
-                                <a href="/editor?id=${file.id}" target="_blank" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать онлайн (OnlyOffice)">
+                                <a href="#" onclick="openFileLink('/editor?id=${file.id}', ${file.is_protected}, event)" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать онлайн (OnlyOffice)">
                                     <i class="fas fa-pen-to-square"></i>
                                 </a>
                             ` : ''}
-                            <a href="${viewUrl}" target="_blank" class="btn-icon btn-icon-download" title="Просмотреть в браузере">
+                            <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon btn-icon-download" title="Просмотреть в браузере">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button onclick="downloadFile('${file.id.replace('file_','')}', '${escapeHtml(file.name)}', event)" class="btn-icon btn-icon-download" title="Скачать оригинальный файл" style="background:transparent;border:none;cursor:pointer;">
+                            <button onclick="downloadFile('${file.id.replace('file_','')}', '${escapeHtml(file.name)}', event, ${file.is_protected})" class="btn-icon btn-icon-download" title="Скачать оригинальный файл" style="background:transparent;border:none;cursor:pointer;">
                                 <i class="fas fa-download"></i>
                             </button>
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event)" title="Удалить файл">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event, ${file.is_protected})" title="Удалить файл">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -859,6 +866,10 @@
         }
 
         async function handleFileUpload(event) {
+            if (!await ensurePassword(currentFolderProtected)) {
+                event.target.value = '';
+                return;
+            }
             const file = event.target.files[0];
             if (!file) return;
 
@@ -896,6 +907,10 @@
         }
 
         async function handleFolderUpload(event) {
+            if (!await ensurePassword(currentFolderProtected)) {
+                event.target.value = '';
+                return;
+            }
             const files = event.target.files;
             if (files.length === 0) return;
 
@@ -942,8 +957,11 @@
             event.target.value = '';
         }
 
-        async function deleteItem(itemId, event) {
+        async function deleteItem(itemId, event, isProtected = false) {
             event.stopPropagation();
+            if (isProtected || currentFolderProtected) {
+                if (!await ensurePassword(true)) return;
+            }
             if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
             try {
@@ -970,6 +988,7 @@
         }
 
         async function createFolder() {
+            if (!await ensurePassword(currentFolderProtected)) return;
             const name = document.getElementById('new-folder-name').value.trim();
             if (!name) return;
 
@@ -1000,8 +1019,9 @@
             }
         }
 
-        async function downloadFile(fileId, fileName, event) {
+        async function downloadFile(fileId, fileName, event, isProtected = false) {
             if (event) event.stopPropagation();
+            if (isProtected && !await ensurePassword(true)) return;
             try {
                 const res = await fetch(`/api/documents/download/${fileId}`, { 
                     headers: getFolderPasswordHeader() 

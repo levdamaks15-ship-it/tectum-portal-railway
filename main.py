@@ -5271,6 +5271,7 @@ from urllib.parse import quote
 @app.get("/api/documents/download/{file_id}")
 def download_document(
     file_id: int, 
+    pwd: Optional[str] = Query(None),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -5278,10 +5279,11 @@ def download_document(
     if not doc or not os.path.exists(doc.file_path):
         return {"status": "error", "message": "Файл не найден"}
         
+    actual_pwd = pwd or x_folder_password
     if doc.category_id:
         protected_folder = get_protected_ancestor(db, doc.category_id)
         if protected_folder:
-            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+            if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
         
     mime_type = doc.mime_type
@@ -5314,7 +5316,13 @@ def get_document_type(filename: str) -> str:
     return "word"
 
 @app.get("/editor")
-def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
+def open_editor(
+    id: str, 
+    request: Request, 
+    pwd: Optional[str] = Query(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     if id.startswith("file_"):
         try:
             file_id = int(id.split("_")[1])
@@ -5330,6 +5338,13 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
     if not doc:
         return HTMLResponse("Документ не найден", status_code=404)
 
+    actual_pwd = pwd or x_folder_password
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
+                return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
+
     base_url = str(request.base_url).rstrip("/")
     if base_url.startswith("http://") and "up.railway.app" in base_url:
         base_url = base_url.replace("http://", "https://")
@@ -5340,6 +5355,8 @@ def open_editor(id: str, request: Request, db: Session = Depends(get_db)):
 
     ext = doc.title.split(".")[-1].lower() if "." in doc.title else "docx"
     file_url = f"{base_url}/api/documents/download/{doc.id}"
+    if actual_pwd:
+        file_url += f"?pwd={actual_pwd}"
     callback_url = f"{base_url}/api/documents/onlyoffice-callback/{doc.id}"
 
     file_stat = os.stat(doc.file_path) if os.path.exists(doc.file_path) else None
