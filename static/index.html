@@ -209,9 +209,12 @@
             </div>
             
             <div id="user-selection-section">
-                <p style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Выберите ваш профиль</p>
+                <p id="selection-title" style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Выберите раздел</p>
                 <div id="user-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; max-height: 50vh; overflow-y: auto; padding: 10px;">
                     <!-- User cards injected by JS -->
+                </div>
+                <div id="back-to-main-container" style="display: none; text-align: center; margin-top: 1rem;">
+                    <button class="btn-secondary" onclick="renderMainScreenGrid()" style="width: auto; padding: 0.5rem 1.5rem;">Назад в главное меню</button>
                 </div>
                 <div id="back-to-sso-container" style="display: none; text-align: center; margin-top: 1.5rem;">
                     <button class="btn-secondary" onclick="showSsoLogin()" style="width: auto; padding: 0.5rem 1.5rem;">Вернуться к входу Microsoft 365</button>

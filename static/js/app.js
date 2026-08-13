@@ -2806,85 +2806,113 @@ async function loadUserGrid() {
     try {
         const gridRes = await fetch('/api/masters/');
         if (gridRes.ok) {
-            const masters = await gridRes.json();
-            const grid = document.getElementById('user-grid');
-            if (grid) {
-                // Show generic "Мастер смены" and other administration/staff roles. Hide operators and individual masters.
-                const filteredMasters = masters.filter(m => 
-                    (m.role === 'master' && m.name === 'Мастер смены') || 
-                    ['admin', 'director', 'technologist', 'mechanic'].includes(m.role)
-                );
-                
-                grid.innerHTML = filteredMasters.map(m => {
-                    let roleDisplay = m.role;
-                    let svgContent = '';
-                    
-                    if (m.role === 'master') {
-                        roleDisplay = 'Мастер';
-                        svgContent = `
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-                                <path d="M9 14l2 2 4-4"></path>
-                            </svg>
-                        `;
-                    } else if (m.role === 'admin') {
-                        roleDisplay = 'Администратор';
-                        svgContent = `
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                        `;
-                    } else if (m.role === 'director') {
-                        roleDisplay = 'Директор';
-                        svgContent = `
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                            </svg>
-                        `;
-                    } else if (m.role === 'technologist') {
-                        roleDisplay = 'Технолог';
-                        svgContent = `
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M10 2h4M12 2v8M18 16.6L13.5 9V4h-3v5L6 16.6C5.1 18.1 6.2 20 8 20h8c1.8 0 2.9-1.9 2-3.4z"></path>
-                            </svg>
-                        `;
-                    } else if (m.role === 'mechanic') {
-                        roleDisplay = 'Механик';
-                        svgContent = `
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                            </svg>
-                        `;
-                    } else {
-                        svgContent = `
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                        `;
-                    }
-                    
-                    const gradient = 'linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%)';
-                    const shadowColor = 'rgba(200, 35, 35, 0.3)';
-                    
-                    return `
-                        <div class="user-card glass-panel" onclick="selectUser('${m.name}', '${roleDisplay}')" style="cursor: pointer; padding: 1.2rem 0.8rem; text-align: center; border: 1px solid var(--border-color); border-radius: 12px; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; box-sizing: border-box;">
-                            <div class="user-avatar-gradient" style="background: ${gradient}; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.2rem; box-shadow: 0 4px 15px ${shadowColor}; flex-shrink: 0;">
-                                ${svgContent}
-                            </div>
-                            <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.4rem; white-space: normal; line-height: 1.2; width: 100%; word-break: break-word;">${m.name}</div>
-                            <div style="font-size: 0.72rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: normal; line-height: 1.2; width: 100%; word-break: break-word;">${roleDisplay}</div>
-                        </div>
-                    `;
-                }).join('');
-            }
+            window.allMastersData = await gridRes.json();
+            renderMainScreenGrid();
         }
     } catch(e) {
         console.error("Error loading user grid:", e);
     }
+}
+
+function renderMainScreenGrid() {
+    const grid = document.getElementById('user-grid');
+    if (!grid) return;
+    
+    const titleEl = document.getElementById('selection-title');
+    if (titleEl) titleEl.innerText = 'Выберите раздел';
+    
+    const backBtn = document.getElementById('back-to-main-container');
+    if (backBtn) backBtn.style.display = 'none';
+
+    const svgMaster = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+        <path d="M9 14l2 2 4-4"></path>
+    </svg>`;
+    
+    const svgITR = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>`;
+    
+    const svgDocs = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+    </svg>`;
+    
+    const svgChecklists = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+    </svg>`;
+
+    grid.innerHTML = 
+        createCardHTML('Кабинет мастера', 'Производство', svgMaster, "selectUser('Мастер смены', 'Мастер')") +
+        createCardHTML('Кабинет чек-листов', 'В разработке', svgChecklists, "alert('Кабинет чек-листов находится в разработке, скоро появится!')") +
+        createCardHTML('База знаний', 'Документация', svgDocs, "window.location.href='/static/docs.html'") +
+        createCardHTML('ИТР персонал', 'Сотрудники', svgITR, "renderItrGrid()");
+}
+
+function renderItrGrid() {
+    const grid = document.getElementById('user-grid');
+    if (!grid || !window.allMastersData) return;
+    
+    const titleEl = document.getElementById('selection-title');
+    if (titleEl) titleEl.innerText = 'Выберите ваш профиль';
+    
+    const backBtn = document.getElementById('back-to-main-container');
+    if (backBtn) backBtn.style.display = 'block';
+
+    const filteredMasters = window.allMastersData.filter(m => 
+        ['admin', 'director', 'technologist', 'mechanic'].includes(m.role)
+    );
+    
+    grid.innerHTML = filteredMasters.map(m => {
+        let roleDisplay = m.role;
+        let svgContent = '';
+        
+        if (m.role === 'admin') {
+            roleDisplay = 'Администратор';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>`;
+        } else if (m.role === 'director') {
+            roleDisplay = 'Директор';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>`;
+        } else if (m.role === 'technologist') {
+            roleDisplay = 'Технолог';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 2h4M12 2v8M18 16.6L13.5 9V4h-3v5L6 16.6C5.1 18.1 6.2 20 8 20h8c1.8 0 2.9-1.9 2-3.4z"></path>
+            </svg>`;
+        } else if (m.role === 'mechanic') {
+            roleDisplay = 'Механик';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+            </svg>`;
+        } else {
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>`;
+        }
+        
+        return createCardHTML(m.name, roleDisplay, svgContent, `selectUser('${m.name}', '${roleDisplay}')`);
+    }).join('');
+}
+
+function createCardHTML(title, subtitle, svgContent, onClickCode) {
+    const gradient = 'linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%)';
+    const shadowColor = 'rgba(200, 35, 35, 0.3)';
+    
+    return `
+        <div class="user-card glass-panel" onclick="${onClickCode}" style="cursor: pointer; padding: 1.2rem 0.8rem; text-align: center; border: 1px solid var(--border-color); border-radius: 12px; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; box-sizing: border-box;">
+            <div class="user-avatar-gradient" style="background: ${gradient}; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.2rem; box-shadow: 0 4px 15px ${shadowColor}; flex-shrink: 0;">
+                ${svgContent}
+            </div>
+            <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.4rem; white-space: normal; line-height: 1.2; width: 100%; word-break: break-word;">${title}</div>
+            <div style="font-size: 0.72rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: normal; line-height: 1.2; width: 100%; word-break: break-word;">${subtitle}</div>
+        </div>
+    `;
 }
 
 async function exportDowntimesToGoogle() {
