@@ -5062,7 +5062,7 @@ def list_documents(
                 "id": f"file_{f.id}",
                 "name": f.title,
                 "mimeType": f.mime_type or "application/octet-stream",
-                "webViewLink": f"/api/documents/download/{f.id}",
+                "webViewLink": f.google_drive_url if f.google_drive_url else f"/api/documents/download/{f.id}",
                 "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else "",
                 "is_protected": is_folder_protected(db, f.category_id) if f.category_id else False
             })
@@ -5219,7 +5219,7 @@ async def upload_document(
             "id": f"file_{new_doc.id}",
             "name": new_doc.title,
             "mimeType": new_doc.mime_type,
-            "webViewLink": f"/api/documents/download/{new_doc.id}"
+            "webViewLink": new_doc.google_drive_url if new_doc.google_drive_url else f"/api/documents/download/{new_doc.id}"
         }}
     except Exception as e:
         return {"status": "error", "message": str(e)}
