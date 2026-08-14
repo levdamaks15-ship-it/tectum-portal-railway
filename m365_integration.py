@@ -74,6 +74,30 @@ def upload_file_to_sharepoint(file_bytes: bytes, filename: str, folder: str = "D
     resp.raise_for_status()
     
     file_data = resp.json()
+    item_id = file_data.get("id")
+    
+    if item_id:
+        try:
+            # Создаем анонимную ссылку для редактирования
+            link_url = f"https://graph.microsoft.com/v1.0/drives/{drive_id}/items/{item_id}/createLink"
+            link_payload = {
+                "type": "edit",
+                "scope": "anonymous"
+            }
+            link_headers = headers.copy()
+            link_headers["Content-Type"] = "application/json"
+            
+            link_resp = requests.post(link_url, headers=link_headers, json=link_payload)
+            link_resp.raise_for_status()
+            
+            link_data = link_resp.json()
+            if "link" in link_data and "webUrl" in link_data["link"]:
+                return link_data["link"]["webUrl"]
+        except Exception as e:
+            # Если админом SharePoint запрещены анонимные ссылки, возвращаем обычную
+            print(f"ОШИБКА создания edit-ссылки (fallback to view-only): {e}")
+            pass
+            
     return file_data.get("webUrl") # Возвращает ссылку на просмотр файла
 
 def download_file_from_sharepoint(filename: str, folder: str = "Shifts") -> bytes:

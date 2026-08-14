@@ -179,6 +179,35 @@ async def lifespan(app: FastAPI):
         if 'db' in locals():
             db.close()
 
+    # Document Google Drive columns migration
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255)")
+        conn.execute("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR")
+        conn.commit()
+        conn.close()
+    except: pass
+
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            col_exists = db.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='documents' AND column_name='google_drive_id'"
+            )).fetchone()
+            if not col_exists:
+                db.execute(text("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255);"))
+                db.execute(text("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR;"))
+                db.commit()
+    except Exception as e:
+        print(f"Warning: could not migrate documents google_drive columns: {e}")
+        if 'db' in locals() and db:
+            db.rollback()
+    finally:
+        if 'db' in locals() and db:
+            db.close()
+
 
     # Migrations for Raw Material Silos Breakdown
     silo_materials = [
@@ -5177,6 +5206,15 @@ async def upload_document(
         db.commit()
         db.refresh(new_doc)
         
+        try:
+            import google_drive_integration
+            drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title)
+            new_doc.google_drive_id = drive_info["id"]
+            new_doc.google_drive_url = drive_info["url"]
+            db.commit()
+        except Exception as drive_err:
+            print(f"Failed to upload to Google Drive: {drive_err}")
+        
         return {"status": "success", "file": {
             "id": f"file_{new_doc.id}",
             "name": new_doc.title,
@@ -5203,6 +5241,9 @@ def create_document_folder(
             if protected_folder:
                 if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
                     raise HTTPException(status_code=403, detail="Access Denied")
+        else:
+            if not x_folder_password or x_folder_password != "6282":
+                raise HTTPException(status_code=403, detail="Неверный пароль для создания корневой папки")
             
         new_folder = models.DocumentCategory(
             name=folder_name,
@@ -5276,7 +5317,7 @@ def download_document(
     db: Session = Depends(get_db)
 ):
     doc = db.query(models.Document).filter(models.Document.id == file_id).first()
-    if not doc or not os.path.exists(doc.file_path):
+    if not doc:
         return {"status": "error", "message": "Файл не найден"}
         
     actual_pwd = pwd or x_folder_password
@@ -5285,6 +5326,15 @@ def download_document(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
+        
+    if doc.google_drive_id:
+        import google_drive_integration
+        ext = doc.title.split(".")[-1] if "." in doc.title else ""
+        export_link = google_drive_integration.get_drive_export_link(doc.google_drive_id, ext)
+        return RedirectResponse(url=export_link)
+        
+    if not os.path.exists(doc.file_path):
+        return {"status": "error", "message": "Файл не найден на сервере"}
         
     mime_type = doc.mime_type
     if not mime_type or mime_type == "application/octet-stream":
@@ -5303,17 +5353,9 @@ def download_document(
     )
 
 # ==========================================
-# ONLYOFFICE INTEGRATION ENDPOINTS
 # ==========================================
-ONLYOFFICE_URL = os.getenv("ONLYOFFICE_URL", "").rstrip("/")
-
-def get_document_type(filename: str) -> str:
-    ext = filename.split(".")[-1].lower() if "." in filename else ""
-    if ext in ["xls", "xlsx", "csv", "ods"]:
-        return "cell"
-    if ext in ["ppt", "pptx", "odp"]:
-        return "slide"
-    return "word"
+# GOOGLE DOCS INTEGRATION ENDPOINTS
+# ==========================================
 
 @app.get("/editor")
 def open_editor(
@@ -5345,144 +5387,7 @@ def open_editor(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
 
-    base_url = str(request.base_url).rstrip("/")
-    if base_url.startswith("http://") and "up.railway.app" in base_url:
-        base_url = base_url.replace("http://", "https://")
-
-    internal_base_url = os.getenv("INTERNAL_BACKEND_URL", "").rstrip("/")
-    if not internal_base_url:
-        internal_base_url = base_url
-
-    ext = doc.title.split(".")[-1].lower() if "." in doc.title else "docx"
-    file_url = f"{base_url}/api/documents/download/{doc.id}"
-    if actual_pwd:
-        file_url += f"?pwd={actual_pwd}"
-    callback_url = f"{base_url}/api/documents/onlyoffice-callback/{doc.id}"
-
-    file_stat = os.stat(doc.file_path) if os.path.exists(doc.file_path) else None
-    mtime = int(file_stat.st_mtime) if file_stat else 0
-    doc_key = f"doc_{doc.id}_{mtime}"
-
-    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").strip()
+    if doc.google_drive_url:
+        return RedirectResponse(url=doc.google_drive_url)
     
-    if "/web-apps" in onlyoffice_url:
-        onlyoffice_url = onlyoffice_url.split("/web-apps")[0]
-        
-    onlyoffice_url = onlyoffice_url.rstrip("/")
-    
-    if onlyoffice_url and not onlyoffice_url.startswith(("http://", "https://")):
-        onlyoffice_url = f"https://{onlyoffice_url}"
-
-    config = {
-        "document": {
-            "fileType": ext,
-            "key": doc_key,
-            "title": doc.title,
-            "url": file_url,
-        },
-        "documentType": get_document_type(doc.title),
-        "editorConfig": {
-            "callbackUrl": callback_url,
-            "lang": "ru",
-            "mode": "edit",
-            "customization": {
-                "autosave": True,
-                "forcesave": True,
-                "compactHeader": True,
-            }
-        },
-        "onlyofficeUrl": onlyoffice_url
-    }
-    
-    try:
-        with open("static/editor.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
-    except Exception as e:
-        return HTMLResponse(f"Ошибка загрузки шаблона редактора: {e}", status_code=500)
-        
-    if not onlyoffice_url:
-        config["error"] = "Сервер OnlyOffice еще не развернут на Railway. Добавьте переменную ONLYOFFICE_URL."
-
-    injected_script = f"""
-    <script>
-        window.OO_CONFIG = {json.dumps(config)};
-    </script>
-    """
-    
-    html_content = html_content.replace("</head>", f"{injected_script}\n</head>")
-    return HTMLResponse(content=html_content)
-
-@app.get("/api/documents/onlyoffice-config/{file_id}")
-def get_onlyoffice_config(file_id: int, request: Request, db: Session = Depends(get_db)):
-    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
-    if not doc:
-        return {"status": "error", "message": "Документ не найден"}
-
-    base_url = str(request.base_url).rstrip("/")
-    if base_url.startswith("http://") and "up.railway.app" in base_url:
-        base_url = base_url.replace("http://", "https://")
-
-    ext = doc.title.split(".")[-1].lower() if "." in doc.title else "docx"
-    file_url = f"{base_url}/api/documents/download/{doc.id}"
-    callback_url = f"{base_url}/api/documents/onlyoffice-callback/{doc.id}"
-
-    file_stat = os.stat(doc.file_path) if os.path.exists(doc.file_path) else None
-    mtime = int(file_stat.st_mtime) if file_stat else 0
-    doc_key = f"doc_{doc.id}_{mtime}"
-
-    onlyoffice_url = os.getenv("ONLYOFFICE_URL", "").strip()
-    
-    if "/web-apps" in onlyoffice_url:
-        onlyoffice_url = onlyoffice_url.split("/web-apps")[0]
-        
-    onlyoffice_url = onlyoffice_url.rstrip("/")
-    
-    if onlyoffice_url and not onlyoffice_url.startswith(("http://", "https://")):
-        onlyoffice_url = f"https://{onlyoffice_url}"
-
-    config = {
-        "document": {
-            "fileType": ext,
-            "key": doc_key,
-            "title": doc.title,
-            "url": file_url,
-        },
-        "documentType": get_document_type(doc.title),
-        "editorConfig": {
-            "callbackUrl": callback_url,
-            "lang": "ru",
-            "mode": "edit",
-            "customization": {
-                "autosave": True,
-                "forcesave": True,
-                "compactHeader": True,
-            }
-        },
-        "onlyofficeUrl": onlyoffice_url
-    }
-
-    return {"status": "success", "config": config}
-
-@app.post("/api/documents/onlyoffice-callback/{file_id}")
-async def onlyoffice_callback(file_id: int, request: Request, db: Session = Depends(get_db)):
-    try:
-        body = await request.json()
-        status = body.get("status")
-
-        if status in [2, 6]:
-            download_url = body.get("url")
-            if download_url:
-                doc = db.query(models.Document).filter(models.Document.id == file_id).first()
-                if doc:
-                    import urllib.request
-                    req_obj = urllib.request.Request(download_url, headers={"User-Agent": "FastAPI-Backend"})
-                    with urllib.request.urlopen(req_obj, timeout=30) as resp:
-                        content = resp.read()
-                        with open(doc.file_path, "wb") as f:
-                            f.write(content)
-                    doc.uploaded_at = datetime.datetime.utcnow()
-                    db.commit()
-        return {"error": 0}
-    except Exception as e:
-        logger.error(f"OnlyOffice callback error: {e}")
-        return {"error": 1, "message": str(e)}
+    return HTMLResponse("Файл еще не был загружен в Google Docs. Попробуйте загрузить его заново.", status_code=404)

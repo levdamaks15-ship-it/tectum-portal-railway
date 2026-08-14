@@ -834,8 +834,8 @@
                         <div class="row-meta">${typeName}</div>
                         <div class="row-actions">
                             ${isEditableFile(file.name) ? `
-                                <a href="#" onclick="openFileLink('/editor?id=${file.id}', ${file.is_protected}, event)" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать онлайн (OnlyOffice)">
-                                    <i class="fas fa-pen-to-square"></i>
+                                <a href="#" onclick="openFileLink('/editor?id=${file.id}', ${file.is_protected}, event)" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Открыть в Google Docs">
+                                    <i class="fas fa-edit"></i>
                                 </a>
                             ` : ''}
                             <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon btn-icon-download" title="Просмотреть в браузере">
@@ -988,7 +988,12 @@
         }
 
         async function createFolder() {
-            if (!await ensurePassword(currentFolderProtected)) return;
+            let requiresPassword = currentFolderProtected;
+            if (!currentFolderId) {
+                requiresPassword = true; // Создание корневой папки требует пароль
+            }
+            if (!await ensurePassword(requiresPassword)) return;
+            
             const name = document.getElementById('new-folder-name').value.trim();
             if (!name) return;
 

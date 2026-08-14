@@ -285,5 +285,7 @@ class Document(Base):
     file_path = Column(String)
     mime_type = Column(String, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
+    google_drive_id = Column(String, nullable=True)
+    google_drive_url = Column(String, nullable=True)
 
 
