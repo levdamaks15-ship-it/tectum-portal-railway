@@ -1,37 +1,31 @@
 import os
 import json
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from dotenv import load_dotenv
 
 load_dotenv()
 
-CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google_credentials.json")
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 def get_drive_service():
-    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
-    if creds_json:
-        try:
-            info = json.loads(creds_json)
-            if "private_key" in info:
-                info["private_key"] = info["private_key"].replace("\\n", "\n")
-            creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-            return build("drive", "v3", credentials=creds)
-        except Exception as env_err:
-            print(f"Ошибка парсинга GOOGLE_CREDENTIALS_JSON для Drive: {env_err}")
-
-    if not os.path.exists(CREDENTIALS_PATH):
-        raise FileNotFoundError(f"Файл ключа Google не найден по пути: {CREDENTIALS_PATH}")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
     
-    with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
-        info = json.load(f)
-    
-    if "private_key" in info:
-        info["private_key"] = info["private_key"].replace("\\n", "\n")
+    if not all([client_id, client_secret, refresh_token]):
+        raise ValueError("Missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or GOOGLE_REFRESH_TOKEN in .env")
         
-    creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+    creds = Credentials(
+        None,  # Access token can be None, it will refresh automatically
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=SCOPES
+    )
+    
     return build("drive", "v3", credentials=creds)
 
 def upload_file_to_drive(file_path: str, title: str) -> dict:
