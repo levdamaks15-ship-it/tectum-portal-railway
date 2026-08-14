@@ -52,6 +52,10 @@ def upload_file_to_drive(file_path: str, title: str) -> dict:
     if target_mime_type:
         file_metadata['mimeType'] = target_mime_type
         
+    folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    if folder_id:
+        file_metadata['parents'] = [folder_id]
+        
     media = MediaFileUpload(file_path, resumable=True)
     
     # Upload file
