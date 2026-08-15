@@ -5261,6 +5261,122 @@ def create_document_folder(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/api/documents/create_google")
+def create_google_doc_endpoint(
+    title: str = Form(...),
+    doc_type: str = Form("document"), # "document" or "spreadsheet"
+    parent_id: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+        else:
+            if not x_folder_password or x_folder_password != "6282":
+                raise HTTPException(status_code=403, detail="Неверный пароль для создания в корневой папке")
+                
+        import google_drive_integration
+        clean_title = title.strip()
+        if doc_type == "document" and not clean_title.endswith((".doc", ".docx")):
+            full_title = clean_title
+            mime_type = "application/vnd.google-apps.document"
+        elif doc_type == "spreadsheet" and not clean_title.endswith((".xls", ".xlsx")):
+            full_title = clean_title
+            mime_type = "application/vnd.google-apps.spreadsheet"
+        else:
+            full_title = clean_title
+            mime_type = "application/vnd.google-apps.document"
+
+        drive_info = google_drive_integration.create_google_file(full_title, doc_type=doc_type)
+        
+        # Save document in DB
+        new_doc = models.Document(
+            title=full_title,
+            category_id=cat_id,
+            file_path="",
+            mime_type=mime_type,
+            google_drive_id=drive_info["id"],
+            google_drive_url=drive_info["url"]
+        )
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+        
+        return {
+            "status": "success",
+            "file": {
+                "id": f"file_{new_doc.id}",
+                "name": new_doc.title,
+                "mimeType": new_doc.mime_type,
+                "webViewLink": new_doc.google_drive_url
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.put("/api/documents/{item_id}/rename")
+def rename_document(
+    item_id: str,
+    new_name: str = Form(...),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        new_clean_name = new_name.strip()
+        if not new_clean_name:
+            return {"status": "error", "message": "Имя не может быть пустым"}
+            
+        if item_id.startswith("folder_"):
+            cat_id = int(item_id.split("_")[1])
+            folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
+            if not folder:
+                return {"status": "error", "message": "Папка не найдена"}
+                
+            protected_folder = get_protected_ancestor(db, folder.id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+                    
+            folder.name = new_clean_name
+            db.commit()
+            return {"status": "success"}
+            
+        elif item_id.startswith("file_"):
+            file_id = int(item_id.split("_")[1])
+            doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+            if not doc:
+                return {"status": "error", "message": "Файл не найден"}
+                
+            if doc.category_id:
+                protected_folder = get_protected_ancestor(db, doc.category_id)
+                if protected_folder:
+                    if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                        raise HTTPException(status_code=403, detail="Access Denied")
+                        
+            doc.title = new_clean_name
+            db.commit()
+            
+            if doc.google_drive_id:
+                try:
+                    import google_drive_integration
+                    google_drive_integration.rename_drive_file(doc.google_drive_id, new_clean_name)
+                except Exception as g_err:
+                    print(f"Failed to rename in Google Drive: {g_err}")
+                    
+            return {"status": "success"}
+            
+        return {"status": "error", "message": "Неизвестный тип объекта"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.delete("/api/documents/{item_id}")
 def delete_document(
     item_id: str, 

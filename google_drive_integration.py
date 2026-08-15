@@ -83,6 +83,57 @@ def upload_file_to_drive(file_path: str, title: str) -> dict:
         "url": file.get('webViewLink')
     }
 
+def create_google_file(title: str, doc_type: str = "document") -> dict:
+    """
+    Creates a new empty Google Doc or Google Sheet in Google Drive.
+    doc_type: 'document' (Docs) or 'spreadsheet' (Sheets)
+    """
+    service = get_drive_service()
+    
+    mime_type = "application/vnd.google-apps.document" if doc_type == "document" else "application/vnd.google-apps.spreadsheet"
+    
+    file_metadata = {
+        'name': title,
+        'mimeType': mime_type
+    }
+    
+    folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    if folder_id:
+        file_metadata['parents'] = [folder_id]
+        
+    file = service.files().create(
+        body=file_metadata,
+        fields='id, webViewLink'
+    ).execute()
+    
+    file_id = file.get('id')
+    
+    # Make it writable by anyone with the link
+    permission = {
+        'type': 'anyone',
+        'role': 'writer'
+    }
+    service.permissions().create(
+        fileId=file_id,
+        body=permission,
+        fields='id'
+    ).execute()
+    
+    return {
+        "id": file_id,
+        "url": file.get('webViewLink')
+    }
+
+def rename_drive_file(file_id: str, new_title: str):
+    """
+    Renames a file in Google Drive.
+    """
+    service = get_drive_service()
+    service.files().update(
+        fileId=file_id,
+        body={'name': new_title}
+    ).execute()
+
 def get_drive_export_link(file_id: str, original_ext: str) -> str:
     """
     Generates a direct download link from Google Drive.
