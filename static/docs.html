@@ -8,26 +8,88 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --docs-bg: #0f172a;
+            --docs-sidebar-bg: #1e293b;
+            --docs-sidebar-border: rgba(255, 255, 255, 0.08);
+            --docs-text-primary: #f8fafc;
+            --docs-text-secondary: #94a3b8;
+            --docs-text-muted: #64748b;
+            --docs-panel-bg: rgba(30, 41, 59, 0.5);
+            --docs-panel-border: rgba(255, 255, 255, 0.08);
+            --docs-table-header-bg: rgba(15, 23, 42, 0.8);
+            --docs-table-row-hover: rgba(51, 65, 85, 0.45);
+            --docs-card-bg: rgba(30, 41, 59, 0.6);
+            --docs-card-hover: rgba(51, 65, 85, 0.8);
+            --docs-search-bg: rgba(30, 41, 59, 0.8);
+            --docs-search-border: rgba(255, 255, 255, 0.1);
+            --docs-input-bg: #0f172a;
+            --docs-input-border: rgba(255, 255, 255, 0.1);
+            --docs-input-color: #ffffff;
+            --docs-modal-bg: #1e293b;
+            --docs-modal-border: rgba(255, 255, 255, 0.15);
+            --docs-context-bg: #1e293b;
+            --docs-context-border: rgba(255, 255, 255, 0.12);
+            --docs-context-item-hover: rgba(59, 130, 246, 0.2);
+            --docs-dropdown-bg: #1e293b;
+            --docs-dropdown-border: rgba(255, 255, 255, 0.12);
+            --docs-btn-bg: rgba(255, 255, 255, 0.06);
+            --docs-btn-border: rgba(255, 255, 255, 0.1);
+            --docs-btn-color: #f1f5f9;
+        }
+
+        [data-theme="light"] {
+            --docs-bg: #f1f5f9;
+            --docs-sidebar-bg: #ffffff;
+            --docs-sidebar-border: rgba(0, 0, 0, 0.08);
+            --docs-text-primary: #1e293b;
+            --docs-text-secondary: #64748b;
+            --docs-text-muted: #94a3b8;
+            --docs-panel-bg: #ffffff;
+            --docs-panel-border: rgba(0, 0, 0, 0.08);
+            --docs-table-header-bg: #f8fafc;
+            --docs-table-row-hover: #f1f5f9;
+            --docs-card-bg: #ffffff;
+            --docs-card-hover: #f8fafc;
+            --docs-search-bg: #ffffff;
+            --docs-search-border: rgba(0, 0, 0, 0.12);
+            --docs-input-bg: #ffffff;
+            --docs-input-border: #cbd5e1;
+            --docs-input-color: #1e293b;
+            --docs-modal-bg: #ffffff;
+            --docs-modal-border: rgba(0, 0, 0, 0.12);
+            --docs-context-bg: #ffffff;
+            --docs-context-border: rgba(0, 0, 0, 0.12);
+            --docs-context-item-hover: rgba(59, 130, 246, 0.1);
+            --docs-dropdown-bg: #ffffff;
+            --docs-dropdown-border: rgba(0, 0, 0, 0.12);
+            --docs-btn-bg: rgba(0, 0, 0, 0.04);
+            --docs-btn-border: rgba(0, 0, 0, 0.1);
+            --docs-btn-color: #1e293b;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+            background-color: var(--docs-bg);
+            color: var(--docs-text-primary);
             margin: 0;
             padding: 0;
             display: flex;
             height: 100vh;
             overflow: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Sidebar Styles */
         .docs-sidebar {
             width: 280px;
-            background: #1e293b;
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            background: var(--docs-sidebar-bg);
+            border-right: 1px solid var(--docs-sidebar-border);
             display: flex;
             flex-direction: column;
             padding: 1.5rem;
             box-sizing: border-box;
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         .sidebar-brand {
@@ -44,14 +106,14 @@
             font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: #64748b;
+            color: var(--docs-text-muted);
             margin-bottom: 0.8rem;
             font-weight: 600;
         }
 
         .folder-tree-node {
             margin-left: 0.5rem;
-            border-left: 1px dashed rgba(255, 255, 255, 0.1);
+            border-left: 1px dashed var(--docs-sidebar-border);
             padding-left: 0.5rem;
             display: none;
         }
@@ -68,7 +130,7 @@
             cursor: pointer;
             width: 1.2rem;
             text-align: center;
-            color: #64748b;
+            color: var(--docs-text-muted);
             font-size: 0.75rem;
             transition: transform 0.2s;
         }
@@ -81,7 +143,7 @@
             align-items: center;
             gap: 0.6rem;
             padding: 0.5rem 0.6rem;
-            color: #cbd5e1;
+            color: var(--docs-text-primary);
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
@@ -89,7 +151,7 @@
         }
         .folder-item-tree:hover, .folder-item-tree.active {
             background: rgba(59, 130, 246, 0.15);
-            color: #60a5fa;
+            color: #3b82f6;
         }
         
         #sidebar-folders {
@@ -107,11 +169,11 @@
             background: transparent;
         }
         #sidebar-folders::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.1);
+            background: rgba(100, 116, 139, 0.2);
             border-radius: 4px;
         }
         #sidebar-folders::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(100, 116, 139, 0.3);
         }
 
         /* Main Content */
@@ -121,6 +183,7 @@
             flex-direction: column;
             overflow-y: auto;
             padding: 2rem;
+            background: var(--docs-bg);
         }
 
         .top-bar {
@@ -141,9 +204,9 @@
             width: 100%;
             padding: 0.7rem 1rem 0.7rem 2.5rem;
             border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(30, 41, 59, 0.8);
-            color: #fff;
+            border: 1px solid var(--docs-search-border);
+            background: var(--docs-search-bg);
+            color: var(--docs-text-primary);
             font-size: 0.95rem;
             box-sizing: border-box;
             transition: all 0.3s;
@@ -152,7 +215,7 @@
         .search-box input:focus {
             outline: none;
             border-color: #3b82f6;
-            background: #1e293b;
+            background: var(--docs-panel-bg);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
@@ -161,12 +224,33 @@
             left: 0.9rem;
             top: 50%;
             transform: translateY(-50%);
-            color: #64748b;
+            color: var(--docs-text-muted);
         }
 
         .action-buttons {
             display: flex;
+            align-items: center;
             gap: 0.8rem;
+        }
+
+        .btn-theme-toggle {
+            background: var(--docs-btn-bg);
+            border: 1px solid var(--docs-btn-border);
+            color: var(--docs-btn-color);
+            padding: 0.65rem 0.9rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn-theme-toggle:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: #3b82f6;
+            color: #3b82f6;
         }
 
         .btn-action {
@@ -183,10 +267,11 @@
         }
 
         .btn-create-folder {
-            background: #334155;
-            color: #f8fafc;
+            background: var(--docs-panel-bg);
+            border: 1px solid var(--docs-search-border);
+            color: var(--docs-text-primary);
         }
-        .btn-create-folder:hover { background: #475569; }
+        .btn-create-folder:hover { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
 
         .btn-upload-folder {
             background: #10b981;
@@ -214,8 +299,8 @@
 
         .btn-back {
             background: transparent;
-            color: #94a3b8;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--docs-text-secondary);
+            border: 1px solid var(--docs-search-border);
             padding: 0.4rem 0.8rem;
             border-radius: 6px;
             cursor: pointer;
@@ -227,6 +312,10 @@
             font-size: 0.85rem;
         }
         .btn-back:hover {
+            color: var(--docs-text-primary);
+            border-color: #3b82f6;
+        }
+        .btn-back:hover {
             color: #fff;
             border-color: #94a3b8;
         }
@@ -235,30 +324,32 @@
             margin: 0 0 1.5rem 0;
             font-size: 1.6rem;
             font-weight: 700;
+            color: var(--docs-text-primary);
         }
 
         /* Table / List View (Google Drive style) */
         .docs-table {
             display: flex;
             flex-direction: column;
-            background: rgba(30, 41, 59, 0.5);
+            background: var(--docs-panel-bg);
             border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--docs-panel-border);
             overflow: hidden;
             user-select: none;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
         }
 
         .docs-table-header {
             display: grid;
             grid-template-columns: 2fr 1fr 100px;
             padding: 0.8rem 1.2rem;
-            background: rgba(15, 23, 42, 0.8);
-            color: #94a3b8;
+            background: var(--docs-table-header-bg);
+            color: var(--docs-text-muted);
             font-size: 0.8rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid var(--docs-panel-border);
         }
 
         .docs-table-row {
@@ -266,7 +357,7 @@
             grid-template-columns: 2fr 1fr 100px;
             padding: 0.85rem 1.2rem;
             align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid var(--docs-panel-border);
             transition: background 0.15s;
             cursor: default;
         }
@@ -276,7 +367,7 @@
         }
 
         .docs-table-row:hover, .docs-table-row.selected {
-            background: rgba(51, 65, 85, 0.45);
+            background: var(--docs-table-row-hover);
         }
 
         .folder-row {
@@ -291,7 +382,7 @@
         }
 
         .item-title {
-            color: #f1f5f9;
+            color: var(--docs-text-primary);
             font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
@@ -299,7 +390,7 @@
         }
 
         .file-link {
-            color: #f1f5f9;
+            color: var(--docs-text-primary);
             text-decoration: none;
             display: flex;
             align-items: center;
@@ -308,11 +399,11 @@
 
         .file-link:hover {
             text-decoration: underline;
-            color: #60a5fa;
+            color: #3b82f6;
         }
 
         .row-meta {
-            color: #94a3b8;
+            color: var(--docs-text-muted);
             font-size: 0.9rem;
         }
 
@@ -325,7 +416,7 @@
         .btn-icon {
             background: transparent;
             border: none;
-            color: #94a3b8;
+            color: var(--docs-text-secondary);
             cursor: pointer;
             padding: 0.4rem;
             border-radius: 4px;
@@ -337,8 +428,8 @@
         }
 
         .btn-icon:hover {
-            color: #f8fafc;
-            background: rgba(255, 255, 255, 0.1);
+            color: var(--docs-text-primary);
+            background: var(--docs-btn-bg);
         }
 
         .btn-icon-delete:hover {
@@ -353,12 +444,12 @@
         /* Context Menu (Google Drive Style) */
         .context-menu {
             position: fixed;
-            background: #1e293b;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: var(--docs-context-bg);
+            border: 1px solid var(--docs-context-border);
             border-radius: 10px;
             padding: 6px 0;
             min-width: 230px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
             z-index: 9999;
             display: none;
             font-size: 0.9rem;
@@ -376,43 +467,43 @@
             align-items: center;
             gap: 12px;
             padding: 9px 16px;
-            color: #e2e8f0;
+            color: var(--docs-text-primary);
             cursor: pointer;
             transition: background 0.15s;
         }
 
         .context-menu-item:hover {
-            background: rgba(59, 130, 246, 0.2);
-            color: #ffffff;
+            background: var(--docs-context-item-hover);
+            color: #3b82f6;
         }
 
         .context-menu-item i {
             width: 16px;
             text-align: center;
-            color: #94a3b8;
+            color: var(--docs-text-muted);
             font-size: 0.95rem;
         }
 
         .context-menu-item:hover i {
-            color: #60a5fa;
+            color: #3b82f6;
         }
 
         .context-menu-item.danger {
-            color: #f87171;
+            color: #ef4444;
         }
 
         .context-menu-item.danger i {
-            color: #f87171;
+            color: #ef4444;
         }
 
         .context-menu-item.danger:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
         }
 
         .context-menu-separator {
             height: 1px;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--docs-panel-border);
             margin: 5px 0;
         }
 
@@ -421,12 +512,12 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            background: #0f172a;
-            color: #f8fafc;
+            background: var(--docs-modal-bg);
+            color: var(--docs-text-primary);
             border: 1px solid #3b82f6;
             padding: 12px 20px;
             border-radius: 8px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
             z-index: 10000;
             display: none;
             align-items: center;
@@ -452,11 +543,11 @@
             top: 100%;
             left: 0;
             margin-top: 6px;
-            background: #1e293b;
+            background: var(--docs-dropdown-bg);
             min-width: 210px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            border: 1px solid var(--docs-dropdown-border);
             border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             z-index: 100;
             padding: 6px 0;
         }
@@ -470,14 +561,14 @@
             align-items: center;
             gap: 10px;
             padding: 8px 16px;
-            color: #f1f5f9;
+            color: var(--docs-text-primary);
             cursor: pointer;
             transition: background 0.2s;
             font-size: 0.9rem;
         }
 
         .dropdown-item:hover {
-            background: rgba(59, 130, 246, 0.2);
+            background: var(--docs-context-item-hover);
         }
 
         /* Modal */
@@ -485,25 +576,28 @@
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.6);
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
 
         .modal-content {
-            background: #1e293b;
+            background: var(--docs-modal-bg);
             padding: 2rem;
             border-radius: 12px;
             width: 420px;
             max-width: 90%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--docs-modal-border);
+            color: var(--docs-text-primary);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
         }
 
         .modal-content h3 {
             margin-top: 0;
             margin-bottom: 1.2rem;
             font-size: 1.2rem;
+            color: var(--docs-text-primary);
         }
 
         .form-group {
@@ -513,18 +607,23 @@
         .form-group label {
             display: block;
             margin-bottom: 0.5rem;
-            color: #94a3b8;
+            color: var(--docs-text-secondary);
             font-size: 0.9rem;
         }
 
         .form-group input {
             width: 100%;
             padding: 0.75rem;
-            background: #0f172a;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--docs-input-bg);
+            border: 1px solid var(--docs-input-border);
             border-radius: 6px;
-            color: white;
+            color: var(--docs-input-color);
             box-sizing: border-box;
+            outline: none;
+            font-family: inherit;
+        }
+        .form-group input:focus {
+            border-color: #3b82f6;
         }
 
         .modal-actions {
@@ -535,13 +634,13 @@
 
         .btn-cancel {
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #94a3b8;
+            border: 1px solid var(--docs-input-border);
+            color: var(--docs-text-secondary);
             padding: 0.65rem 1.2rem;
             border-radius: 6px;
             cursor: pointer;
         }
-        .btn-cancel:hover { color: #fff; border-color: #94a3b8; }
+        .btn-cancel:hover { color: var(--docs-text-primary); border-color: var(--docs-text-muted); }
     </style>
 </head>
 <body>
@@ -556,7 +655,10 @@
         </div>
         
         <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.6rem;">
-            <a href="/static/index.html" style="color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+            <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-sidebar-theme-btn" style="width: 100%; justify-content: center; margin-bottom: 0.4rem;">
+                <span class="theme-icon">🌓</span> <span class="theme-label">Сменить тему</span>
+            </button>
+            <a href="/static/index.html" style="color: var(--docs-text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: 0.3s; padding: 0.4rem 0.6rem; border-radius: 6px;" onmouseover="this.style.color='var(--docs-text-primary)'" onmouseout="this.style.color='var(--docs-text-secondary)'">
                 <i class="fas fa-home"></i> На главную
             </a>
         </div>
@@ -570,6 +672,11 @@
                 <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)">
             </div>
             <div class="action-buttons">
+                <!-- Theme Toggle Button -->
+                <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-top-theme-btn" title="Переключить тему (Светлая/Темная)">
+                    <span class="theme-icon">🌓</span>
+                </button>
+
                 <!-- Dropdown Создать -->
                 <div class="dropdown-menu-create">
                     <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
@@ -609,7 +716,7 @@
                 <h1 id="current-folder-name" class="page-title" style="margin-bottom: 0;">Главная директория</h1>
             </div>
             <div>
-                <select id="docs-sort" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: #1e293b; color: white;" onchange="applySort()">
+                <select id="docs-sort" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit;" onchange="applySort()">
                     <option value="date_desc">Сначала новые (по дате)</option>
                     <option value="date_asc">Сначала старые (по дате)</option>
                     <option value="name_asc">По имени (А-Я)</option>
@@ -1579,7 +1686,35 @@
             }
         }
 
+        /* ==========================================================
+           THEME MANAGEMENT (LIGHT / DARK)
+           ========================================================== */
+        function initTheme() {
+            const savedTheme = localStorage.getItem("theme") || "dark";
+            applyTheme(savedTheme);
+        }
+
+        function toggleDocsTheme() {
+            const current = document.documentElement.getAttribute("data-theme") || "dark";
+            const next = current === "light" ? "dark" : "light";
+            applyTheme(next);
+        }
+
+        function applyTheme(theme) {
+            document.documentElement.setAttribute("data-theme", theme);
+            localStorage.setItem("theme", theme);
+            const topBtn = document.getElementById("docs-top-theme-btn");
+            if (topBtn) {
+                topBtn.innerHTML = `<span class="theme-icon">${theme === "light" ? "☀️" : "🌙"}</span>`;
+            }
+            const sideBtn = document.getElementById("docs-sidebar-theme-btn");
+            if (sideBtn) {
+                sideBtn.innerHTML = `<span class="theme-icon">${theme === "light" ? "☀️" : "🌙"}</span> <span class="theme-label">${theme === "light" ? "Светлая тема" : "Темная тема"}</span>`;
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
             loadDocuments();
             loadSidebarTree();
         });

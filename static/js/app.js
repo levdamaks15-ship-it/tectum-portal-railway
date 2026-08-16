@@ -1096,10 +1096,10 @@ function renderSummaryTable(rows) {
             if (r.remaining_edit_seconds !== undefined && r.remaining_edit_seconds < 999990) {
                 const mins = Math.floor(r.remaining_edit_seconds / 60);
                 const secs = r.remaining_edit_seconds % 60;
-                timerBadge = `<span class="report-row-timer" data-seconds="${r.remaining_edit_seconds}" style="display: block; font-size: 0.7rem; color: #fbbf24; margin-top: 2px;">⏱ ${mins}м ${secs}с</span>`;
+                timerBadge = `<span class="report-row-timer" data-seconds="${r.remaining_edit_seconds}" style="display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px;">⏱ ${mins}м ${secs}с</span>`;
             }
             actionCell = `
-                <button type="button" onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.25rem 0.55rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; border-radius: 6px; cursor: pointer;">
+                <button type="button" onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.25rem 0.55rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5); color: var(--text-primary); font-weight: 600; border-radius: 6px; cursor: pointer;">
                     ✏️ Изменить
                 </button>
                 ${timerBadge}

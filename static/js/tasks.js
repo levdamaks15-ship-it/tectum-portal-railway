@@ -21,12 +21,36 @@ let assigneeChart = null;
 
 // Initialize on Load
 document.addEventListener("DOMContentLoaded", async () => {
+    initTheme();
     initUser();
     initFontScale();
     initSpeechRecognition();
     await loadInitialMetadata();
     await loadTasks();
 });
+
+/* ==========================================================
+   THEME MANAGEMENT (LIGHT / DARK)
+   ========================================================== */
+function initTheme() {
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    applyTheme(savedTheme);
+}
+
+function toggleTasksTheme() {
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    const next = current === "light" ? "dark" : "light";
+    applyTheme(next);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+    const icon = document.getElementById("theme-toggle-icon");
+    if (icon) {
+        icon.textContent = theme === "light" ? "☀️" : "🌙";
+    }
+}
 
 /* ==========================================================
    USER MANAGEMENT & LOCALSTORAGE
