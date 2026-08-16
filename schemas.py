@@ -139,6 +139,7 @@ class Downtime(DowntimeBase):
     lost_tons: Optional[float] = 0.0
     lost_tenge: Optional[float] = 0.0
     status: Optional[str] = "pending"
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -149,6 +150,7 @@ class ShiftBase(ORMBaseModel):
     line: str
     batch_number: Optional[str] = None
     product_name: Optional[str] = None
+    created_at: Optional[datetime] = None
     
     plan_sheets: Optional[int] = 0
     plan_tons: Optional[float] = 0.0
@@ -626,4 +628,50 @@ class AdminShiftReportUpdate(ORMBaseModel):
     
     zo_asb_drain: Optional[float] = None
     zo_cem_drain: Optional[float] = None
+
+
+# --- TASK TRACKER SCHEMAS ---
+class TaskBase(ORMBaseModel):
+    title: str
+    description: Optional[str] = ""
+    category: Optional[str] = "Производство"
+    priority: Optional[str] = "Средний"
+    status: Optional[str] = "Запланировано"
+    assigned_master_id: Optional[int] = None
+    assignee_custom: Optional[str] = ""
+    creator_name: Optional[str] = ""
+    due_date: Optional[date] = None
+    week_label: Optional[str] = ""
+    attached_document_id: Optional[int] = None
+    google_doc_url: Optional[str] = ""
+
+class TaskCreate(TaskBase):
+    pass
+
+class TaskUpdate(ORMBaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    priority: Optional[str] = None
+    status: Optional[str] = None
+    assigned_master_id: Optional[int] = None
+    assignee_custom: Optional[str] = None
+    creator_name: Optional[str] = None
+    due_date: Optional[date] = None
+    completed_at: Optional[datetime] = None
+    week_label: Optional[str] = None
+    attached_document_id: Optional[int] = None
+    google_doc_url: Optional[str] = None
+
+class TaskResponse(TaskBase):
+    id: int
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    assigned_master_name: Optional[str] = ""
+    attached_document_title: Optional[str] = ""
+
+    class Config:
+        from_attributes = True
+
 

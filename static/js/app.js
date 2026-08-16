@@ -758,10 +758,14 @@ async function submitShiftReport() {
         return;
     }
 
+    const isUpdating = !!window.editingShiftId;
+    const url = isUpdating ? `/api/report/${window.editingShiftId}` : '/api/report';
+    const method = isUpdating ? 'PUT' : 'POST';
+
     setButtonLoading('btn-submit-shift-report', true);
     try {
-        const res = await fetch('/api/report', {
-            method: 'POST',
+        const res = await fetch(url, {
+            method: method,
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
@@ -769,6 +773,11 @@ async function submitShiftReport() {
         if (res.ok) {
             clearReportDraft();
             saveLastLineAndShift(data.line, data.shift_name);
+            
+            if (isUpdating) {
+                cancelReportEdit();
+            }
+            
             const formContainer = document.getElementById('report-form-container');
             const successScreen = document.getElementById('report-success-screen');
             if (formContainer) formContainer.style.display = 'none';
@@ -776,7 +785,7 @@ async function submitShiftReport() {
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
             loadData();
-            showNotification('success', 'Смена отправлена!', 'Данные рапорта смены успешно загружены в облако.');
+            showNotification('success', isUpdating ? 'Рапорт обновлен!' : 'Смена отправлена!', isUpdating ? 'Изменения в рапорте смены успешно сохранены.' : 'Данные рапорта смены успешно загружены в облако.');
         } else {
             const err = await res.json();
             showNotification('error', 'Ошибка сохранения', err.detail || 'Неизвестная ошибка сервера');
@@ -1081,8 +1090,25 @@ function renderSummaryTable(rows) {
         const t_crushed_slate = theo.crushed_slate || 0;
         const t_asbozurit = theo.asbozurit || 0;
 
+        let actionCell = '<span style="color: var(--text-secondary); font-size: 0.75rem;">-</span>';
+        if (r.can_edit) {
+            let timerBadge = '';
+            if (r.remaining_edit_seconds !== undefined && r.remaining_edit_seconds < 999990) {
+                const mins = Math.floor(r.remaining_edit_seconds / 60);
+                const secs = r.remaining_edit_seconds % 60;
+                timerBadge = `<span class="report-row-timer" data-seconds="${r.remaining_edit_seconds}" style="display: block; font-size: 0.7rem; color: #fbbf24; margin-top: 2px;">⏱ ${mins}м ${secs}с</span>`;
+            }
+            actionCell = `
+                <button type="button" onclick="editReport(${r.shift_id})" class="btn-secondary" style="padding: 0.25rem 0.55rem; font-size: 0.75rem; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; border-radius: 6px; cursor: pointer;">
+                    ✏️ Изменить
+                </button>
+                ${timerBadge}
+            `;
+        }
+
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
+                <td style="white-space: nowrap;">${actionCell}</td>
                 <td>${r.date}</td>
                 <td>${r.batch_number}</td>
                 <td>${r.line}</td>
@@ -1127,13 +1153,55 @@ function renderSummaryTable(rows) {
             </tr>
         `;
     });
+
+    startSummaryRowTimers();
 }
+
+let summaryRowTimerInterval = null;
+function startSummaryRowTimers() {
+    if (summaryRowTimerInterval) clearInterval(summaryRowTimerInterval);
+    
+    summaryRowTimerInterval = setInterval(() => {
+        const timerBadges = document.querySelectorAll('.report-row-timer');
+        if (timerBadges.length === 0) return;
+        
+        let hasActive = false;
+        timerBadges.forEach(badge => {
+            let secs = parseInt(badge.getAttribute('data-seconds'), 10);
+            if (isNaN(secs)) return;
+            
+            if (secs > 0) {
+                secs--;
+                badge.setAttribute('data-seconds', secs);
+                const mins = Math.floor(secs / 60);
+                const s = secs % 60;
+                badge.innerText = `⏱ ${mins}м ${s < 10 ? '0' : ''}${s}с`;
+                hasActive = true;
+            } else {
+                // Time expired, hide edit button and timer
+                const parentTd = badge.closest('td');
+                if (parentTd) {
+                    parentTd.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.75rem;">🔒 Истекло</span>';
+                }
+            }
+        });
+        
+        if (!hasActive) {
+            clearInterval(summaryRowTimerInterval);
+        }
+    }, 1000);
+}
+
+let reportEditTimerInterval = null;
 
 async function editReport(shiftId) {
     try {
         const res = await fetch(`/api/shifts/${shiftId}`);
         if (res.ok) {
             const shift = await res.json();
+            window.editingShiftId = shift.id;
+            window.editingShiftRemainingSeconds = shift.remaining_edit_seconds;
+            
             prefillReportForm(shift);
             
             const formContainer = document.getElementById('report-form-container');
@@ -1141,15 +1209,84 @@ async function editReport(shiftId) {
             if (successScreen) successScreen.style.display = 'none';
             if (formContainer) formContainer.style.display = 'block';
             
+            // Show edit banner
+            const banner = document.getElementById('report-edit-mode-banner');
+            const bannerTitle = document.getElementById('report-edit-banner-title');
+            if (banner) banner.style.display = 'flex';
+            if (bannerTitle) {
+                bannerTitle.innerText = `Редактирование рапорта №${shift.id} (${shift.date} ${shift.shift_name} [${shift.line}])`;
+            }
+            
+            // Change submit button to update mode
+            const submitBtn = document.getElementById('btn-submit-shift-report');
+            if (submitBtn) {
+                submitBtn.innerHTML = '💾 Обновить рапорт смены';
+                submitBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                submitBtn.style.boxShadow = '0 8px 25px rgba(245, 158, 11, 0.4)';
+            }
+            
+            startReportEditTimer(shift.remaining_edit_seconds);
+            
             switchTab('production');
             
             // Expand all accordion contents for editing
             document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('collapsed'));
             document.querySelectorAll('.accordion-section').forEach(s => s.classList.remove('collapsed'));
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     } catch(e) {
         alert("Ошибка при выборе смены: " + e.message);
     }
+}
+
+function startReportEditTimer(initialSeconds) {
+    if (reportEditTimerInterval) clearInterval(reportEditTimerInterval);
+    let secondsLeft = (initialSeconds !== undefined && initialSeconds !== null) ? initialSeconds : 1800;
+    
+    function updateDisplay() {
+        const timerEl = document.getElementById('report-edit-timer');
+        if (!timerEl) return;
+        
+        if (secondsLeft >= 999990) {
+            timerEl.innerText = 'Без ограничений (Администратор)';
+            return;
+        }
+        
+        if (secondsLeft <= 0) {
+            timerEl.innerText = '00:00 (Время истекло!)';
+            timerEl.style.color = '#ef4444';
+            clearInterval(reportEditTimerInterval);
+            showNotification('error', 'Время истекло', '30-минутное окно самостоятельного редактирования рапорта завершилось. Для правок обратитесь к администратору.');
+            return;
+        }
+        
+        const m = Math.floor(secondsLeft / 60);
+        const s = secondsLeft % 60;
+        timerEl.innerText = `${m} мин ${s < 10 ? '0' : ''}${s} сек`;
+        secondsLeft--;
+    }
+    
+    updateDisplay();
+    reportEditTimerInterval = setInterval(updateDisplay, 1000);
+}
+
+function cancelReportEdit() {
+    window.editingShiftId = null;
+    if (reportEditTimerInterval) clearInterval(reportEditTimerInterval);
+    
+    const banner = document.getElementById('report-edit-mode-banner');
+    if (banner) banner.style.display = 'none';
+    
+    const submitBtn = document.getElementById('btn-submit-shift-report');
+    if (submitBtn) {
+        submitBtn.innerHTML = '💾 Сохранить рапорт смены';
+        submitBtn.style.background = '';
+        submitBtn.style.boxShadow = '';
+    }
+    
+    resetReportForm();
+    restoreLastLineAndShift();
 }
 
 function renderSummaryDashboards(rows) {
@@ -1555,8 +1692,10 @@ function renderDowntimesTable(shift) {
         const isEquipment = d.is_equipment_downtime ? '🔴 Да' : '🟡 Нет';
         const mediaHtml = (d.media_files || []).map(f => `<a href="${f}" target="_blank">Файл</a>`).join(', ') || 'Нет';
         
-        const deleteBtn = `<button onclick="deleteDowntime(${d.id})" class="btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Удалить</button>`;
-        const editBtn = `<button onclick="openEditDowntimeModal(${d.id})" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem;">Редактировать</button>`;
+        const canEdit = (d.can_edit !== undefined) ? d.can_edit : true;
+        const deleteBtn = canEdit ? `<button onclick="deleteDowntime(${d.id})" class="btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Удалить</button>` : '';
+        const editBtn = canEdit ? `<button onclick="openEditDowntimeModal(${d.id})" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem;">Редактировать</button>` : '';
+        const actionHtml = canEdit ? `${editBtn}${deleteBtn}` : '<span style="color: var(--text-secondary); font-size: 0.75rem;">🔒 Истекло</span>';
 
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
@@ -1569,7 +1708,7 @@ function renderDowntimesTable(shift) {
                 <td>${d.department} / ${d.node} / ${isEquipment}</td>
                 <td>${d.comment || '-'}</td>
                 <td>${mediaHtml}</td>
-                <td>${editBtn}${deleteBtn}</td>
+                <td style="white-space: nowrap;">${actionHtml}</td>
             </tr>
         `;
     });
@@ -2842,8 +2981,13 @@ function renderMainScreenGrid() {
         <polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
     </svg>`;
 
+    const svgTasks = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>
+    </svg>`;
+
     grid.innerHTML = 
         createCardHTML('Кабинет мастера', 'Производство', svgMaster, "selectUser('Мастер смены', 'Мастер')") +
+        createCardHTML('Планнер задач', 'Поручения и ТОиР', svgTasks, "window.location.href='/static/tasks.html'") +
         createCardHTML('Кабинет чек-листов', 'В разработке', svgChecklists, "alert('Кабинет чек-листов находится в разработке, скоро появится!')") +
         createCardHTML('База знаний', 'Документация', svgDocs, "window.location.href='/static/docs.html'") +
         createCardHTML('ИТР персонал', 'Сотрудники', svgITR, "renderItrGrid()");
@@ -2860,14 +3004,26 @@ function renderItrGrid() {
     if (backBtn) backBtn.style.display = 'block';
 
     const filteredMasters = window.allMastersData.filter(m => 
-        ['admin', 'director', 'technologist', 'mechanic'].includes(m.role)
+        ['admin', 'director', 'technologist', 'mechanic'].includes(m.role) || m.name.includes("Левда") || m.name.includes("Булеханов")
     );
     
     grid.innerHTML = filteredMasters.map(m => {
         let roleDisplay = m.role;
         let svgContent = '';
         
-        if (m.role === 'admin') {
+        if (m.name.includes("Левда")) {
+            roleDisplay = 'Специалист БП / Админ';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>`;
+        } else if (m.name.includes("Булеханов")) {
+            roleDisplay = 'Начальник производства';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>`;
+        } else if (m.role === 'admin') {
             roleDisplay = 'Администратор';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -2879,6 +3035,7 @@ function renderItrGrid() {
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>`;
+
         } else if (m.role === 'technologist') {
             roleDisplay = 'Технолог';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

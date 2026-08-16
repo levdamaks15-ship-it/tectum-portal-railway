@@ -247,7 +247,9 @@
                 <button class="tab-btn" id="tab-btn-analytics" onclick="switchTab('analytics')">📈 Аналитика простоев</button>
                 <button class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report')">📈 Месячная сводка выработки</button>
                 <button class="tab-btn" id="tab-btn-materials" onclick="switchTab('materials')">🧪 Сводка по сырью</button>
+                <button class="tab-btn" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #60a5fa;" onclick="window.location.href='/static/tasks.html'">🎯 Задачи (Планнер)</button>
             </div>
+
 
             <!-- Active Shift Banner -->
             <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; padding: 1rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem; position: relative;">
@@ -266,6 +268,18 @@
             <div id="production-tab" style="display: block;">
                 <div id="report-form-container" style="max-width: 900px; margin: 0 auto;">
                     
+                    <!-- Edit Mode Notice Banner -->
+                    <div id="report-edit-mode-banner" style="display: none; background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.25)); border: 1px solid #f59e0b; border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 1.5rem;">✏️</span>
+                            <div>
+                                <div style="font-weight: bold; color: #fbbf24; font-size: 1rem;" id="report-edit-banner-title">Режим редактирования рапорта</div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);" id="report-edit-banner-subtitle">Осталось времени на редактирование: <strong id="report-edit-timer" style="color: #fbbf24;">--</strong></div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="cancelReportEdit()" class="btn-secondary" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border);">✖ Отмена (новый рапорт)</button>
+                    </div>
+
                     <!-- Accordion Section 1: Заголовок смены -->
                     <div class="glass-panel accordion-section" id="acc-header-section">
                         <div class="accordion-header" onclick="toggleAccordion('sec-header')">
@@ -837,6 +851,7 @@ function calcSumRM(key) {
                         <table class="table-glass-summary">
                             <thead>
                                 <tr>
+                                     <th style="min-width: 110px;">Действия</th>
                                      <th>Дата</th>
                                      <th>Партия</th>
                                      <th>Линия</th>

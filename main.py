@@ -248,7 +248,34 @@ async def lifespan(app: FastAPI):
         print(f"Warning: could not run PG migrations for silo columns: {e}")
         if 'db' in locals(): db.rollback()
     finally:
-        if 'db' in locals(): db.close()
+        if 'db' in locals() and db: db.close()
+
+    # Migrations for created_at on shifts, downtimes, raw_material_receipts
+    try:
+        conn = sqlite3.connect("tectum.db")
+        for tbl in ["shifts", "downtimes", "raw_material_receipts"]:
+            try:
+                conn.execute(f"ALTER TABLE {tbl} ADD COLUMN created_at DATETIME")
+            except: pass
+        conn.commit()
+        conn.close()
+    except: pass
+
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            for tbl in ["shifts", "downtimes", "raw_material_receipts"]:
+                try:
+                    db.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                except Exception as pg_err: pass
+            db.commit()
+    except Exception as e:
+        print(f"Warning: could not run PG migrations for created_at: {e}")
+        if 'db' in locals(): db.rollback()
+    finally:
+        if 'db' in locals() and db: db.close()
 
     # Migrations for Shift (Asbocarton & Drains)
     try:
@@ -327,7 +354,7 @@ async def lifespan(app: FastAPI):
             conn.close()
         except: pass
 
-    # PostgreSQL auto-migration for missing columns
+    # PostgreSQL auto-migration for missing columns (single batch check)
     if "postgresql" in engine.url.drivername or "postgres" in engine.url.drivername:
         from sqlalchemy import text
         pg_cols_to_add = [
@@ -361,21 +388,24 @@ async def lifespan(app: FastAPI):
             ("batches", "qcd_defect_delamination", "INTEGER DEFAULT 0"),
             ("batches", "qcd_defect_edge", "INTEGER DEFAULT 0")
         ]
-        for table, col, col_def in pg_cols_to_add:
-            try:
-                with engine.connect() as conn:
-                    res = conn.execute(text(f"""
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name='{table}' AND column_name='{col}';
-                    """)).fetchone()
-                    if not res:
-                        print(f"Adding column '{col}' to table '{table}' in PostgreSQL...")
-                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def};"))
-                        conn.commit()
-                        print(f"Column '{col}' added successfully.")
-            except Exception as pg_err:
-                print(f"Error adding column '{col}' to table '{table}' in PostgreSQL: {pg_err}")
+        try:
+            with engine.connect() as conn:
+                existing_cols = {
+                    (row[0], row[1]) for row in conn.execute(text(
+                        "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public';"
+                    )).fetchall()
+                }
+                for table, col, col_def in pg_cols_to_add:
+                    if (table, col) not in existing_cols:
+                        try:
+                            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def};"))
+                            print(f"Added column '{col}' to table '{table}' in PostgreSQL.")
+                        except Exception:
+                            pass
+                conn.commit()
+        except Exception as pg_err:
+            print(f"Error checking PG columns: {pg_err}")
+
 
     db = SessionLocal()
 
@@ -424,98 +454,129 @@ async def lifespan(app: FastAPI):
             db.add(generic_master)
             db.commit()
             print("Successfully seeded 'Мастер смены' profile.")
-    except Exception as e:
-        print(f"Error seeding generic master: {e}")
-    finally:
-        db.close()
 
-    # SharePoint directories bootstrap/sync check
-    db = SessionLocal()
-    try:
-        if not m365_integration.check_file_exists_on_sharepoint("Справочники_Tectum.xlsx", folder="Shifts"):
-            print("Справочники_Tectum.xlsx is missing on SharePoint, uploading initial template...")
-            template_bytes = excel_exporter.create_initial_directories_xlsx(db)
-            m365_integration.upload_file_to_sharepoint(template_bytes, "Справочники_Tectum.xlsx", folder="Shifts")
-            print("Template uploaded successfully.")
+        # Seed / update Levda M. and Bulekhanov K.
+        levda = db.query(models.Master).filter(models.Master.name.like("%Левда%")).first()
+        if not levda:
+            db.add(models.Master(name="Левда М.", pin="6282", role="admin"))
         else:
-            print("Справочники_Tectum.xlsx exists on SharePoint, syncing directories...")
-            file_bytes = m365_integration.download_file_from_sharepoint("Справочники_Tectum.xlsx", folder="Shifts")
-            excel_exporter.sync_directories_from_excel_bytes(file_bytes, db)
-            print("Directories auto-synced from SharePoint successfully.")
-    except Exception as e:
-        print(f"Error checking/syncing directories with SharePoint on startup: {e}")
-    finally:
-        db.close()
+            levda.name = "Левда М."
+            levda.pin = "6282"
+            levda.role = "admin"
 
-    # Auto-fix 0 plan_sheets in MonthlyPlanBoard
-    db = SessionLocal()
-    try:
-        boards = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.plan_sheets == 0).all()
-        updated_count = 0
-        for pb in boards:
-            date_val = pb.date
-            is_monday = False
-            if isinstance(date_val, str):
-                try:
-                    dt_obj = datetime.datetime.strptime(date_val, "%Y-%m-%d").date()
-                    is_monday = dt_obj.weekday() == 0
-                except:
-                    pass
-            else:
-                try:
-                    is_monday = date_val.weekday() == 0
-                except:
-                    pass
-                    
-            if is_monday and pb.shift_name == "День":
-                continue
-                
-            correct_plan = 2700 if pb.shift_name == "День" else 3300
-            pb.plan_sheets = correct_plan
-            updated_count += 1
-            
-        if updated_count > 0:
-            db.commit()
-            print(f"Auto-fixed {updated_count} plan_boards with 0 plan_sheets.")
-    except Exception as e:
-        print(f"Error auto-fixing plan boards: {e}")
-    finally:
-        db.close()
-
-    # Clean up historical NULL values in database (Rule 5.8)
-    db = SessionLocal()
-    try:
-        from sqlalchemy import text
-        cleanup_queries = [
-            "UPDATE lfm_reports SET lfm_wind_resets = 0 WHERE lfm_wind_resets IS NULL",
-            "UPDATE lfm_reports SET formed_1st_grade = 0 WHERE formed_1st_grade IS NULL",
-            "UPDATE lfm_reports SET formed_defect = 0 WHERE formed_defect IS NULL",
-            "UPDATE lfm_reports SET transferred_to_warehouse = 0 WHERE transferred_to_warehouse IS NULL",
-            "UPDATE batches SET ds_condition = 0 WHERE ds_condition IS NULL",
-            "UPDATE batches SET ds_first_grade = 0 WHERE ds_first_grade IS NULL",
-            "UPDATE batches SET ds_defect = 0 WHERE ds_defect IS NULL",
-            "UPDATE batches SET qcd_condition = 0 WHERE qcd_condition IS NULL",
-            "UPDATE batches SET qcd_first_grade = 0 WHERE qcd_first_grade IS NULL",
-            "UPDATE batches SET qcd_defect = 0 WHERE qcd_defect IS NULL",
-            "UPDATE batches SET qcd_condition = ds_condition WHERE qcd_condition = 0 AND ds_condition > 0",
-            "UPDATE batches SET qcd_first_grade = ds_first_grade WHERE qcd_first_grade = 0 AND ds_first_grade > 0",
-            "UPDATE batches SET qcd_defect = ds_defect WHERE qcd_defect = 0 AND ds_defect > 0",
-            "UPDATE shifts SET batch_number = '' WHERE batch_number IS NULL",
-            "UPDATE shifts SET product_name = '' WHERE product_name IS NULL",
-            "UPDATE shifts SET status = 'active' WHERE status IS NULL"
-        ]
-        for q in cleanup_queries:
-            try:
-                db.execute(text(q))
-            except Exception:
-                pass
+        bulekhanov = db.query(models.Master).filter(or_(models.Master.name.like("%Булеханов%"), models.Master.name.like("%Булекпаев%"))).first()
+        if not bulekhanov:
+            db.add(models.Master(name="Булеханов К.", pin="2026", role="director"))
+        else:
+            bulekhanov.name = "Булеханов К."
+            bulekhanov.pin = "2026"
+            bulekhanov.role = "director"
         db.commit()
-        print("Historical NULL values cleaned up successfully.")
+        print("Successfully seeded/updated 'Левда М.' and 'Булеханов К.' profiles.")
     except Exception as e:
-        print(f"Error cleaning up historical NULLs: {e}")
+        print(f"Error seeding users: {e}")
         db.rollback()
     finally:
         db.close()
+
+
+    # SharePoint directories bootstrap/sync check (run safely in background thread to not block server startup)
+    def bg_sharepoint_init():
+        db = SessionLocal()
+        try:
+            if not os.getenv("M365_TENANT_ID"):
+                return
+            if not m365_integration.check_file_exists_on_sharepoint("Справочники_Tectum.xlsx", folder="Shifts"):
+                print("Справочники_Tectum.xlsx is missing on SharePoint, uploading initial template...")
+                template_bytes = excel_exporter.create_initial_directories_xlsx(db)
+                m365_integration.upload_file_to_sharepoint(template_bytes, "Справочники_Tectum.xlsx", folder="Shifts")
+                print("Template uploaded successfully.")
+            else:
+                print("Справочники_Tectum.xlsx exists on SharePoint, syncing directories...")
+                file_bytes = m365_integration.download_file_from_sharepoint("Справочники_Tectum.xlsx", folder="Shifts")
+                excel_exporter.sync_directories_from_excel_bytes(file_bytes, db)
+                print("Directories auto-synced from SharePoint successfully.")
+        except Exception as e:
+            print(f"Error checking/syncing directories with SharePoint on startup: {e}")
+        finally:
+            db.close()
+    
+    import threading
+    threading.Thread(target=bg_sharepoint_init, daemon=True).start()
+
+
+    def bg_cleanups_init():
+        db = SessionLocal()
+        try:
+            boards = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.plan_sheets == 0).all()
+            updated_count = 0
+            for pb in boards:
+                date_val = pb.date
+                is_monday = False
+                if isinstance(date_val, str):
+                    try:
+                        dt_obj = datetime.datetime.strptime(date_val, "%Y-%m-%d").date()
+                        is_monday = dt_obj.weekday() == 0
+                    except:
+                        pass
+                else:
+                    try:
+                        is_monday = date_val.weekday() == 0
+                    except:
+                        pass
+                        
+                if is_monday and pb.shift_name == "День":
+                    continue
+                    
+                correct_plan = 2700 if pb.shift_name == "День" else 3300
+                pb.plan_sheets = correct_plan
+                updated_count += 1
+                
+            if updated_count > 0:
+                db.commit()
+                print(f"Auto-fixed {updated_count} plan_boards with 0 plan_sheets.")
+        except Exception as e:
+            print(f"Error auto-fixing plan boards: {e}")
+        finally:
+            db.close()
+
+        # Clean up historical NULL values in database (Rule 5.8)
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text
+            cleanup_queries = [
+                "UPDATE lfm_reports SET lfm_wind_resets = 0 WHERE lfm_wind_resets IS NULL",
+                "UPDATE lfm_reports SET formed_1st_grade = 0 WHERE formed_1st_grade IS NULL",
+                "UPDATE lfm_reports SET formed_defect = 0 WHERE formed_defect IS NULL",
+                "UPDATE lfm_reports SET transferred_to_warehouse = 0 WHERE transferred_to_warehouse IS NULL",
+                "UPDATE batches SET ds_condition = 0 WHERE ds_condition IS NULL",
+                "UPDATE batches SET ds_first_grade = 0 WHERE ds_first_grade IS NULL",
+                "UPDATE batches SET ds_defect = 0 WHERE ds_defect IS NULL",
+                "UPDATE batches SET qcd_condition = 0 WHERE qcd_condition IS NULL",
+                "UPDATE batches SET qcd_first_grade = 0 WHERE qcd_first_grade IS NULL",
+                "UPDATE batches SET qcd_defect = 0 WHERE qcd_defect IS NULL",
+                "UPDATE batches SET qcd_condition = ds_condition WHERE qcd_condition = 0 AND ds_condition > 0",
+                "UPDATE batches SET qcd_first_grade = ds_first_grade WHERE qcd_first_grade = 0 AND ds_first_grade > 0",
+                "UPDATE batches SET qcd_defect = ds_defect WHERE qcd_defect = 0 AND ds_defect > 0",
+                "UPDATE shifts SET batch_number = '' WHERE batch_number IS NULL",
+                "UPDATE shifts SET product_name = '' WHERE product_name IS NULL",
+                "UPDATE shifts SET status = 'active' WHERE status IS NULL"
+            ]
+            for q in cleanup_queries:
+                try:
+                    db.execute(text(q))
+                except Exception:
+                    pass
+            db.commit()
+            print("Historical NULL values cleaned up successfully.")
+        except Exception as e:
+            print(f"Error cleaning up historical NULLs: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+    threading.Thread(target=bg_cleanups_init, daemon=True).start()
+
 
     # Rename master
     db = SessionLocal()
@@ -640,6 +701,18 @@ def sync_receipts_bg():
         print(f"Error syncing receipts to Google Sheets: {e}")
     finally:
         db.close()
+
+def sync_tasks_to_google_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.export_tasks_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing tasks to Google Sheets: {e}")
+    finally:
+        db.close()
+
 
 @app.get("/api/system/env")
 def get_system_env():
@@ -956,7 +1029,8 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
             batch_number=batch_number or "",
             status="closed",
             plan_sheets=0,
-            plan_tons=0.0
+            plan_tons=0.0,
+            created_at=datetime.utcnow()
         )
         db.add(shift)
         db.commit()
@@ -965,10 +1039,77 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
     return shift
 
 @app.get("/api/shifts/{shift_id}")
-def get_single_shift(shift_id: int, db: Session = Depends(get_db)):
-    shift = db.query(models.Shift).get(shift_id)
+def get_single_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    shift = db.query(models.Shift).options(
+        joinedload(models.Shift.master),
+        joinedload(models.Shift.receipts),
+        joinedload(models.Shift.downtimes),
+        joinedload(models.Shift.lfm_reports),
+        joinedload(models.Shift.batches)
+    ).get(shift_id)
     if not shift: raise HTTPException(404, "Смена не найдена")
-    return shift
+    
+    # Calculate edit window
+    remaining_secs = 0
+    if shift.created_at:
+        diff = (datetime.utcnow() - shift.created_at).total_seconds()
+        remaining_secs = max(0, int(1800 - diff))
+    elif user_role == "admin":
+        remaining_secs = 999999
+        
+    shift_dict = schemas.ShiftReportResponse.model_validate(shift).model_dump() if hasattr(schemas, 'ShiftReportResponse') else {c.name: getattr(shift, c.name) for c in shift.__table__.columns}
+    shift_dict["created_at"] = shift.created_at.isoformat() if shift.created_at else None
+    shift_dict["remaining_edit_seconds"] = remaining_secs
+    shift_dict["can_edit"] = (user_role == "admin" or remaining_secs > 0)
+    if shift.master:
+        shift_dict["master"] = {"id": shift.master.id, "name": shift.master.name}
+    shift_dict["receipts"] = [
+        {
+            "id": r.id,
+            "shift_id": r.shift_id,
+            "master_id": r.master_id,
+            "timestamp": r.timestamp.isoformat() if r.timestamp else (r.created_at.isoformat() if getattr(r, 'created_at', None) else None),
+            "created_at": (r.timestamp or getattr(r, 'created_at', None)).isoformat() if (r.timestamp or getattr(r, 'created_at', None)) else None,
+            "can_edit": (user_role == "admin" or ((datetime.utcnow() - (r.timestamp or getattr(r, 'created_at', datetime.utcnow()))).total_seconds() <= 1800 if (r.timestamp or getattr(r, 'created_at', None)) else True)),
+            "chrysotile_4_20": r.chrysotile_4_20,
+            "chrysotile_5_65": r.chrysotile_5_65,
+            "chrysotile_6_40": r.chrysotile_6_40,
+            "cement_silo1": r.cement_silo1,
+            "cement_silo2": r.cement_silo2,
+            "cement_silo3": r.cement_silo3,
+            "cement_silo4": r.cement_silo4,
+            "cellulose": r.cellulose,
+            "crushed_slate": r.crushed_slate,
+            "asbozurit": r.asbozurit,
+            "asbocarton": r.asbocarton,
+            "pallets": r.pallets,
+            "fiberglass": r.fiberglass,
+            "laprol": r.laprol
+        } for r in (shift.receipts or [])
+    ]
+    shift_dict["downtimes"] = [
+        {
+            "id": d.id,
+            "shift_id": d.shift_id,
+            "start_time": d.start_time,
+            "end_time": d.end_time,
+            "duration": d.duration,
+            "category": d.category,
+            "department": d.department,
+            "node": d.node,
+            "description": d.description,
+            "comment": d.comment,
+            "media_urls": d.media_urls,
+            "is_equipment_downtime": d.is_equipment_downtime,
+            "lost_tons": d.lost_tons,
+            "lost_tenge": d.lost_tenge,
+            "status": d.status,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+            "can_edit": (user_role == "admin" or (d.created_at and (datetime.utcnow() - d.created_at).total_seconds() <= 1800) or not d.created_at)
+        } for d in (shift.downtimes or [])
+    ]
+    return shift_dict
 
 async def upload_sharepoint_report_retry(file_bytes: bytes, filename: str, folder: str, retries: int = 5, delay: int = 60):
     for i in range(retries):
@@ -1752,16 +1893,19 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
             master_id=data.master_id,
             product_name=data.product_name or "",
             batch_number=data.batch_number or "",
-            status="closed"
+            status="closed",
+            created_at=datetime.utcnow()
         )
         db.add(shift)
         db.flush()
     else:
-        if shift.status == "closed" and user_role not in ["admin", "master"]:
-            raise HTTPException(status_code=403, detail="Смена уже закрыта. Только администратор может редактировать закрытые смены.")
-        # Anyone can edit
-        if False and user_role == "master" and shift.master_id != user_id:
-            raise HTTPException(status_code=403, detail="Смена открыта другим мастером. Вы не можете ее редактировать.")
+        if user_role != "admin" and shift.created_at:
+            time_diff = (datetime.utcnow() - shift.created_at).total_seconds()
+            if time_diff > 1800: # 30 minutes
+                raise HTTPException(
+                    status_code=403, 
+                    detail="Время на самостоятельное редактирование рапорта (30 мин) истекло. Для внесения правок обратитесь к администратору."
+                )
 
     save_report_internal(db, shift, data, user_name, is_new)
     
@@ -1783,11 +1927,13 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     if not shift:
         raise HTTPException(status_code=404, detail="Смена не найдена")
         
-    if False and user_role == "master" and shift.master_id != user_id:
-        raise HTTPException(status_code=403, detail="Вы не можете редактировать смену другого мастера")
-        
-    if shift.status == "closed" and user_role not in ["admin", "master"]:
-        raise HTTPException(status_code=403, detail="Смена закрыта. Только администратор может редактировать закрытую смену.")
+    if user_role != "admin" and shift.created_at:
+        time_diff = (datetime.utcnow() - shift.created_at).total_seconds()
+        if time_diff > 1800: # 30 minutes
+            raise HTTPException(
+                status_code=403, 
+                detail="Время на самостоятельное редактирование рапорта (30 мин) истекло. Для внесения правок обратитесь к администратору."
+            )
         
     save_report_internal(db, shift, data, user_name, False)
     
@@ -1842,6 +1988,42 @@ def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCrea
     return {"status": "success", "receipt_id": receipt.id}
 
 
+@app.put("/api/receipts/{receipt_id}")
+def update_raw_material_receipt_endpoint(receipt_id: int, data: schemas.RawMaterialReceiptUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    if not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    receipt = db.query(models.RawMaterialReceipt).get(receipt_id)
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Приход сырья не найден")
+
+    receipt_created = receipt.timestamp or getattr(receipt, 'created_at', None)
+    if user_role != "admin" and receipt_created:
+        time_diff = (datetime.utcnow() - receipt_created).total_seconds()
+        if time_diff > 1800:
+            raise HTTPException(
+                status_code=403,
+                detail="Время на самостоятельное редактирование прихода (30 мин) истекло. Обратитесь к администратору."
+            )
+
+    for field, val in data.model_dump(exclude_unset=True).items():
+        if val is not None and hasattr(receipt, field):
+            setattr(receipt, field, val)
+
+    db.add(models.AuditLog(
+        user_name=user_name,
+        action="UPDATE",
+        target_table="raw_material_receipts",
+        target_id=receipt_id,
+        details=f"Обновлен приход сырья ID {receipt_id}"
+    ))
+    db.commit()
+    background_tasks.add_task(sync_receipts_bg)
+    return {"status": "success"}
+
+
 @app.delete("/api/receipts/{receipt_id}")
 def delete_raw_material_receipt(receipt_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_role = request.session.get("user_role")
@@ -1852,6 +2034,15 @@ def delete_raw_material_receipt(receipt_id: int, request: Request, background_ta
     receipt = db.query(models.RawMaterialReceipt).get(receipt_id)
     if not receipt:
         raise HTTPException(status_code=404, detail="Приход сырья не найден")
+
+    receipt_created = receipt.timestamp or getattr(receipt, 'created_at', None)
+    if user_role != "admin" and receipt_created:
+        time_diff = (datetime.utcnow() - receipt_created).total_seconds()
+        if time_diff > 1800:
+            raise HTTPException(
+                status_code=403,
+                detail="Время на самостоятельное удаление прихода (30 мин) истекло. Обратитесь к администратору."
+            )
 
     shift = receipt.shift
     db.delete(receipt)
@@ -2005,6 +2196,14 @@ def get_report_summary(
             if not is_other_master:
                 dev_data = calculate_shift_deviations(db, shift)
             
+            created_at_iso = shift.created_at.isoformat() if shift.created_at else None
+            remaining_secs = 0
+            if shift.created_at:
+                diff = (datetime.utcnow() - shift.created_at).total_seconds()
+                remaining_secs = max(0, int(1800 - diff))
+            elif user_role == "admin":
+                remaining_secs = 999999
+            
             result.append({
                 "shift_id": shift.id,
                 "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
@@ -2015,6 +2214,9 @@ def get_report_summary(
                 "batch_number": batch_number,
                 "product_name": product_name,
                 "status": shift.status,
+                "created_at": created_at_iso,
+                "remaining_edit_seconds": remaining_secs,
+                "can_edit": (user_role == "admin" or remaining_secs > 0),
             
                 "plan_sheets": shift.plan_sheets or 0,
                 "plan_tons": shift.plan_tons or 0.0,
@@ -2425,7 +2627,8 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
         duration=duration,
         lost_tons=lost_tons,
         lost_tenge=lost_tenge,
-        status=status
+        status=status,
+        created_at=datetime.utcnow()
     )
     db.add(db_dt)
     db.commit()
@@ -2434,9 +2637,18 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     return db_dt
 
 @app.put("/api/downtimes/{dt_id}", response_model=schemas.Downtime)
-def update_downtime(dt_id: int, data: schemas.DowntimeCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404)
+    
+    if user_role != "admin" and dt.created_at:
+        time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
+        if time_diff > 1800:
+            raise HTTPException(
+                status_code=403, 
+                detail="Время на самостоятельное редактирование простоя (30 мин) истекло. Обратитесь к администратору."
+            )
     
     duration = 0
     if data.end_time:
@@ -2491,9 +2703,19 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, background_tasks: 
     return dt
 
 @app.delete("/api/downtimes/{dt_id}")
-def delete_downtime(dt_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404)
+    
+    if user_role != "admin" and dt.created_at:
+        time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
+        if time_diff > 1800:
+            raise HTTPException(
+                status_code=403, 
+                detail="Время на самостоятельное удаление простоя (30 мин) истекло. Обратитесь к администратору."
+            )
+            
     db.delete(dt)
     db.commit()
     background_tasks.add_task(sync_downtimes_bg)
@@ -5507,3 +5729,316 @@ def open_editor(
         return RedirectResponse(url=doc.google_drive_url)
     
     return HTMLResponse("Файл еще не был загружен в Google Docs. Попробуйте загрузить его заново.", status_code=404)
+
+
+# ==========================================
+# TASK TRACKER API ENDPOINTS
+# ==========================================
+
+@app.get("/api/tasks", response_model=list[schemas.TaskResponse])
+def get_tasks(
+    week: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    assignee: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        query = db.query(models.Task)
+        if week and week != "all":
+            query = query.filter(models.Task.week_label == week)
+        if category and category != "all":
+            query = query.filter(models.Task.category == category)
+        if status and status != "all":
+            query = query.filter(models.Task.status == status)
+        if priority and priority != "all":
+            query = query.filter(models.Task.priority == priority)
+        if assignee and assignee != "all":
+            query = query.filter(
+                or_(
+                    models.Task.assignee_custom.ilike(f"%{assignee}%"),
+                    models.Task.assigned_master.has(models.Master.name.ilike(f"%{assignee}%"))
+                )
+            )
+        if search:
+            query = query.filter(
+                or_(
+                    models.Task.title.ilike(f"%{search}%"),
+                    models.Task.description.ilike(f"%{search}%")
+                )
+            )
+
+        tasks = query.order_by(models.Task.due_date.asc(), models.Task.id.desc()).all()
+        
+        result = []
+        for t in tasks:
+            assigned_name = t.assigned_master.name if t.assigned_master else (t.assignee_custom or "")
+            doc_title = t.attached_document.title if t.attached_document else ""
+            task_dict = {
+                "id": t.id,
+                "title": t.title,
+                "description": t.description or "",
+                "category": t.category or "Производство",
+                "priority": t.priority or "Средний",
+                "status": t.status or "Запланировано",
+                "assigned_master_id": t.assigned_master_id,
+                "assignee_custom": t.assignee_custom or "",
+                "creator_name": t.creator_name or "",
+                "due_date": t.due_date,
+                "completed_at": t.completed_at,
+                "week_label": t.week_label or "",
+                "attached_document_id": t.attached_document_id,
+                "google_doc_url": t.google_doc_url or "",
+                "created_at": t.created_at,
+                "updated_at": t.updated_at,
+                "assigned_master_name": assigned_name,
+                "attached_document_title": doc_title
+            }
+            result.append(schemas.TaskResponse(**task_dict))
+        return result
+    except Exception as e:
+        print(f"Error fetching tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks", response_model=schemas.TaskResponse)
+def create_task(
+    task_in: schemas.TaskCreate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    try:
+        task_data = task_in.model_dump()
+        if task_data.get("status") == "Выполнено":
+            task_data["completed_at"] = datetime.utcnow()
+            
+        task = models.Task(**task_data)
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        # Trigger background sync to Google Sheets
+        background_tasks.add_task(sync_tasks_to_google_bg)
+
+        assigned_name = task.assigned_master.name if task.assigned_master else (task.assignee_custom or "")
+        doc_title = task.attached_document.title if task.attached_document else ""
+
+        res_dict = {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description or "",
+            "category": task.category or "Производство",
+            "priority": task.priority or "Средний",
+            "status": task.status or "Запланировано",
+            "assigned_master_id": task.assigned_master_id,
+            "assignee_custom": task.assignee_custom or "",
+            "creator_name": task.creator_name or "",
+            "due_date": task.due_date,
+            "completed_at": task.completed_at,
+            "week_label": task.week_label or "",
+            "attached_document_id": task.attached_document_id,
+            "google_doc_url": task.google_doc_url or "",
+            "created_at": task.created_at,
+            "updated_at": task.updated_at,
+            "assigned_master_name": assigned_name,
+            "attached_document_title": doc_title
+        }
+        return schemas.TaskResponse(**res_dict)
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/tasks/{task_id}", response_model=schemas.TaskResponse)
+def update_task(
+    task_id: int, 
+    task_in: schemas.TaskUpdate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    try:
+        update_data = task_in.model_dump(exclude_unset=True)
+        old_status = task.status
+        new_status = update_data.get("status")
+
+        if new_status:
+            if new_status == "Выполнено" and old_status != "Выполнено":
+                update_data["completed_at"] = datetime.utcnow()
+            elif new_status != "Выполнено" and old_status == "Выполнено":
+                update_data["completed_at"] = None
+
+        for k, v in update_data.items():
+            setattr(task, k, v)
+
+        task.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(task)
+
+        # Trigger background sync to Google Sheets
+        background_tasks.add_task(sync_tasks_to_google_bg)
+
+        assigned_name = task.assigned_master.name if task.assigned_master else (task.assignee_custom or "")
+        doc_title = task.attached_document.title if task.attached_document else ""
+
+        res_dict = {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description or "",
+            "category": task.category or "Производство",
+            "priority": task.priority or "Средний",
+            "status": task.status or "Запланировано",
+            "assigned_master_id": task.assigned_master_id,
+            "assignee_custom": task.assignee_custom or "",
+            "creator_name": task.creator_name or "",
+            "due_date": task.due_date,
+            "completed_at": task.completed_at,
+            "week_label": task.week_label or "",
+            "attached_document_id": task.attached_document_id,
+            "google_doc_url": task.google_doc_url or "",
+            "created_at": task.created_at,
+            "updated_at": task.updated_at,
+            "assigned_master_name": assigned_name,
+            "attached_document_title": doc_title
+        }
+        return schemas.TaskResponse(**res_dict)
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(
+    task_id: int, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    try:
+        db.delete(task)
+        db.commit()
+        background_tasks.add_task(sync_tasks_to_google_bg)
+        return {"status": "ok", "message": "Задача успешно удалена"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tasks/weeks")
+def get_task_weeks(db: Session = Depends(get_db)):
+    try:
+        weeks_db = db.query(models.Task.week_label).filter(models.Task.week_label.isnot(None), models.Task.week_label != "").distinct().all()
+        existing = {w[0] for w in weeks_db if w[0]}
+
+        import datetime as dt
+        today = dt.date.today()
+        monday = today - dt.timedelta(days=today.weekday())
+        for i in range(-2, 4):
+            w_date = monday + dt.timedelta(weeks=i)
+            label = f"Неделя с {w_date.strftime('%d.%m.%Y')}"
+            existing.add(label)
+
+        sorted_weeks = sorted(list(existing), reverse=True)
+        return {"weeks": sorted_weeks}
+    except Exception as e:
+        return {"weeks": []}
+
+@app.get("/api/tasks/analytics")
+def get_task_analytics(week: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    try:
+        query = db.query(models.Task)
+        if week and week != "all":
+            query = query.filter(models.Task.week_label == week)
+
+        tasks = query.all()
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.status == "Выполнено")
+        in_progress = sum(1 for t in tasks if t.status == "В процессе")
+        planned = sum(1 for t in tasks if t.status == "Запланировано")
+        postponed = sum(1 for t in tasks if t.status == "Перенесено")
+        cancelled = sum(1 for t in tasks if t.status == "Отменено")
+
+        import datetime as dt
+        today = dt.date.today()
+        overdue = sum(1 for t in tasks if t.status not in ["Выполнено", "Отменено"] and t.due_date and t.due_date < today)
+
+        progress_pct = round((completed / total * 100), 1) if total > 0 else 0.0
+
+        # By category
+        by_category = {}
+        for t in tasks:
+            cat = t.category or "Без категории"
+            by_category[cat] = by_category.get(cat, 0) + 1
+
+        # By assignee
+        by_assignee = {}
+        for t in tasks:
+            name = t.assigned_master.name if t.assigned_master else (t.assignee_custom or "Не назначен")
+            if name not in by_assignee:
+                by_assignee[name] = {"total": 0, "completed": 0, "in_progress": 0}
+            by_assignee[name]["total"] += 1
+            if t.status == "Выполнено":
+                by_assignee[name]["completed"] += 1
+            elif t.status == "В процессе":
+                by_assignee[name]["in_progress"] += 1
+
+        # By priority
+        by_priority = {"Высокий": 0, "Средний": 0, "Низкий": 0, "Критический": 0}
+        for t in tasks:
+            p = t.priority or "Средний"
+            if p in by_priority:
+                by_priority[p] += 1
+            else:
+                by_priority[p] = 1
+
+        return {
+            "total_tasks": total,
+            "completed_tasks": completed,
+            "in_progress_tasks": in_progress,
+            "planned_tasks": planned,
+            "postponed_tasks": postponed,
+            "cancelled_tasks": cancelled,
+            "overdue_tasks": overdue,
+            "progress_pct": progress_pct,
+            "by_category": by_category,
+            "by_assignee": by_assignee,
+            "by_priority": by_priority
+        }
+    except Exception as e:
+        print(f"Error computing task analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/{task_id}/create_google_doc")
+def create_google_doc_for_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    try:
+        import google_drive_integration
+        title = f"Задание: {task.title}"
+        res = google_drive_integration.create_google_file(title, doc_type="document")
+        doc_url = res.get("url")
+        task.google_doc_url = doc_url
+        db.commit()
+        return {"status": "ok", "url": doc_url}
+    except Exception as e:
+        print(f"Error creating Google Doc for task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/sync_google")
+def manual_sync_tasks_google(db: Session = Depends(get_db)):
+    try:
+        import google_sheets_integration
+        google_sheets_integration.export_tasks_to_google_sheets(db)
+        return {"status": "ok", "message": "Синхронизация задач с Google Таблицей успешно выполнена"}
+    except Exception as e:
+        print(f"Error manually syncing tasks to Google: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+

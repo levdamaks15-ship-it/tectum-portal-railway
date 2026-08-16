@@ -554,12 +554,16 @@
             <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
         </div>
         
-        <div style="margin-top: auto;">
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.6rem;">
+            <a href="/static/tasks.html" style="color: #60a5fa; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; font-weight: 600; padding: 0.4rem 0.6rem; background: rgba(59, 130, 246, 0.15); border-radius: 6px; transition: 0.2s;">
+                <i class="fas fa-bullseye"></i> Планнер задач
+            </a>
             <a href="/static/index.html" style="color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
                 <i class="fas fa-home"></i> На главную
             </a>
         </div>
     </div>
+
 
     <div class="docs-content" id="main-content-area" oncontextmenu="handleAreaContextMenu(event)">
         <div class="top-bar">

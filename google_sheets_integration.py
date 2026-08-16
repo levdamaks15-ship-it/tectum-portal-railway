@@ -2151,3 +2151,148 @@ def export_current_balance_to_google_sheets(db: Session):
 
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
     print(f"Синхронизация остатков сырья (разбивка по сменам) завершена. Выгружено {len(rows_data)-2} смен.")
+
+def export_tasks_to_google_sheets(db: Session):
+    """
+    Экспортирует задачи из таблицы `tasks` на лист 'Трекер задач' в Google Таблицу.
+    """
+    if not SPREADSHEET_ID:
+        print("GOOGLE_SPREADSHEET_ID не настроен. Пропуск экспорта задач.")
+        return
+
+    try:
+        service = get_sheets_service()
+    except Exception as e:
+        print(f"Ошибка авторизации Google Sheets при экспорте задач: {e}")
+        return
+
+    tasks = db.query(models.Task).order_by(models.Task.due_date.asc(), models.Task.id.asc()).all()
+    sheet_name = "Трекер задач"
+
+    # Проверяем / создаем лист
+    try:
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+
+        if sheet_name not in sheets_titles:
+            body = {
+                "requests": [{
+                    "addSheet": {
+                        "properties": {
+                            "title": sheet_name,
+                            "gridProperties": {
+                                "rowCount": max(200, len(tasks) + 20),
+                                "columnCount": 10
+                            }
+                        }
+                    }
+                }]
+            }
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+        sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+        headers = [
+            "Недели", "Категория", "Задача", "Статус", "Приоритет",
+            "Ответственный", "Срок (Дедлайн)", "Примечание / Описание", "Создатель", "Ссылка / Документ"
+        ]
+
+        rows_data = [headers]
+        for t in tasks:
+            assignee = ""
+            if t.assigned_master:
+                assignee = t.assigned_master.name
+            elif t.assignee_custom:
+                assignee = t.assignee_custom
+
+            due_str = t.due_date.strftime("%d.%m.%Y") if t.due_date else ""
+            doc_link = t.google_doc_url or (f"/api/documents/download/{t.attached_document_id}" if t.attached_document_id else "")
+
+            rows_data.append([
+                t.week_label or "",
+                t.category or "",
+                t.title or "",
+                t.status or "Запланировано",
+                t.priority or "Средний",
+                assignee,
+                due_str,
+                t.description or "",
+                t.creator_name or "",
+                doc_link
+            ])
+
+        # Очищаем лист и записываем новые данные
+        service.spreadsheets().values().clear(spreadsheetId=SPREADSHEET_ID, range=f"'{sheet_name}'!A1:Z500").execute()
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+
+        # Стилизация
+        requests = []
+        # Шапка
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {"red": 31/255.0, "green": 78/255.0, "blue": 120/255.0},
+                        "textFormat": {
+                            "bold": True,
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                            "fontSize": 11,
+                            "fontFamily": "Calibri"
+                        },
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        })
+
+        # Рамки
+        requests.append({
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": len(rows_data),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "top": {"style": "SOLID"},
+                "bottom": {"style": "SOLID"},
+                "left": {"style": "SOLID"},
+                "right": {"style": "SOLID"},
+                "innerHorizontal": {"style": "SOLID"},
+                "innerVertical": {"style": "SOLID"}
+            }
+        })
+
+        # Автоподбор ширины
+        requests.append({
+            "autoResizeDimensions": {
+                "dimensions": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
+                }
+            }
+        })
+
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+        print(f"Экспорт задач в Google Sheets завершен. Выгружено {len(tasks)} задач.")
+    except Exception as e:
+        print(f"Ошибка при выгрузке задач в Google Sheets: {e}")
+

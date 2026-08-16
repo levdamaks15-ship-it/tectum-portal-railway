@@ -22,6 +22,7 @@ class Shift(Base):
     sharepoint_url = Column(String(500), nullable=True)
     batch_number = Column(String, default="", nullable=True)
     product_name = Column(String, default="", nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     # План
     plan_sheets = Column(Integer, default=0)
@@ -153,6 +154,7 @@ class Downtime(Base):
     status = Column(String, default="pending") # pending, resolved
     is_equipment_downtime = Column(Boolean, default=True)
     breakdowns = Column(String, nullable=True) # JSON string of breakdown objects
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     shift = relationship("Shift", back_populates="downtimes")
 
@@ -287,5 +289,28 @@ class Document(Base):
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
     google_drive_id = Column(String, nullable=True)
     google_drive_url = Column(String, nullable=True)
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    category = Column(String, nullable=True) # "СКК", "Ремонт и зоны", "Цифровой портал", "Обучение", "Документация", "Инфостенды", "Цилиндры", "ТОиР", "Охрана труда"
+    priority = Column(String, default="Средний") # "Высокий", "Средний", "Низкий", "Критический"
+    status = Column(String, default="Запланировано") # "Запланировано", "В процессе", "Выполнено", "Перенесено", "Отменено"
+    assigned_master_id = Column(Integer, ForeignKey("masters.id"), nullable=True)
+    assignee_custom = Column(String, nullable=True)
+    creator_name = Column(String, nullable=True)
+    due_date = Column(Date, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    week_label = Column(String, nullable=True, index=True) # например, "Неделя с 17.08.2026"
+    attached_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
+    google_doc_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    assigned_master = relationship("Master", foreign_keys=[assigned_master_id])
+    attached_document = relationship("Document", foreign_keys=[attached_document_id])
+
 
 
