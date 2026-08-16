@@ -1492,11 +1492,38 @@
             window.open(finalUrl, '_blank');
         }
 
+        const docsCache = new Map();
+
         async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
             currentFolderProtected = isProtected;
             const container = document.getElementById('files-container');
+            const cacheKey = searchQuery ? `search_${searchQuery}` : (folderId || 'root');
             
-            container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка документов...</div>';
+            // Stale-While-Revalidate: If cached data exists and is under 60s old, show immediately
+            if (docsCache.has(cacheKey) && !searchQuery) {
+                const cached = docsCache.get(cacheKey);
+                if (Date.now() - cached.timestamp < 60000) {
+                    if (addToHistory && currentFolderId !== folderId) {
+                        if (currentFolderId) {
+                            parentFolderIdHistory.push(currentFolderId);
+                            folderNameHistory.push(document.getElementById('current-folder-name').innerText);
+                        }
+                    }
+                    currentFolderId = folderId;
+                    document.getElementById('current-folder-name').innerText = folderName;
+                    const btnBack = document.getElementById('btn-back');
+                    if (parentFolderIdHistory.length > 0) {
+                        btnBack.style.display = 'inline-flex';
+                    } else {
+                        btnBack.style.display = 'none';
+                    }
+                    currentFoldersData = cached.folders;
+                    currentFilesData = cached.files;
+                    applySort();
+                }
+            } else {
+                container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка документов...</div>';
+            }
             
             try {
                 let url = '/api/documents/list';
@@ -1523,6 +1550,11 @@
                     
                     if (!searchQuery) {
                         currentFolderId = folderId;
+                        docsCache.set(cacheKey, {
+                            folders: data.data.folders,
+                            files: data.data.files,
+                            timestamp: Date.now()
+                        });
                     }
                     document.getElementById('current-folder-name').innerText = folderName;
                     
@@ -1923,6 +1955,7 @@
                 btnSubmit.disabled = false;
 
                 if (data.status === 'success') {
+                    docsCache.clear();
                     closeCreateDocModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     showToast('Google документ успешно создан');
@@ -1979,6 +2012,7 @@
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
+                    docsCache.clear();
                     closeRenameModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
@@ -2123,6 +2157,7 @@
                 const data = await res.json();
                 
                 if (data.status === 'success') {
+                    docsCache.clear();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     showToast('Файл успешно загружен');
                 } else {
@@ -2183,6 +2218,7 @@
                 }
             }
             
+            docsCache.clear();
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             loadSidebarTree();
             showToast('Папка успешно загружена');
@@ -2204,6 +2240,7 @@
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
+                    docsCache.clear();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
                     showToast('Элемент удален');
@@ -2248,6 +2285,7 @@
                 const data = await res.json();
                 
                 if (data.status === 'success') {
+                    docsCache.clear();
                     closeFolderModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     if (!currentFolderId) {

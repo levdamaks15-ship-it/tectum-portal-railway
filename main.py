@@ -42,6 +42,19 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
     
+    # Ensure indexes for documents & document_categories
+    try:
+        db = SessionLocal()
+        from sqlalchemy import text
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_category_id ON documents (category_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_doc_categories_parent_id ON document_categories (parent_id);"))
+            db.commit()
+        db.close()
+    except Exception as e:
+        print(f"Warning: could not create document indexes: {e}")
+
     # PG version - ensure master_id column exists
     try:
         db = SessionLocal()
@@ -5264,6 +5277,23 @@ def sort_folders_custom(folders):
 
 from fastapi import Header
 
+def build_category_protection_map(db: Session) -> dict:
+    cats = {c.id: (c.parent_id, bool(c.password_hash)) for c in db.query(models.DocumentCategory.id, models.DocumentCategory.parent_id, models.DocumentCategory.password_hash).all()}
+    memo = {}
+    def check_prot(cid: int) -> bool:
+        if cid in memo:
+            return memo[cid]
+        curr = cid
+        while curr and curr in cats:
+            parent_id, has_pwd = cats[curr]
+            if has_pwd:
+                memo[cid] = True
+                return True
+            curr = parent_id
+        memo[cid] = False
+        return False
+    return {cid: check_prot(cid) for cid in cats}
+
 def get_protected_ancestor(db: Session, folder_id: int):
     current_id = folder_id
     while current_id:
@@ -5285,6 +5315,8 @@ def list_documents(
     db: Session = Depends(get_db)
 ):
     try:
+        prot_map = build_category_protection_map(db)
+
         if q and q.strip():
             query_str = f"%{q.strip()}%"
             folders = db.query(models.DocumentCategory).filter(models.DocumentCategory.name.ilike(query_str)).order_by(models.DocumentCategory.name).all()
@@ -5310,7 +5342,7 @@ def list_documents(
                 "name": f.name,
                 "mimeType": "application/vnd.google-apps.folder",
                 "created_at": f.id,
-                "is_protected": is_folder_protected(db, f.id)
+                "is_protected": prot_map.get(f.id, False)
             })
             
         file_data = []
@@ -5321,7 +5353,7 @@ def list_documents(
                 "mimeType": f.mime_type or "application/octet-stream",
                 "webViewLink": f.google_drive_url if f.google_drive_url else f"/api/documents/download/{f.id}",
                 "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else "",
-                "is_protected": is_folder_protected(db, f.category_id) if f.category_id else False
+                "is_protected": prot_map.get(f.category_id, False) if f.category_id else False
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -5331,6 +5363,7 @@ def list_documents(
 @app.get("/api/documents/tree")
 def get_documents_tree(db: Session = Depends(get_db)):
     try:
+        prot_map = build_category_protection_map(db)
         folders = db.query(models.DocumentCategory).order_by(models.DocumentCategory.name).all()
         folders = sort_folders_custom(folders)
         folder_data = []
@@ -5339,7 +5372,7 @@ def get_documents_tree(db: Session = Depends(get_db)):
                 "id": f"folder_{f.id}",
                 "name": f.name,
                 "parent_id": f"folder_{f.parent_id}" if f.parent_id else None,
-                "is_protected": is_folder_protected(db, f.id)
+                "is_protected": prot_map.get(f.id, False)
             })
         return {"status": "success", "data": folder_data}
     except Exception as e:
