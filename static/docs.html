@@ -83,6 +83,7 @@
             padding: 0;
             display: flex;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
@@ -103,6 +104,7 @@
             z-index: 1040;
             backdrop-filter: blur(12px);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
         }
 
         .mobile-menu-btn {
@@ -161,11 +163,22 @@
             border-right: 1px solid var(--docs-sidebar-border);
             display: flex;
             flex-direction: column;
-            padding: 1.5rem 1.25rem;
+            padding: 1.25rem 1rem;
             box-sizing: border-box;
             transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             flex-shrink: 0;
             z-index: 1050;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .sidebar-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            flex-shrink: 0;
         }
 
         .sidebar-brand {
@@ -175,7 +188,7 @@
             font-size: 1.25rem;
             font-weight: 700;
             color: #3b82f6;
-            margin-bottom: 1.8rem;
+            margin-bottom: 0;
         }
 
         .mobile-sidebar-close {
@@ -198,69 +211,18 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
             color: var(--docs-text-muted);
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.6rem;
             font-weight: 700;
+            flex-shrink: 0;
         }
 
-        .folder-tree-node {
-            margin-left: 0.5rem;
-            border-left: 1px dashed var(--docs-sidebar-border);
-            padding-left: 0.5rem;
-            display: none;
-        }
-        .folder-tree-node.expanded {
-            display: block;
-        }
-        .folder-item-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-            margin-bottom: 0.25rem;
-        }
-        .folder-tree-toggle {
-            cursor: pointer;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--docs-text-muted);
-            font-size: 0.75rem;
-            transition: transform 0.2s;
-            border-radius: 4px;
-        }
-        .folder-tree-toggle:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--docs-text-primary);
-        }
-        .folder-tree-toggle.expanded {
-            transform: rotate(90deg);
-        }
-        .folder-item-tree {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            padding: 0.6rem 0.75rem;
-            color: var(--docs-text-primary);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.92rem;
-            user-select: none;
-        }
-        .folder-item-tree:hover, .folder-item-tree.active {
-            background: rgba(59, 130, 246, 0.15);
-            color: #3b82f6;
-            font-weight: 600;
-        }
-        
         #sidebar-folders {
             flex: 1;
             overflow-y: auto;
-            margin-right: -0.5rem;
-            padding-right: 0.5rem;
-            margin-bottom: 1rem;
+            overflow-x: hidden;
+            min-height: 0;
+            padding-right: 4px;
+            margin-bottom: 0.8rem;
         }
 
         #sidebar-folders::-webkit-scrollbar {
@@ -274,13 +236,117 @@
             border-radius: 4px;
         }
 
+        .folder-item-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 2px;
+            width: 100%;
+        }
+
+        .folder-tree-toggle {
+            cursor: pointer;
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--docs-text-muted);
+            font-size: 0.7rem;
+            transition: transform 0.2s ease;
+            border-radius: 4px;
+        }
+
+        .folder-tree-toggle:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--docs-text-primary);
+        }
+
+        .folder-tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .folder-item-tree {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.45rem 0.6rem;
+            color: var(--docs-text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            font-size: 0.88rem;
+            user-select: none;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .folder-item-tree span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .folder-item-tree:hover, .folder-item-tree.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+            font-weight: 600;
+        }
+
+        .folder-tree-node {
+            margin-left: 11px;
+            border-left: 1px dashed var(--docs-sidebar-border);
+            padding-left: 4px;
+            display: none;
+        }
+
+        .folder-tree-node.expanded {
+            display: block;
+        }
+
+        .sidebar-footer {
+            flex-shrink: 0;
+            margin-top: auto;
+            padding-top: 0.9rem;
+            border-top: 1px solid var(--docs-sidebar-border);
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .sidebar-home-link {
+            color: var(--docs-text-secondary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            transition: 0.2s;
+            padding: 0.6rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.92rem;
+            background: var(--docs-btn-bg);
+            border: 1px solid var(--docs-btn-border);
+        }
+
+        .sidebar-home-link:hover {
+            color: var(--docs-text-primary);
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.12);
+        }
+
         /* Main Content */
         .docs-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow-y: auto;
-            padding: 2rem;
+            padding: 1.8rem;
             background: var(--docs-bg);
             min-width: 0;
         }
@@ -290,8 +356,9 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            margin-bottom: 1.8rem;
+            margin-bottom: 1.6rem;
             flex-wrap: wrap;
+            position: relative;
         }
 
         .search-box {
@@ -334,6 +401,8 @@
             align-items: center;
             gap: 0.75rem;
             flex-wrap: wrap;
+            position: relative;
+            overflow: visible;
         }
 
         .btn-theme-toggle {
@@ -413,7 +482,7 @@
 
         .page-title {
             margin: 0;
-            font-size: 1.45rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: var(--docs-text-primary);
             overflow: hidden;
@@ -717,15 +786,14 @@
         .dropdown-content-create {
             display: none;
             position: absolute;
-            top: 100%;
+            top: calc(100% + 6px);
             left: 0;
-            margin-top: 6px;
             background: var(--docs-dropdown-bg);
-            min-width: 220px;
+            min-width: 230px;
             border: 1px solid var(--docs-dropdown-border);
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            z-index: 1100;
+            border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+            z-index: 2100;
             padding: 6px 0;
         }
 
@@ -863,8 +931,6 @@
         @media (max-width: 900px) {
             body {
                 flex-direction: column;
-                height: 100vh;
-                height: 100dvh;
             }
 
             .mobile-docs-header {
@@ -911,7 +977,7 @@
             }
 
             .search-box input {
-                font-size: 16px; /* Avoid iOS auto zoom */
+                font-size: 16px;
                 padding: 0.75rem 1rem 0.75rem 2.6rem;
             }
 
@@ -921,18 +987,31 @@
                 display: flex;
                 justify-content: flex-start;
                 gap: 0.5rem;
-                overflow-x: auto;
-                padding-bottom: 4px;
+                overflow: visible; /* NO scrollbar overflow */
             }
 
-            .btn-action {
-                font-size: 0.88rem;
-                padding: 0.6rem 0.9rem;
-                white-space: nowrap;
+            .btn-upload-folder-standalone,
+            .btn-upload-file-standalone {
+                display: none !important; /* Replaced by dropdown on mobile */
+            }
+
+            .dropdown-menu-create {
+                flex: 1;
+                width: 100%;
+            }
+
+            .dropdown-menu-create .btn-upload-file {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .dropdown-content-create {
+                width: 100%;
+                max-width: 320px;
             }
 
             #docs-top-theme-btn {
-                display: none; /* Already present in mobile header */
+                display: none;
             }
 
             .folder-header-bar {
@@ -941,7 +1020,7 @@
             }
 
             .page-title {
-                font-size: 1.2rem;
+                font-size: 1.15rem;
             }
 
             #docs-sort {
@@ -1001,7 +1080,7 @@
             }
 
             .row-meta {
-                display: none; /* Hidden on mobile in table column, shown in .item-mobile-meta */
+                display: none;
             }
 
             .row-actions {
@@ -1094,8 +1173,8 @@
 
     <!-- Sidebar Tree Navigation -->
     <div class="docs-sidebar" id="docs-sidebar">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-            <div class="sidebar-brand" style="margin-bottom: 0;">
+        <div class="sidebar-header-row">
+            <div class="sidebar-brand">
                 <i class="fas fa-folder-tree"></i> База Знаний
             </div>
             <button class="mobile-sidebar-close" onclick="toggleDocsSidebar(false)" aria-label="Закрыть">
@@ -1108,11 +1187,11 @@
             <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
         </div>
         
-        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-top: 1rem; border-top: 1px solid var(--docs-sidebar-border);">
-            <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-sidebar-theme-btn" style="width: 100%; justify-content: center; margin-bottom: 0.2rem;">
+        <div class="sidebar-footer">
+            <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-sidebar-theme-btn" style="width: 100%; justify-content: center; margin-bottom: 0.3rem;">
                 <span class="theme-icon">🌓</span> <span class="theme-label">Сменить тему</span>
             </button>
-            <a href="/static/index.html" style="color: var(--docs-text-secondary); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.6rem; transition: 0.2s; padding: 0.6rem; border-radius: 8px; font-weight: 500; font-size: 0.92rem; background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border);">
+            <a href="/static/index.html" class="sidebar-home-link">
                 <i class="fas fa-home"></i> На главный портал
             </a>
         </div>
@@ -1158,12 +1237,12 @@
                 </div>
 
                 <!-- Standalone buttons on desktop -->
-                <button class="btn-action btn-upload-folder" onclick="document.getElementById('folder-upload').click()">
+                <button class="btn-action btn-upload-folder btn-upload-folder-standalone" onclick="document.getElementById('folder-upload').click()">
                     <i class="fas fa-folder-open"></i> Папка
                 </button>
                 <input type="file" id="folder-upload" webkitdirectory directory multiple style="display: none;" onchange="handleFolderUpload(event)">
                 
-                <button class="btn-action btn-create-folder" onclick="document.getElementById('file-upload').click()">
+                <button class="btn-action btn-create-folder btn-upload-file-standalone" onclick="document.getElementById('file-upload').click()">
                     <i class="fas fa-cloud-upload-alt"></i> Файл
                 </button>
                 <input type="file" id="file-upload" style="display: none;" onchange="handleFileUpload(event)">
@@ -1523,6 +1602,7 @@
                 toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
             } else {
                 toggle.innerHTML = '';
+                toggle.style.visibility = 'hidden'; // Keeps exact spacing so all folders align in one straight column!
             }
             
             const item = document.createElement('div');
@@ -1530,7 +1610,7 @@
             
             const iconColor = getFolderColor(folder.name);
             const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
-            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem;"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(folder.name)}</span>${lockIcon}`;
+            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span>${escapeHtml(folder.name)}</span>${lockIcon}`;
             if (currentFolderId === folder.id) {
                 item.classList.add('active');
             }
@@ -1730,7 +1810,6 @@
         }
 
         function handleAreaContextMenu(e) {
-            // Ignore if clicked on a specific row or toolbar
             if (e.target.closest('.docs-table-row') || e.target.closest('.action-buttons') || e.target.closest('.search-box') || e.target.closest('.modal')) {
                 return;
             }
@@ -1848,7 +1927,6 @@
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     showToast('Google документ успешно создан');
                     
-                    // Открываем документ сразу в новой вкладке
                     if (data.file && data.file.webViewLink) {
                         window.open(data.file.webViewLink, '_blank');
                     }
@@ -2150,7 +2228,7 @@
         async function createFolder() {
             let requiresPassword = currentFolderProtected;
             if (!currentFolderId) {
-                requiresPassword = true; // Создание корневой папки требует пароль
+                requiresPassword = true;
             }
             if (!await ensurePassword(requiresPassword)) return;
             
