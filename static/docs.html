@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>База Знаний - Tectum Portal</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -15,27 +15,28 @@
             --docs-text-primary: #f8fafc;
             --docs-text-secondary: #94a3b8;
             --docs-text-muted: #64748b;
-            --docs-panel-bg: rgba(30, 41, 59, 0.5);
+            --docs-panel-bg: rgba(30, 41, 59, 0.6);
             --docs-panel-border: rgba(255, 255, 255, 0.08);
             --docs-table-header-bg: rgba(15, 23, 42, 0.8);
-            --docs-table-row-hover: rgba(51, 65, 85, 0.45);
-            --docs-card-bg: rgba(30, 41, 59, 0.6);
-            --docs-card-hover: rgba(51, 65, 85, 0.8);
+            --docs-table-row-hover: rgba(51, 65, 85, 0.5);
+            --docs-card-bg: rgba(30, 41, 59, 0.7);
+            --docs-card-hover: rgba(51, 65, 85, 0.85);
             --docs-search-bg: rgba(30, 41, 59, 0.8);
-            --docs-search-border: rgba(255, 255, 255, 0.1);
+            --docs-search-border: rgba(255, 255, 255, 0.12);
             --docs-input-bg: #0f172a;
-            --docs-input-border: rgba(255, 255, 255, 0.1);
+            --docs-input-border: rgba(255, 255, 255, 0.12);
             --docs-input-color: #ffffff;
             --docs-modal-bg: #1e293b;
             --docs-modal-border: rgba(255, 255, 255, 0.15);
             --docs-context-bg: #1e293b;
-            --docs-context-border: rgba(255, 255, 255, 0.12);
+            --docs-context-border: rgba(255, 255, 255, 0.15);
             --docs-context-item-hover: rgba(59, 130, 246, 0.2);
             --docs-dropdown-bg: #1e293b;
-            --docs-dropdown-border: rgba(255, 255, 255, 0.12);
+            --docs-dropdown-border: rgba(255, 255, 255, 0.15);
             --docs-btn-bg: rgba(255, 255, 255, 0.06);
             --docs-btn-border: rgba(255, 255, 255, 0.1);
             --docs-btn-color: #f1f5f9;
+            --docs-item-badge-bg: rgba(255, 255, 255, 0.05);
         }
 
         [data-theme="light"] {
@@ -66,10 +67,16 @@
             --docs-btn-bg: rgba(0, 0, 0, 0.04);
             --docs-btn-border: rgba(0, 0, 0, 0.1);
             --docs-btn-color: #1e293b;
+            --docs-item-badge-bg: rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--docs-bg);
             color: var(--docs-text-primary);
             margin: 0;
@@ -80,16 +87,85 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
+        /* Mobile Header Bar */
+        .mobile-docs-header {
+            display: none;
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background: var(--docs-sidebar-bg);
+            border-bottom: 1px solid var(--docs-sidebar-border);
+            padding: 0 1rem;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1040;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-menu-btn {
+            background: var(--docs-btn-bg);
+            border: 1px solid var(--docs-btn-border);
+            color: var(--docs-text-primary);
+            font-size: 1.1rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+
+        .mobile-menu-btn:active {
+            transform: scale(0.95);
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #3b82f6;
+        }
+
+        /* Mobile Backdrop */
+        .docs-sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 1045;
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .docs-sidebar-backdrop.active {
+            display: block;
+            opacity: 1;
+        }
+
         /* Sidebar Styles */
         .docs-sidebar {
-            width: 280px;
+            width: 290px;
             background: var(--docs-sidebar-bg);
             border-right: 1px solid var(--docs-sidebar-border);
             display: flex;
             flex-direction: column;
-            padding: 1.5rem;
+            padding: 1.5rem 1.25rem;
             box-sizing: border-box;
-            transition: background 0.3s ease, border-color 0.3s ease;
+            transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            flex-shrink: 0;
+            z-index: 1050;
         }
 
         .sidebar-brand {
@@ -99,16 +175,31 @@
             font-size: 1.25rem;
             font-weight: 700;
             color: #3b82f6;
-            margin-bottom: 2rem;
+            margin-bottom: 1.8rem;
+        }
+
+        .mobile-sidebar-close {
+            display: none;
+            background: transparent;
+            border: none;
+            color: var(--docs-text-muted);
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            align-items: center;
+            justify-content: center;
         }
 
         .folder-tree-title {
             font-size: 0.75rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
             color: var(--docs-text-muted);
             margin-bottom: 0.8rem;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .folder-tree-node {
@@ -124,15 +215,23 @@
             display: flex;
             align-items: center;
             gap: 0.3rem;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.25rem;
         }
         .folder-tree-toggle {
             cursor: pointer;
-            width: 1.2rem;
-            text-align: center;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: var(--docs-text-muted);
             font-size: 0.75rem;
             transition: transform 0.2s;
+            border-radius: 4px;
+        }
+        .folder-tree-toggle:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--docs-text-primary);
         }
         .folder-tree-toggle.expanded {
             transform: rotate(90deg);
@@ -142,16 +241,18 @@
             display: flex;
             align-items: center;
             gap: 0.6rem;
-            padding: 0.5rem 0.6rem;
+            padding: 0.6rem 0.75rem;
             color: var(--docs-text-primary);
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
+            user-select: none;
         }
         .folder-item-tree:hover, .folder-item-tree.active {
             background: rgba(59, 130, 246, 0.15);
             color: #3b82f6;
+            font-weight: 600;
         }
         
         #sidebar-folders {
@@ -163,17 +264,14 @@
         }
 
         #sidebar-folders::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
         #sidebar-folders::-webkit-scrollbar-track {
             background: transparent;
         }
         #sidebar-folders::-webkit-scrollbar-thumb {
-            background: rgba(100, 116, 139, 0.2);
+            background: rgba(100, 116, 139, 0.25);
             border-radius: 4px;
-        }
-        #sidebar-folders::-webkit-scrollbar-thumb:hover {
-            background: rgba(100, 116, 139, 0.3);
         }
 
         /* Main Content */
@@ -184,6 +282,7 @@
             overflow-y: auto;
             padding: 2rem;
             background: var(--docs-bg);
+            min-width: 0;
         }
 
         .top-bar {
@@ -191,25 +290,27 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.8rem;
+            flex-wrap: wrap;
         }
 
         .search-box {
             position: relative;
             flex: 1;
-            max-width: 450px;
+            min-width: 240px;
+            max-width: 480px;
         }
 
         .search-box input {
             width: 100%;
-            padding: 0.7rem 1rem 0.7rem 2.5rem;
+            padding: 0.75rem 1rem 0.75rem 2.6rem;
             border-radius: 10px;
             border: 1px solid var(--docs-search-border);
             background: var(--docs-search-bg);
             color: var(--docs-text-primary);
             font-size: 0.95rem;
             box-sizing: border-box;
-            transition: all 0.3s;
+            transition: all 0.25s;
         }
 
         .search-box input:focus {
@@ -221,16 +322,18 @@
 
         .search-box i {
             position: absolute;
-            left: 0.9rem;
+            left: 1rem;
             top: 50%;
             transform: translateY(-50%);
             color: var(--docs-text-muted);
+            font-size: 0.95rem;
         }
 
         .action-buttons {
             display: flex;
             align-items: center;
-            gap: 0.8rem;
+            gap: 0.75rem;
+            flex-wrap: wrap;
         }
 
         .btn-theme-toggle {
@@ -246,6 +349,7 @@
             gap: 0.4rem;
             transition: all 0.2s;
             font-size: 0.9rem;
+            min-height: 42px;
         }
         .btn-theme-toggle:hover {
             background: rgba(59, 130, 246, 0.15);
@@ -264,6 +368,8 @@
             gap: 0.5rem;
             transition: all 0.2s;
             font-size: 0.9rem;
+            min-height: 42px;
+            user-select: none;
         }
 
         .btn-create-folder {
@@ -285,49 +391,54 @@
         }
         .btn-upload-file:hover { background: #2563eb; }
 
-        .btn-create-gdoc {
-            background: linear-gradient(135deg, #1d4ed8, #2563eb);
-            color: white;
-        }
-        .btn-create-gdoc:hover { background: #1e40af; }
-
-        .btn-create-gsheet {
-            background: linear-gradient(135deg, #059669, #10b981);
-            color: white;
-        }
-        .btn-create-gsheet:hover { background: #047857; }
-
         .btn-back {
-            background: transparent;
+            background: var(--docs-btn-bg);
             color: var(--docs-text-secondary);
             border: 1px solid var(--docs-search-border);
-            padding: 0.4rem 0.8rem;
-            border-radius: 6px;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
-            margin-bottom: 1rem;
+            gap: 0.5rem;
             transition: all 0.2s;
-            font-size: 0.85rem;
-        }
-        .btn-back:hover {
-            color: var(--docs-text-primary);
-            border-color: #3b82f6;
+            font-size: 0.9rem;
+            min-height: 38px;
         }
         .btn-back:hover {
             color: #fff;
-            border-color: #94a3b8;
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.15);
         }
 
         .page-title {
-            margin: 0 0 1.5rem 0;
-            font-size: 1.6rem;
+            margin: 0;
+            font-size: 1.45rem;
             font-weight: 700;
             color: var(--docs-text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        /* Table / List View (Google Drive style) */
+        .folder-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .folder-title-left {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            min-width: 0;
+            flex: 1;
+        }
+
+        /* Table / List View */
         .docs-table {
             display: flex;
             flex-direction: column;
@@ -335,14 +446,13 @@
             border-radius: 12px;
             border: 1px solid var(--docs-panel-border);
             overflow: hidden;
-            user-select: none;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
 
         .docs-table-header {
             display: grid;
-            grid-template-columns: 2fr 1fr 100px;
-            padding: 0.8rem 1.2rem;
+            grid-template-columns: 2fr 1fr 110px;
+            padding: 0.85rem 1.25rem;
             background: var(--docs-table-header-bg);
             color: var(--docs-text-muted);
             font-size: 0.8rem;
@@ -354,8 +464,8 @@
 
         .docs-table-row {
             display: grid;
-            grid-template-columns: 2fr 1fr 100px;
-            padding: 0.85rem 1.2rem;
+            grid-template-columns: 2fr 1fr 110px;
+            padding: 0.85rem 1.25rem;
             align-items: center;
             border-bottom: 1px solid var(--docs-panel-border);
             transition: background 0.15s;
@@ -377,8 +487,28 @@
         .row-name {
             display: flex;
             align-items: center;
-            gap: 0.8rem;
+            gap: 0.85rem;
             overflow: hidden;
+            min-width: 0;
+        }
+
+        .icon-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: var(--docs-item-badge-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.2rem;
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
         }
 
         .item-title {
@@ -387,14 +517,25 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-size: 0.95rem;
+        }
+
+        .item-mobile-meta {
+            display: none;
+            font-size: 0.8rem;
+            color: var(--docs-text-muted);
+            margin-top: 2px;
         }
 
         .file-link {
             color: var(--docs-text-primary);
             text-decoration: none;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.4rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .file-link:hover {
@@ -404,13 +545,14 @@
 
         .row-meta {
             color: var(--docs-text-muted);
-            font-size: 0.9rem;
+            font-size: 0.88rem;
         }
 
         .row-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.4rem;
             justify-content: flex-end;
+            align-items: center;
         }
 
         .btn-icon {
@@ -418,13 +560,15 @@
             border: none;
             color: var(--docs-text-secondary);
             cursor: pointer;
-            padding: 0.4rem;
-            border-radius: 4px;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
             transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             text-decoration: none;
+            font-size: 0.95rem;
         }
 
         .btn-icon:hover {
@@ -434,27 +578,52 @@
 
         .btn-icon-delete:hover {
             color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.15);
         }
 
         .btn-icon-more {
-            font-size: 1.1rem;
+            font-size: 1.15rem;
         }
 
-        /* Context Menu (Google Drive Style) */
+        /* Context Menu (Desktop & Mobile Bottom Sheet) */
         .context-menu {
             position: fixed;
             background: var(--docs-context-bg);
             border: 1px solid var(--docs-context-border);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 6px 0;
-            min-width: 230px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+            min-width: 240px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
             z-index: 9999;
             display: none;
-            font-size: 0.9rem;
-            backdrop-filter: blur(12px);
-            animation: fadeIn 0.12s ease-out;
+            font-size: 0.92rem;
+            backdrop-filter: blur(16px);
+            animation: fadeIn 0.15s ease-out;
+        }
+
+        .context-menu-header {
+            padding: 10px 16px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--docs-text-muted);
+            border-bottom: 1px solid var(--docs-panel-border);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .context-menu-close-btn {
+            display: none;
+            background: transparent;
+            border: none;
+            color: var(--docs-text-muted);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0.2rem;
         }
 
         @keyframes fadeIn {
@@ -462,29 +631,35 @@
             to { opacity: 1; transform: scale(1); }
         }
 
+        @keyframes slideUpSheet {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
         .context-menu-item {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 9px 16px;
+            padding: 10px 18px;
             color: var(--docs-text-primary);
             cursor: pointer;
             transition: background 0.15s;
+            user-select: none;
         }
 
-        .context-menu-item:hover {
+        .context-menu-item:hover, .context-menu-item:active {
             background: var(--docs-context-item-hover);
             color: #3b82f6;
         }
 
         .context-menu-item i {
-            width: 16px;
+            width: 18px;
             text-align: center;
             color: var(--docs-text-muted);
-            font-size: 0.95rem;
+            font-size: 1rem;
         }
 
-        .context-menu-item:hover i {
+        .context-menu-item:hover i, .context-menu-item:active i {
             color: #3b82f6;
         }
 
@@ -496,7 +671,7 @@
             color: #ef4444;
         }
 
-        .context-menu-item.danger:hover {
+        .context-menu-item.danger:hover, .context-menu-item.danger:active {
             background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
         }
@@ -504,31 +679,33 @@
         .context-menu-separator {
             height: 1px;
             background: var(--docs-panel-border);
-            margin: 5px 0;
+            margin: 6px 0;
         }
 
         /* Toast notification */
         .toast-msg {
             position: fixed;
             bottom: 24px;
-            right: 24px;
+            left: 50%;
+            transform: translateX(-50%);
             background: var(--docs-modal-bg);
             color: var(--docs-text-primary);
             border: 1px solid #3b82f6;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            padding: 12px 22px;
+            border-radius: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
             z-index: 10000;
             display: none;
             align-items: center;
             gap: 10px;
-            font-size: 0.9rem;
-            animation: slideUp 0.2s ease-out;
+            font-size: 0.92rem;
+            animation: slideUpToast 0.2s ease-out;
+            white-space: nowrap;
         }
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes slideUpToast {
+            from { opacity: 0; transform: translate(-50%, 15px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
         }
 
         /* Dropdown New Button */
@@ -544,11 +721,11 @@
             left: 0;
             margin-top: 6px;
             background: var(--docs-dropdown-bg);
-            min-width: 210px;
+            min-width: 220px;
             border: 1px solid var(--docs-dropdown-border);
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            z-index: 100;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            z-index: 1100;
             padding: 6px 0;
         }
 
@@ -559,15 +736,16 @@
         .dropdown-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
+            gap: 12px;
+            padding: 10px 16px;
             color: var(--docs-text-primary);
             cursor: pointer;
             transition: background 0.2s;
-            font-size: 0.9rem;
+            font-size: 0.92rem;
+            user-select: none;
         }
 
-        .dropdown-item:hover {
+        .dropdown-item:hover, .dropdown-item:active {
             background: var(--docs-context-item-hover);
         }
 
@@ -576,27 +754,31 @@
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 10000;
+            padding: 1rem;
+            box-sizing: border-box;
+            backdrop-filter: blur(4px);
         }
 
         .modal-content {
             background: var(--docs-modal-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            width: 420px;
-            max-width: 90%;
+            padding: 1.8rem;
+            border-radius: 14px;
+            width: 440px;
+            max-width: 100%;
             border: 1px solid var(--docs-modal-border);
             color: var(--docs-text-primary);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            box-sizing: border-box;
         }
 
         .modal-content h3 {
             margin-top: 0;
             margin-bottom: 1.2rem;
-            font-size: 1.2rem;
+            font-size: 1.25rem;
             color: var(--docs-text-primary);
         }
 
@@ -609,44 +791,316 @@
             margin-bottom: 0.5rem;
             color: var(--docs-text-secondary);
             font-size: 0.9rem;
+            font-weight: 500;
         }
 
         .form-group input {
             width: 100%;
-            padding: 0.75rem;
+            padding: 0.8rem 1rem;
             background: var(--docs-input-bg);
             border: 1px solid var(--docs-input-border);
-            border-radius: 6px;
+            border-radius: 8px;
             color: var(--docs-input-color);
             box-sizing: border-box;
             outline: none;
             font-family: inherit;
+            font-size: 16px; /* Prevents auto-zoom on iOS */
         }
         .form-group input:focus {
             border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
         .modal-actions {
             display: flex;
             justify-content: flex-end;
-            gap: 1rem;
+            gap: 0.8rem;
         }
 
         .btn-cancel {
             background: transparent;
             border: 1px solid var(--docs-input-border);
             color: var(--docs-text-secondary);
-            padding: 0.65rem 1.2rem;
-            border-radius: 6px;
+            padding: 0.75rem 1.3rem;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 0.95rem;
+            min-height: 44px;
         }
         .btn-cancel:hover { color: var(--docs-text-primary); border-color: var(--docs-text-muted); }
+
+        .empty-state {
+            padding: 4rem 1.5rem;
+            text-align: center;
+            color: var(--docs-text-muted);
+        }
+        .empty-state i {
+            font-size: 3.5rem;
+            margin-bottom: 1.2rem;
+            opacity: 0.6;
+            color: #3b82f6;
+        }
+        .empty-state p {
+            font-size: 1.05rem;
+            margin: 0.4rem 0;
+            color: var(--docs-text-secondary);
+        }
+
+        .loading {
+            padding: 3rem 1rem;
+            text-align: center;
+            color: var(--docs-text-muted);
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+        }
+
+        /* ==========================================================
+           RESPONSIVE MEDIA QUERIES (Mobile & Tablets)
+           ========================================================== */
+        @media (max-width: 900px) {
+            body {
+                flex-direction: column;
+                height: 100vh;
+                height: 100dvh;
+            }
+
+            .mobile-docs-header {
+                display: flex;
+            }
+
+            .mobile-sidebar-close {
+                display: flex;
+            }
+
+            /* Off-canvas Drawer for Sidebar */
+            .docs-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                height: 100vh;
+                height: 100dvh;
+                max-width: 85vw;
+                width: 300px;
+                transform: translateX(-100%);
+                box-shadow: 4px 0 25px rgba(0, 0, 0, 0.5);
+                overflow-y: auto;
+            }
+
+            .docs-sidebar.open {
+                transform: translateX(0);
+            }
+
+            .docs-content {
+                padding: 1rem 0.85rem;
+                flex: 1;
+            }
+
+            .top-bar {
+                gap: 0.75rem;
+                margin-bottom: 1.2rem;
+            }
+
+            .search-box {
+                max-width: 100%;
+                min-width: 100%;
+                order: 1;
+            }
+
+            .search-box input {
+                font-size: 16px; /* Avoid iOS auto zoom */
+                padding: 0.75rem 1rem 0.75rem 2.6rem;
+            }
+
+            .action-buttons {
+                width: 100%;
+                order: 2;
+                display: flex;
+                justify-content: flex-start;
+                gap: 0.5rem;
+                overflow-x: auto;
+                padding-bottom: 4px;
+            }
+
+            .btn-action {
+                font-size: 0.88rem;
+                padding: 0.6rem 0.9rem;
+                white-space: nowrap;
+            }
+
+            #docs-top-theme-btn {
+                display: none; /* Already present in mobile header */
+            }
+
+            .folder-header-bar {
+                margin-bottom: 1rem;
+                gap: 0.6rem;
+            }
+
+            .page-title {
+                font-size: 1.2rem;
+            }
+
+            #docs-sort {
+                font-size: 0.85rem;
+                padding: 0.45rem 0.6rem;
+            }
+        }
+
+        @media (max-width: 680px) {
+            /* Transform table to modern mobile card list */
+            .docs-table {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                gap: 0.6rem;
+            }
+
+            .docs-table-header {
+                display: none;
+            }
+
+            .docs-table-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: var(--docs-panel-bg);
+                border: 1px solid var(--docs-panel-border);
+                border-radius: 12px;
+                padding: 0.85rem 1rem;
+                margin-bottom: 0;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            }
+
+            .row-name {
+                flex: 1;
+                gap: 0.75rem;
+            }
+
+            .icon-badge {
+                width: 42px;
+                height: 42px;
+                font-size: 1.35rem;
+            }
+
+            .item-title {
+                font-size: 0.96rem;
+                font-weight: 600;
+                white-space: normal;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                line-height: 1.3;
+            }
+
+            .item-mobile-meta {
+                display: block;
+            }
+
+            .row-meta {
+                display: none; /* Hidden on mobile in table column, shown in .item-mobile-meta */
+            }
+
+            .row-actions {
+                gap: 0.2rem;
+            }
+
+            .btn-icon {
+                width: 44px;
+                height: 44px;
+                font-size: 1.1rem;
+            }
+
+            /* Context Menu as Bottom Sheet on Mobile */
+            .context-menu {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                top: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 100% !important;
+                border-radius: 20px 20px 0 0 !important;
+                padding: 12px 14px 28px 14px !important;
+                box-sizing: border-box !important;
+                box-shadow: 0 -10px 35px rgba(0,0,0,0.6) !important;
+                animation: slideUpSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                border-left: none !important;
+                border-right: none !important;
+                border-bottom: none !important;
+                border-top: 1px solid var(--docs-modal-border) !important;
+            }
+
+            .context-menu-header {
+                font-size: 0.95rem;
+                padding: 10px 14px;
+                color: var(--docs-text-primary);
+            }
+
+            .context-menu-close-btn {
+                display: inline-block;
+            }
+
+            .context-menu-item {
+                padding: 13px 16px;
+                font-size: 1rem;
+                border-radius: 8px;
+            }
+
+            .context-menu-item i {
+                font-size: 1.15rem;
+                width: 22px;
+            }
+
+            /* Modal Mobile Optimization */
+            .modal-content {
+                padding: 1.4rem 1.1rem;
+                border-radius: 14px;
+            }
+
+            .modal-actions button {
+                flex: 1;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="docs-sidebar">
-        <div class="sidebar-brand">
-            <i class="fas fa-folder-tree"></i> База Знаний
+    <!-- Mobile Top Navigation Header -->
+    <div class="mobile-docs-header" id="mobile-docs-header">
+        <button class="mobile-menu-btn" onclick="toggleDocsSidebar()" aria-label="Открыть разделы" title="Папки">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="mobile-brand">
+            <i class="fas fa-folder-tree"></i>
+            <span>База Знаний</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button class="mobile-menu-btn" onclick="toggleDocsTheme()" id="docs-mobile-theme-btn" title="Сменить тему">
+                <span class="theme-icon">🌓</span>
+            </button>
+            <button class="mobile-menu-btn" onclick="window.location.href='/static/index.html'" title="На главную">
+                <i class="fas fa-home"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Backdrop for mobile drawer -->
+    <div class="docs-sidebar-backdrop" id="docs-sidebar-backdrop" onclick="toggleDocsSidebar(false)"></div>
+
+    <!-- Sidebar Tree Navigation -->
+    <div class="docs-sidebar" id="docs-sidebar">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+            <div class="sidebar-brand" style="margin-bottom: 0;">
+                <i class="fas fa-folder-tree"></i> База Знаний
+            </div>
+            <button class="mobile-sidebar-close" onclick="toggleDocsSidebar(false)" aria-label="Закрыть">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
         
         <div class="folder-tree-title">Главные разделы</div>
@@ -654,69 +1108,77 @@
             <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
         </div>
         
-        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.6rem;">
-            <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-sidebar-theme-btn" style="width: 100%; justify-content: center; margin-bottom: 0.4rem;">
+        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 0.6rem; padding-top: 1rem; border-top: 1px solid var(--docs-sidebar-border);">
+            <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-sidebar-theme-btn" style="width: 100%; justify-content: center; margin-bottom: 0.2rem;">
                 <span class="theme-icon">🌓</span> <span class="theme-label">Сменить тему</span>
             </button>
-            <a href="/static/index.html" style="color: var(--docs-text-secondary); text-decoration: none; display: flex; align-items: center; gap: 0.5rem; transition: 0.3s; padding: 0.4rem 0.6rem; border-radius: 6px;" onmouseover="this.style.color='var(--docs-text-primary)'" onmouseout="this.style.color='var(--docs-text-secondary)'">
-                <i class="fas fa-home"></i> На главную
+            <a href="/static/index.html" style="color: var(--docs-text-secondary); text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 0.6rem; transition: 0.2s; padding: 0.6rem; border-radius: 8px; font-weight: 500; font-size: 0.92rem; background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border);">
+                <i class="fas fa-home"></i> На главный портал
             </a>
         </div>
     </div>
 
-
+    <!-- Main Content Area -->
     <div class="docs-content" id="main-content-area" oncontextmenu="handleAreaContextMenu(event)">
         <div class="top-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)">
+                <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)" autocomplete="off">
             </div>
             <div class="action-buttons">
-                <!-- Theme Toggle Button -->
-                <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-top-theme-btn" title="Переключить тему (Светлая/Темная)">
+                <!-- Theme Toggle Button (Desktop) -->
+                <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-top-theme-btn" title="Переключить тему">
                     <span class="theme-icon">🌓</span>
                 </button>
 
                 <!-- Dropdown Создать -->
                 <div class="dropdown-menu-create">
                     <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
-                        <i class="fas fa-plus"></i> Создать <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
+                        <i class="fas fa-plus"></i> Создать / Загрузить <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
                     </button>
                     <div id="create-dropdown" class="dropdown-content-create">
                         <div class="dropdown-item" onclick="openCreateDocModal('document')">
-                            <i class="fas fa-file-word" style="color: #3b82f6;"></i> Google Документ
+                            <i class="fas fa-file-word" style="color: #3b82f6; width: 18px; text-align: center;"></i> Google Документ
                         </div>
                         <div class="dropdown-item" onclick="openCreateDocModal('spreadsheet')">
-                            <i class="fas fa-file-excel" style="color: #10b981;"></i> Google Таблицу
+                            <i class="fas fa-file-excel" style="color: #10b981; width: 18px; text-align: center;"></i> Google Таблицу
                         </div>
                         <div class="context-menu-separator"></div>
                         <div class="dropdown-item" onclick="showFolderModal()">
-                            <i class="fas fa-folder-plus" style="color: #f59e0b;"></i> Новую папку
+                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
+                        </div>
+                        <div class="context-menu-separator"></div>
+                        <div class="dropdown-item" onclick="document.getElementById('file-upload').click()">
+                            <i class="fas fa-cloud-upload-alt" style="color: #60a5fa; width: 18px; text-align: center;"></i> Загрузить файл
+                        </div>
+                        <div class="dropdown-item" onclick="document.getElementById('folder-upload').click()">
+                            <i class="fas fa-folder-open" style="color: #10b981; width: 18px; text-align: center;"></i> Загрузить папку
                         </div>
                     </div>
                 </div>
 
+                <!-- Standalone buttons on desktop -->
                 <button class="btn-action btn-upload-folder" onclick="document.getElementById('folder-upload').click()">
-                    <i class="fas fa-folder-open"></i> Загрузить папку
+                    <i class="fas fa-folder-open"></i> Папка
                 </button>
                 <input type="file" id="folder-upload" webkitdirectory directory multiple style="display: none;" onchange="handleFolderUpload(event)">
                 
                 <button class="btn-action btn-create-folder" onclick="document.getElementById('file-upload').click()">
-                    <i class="fas fa-cloud-upload-alt"></i> Загрузить файл
+                    <i class="fas fa-cloud-upload-alt"></i> Файл
                 </button>
                 <input type="file" id="file-upload" style="display: none;" onchange="handleFileUpload(event)">
             </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
+        <div class="folder-header-bar">
+            <div class="folder-title-left">
                 <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
                     <i class="fas fa-arrow-left"></i> Назад
                 </button>
-                <h1 id="current-folder-name" class="page-title" style="margin-bottom: 0;">Главная директория</h1>
+                <h1 id="current-folder-name" class="page-title">Главная директория</h1>
             </div>
             <div>
-                <select id="docs-sort" style="padding: 0.5rem; border-radius: 6px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit;" onchange="applySort()">
+                <select id="docs-sort" style="padding: 0.55rem 0.75rem; border-radius: 8px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit; cursor: pointer;" onchange="applySort()">
                     <option value="date_desc">Сначала новые (по дате)</option>
                     <option value="date_asc">Сначала старые (по дате)</option>
                     <option value="name_asc">По имени (А-Я)</option>
@@ -726,7 +1188,7 @@
         </div>
 
         <div id="files-container">
-            <!-- Файлы и папки загрузятся сюда в формате таблицы -->
+            <!-- Файлы и папки загрузятся сюда в формате таблицы/карточек -->
         </div>
     </div>
 
@@ -775,7 +1237,7 @@
         </div>
     </div>
 
-    <!-- Контекстное меню (Google Drive Style) -->
+    <!-- Контекстное меню (Google Drive Style / Mobile Bottom Sheet) -->
     <div id="custom-context-menu" class="context-menu"></div>
 
     <!-- Toast уведомление -->
@@ -792,6 +1254,26 @@
         let expandedFolders = new Set();
         let currentFoldersData = [];
         let currentFilesData = [];
+
+        /* ==========================================================
+           SIDEBAR DRAWER TOGGLING (MOBILE)
+           ========================================================== */
+        function toggleDocsSidebar(forceState) {
+            const sidebar = document.getElementById('docs-sidebar');
+            const backdrop = document.getElementById('docs-sidebar-backdrop');
+            if (!sidebar || !backdrop) return;
+            
+            const isOpen = typeof forceState === 'boolean' ? forceState : !sidebar.classList.contains('open');
+            if (isOpen) {
+                sidebar.classList.add('open');
+                backdrop.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            } else {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
 
         function applySort() {
             const sortVal = document.getElementById('docs-sort').value;
@@ -852,7 +1334,7 @@
 
         function escapeHtml(text) {
             if (!text) return '';
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
         function getFileIcon(mimeType, fileName = '') {
@@ -874,7 +1356,7 @@
 
         function getFileTypeName(fileName, mimeType) {
             const ext = fileName.split('.').pop().toUpperCase();
-            if (ext && ext !== fileName.toUpperCase()) return `${ext} документ`;
+            if (ext && ext !== fileName.toUpperCase() && ext.length <= 5) return `${ext} документ`;
             return 'Документ';
         }
 
@@ -884,7 +1366,7 @@
             if (n.includes('скк') || n.includes('контроля') || n.includes('огм') || n.includes('сырь') || n.includes('опи') || n.includes('технолог') || n.includes('техсовет') || n.includes('бережлив')) return '#10b981';
             if (n.includes('тб') || n.includes('норматив') || n.includes('договор') || n.includes('инструкци') || n.includes('регламент')) return '#f59e0b';
             if (n.includes('аци') || n.includes('агб')) return '#ef4444';
-            return '#60a5fa';
+            return '#3b82f6';
         }
 
         function getWebViewLink(file) {
@@ -934,7 +1416,6 @@
         async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
             currentFolderProtected = isProtected;
             const container = document.getElementById('files-container');
-            const sidebar = document.getElementById('sidebar-folders');
             
             container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка документов...</div>';
             
@@ -978,10 +1459,10 @@
                     applySort();
                     
                 } else {
-                    container.innerHTML = `<div style="color: #ef4444; padding: 2rem;">Ошибка: ${data.message}</div>`;
+                    container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message}</div>`;
                 }
             } catch (error) {
-                container.innerHTML = `<div style="color: #ef4444; padding: 2rem;">Ошибка загрузки данных</div>`;
+                container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка загрузки данных</div>`;
             }
         }
 
@@ -990,7 +1471,7 @@
             searchTimeout = setTimeout(() => {
                 const trimmed = query.trim();
                 if (trimmed.length > 0) {
-                    loadDocuments(null, `Результаты поиска: "${trimmed}"`, false, trimmed);
+                    loadDocuments(null, `Результаты: "${trimmed}"`, false, trimmed);
                 } else {
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                 }
@@ -1049,7 +1530,7 @@
             
             const iconColor = getFolderColor(folder.name);
             const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
-            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor};"></i> ${escapeHtml(folder.name)}${lockIcon}`;
+            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem;"></i> <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(folder.name)}</span>${lockIcon}`;
             if (currentFolderId === folder.id) {
                 item.classList.add('active');
             }
@@ -1088,6 +1569,11 @@
                 if (folder.children && folder.children.length > 0) {
                     childrenContainer.classList.add('expanded');
                     toggle.classList.add('expanded');
+                }
+                
+                // On mobile, auto close sidebar when folder is selected
+                if (window.innerWidth <= 900) {
+                    toggleDocsSidebar(false);
                 }
                 
                 loadDocuments(folder.id, folder.name, false, null, folder.is_protected);
@@ -1152,8 +1638,13 @@
             cm.innerHTML = htmlContent;
             cm.style.display = 'block';
 
-            // Check viewport boundaries
-            const cmWidth = cm.offsetWidth || 230;
+            if (window.innerWidth <= 680) {
+                // Handled via CSS bottom-sheet
+                return;
+            }
+
+            // Desktop viewport boundary checking
+            const cmWidth = cm.offsetWidth || 240;
             const cmHeight = cm.offsetHeight || 250;
             const winWidth = window.innerWidth;
             const winHeight = window.innerHeight;
@@ -1162,14 +1653,14 @@
             let finalY = y;
 
             if (x + cmWidth > winWidth) {
-                finalX = winWidth - cmWidth - 10;
+                finalX = winWidth - cmWidth - 12;
             }
             if (y + cmHeight > winHeight) {
-                finalY = winHeight - cmHeight - 10;
+                finalY = winHeight - cmHeight - 12;
             }
 
-            cm.style.left = `${Math.max(10, finalX)}px`;
-            cm.style.top = `${Math.max(10, finalY)}px`;
+            cm.style.left = `${Math.max(12, finalX)}px`;
+            cm.style.top = `${Math.max(12, finalY)}px`;
         }
 
         function handleItemContextMenu(e, item, isFolder) {
@@ -1182,46 +1673,55 @@
             if (row) row.classList.add('selected');
 
             let html = '';
+            const closeBtnHtml = `<button class="context-menu-close-btn" onclick="hideContextMenu()"><i class="fas fa-times"></i></button>`;
+            
             if (isFolder) {
                 html = `
-                    <div class="context-menu-header">${escapeHtml(item.name)}</div>
+                    <div class="context-menu-header">
+                        <span><i class="fas fa-folder" style="color: ${getFolderColor(item.name)}; margin-right: 6px;"></i> ${escapeHtml(item.name)}</span>
+                        ${closeBtnHtml}
+                    </div>
                     <div class="context-menu-item" onclick="loadDocuments('${item.id}', '${escapeHtml(item.name)}', true, null, ${item.is_protected})">
-                        <i class="fas fa-folder-open"></i> Открыть
+                        <i class="fas fa-folder-open" style="color:#3b82f6;"></i> Открыть папку
                     </div>
                     <div class="context-menu-item" onclick="openRenameModal('${item.id}', '${escapeHtml(item.name)}', ${item.is_protected})">
-                        <i class="fas fa-edit"></i> Переименовать
+                        <i class="fas fa-edit" style="color:#f59e0b;"></i> Переименовать
                     </div>
                     <div class="context-menu-separator"></div>
                     <div class="context-menu-item danger" onclick="deleteItem('${item.id}', event, ${item.is_protected})">
-                        <i class="fas fa-trash"></i> Удалить
+                        <i class="fas fa-trash"></i> Удалить папку
                     </div>
                 `;
             } else {
                 const viewUrl = getWebViewLink(item);
                 const isEditable = isEditableFile(item.name);
+                const iconInfo = getFileIcon(item.mimeType, item.name);
                 html = `
-                    <div class="context-menu-header">${escapeHtml(item.name)}</div>
+                    <div class="context-menu-header">
+                        <span><i class="${iconInfo.icon}" style="color: ${iconInfo.color}; margin-right: 6px;"></i> ${escapeHtml(item.name)}</span>
+                        ${closeBtnHtml}
+                    </div>
                     <div class="context-menu-item" onclick="openFileLink('${viewUrl}', ${item.is_protected}, event)">
-                        <i class="fas fa-eye"></i> Просмотреть
+                        <i class="fas fa-eye" style="color:#3b82f6;"></i> Просмотреть
                     </div>
                     ${isEditable ? `
                         <div class="context-menu-item" onclick="openFileLink('/editor?id=${item.id}', ${item.is_protected}, event)">
-                            <i class="fas fa-file-pen" style="color:#3b82f6;"></i> Редактировать в Google
+                            <i class="fas fa-file-pen" style="color:#10b981;"></i> Редактировать в Google
                         </div>
                     ` : ''}
                     <div class="context-menu-item" onclick="downloadFile('${item.id.replace('file_','')}', '${escapeHtml(item.name)}', event, ${item.is_protected})">
-                        <i class="fas fa-download"></i> Скачать
+                        <i class="fas fa-download" style="color:#60a5fa;"></i> Скачать файл
                     </div>
                     <div class="context-menu-item" onclick="copyItemLink('${viewUrl}', ${item.is_protected})">
-                        <i class="fas fa-link"></i> Копировать ссылку
+                        <i class="fas fa-link" style="color:#a855f7;"></i> Копировать ссылку
                     </div>
                     <div class="context-menu-separator"></div>
                     <div class="context-menu-item" onclick="openRenameModal('${item.id}', '${escapeHtml(item.name)}', ${item.is_protected})">
-                        <i class="fas fa-i-cursor"></i> Переименовать
+                        <i class="fas fa-i-cursor" style="color:#f59e0b;"></i> Переименовать
                     </div>
                     <div class="context-menu-separator"></div>
                     <div class="context-menu-item danger" onclick="deleteItem('${item.id}', event, ${item.is_protected})">
-                        <i class="fas fa-trash"></i> Удалить
+                        <i class="fas fa-trash"></i> Удалить файл
                     </div>
                 `;
             }
@@ -1230,14 +1730,18 @@
         }
 
         function handleAreaContextMenu(e) {
-            // Ignore if clicked on a specific row
-            if (e.target.closest('.docs-table-row') || e.target.closest('.action-buttons') || e.target.closest('.search-box')) {
+            // Ignore if clicked on a specific row or toolbar
+            if (e.target.closest('.docs-table-row') || e.target.closest('.action-buttons') || e.target.closest('.search-box') || e.target.closest('.modal')) {
                 return;
             }
             e.preventDefault();
 
+            const closeBtnHtml = `<button class="context-menu-close-btn" onclick="hideContextMenu()"><i class="fas fa-times"></i></button>`;
             const html = `
-                <div class="context-menu-header">Создать в папке</div>
+                <div class="context-menu-header">
+                    <span>Создать в папке</span>
+                    ${closeBtnHtml}
+                </div>
                 <div class="context-menu-item" onclick="openCreateDocModal('document')">
                     <i class="fas fa-file-word" style="color: #3b82f6;"></i> Google Документ
                 </div>
@@ -1250,10 +1754,10 @@
                 </div>
                 <div class="context-menu-separator"></div>
                 <div class="context-menu-item" onclick="document.getElementById('file-upload').click()">
-                    <i class="fas fa-cloud-upload-alt"></i> Загрузить файл
+                    <i class="fas fa-cloud-upload-alt" style="color: #60a5fa;"></i> Загрузить файл
                 </div>
                 <div class="context-menu-item" onclick="document.getElementById('folder-upload').click()">
-                    <i class="fas fa-folder-open"></i> Загрузить папку
+                    <i class="fas fa-folder-open" style="color: #10b981;"></i> Загрузить папку
                 </div>
             `;
             showContextMenuAt(e.clientX, e.clientY, html);
@@ -1283,6 +1787,7 @@
         }
 
         function openCreateDocModal(type) {
+            hideContextMenu();
             createDocType = type;
             const modalTitle = document.getElementById('create-doc-modal-title');
             const docNameInput = document.getElementById('new-doc-name');
@@ -1415,7 +1920,7 @@
                     <div class="empty-state">
                         <i class="fas fa-folder-open"></i>
                         <p>В этой директории пока нет документов или папок</p>
-                        <p style="font-size:0.85rem; color:#64748b;">Нажмите правой кнопкой мыши или кнопку «Создать», чтобы добавить Google документ или папку</p>
+                        <p style="font-size:0.88rem; color: var(--docs-text-muted);">Нажмите кнопку «Создать / Загрузить», чтобы добавить документ или папку</p>
                     </div>
                 `;
                 return;
@@ -1433,15 +1938,20 @@
             // Вывод папок
             folders.forEach(folder => {
                 const iconColor = getFolderColor(folder.name);
-                const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
+                const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
                 const folderJson = escapeHtml(JSON.stringify(folder));
                 html += `
                     <div class="docs-table-row folder-row" 
                          onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})"
                          oncontextmenu="handleItemContextMenu(event, ${folderJson}, true)">
                         <div class="row-name">
-                            <i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.2rem;"></i>
-                            <span class="item-title">${escapeHtml(folder.name)}${lockIcon}</span>
+                            <div class="icon-badge">
+                                <i class="fas fa-folder" style="color: ${iconColor};"></i>
+                            </div>
+                            <div class="item-info">
+                                <span class="item-title">${escapeHtml(folder.name)}${lockIcon}</span>
+                                <span class="item-mobile-meta">Папка</span>
+                            </div>
                         </div>
                         <div class="row-meta">Папка</div>
                         <div class="row-actions">
@@ -1465,17 +1975,22 @@
                 html += `
                     <div class="docs-table-row" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
                         <div class="row-name">
-                            <i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1.2rem;"></i>
-                            <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="file-link" title="${escapeHtml(file.name)}">
-                                ${escapeHtml(file.name)}
-                                ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : ''}
-                            </a>
+                            <div class="icon-badge">
+                                <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
+                            </div>
+                            <div class="item-info">
+                                <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="file-link" title="${escapeHtml(file.name)}">
+                                    <span class="item-title">${escapeHtml(file.name)}</span>
+                                    ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : ''}
+                                </a>
+                                <span class="item-mobile-meta">${typeName}</span>
+                            </div>
                         </div>
                         <div class="row-meta">${typeName}</div>
                         <div class="row-actions">
                             ${isEditableFile(file.name) ? `
-                                <a href="#" onclick="openFileLink('/editor?id=${file.id}', ${file.is_protected}, event)" class="btn-icon btn-icon-edit" style="color: #f59e0b;" title="Редактировать в Google">
-                                    <i class="fas fa-edit"></i>
+                                <a href="#" onclick="openFileLink('/editor?id=${file.id}', ${file.is_protected}, event)" class="btn-icon" style="color: #10b981;" title="Редактировать в Google">
+                                    <i class="fas fa-file-pen"></i>
                                 </a>
                             ` : ''}
                             <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon" title="Просмотреть">
@@ -1531,6 +2046,7 @@
                 
                 if (data.status === 'success') {
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    showToast('Файл успешно загружен');
                 } else {
                     alert('Ошибка загрузки: ' + data.message);
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
@@ -1591,11 +2107,13 @@
             
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             loadSidebarTree();
+            showToast('Папка успешно загружена');
             event.target.value = '';
         }
 
         async function deleteItem(itemId, event, isProtected = false) {
             event.stopPropagation();
+            hideContextMenu();
             if (isProtected || currentFolderProtected) {
                 if (!await ensurePassword(true)) return;
             }
@@ -1610,6 +2128,7 @@
                 if (data.status === 'success') {
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
+                    showToast('Элемент удален');
                 } else {
                     alert('Ошибка при удалении: ' + data.message);
                 }
@@ -1618,7 +2137,11 @@
             }
         }
 
-        function showFolderModal() { document.getElementById('folder-modal').style.display = 'flex'; }
+        function showFolderModal() { 
+            hideContextMenu();
+            document.getElementById('folder-modal').style.display = 'flex'; 
+            setTimeout(() => document.getElementById('new-folder-name').focus(), 50);
+        }
         function closeFolderModal() { 
             document.getElementById('folder-modal').style.display = 'none'; 
             document.getElementById('new-folder-name').value = '';
@@ -1653,6 +2176,7 @@
                         loadDocuments(); 
                     }
                     loadSidebarTree();
+                    showToast('Папка создана');
                 } else {
                     alert('Ошибка: ' + data.message);
                 }
@@ -1663,6 +2187,7 @@
 
         async function downloadFile(fileId, fileName, event, isProtected = false) {
             if (event) event.stopPropagation();
+            hideContextMenu();
             if (isProtected && !await ensurePassword(true)) return;
             try {
                 const res = await fetch(`/api/documents/download/${fileId}`, { 
@@ -1703,13 +2228,18 @@
         function applyTheme(theme) {
             document.documentElement.setAttribute("data-theme", theme);
             localStorage.setItem("theme", theme);
+            
+            const iconHtml = `<span class="theme-icon">${theme === "light" ? "☀️" : "🌙"}</span>`;
+            
             const topBtn = document.getElementById("docs-top-theme-btn");
-            if (topBtn) {
-                topBtn.innerHTML = `<span class="theme-icon">${theme === "light" ? "☀️" : "🌙"}</span>`;
-            }
+            if (topBtn) topBtn.innerHTML = iconHtml;
+            
+            const mobileBtn = document.getElementById("docs-mobile-theme-btn");
+            if (mobileBtn) mobileBtn.innerHTML = iconHtml;
+            
             const sideBtn = document.getElementById("docs-sidebar-theme-btn");
             if (sideBtn) {
-                sideBtn.innerHTML = `<span class="theme-icon">${theme === "light" ? "☀️" : "🌙"}</span> <span class="theme-label">${theme === "light" ? "Светлая тема" : "Темная тема"}</span>`;
+                sideBtn.innerHTML = `${iconHtml} <span class="theme-label">${theme === "light" ? "Светлая тема" : "Темная тема"}</span>`;
             }
         }
 
