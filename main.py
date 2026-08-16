@@ -268,12 +268,12 @@ async def lifespan(app: FastAPI):
             from sqlalchemy import text
             for tbl in ["shifts", "downtimes", "raw_material_receipts"]:
                 try:
-                    db.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                    db.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TIMESTAMP"))
                 except Exception as pg_err: pass
             db.commit()
     except Exception as e:
         print(f"Warning: could not run PG migrations for created_at: {e}")
-        if 'db' in locals(): db.rollback()
+        if 'db' in locals() and db: db.rollback()
     finally:
         if 'db' in locals() and db: db.close()
 
@@ -2148,6 +2148,12 @@ def get_report_summary(
             joinedload(models.Shift.receipts)
         ).order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.batch_number.desc(), models.Shift.id.desc()).all()
     
+        latest_shift_id = None
+        # Find the most recently created shift
+        latest_shift = db.query(models.Shift).filter(models.Shift.created_at.isnot(None)).order_by(models.Shift.created_at.desc(), models.Shift.id.desc()).first()
+        if latest_shift:
+            latest_shift_id = latest_shift.id
+
         result = []
         for shift in shifts:
             is_other_master = False
@@ -2198,7 +2204,9 @@ def get_report_summary(
             
             created_at_iso = shift.created_at.isoformat() if shift.created_at else None
             remaining_secs = 0
-            if shift.created_at:
+            # Only the latest shift gets the 30-minute window for masters
+            is_the_latest = (shift.id == latest_shift_id)
+            if shift.created_at and is_the_latest:
                 diff = (datetime.utcnow() - shift.created_at).total_seconds()
                 remaining_secs = max(0, int(1800 - diff))
             elif user_role == "admin":
@@ -2216,7 +2224,7 @@ def get_report_summary(
                 "status": shift.status,
                 "created_at": created_at_iso,
                 "remaining_edit_seconds": remaining_secs,
-                "can_edit": (user_role == "admin" or remaining_secs > 0),
+                "can_edit": (user_role == "admin" or (is_the_latest and remaining_secs > 0)),
             
                 "plan_sheets": shift.plan_sheets or 0,
                 "plan_tons": shift.plan_tons or 0.0,
