@@ -2987,7 +2987,6 @@ function renderMainScreenGrid() {
 
     grid.innerHTML = 
         createCardHTML('Кабинет мастера', 'Производство', svgMaster, "selectUser('Мастер смены', 'Мастер')") +
-        createCardHTML('Планнер задач', 'Поручения и ТОиР', svgTasks, "window.location.href='/static/tasks.html'") +
         createCardHTML('Кабинет чек-листов', 'В разработке', svgChecklists, "alert('Кабинет чек-листов находится в разработке, скоро появится!')") +
         createCardHTML('База знаний', 'Документация', svgDocs, "window.location.href='/static/docs.html'") +
         createCardHTML('ИТР персонал', 'Сотрудники', svgITR, "renderItrGrid()");
