@@ -270,7 +270,22 @@ async def lifespan(app: FastAPI):
                 try:
                     db.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS created_at TIMESTAMP"))
                 except Exception as pg_err: pass
-            db.commit()
+            
+            # One-time cleanup for historical records: clear automatically assigned timestamps
+            try:
+                db.execute(text("UPDATE shifts SET created_at = NULL WHERE created_at IS NOT NULL;"))
+                db.execute(text("UPDATE downtimes SET created_at = NULL WHERE created_at IS NOT NULL;"))
+                db.execute(text("UPDATE raw_material_receipts SET created_at = NULL WHERE created_at IS NOT NULL;"))
+                db.commit()
+            except Exception as cl_err:
+                print(f"Warning clearing created_at for historical shifts: {cl_err}")
+                db.rollback()
+        else:
+            try:
+                from sqlalchemy import text
+                db.execute(text("UPDATE shifts SET created_at = NULL"))
+                db.commit()
+            except: pass
     except Exception as e:
         print(f"Warning: could not run PG migrations for created_at: {e}")
         if 'db' in locals() and db: db.rollback()
