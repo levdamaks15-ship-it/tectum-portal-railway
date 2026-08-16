@@ -748,6 +748,10 @@ def get_db():
 def read_root():
     return FileResponse("static/index.html")
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse("static/img/Logo.png")
+
 @app.post("/api/setup_demo_data/")
 def setup_demo_data(db: Session = Depends(get_db)):
     if not db.query(models.Master).filter(models.Master.role == "master").first():
