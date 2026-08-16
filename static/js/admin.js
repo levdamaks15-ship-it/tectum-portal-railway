@@ -55,9 +55,32 @@ window.addEventListener('DOMContentLoaded', initAdminLogin);
 
 
 
+function toggleAdminSidebar(forceState) {
+    const sidebar = document.getElementById('admin-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+
+    if (forceState !== undefined) {
+        if (forceState) {
+            sidebar.classList.add('open');
+            if (backdrop) backdrop.classList.add('active');
+        } else {
+            sidebar.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('active');
+        }
+    } else {
+        const isOpen = sidebar.classList.toggle('open');
+        if (backdrop) {
+            if (isOpen) backdrop.classList.add('active');
+            else backdrop.classList.remove('active');
+        }
+    }
+}
+
 function switchAdminTab(tabId) {
     document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
-    document.getElementById('nav-' + tabId).classList.add('active');
+    const activeNav = document.getElementById('nav-' + tabId);
+    if (activeNav) activeNav.classList.add('active');
     
     document.getElementById('tab-masters').style.display = 'none';
     document.getElementById('tab-norms').style.display = 'none';
@@ -74,7 +97,13 @@ function switchAdminTab(tabId) {
     const tabPasswords = document.getElementById('tab-passwords');
     if (tabPasswords) tabPasswords.style.display = 'none';
     
-    document.getElementById('tab-' + tabId).style.display = 'block';
+    const targetTab = document.getElementById('tab-' + tabId);
+    if (targetTab) targetTab.style.display = 'block';
+
+    // Auto-close sidebar on mobile after selecting a tab
+    if (window.innerWidth <= 900) {
+        toggleAdminSidebar(false);
+    }
 
     if (tabId === 'plan-board') {
         loadPlanBoard();
@@ -710,6 +739,82 @@ function filterShifts() {
     });
 }
 
+function updateAdminLineSiloHeaders() {
+    const lineVal = document.getElementById('uni-line')?.value || "1";
+    const siloAHeader = document.getElementById('uni-rm-header-siloA');
+    const siloBHeader = document.getElementById('uni-rm-header-siloB');
+    if (siloAHeader && siloBHeader) {
+        if (lineVal === '1' || lineVal.includes('1')) {
+            siloAHeader.innerText = 'Силос 1';
+            siloBHeader.innerText = 'Силос 2';
+        } else {
+            siloAHeader.innerText = 'Силос 3';
+            siloBHeader.innerText = 'Силос 4';
+        }
+    }
+    calcAdminCem();
+}
+
+function calcAdminSumRM(key) {
+    const a = parseFloat(document.getElementById('uni-calc-' + key + '-A')?.value) || 0;
+    const b = parseFloat(document.getElementById('uni-calc-' + key + '-B')?.value) || 0;
+    const total = a + b;
+    const target = document.getElementById('uni-zo-' + key);
+    if (target) target.value = total > 0 ? total : '';
+    
+    const lineVal = document.getElementById('uni-line')?.value || "1";
+    const isLine1 = lineVal === '1' || lineVal.includes('1');
+    
+    const hiddenKey = key === 'cellulose' ? 'uni-zo-cel' : 
+                      key === 'crushed-slate' ? 'uni-zo-csl' : 
+                      key === 'asbozurit' ? 'uni-zo-asb' :
+                      key === 'fiberglass' ? 'uni-zo-fib' :
+                      key === 'laprol' ? 'uni-zo-lap' :
+                      key === 'asbocarton' ? 'uni-zo-car' : 
+                      'uni-zo-' + key;
+                      
+    if (document.getElementById(hiddenKey + '-1')) {
+        document.getElementById(hiddenKey + '-1').value = '0';
+        document.getElementById(hiddenKey + '-2').value = '0';
+        document.getElementById(hiddenKey + '-3').value = '0';
+        document.getElementById(hiddenKey + '-4').value = '0';
+        
+        if (isLine1) {
+            document.getElementById(hiddenKey + '-1').value = a > 0 ? a : '0';
+            document.getElementById(hiddenKey + '-2').value = b > 0 ? b : '0';
+        } else {
+            document.getElementById(hiddenKey + '-3').value = a > 0 ? a : '0';
+            document.getElementById(hiddenKey + '-4').value = b > 0 ? b : '0';
+        }
+    }
+}
+
+function calcAdminCem() {
+    const a = parseFloat(document.getElementById('uni-calc-cem-A')?.value) || 0;
+    const b = parseFloat(document.getElementById('uni-calc-cem-B')?.value) || 0;
+    const total = a + b;
+    const target = document.getElementById('uni-zo-cem-total-readonly');
+    if (target) target.value = total > 0 ? total : '';
+
+    const lineVal = document.getElementById('uni-line')?.value || "1";
+    const isLine1 = lineVal === '1' || lineVal.includes('1');
+
+    if (document.getElementById('uni-zo-cem-1')) {
+        document.getElementById('uni-zo-cem-1').value = '0';
+        document.getElementById('uni-zo-cem-2').value = '0';
+        document.getElementById('uni-zo-cem-3').value = '0';
+        document.getElementById('uni-zo-cem-4').value = '0';
+
+        if (isLine1) {
+            document.getElementById('uni-zo-cem-1').value = a > 0 ? a : '0';
+            document.getElementById('uni-zo-cem-2').value = b > 0 ? b : '0';
+        } else {
+            document.getElementById('uni-zo-cem-3').value = a > 0 ? a : '0';
+            document.getElementById('uni-zo-cem-4').value = b > 0 ? b : '0';
+        }
+    }
+}
+
 async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
     try {
         const res = await fetch(`/api/admin/shifts/${shiftId}/details`);
@@ -729,6 +834,9 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         document.getElementById('uni-shift-name').value = shift.shift_name;
         document.getElementById('uni-line').value = shift.line.replace('Линия ', '').trim() || "1";
         document.getElementById('uni-status').value = shift.status || 'active';
+
+        // Bind onchange to uni-line to update headers
+        document.getElementById('uni-line').onchange = updateAdminLineSiloHeaders;
 
         const masterSelect = document.getElementById('uni-master');
         masterSelect.innerHTML = '';
@@ -764,24 +872,57 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         document.getElementById('uni-first-grade').value = firstGradeVal;
         document.getElementById('uni-qcd-defect').value = qcdDefectVal;
 
-        // Tab 3: Raw Materials
-        document.getElementById('uni-zo-chr420').value = shift.zo_chrysotile_4_20 || 0;
-        document.getElementById('uni-zo-chr565').value = shift.zo_chrysotile_5_65 || 0;
-        document.getElementById('uni-zo-chr640').value = shift.zo_chrysotile_6_40 || 0;
-        document.getElementById('uni-zo-cement-s1').value = shift.zo_cement_silo1 || 0;
-        document.getElementById('uni-zo-cement-s2').value = shift.zo_cement_silo2 || 0;
-        document.getElementById('uni-zo-cement-s3').value = shift.zo_cement_silo3 || 0;
-        document.getElementById('uni-zo-cement-s4').value = shift.zo_cement_silo4 || 0;
-        document.getElementById('uni-zo-cellulose').value = shift.zo_cellulose || 0;
-        document.getElementById('uni-zo-slate').value = shift.zo_crushed_slate || 0;
-        document.getElementById('uni-zo-asbozurit').value = shift.zo_asbozurit || 0;
-        document.getElementById('uni-zo-fiberglass').value = shift.zo_fiberglass || 0;
-        document.getElementById('uni-zo-laprol').value = shift.zo_laprol || 0;
-        document.getElementById('uni-zo-asbocarton').value = shift.zo_asbocarton || 0;
-        document.getElementById('uni-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
-        document.getElementById('uni-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
+        // Tab 3: Raw Materials & Silos Prefill
+        updateAdminLineSiloHeaders();
+        const isLine1 = shift.line.includes('1') || shift.line === '1';
+
+        const materials = [
+            {dbKey: 'zo_chrysotile_4_20', uiKey: 'chr-4-20', hiddenKey: 'uni-zo-chr-4-20'},
+            {dbKey: 'zo_chrysotile_5_65', uiKey: 'chr-5-65', hiddenKey: 'uni-zo-chr-5-65'},
+            {dbKey: 'zo_chrysotile_6_40', uiKey: 'chr-6-40', hiddenKey: 'uni-zo-chr-6-40'},
+            {dbKey: 'zo_cement', uiKey: 'cem', hiddenKey: 'uni-zo-cem'},
+            {dbKey: 'zo_cellulose', uiKey: 'cellulose', hiddenKey: 'uni-zo-cel'},
+            {dbKey: 'zo_crushed_slate', uiKey: 'crushed-slate', hiddenKey: 'uni-zo-csl'},
+            {dbKey: 'zo_asbozurit', uiKey: 'asbozurit', hiddenKey: 'uni-zo-asb'},
+            {dbKey: 'zo_fiberglass', uiKey: 'fiberglass', hiddenKey: 'uni-zo-fib'},
+            {dbKey: 'zo_laprol', uiKey: 'laprol', hiddenKey: 'uni-zo-lap'},
+            {dbKey: 'zo_asbocarton', uiKey: 'asbocarton', hiddenKey: 'uni-zo-car'}
+        ];
+
+        materials.forEach(mat => {
+            const s1 = shift[`${mat.dbKey}_silo1`] || 0;
+            const s2 = shift[`${mat.dbKey}_silo2`] || 0;
+            const s3 = shift[`${mat.dbKey}_silo3`] || 0;
+            const s4 = shift[`${mat.dbKey}_silo4`] || 0;
+            const total = shift[mat.dbKey] || (s1 + s2 + s3 + s4) || 0;
+
+            // Prefill total field
+            const totalEl = mat.uiKey === 'cem' ? document.getElementById('uni-zo-cem-total-readonly') : document.getElementById(`uni-zo-${mat.uiKey}`);
+            if (totalEl) totalEl.value = total > 0 ? total : '';
+
+            // Prefill hidden fields 1..4
+            if (document.getElementById(`${mat.hiddenKey}-1`)) document.getElementById(`${mat.hiddenKey}-1`).value = s1;
+            if (document.getElementById(`${mat.hiddenKey}-2`)) document.getElementById(`${mat.hiddenKey}-2`).value = s2;
+            if (document.getElementById(`${mat.hiddenKey}-3`)) document.getElementById(`${mat.hiddenKey}-3`).value = s3;
+            if (document.getElementById(`${mat.hiddenKey}-4`)) document.getElementById(`${mat.hiddenKey}-4`).value = s4;
+
+            // Prefill Silo A and Silo B inputs based on line
+            const calcA = document.getElementById(`uni-calc-${mat.uiKey}-A`);
+            const calcB = document.getElementById(`uni-calc-${mat.uiKey}-B`);
+            if (isLine1) {
+                if (calcA) calcA.value = s1 > 0 ? s1 : (total > 0 && s2 === 0 ? total : '');
+                if (calcB) calcB.value = s2 > 0 ? s2 : '';
+            } else {
+                if (calcA) calcA.value = s3 > 0 ? s3 : (total > 0 && s4 === 0 ? total : '');
+                if (calcB) calcB.value = s4 > 0 ? s4 : '';
+            }
+        });
+
+        // Simple drains
         document.getElementById('uni-zo-asb-drain').value = shift.zo_asb_drain || 0;
         document.getElementById('uni-zo-cem-drain').value = shift.zo_cem_drain || 0;
+        document.getElementById('uni-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
+        document.getElementById('uni-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
 
         // Tab 4: Destacker Defects
         document.getElementById('uni-def-chip').value = batches.reduce((acc, b) => acc + (b.ds_defect_chip || 0), 0);
@@ -874,39 +1015,92 @@ async function saveUnifiedShiftReport() {
         first_grade: parseInt(document.getElementById('uni-first-grade').value) || 0,
         qcd_defect: parseInt(document.getElementById('uni-qcd-defect').value) || 0,
 
-        zo_chrysotile_4_20: parseFloat(document.getElementById('uni-zo-chr420').value) || 0,
-        zo_chrysotile_5_65: parseFloat(document.getElementById('uni-zo-chr565').value) || 0,
-        zo_chrysotile_6_40: parseFloat(document.getElementById('uni-zo-chr640').value) || 0,
-        zo_cement_silo1: parseFloat(document.getElementById('uni-zo-cement-s1').value) || 0,
-        zo_cement_silo2: parseFloat(document.getElementById('uni-zo-cement-s2').value) || 0,
-        zo_cement_silo3: parseFloat(document.getElementById('uni-zo-cement-s3').value) || 0,
-        zo_cement_silo4: parseFloat(document.getElementById('uni-zo-cement-s4').value) || 0,
-        zo_cement: (parseFloat(document.getElementById('uni-zo-cement-s1').value) || 0) +
-                   (parseFloat(document.getElementById('uni-zo-cement-s2').value) || 0) +
-                   (parseFloat(document.getElementById('uni-zo-cement-s3').value) || 0) +
-                   (parseFloat(document.getElementById('uni-zo-cement-s4').value) || 0),
-        zo_cellulose: parseFloat(document.getElementById('uni-zo-cellulose').value) || 0,
-        zo_crushed_slate: parseFloat(document.getElementById('uni-zo-slate').value) || 0,
-        zo_asbozurit: parseFloat(document.getElementById('uni-zo-asbozurit').value) || 0,
-        zo_fiberglass: parseFloat(document.getElementById('uni-zo-fiberglass').value) || 0,
-        zo_laprol: parseFloat(document.getElementById('uni-zo-laprol').value) || 0,
-        zo_asbocarton: parseFloat(document.getElementById('uni-zo-asbocarton').value) || 0,
-        lfm_asb_drain: parseFloat(document.getElementById('uni-lfm-asb-drain').value) || 0,
-        lfm_cem_drain: parseFloat(document.getElementById('uni-lfm-cem-drain').value) || 0,
-        zo_asb_drain: parseFloat(document.getElementById('uni-zo-asb-drain').value) || 0,
-        zo_cem_drain: parseFloat(document.getElementById('uni-zo-cem-drain').value) || 0,
+        // Chrysotile Silos & Totals
+        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('uni-zo-chr-4-20-1')?.value) || 0,
+        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('uni-zo-chr-4-20-2')?.value) || 0,
+        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('uni-zo-chr-4-20-3')?.value) || 0,
+        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('uni-zo-chr-4-20-4')?.value) || 0,
+        zo_chrysotile_4_20: parseFloat(document.getElementById('uni-zo-chr-4-20')?.value) || 0,
 
-        destacker_defect_chip: parseInt(document.getElementById('uni-def-chip').value) || 0,
-        destacker_defect_scratch: parseInt(document.getElementById('uni-def-scratch').value) || 0,
-        destacker_defect_bad_cut: parseInt(document.getElementById('uni-def-bad-cut').value) || 0,
-        destacker_defect_stick_bottom: parseInt(document.getElementById('uni-def-stick-bottom').value) || 0,
-        destacker_defect_stick_top: parseInt(document.getElementById('uni-def-stick-top').value) || 0,
-        destacker_defect_broken: parseInt(document.getElementById('uni-def-broken').value) || 0,
-        destacker_defect_fell_box: parseInt(document.getElementById('uni-def-fell-box').value) || 0,
-        destacker_defect_dent: parseInt(document.getElementById('uni-def-dent').value) || 0,
-        destacker_defect_thickness: parseInt(document.getElementById('uni-def-thickness').value) || 0,
-        destacker_defect_delamination: parseInt(document.getElementById('uni-def-delamination').value) || 0,
-        destacker_defect_edge: parseInt(document.getElementById('uni-def-edge').value) || 0
+        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('uni-zo-chr-5-65-1')?.value) || 0,
+        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('uni-zo-chr-5-65-2')?.value) || 0,
+        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('uni-zo-chr-5-65-3')?.value) || 0,
+        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('uni-zo-chr-5-65-4')?.value) || 0,
+        zo_chrysotile_5_65: parseFloat(document.getElementById('uni-zo-chr-5-65')?.value) || 0,
+
+        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('uni-zo-chr-6-40-1')?.value) || 0,
+        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('uni-zo-chr-6-40-2')?.value) || 0,
+        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('uni-zo-chr-6-40-3')?.value) || 0,
+        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('uni-zo-chr-6-40-4')?.value) || 0,
+        zo_chrysotile_6_40: parseFloat(document.getElementById('uni-zo-chr-6-40')?.value) || 0,
+
+        // Cement Silos & Total
+        zo_cement_silo1: parseFloat(document.getElementById('uni-zo-cem-1')?.value) || 0,
+        zo_cement_silo2: parseFloat(document.getElementById('uni-zo-cem-2')?.value) || 0,
+        zo_cement_silo3: parseFloat(document.getElementById('uni-zo-cem-3')?.value) || 0,
+        zo_cement_silo4: parseFloat(document.getElementById('uni-zo-cem-4')?.value) || 0,
+        zo_cement: parseFloat(document.getElementById('uni-zo-cem-total-readonly')?.value) || 0,
+
+        // Cellulose
+        zo_cellulose_silo1: parseFloat(document.getElementById('uni-zo-cel-1')?.value) || 0,
+        zo_cellulose_silo2: parseFloat(document.getElementById('uni-zo-cel-2')?.value) || 0,
+        zo_cellulose_silo3: parseFloat(document.getElementById('uni-zo-cel-3')?.value) || 0,
+        zo_cellulose_silo4: parseFloat(document.getElementById('uni-zo-cel-4')?.value) || 0,
+        zo_cellulose: parseFloat(document.getElementById('uni-zo-cellulose')?.value) || 0,
+
+        // Crushed slate
+        zo_crushed_slate_silo1: parseFloat(document.getElementById('uni-zo-csl-1')?.value) || 0,
+        zo_crushed_slate_silo2: parseFloat(document.getElementById('uni-zo-csl-2')?.value) || 0,
+        zo_crushed_slate_silo3: parseFloat(document.getElementById('uni-zo-csl-3')?.value) || 0,
+        zo_crushed_slate_silo4: parseFloat(document.getElementById('uni-zo-csl-4')?.value) || 0,
+        zo_crushed_slate: parseFloat(document.getElementById('uni-zo-crushed-slate')?.value) || 0,
+
+        // Asbozurit
+        zo_asbozurit_silo1: parseFloat(document.getElementById('uni-zo-asb-1')?.value) || 0,
+        zo_asbozurit_silo2: parseFloat(document.getElementById('uni-zo-asb-2')?.value) || 0,
+        zo_asbozurit_silo3: parseFloat(document.getElementById('uni-zo-asb-3')?.value) || 0,
+        zo_asbozurit_silo4: parseFloat(document.getElementById('uni-zo-asb-4')?.value) || 0,
+        zo_asbozurit: parseFloat(document.getElementById('uni-zo-asbozurit')?.value) || 0,
+
+        // Fiberglass
+        zo_fiberglass_silo1: parseFloat(document.getElementById('uni-zo-fib-1')?.value) || 0,
+        zo_fiberglass_silo2: parseFloat(document.getElementById('uni-zo-fib-2')?.value) || 0,
+        zo_fiberglass_silo3: parseFloat(document.getElementById('uni-zo-fib-3')?.value) || 0,
+        zo_fiberglass_silo4: parseFloat(document.getElementById('uni-zo-fib-4')?.value) || 0,
+        zo_fiberglass: parseFloat(document.getElementById('uni-zo-fiberglass')?.value) || 0,
+
+        // Laprol
+        zo_laprol_silo1: parseFloat(document.getElementById('uni-zo-lap-1')?.value) || 0,
+        zo_laprol_silo2: parseFloat(document.getElementById('uni-zo-lap-2')?.value) || 0,
+        zo_laprol_silo3: parseFloat(document.getElementById('uni-zo-lap-3')?.value) || 0,
+        zo_laprol_silo4: parseFloat(document.getElementById('uni-zo-lap-4')?.value) || 0,
+        zo_laprol: parseFloat(document.getElementById('uni-zo-laprol')?.value) || 0,
+
+        // Asbocarton
+        zo_asbocarton_silo1: parseFloat(document.getElementById('uni-zo-car-1')?.value) || 0,
+        zo_asbocarton_silo2: parseFloat(document.getElementById('uni-zo-car-2')?.value) || 0,
+        zo_asbocarton_silo3: parseFloat(document.getElementById('uni-zo-car-3')?.value) || 0,
+        zo_asbocarton_silo4: parseFloat(document.getElementById('uni-zo-car-4')?.value) || 0,
+        zo_asbocarton: parseFloat(document.getElementById('uni-zo-asbocarton')?.value) || 0,
+
+        // Drains
+        lfm_asb_drain: parseFloat(document.getElementById('uni-lfm-asb-drain')?.value) || 0,
+        lfm_cem_drain: parseFloat(document.getElementById('uni-lfm-cem-drain')?.value) || 0,
+        zo_asb_drain: parseFloat(document.getElementById('uni-zo-asb-drain')?.value) || 0,
+        zo_cem_drain: parseFloat(document.getElementById('uni-zo-cem-drain')?.value) || 0,
+
+        // Destacker defect breakdown
+        ds_defect_chip: parseInt(document.getElementById('uni-def-chip')?.value) || 0,
+        ds_defect_scratch: parseInt(document.getElementById('uni-def-scratch')?.value) || 0,
+        ds_defect_bad_cut: parseInt(document.getElementById('uni-def-bad-cut')?.value) || 0,
+        ds_defect_stick_bottom: parseInt(document.getElementById('uni-def-stick-bottom')?.value) || 0,
+        ds_defect_stick_top: parseInt(document.getElementById('uni-def-stick-top')?.value) || 0,
+        ds_defect_broken: parseInt(document.getElementById('uni-def-broken')?.value) || 0,
+        ds_defect_fell_box: parseInt(document.getElementById('uni-def-fell-box')?.value) || 0,
+        ds_defect_dent: parseInt(document.getElementById('uni-def-dent')?.value) || 0,
+        ds_defect_thickness: parseInt(document.getElementById('uni-def-thickness')?.value) || 0,
+        ds_defect_delamination: parseInt(document.getElementById('uni-def-delamination')?.value) || 0,
+        ds_defect_edge: parseInt(document.getElementById('uni-def-edge')?.value) || 0
     };
 
     try {

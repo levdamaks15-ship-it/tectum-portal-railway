@@ -4408,9 +4408,17 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     # ZO raw materials
     zo_fields = [
         "zo_batches", "zo_chrysotile_4_20", "zo_chrysotile_5_65", "zo_chrysotile_6_40",
+        "zo_chrysotile_4_20_silo1", "zo_chrysotile_4_20_silo2", "zo_chrysotile_4_20_silo3", "zo_chrysotile_4_20_silo4",
+        "zo_chrysotile_5_65_silo1", "zo_chrysotile_5_65_silo2", "zo_chrysotile_5_65_silo3", "zo_chrysotile_5_65_silo4",
+        "zo_chrysotile_6_40_silo1", "zo_chrysotile_6_40_silo2", "zo_chrysotile_6_40_silo3", "zo_chrysotile_6_40_silo4",
         "zo_cement_silo1", "zo_cement_silo2", "zo_cement_silo3", "zo_cement_silo4",
-        "zo_cellulose", "zo_crushed_slate", "zo_asbozurit", "zo_fiberglass",
-        "zo_laprol", "zo_asbocarton", "zo_asb_drain", "zo_cem_drain"
+        "zo_cellulose", "zo_cellulose_silo1", "zo_cellulose_silo2", "zo_cellulose_silo3", "zo_cellulose_silo4",
+        "zo_crushed_slate", "zo_crushed_slate_silo1", "zo_crushed_slate_silo2", "zo_crushed_slate_silo3", "zo_crushed_slate_silo4",
+        "zo_asbozurit", "zo_asbozurit_silo1", "zo_asbozurit_silo2", "zo_asbozurit_silo3", "zo_asbozurit_silo4",
+        "zo_fiberglass", "zo_fiberglass_silo1", "zo_fiberglass_silo2", "zo_fiberglass_silo3", "zo_fiberglass_silo4",
+        "zo_laprol", "zo_laprol_silo1", "zo_laprol_silo2", "zo_laprol_silo3", "zo_laprol_silo4",
+        "zo_asbocarton", "zo_asbocarton_silo1", "zo_asbocarton_silo2", "zo_asbocarton_silo3", "zo_asbocarton_silo4",
+        "lfm_asb_drain", "lfm_cem_drain", "zo_asb_drain", "zo_cem_drain"
     ]
     for f_name in zo_fields:
         val = getattr(data, f_name, None)
