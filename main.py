@@ -6300,7 +6300,6 @@ def open_editor(
     </style>
     <!-- ONLYOFFICE DocSpace JavaScript SDK -->
     <script type="text/javascript" src="{docspace_url}/static/scripts/sdk/2.2.0/api.js"></script>
-    <script type="text/javascript" src="{docspace_url}/static/scripts/sdk/1.0.0/api.js"></script>
 </head>
 <body>
     <div class="editor-topbar">
