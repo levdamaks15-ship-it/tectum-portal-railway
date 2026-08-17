@@ -5471,7 +5471,7 @@ def manual_sync_folders_to_drive(db: Session = Depends(get_db)):
         synced_folders = []
         for cat in all_categories:
             # Force find or create in Drive
-            f_id = get_or_create_google_drive_folder_for_category(db, cat.id)
+            f_id = get_or_create_google_drive_folder_for_category(db, cat.id, force_check=True)
             synced_folders.append({"id": cat.id, "name": cat.name, "drive_id": f_id})
             
         unmigrated_docs = db.query(models.Document).filter(
@@ -5536,23 +5536,25 @@ def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: R
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-def get_or_create_google_drive_folder_for_category(db: Session, cat_id: Optional[int]) -> Optional[str]:
+def get_or_create_google_drive_folder_for_category(db: Session, cat_id: Optional[int], force_check: bool = False) -> Optional[str]:
     """
     Recursively ensures that the folder hierarchy exists in Google Drive
     and returns the google_drive_folder_id for the given category.
     """
+    root_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
     if not cat_id:
-        return os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        return root_folder_id
         
     category = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
     if not category:
-        return os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        return root_folder_id
         
-    if category.google_drive_folder_id:
+    # If already set and not forced, return it
+    if category.google_drive_folder_id and not force_check:
         return category.google_drive_folder_id
         
-    # Get or create parent drive folder
-    parent_drive_id = get_or_create_google_drive_folder_for_category(db, category.parent_id)
+    # Get or create parent drive folder recursively
+    parent_drive_id = get_or_create_google_drive_folder_for_category(db, category.parent_id, force_check=force_check)
     
     try:
         import google_drive_integration
@@ -5564,7 +5566,7 @@ def get_or_create_google_drive_folder_for_category(db: Session, cat_id: Optional
     except Exception as e:
         print(f"Failed to create Google Drive folder for '{category.name}': {e}")
         
-    return os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    return root_folder_id
 
 def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id: Optional[int] = None):
     """Фоновая выгрузка файла в Google Drive с обновлением ID и URL в БД и сохранением структуры папок"""
