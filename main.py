@@ -6267,22 +6267,16 @@ def open_editor(
                 if (typeof DocsAPI !== 'undefined' && DocsAPI.DocEditor) {{
                     new DocsAPI.DocEditor("editor-container", config);
                 }} else if (typeof DocSpace !== 'undefined' && DocSpace.SDK) {{
-                    DocSpace.SDK.initDocEditor(config);
-                }} else {{
-                    throw new Error("SDK not loaded yet");
+                    if (DocSpace.SDK.initEditor) {{
+                        DocSpace.SDK.initEditor("editor-container", config);
+                    }} else if (DocSpace.SDK.initFrame) {{
+                        DocSpace.SDK.initFrame("editor-container", config);
+                    }} else if (DocSpace.SDK.initDocSpace) {{
+                        DocSpace.SDK.initDocSpace("editor-container", config);
+                    }}
                 }}
             }} catch(e) {{
                 console.error("OnlyOffice init error:", e);
-                // Retry in 500ms
-                setTimeout(() => {{
-                    try {{
-                        if (typeof DocsAPI !== 'undefined') {{
-                            new DocsAPI.DocEditor("editor-container", config);
-                        }}
-                    }} catch(err2) {{
-                        console.error("Fallback retry error:", err2);
-                    }}
-                }}, 500);
             }}
         }}
 
