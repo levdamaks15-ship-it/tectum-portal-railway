@@ -6111,7 +6111,10 @@ def open_editor(
             return RedirectResponse(url=doc.google_drive_url)
         file_download_url = str(request.base_url).rstrip("/") + f"/api/documents/download/{doc.id}"
 
-    # OnlyOffice API Configuration
+    # OnlyOffice DocSpace & Cloud Document Server Configuration
+    docspace_url = os.getenv("ONLYOFFICE_DOCSPACE_URL", "https://docspace-edxqm0.onlyoffice.com").rstrip("/")
+    api_key = os.getenv("ONLYOFFICE_API_KEY", "sk-e606e9a780644a3c3d237df4ee38562bf80f65ba9330cd6032607a3efa9fae38")
+
     base_url = str(request.base_url).rstrip("/")
     callback_url = f"{base_url}/api/editor/callback/{doc.id}"
     user_name = request.session.get("user_name") or "Сотрудник Tectum"
@@ -6119,6 +6122,42 @@ def open_editor(
     # Build unique document key based on upload timestamp and id
     import time
     doc_key = f"doc_{doc.id}_{int(doc.uploaded_at.timestamp() if doc.uploaded_at else time.time())}"
+
+    # Generate JWT token for OnlyOffice Document Server
+    import jwt
+    payload = {
+        "document": {
+            "fileType": ext,
+            "key": doc_key,
+            "title": filename,
+            "url": file_download_url,
+            "permissions": {
+                "download": True,
+                "edit": True,
+                "print": True,
+                "review": True
+            }
+        },
+        "documentType": doc_type,
+        "editorConfig": {
+            "lang": "ru",
+            "callbackUrl": callback_url,
+            "user": {
+                "id": f"user_{request.session.get('user_id') or 1}",
+                "name": user_name
+            },
+            "customization": {
+                "autosave": True,
+                "forcesave": True,
+                "compactHeader": True,
+                "feedback": False,
+                "help": False,
+                "toolbarNoTabs": False
+            }
+        }
+    }
+    
+    jwt_token = jwt.encode(payload, api_key, algorithm="HS256")
 
     editor_html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -6199,16 +6238,17 @@ def open_editor(
             font-weight: 600;
         }}
     </style>
-    <!-- Official OnlyOffice Cloud API -->
-    <script type="text/javascript" src="https://cloud.onlyoffice.com/web-apps/apps/api/documents/api.js"></script>
-    <script type="text/javascript" src="https://static.onlyoffice.com/api/documents/api.js"></script>
+    <!-- Official OnlyOffice DocSpace SDK Script -->
+    <script type="text/javascript" src="{docspace_url}/static/scripts/sdk/1.0.0/api.js"></script>
+    <script type="text/javascript" src="{docspace_url}/web-apps/apps/api/documents/api.js"></script>
+    <script type="text/javascript" src="{docspace_url}/OfficeWeb/apps/api/documents/api.js"></script>
 </head>
 <body>
     <div class="editor-topbar">
         <div class="topbar-left">
             <a href="javascript:window.close()" class="btn-back" onclick="if(history.length>1){{history.back();return false;}}">← Назад в портал</a>
             <span class="doc-title">{html.escape(filename)}</span>
-            <span class="badge">Cloudflare R2 + ONLYOFFICE</span>
+            <span class="badge">ONLYOFFICE Cloud</span>
         </div>
         <div class="topbar-right">
             <span>Редактирование активно</span>
@@ -6217,50 +6257,39 @@ def open_editor(
     <div id="editor-container"></div>
 
     <script>
-        const config = {{
-            document: {{
-                fileType: "{ext}",
-                key: "{doc_key}",
-                title: "{html.escape(filename)}",
-                url: "{file_download_url}",
-                permissions: {{
-                    download: true,
-                    edit: true,
-                    print: true,
-                    review: true
-                }}
-            }},
-            documentType: "{doc_type}",
-            editorConfig: {{
-                lang: "ru",
-                callbackUrl: "{callback_url}",
-                user: {{
-                    id: "user_{request.session.get('user_id') or 1}",
-                    name: "{html.escape(user_name)}"
-                }},
-                customization: {{
-                    autosave: true,
-                    forcesave: true,
-                    compactHeader: true,
-                    feedback: false,
-                    help: false,
-                    toolbarNoTabs: false
-                }}
-            }},
-            height: "100%",
-            width: "100%"
-        }};
+        const config = {json.dumps(payload, ensure_ascii=False)};
+        config.token = "{jwt_token}";
+        config.height = "100%";
+        config.width = "100%";
 
-        try {{
-            new DocsAPI.DocEditor("editor-container", config);
-        }} catch(e) {{
-            console.error("OnlyOffice load error:", e);
-            document.getElementById("editor-container").innerHTML = `
-                <div style="padding: 40px; text-align: center; color: #f8fafc;">
-                    <h2>Онлайн-редактор загружается...</h2>
-                    <p style="color: #94a3b8;">Если окно не открылось автоматически, <a href="{file_download_url}" style="color: #38bdf8;">скачайте файл напрямую</a>.</p>
-                </div>
-            `;
+        function initEditor() {{
+            try {{
+                if (typeof DocsAPI !== 'undefined' && DocsAPI.DocEditor) {{
+                    new DocsAPI.DocEditor("editor-container", config);
+                }} else if (typeof DocSpace !== 'undefined' && DocSpace.SDK) {{
+                    DocSpace.SDK.initDocEditor(config);
+                }} else {{
+                    throw new Error("SDK not loaded yet");
+                }}
+            }} catch(e) {{
+                console.error("OnlyOffice init error:", e);
+                // Retry in 500ms
+                setTimeout(() => {{
+                    try {{
+                        if (typeof DocsAPI !== 'undefined') {{
+                            new DocsAPI.DocEditor("editor-container", config);
+                        }}
+                    }} catch(err2) {{
+                        console.error("Fallback retry error:", err2);
+                    }}
+                }}, 500);
+            }}
+        }}
+
+        if (document.readyState === 'complete') {{
+            initEditor();
+        }} else {{
+            window.addEventListener('load', initEditor);
         }}
     </script>
 </body>
