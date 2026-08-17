@@ -1222,13 +1222,6 @@
                         <i class="fas fa-plus"></i> Создать / Загрузить <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
                     </button>
                     <div id="create-dropdown" class="dropdown-content-create">
-                        <div class="dropdown-item" onclick="openCreateDocModal('document')">
-                            <i class="fas fa-file-word" style="color: #3b82f6; width: 18px; text-align: center;"></i> Google Документ
-                        </div>
-                        <div class="dropdown-item" onclick="openCreateDocModal('spreadsheet')">
-                            <i class="fas fa-file-excel" style="color: #10b981; width: 18px; text-align: center;"></i> Google Таблицу
-                        </div>
-                        <div class="context-menu-separator"></div>
                         <div class="dropdown-item" onclick="showFolderModal()">
                             <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
                         </div>
@@ -1297,21 +1290,6 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeFolderModal()">Отмена</button>
                 <button class="btn-action btn-upload-file" onclick="createFolder()">Создать</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модалка создания Google Документа / Таблицы -->
-    <div id="create-doc-modal" class="modal">
-        <div class="modal-content">
-            <h3 id="create-doc-modal-title">Создать Google Документ</h3>
-            <div class="form-group">
-                <label>Название файла</label>
-                <input type="text" id="new-doc-name" placeholder="Например: Сменный рапорт" onkeydown="if(event.key==='Enter') submitCreateGoogleDoc()">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-cancel" onclick="closeCreateDocModal()">Отмена</button>
-                <button class="btn-action btn-upload-file" id="btn-submit-create-doc" onclick="submitCreateGoogleDoc()">Создать</button>
             </div>
         </div>
     </div>
@@ -2629,23 +2607,6 @@
         function closeFolderModal() { 
             document.getElementById('folder-modal').style.display = 'none'; 
             document.getElementById('new-folder-name').value = '';
-        }
-
-        async function triggerSyncWithDrive() {
-            hideCreateDropdown();
-            showToast('Синхронизация структуры с Google Диском...', 'info');
-            try {
-                const res = await fetch('/api/documents/sync-folders-to-drive', { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    showToast(`Синхронизировано: ${data.folders_count} папок`);
-                    loadSidebarTree();
-                } else {
-                    alert('Ошибка синхронизации: ' + data.message);
-                }
-            } catch (err) {
-                alert('Ошибка соединения с сервером при синхронизации');
-            }
         }
 
         async function createFolder() {

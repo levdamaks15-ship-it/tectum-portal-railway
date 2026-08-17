@@ -203,19 +203,32 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
 
+    # Automatic deduplication of duplicate document folders on startup
     try:
         db = SessionLocal()
-        driver = db.bind.dialect.name if db.bind else 'unknown'
-        if driver == 'postgresql':
-            from sqlalchemy import text
-            col_exists = db.execute(text(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='documents' AND column_name='r2_key'"
-            )).fetchone()
-            if not col_exists:
-                db.execute(text("ALTER TABLE documents ADD COLUMN r2_key VARCHAR(512);"))
-                db.commit()
+        all_folders = db.query(models.DocumentCategory).order_by(models.DocumentCategory.id.asc()).all()
+        seen = {}
+        duplicates = []
+        for f in all_folders:
+            key = (f.name.strip().lower(), f.parent_id)
+            if key in seen:
+                primary = seen[key]
+                db.query(models.Document).filter(models.Document.category_id == f.id).update(
+                    {models.Document.category_id: primary.id}, synchronize_session=False
+                )
+                db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == f.id).update(
+                    {models.DocumentCategory.parent_id: primary.id}, synchronize_session=False
+                )
+                duplicates.append(f)
+            else:
+                seen[key] = f
+
+        for dup in duplicates:
+            db.delete(dup)
+        if duplicates:
+            db.commit()
     except Exception as e:
-        print(f"Warning: could not migrate documents r2_key column: {e}")
+        print(f"Startup duplicate folder cleanup note: {e}")
         if 'db' in locals() and db:
             db.rollback()
     finally:
@@ -5709,97 +5722,6 @@ def register_direct_upload(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/api/documents/upload")
-async def upload_document(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    parent_id: Optional[str] = Form(None),
-    relative_path: Optional[str] = Form(None),
-    x_folder_password: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
-):
-    try:
-        cat_id = None
-        if parent_id and parent_id.startswith("folder_"):
-            cat_id = int(parent_id.split("_")[1])
-            
-        if cat_id is not None:
-            protected_folder = get_protected_ancestor(db, cat_id)
-            if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                    raise HTTPException(status_code=403, detail="Access Denied")
-                    
-        ext = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4().hex}{ext}"
-        file_path = os.path.join(UPLOAD_DIR, unique_filename)
-        
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        if relative_path:
-            parts = relative_path.split("/")[:-1]
-            current_parent = cat_id
-            for part in parts:
-                if not part: continue
-                existing_folder = db.query(models.DocumentCategory).filter(
-                    models.DocumentCategory.name == part,
-                    models.DocumentCategory.parent_id == current_parent
-                ).first()
-                if not existing_folder:
-                    new_folder = models.DocumentCategory(name=part, parent_id=current_parent)
-                    db.add(new_folder)
-                    db.commit()
-                    db.refresh(new_folder)
-                    current_parent = new_folder.id
-                else:
-                    current_parent = existing_folder.id
-            cat_id = current_parent
-            
-        clean_title = os.path.basename(file.filename.replace("\\", "/"))
-        
-        # Fast direct upload to Google Drive
-        drive_file_id = None
-        drive_file_url = None
-        try:
-            import google_drive_integration
-            parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
-            drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title, parent_drive_id=parent_drive_id)
-            if drive_info and drive_info.get("id"):
-                drive_file_id = drive_info["id"]
-                drive_file_url = drive_info["url"]
-        except Exception as drive_err:
-            print(f"Upload to Google Drive failed for {clean_title}: {drive_err}")
-
-        # Clean up local temporary file on Railway to save disk space if uploaded to Drive
-        stored_path = file_path
-        if drive_file_id and os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-                stored_path = None
-            except Exception:
-                pass
-
-        new_doc = models.Document(
-            title=clean_title,
-            category_id=cat_id,
-            file_path=stored_path,
-            mime_type=file.content_type,
-            google_drive_id=drive_file_id,
-            google_drive_url=drive_file_url
-        )
-        db.add(new_doc)
-        db.commit()
-        db.refresh(new_doc)
-
-        return {"status": "success", "file": {
-            "id": f"file_{new_doc.id}",
-            "name": new_doc.title,
-            "mimeType": new_doc.mime_type,
-            "webViewLink": new_doc.google_drive_url if new_doc.google_drive_url else (f"/editor?id=file_{new_doc.id}" if is_editable_doc(clean_title) else f"/api/documents/download/{new_doc.id}")
-        }}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
 @app.post("/api/documents/folders")
 def create_document_folder(
     folder_name: str = Form(...),
@@ -5821,19 +5743,25 @@ def create_document_folder(
             if not x_folder_password or x_folder_password != "6282":
                 raise HTTPException(status_code=403, detail="Неверный пароль для создания корневой папки")
             
+        clean_name = folder_name.strip()
+        existing = db.query(models.DocumentCategory).filter(
+            models.DocumentCategory.name == clean_name,
+            models.DocumentCategory.parent_id == cat_id
+        ).first()
+        if existing:
+            return {"status": "success", "folder": {
+                "id": f"folder_{existing.id}",
+                "name": existing.name,
+                "mimeType": "application/vnd.google-apps.folder"
+            }}
+
         new_folder = models.DocumentCategory(
-            name=folder_name,
+            name=clean_name,
             parent_id=cat_id
         )
         db.add(new_folder)
         db.commit()
         db.refresh(new_folder)
-
-        # Create folder in Google Drive too
-        try:
-            get_or_create_google_drive_folder_for_category(db, new_folder.id)
-        except Exception as e:
-            print(f"Background Google Drive folder create failed: {e}")
         
         return {"status": "success", "folder": {
             "id": f"folder_{new_folder.id}",
@@ -5843,66 +5771,35 @@ def create_document_folder(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/api/documents/create_google")
-def create_google_doc_endpoint(
-    title: str = Form(...),
-    doc_type: str = Form("document"), # "document" or "spreadsheet"
-    parent_id: Optional[str] = Form(None),
-    x_folder_password: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
-):
+@app.post("/api/documents/clean_duplicates")
+def clean_duplicate_folders(request: Request, db: Session = Depends(get_db)):
+    """Административная очистка дубликатов папок в базе данных"""
     try:
-        cat_id = None
-        if parent_id and parent_id.startswith("folder_"):
-            cat_id = int(parent_id.split("_")[1])
-            
-        if cat_id is not None:
-            protected_folder = get_protected_ancestor(db, cat_id)
-            if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                    raise HTTPException(status_code=403, detail="Access Denied")
-        else:
-            if not x_folder_password or x_folder_password != "6282":
-                raise HTTPException(status_code=403, detail="Неверный пароль для создания в корневой папке")
-                
-        import google_drive_integration
-        clean_title = title.strip()
-        if doc_type == "document" and not clean_title.endswith((".doc", ".docx")):
-            full_title = clean_title
-            mime_type = "application/vnd.google-apps.document"
-        elif doc_type == "spreadsheet" and not clean_title.endswith((".xls", ".xlsx")):
-            full_title = clean_title
-            mime_type = "application/vnd.google-apps.spreadsheet"
-        else:
-            full_title = clean_title
-            mime_type = "application/vnd.google-apps.document"
+        all_folders = db.query(models.DocumentCategory).all()
+        seen = {}
+        duplicates = []
+        for f in all_folders:
+            key = (f.name.strip().lower(), f.parent_id)
+            if key in seen:
+                primary = seen[key]
+                # Reassign documents from duplicate to primary
+                db.query(models.Document).filter(models.Document.category_id == f.id).update(
+                    {models.Document.category_id: primary.id}, synchronize_session=False
+                )
+                # Reassign subfolders
+                db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == f.id).update(
+                    {models.DocumentCategory.parent_id: primary.id}, synchronize_session=False
+                )
+                duplicates.append(f)
+            else:
+                seen[key] = f
 
-        parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
-        drive_info = google_drive_integration.create_google_file(full_title, doc_type=doc_type, parent_drive_id=parent_drive_id)
-        
-        # Save document in DB
-        new_doc = models.Document(
-            title=full_title,
-            category_id=cat_id,
-            file_path="",
-            mime_type=mime_type,
-            google_drive_id=drive_info["id"],
-            google_drive_url=drive_info["url"]
-        )
-        db.add(new_doc)
+        for dup in duplicates:
+            db.delete(dup)
         db.commit()
-        db.refresh(new_doc)
-        
-        return {
-            "status": "success",
-            "file": {
-                "id": f"file_{new_doc.id}",
-                "name": new_doc.title,
-                "mimeType": new_doc.mime_type,
-                "webViewLink": new_doc.google_drive_url
-            }
-        }
+        return {"status": "success", "cleaned_count": len(duplicates)}
     except Exception as e:
+        db.rollback()
         return {"status": "error", "message": str(e)}
 
 @app.put("/api/documents/{item_id}/rename")
