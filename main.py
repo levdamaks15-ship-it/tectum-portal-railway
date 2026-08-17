@@ -199,7 +199,7 @@ async def lifespan(app: FastAPI):
         driver = db.bind.dialect.name if db.bind else 'unknown'
         if driver == 'postgresql':
             from sqlalchemy import text
-            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT")]:
+            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT")]:
                 try:
                     db.execute(text(f"ALTER TABLE documents ADD COLUMN IF NOT EXISTS {col} {col_type};"))
                     db.commit()
@@ -207,7 +207,7 @@ async def lifespan(app: FastAPI):
                     db.rollback()
         elif driver == 'sqlite':
             conn = sqlite3.connect("tectum.db")
-            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT")]:
+            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT")]:
                 try:
                     conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
                     conn.commit()
@@ -6178,6 +6178,41 @@ def open_editor(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
+
+    # Sync to Koofr Cloud Office
+    if not doc.koofr_link:
+        file_bytes = None
+        if doc.r2_key:
+            try:
+                import r2_integration
+                s3 = r2_integration.get_r2_client()
+                obj = s3.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
+                file_bytes = obj['Body'].read()
+            except Exception as e:
+                logger.error(f"Error fetching R2 for Koofr sync: {e}")
+        elif doc.file_path and os.path.exists(doc.file_path):
+            try:
+                with open(doc.file_path, "rb") as f:
+                    file_bytes = f.read()
+            except Exception as e:
+                logger.error(f"Error reading local file for Koofr: {e}")
+                
+        if file_bytes:
+            import koofr_integration, re
+            clean_name = re.sub(r'[^\w\.\-\(\) ]', '_', doc.title)
+            remote_path = f"/Tectum/Folder_{doc.category_id or 0}/{doc.id}_{clean_name}"
+            if koofr_integration.upload_file_to_koofr(file_bytes, remote_path):
+                link = koofr_integration.create_share_link(remote_path)
+                if link:
+                    doc.koofr_path = remote_path
+                    doc.koofr_link = link
+                    try:
+                        db.commit()
+                    except Exception:
+                        db.rollback()
+
+    if doc.koofr_link:
+        return RedirectResponse(url=doc.koofr_link, status_code=302)
 
     filename = doc.title
     ext = filename.split(".")[-1].lower() if "." in filename else ""
