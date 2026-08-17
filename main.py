@@ -9,6 +9,7 @@ import os
 import asyncio
 import json
 import hashlib
+import html
 import m365_integration
 import excel_exporter
 import import_aci_excel
