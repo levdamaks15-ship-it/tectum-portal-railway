@@ -6179,6 +6179,17 @@ def open_editor(
         #editor-container {{
             height: calc(100vh - 44px);
             width: 100%;
+            background: #ffffff;
+        }}
+        #editor-container iframe, .frame-container iframe {{
+            height: 100% !important;
+            width: 100% !important;
+            border: none;
+            display: block;
+        }}
+        .frame-container {{
+            height: 100% !important;
+            width: 100% !important;
         }}
         .editor-topbar {{
             height: 44px;
