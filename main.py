@@ -6276,11 +6276,11 @@ def open_editor(
         function initEditor() {{
             try {{
                 config.frameId = "editor-container";
-                config.events = {{
-                    onAppReady: function() {{
-                        console.log("ONLYOFFICE Editor Ready!");
-                    }}
-                }};
+                config.editorConfig = config.editorConfig || {{}};
+                config.editorConfig.mode = "edit";
+                config.editorConfig.lang = "ru";
+                config.width = "100%";
+                config.height = "100%";
                 
                 if (typeof DocSpace !== 'undefined' && DocSpace.SDK && DocSpace.SDK.initEditor) {{
                     DocSpace.SDK.initEditor(config);
