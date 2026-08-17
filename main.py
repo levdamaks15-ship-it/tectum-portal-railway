@@ -5536,6 +5536,10 @@ def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: R
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+def is_editable_doc(file_name: str) -> bool:
+    name = (file_name or '').lower()
+    return name.endswith('.xlsx') or name.endswith('.xls') or name.endswith('.docx') or name.endswith('.doc') or name.endswith('.pptx') or name.endswith('.ppt')
+
 def get_or_create_google_drive_folder_for_category(db: Session, cat_id: Optional[int], force_check: bool = False) -> Optional[str]:
     """
     Recursively ensures that the folder hierarchy exists in Google Drive
@@ -5641,36 +5645,26 @@ async def upload_document(
             
         clean_title = os.path.basename(file.filename.replace("\\", "/"))
         
-        # Upload directly to Google Drive
-        drive_file_id = None
-        drive_file_url = None
-        try:
-            import google_drive_integration
-            parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
-            drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title, parent_drive_id=parent_drive_id)
-            if drive_info and drive_info.get("id"):
-                drive_file_id = drive_info["id"]
-                drive_file_url = drive_info["url"]
-        except Exception as drive_err:
-            print(f"Direct upload to Google Drive failed for {clean_title}: {drive_err}")
-
         new_doc = models.Document(
             title=clean_title,
             category_id=cat_id,
             file_path=file_path,
             mime_type=file.content_type,
-            google_drive_id=drive_file_id,
-            google_drive_url=drive_file_url
+            google_drive_id=None,
+            google_drive_url=None
         )
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)
         
+        # Schedule Google Drive upload asynchronously in background
+        background_tasks.add_task(upload_doc_to_drive_bg, new_doc.id, file_path, clean_title, cat_id)
+
         return {"status": "success", "file": {
             "id": f"file_{new_doc.id}",
             "name": new_doc.title,
             "mimeType": new_doc.mime_type,
-            "webViewLink": new_doc.google_drive_url if new_doc.google_drive_url else f"/api/documents/download/{new_doc.id}"
+            "webViewLink": f"/editor?id=file_{new_doc.id}" if is_editable_doc(clean_title) else f"/api/documents/download/{new_doc.id}"
         }}
     except Exception as e:
         return {"status": "error", "message": str(e)}

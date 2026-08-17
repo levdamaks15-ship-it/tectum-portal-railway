@@ -35,12 +35,19 @@ def get_drive_service():
     _drive_service = build("drive", "v3", credentials=creds)
     return _drive_service
 
+_folder_cache = {}
+
 def get_or_create_drive_folder(folder_name: str, parent_id: str = None) -> str:
     """
     Finds or creates a folder in Google Drive by name under a given parent_id.
+    Uses in-memory cache to prevent repetitive Drive API calls.
     """
-    service = get_drive_service()
     base_parent = parent_id or os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    cache_key = (folder_name, base_parent)
+    if cache_key in _folder_cache:
+        return _folder_cache[cache_key]
+
+    service = get_drive_service()
     
     query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
     if base_parent:
@@ -54,7 +61,9 @@ def get_or_create_drive_folder(folder_name: str, parent_id: str = None) -> str:
     files = results.get('files', [])
     
     if files:
-        return files[0]['id']
+        f_id = files[0]['id']
+        _folder_cache[cache_key] = f_id
+        return f_id
         
     file_metadata = {
         'name': folder_name,
@@ -68,7 +77,10 @@ def get_or_create_drive_folder(folder_name: str, parent_id: str = None) -> str:
         fields='id'
     ).execute()
     
-    return folder.get('id')
+    f_id = folder.get('id')
+    if f_id:
+        _folder_cache[cache_key] = f_id
+    return f_id
 
 def delete_drive_file(file_id: str):
     """Deletes or trashes a file/folder in Google Drive"""
@@ -82,8 +94,7 @@ def upload_file_to_drive(file_path: str, title: str, parent_drive_id: str = None
     """
     Uploads a file to Google Drive under parent_drive_id or root GOOGLE_DRIVE_FOLDER_ID.
     Automatically converts Word and Excel files to Google native formats.
-    Sets 'writer' permission for anyone with the link.
-    Optimized for high-speed uploads.
+    Optimized for high-speed direct multipart uploads.
     """
     service = get_drive_service()
     
@@ -108,9 +119,9 @@ def upload_file_to_drive(file_path: str, title: str, parent_drive_id: str = None
         
     file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
     
-    # Fast direct multipart upload for small/medium files (< 5MB), resumable with 5MB chunks for larger
-    is_resumable = file_size > 5 * 1024 * 1024
-    media = MediaFileUpload(file_path, resumable=is_resumable, chunksize=5*1024*1024 if is_resumable else -1)
+    # Fast direct multipart upload for small/medium files (< 10MB), resumable for larger
+    is_resumable = file_size > 10 * 1024 * 1024
+    media = MediaFileUpload(file_path, resumable=is_resumable, chunksize=10*1024*1024 if is_resumable else -1)
     
     # Upload file
     file = service.files().create(
@@ -121,16 +132,20 @@ def upload_file_to_drive(file_path: str, title: str, parent_drive_id: str = None
     
     file_id = file.get('id')
     
-    # Make it writable by anyone with the link
-    permission = {
-        'type': 'anyone',
-        'role': 'writer'
-    }
-    service.permissions().create(
-        fileId=file_id,
-        body=permission,
-        fields='id'
-    ).execute()
+    # Make it writable by anyone with the link (safely ignoring if already inherited)
+    try:
+        permission = {
+            'type': 'anyone',
+            'role': 'writer'
+        }
+        service.permissions().create(
+            fileId=file_id,
+            body=permission,
+            fields='id'
+        ).execute()
+    except Exception as perm_err:
+        # If folder already has shared permissions, ignore
+        pass
     
     return {
         "id": file_id,
