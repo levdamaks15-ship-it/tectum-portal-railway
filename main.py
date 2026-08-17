@@ -6200,7 +6200,8 @@ def open_editor(
         }}
     </style>
     <!-- Official OnlyOffice Cloud API -->
-    <script type="text/javascript" src="https://documentserver.onlyoffice.com/web-apps/apps/api/documents/api.js"></script>
+    <script type="text/javascript" src="https://cloud.onlyoffice.com/web-apps/apps/api/documents/api.js"></script>
+    <script type="text/javascript" src="https://static.onlyoffice.com/api/documents/api.js"></script>
 </head>
 <body>
     <div class="editor-topbar">
