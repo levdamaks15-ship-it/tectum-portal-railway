@@ -603,6 +603,32 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
+        # Background auto-sync of missing Google Drive URLs for existing documents
+        try:
+            db_docs = SessionLocal()
+            try:
+                unmigrated_docs = db_docs.query(models.Document).filter(
+                    (models.Document.google_drive_url == None) | (models.Document.google_drive_url == "")
+                ).all()
+                if unmigrated_docs:
+                    import google_drive_integration
+                    for u_doc in unmigrated_docs:
+                        if u_doc.file_path and os.path.exists(u_doc.file_path):
+                            try:
+                                clean_t = u_doc.title or os.path.basename(u_doc.file_path)
+                                d_info = google_drive_integration.upload_file_to_drive(u_doc.file_path, clean_t)
+                                if d_info and d_info.get("id"):
+                                    u_doc.google_drive_id = d_info["id"]
+                                    u_doc.google_drive_url = d_info["url"]
+                                    db_docs.commit()
+                                    print(f"Auto-synced doc #{u_doc.id} ('{clean_t}') to Google Drive.")
+                            except Exception as sync_err:
+                                print(f"Could not auto-sync doc #{u_doc.id} on startup: {sync_err}")
+            finally:
+                db_docs.close()
+        except Exception as doc_mig_err:
+            print(f"Docs startup sync error: {doc_mig_err}")
+
     threading.Thread(target=bg_cleanups_init, daemon=True).start()
 
 
@@ -5806,8 +5832,25 @@ def open_editor(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
 
+    if not doc.google_drive_url and doc.file_path and os.path.exists(doc.file_path):
+        try:
+            import google_drive_integration
+            clean_title = doc.title or os.path.basename(doc.file_path)
+            drive_info = google_drive_integration.upload_file_to_drive(doc.file_path, clean_title)
+            if drive_info and drive_info.get("id"):
+                doc.google_drive_id = drive_info["id"]
+                doc.google_drive_url = drive_info["url"]
+                db.commit()
+                db.refresh(doc)
+        except Exception as upload_err:
+            print(f"On-demand upload to Google Drive failed for doc #{doc.id}: {upload_err}")
+
     if doc.google_drive_url:
         return RedirectResponse(url=doc.google_drive_url)
+    
+    # Fallback to direct download/view if file exists on server
+    if doc.file_path and os.path.exists(doc.file_path):
+        return RedirectResponse(url=f"/api/documents/download/{doc.id}" + (f"?pwd={quote(actual_pwd)}" if actual_pwd else ""))
     
     return HTMLResponse("Файл еще не был загружен в Google Docs. Попробуйте загрузить его заново.", status_code=404)
 
