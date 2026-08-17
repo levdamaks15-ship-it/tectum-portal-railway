@@ -6264,16 +6264,17 @@ def open_editor(
 
         function initEditor() {{
             try {{
-                if (typeof DocsAPI !== 'undefined' && DocsAPI.DocEditor) {{
-                    new DocsAPI.DocEditor("editor-container", config);
-                }} else if (typeof DocSpace !== 'undefined' && DocSpace.SDK) {{
-                    if (DocSpace.SDK.initEditor) {{
-                        DocSpace.SDK.initEditor("editor-container", config);
-                    }} else if (DocSpace.SDK.initFrame) {{
-                        DocSpace.SDK.initFrame("editor-container", config);
-                    }} else if (DocSpace.SDK.initDocSpace) {{
-                        DocSpace.SDK.initDocSpace("editor-container", config);
+                config.frameId = "editor-container";
+                config.events = {{
+                    onAppReady: function() {{
+                        console.log("ONLYOFFICE Editor Ready!");
                     }}
+                }};
+                
+                if (typeof DocSpace !== 'undefined' && DocSpace.SDK && DocSpace.SDK.initEditor) {{
+                    DocSpace.SDK.initEditor(config);
+                }} else if (typeof DocsAPI !== 'undefined' && DocsAPI.DocEditor) {{
+                    new DocsAPI.DocEditor("editor-container", config);
                 }}
             }} catch(e) {{
                 console.error("OnlyOffice init error:", e);
