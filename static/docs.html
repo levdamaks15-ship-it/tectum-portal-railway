@@ -1236,8 +1236,9 @@
                         <div class="dropdown-item" onclick="document.getElementById('file-upload').click()">
                             <i class="fas fa-cloud-upload-alt" style="color: #60a5fa; width: 18px; text-align: center;"></i> Загрузить файл
                         </div>
-                        <div class="dropdown-item" onclick="document.getElementById('folder-upload').click()">
-                            <i class="fas fa-folder-open" style="color: #10b981; width: 18px; text-align: center;"></i> Загрузить папку
+                        <div class="context-menu-separator"></div>
+                        <div class="dropdown-item" onclick="triggerManualSyncDrive()">
+                            <i class="fas fa-sync-alt" style="color: #8b5cf6; width: 18px; text-align: center;"></i> Синхронизировать с Диском
                         </div>
                     </div>
                 </div>
@@ -2592,6 +2593,26 @@
             const sideBtn = document.getElementById("docs-sidebar-theme-btn");
             if (sideBtn) {
                 sideBtn.innerHTML = `${iconHtml} <span class="theme-label">${theme === "light" ? "Светлая тема" : "Темная тема"}</span>`;
+            }
+        }
+
+        async function triggerManualSyncDrive() {
+            hideCreateDropdown();
+            showToast('Запуск синхронизации с Google Диском...', 'info');
+            try {
+                const res = await fetch('/api/documents/sync-folders-to-drive', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Синхронизировано: ${data.docs_synced?.length || 0} файлов, ${data.folders_count || 0} папок!`, 'success');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                } else {
+                    showToast('Ошибка синхронизации: ' + (data.message || 'Сбой API'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Ошибка вызова синхронизации', 'error');
             }
         }
 
