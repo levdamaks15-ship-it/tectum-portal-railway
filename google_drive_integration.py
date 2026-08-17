@@ -11,11 +11,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 _drive_service = None
 
-def get_drive_service():
-    global _drive_service
-    if _drive_service is not None:
-        return _drive_service
-        
+def get_drive_credentials():
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
     refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
@@ -31,9 +27,23 @@ def get_drive_service():
         client_secret=client_secret,
         scopes=SCOPES
     )
-    
+    return creds
+
+def get_drive_service():
+    global _drive_service
+    if _drive_service is not None:
+        return _drive_service
+        
+    creds = get_drive_credentials()
     _drive_service = build("drive", "v3", credentials=creds)
     return _drive_service
+
+def get_drive_access_token() -> str:
+    """Returns a valid access token for direct browser uploads"""
+    from google.auth.transport.requests import Request
+    creds = get_drive_credentials()
+    creds.refresh(Request())
+    return creds.token
 
 _folder_cache = {}
 

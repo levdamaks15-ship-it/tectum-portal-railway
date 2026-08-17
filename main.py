@@ -5597,6 +5597,101 @@ def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id
     except Exception as drive_err:
         print(f"Background upload to Google Drive failed for doc #{doc_id}: {drive_err}")
 
+class DirectUploadRegisterRequest(BaseModel):
+    title: str
+    category_id: Optional[int] = None
+    google_drive_id: str
+    google_drive_url: str
+    mime_type: Optional[str] = None
+
+@app.post("/api/documents/direct_upload_token")
+def get_direct_upload_token(
+    parent_id: Optional[str] = Form(None),
+    relative_path: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns an access token and parent Google Drive folder ID for high-speed direct browser uploads.
+    """
+    try:
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+
+        if relative_path:
+            parts = relative_path.split("/")[:-1]
+            current_parent = cat_id
+            for part in parts:
+                if not part: continue
+                existing_folder = db.query(models.DocumentCategory).filter(
+                    models.DocumentCategory.name == part,
+                    models.DocumentCategory.parent_id == current_parent
+                ).first()
+                if not existing_folder:
+                    new_folder = models.DocumentCategory(name=part, parent_id=current_parent)
+                    db.add(new_folder)
+                    db.commit()
+                    db.refresh(new_folder)
+                    current_parent = new_folder.id
+                else:
+                    current_parent = existing_folder.id
+            cat_id = current_parent
+
+        import google_drive_integration
+        parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
+        access_token = google_drive_integration.get_drive_access_token()
+
+        return {
+            "status": "success",
+            "access_token": access_token,
+            "parent_drive_id": parent_drive_id,
+            "category_id": cat_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/documents/register_direct_upload")
+def register_direct_upload(
+    req: DirectUploadRegisterRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Registers a file in Tectum database after successful direct browser upload to Google Drive.
+    """
+    try:
+        new_doc = models.Document(
+            title=req.title,
+            category_id=req.category_id,
+            file_path=None, # Stored purely on Google Drive
+            mime_type=req.mime_type or "application/octet-stream",
+            google_drive_id=req.google_drive_id,
+            google_drive_url=req.google_drive_url
+        )
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+
+        return {
+            "status": "success",
+            "file": {
+                "id": f"file_{new_doc.id}",
+                "name": new_doc.title,
+                "mimeType": new_doc.mime_type,
+                "webViewLink": new_doc.google_drive_url
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/api/documents/upload")
 async def upload_document(
     background_tasks: BackgroundTasks,
