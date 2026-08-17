@@ -192,11 +192,12 @@ async def lifespan(app: FastAPI):
         if 'db' in locals():
             db.close()
 
-    # Document Google Drive columns migration
+    # Document Google Drive and R2 columns migration
     try:
         conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255)")
         conn.execute("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR")
+        conn.execute("ALTER TABLE documents ADD COLUMN r2_key VARCHAR(512)")
         conn.execute("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255)")
         conn.commit()
         conn.close()
@@ -208,21 +209,13 @@ async def lifespan(app: FastAPI):
         if driver == 'postgresql':
             from sqlalchemy import text
             col_exists = db.execute(text(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='documents' AND column_name='google_drive_id'"
+                "SELECT column_name FROM information_schema.columns WHERE table_name='documents' AND column_name='r2_key'"
             )).fetchone()
             if not col_exists:
-                db.execute(text("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255);"))
-                db.execute(text("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR;"))
-                db.commit()
-                
-            cat_col_exists = db.execute(text(
-                "SELECT column_name FROM information_schema.columns WHERE table_name='document_categories' AND column_name='google_drive_folder_id'"
-            )).fetchone()
-            if not cat_col_exists:
-                db.execute(text("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255);"))
+                db.execute(text("ALTER TABLE documents ADD COLUMN r2_key VARCHAR(512);"))
                 db.commit()
     except Exception as e:
-        print(f"Warning: could not migrate documents/categories google_drive columns: {e}")
+        print(f"Warning: could not migrate documents r2_key column: {e}")
         if 'db' in locals() and db:
             db.rollback()
     finally:
@@ -5394,11 +5387,13 @@ def list_documents(
             
         file_data = []
         for f in files:
+            is_editable = is_editable_doc(f.title)
+            file_link = f"/editor?id=file_{f.id}" if is_editable else (f.google_drive_url if f.google_drive_url else f"/api/documents/download/{f.id}")
             file_data.append({
                 "id": f"file_{f.id}",
                 "name": f.title,
                 "mimeType": f.mime_type or "application/octet-stream",
-                "webViewLink": f.google_drive_url if f.google_drive_url else f"/api/documents/download/{f.id}",
+                "webViewLink": file_link,
                 "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else "",
                 "is_protected": prot_map.get(f.category_id, False) if f.category_id else False
             })
@@ -5425,12 +5420,14 @@ def get_documents_tree(db: Session = Depends(get_db)):
         docs = db.query(models.Document).order_by(models.Document.title).all()
         file_data = []
         for d in docs:
+            is_editable = is_editable_doc(d.title)
+            file_link = f"/editor?id=file_{d.id}" if is_editable else (d.google_drive_url if d.google_drive_url else f"/api/documents/download/{d.id}")
             file_data.append({
                 "id": f"file_{d.id}",
                 "name": d.title,
                 "parent_id": f"folder_{d.category_id}" if d.category_id else None,
                 "mimeType": d.mime_type or "application/octet-stream",
-                "webViewLink": d.google_drive_url if d.google_drive_url else f"/api/documents/download/{d.id}",
+                "webViewLink": file_link,
                 "is_protected": prot_map.get(d.category_id, False) if d.category_id else False
             })
             
@@ -5600,19 +5597,21 @@ def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id
 class DirectUploadRegisterRequest(BaseModel):
     title: str
     category_id: Optional[int] = None
-    google_drive_id: str
-    google_drive_url: str
+    r2_key: str
     mime_type: Optional[str] = None
 
 @app.post("/api/documents/direct_upload_token")
 def get_direct_upload_token(
+    filename: str = Form(...),
+    mime_type: Optional[str] = Form("application/octet-stream"),
     parent_id: Optional[str] = Form(None),
     relative_path: Optional[str] = Form(None),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """
-    Returns an access token and parent Google Drive folder ID for high-speed direct browser uploads.
+    Generates a high-speed Direct-to-Cloudflare-R2 presigned PUT URL.
+    The browser uploads the file directly to Cloudflare without touching Railway server disk!
     """
     try:
         cat_id = None
@@ -5644,14 +5643,21 @@ def get_direct_upload_token(
                     current_parent = existing_folder.id
             cat_id = current_parent
 
-        import google_drive_integration
-        parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
-        access_token = google_drive_integration.get_drive_access_token()
+        import r2_integration
+        clean_name = os.path.basename(filename.replace("\\", "/"))
+        unique_prefix = uuid.uuid4().hex[:12]
+        r2_key = f"documents/{cat_id or 0}/{unique_prefix}_{clean_name}"
+        
+        presigned_url = r2_integration.generate_presigned_upload_url(
+            object_key=r2_key,
+            content_type=mime_type or "application/octet-stream",
+            expires_in=3600
+        )
 
         return {
             "status": "success",
-            "access_token": access_token,
-            "parent_drive_id": parent_drive_id,
+            "upload_url": presigned_url,
+            "r2_key": r2_key,
             "category_id": cat_id
         }
     except HTTPException:
@@ -5665,20 +5671,21 @@ def register_direct_upload(
     db: Session = Depends(get_db)
 ):
     """
-    Registers a file in Tectum database after successful direct browser upload to Google Drive.
+    Registers a file in Tectum database after successful direct browser upload to Cloudflare R2.
     """
     try:
         new_doc = models.Document(
             title=req.title,
             category_id=req.category_id,
-            file_path=None, # Stored purely on Google Drive
+            file_path=None,
             mime_type=req.mime_type or "application/octet-stream",
-            google_drive_id=req.google_drive_id,
-            google_drive_url=req.google_drive_url
+            r2_key=req.r2_key
         )
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)
+
+        is_editable = is_editable_doc(new_doc.title)
 
         return {
             "status": "success",
@@ -5686,7 +5693,7 @@ def register_direct_upload(
                 "id": f"file_{new_doc.id}",
                 "name": new_doc.title,
                 "mimeType": new_doc.mime_type,
-                "webViewLink": new_doc.google_drive_url
+                "webViewLink": f"/editor?id=file_{new_doc.id}" if is_editable else f"/api/documents/download/{new_doc.id}"
             }
         }
     except Exception as e:
@@ -5988,6 +5995,12 @@ def delete_document(
                             os.remove(doc.file_path)
                         except Exception:
                             pass
+                    if doc.r2_key:
+                        try:
+                            import r2_integration
+                            r2_integration.delete_r2_file(doc.r2_key)
+                        except Exception:
+                            pass
                     if doc.google_drive_id:
                         try:
                             import google_drive_integration
@@ -6026,6 +6039,12 @@ def delete_document(
                         os.remove(doc.file_path)
                     except Exception:
                         pass
+                if doc.r2_key:
+                    try:
+                        import r2_integration
+                        r2_integration.delete_r2_file(doc.r2_key)
+                    except Exception:
+                        pass
                 if doc.google_drive_id:
                     try:
                         import google_drive_integration
@@ -6060,35 +6079,79 @@ def download_document(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
         
+    if doc.r2_key:
+        import r2_integration
+        download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
+        return RedirectResponse(url=download_url)
+
     if doc.google_drive_id:
         import google_drive_integration
         ext = doc.title.split(".")[-1] if "." in doc.title else ""
         export_link = google_drive_integration.get_drive_export_link(doc.google_drive_id, ext)
         return RedirectResponse(url=export_link)
         
-    if not os.path.exists(doc.file_path):
-        return {"status": "error", "message": "Файл не найден на сервере"}
-        
-    mime_type = doc.mime_type
-    if not mime_type or mime_type == "application/octet-stream":
-        guessed, _ = mimetypes.guess_type(doc.file_path)
-        if guessed:
-            mime_type = guessed
+    if doc.file_path and os.path.exists(doc.file_path):
+        mime_type = doc.mime_type
+        if not mime_type or mime_type == "application/octet-stream":
+            guessed, _ = mimetypes.guess_type(doc.file_path)
+            if guessed:
+                mime_type = guessed
+                
+        encoded_filename = quote(doc.title)
+        headers = {"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
             
-    encoded_filename = quote(doc.title)
-    headers = {"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
-        
-    return FileResponse(
-        path=doc.file_path, 
-        filename=doc.title, 
-        media_type=mime_type or "application/octet-stream",
-        headers=headers
-    )
+        return FileResponse(
+            path=doc.file_path, 
+            filename=doc.title, 
+            media_type=mime_type or "application/octet-stream",
+            headers=headers
+        )
+    return {"status": "error", "message": "Файл не найден"}
 
 # ==========================================
+# ONLYOFFICE CLOUD EDITOR INTEGRATION
 # ==========================================
-# GOOGLE DOCS INTEGRATION ENDPOINTS
-# ==========================================
+
+class OnlyOfficeCallback(BaseModel):
+    status: int
+    url: Optional[str] = None
+    key: Optional[str] = None
+    users: Optional[list] = None
+
+@app.post("/api/editor/callback/{file_id}")
+async def onlyoffice_callback(file_id: int, request: Request, db: Session = Depends(get_db)):
+    """
+    Handles save events from OnlyOffice Editor.
+    When user edits and saves, OnlyOffice posts the new file URL here,
+    and we save it directly to Cloudflare R2!
+    """
+    try:
+        body = await request.json()
+        status = body.get("status")
+        download_url = body.get("url")
+
+        # Status 2 = ready for saving, Status 6 = force save
+        if status in [2, 6] and download_url:
+            doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+            if doc and doc.r2_key:
+                import requests
+                import r2_integration
+
+                # Download updated file from OnlyOffice
+                file_resp = requests.get(download_url, timeout=30)
+                if file_resp.status_code == 200:
+                    client = r2_integration.get_r2_client()
+                    client.put_object(
+                        Bucket=r2_integration.R2_BUCKET_NAME,
+                        Key=doc.r2_key,
+                        Body=file_resp.content,
+                        ContentType=doc.mime_type or "application/octet-stream"
+                    )
+
+        return {"error": 0}
+    except Exception as e:
+        print(f"OnlyOffice Callback Error for doc #{file_id}: {e}")
+        return {"error": 0}
 
 @app.get("/editor")
 def open_editor(
@@ -6120,28 +6183,180 @@ def open_editor(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
 
-    if not doc.google_drive_url and doc.file_path and os.path.exists(doc.file_path):
-        try:
-            import google_drive_integration
-            clean_title = doc.title or os.path.basename(doc.file_path)
-            parent_drive_id = get_or_create_google_drive_folder_for_category(db, doc.category_id)
-            drive_info = google_drive_integration.upload_file_to_drive(doc.file_path, clean_title, parent_drive_id=parent_drive_id)
-            if drive_info and drive_info.get("id"):
-                doc.google_drive_id = drive_info["id"]
-                doc.google_drive_url = drive_info["url"]
-                db.commit()
-                db.refresh(doc)
-        except Exception as upload_err:
-            print(f"On-demand upload to Google Drive failed for doc #{doc.id}: {upload_err}")
+    # Determine document type for OnlyOffice
+    filename = doc.title
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+    
+    doc_type = "word"
+    if ext in ["xlsx", "xls", "csv", "ods"]:
+        doc_type = "cell"
+    elif ext in ["pptx", "ppt", "odp"]:
+        doc_type = "slide"
 
-    if doc.google_drive_url:
-        return RedirectResponse(url=doc.google_drive_url)
-    
-    # Fallback to direct download/view if file exists on server
-    if doc.file_path and os.path.exists(doc.file_path):
-        return RedirectResponse(url=f"/api/documents/download/{doc.id}" + (f"?pwd={quote(actual_pwd)}" if actual_pwd else ""))
-    
-    return HTMLResponse("Файл еще не был загружен в Google Docs. Попробуйте загрузить его заново.", status_code=404)
+    # Get file download URL from R2 (or fallback)
+    import r2_integration
+    if doc.r2_key:
+        file_download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=86400)
+    else:
+        # If legacy Google drive doc, redirect directly
+        if doc.google_drive_url:
+            return RedirectResponse(url=doc.google_drive_url)
+        file_download_url = str(request.base_url).rstrip("/") + f"/api/documents/download/{doc.id}"
+
+    # OnlyOffice API Configuration
+    base_url = str(request.base_url).rstrip("/")
+    callback_url = f"{base_url}/api/editor/callback/{doc.id}"
+    user_name = request.session.get("user_name") or "Сотрудник Tectum"
+
+    # Build unique document key based on upload timestamp and id
+    import time
+    doc_key = f"doc_{doc.id}_{int(doc.uploaded_at.timestamp() if doc.uploaded_at else time.time())}"
+
+    editor_html = f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактор: {html.escape(filename)} — Tectum Enterprise</title>
+    <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+    <style>
+        html, body {{
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0f172a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }}
+        #editor-container {{
+            height: calc(100vh - 44px);
+            width: 100%;
+        }}
+        .editor-topbar {{
+            height: 44px;
+            background: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            color: #f8fafc;
+            border-bottom: 1px solid #334155;
+            box-sizing: border-box;
+        }}
+        .topbar-left {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .btn-back {{
+            background: #334155;
+            color: #f8fafc;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }}
+        .btn-back:hover {{
+            background: #475569;
+        }}
+        .doc-title {{
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #38bdf8;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        .topbar-right {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }}
+        .badge {{
+            background: #0284c7;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }}
+    </style>
+    <!-- Official OnlyOffice Cloud API -->
+    <script type="text/javascript" src="https://documentserver.onlyoffice.com/web-apps/apps/api/documents/api.js"></script>
+</head>
+<body>
+    <div class="editor-topbar">
+        <div class="topbar-left">
+            <a href="javascript:window.close()" class="btn-back" onclick="if(history.length>1){{history.back();return false;}}">← Назад в портал</a>
+            <span class="doc-title">{html.escape(filename)}</span>
+            <span class="badge">Cloudflare R2 + ONLYOFFICE</span>
+        </div>
+        <div class="topbar-right">
+            <span>Редактирование активно</span>
+        </div>
+    </div>
+    <div id="editor-container"></div>
+
+    <script>
+        const config = {{
+            document: {{
+                fileType: "{ext}",
+                key: "{doc_key}",
+                title: "{html.escape(filename)}",
+                url: "{file_download_url}",
+                permissions: {{
+                    download: true,
+                    edit: true,
+                    print: true,
+                    review: true
+                }}
+            }},
+            documentType: "{doc_type}",
+            editorConfig: {{
+                lang: "ru",
+                callbackUrl: "{callback_url}",
+                user: {{
+                    id: "user_{request.session.get('user_id') or 1}",
+                    name: "{html.escape(user_name)}"
+                }},
+                customization: {{
+                    autosave: true,
+                    forcesave: true,
+                    compactHeader: true,
+                    feedback: false,
+                    help: false,
+                    toolbarNoTabs: false
+                }}
+            }},
+            height: "100%",
+            width: "100%"
+        }};
+
+        try {{
+            new DocsAPI.DocEditor("editor-container", config);
+        }} catch(e) {{
+            console.error("OnlyOffice load error:", e);
+            document.getElementById("editor-container").innerHTML = `
+                <div style="padding: 40px; text-align: center; color: #f8fafc;">
+                    <h2>Онлайн-редактор загружается...</h2>
+                    <p style="color: #94a3b8;">Если окно не открылось автоматически, <a href="{file_download_url}" style="color: #38bdf8;">скачайте файл напрямую</a>.</p>
+                </div>
+            `;
+        }}
+    </script>
+</body>
+</html>"""
+    return HTMLResponse(content=editor_html)
 
 
 # ==========================================

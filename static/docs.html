@@ -2333,86 +2333,35 @@
             const logList = document.getElementById('upload-widget-log-list');
             if (logList) logList.innerHTML = '';
 
-            appendWidgetLog(`Старт прямой загрузки (${total} объектов) в Google Диск...`, 'info');
+            appendWidgetLog(`Старт прямой сверхбыстрой загрузки (${total} объектов) в Cloudflare R2...`, 'info');
 
-            // 1. Get Access Token and Parent Folder from Tectum API
-            let uploadTokenData = null;
-            try {
+            const concurrency = 6;
+            let currentIndex = 0;
+
+            async function uploadSingleDirectR2(file, relPath) {
+                // 1. Get Presigned PUT URL from Tectum API
                 const tokenForm = new FormData();
+                tokenForm.append('filename', file.name);
+                tokenForm.append('mime_type', file.type || 'application/octet-stream');
                 if (currentFolderId) tokenForm.append('parent_id', currentFolderId);
+                if (relPath) tokenForm.append('relative_path', relPath);
+
                 const tRes = await fetch('/api/documents/direct_upload_token', {
                     method: 'POST',
                     headers: getFolderPasswordHeader(),
                     body: tokenForm
                 });
-                uploadTokenData = await tRes.json();
-                if (uploadTokenData.status !== 'success') {
-                    throw new Error(uploadTokenData.message || 'Ошибка авторизации Google');
-                }
-            } catch (authErr) {
-                console.error(authErr);
-                appendWidgetLog(`✗ Ошибка авторизации прямого доступа Google: ${authErr.message}`, 'error');
-                showUploadWidget('Ошибка авторизации', '0 / ' + total, authErr.message, 100, false, true, currentFolderName, 'Сбой');
-                return;
-            }
-
-            const accessToken = uploadTokenData.access_token;
-            const defaultParentId = uploadTokenData.parent_drive_id;
-            const defaultCatId = uploadTokenData.category_id;
-
-            const concurrency = 6;
-            let currentIndex = 0;
-
-            async function uploadSingleDirect(file, relPath) {
-                let targetParentDriveId = defaultParentId;
-                let targetCatId = defaultCatId;
-
-                // If subfolder in batch, resolve/create folder path
-                if (relPath && relPath.includes('/')) {
-                    const tokenSubForm = new FormData();
-                    if (currentFolderId) tokenSubForm.append('parent_id', currentFolderId);
-                    tokenSubForm.append('relative_path', relPath);
-                    const subRes = await fetch('/api/documents/direct_upload_token', {
-                        method: 'POST',
-                        headers: getFolderPasswordHeader(),
-                        body: tokenSubForm
-                    });
-                    const subData = await subRes.json();
-                    if (subData.status === 'success') {
-                        targetParentDriveId = subData.parent_drive_id;
-                        targetCatId = subData.category_id;
-                    }
+                const tokenData = await tRes.json();
+                if (tokenData.status !== 'success') {
+                    throw new Error(tokenData.message || 'Ошибка генерации ссылки Cloudflare');
                 }
 
-                // Metadata for Google Drive
-                const metadata = {
-                    name: file.name,
-                    parents: targetParentDriveId ? [targetParentDriveId] : []
-                };
+                const uploadUrl = tokenData.upload_url;
+                const r2Key = tokenData.r2_key;
+                const catId = tokenData.category_id;
 
-                // Step 1: Initiate Resumable Upload on Google Drive API directly from browser
-                const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json; charset=UTF-8',
-                        'X-Upload-Content-Type': file.type || 'application/octet-stream',
-                        'X-Upload-Content-Length': file.size
-                    },
-                    body: JSON.stringify(metadata)
-                });
-
-                if (!initRes.ok) {
-                    throw new Error(`Google API Init error: ${initRes.status}`);
-                }
-
-                const resumableLocation = initRes.headers.get('Location');
-                if (!resumableLocation) {
-                    throw new Error('Google Drive не вернул Resumable Location');
-                }
-
-                // Step 2: Upload pure binary data straight from browser to Google Drive
-                const uploadRes = await fetch(resumableLocation, {
+                // 2. Direct binary PUT upload straight to Cloudflare R2 datacenter
+                const putRes = await fetch(uploadUrl, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': file.type || 'application/octet-stream'
@@ -2420,15 +2369,11 @@
                     body: file
                 });
 
-                if (!uploadRes.ok) {
-                    throw new Error(`Google Upload error: ${uploadRes.status}`);
+                if (!putRes.ok) {
+                    throw new Error(`Cloudflare Upload error: HTTP ${putRes.status}`);
                 }
 
-                const driveFile = await uploadRes.json();
-                const driveId = driveFile.id;
-                const driveUrl = driveFile.webViewLink || `https://drive.google.com/file/d/${driveId}/view`;
-
-                // Step 3: Fast registration in Tectum Database (takes 10 milliseconds)
+                // 3. Register file metadata in Tectum Database (takes 5-10ms)
                 const regRes = await fetch('/api/documents/register_direct_upload', {
                     method: 'POST',
                     headers: {
@@ -2436,9 +2381,8 @@
                     },
                     body: JSON.stringify({
                         title: file.name,
-                        category_id: targetCatId,
-                        google_drive_id: driveId,
-                        google_drive_url: driveUrl,
+                        category_id: catId,
+                        r2_key: r2Key,
                         mime_type: file.type || 'application/octet-stream'
                     })
                 });
@@ -2448,7 +2392,7 @@
                     throw new Error(regData.message || 'Ошибка сохранения в базу');
                 }
 
-                return driveFile;
+                return regData.file;
             }
 
             async function uploadWorker() {
@@ -2459,22 +2403,22 @@
                     const relPath = item.relativePath || file.webkitRelativePath || '';
                     const displayName = relPath || file.name;
 
-                    appendWidgetLog(`Прямая загрузка: ${file.name}...`, 'progress');
+                    appendWidgetLog(`Загрузка: ${file.name}...`, 'progress');
 
                     try {
-                        await uploadSingleDirect(file, relPath);
+                        await uploadSingleDirectR2(file, relPath);
                         successCount++;
-                        appendWidgetLog(`✓ Загружен в Google Диск: ${file.name}`, 'success');
+                        appendWidgetLog(`✓ Сохранен в Cloudflare R2: ${file.name}`, 'success');
                     } catch (error) {
                         console.error('Ошибка прямой загрузки:', file.name, error);
                         errorCount++;
-                        appendWidgetLog(`✗ Сбой загрузки: ${file.name} (${error.message})`, 'error');
+                        appendWidgetLog(`✗ Сбой: ${file.name} (${error.message})`, 'error');
                     }
 
                     completedCount++;
                     const pct = Math.round((completedCount / total) * 100);
                     showUploadWidget(
-                        isFolderMode ? 'Прямая загрузка папки...' : (total === 1 ? 'Прямая загрузка файла...' : 'Пакетная прямая загрузка...'), 
+                        isFolderMode ? 'Прямая загрузка папки...' : (total === 1 ? 'Прямая загрузка файла...' : 'Пакетная загрузка в Cloudflare...'), 
                         `${completedCount} / ${total} (${pct}%)`, 
                         displayName, 
                         pct,
@@ -2498,8 +2442,8 @@
             if (isFolderMode) loadSidebarTree();
             
             if (errorCount === 0) {
-                appendWidgetLog(`Все ${successCount} объектов моментально загружены в Google Диск!`, 'success');
-                showUploadWidget('Прямая загрузка завершена!', `${successCount} / ${total} (100%)`, `Все объекты (${successCount} шт.) сохранены в Google Диск`, 100, true, false, currentFolderName, 'Готово');
+                appendWidgetLog(`Все ${successCount} объектов успешно сохранены в Cloudflare R2!`, 'success');
+                showUploadWidget('Загрузка завершена!', `${successCount} / ${total} (100%)`, `Все объекты (${successCount} шт.) в Cloudflare R2`, 100, true, false, currentFolderName, 'Готово');
                 showToast(total === 1 ? 'Файл успешно загружен' : `Загружено объектов: ${successCount}`);
             } else {
                 appendWidgetLog(`Завершено с ошибками. Успешно: ${successCount}, Ошибок: ${errorCount}`, 'error');

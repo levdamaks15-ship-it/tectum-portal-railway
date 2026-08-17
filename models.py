@@ -285,11 +285,12 @@ class Document(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     category_id = Column(Integer, ForeignKey("document_categories.id"))
-    file_path = Column(String)
+    file_path = Column(String, nullable=True)
     mime_type = Column(String, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
     google_drive_id = Column(String, nullable=True)
     google_drive_url = Column(String, nullable=True)
+    r2_key = Column(String, nullable=True) # Key in Cloudflare R2 bucket
 
 class Task(Base):
     __tablename__ = "tasks"
