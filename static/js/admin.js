@@ -1903,3 +1903,29 @@ async function clearPassword(catId) {
         console.error(e);
     }
 }
+
+async function syncFoldersToDrive() {
+    const btn = document.getElementById('btn-sync-drive');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка в Drive...';
+    }
+    try {
+        const res = await fetch('/api/documents/sync-folders-to-drive', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            alert(`Успешно синхронизировано!\nПапок выгружено/проверено: ${data.folders_count}\nФайлов синхронизировано: ${data.docs_synced ? data.docs_synced.length : 0}`);
+        } else {
+            alert('Ошибка синхронизации: ' + data.message);
+        }
+    } catch (e) {
+        alert('Ошибка соединения с сервером');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+

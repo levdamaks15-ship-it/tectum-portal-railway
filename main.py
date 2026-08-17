@@ -617,16 +617,19 @@ async def lifespan(app: FastAPI):
             try:
                 # 1. Sync all folder categories to Google Drive
                 all_categories = db_docs.query(models.DocumentCategory).all()
+                print(f"[STARTUP] Starting auto-sync for {len(all_categories)} categories to Google Drive...")
                 for cat in all_categories:
                     try:
-                        get_or_create_google_drive_folder_for_category(db_docs, cat.id)
+                        f_id = get_or_create_google_drive_folder_for_category(db_docs, cat.id)
+                        print(f"[STARTUP] Synced category #{cat.id} ('{cat.name}') -> Drive ID: {f_id}")
                     except Exception as cat_sync_err:
-                        print(f"Could not auto-sync folder category #{cat.id} ('{cat.name}') to Google Drive: {cat_sync_err}")
+                        print(f"[STARTUP ERROR] Could not auto-sync folder category #{cat.id} ('{cat.name}') to Google Drive: {cat_sync_err}")
 
                 # 2. Sync all documents missing Google Drive URLs
                 unmigrated_docs = db_docs.query(models.Document).filter(
                     (models.Document.google_drive_url == None) | (models.Document.google_drive_url == "")
                 ).all()
+                print(f"[STARTUP] Found {len(unmigrated_docs)} unmigrated documents.")
                 if unmigrated_docs:
                     import google_drive_integration
                     for u_doc in unmigrated_docs:
@@ -5456,6 +5459,42 @@ def verify_document_password(req: VerifyPasswordRequest, db: Session = Depends(g
         if protected_folder.password_hash == hashed_pwd:
             return {"status": "success"}
         return {"status": "error", "message": "Неверный пароль"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/documents/sync-folders-to-drive")
+def manual_sync_folders_to_drive(db: Session = Depends(get_db)):
+    """Принудительная выгрузка всех папок и файлов из базы Tectum в Google Drive"""
+    try:
+        import google_drive_integration
+        all_categories = db.query(models.DocumentCategory).all()
+        synced_folders = []
+        for cat in all_categories:
+            # Force find or create in Drive
+            f_id = get_or_create_google_drive_folder_for_category(db, cat.id)
+            synced_folders.append({"id": cat.id, "name": cat.name, "drive_id": f_id})
+            
+        unmigrated_docs = db.query(models.Document).filter(
+            (models.Document.google_drive_url == None) | (models.Document.google_drive_url == "")
+        ).all()
+        synced_docs = []
+        for u_doc in unmigrated_docs:
+            if u_doc.file_path and os.path.exists(u_doc.file_path):
+                clean_t = u_doc.title or os.path.basename(u_doc.file_path)
+                parent_drive_id = get_or_create_google_drive_folder_for_category(db, u_doc.category_id)
+                d_info = google_drive_integration.upload_file_to_drive(u_doc.file_path, clean_t, parent_drive_id=parent_drive_id)
+                if d_info and d_info.get("id"):
+                    u_doc.google_drive_id = d_info["id"]
+                    u_doc.google_drive_url = d_info["url"]
+                    db.commit()
+                    synced_docs.append(clean_t)
+
+        return {
+            "status": "success", 
+            "folders_count": len(synced_folders), 
+            "folders": synced_folders,
+            "docs_synced": synced_docs
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

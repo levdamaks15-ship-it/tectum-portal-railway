@@ -2475,6 +2475,23 @@
             document.getElementById('new-folder-name').value = '';
         }
 
+        async function triggerSyncWithDrive() {
+            hideCreateDropdown();
+            showToast('Синхронизация структуры с Google Диском...', 'info');
+            try {
+                const res = await fetch('/api/documents/sync-folders-to-drive', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(`Синхронизировано: ${data.folders_count} папок`);
+                    loadSidebarTree();
+                } else {
+                    alert('Ошибка синхронизации: ' + data.message);
+                }
+            } catch (err) {
+                alert('Ошибка соединения с сервером при синхронизации');
+            }
+        }
+
         async function createFolder() {
             let requiresPassword = currentFolderProtected;
             if (!currentFolderId) {
