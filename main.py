@@ -197,6 +197,7 @@ async def lifespan(app: FastAPI):
         conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255)")
         conn.execute("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR")
+        conn.execute("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255)")
         conn.commit()
         conn.close()
     except: pass
@@ -213,8 +214,15 @@ async def lifespan(app: FastAPI):
                 db.execute(text("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255);"))
                 db.execute(text("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR;"))
                 db.commit()
+                
+            cat_col_exists = db.execute(text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='document_categories' AND column_name='google_drive_folder_id'"
+            )).fetchone()
+            if not cat_col_exists:
+                db.execute(text("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255);"))
+                db.commit()
     except Exception as e:
-        print(f"Warning: could not migrate documents google_drive columns: {e}")
+        print(f"Warning: could not migrate documents/categories google_drive columns: {e}")
         if 'db' in locals() and db:
             db.rollback()
     finally:
@@ -616,7 +624,8 @@ async def lifespan(app: FastAPI):
                         if u_doc.file_path and os.path.exists(u_doc.file_path):
                             try:
                                 clean_t = u_doc.title or os.path.basename(u_doc.file_path)
-                                d_info = google_drive_integration.upload_file_to_drive(u_doc.file_path, clean_t)
+                                parent_drive_id = get_or_create_google_drive_folder_for_category(db_docs, u_doc.category_id)
+                                d_info = google_drive_integration.upload_file_to_drive(u_doc.file_path, clean_t, parent_drive_id=parent_drive_id)
                                 if d_info and d_info.get("id"):
                                     u_doc.google_drive_id = d_info["id"]
                                     u_doc.google_drive_url = d_info["url"]
@@ -5479,11 +5488,48 @@ def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: R
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str):
-    """Фоновая выгрузка файла в Google Drive с обновлением ID и URL в БД"""
+def get_or_create_google_drive_folder_for_category(db: Session, cat_id: Optional[int]) -> Optional[str]:
+    """
+    Recursively ensures that the folder hierarchy exists in Google Drive
+    and returns the google_drive_folder_id for the given category.
+    """
+    if not cat_id:
+        return os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        
+    category = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
+    if not category:
+        return os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+        
+    if category.google_drive_folder_id:
+        return category.google_drive_folder_id
+        
+    # Get or create parent drive folder
+    parent_drive_id = get_or_create_google_drive_folder_for_category(db, category.parent_id)
+    
     try:
         import google_drive_integration
-        drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title)
+        drive_folder_id = google_drive_integration.get_or_create_drive_folder(category.name, parent_drive_id)
+        if drive_folder_id:
+            category.google_drive_folder_id = drive_folder_id
+            db.commit()
+            return drive_folder_id
+    except Exception as e:
+        print(f"Failed to create Google Drive folder for '{category.name}': {e}")
+        
+    return os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+
+def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id: Optional[int] = None):
+    """Фоновая выгрузка файла в Google Drive с обновлением ID и URL в БД и сохранением структуры папок"""
+    try:
+        import google_drive_integration
+        bg_db = database.SessionLocal()
+        parent_drive_id = None
+        try:
+            parent_drive_id = get_or_create_google_drive_folder_for_category(bg_db, cat_id)
+        finally:
+            bg_db.close()
+
+        drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title, parent_drive_id=parent_drive_id)
         if drive_info and drive_info.get("id"):
             bg_db = database.SessionLocal()
             try:
@@ -5554,8 +5600,8 @@ async def upload_document(
         db.commit()
         db.refresh(new_doc)
         
-        # Schedule Google Drive upload in background
-        background_tasks.add_task(upload_doc_to_drive_bg, new_doc.id, file_path, clean_title)
+        # Schedule Google Drive upload in background with folder structure
+        background_tasks.add_task(upload_doc_to_drive_bg, new_doc.id, file_path, clean_title, cat_id)
         
         return {"status": "success", "file": {
             "id": f"file_{new_doc.id}",
@@ -5594,6 +5640,12 @@ def create_document_folder(
         db.add(new_folder)
         db.commit()
         db.refresh(new_folder)
+
+        # Create folder in Google Drive too
+        try:
+            get_or_create_google_drive_folder_for_category(db, new_folder.id)
+        except Exception as e:
+            print(f"Background Google Drive folder create failed: {e}")
         
         return {"status": "success", "folder": {
             "id": f"folder_{new_folder.id}",
@@ -5637,7 +5689,8 @@ def create_google_doc_endpoint(
             full_title = clean_title
             mime_type = "application/vnd.google-apps.document"
 
-        drive_info = google_drive_integration.create_google_file(full_title, doc_type=doc_type)
+        parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
+        drive_info = google_drive_integration.create_google_file(full_title, doc_type=doc_type, parent_drive_id=parent_drive_id)
         
         # Save document in DB
         new_doc = models.Document(
@@ -5745,18 +5798,60 @@ def delete_document(
             cat_id = int(item_id.split("_")[1])
             folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
             if folder:
-                has_subfolders = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == folder.id).first()
-                has_files = db.query(models.Document).filter(models.Document.category_id == folder.id).first()
-                if has_subfolders or has_files:
-                    return {"status": "error", "message": "Невозможно удалить: папка не пуста"}
-                db.delete(folder)
+                # Recursive cascade delete for folder and all subfolders/files
+                def collect_folder_ids_recursive(f_id: int) -> list[int]:
+                    ids = [f_id]
+                    children = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == f_id).all()
+                    for ch in children:
+                        ids.extend(collect_folder_ids_recursive(ch.id))
+                    return ids
+
+                all_cat_ids = collect_folder_ids_recursive(folder.id)
+                
+                # Find all files inside these folders and delete them from disk & Google Drive
+                docs_to_delete = db.query(models.Document).filter(models.Document.category_id.in_(all_cat_ids)).all()
+                for doc in docs_to_delete:
+                    if doc.file_path and os.path.exists(doc.file_path):
+                        try:
+                            os.remove(doc.file_path)
+                        except Exception:
+                            pass
+                    if doc.google_drive_id:
+                        try:
+                            import google_drive_integration
+                            google_drive_integration.delete_drive_file(doc.google_drive_id)
+                        except Exception:
+                            pass
+                    db.delete(doc)
+                
+                # Delete folders in reverse order (children first)
+                for c_id in reversed(all_cat_ids):
+                    f_obj = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == c_id).first()
+                    if f_obj:
+                        if f_obj.google_drive_folder_id:
+                            try:
+                                import google_drive_integration
+                                google_drive_integration.delete_drive_file(f_obj.google_drive_folder_id)
+                            except Exception:
+                                pass
+                        db.delete(f_obj)
+                        
                 db.commit()
         elif item_id.startswith("file_"):
             file_id = int(item_id.split("_")[1])
             doc = db.query(models.Document).filter(models.Document.id == file_id).first()
             if doc:
-                if os.path.exists(doc.file_path):
-                    os.remove(doc.file_path)
+                if doc.file_path and os.path.exists(doc.file_path):
+                    try:
+                        os.remove(doc.file_path)
+                    except Exception:
+                        pass
+                if doc.google_drive_id:
+                    try:
+                        import google_drive_integration
+                        google_drive_integration.delete_drive_file(doc.google_drive_id)
+                    except Exception:
+                        pass
                 db.delete(doc)
                 db.commit()
                 
@@ -5849,7 +5944,8 @@ def open_editor(
         try:
             import google_drive_integration
             clean_title = doc.title or os.path.basename(doc.file_path)
-            drive_info = google_drive_integration.upload_file_to_drive(doc.file_path, clean_title)
+            parent_drive_id = get_or_create_google_drive_folder_for_category(db, doc.category_id)
+            drive_info = google_drive_integration.upload_file_to_drive(doc.file_path, clean_title, parent_drive_id=parent_drive_id)
             if drive_info and drive_info.get("id"):
                 doc.google_drive_id = drive_info["id"]
                 doc.google_drive_url = drive_info["url"]

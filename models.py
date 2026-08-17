@@ -278,6 +278,7 @@ class DocumentCategory(Base):
     name = Column(String)
     parent_id = Column(Integer, ForeignKey("document_categories.id"), nullable=True)
     password_hash = Column(String, nullable=True)
+    google_drive_folder_id = Column(String, nullable=True)
 
 class Document(Base):
     __tablename__ = "documents"

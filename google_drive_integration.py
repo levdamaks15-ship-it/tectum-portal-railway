@@ -28,9 +28,52 @@ def get_drive_service():
     
     return build("drive", "v3", credentials=creds)
 
-def upload_file_to_drive(file_path: str, title: str) -> dict:
+def get_or_create_drive_folder(folder_name: str, parent_id: str = None) -> str:
     """
-    Uploads a file to Google Drive.
+    Finds or creates a folder in Google Drive by name under a given parent_id.
+    """
+    service = get_drive_service()
+    base_parent = parent_id or os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    
+    query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
+    if base_parent:
+        query += f" and '{base_parent}' in parents"
+        
+    results = service.files().list(
+        q=query,
+        spaces='drive',
+        fields='files(id, name)'
+    ).execute()
+    files = results.get('files', [])
+    
+    if files:
+        return files[0]['id']
+        
+    file_metadata = {
+        'name': folder_name,
+        'mimeType': 'application/vnd.google-apps.folder'
+    }
+    if base_parent:
+        file_metadata['parents'] = [base_parent]
+        
+    folder = service.files().create(
+        body=file_metadata,
+        fields='id'
+    ).execute()
+    
+    return folder.get('id')
+
+def delete_drive_file(file_id: str):
+    """Deletes or trashes a file/folder in Google Drive"""
+    try:
+        service = get_drive_service()
+        service.files().delete(fileId=file_id).execute()
+    except Exception as e:
+        print(f"Error deleting Google Drive item {file_id}: {e}")
+
+def upload_file_to_drive(file_path: str, title: str, parent_drive_id: str = None) -> dict:
+    """
+    Uploads a file to Google Drive under parent_drive_id or root GOOGLE_DRIVE_FOLDER_ID.
     Automatically converts Word and Excel files to Google native formats.
     Sets 'writer' permission for anyone with the link.
     Returns a dict with 'id' and 'webViewLink'.
@@ -52,9 +95,9 @@ def upload_file_to_drive(file_path: str, title: str) -> dict:
     if target_mime_type:
         file_metadata['mimeType'] = target_mime_type
         
-    folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-    if folder_id:
-        file_metadata['parents'] = [folder_id]
+    target_parent = parent_drive_id or os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    if target_parent:
+        file_metadata['parents'] = [target_parent]
         
     media = MediaFileUpload(file_path, resumable=True)
     
@@ -83,7 +126,7 @@ def upload_file_to_drive(file_path: str, title: str) -> dict:
         "url": file.get('webViewLink')
     }
 
-def create_google_file(title: str, doc_type: str = "document") -> dict:
+def create_google_file(title: str, doc_type: str = "document", parent_drive_id: str = None) -> dict:
     """
     Creates a new empty Google Doc or Google Sheet in Google Drive.
     doc_type: 'document' (Docs) or 'spreadsheet' (Sheets)
@@ -97,9 +140,9 @@ def create_google_file(title: str, doc_type: str = "document") -> dict:
         'mimeType': mime_type
     }
     
-    folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-    if folder_id:
-        file_metadata['parents'] = [folder_id]
+    target_parent = parent_drive_id or os.getenv("GOOGLE_DRIVE_FOLDER_ID")
+    if target_parent:
+        file_metadata['parents'] = [target_parent]
         
     file = service.files().create(
         body=file_metadata,
