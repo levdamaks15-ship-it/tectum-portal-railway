@@ -6443,6 +6443,7 @@ def open_editor(
 
     <script>
         const docId = {doc.id};
+        const pwdParam = "{actual_pwd or ''}";
         const fileName = "{html.escape(filename)}";
         const isSheet = {'true' if is_sheet else 'false'};
         const isDoc = {'true' if is_doc else 'false'};
@@ -6474,7 +6475,8 @@ def open_editor(
         }}
 
         function downloadOriginal() {{
-            window.location.href = `/api/documents/download/${{docId}}`;
+            const url = `/api/documents/download/${{docId}}` + (pwdParam ? `?pwd=${{encodeURIComponent(pwdParam)}}` : '');
+            window.location.href = url;
         }}
 
         // Save Function
@@ -6532,8 +6534,10 @@ def open_editor(
                 }}
 
                 if (blobData) {{
-                    const res = await fetch(`/api/documents/save_content/${{docId}}`, {{
+                    const saveUrl = `/api/documents/save_content/${{docId}}` + (pwdParam ? `?pwd=${{encodeURIComponent(pwdParam)}}` : '');
+                    const res = await fetch(saveUrl, {{
                         method: 'POST',
+                        headers: pwdParam ? {{ 'X-Folder-Password': pwdParam }} : {{}},
                         body: blobData
                     }});
                     const data = await res.json();
@@ -6581,12 +6585,14 @@ def open_editor(
         // Initialize and Load Document
         async function loadDocument() {{
             try {{
-                const rawUrl = `/api/documents/raw/${{docId}}`;
+                const rawUrl = `/api/documents/raw/${{docId}}` + (pwdParam ? `?pwd=${{encodeURIComponent(pwdParam)}}` : '');
                 
                 if (isSheet) {{
                     // Fetch raw binary from R2
-                    const response = await fetch(rawUrl);
-                    if (!response.ok) throw new Error('Не удалось загрузить файл из R2');
+                    const response = await fetch(rawUrl, {{
+                        headers: pwdParam ? {{ 'X-Folder-Password': pwdParam }} : {{}}
+                    }});
+                    if (!response.ok) throw new Error('Не удалось загрузить файл из R2 (код ' + response.status + ')');
                     const arrayBuffer = await response.arrayBuffer();
                     
                     // Transform to Luckysheet
@@ -6688,7 +6694,9 @@ def open_editor(
                         setStatus('Готов к редактированию', '#22c55e');
                     }});
                 }} else if (isDoc) {{
-                    const response = await fetch(rawUrl);
+                    const response = await fetch(rawUrl, {{
+                        headers: pwdParam ? {{ 'X-Folder-Password': pwdParam }} : {{}}
+                    }});
                     const blob = await response.blob();
                     const container = document.getElementById('word-body');
                     
