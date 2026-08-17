@@ -6237,8 +6237,10 @@ def open_editor(
                         db.rollback()
 
     if doc.koofr_path:
+        import posixpath
         from urllib.parse import quote
-        direct_url = f"https://app.koofr.net/app/admin/files#{quote(doc.koofr_path)}"
+        parent_dir = posixpath.dirname(doc.koofr_path) or "/Tectum"
+        direct_url = f"https://app.koofr.net/app/admin/files#{quote(parent_dir)}"
         return RedirectResponse(url=direct_url, status_code=302)
     elif doc.koofr_link:
         return RedirectResponse(url=doc.koofr_link, status_code=302)
