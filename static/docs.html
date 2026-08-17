@@ -349,6 +349,12 @@
             padding: 1.8rem;
             background: var(--docs-bg);
             min-width: 0;
+            position: relative;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
         }
 
         .top-bar {
@@ -1263,6 +1269,15 @@
                     <option value="name_asc">По имени (А-Я)</option>
                     <option value="name_desc">По имени (Я-А)</option>
                 </select>
+            </div>
+        </div>
+
+        <!-- Drag and Drop Overlay Indicator -->
+        <div id="drag-drop-overlay" style="display: none; position: absolute; inset: 0; background: rgba(37, 99, 235, 0.15); border: 2px dashed #3b82f6; border-radius: 12px; z-index: 1000; pointer-events: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px); transition: all 0.2s ease;">
+            <div style="background: var(--docs-panel-bg, #1e293b); padding: 1.5rem 2.5rem; border-radius: 16px; border: 1px solid #3b82f6; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3); display: flex; flex-direction: column; align-items: center; gap: 0.8rem; text-align: center;">
+                <i class="fas fa-cloud-arrow-up" style="font-size: 3rem; color: #3b82f6; animation: bounce 1s infinite alternate;"></i>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--docs-text-primary, #fff);">Перетащите файлы или папки сюда</div>
+                <div style="font-size: 0.85rem; color: var(--docs-text-secondary, #94a3b8);">Они будут загружены в текущую директорию</div>
             </div>
         </div>
 
@@ -2258,28 +2273,24 @@
                 showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true);
             }
 
-            event.target.value = '';
-        }
+        async function uploadFilesBatch(fileItems, isFolderMode = false) {
+            if (!fileItems || fileItems.length === 0) return;
+            if (!await ensurePassword(currentFolderProtected)) return;
 
-        async function handleFolderUpload(event) {
-            if (!await ensurePassword(currentFolderProtected)) {
-                event.target.value = '';
-                return;
-            }
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
-
-            const total = files.length;
+            const total = fileItems.length;
             let successCount = 0;
             let errorCount = 0;
 
             for (let i = 0; i < total; i++) {
-                const file = files[i];
+                const item = fileItems[i];
+                const file = item.file || item;
+                const relPath = item.relativePath || file.webkitRelativePath || '';
                 const pct = Math.round(((i) / total) * 100);
+                
                 showUploadWidget(
-                    'Загрузка папки...', 
+                    isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...'), 
                     `${i} / ${total} (${pct}%)`, 
-                    file.webkitRelativePath || file.name, 
+                    relPath || file.name, 
                     pct
                 );
 
@@ -2290,8 +2301,8 @@
                     formData.append('parent_id', currentFolderId);
                 }
                 
-                if (file.webkitRelativePath) {
-                    formData.append('relative_path', file.webkitRelativePath);
+                if (relPath) {
+                    formData.append('relative_path', relPath);
                 }
 
                 try {
@@ -2307,31 +2318,131 @@
                         errorCount++;
                     }
                 } catch (error) {
-                    console.error('Ошибка загрузки файла:', file.name, error);
+                    console.error('Ошибка загрузки:', file.name, error);
                     errorCount++;
                 }
 
                 const endPct = Math.round(((i + 1) / total) * 100);
                 showUploadWidget(
-                    'Загрузка папки...', 
+                    isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...'), 
                     `${i + 1} / ${total} (${endPct}%)`, 
-                    file.webkitRelativePath || file.name, 
+                    relPath || file.name, 
                     endPct
                 );
             }
-            
+
             docsCache.clear();
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
-            loadSidebarTree();
+            if (isFolderMode) loadSidebarTree();
             
             if (errorCount === 0) {
-                showUploadWidget('Папка загружена!', `${successCount} / ${total} (100%)`, `Все файлы (${successCount} шт.) сохранены`, 100, true);
-                showToast(`Папка успешно загружена (${successCount} файлов)`);
+                showUploadWidget('Загрузка завершена!', `${successCount} / ${total} (100%)`, `Все объекты (${successCount} шт.) успешно сохранены`, 100, true);
+                showToast(total === 1 ? 'Файл успешно загружен' : `Загружено объектов: ${successCount}`);
             } else {
                 showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true);
             }
-            
+        }
+
+        async function handleFileUpload(event) {
+            const files = Array.from(event.target.files || []);
+            await uploadFilesBatch(files, false);
             event.target.value = '';
+        }
+
+        async function handleFolderUpload(event) {
+            const files = Array.from(event.target.files || []).map(f => ({
+                file: f,
+                relativePath: f.webkitRelativePath
+            }));
+            await uploadFilesBatch(files, true);
+            event.target.value = '';
+        }
+
+        /* Drag & Drop Support for Files and Folders */
+        let dragCounter = 0;
+
+        async function scanFilesAndFolders(items) {
+            const result = [];
+            
+            async function traverseFileTree(item, path = '') {
+                if (item.isFile) {
+                    const file = await new Promise((resolve) => item.file(resolve));
+                    result.push({
+                        file: file,
+                        relativePath: path ? `${path}/${file.name}` : ''
+                    });
+                } else if (item.isDirectory) {
+                    const dirReader = item.createReader();
+                    const entries = await new Promise((resolve) => {
+                        dirReader.readEntries(resolve);
+                    });
+                    for (const entry of entries) {
+                        await traverseFileTree(entry, path ? `${path}/${item.name}` : item.name);
+                    }
+                }
+            }
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.webkitGetAsEntry) {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) {
+                        await traverseFileTree(entry);
+                    }
+                } else if (item.getAsFile) {
+                    const file = item.getAsFile();
+                    if (file) result.push({ file: file, relativePath: '' });
+                }
+            }
+            return result;
+        }
+
+        function initDragAndDrop() {
+            const dropArea = document.getElementById('main-content-area');
+            const overlay = document.getElementById('drag-drop-overlay');
+            if (!dropArea || !overlay) return;
+
+            window.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                dragCounter++;
+                if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+                    overlay.style.display = 'flex';
+                }
+            });
+
+            window.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dragCounter--;
+                if (dragCounter <= 0) {
+                    dragCounter = 0;
+                    overlay.style.display = 'none';
+                }
+            });
+
+            window.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) {
+                    e.dataTransfer.dropEffect = 'copy';
+                }
+            });
+
+            window.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                dragCounter = 0;
+                overlay.style.display = 'none';
+
+                if (!e.dataTransfer) return;
+
+                const items = e.dataTransfer.items;
+                if (items && items.length > 0) {
+                    const scanned = await scanFilesAndFolders(items);
+                    const isFolder = scanned.some(s => s.relativePath !== '');
+                    await uploadFilesBatch(scanned, isFolder);
+                } else if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const files = Array.from(e.dataTransfer.files);
+                    await uploadFilesBatch(files, false);
+                }
+            });
         }
 
         async function deleteItem(itemId, event, isProtected = false) {
@@ -2472,6 +2583,7 @@
             initTheme();
             loadDocuments();
             loadSidebarTree();
+            initDragAndDrop();
         });
     </script>
 </body>
