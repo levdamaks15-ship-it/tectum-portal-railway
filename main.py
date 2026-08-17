@@ -5599,11 +5599,11 @@ def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id
 
 @app.post("/api/documents/upload")
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     parent_id: Optional[str] = Form(None),
     relative_path: Optional[str] = Form(None),
     x_folder_password: Optional[str] = Header(None),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
     try:
