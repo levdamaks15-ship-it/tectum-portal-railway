@@ -672,6 +672,22 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    def bg_google_sync_init():
+        db = SessionLocal()
+        try:
+            if os.getenv("GOOGLE_SPREADSHEET_ID") and not os.getenv("GOOGLE_SPREADSHEET_ID").startswith("1_mock"):
+                google_sheets_integration.sync_report_to_google_sheets(db)
+                google_sheets_integration.export_receipt_to_google_sheets(db)
+                google_sheets_integration.export_current_balance_to_google_sheets(db)
+                google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+                print("Initial Google Sheets sync completed on startup.")
+        except Exception as e:
+            print(f"Error running initial Google Sheets sync on startup: {e}")
+        finally:
+            db.close()
+
+    threading.Thread(target=bg_google_sync_init, daemon=True).start()
+
     yield
 
 app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan)
@@ -1907,29 +1923,31 @@ def sync_sharepoint_report_bg():
         except Exception as local_err:
             print(f"Error saving local excel: {local_err}")
             
-        try:
-            m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
-        except Exception as sp_err:
-            db.add(models.AuditLog(
-                user_name="System Background Sync",
-                action="ERROR",
-                target_table="shifts",
-                target_id=0,
-                details=f"Ошибка загрузки сводного отчета в SharePoint: {str(sp_err)}"
-            ))
-            db.commit()
-            raise sp_err
+        if os.getenv("M365_TENANT_ID"):
+            try:
+                m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+            except Exception as sp_err:
+                db.add(models.AuditLog(
+                    user_name="System Background Sync",
+                    action="ERROR",
+                    target_table="shifts",
+                    target_id=0,
+                    details=f"Ошибка загрузки сводного отчета в SharePoint: {str(sp_err)}"
+                ))
+                db.commit()
             
         try:
             # Запускаем синхронизацию с Google Таблицами
             google_sheets_integration.sync_report_to_google_sheets(db)
             google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+            google_sheets_integration.export_receipt_to_google_sheets(db)
+            google_sheets_integration.export_current_balance_to_google_sheets(db)
             db.add(models.AuditLog(
                 user_name="System Background Sync",
                 action="UPDATE",
                 target_table="shifts",
                 target_id=0,
-                details="Сводный отчет и Отчет СКК успешно синхронизированы с Google Таблицами в фоновом режиме."
+                details="Сводный отчет, остатки сырья и Отчет СКК успешно синхронизированы с Google Таблицами в фоновом режиме."
             ))
             db.commit()
         except Exception as gs_err:
@@ -1941,7 +1959,6 @@ def sync_sharepoint_report_bg():
                 details=f"Ошибка синхронизации с Google Таблицами: {str(gs_err)}"
             ))
             db.commit()
-            raise gs_err
     except Exception as e:
         print(f"Error in SharePoint/Google background sync: {e}")
     finally:
