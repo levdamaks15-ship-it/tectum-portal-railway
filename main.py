@@ -5645,26 +5645,45 @@ async def upload_document(
             
         clean_title = os.path.basename(file.filename.replace("\\", "/"))
         
+        # Fast direct upload to Google Drive
+        drive_file_id = None
+        drive_file_url = None
+        try:
+            import google_drive_integration
+            parent_drive_id = get_or_create_google_drive_folder_for_category(db, cat_id)
+            drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title, parent_drive_id=parent_drive_id)
+            if drive_info and drive_info.get("id"):
+                drive_file_id = drive_info["id"]
+                drive_file_url = drive_info["url"]
+        except Exception as drive_err:
+            print(f"Upload to Google Drive failed for {clean_title}: {drive_err}")
+
+        # Clean up local temporary file on Railway to save disk space if uploaded to Drive
+        stored_path = file_path
+        if drive_file_id and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                stored_path = None
+            except Exception:
+                pass
+
         new_doc = models.Document(
             title=clean_title,
             category_id=cat_id,
-            file_path=file_path,
+            file_path=stored_path,
             mime_type=file.content_type,
-            google_drive_id=None,
-            google_drive_url=None
+            google_drive_id=drive_file_id,
+            google_drive_url=drive_file_url
         )
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)
-        
-        # Schedule Google Drive upload asynchronously in background
-        background_tasks.add_task(upload_doc_to_drive_bg, new_doc.id, file_path, clean_title, cat_id)
 
         return {"status": "success", "file": {
             "id": f"file_{new_doc.id}",
             "name": new_doc.title,
             "mimeType": new_doc.mime_type,
-            "webViewLink": f"/editor?id=file_{new_doc.id}" if is_editable_doc(clean_title) else f"/api/documents/download/{new_doc.id}"
+            "webViewLink": new_doc.google_drive_url if new_doc.google_drive_url else (f"/editor?id=file_{new_doc.id}" if is_editable_doc(clean_title) else f"/api/documents/download/{new_doc.id}")
         }}
     except Exception as e:
         return {"status": "error", "message": str(e)}
