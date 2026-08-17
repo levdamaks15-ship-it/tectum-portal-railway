@@ -1626,15 +1626,27 @@
                 const res = await fetch('/api/documents/tree');
                 const data = await res.json();
                 if (data.status === 'success') {
-                    const folders = data.data;
+                    const folders = data.data.folders || (Array.isArray(data.data) ? data.data : []);
+                    const files = data.data.files || [];
                     const sidebar = document.getElementById('sidebar-folders');
                     sidebar.innerHTML = '';
                     
                     const folderMap = {};
                     const rootFolders = [];
+                    const rootFiles = [];
+
                     folders.forEach(f => {
                         f.children = [];
+                        f.files = [];
                         folderMap[f.id] = f;
+                    });
+
+                    files.forEach(f => {
+                        if (f.parent_id && folderMap[f.parent_id]) {
+                            folderMap[f.parent_id].files.push(f);
+                        } else {
+                            rootFiles.push(f);
+                        }
                     });
                     
                     folders.forEach(f => {
@@ -1648,10 +1660,43 @@
                     rootFolders.forEach(root => {
                         sidebar.appendChild(renderTreeNode(root));
                     });
+
+                    rootFiles.forEach(rf => {
+                        sidebar.appendChild(renderTreeFileNode(rf));
+                    });
                 }
             } catch (error) {
                 console.error("Tree load error:", error);
             }
+        }
+
+        function renderTreeFileNode(file) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'folder-item-wrapper';
+            
+            const spacer = document.createElement('div');
+            spacer.className = 'folder-tree-toggle';
+            spacer.style.visibility = 'hidden';
+            
+            const item = document.createElement('div');
+            item.className = 'folder-item-tree';
+            
+            const iconInfo = getFileIcon(file.mimeType, file.name);
+            const viewUrl = getWebViewLink(file);
+            const lockIcon = file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
+            
+            item.innerHTML = `<i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</span>${lockIcon}`;
+            
+            item.onclick = (e) => {
+                if (window.innerWidth <= 900) {
+                    toggleDocsSidebar(false);
+                }
+                openFileLink(viewUrl, file.is_protected, e);
+            };
+            
+            wrapper.appendChild(spacer);
+            wrapper.appendChild(item);
+            return wrapper;
         }
 
         function renderTreeNode(folder) {
@@ -1660,9 +1705,11 @@
             const header = document.createElement('div');
             header.className = 'folder-item-wrapper';
             
+            const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
+            
             const toggle = document.createElement('div');
             toggle.className = 'folder-tree-toggle';
-            if (folder.children && folder.children.length > 0) {
+            if (hasChildren) {
                 toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
             } else {
                 toggle.innerHTML = '';
@@ -1689,7 +1736,7 @@
             
             toggle.onclick = (e) => {
                 e.stopPropagation();
-                if (folder.children && folder.children.length > 0) {
+                if (hasChildren) {
                     if (expandedFolders.has(folder.id)) {
                         expandedFolders.delete(folder.id);
                         childrenContainer.classList.remove('expanded');
@@ -1710,7 +1757,7 @@
                 
                 document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
-                if (folder.children && folder.children.length > 0) {
+                if (hasChildren) {
                     childrenContainer.classList.add('expanded');
                     toggle.classList.add('expanded');
                 }
@@ -1731,6 +1778,15 @@
                 folder.children.forEach(child => {
                     childrenContainer.appendChild(renderTreeNode(child));
                 });
+            }
+
+            if (folder.files && folder.files.length > 0) {
+                folder.files.forEach(f => {
+                    childrenContainer.appendChild(renderTreeFileNode(f));
+                });
+            }
+
+            if (hasChildren) {
                 wrapper.appendChild(childrenContainer);
             }
             

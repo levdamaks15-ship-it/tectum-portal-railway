@@ -5400,7 +5400,20 @@ def get_documents_tree(db: Session = Depends(get_db)):
                 "parent_id": f"folder_{f.parent_id}" if f.parent_id else None,
                 "is_protected": prot_map.get(f.id, False)
             })
-        return {"status": "success", "data": folder_data}
+            
+        docs = db.query(models.Document).order_by(models.Document.title).all()
+        file_data = []
+        for d in docs:
+            file_data.append({
+                "id": f"file_{d.id}",
+                "name": d.title,
+                "parent_id": f"folder_{d.category_id}" if d.category_id else None,
+                "mimeType": d.mime_type or "application/octet-stream",
+                "webViewLink": d.google_drive_url if d.google_drive_url else f"/api/documents/download/{d.id}",
+                "is_protected": prot_map.get(d.category_id, False) if d.category_id else False
+            })
+            
+        return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
