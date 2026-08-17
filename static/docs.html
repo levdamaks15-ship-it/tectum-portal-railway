@@ -1325,6 +1325,23 @@
         <span id="toast-text">Ссылка скопирована в буфер</span>
     </div>
 
+    <!-- Плавающий виджет прогресса загрузки документов (Floating Upload Progress Widget) -->
+    <div id="upload-progress-widget" style="display: none; position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; background: var(--docs-panel-bg, #1e293b); border: 1px solid var(--docs-panel-border, #334155); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); padding: 1.2rem 1.5rem; width: 340px; max-width: 90vw; backdrop-filter: blur(12px); color: var(--docs-text-primary, #fff); transition: all 0.3s ease;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem;">
+                <i class="fas fa-cloud-arrow-up" id="upload-widget-icon" style="color: var(--docs-accent, #3b82f6); font-size: 1.1rem;"></i>
+                <span id="upload-widget-title">Загрузка файлов...</span>
+            </div>
+            <span id="upload-widget-counter" style="font-size: 0.85rem; font-weight: 700; color: var(--docs-accent, #3b82f6); background: rgba(59, 130, 246, 0.15); padding: 0.2rem 0.6rem; border-radius: 20px;">0 / 0</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--docs-text-secondary, #94a3b8); margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="upload-widget-filename">
+            Подготовка...
+        </div>
+        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 0.3rem;">
+            <div id="upload-widget-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); border-radius: 4px; transition: width 0.25s ease;"></div>
+        </div>
+    </div>
+
     <script>
         let currentFolderId = null;
         let parentFolderIdHistory = [];
@@ -2129,46 +2146,118 @@
             }
         }
 
+        function showUploadWidget(title, countText, filename, percent, isDone = false, isError = false) {
+            const widget = document.getElementById('upload-progress-widget');
+            if (!widget) return;
+            widget.style.display = 'block';
+            
+            const titleEl = document.getElementById('upload-widget-title');
+            const counterEl = document.getElementById('upload-widget-counter');
+            const fileEl = document.getElementById('upload-widget-filename');
+            const barEl = document.getElementById('upload-widget-bar');
+            const iconEl = document.getElementById('upload-widget-icon');
+
+            if (titleEl) titleEl.innerText = title;
+            if (counterEl) counterEl.innerText = countText;
+            if (fileEl) fileEl.innerText = filename;
+            if (barEl) barEl.style.width = Math.min(100, Math.max(0, percent)) + '%';
+            
+            if (isDone) {
+                if (iconEl) {
+                    iconEl.className = 'fas fa-circle-check';
+                    iconEl.style.color = '#10b981';
+                }
+                if (barEl) barEl.style.background = '#10b981';
+                setTimeout(() => {
+                    widget.style.display = 'none';
+                    if (iconEl) {
+                        iconEl.className = 'fas fa-cloud-arrow-up';
+                        iconEl.style.color = 'var(--docs-accent, #3b82f6)';
+                    }
+                    if (barEl) barEl.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
+                }, 3500);
+            } else if (isError) {
+                if (iconEl) {
+                    iconEl.className = 'fas fa-triangle-exclamation';
+                    iconEl.style.color = '#ef4444';
+                }
+                if (barEl) barEl.style.background = '#ef4444';
+                setTimeout(() => {
+                    widget.style.display = 'none';
+                }, 4000);
+            } else {
+                if (iconEl) {
+                    iconEl.className = 'fas fa-cloud-arrow-up';
+                    iconEl.style.color = 'var(--docs-accent, #3b82f6)';
+                }
+                if (barEl) barEl.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
+            }
+        }
+
         async function handleFileUpload(event) {
             if (!await ensurePassword(currentFolderProtected)) {
                 event.target.value = '';
                 return;
             }
-            const file = event.target.files[0];
-            if (!file) return;
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
 
-            const formData = new FormData();
-            formData.append('file', file);
-            if (currentFolderId) {
-                formData.append('parent_id', currentFolderId);
-            }
+            const total = files.length;
+            let successCount = 0;
+            let errorCount = 0;
 
-            const container = document.getElementById('files-container');
-            container.innerHTML = `
-                <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка файла...</div>
-            ` + container.innerHTML;
+            for (let i = 0; i < total; i++) {
+                const file = files[i];
+                const pct = Math.round(((i) / total) * 100);
+                showUploadWidget(
+                    total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...', 
+                    `${i} / ${total} (${pct}%)`, 
+                    file.name, 
+                    pct
+                );
 
-            try {
-                const res = await fetch('/api/documents/upload', {
-                    method: 'POST',
-                    headers: getFolderPasswordHeader(),
-                    body: formData
-                });
-                const data = await res.json();
-                
-                if (data.status === 'success') {
-                    docsCache.clear();
-                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
-                    showToast('Файл успешно загружен');
-                } else {
-                    alert('Ошибка загрузки: ' + data.message);
-                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                const formData = new FormData();
+                formData.append('file', file);
+                if (currentFolderId) {
+                    formData.append('parent_id', currentFolderId);
                 }
-            } catch (error) {
-                alert('Ошибка соединения');
-                loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+
+                try {
+                    const res = await fetch('/api/documents/upload', {
+                        method: 'POST',
+                        headers: getFolderPasswordHeader(),
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        successCount++;
+                    } else {
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error('Ошибка загрузки:', error);
+                    errorCount++;
+                }
+
+                const endPct = Math.round(((i + 1) / total) * 100);
+                showUploadWidget(
+                    total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...', 
+                    `${i + 1} / ${total} (${endPct}%)`, 
+                    file.name, 
+                    endPct
+                );
             }
+
+            docsCache.clear();
+            loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             
+            if (errorCount === 0) {
+                showUploadWidget('Загрузка завершена!', `${successCount} / ${total} (100%)`, `Все файлы (${successCount} шт.) успешно загружены`, 100, true);
+                showToast(total === 1 ? 'Файл успешно загружен' : `Загружено файлов: ${successCount}`);
+            } else {
+                showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true);
+            }
+
             event.target.value = '';
         }
 
@@ -2178,20 +2267,22 @@
                 return;
             }
             const files = event.target.files;
-            if (files.length === 0) return;
+            if (!files || files.length === 0) return;
 
-            const container = document.getElementById('files-container');
             const total = files.length;
-            
-            container.innerHTML = `
-                <div class="loading" id="folder-upload-progress"><i class="fas fa-spinner fa-spin"></i> Загрузка папки: 0 из ${total} файлов...</div>
-            ` + container.innerHTML;
-
-            const progressEl = document.getElementById('folder-upload-progress');
             let successCount = 0;
+            let errorCount = 0;
 
-            for (let i = 0; i < files.length; i++) {
+            for (let i = 0; i < total; i++) {
                 const file = files[i];
+                const pct = Math.round(((i) / total) * 100);
+                showUploadWidget(
+                    'Загрузка папки...', 
+                    `${i} / ${total} (${pct}%)`, 
+                    file.webkitRelativePath || file.name, 
+                    pct
+                );
+
                 const formData = new FormData();
                 formData.append('file', file);
                 
@@ -2204,24 +2295,42 @@
                 }
 
                 try {
-                    await fetch('/api/documents/upload', {
+                    const res = await fetch('/api/documents/upload', {
                         method: 'POST',
                         headers: getFolderPasswordHeader(),
                         body: formData
                     });
-                    successCount++;
-                    if (progressEl) {
-                        progressEl.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Загрузка папки: ${successCount} из ${total} файлов...`;
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        successCount++;
+                    } else {
+                        errorCount++;
                     }
                 } catch (error) {
                     console.error('Ошибка загрузки файла:', file.name, error);
+                    errorCount++;
                 }
+
+                const endPct = Math.round(((i + 1) / total) * 100);
+                showUploadWidget(
+                    'Загрузка папки...', 
+                    `${i + 1} / ${total} (${endPct}%)`, 
+                    file.webkitRelativePath || file.name, 
+                    endPct
+                );
             }
             
             docsCache.clear();
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
             loadSidebarTree();
-            showToast('Папка успешно загружена');
+            
+            if (errorCount === 0) {
+                showUploadWidget('Папка загружена!', `${successCount} / ${total} (100%)`, `Все файлы (${successCount} шт.) сохранены`, 100, true);
+                showToast(`Папка успешно загружена (${successCount} файлов)`);
+            } else {
+                showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true);
+            }
+            
             event.target.value = '';
         }
 

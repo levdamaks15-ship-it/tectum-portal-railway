@@ -5440,12 +5440,31 @@ def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: R
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str):
+    """Фоновая выгрузка файла в Google Drive с обновлением ID и URL в БД"""
+    try:
+        import google_drive_integration
+        drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title)
+        if drive_info and drive_info.get("id"):
+            bg_db = database.SessionLocal()
+            try:
+                doc = bg_db.query(models.Document).filter(models.Document.id == doc_id).first()
+                if doc:
+                    doc.google_drive_id = drive_info["id"]
+                    doc.google_drive_url = drive_info["url"]
+                    bg_db.commit()
+            finally:
+                bg_db.close()
+    except Exception as drive_err:
+        print(f"Background upload to Google Drive failed for doc #{doc_id}: {drive_err}")
+
 @app.post("/api/documents/upload")
 async def upload_document(
     file: UploadFile = File(...),
     parent_id: Optional[str] = Form(None),
     relative_path: Optional[str] = Form(None),
     x_folder_password: Optional[str] = Header(None),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
     try:
@@ -5496,20 +5515,14 @@ async def upload_document(
         db.commit()
         db.refresh(new_doc)
         
-        try:
-            import google_drive_integration
-            drive_info = google_drive_integration.upload_file_to_drive(file_path, clean_title)
-            new_doc.google_drive_id = drive_info["id"]
-            new_doc.google_drive_url = drive_info["url"]
-            db.commit()
-        except Exception as drive_err:
-            print(f"Failed to upload to Google Drive: {drive_err}")
+        # Schedule Google Drive upload in background
+        background_tasks.add_task(upload_doc_to_drive_bg, new_doc.id, file_path, clean_title)
         
         return {"status": "success", "file": {
             "id": f"file_{new_doc.id}",
             "name": new_doc.title,
             "mimeType": new_doc.mime_type,
-            "webViewLink": new_doc.google_drive_url if new_doc.google_drive_url else f"/api/documents/download/{new_doc.id}"
+            "webViewLink": f"/api/documents/download/{new_doc.id}"
         }}
     except Exception as e:
         return {"status": "error", "message": str(e)}
