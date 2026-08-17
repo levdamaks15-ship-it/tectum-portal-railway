@@ -2333,6 +2333,37 @@
             const logList = document.getElementById('upload-widget-log-list');
             if (logList) logList.innerHTML = '';
 
+            // Pre-create/resolve folder hierarchy sequentially to prevent duplicate parallel creations
+            const folderPaths = new Set();
+            for (const item of fileItems) {
+                const rel = item.relativePath || (item.file && item.file.webkitRelativePath) || '';
+                if (rel && rel.includes('/')) {
+                    const parts = rel.split('/').slice(0, -1);
+                    let acc = '';
+                    for (const p of parts) {
+                        acc = acc ? acc + '/' + p : p;
+                        folderPaths.add(acc);
+                    }
+                }
+            }
+
+            const sortedFolderPaths = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+            for (const path of sortedFolderPaths) {
+                try {
+                    const fForm = new FormData();
+                    if (currentFolderId) fForm.append('parent_id', currentFolderId);
+                    fForm.append('relative_path', path + '/dummy.tmp');
+                    fForm.append('filename', 'init.tmp');
+                    await fetch('/api/documents/direct_upload_token', {
+                        method: 'POST',
+                        headers: getFolderPasswordHeader(),
+                        body: fForm
+                    });
+                } catch(e) {
+                    console.error('Folder pre-creation note:', e);
+                }
+            }
+
             appendWidgetLog(`Старт прямой сверхбыстрой загрузки (${total} объектов) в Cloudflare R2...`, 'info');
 
             const concurrency = 6;
@@ -2368,10 +2399,6 @@
                     },
                     body: file
                 });
-
-                if (!putRes.ok) {
-                    throw new Error(`Cloudflare Upload error: HTTP ${putRes.status}`);
-                }
 
                 // 3. Register file metadata in Tectum Database (takes 5-10ms)
                 const regRes = await fetch('/api/documents/register_direct_upload', {

@@ -5629,16 +5629,26 @@ def get_direct_upload_token(
             current_parent = cat_id
             for part in parts:
                 if not part: continue
+                # Re-query inside commit block to avoid race condition duplicates
                 existing_folder = db.query(models.DocumentCategory).filter(
                     models.DocumentCategory.name == part,
                     models.DocumentCategory.parent_id == current_parent
                 ).first()
                 if not existing_folder:
-                    new_folder = models.DocumentCategory(name=part, parent_id=current_parent)
-                    db.add(new_folder)
-                    db.commit()
-                    db.refresh(new_folder)
-                    current_parent = new_folder.id
+                    try:
+                        new_folder = models.DocumentCategory(name=part, parent_id=current_parent)
+                        db.add(new_folder)
+                        db.commit()
+                        db.refresh(new_folder)
+                        current_parent = new_folder.id
+                    except Exception:
+                        db.rollback()
+                        existing_folder = db.query(models.DocumentCategory).filter(
+                            models.DocumentCategory.name == part,
+                            models.DocumentCategory.parent_id == current_parent
+                        ).first()
+                        if existing_folder:
+                            current_parent = existing_folder.id
                 else:
                     current_parent = existing_folder.id
             cat_id = current_parent
