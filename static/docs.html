@@ -1236,9 +1236,8 @@
                         <div class="dropdown-item" onclick="document.getElementById('file-upload').click()">
                             <i class="fas fa-cloud-upload-alt" style="color: #60a5fa; width: 18px; text-align: center;"></i> Загрузить файл
                         </div>
-                        <div class="context-menu-separator"></div>
-                        <div class="dropdown-item" onclick="triggerManualSyncDrive()">
-                            <i class="fas fa-sync-alt" style="color: #8b5cf6; width: 18px; text-align: center;"></i> Синхронизировать с Диском
+                        <div class="dropdown-item" onclick="document.getElementById('folder-upload').click()">
+                            <i class="fas fa-folder-open" style="color: #10b981; width: 18px; text-align: center;"></i> Загрузить папку
                         </div>
                     </div>
                 </div>
@@ -1341,20 +1340,37 @@
         <span id="toast-text">Ссылка скопирована в буфер</span>
     </div>
 
-    <!-- Плавающий виджет прогресса загрузки документов (Floating Upload Progress Widget) -->
-    <div id="upload-progress-widget" style="display: none; position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; background: var(--docs-panel-bg, #1e293b); border: 1px solid var(--docs-panel-border, #334155); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); padding: 1.2rem 1.5rem; width: 340px; max-width: 90vw; backdrop-filter: blur(12px); color: var(--docs-text-primary, #fff); transition: all 0.3s ease;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+    <!-- Плавающий постоянный монитор операций (Загрузка / Удаление / Синхронизация в реальном времени) -->
+    <div id="upload-progress-widget" style="display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; background: var(--docs-panel-bg, #1e293b); border: 1px solid var(--docs-panel-border, #334155); border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,0.45); padding: 1rem 1.3rem; width: 380px; max-width: 92vw; backdrop-filter: blur(16px); color: var(--docs-text-primary, #fff); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
             <div style="display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem;">
-                <i class="fas fa-cloud-arrow-up" id="upload-widget-icon" style="color: var(--docs-accent, #3b82f6); font-size: 1.1rem;"></i>
-                <span id="upload-widget-title">Загрузка файлов...</span>
+                <i class="fas fa-spinner fa-spin" id="upload-widget-icon" style="color: #3b82f6; font-size: 1.1rem;"></i>
+                <span id="upload-widget-title">Операция...</span>
             </div>
-            <span id="upload-widget-counter" style="font-size: 0.85rem; font-weight: 700; color: var(--docs-accent, #3b82f6); background: rgba(59, 130, 246, 0.15); padding: 0.2rem 0.6rem; border-radius: 20px;">0 / 0</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span id="upload-widget-counter" style="font-size: 0.82rem; font-weight: 700; color: #3b82f6; background: rgba(59, 130, 246, 0.15); padding: 0.2rem 0.6rem; border-radius: 20px;">0 / 0</span>
+                <button onclick="toggleWidgetDetails()" id="upload-widget-toggle-btn" style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;" title="Подробнее">
+                    <i class="fas fa-chevron-down" id="upload-widget-chevron"></i>
+                </button>
+                <button onclick="closeWidget()" style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;" title="Закрыть">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
-        <div style="font-size: 0.8rem; color: var(--docs-text-secondary, #94a3b8); margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="upload-widget-filename">
+        <div style="font-size: 0.82rem; color: var(--docs-text-secondary, #94a3b8); margin-bottom: 0.2rem; display: flex; justify-content: space-between; gap: 0.5rem;">
+            <span id="upload-widget-target-folder" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: #38bdf8;">Папка: Главная</span>
+            <span id="upload-widget-speed" style="font-weight: 600;">0%</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--docs-text-primary, #fff); margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;" id="upload-widget-filename">
             Подготовка...
         </div>
         <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 0.3rem;">
             <div id="upload-widget-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); border-radius: 4px; transition: width 0.25s ease;"></div>
+        </div>
+        
+        <!-- Разворачиваемый лог операций в реальном времени -->
+        <div id="upload-widget-log-container" style="display: none; margin-top: 0.8rem; border-top: 1px solid var(--docs-panel-border, #334155); padding-top: 0.6rem; max-height: 140px; overflow-y: auto; font-size: 0.75rem; font-family: monospace;">
+            <div id="upload-widget-log-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
         </div>
     </div>
 
@@ -2218,7 +2234,46 @@
             }
         }
 
-        function showUploadWidget(title, countText, filename, percent, isDone = false, isError = false) {
+        let isWidgetDetailsOpen = false;
+
+        function toggleWidgetDetails() {
+            const container = document.getElementById('upload-widget-log-container');
+            const chevron = document.getElementById('upload-widget-chevron');
+            if (!container) return;
+            isWidgetDetailsOpen = !isWidgetDetailsOpen;
+            container.style.display = isWidgetDetailsOpen ? 'block' : 'none';
+            if (chevron) {
+                chevron.className = isWidgetDetailsOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+            }
+        }
+
+        function closeWidget() {
+            const widget = document.getElementById('upload-progress-widget');
+            if (widget) widget.style.display = 'none';
+        }
+
+        function appendWidgetLog(text, type = 'info') {
+            const list = document.getElementById('upload-widget-log-list');
+            if (!list) return;
+            const item = document.createElement('div');
+            item.style.whiteSpace = 'nowrap';
+            item.style.overflow = 'hidden';
+            item.style.textOverflow = 'ellipsis';
+            
+            let color = '#94a3b8';
+            let icon = 'fa-circle-info';
+            if (type === 'success') { color = '#10b981'; icon = 'fa-circle-check'; }
+            else if (type === 'error') { color = '#ef4444'; icon = 'fa-circle-exclamation'; }
+            else if (type === 'progress') { color = '#38bdf8'; icon = 'fa-arrow-up'; }
+            else if (type === 'delete') { color = '#f59e0b'; icon = 'fa-trash-can'; }
+
+            const timeStr = new Date().toLocaleTimeString();
+            item.innerHTML = `<span style="color: #64748b;">[${timeStr}]</span> <i class="fas ${icon}" style="color: ${color}; width: 14px;"></i> <span style="color: ${color};">${escapeHtml(text)}</span>`;
+            list.appendChild(item);
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function showUploadWidget(title, countText, filename, percent, isDone = false, isError = false, targetFolder = null, speedText = null) {
             const widget = document.getElementById('upload-progress-widget');
             if (!widget) return;
             widget.style.display = 'block';
@@ -2228,10 +2283,14 @@
             const fileEl = document.getElementById('upload-widget-filename');
             const barEl = document.getElementById('upload-widget-bar');
             const iconEl = document.getElementById('upload-widget-icon');
+            const folderEl = document.getElementById('upload-widget-target-folder');
+            const speedEl = document.getElementById('upload-widget-speed');
 
             if (titleEl) titleEl.innerText = title;
             if (counterEl) counterEl.innerText = countText;
             if (fileEl) fileEl.innerText = filename;
+            if (folderEl && targetFolder) folderEl.innerText = 'Папка: ' + targetFolder;
+            if (speedEl) speedEl.innerText = speedText || (Math.round(percent) + '%');
             if (barEl) barEl.style.width = Math.min(100, Math.max(0, percent)) + '%';
             
             if (isDone) {
@@ -2241,26 +2300,20 @@
                 }
                 if (barEl) barEl.style.background = '#10b981';
                 setTimeout(() => {
-                    widget.style.display = 'none';
-                    if (iconEl) {
-                        iconEl.className = 'fas fa-cloud-arrow-up';
-                        iconEl.style.color = 'var(--docs-accent, #3b82f6)';
+                    if (!isWidgetDetailsOpen) {
+                        widget.style.display = 'none';
                     }
-                    if (barEl) barEl.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
-                }, 3500);
+                }, 4000);
             } else if (isError) {
                 if (iconEl) {
                     iconEl.className = 'fas fa-triangle-exclamation';
                     iconEl.style.color = '#ef4444';
                 }
                 if (barEl) barEl.style.background = '#ef4444';
-                setTimeout(() => {
-                    widget.style.display = 'none';
-                }, 4000);
             } else {
                 if (iconEl) {
-                    iconEl.className = 'fas fa-cloud-arrow-up';
-                    iconEl.style.color = 'var(--docs-accent, #3b82f6)';
+                    iconEl.className = 'fas fa-spinner fa-spin';
+                    iconEl.style.color = '#3b82f6';
                 }
                 if (barEl) barEl.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
             }
@@ -2274,6 +2327,13 @@
             let successCount = 0;
             let errorCount = 0;
             let completedCount = 0;
+            const currentFolderName = document.getElementById('current-folder-name').innerText || 'Главная директория';
+
+            // Clear log list
+            const logList = document.getElementById('upload-widget-log-list');
+            if (logList) logList.innerHTML = '';
+
+            appendWidgetLog(`Старт загрузки (${total} объектов) в «${currentFolderName}»`, 'info');
 
             const concurrency = 8;
             let currentIndex = 0;
@@ -2284,6 +2344,7 @@
                     const item = fileItems[i];
                     const file = item.file || item;
                     const relPath = item.relativePath || file.webkitRelativePath || '';
+                    const displayName = relPath || file.name;
 
                     const formData = new FormData();
                     formData.append('file', file);
@@ -2295,6 +2356,8 @@
                         formData.append('relative_path', relPath);
                     }
 
+                    appendWidgetLog(`Загрузка: ${file.name}...`, 'progress');
+
                     try {
                         const res = await fetch('/api/documents/upload', {
                             method: 'POST',
@@ -2304,21 +2367,28 @@
                         const data = await res.json();
                         if (data.status === 'success') {
                             successCount++;
+                            appendWidgetLog(`✓ Сохранен в Google Диск: ${file.name}`, 'success');
                         } else {
                             errorCount++;
+                            appendWidgetLog(`✗ Ошибка: ${file.name} (${data.message || 'Сбой'})`, 'error');
                         }
                     } catch (error) {
                         console.error('Ошибка загрузки:', file.name, error);
                         errorCount++;
+                        appendWidgetLog(`✗ Сбой сети: ${file.name}`, 'error');
                     }
 
                     completedCount++;
                     const pct = Math.round((completedCount / total) * 100);
                     showUploadWidget(
-                        isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...'), 
+                        isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Пакетная загрузка...'), 
                         `${completedCount} / ${total} (${pct}%)`, 
-                        relPath || file.name, 
-                        pct
+                        displayName, 
+                        pct,
+                        false,
+                        false,
+                        currentFolderName,
+                        `${completedCount} из ${total}`
                     );
                 }
             }
@@ -2335,10 +2405,12 @@
             if (isFolderMode) loadSidebarTree();
             
             if (errorCount === 0) {
-                showUploadWidget('Загрузка завершена!', `${successCount} / ${total} (100%)`, `Все объекты (${successCount} шт.) успешно сохранены`, 100, true);
+                appendWidgetLog(`Все ${successCount} объектов успешно загружены на Google Диск!`, 'success');
+                showUploadWidget('Загрузка завершена!', `${successCount} / ${total} (100%)`, `Все объекты (${successCount} шт.) сохранены на Google Диск`, 100, true, false, currentFolderName, 'Готово');
                 showToast(total === 1 ? 'Файл успешно загружен' : `Загружено объектов: ${successCount}`);
             } else {
-                showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true);
+                appendWidgetLog(`Завершено с ошибками. Успешно: ${successCount}, Ошибок: ${errorCount}`, 'error');
+                showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true, currentFolderName, 'Ошибки');
             }
         }
 
@@ -2452,7 +2524,14 @@
             }
             if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
-            showToast('Удаление объекта...', 'info');
+            const isFolder = String(itemId).startsWith('folder_');
+            const itemTypeName = isFolder ? 'Папка' : 'Файл';
+            const currentFolderName = document.getElementById('current-folder-name').innerText || 'Главная директория';
+
+            // Show activity monitor for deletion
+            showUploadWidget('Удаление...', '1 / 1', `${itemTypeName} ID: ${itemId}`, 50, false, false, currentFolderName, 'Удаление...');
+            appendWidgetLog(`Удаление ${itemTypeName} (${itemId}) из «${currentFolderName}»...`, 'delete');
+
             try {
                 const res = await fetch(`/api/documents/${itemId}`, { 
                     method: 'DELETE',
@@ -2463,11 +2542,17 @@
                     docsCache.clear();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
+                    appendWidgetLog(`✓ Успешно удалено из базы и Google Диска: ${itemTypeName}`, 'success');
+                    showUploadWidget('Удалено!', '1 / 1 (100%)', `${itemTypeName} успешно удален`, 100, true, false, currentFolderName, 'Готово');
                     showToast('Элемент успешно удален');
                 } else {
+                    appendWidgetLog(`✗ Ошибка удаления: ${data.message}`, 'error');
+                    showUploadWidget('Ошибка удаления', '0 / 1', data.message, 100, false, true, currentFolderName, 'Ошибка');
                     alert('Ошибка при удалении: ' + data.message);
                 }
             } catch (error) {
+                appendWidgetLog(`✗ Ошибка сети при удалении`, 'error');
+                showUploadWidget('Сбой соединения', '0 / 1', 'Ошибка связи с сервером', 100, false, true, currentFolderName, 'Сбой');
                 alert('Ошибка соединения при удалении');
             }
         }
@@ -2593,26 +2678,6 @@
             const sideBtn = document.getElementById("docs-sidebar-theme-btn");
             if (sideBtn) {
                 sideBtn.innerHTML = `${iconHtml} <span class="theme-label">${theme === "light" ? "Светлая тема" : "Темная тема"}</span>`;
-            }
-        }
-
-        async function triggerManualSyncDrive() {
-            hideCreateDropdown();
-            showToast('Запуск синхронизации с Google Диском...', 'info');
-            try {
-                const res = await fetch('/api/documents/sync-folders-to-drive', { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    showToast(`Синхронизировано: ${data.docs_synced?.length || 0} файлов, ${data.folders_count || 0} папок!`, 'success');
-                    docsCache.clear();
-                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
-                    loadSidebarTree();
-                } else {
-                    showToast('Ошибка синхронизации: ' + (data.message || 'Сбой API'), 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Ошибка вызова синхронизации', 'error');
             }
         }
 
