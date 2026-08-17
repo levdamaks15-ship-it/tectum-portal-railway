@@ -611,10 +611,19 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
-        # Background auto-sync of missing Google Drive URLs for existing documents
+        # Background auto-sync of folder structure and missing Google Drive URLs for existing documents
         try:
             db_docs = SessionLocal()
             try:
+                # 1. Sync all folder categories to Google Drive
+                all_categories = db_docs.query(models.DocumentCategory).all()
+                for cat in all_categories:
+                    try:
+                        get_or_create_google_drive_folder_for_category(db_docs, cat.id)
+                    except Exception as cat_sync_err:
+                        print(f"Could not auto-sync folder category #{cat.id} ('{cat.name}') to Google Drive: {cat_sync_err}")
+
+                # 2. Sync all documents missing Google Drive URLs
                 unmigrated_docs = db_docs.query(models.Document).filter(
                     (models.Document.google_drive_url == None) | (models.Document.google_drive_url == "")
                 ).all()
