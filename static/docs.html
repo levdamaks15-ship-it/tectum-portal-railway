@@ -2208,70 +2208,7 @@
                 if (barEl) barEl.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
             }
         }
-
-        async function handleFileUpload(event) {
-            if (!await ensurePassword(currentFolderProtected)) {
-                event.target.value = '';
-                return;
-            }
-            const files = event.target.files;
-            if (!files || files.length === 0) return;
-
-            const total = files.length;
-            let successCount = 0;
-            let errorCount = 0;
-
-            for (let i = 0; i < total; i++) {
-                const file = files[i];
-                const pct = Math.round(((i) / total) * 100);
-                showUploadWidget(
-                    total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...', 
-                    `${i} / ${total} (${pct}%)`, 
-                    file.name, 
-                    pct
-                );
-
-                const formData = new FormData();
-                formData.append('file', file);
-                if (currentFolderId) {
-                    formData.append('parent_id', currentFolderId);
-                }
-
-                try {
-                    const res = await fetch('/api/documents/upload', {
-                        method: 'POST',
-                        headers: getFolderPasswordHeader(),
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if (data.status === 'success') {
-                        successCount++;
-                    } else {
-                        errorCount++;
-                    }
-                } catch (error) {
-                    console.error('Ошибка загрузки:', error);
-                    errorCount++;
-                }
-
-                const endPct = Math.round(((i + 1) / total) * 100);
-                showUploadWidget(
-                    total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...', 
-                    `${i + 1} / ${total} (${endPct}%)`, 
-                    file.name, 
-                    endPct
-                );
-            }
-
-            docsCache.clear();
-            loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
-            
-            if (errorCount === 0) {
-                showUploadWidget('Загрузка завершена!', `${successCount} / ${total} (100%)`, `Все файлы (${successCount} шт.) успешно загружены`, 100, true);
-                showToast(total === 1 ? 'Файл успешно загружен' : `Загружено файлов: ${successCount}`);
-            } else {
-                showUploadWidget('Загрузка с ошибками', `${successCount} / ${total}`, `Успешно: ${successCount}, Ошибок: ${errorCount}`, 100, false, true);
-            }
+        }
 
         async function uploadFilesBatch(fileItems, isFolderMode = false) {
             if (!fileItems || fileItems.length === 0) return;
