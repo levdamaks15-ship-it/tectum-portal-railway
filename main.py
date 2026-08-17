@@ -6023,11 +6023,36 @@ def download_document(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
-        
-    if doc.r2_key:
-        import r2_integration
-        download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
-        return RedirectResponse(url=download_url)
+        if doc.koofr_path:
+            try:
+                import koofr_integration
+                koofr_bytes = koofr_integration.download_file_from_koofr(doc.koofr_path)
+                if koofr_bytes:
+                    if doc.r2_key:
+                        try:
+                            import r2_integration
+                            s3 = r2_integration.get_r2_client()
+                            s3.put_object(
+                                Bucket=r2_integration.R2_BUCKET_NAME,
+                                Key=doc.r2_key,
+                                Body=koofr_bytes,
+                                ContentType=doc.mime_type or "application/octet-stream"
+                            )
+                        except Exception:
+                            pass
+                    encoded_filename = quote(doc.title)
+                    return Response(
+                        content=koofr_bytes,
+                        media_type=doc.mime_type or "application/octet-stream",
+                        headers={"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
+                    )
+            except Exception as e:
+                logger.error(f"Error downloading from Koofr: {e}")
+
+        if doc.r2_key:
+            import r2_integration
+            download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
+            return RedirectResponse(url=download_url)
 
     if doc.google_drive_id:
         import google_drive_integration
@@ -6211,7 +6236,10 @@ def open_editor(
                     except Exception:
                         db.rollback()
 
-    if doc.koofr_link:
+    if doc.koofr_path:
+        direct_url = f"https://app.koofr.net/app/admin/files#{urllib.parse.quote(doc.koofr_path)}"
+        return RedirectResponse(url=direct_url, status_code=302)
+    elif doc.koofr_link:
         return RedirectResponse(url=doc.koofr_link, status_code=302)
 
     filename = doc.title
