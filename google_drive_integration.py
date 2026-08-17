@@ -9,7 +9,13 @@ load_dotenv()
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
+_drive_service = None
+
 def get_drive_service():
+    global _drive_service
+    if _drive_service is not None:
+        return _drive_service
+        
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
     refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
@@ -26,7 +32,8 @@ def get_drive_service():
         scopes=SCOPES
     )
     
-    return build("drive", "v3", credentials=creds)
+    _drive_service = build("drive", "v3", credentials=creds)
+    return _drive_service
 
 def get_or_create_drive_folder(folder_name: str, parent_id: str = None) -> str:
     """
@@ -76,7 +83,7 @@ def upload_file_to_drive(file_path: str, title: str, parent_drive_id: str = None
     Uploads a file to Google Drive under parent_drive_id or root GOOGLE_DRIVE_FOLDER_ID.
     Automatically converts Word and Excel files to Google native formats.
     Sets 'writer' permission for anyone with the link.
-    Returns a dict with 'id' and 'webViewLink'.
+    Optimized for high-speed uploads.
     """
     service = get_drive_service()
     
@@ -99,7 +106,11 @@ def upload_file_to_drive(file_path: str, title: str, parent_drive_id: str = None
     if target_parent:
         file_metadata['parents'] = [target_parent]
         
-    media = MediaFileUpload(file_path, resumable=True)
+    file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
+    
+    # Fast direct multipart upload for small/medium files (< 5MB), resumable with 5MB chunks for larger
+    is_resumable = file_size > 5 * 1024 * 1024
+    media = MediaFileUpload(file_path, resumable=is_resumable, chunksize=5*1024*1024 if is_resumable else -1)
     
     # Upload file
     file = service.files().create(

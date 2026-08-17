@@ -2272,56 +2272,62 @@
             const total = fileItems.length;
             let successCount = 0;
             let errorCount = 0;
+            let completedCount = 0;
 
-            for (let i = 0; i < total; i++) {
-                const item = fileItems[i];
-                const file = item.file || item;
-                const relPath = item.relativePath || file.webkitRelativePath || '';
-                const pct = Math.round(((i) / total) * 100);
-                
-                showUploadWidget(
-                    isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...'), 
-                    `${i} / ${total} (${pct}%)`, 
-                    relPath || file.name, 
-                    pct
-                );
+            const concurrency = 5;
+            let currentIndex = 0;
 
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                if (currentFolderId) {
-                    formData.append('parent_id', currentFolderId);
-                }
-                
-                if (relPath) {
-                    formData.append('relative_path', relPath);
-                }
+            async function uploadWorker() {
+                while (currentIndex < total) {
+                    const i = currentIndex++;
+                    const item = fileItems[i];
+                    const file = item.file || item;
+                    const relPath = item.relativePath || file.webkitRelativePath || '';
 
-                try {
-                    const res = await fetch('/api/documents/upload', {
-                        method: 'POST',
-                        headers: getFolderPasswordHeader(),
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if (data.status === 'success') {
-                        successCount++;
-                    } else {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    if (currentFolderId) {
+                        formData.append('parent_id', currentFolderId);
+                    }
+                    if (relPath) {
+                        formData.append('relative_path', relPath);
+                    }
+
+                    try {
+                        const res = await fetch('/api/documents/upload', {
+                            method: 'POST',
+                            headers: getFolderPasswordHeader(),
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            successCount++;
+                        } else {
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error('Ошибка загрузки:', file.name, error);
                         errorCount++;
                     }
-                } catch (error) {
-                    console.error('Ошибка загрузки:', file.name, error);
-                    errorCount++;
-                }
 
-                const endPct = Math.round(((i + 1) / total) * 100);
-                showUploadWidget(
-                    isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...'), 
-                    `${i + 1} / ${total} (${endPct}%)`, 
-                    relPath || file.name, 
-                    endPct
-                );
+                    completedCount++;
+                    const pct = Math.round((completedCount / total) * 100);
+                    showUploadWidget(
+                        isFolderMode ? 'Загрузка папки...' : (total === 1 ? 'Загрузка файла...' : 'Загрузка файлов...'), 
+                        `${completedCount} / ${total} (${pct}%)`, 
+                        relPath || file.name, 
+                        pct
+                    );
+                }
             }
+
+            const workers = [];
+            const activeThreads = Math.min(concurrency, total);
+            for (let w = 0; w < activeThreads; w++) {
+                workers.push(uploadWorker());
+            }
+            await Promise.all(workers);
 
             docsCache.clear();
             loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
