@@ -6054,45 +6054,99 @@ def download_document(
     return {"status": "error", "message": "Файл не найден"}
 
 # ==========================================
-# ONLYOFFICE DOCSPACE CLOUD EDITOR INTEGRATION
+# UNIVERSAL BROWSER OFFICE & R2 CLOUD EDITOR
 # ==========================================
 
-@app.post("/api/editor/sync/{file_id}")
-def sync_docspace_to_r2(file_id: int, db: Session = Depends(get_db)):
-    """
-    Downloads the latest version of the file from ONLYOFFICE DocSpace
-    and saves it back to Cloudflare R2 storage.
-    """
+@app.get("/api/documents/raw/{file_id}")
+def get_document_raw(
+    file_id: int, 
+    pwd: Optional[str] = Query(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     doc = db.query(models.Document).filter(models.Document.id == file_id).first()
     if not doc:
-        return JSONResponse({"error": "Документ не найден"}, status_code=404)
-    
-    if not doc.docspace_file_id:
-        return JSONResponse({"error": "Документ не связан с DocSpace"}, status_code=400)
+        raise HTTPException(status_code=404, detail="Документ не найден")
         
-    import docspace_integration
-    import r2_integration
-    
-    file_bytes = docspace_integration.download_file_from_docspace(doc.docspace_file_id)
-    if not file_bytes:
-        return JSONResponse({"error": "Не удалось скачать файл из DocSpace"}, status_code=500)
-        
+    actual_pwd = pwd or x_folder_password
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Доступ запрещен")
+                
     if doc.r2_key:
+        import r2_integration
         try:
+            client = r2_integration.get_r2_client()
+            obj = client.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
+            content = obj['Body'].read()
+            return Response(
+                content=content,
+                media_type=doc.mime_type or "application/octet-stream",
+                headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.title)}"}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Ошибка чтения из Cloudflare R2: {str(e)}")
+            
+    if doc.file_path and os.path.exists(doc.file_path):
+        with open(doc.file_path, "rb") as f:
+            content = f.read()
+        return Response(
+            content=content,
+            media_type=doc.mime_type or "application/octet-stream",
+            headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.title)}"}
+        )
+        
+    raise HTTPException(status_code=404, detail="Файл не найден в хранилище")
+
+
+@app.post("/api/documents/save_content/{file_id}")
+async def save_document_content(
+    file_id: int,
+    request: Request,
+    pwd: Optional[str] = Query(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"status": "error", "message": "Документ не найден"}, status_code=404)
+        
+    actual_pwd = pwd or x_folder_password
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
+                return JSONResponse({"status": "error", "message": "Доступ запрещен"}, status_code=403)
+                
+    try:
+        body = await request.body()
+        if not body or len(body) == 0:
+            return JSONResponse({"status": "error", "message": "Пустое тело файла"}, status_code=400)
+            
+        if doc.r2_key:
+            import r2_integration
             client = r2_integration.get_r2_client()
             client.put_object(
                 Bucket=r2_integration.R2_BUCKET_NAME,
                 Key=doc.r2_key,
-                Body=file_bytes,
+                Body=body,
                 ContentType=doc.mime_type or "application/octet-stream"
             )
             doc.uploaded_at = datetime.datetime.utcnow()
             db.commit()
-            return {"status": "ok", "size": len(file_bytes), "updated_at": doc.uploaded_at.isoformat()}
-        except Exception as e:
-            return JSONResponse({"error": f"Ошибка сохранения в R2: {str(e)}"}, status_code=500)
-    
-    return {"status": "ok", "note": "doc has no r2_key"}
+            return {"status": "ok", "size": len(body), "saved_at": doc.uploaded_at.isoformat()}
+        elif doc.file_path:
+            with open(doc.file_path, "wb") as f:
+                f.write(body)
+            doc.uploaded_at = datetime.datetime.utcnow()
+            db.commit()
+            return {"status": "ok", "size": len(body), "saved_at": doc.uploaded_at.isoformat()}
+        else:
+            return JSONResponse({"status": "error", "message": "Нет пути для сохранения файла"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
 @app.get("/editor")
@@ -6125,59 +6179,50 @@ def open_editor(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
 
-    import docspace_integration
-    import r2_integration
-
-    docspace_url = docspace_integration.DOCSPACE_URL
     filename = doc.title
-
-    # Ensure document exists in DocSpace
-    docspace_file_id = doc.docspace_file_id
-    is_valid_in_docspace = False
-    if docspace_file_id:
-        is_valid_in_docspace = docspace_integration.check_file_in_docspace(docspace_file_id)
-
-    if not is_valid_in_docspace:
-        # Fetch file from R2 and upload to DocSpace
-        file_bytes = None
-        if doc.r2_key:
-            try:
-                client = r2_integration.get_r2_client()
-                obj = client.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
-                file_bytes = obj['Body'].read()
-            except Exception as e:
-                print(f"Error fetching doc #{doc.id} from R2: {e}")
-        
-        if file_bytes:
-            new_docspace_id = docspace_integration.upload_file_to_docspace(file_bytes, filename)
-            if new_docspace_id:
-                doc.docspace_file_id = new_docspace_id
-                db.commit()
-                docspace_file_id = new_docspace_id
-            else:
-                return HTMLResponse(
-                    "<h3>Не удалось подготовить документ в ONLYOFFICE DocSpace.</h3><p>Проверьте настройки API-ключа DocSpace.</p>",
-                    status_code=500
-                )
-        else:
-            return HTMLResponse("<h3>Файл документа не найден в хранилище Cloudflare R2.</h3>", status_code=404)
+    ext = filename.split(".")[-1].lower() if "." in filename else ""
+    
+    # Identify type
+    is_sheet = ext in ["xlsx", "xls", "csv", "ods"]
+    is_doc = ext in ["docx", "doc", "odt", "rtf", "txt"]
+    is_presentation = ext in ["pptx", "ppt", "odp"]
+    is_pdf = ext == "pdf"
+    
+    badge_label = "Таблица Excel" if is_sheet else ("Документ Word" if is_doc else ("Презентация" if is_presentation else "Документ"))
+    badge_icon = "fa-file-excel" if is_sheet else ("fa-file-word" if is_doc else ("fa-file-powerpoint" if is_presentation else "fa-file-alt"))
+    badge_color = "#10b981" if is_sheet else ("#3b82f6" if is_doc else ("#f59e0b" if is_presentation else "#8b5cf6"))
 
     editor_html = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Редактор: {html.escape(filename)} — Tectum Enterprise</title>
+    <title>{html.escape(filename)} — Tectum Enterprise Office</title>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Luckysheet Spreadsheets Engine -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css" />
+    
+    <!-- SheetJS and LuckyExcel -->
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.min.js"></script>
+
     <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         html, body {{
             height: 100%;
             width: 100%;
-            margin: 0;
-            padding: 0;
             overflow: hidden;
             background-color: #0f172a;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #f8fafc;
         }}
         .editor-topbar {{
             height: 48px;
@@ -6186,10 +6231,10 @@ def open_editor(
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
-            color: #f8fafc;
             border-bottom: 1px solid #334155;
-            box-sizing: border-box;
             user-select: none;
+            z-index: 100;
+            position: relative;
         }}
         .topbar-left {{
             display: flex;
@@ -6205,7 +6250,6 @@ def open_editor(
             cursor: pointer;
             font-size: 0.85rem;
             font-weight: 500;
-            text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -6215,48 +6259,33 @@ def open_editor(
             background: #475569;
             color: #ffffff;
         }}
-        .btn-save {{
-            background: #0284c7;
-            color: #ffffff;
-            border: none;
-            padding: 6px 14px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }}
-        .btn-save:hover {{
-            background: #0369a1;
-        }}
-        .btn-save:disabled {{
-            opacity: 0.6;
-            cursor: not-allowed;
-        }}
         .doc-title {{
             font-weight: 600;
             font-size: 0.95rem;
             color: #38bdf8;
-            max-width: 380px;
+            max-width: 400px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }}
         .badge {{
-            background: #0369a1;
-            color: #e0f2fe;
+            background: {badge_color};
+            color: #ffffff;
             padding: 3px 8px;
             border-radius: 4px;
             font-size: 0.75rem;
             font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }}
         .topbar-right {{
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
         }}
         .status-badge {{
             display: inline-flex;
@@ -6271,58 +6300,163 @@ def open_editor(
             border-radius: 50%;
             background: #22c55e;
         }}
-        #editor-container {{
+        .btn-action {{
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }}
+        .btn-action:hover {{ background: #0369a1; }}
+        .btn-action:disabled {{ opacity: 0.5; cursor: not-allowed; }}
+        .btn-secondary {{
+            background: #334155;
+            border: 1px solid #475569;
+        }}
+        .btn-secondary:hover {{ background: #475569; }}
+        
+        #editor-workspace {{
             height: calc(100vh - 48px);
             width: 100%;
             background: #ffffff;
             position: relative;
+            overflow: auto;
         }}
-        #editor-container iframe, .frame-container iframe {{
-            height: 100% !important;
-            width: 100% !important;
-            border: none;
-            display: block;
+        
+        /* Luckysheet container overrides */
+        #luckysheet {{
+            margin: 0px;
+            padding: 0px;
+            position: absolute;
+            width: 100%;
+            left: 0px;
+            top: 0px;
+            bottom: 0px;
         }}
+        
+        /* Word and generic document editor */
+        .doc-editor-wrapper {{
+            max-width: 900px;
+            margin: 30px auto;
+            background: #ffffff;
+            color: #1e293b;
+            padding: 40px 60px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border-radius: 4px;
+            min-height: calc(100vh - 120px);
+            outline: none;
+        }}
+        .doc-preview-container {{
+            background: #525659;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100%;
+        }}
+        
         .toast {{
             position: fixed;
             bottom: 24px;
             right: 24px;
             background: #0f172a;
             color: #f8fafc;
-            padding: 10px 18px;
+            padding: 12px 20px;
             border-radius: 8px;
             border: 1px solid #334155;
             box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-            font-size: 0.85rem;
+            font-size: 0.88rem;
             display: none;
-            z-index: 9999;
+            z-index: 99999;
+            font-weight: 500;
         }}
+        
+        .loading-overlay {{
+            position: absolute;
+            inset: 0;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            color: #f8fafc;
+            gap: 16px;
+        }}
+        .spinner {{
+            width: 42px;
+            height: 42px;
+            border: 4px solid #334155;
+            border-top-color: #38bdf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }}
+        @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
     </style>
-    <!-- ONLYOFFICE DocSpace JavaScript SDK -->
-    <script type="text/javascript" src="{docspace_url}/static/scripts/sdk/2.2.0/api.js"></script>
 </head>
 <body>
     <div class="editor-topbar">
         <div class="topbar-left">
-            <button onclick="handleBack()" class="btn-back">← Назад в портал</button>
-            <span class="doc-title" title="{html.escape(filename)}">{html.escape(filename)}</span>
-            <span class="badge">ONLYOFFICE DocSpace</span>
+            <button onclick="handleBack()" class="btn-back"><i class="fas fa-arrow-left"></i> Назад в портал</button>
+            <span class="doc-title" title="{html.escape(filename)}">
+                <i class="fas {badge_icon}" style="color:{badge_color};"></i>
+                {html.escape(filename)}
+            </span>
+            <span class="badge"><i class="fas {badge_icon}"></i> {badge_label}</span>
         </div>
         <div class="topbar-right">
             <div class="status-badge">
                 <span class="status-dot" id="status-dot"></span>
-                <span id="status-text">Подключение...</span>
+                <span id="status-text">Загрузка...</span>
             </div>
-            <button id="btn-save" onclick="syncToCloud(true)" class="btn-save">💾 Сохранить в R2</button>
+            {f'<button id="btn-save" onclick="saveDocument(true)" class="btn-action"><i class="fas fa-save"></i> Сохранить в R2 (Ctrl+S)</button>' if is_sheet or is_doc else ''}
+            <button onclick="downloadOriginal()" class="btn-action btn-secondary"><i class="fas fa-download"></i> Скачать</button>
         </div>
     </div>
     
-    <div id="editor-container"></div>
+    <div id="editor-workspace">
+        <div id="loading" class="loading-overlay">
+            <div class="spinner"></div>
+            <div style="font-size:1.05rem;font-weight:600;">Загрузка файла из Cloudflare R2...</div>
+            <div style="font-size:0.85rem;color:#94a3b8;">{html.escape(filename)}</div>
+        </div>
+        
+        <!-- Sheet Container -->
+        <div id="luckysheet" style="display:{'block' if is_sheet else 'none'};"></div>
+        
+        <!-- Word Preview & Editor -->
+        <div id="word-container" style="display:{'block' if is_doc else 'none'};" class="doc-preview-container">
+            <div id="word-body" class="doc-editor-wrapper" contenteditable="true" spellcheck="false"></div>
+        </div>
+        
+        <!-- PDF / Generic Viewer -->
+        <iframe id="pdf-frame" style="display:{'block' if is_pdf or is_presentation else 'none'}; width:100%; height:100%; border:none;"></iframe>
+    </div>
+    
     <div id="toast" class="toast"></div>
 
     <script>
-        const docspaceFileId = {docspace_file_id};
-        const internalDocId = {doc.id};
+        const docId = {doc.id};
+        const fileName = "{html.escape(filename)}";
+        const isSheet = {'true' if is_sheet else 'false'};
+        const isDoc = {'true' if is_doc else 'false'};
+        const isPresentation = {'true' if is_presentation else 'false'};
+        const isPdf = {'true' if is_pdf else 'false'};
+        let hasUnsavedChanges = false;
+        let isSaving = false;
+
+        function setStatus(text, color = '#22c55e') {{
+            const st = document.getElementById('status-text');
+            const sd = document.getElementById('status-dot');
+            if (st) st.innerText = text;
+            if (sd) sd.style.background = color;
+        }}
 
         function showToast(text, color = '#22c55e') {{
             const toast = document.getElementById('toast');
@@ -6334,54 +6468,109 @@ def open_editor(
             }}
         }}
 
-        function setStatus(text, dotColor = '#22c55e') {{
-            const st = document.getElementById('status-text');
-            const sd = document.getElementById('status-dot');
-            if (st) st.innerText = text;
-            if (sd) sd.style.background = dotColor;
+        function hideLoading() {{
+            const el = document.getElementById('loading');
+            if (el) el.style.display = 'none';
         }}
 
-        let isSaving = false;
-        async function syncToCloud(isManual = false) {{
+        function downloadOriginal() {{
+            window.location.href = `/api/documents/download/${{docId}}`;
+        }}
+
+        // Save Function
+        async function saveDocument(isManual = false) {{
             if (isSaving) return;
             isSaving = true;
             const btn = document.getElementById('btn-save');
-            if (btn && isManual) {{
+            if (btn) {{
                 btn.disabled = true;
-                btn.innerText = "⏳ Сохранение...";
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
             }}
-            setStatus("Синхронизация с R2...", "#38bdf8");
+            setStatus('Сохранение в Cloudflare R2...', '#38bdf8');
 
             try {{
-                const res = await fetch(`/api/editor/sync/${{internalDocId}}`, {{
-                    method: "POST"
-                }});
-                const data = await res.json();
-                if (res.ok && data.status === 'ok') {{
-                    setStatus("Сохранено в R2", "#22c55e");
-                    if (isManual) showToast("✅ Изменения успешно сохранены в Cloudflare R2!");
-                }} else {{
-                    setStatus("Ошибка сохранения", "#ef4444");
-                    if (isManual) showToast("❌ " + (data.error || "Ошибка сохранения"), "#ef4444");
+                let blobData = null;
+                if (isSheet) {{
+                    // Export Luckysheet to XLSX binary array using SheetJS
+                    const sheets = luckysheet.getAllSheets();
+                    const wb = XLSX.utils.book_new();
+                    
+                    sheets.forEach((s) => {{
+                        const rawData = luckysheet.getSheetData(s.index);
+                        const simpleData = [];
+                        let maxCols = 0;
+                        
+                        for (let r = 0; r < rawData.length; r++) {{
+                            const row = [];
+                            let rowHasVal = false;
+                            for (let c = 0; c < rawData[r].length; c++) {{
+                                const cell = rawData[r][c];
+                                let val = '';
+                                if (cell) {{
+                                    if (cell.v !== undefined && cell.v !== null) val = cell.v;
+                                    else if (cell.m !== undefined && cell.m !== null) val = cell.m;
+                                }}
+                                row.push(val);
+                                if (val !== '') {{ rowHasVal = true; if (c > maxCols) maxCols = c; }}
+                            }}
+                            if (rowHasVal || r < 20) {{
+                                simpleData.push(row);
+                            }}
+                        }}
+                        
+                        // Trim row arrays to maxCols + 1
+                        const trimmedData = simpleData.map(r => r.slice(0, Math.max(maxCols + 1, 5)));
+                        const ws = XLSX.utils.aoa_to_sheet(trimmedData);
+                        XLSX.utils.book_append_sheet(wb, ws, s.name || ('Лист' + (s.index + 1)));
+                    }});
+                    
+                    const outBuffer = XLSX.write(wb, {{ bookType: 'xlsx', type: 'array' }});
+                    blobData = new Blob([outBuffer], {{ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }});
+                }} else if (isDoc) {{
+                    const htmlContent = document.getElementById('word-body').innerHTML;
+                    blobData = new Blob([htmlContent], {{ type: 'text/html;charset=utf-8' }});
+                }}
+
+                if (blobData) {{
+                    const res = await fetch(`/api/documents/save_content/${{docId}}`, {{
+                        method: 'POST',
+                        body: blobData
+                    }});
+                    const data = await res.json();
+                    if (res.ok && data.status === 'ok') {{
+                        hasUnsavedChanges = false;
+                        setStatus('Сохранено в R2', '#22c55e');
+                        if (isManual) showToast('✅ Таблица успешно сохранена в Cloudflare R2!');
+                    }} else {{
+                        setStatus('Ошибка сохранения', '#ef4444');
+                        if (isManual) showToast('❌ ' + (data.message || 'Ошибка сохранения'), '#ef4444');
+                    }}
                 }}
             }} catch(e) {{
-                console.error("Sync error:", e);
-                setStatus("Сбой сети", "#ef4444");
+                console.error('Save error:', e);
+                setStatus('Сбой сохранения', '#ef4444');
+                if (isManual) showToast('❌ Сбой сети при сохранении', '#ef4444');
             }} finally {{
                 isSaving = false;
                 if (btn) {{
                     btn.disabled = false;
-                    btn.innerText = "💾 Сохранить в R2";
+                    btn.innerHTML = '<i class="fas fa-save"></i> Сохранить в R2 (Ctrl+S)';
                 }}
             }}
         }}
 
+        // Ctrl + S shortcut
+        window.addEventListener('keydown', (e) => {{
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {{
+                e.preventDefault();
+                saveDocument(true);
+            }}
+        }});
+
         async function handleBack() {{
-            setStatus("Сохранение перед выходом...", "#38bdf8");
-            try {{
-                await syncToCloud(false);
-            }} catch(e) {{}}
-            
+            if (hasUnsavedChanges) {{
+                try {{ await saveDocument(false); }} catch(e) {{}}
+            }}
             if (window.opener || history.length <= 1) {{
                 window.close();
             }} else {{
@@ -6389,55 +6578,161 @@ def open_editor(
             }}
         }}
 
-        // Auto-save every 45 seconds
-        setInterval(() => {{
-            syncToCloud(false);
-        }}, 45000);
-
-        // Sync before tab close
-        window.addEventListener("beforeunload", () => {{
-            navigator.sendBeacon(`/api/editor/sync/${{internalDocId}}`);
-        }});
-
-        function initDocSpace() {{
+        // Initialize and Load Document
+        async function loadDocument() {{
             try {{
-                if (typeof DocSpace !== 'undefined' && DocSpace.SDK && DocSpace.SDK.initEditor) {{
-                    DocSpace.SDK.initEditor({{
-                        id: docspaceFileId,
-                        frameId: "editor-container",
-                        width: "100%",
-                        height: "100%",
-                        events: {{
-                            onAppReady: function() {{
-                                console.log("DocSpace App Ready");
-                                setStatus("Редактор готов", "#22c55e");
-                            }},
-                            onDocumentReady: function() {{
-                                console.log("DocSpace Document Ready");
-                                setStatus("Редактирование активно", "#22c55e");
-                            }}
+                const rawUrl = `/api/documents/raw/${{docId}}`;
+                
+                if (isSheet) {{
+                    // Fetch raw binary from R2
+                    const response = await fetch(rawUrl);
+                    if (!response.ok) throw new Error('Не удалось загрузить файл из R2');
+                    const arrayBuffer = await response.arrayBuffer();
+                    
+                    // Transform to Luckysheet
+                    LuckyExcel.transformExcelToLucky(arrayBuffer, function(exportJson, luckysheetfile) {{
+                        if (!exportJson.sheets || exportJson.sheets.length === 0) {{
+                            throw new Error('Файл не содержит листов для отображения');
                         }}
+                        
+                        luckysheet.create({{
+                            container: 'luckysheet',
+                            showinfobar: false,
+                            myFolderUrl: '#',
+                            lang: 'ru',
+                            title: fileName,
+                            data: exportJson.sheets,
+                            userInfo: 'Сотрудник Tectum',
+                            allowEdit: true,
+                            showtoolbarConfig: {{
+                                undoRedo: true,
+                                paintFormat: true,
+                                currencyFormat: true,
+                                percentageFormat: true,
+                                numberDecrease: true,
+                                numberIncrease: true,
+                                moreFormats: true,
+                                font: true,
+                                fontSize: true,
+                                bold: true,
+                                italic: true,
+                                strikethrough: true,
+                                underline: true,
+                                textColor: true,
+                                fillMode: true,
+                                border: true,
+                                mergeCell: true,
+                                horizontalAlignMode: true,
+                                verticalAlignMode: true,
+                                textWrapMode: true,
+                                textRotateMode: true,
+                                image: false,
+                                link: true,
+                                chart: true,
+                                postil: true,
+                                pivotTable: false,
+                                function: true,
+                                frozenMode: true,
+                                sortAndFilter: true,
+                                conditionalFormat: true,
+                                dataVerification: true,
+                                splitColumn: true,
+                                screenshot: true,
+                                findAndReplace: true,
+                                protection: false,
+                                print: true
+                            }},
+                            hook: {{
+                                cellUpdated: function() {{
+                                    hasUnsavedChanges = true;
+                                    setStatus('Есть несохраненные правки', '#f59e0b');
+                                }},
+                                sheetActivate: function() {{}}
+                            }}
+                        }});
+                        hideLoading();
+                        setStatus('Готов к редактированию', '#22c55e');
+                    }}, function(err) {{
+                        console.error('LuckyExcel parse error, fallback to SheetJS:', err);
+                        // Fallback: Read with SheetJS
+                        const wb = XLSX.read(new Uint8Array(arrayBuffer), {{ type: 'array' }});
+                        const luckySheets = [];
+                        wb.SheetNames.forEach((name, i) => {{
+                            const ws = wb.Sheets[name];
+                            const json = XLSX.utils.sheet_to_json(ws, {{ header: 1, defval: '' }});
+                            const celldata = [];
+                            for (let r = 0; r < json.length; r++) {{
+                                for (let c = 0; c < json[r].length; c++) {{
+                                    const v = json[r][c];
+                                    if (v !== '') celldata.push({{ r, c, v: {{ v, m: String(v) }} }});
+                                }}
+                            }}
+                            luckySheets.push({{
+                                name,
+                                index: i,
+                                status: i === 0 ? 1 : 0,
+                                row: Math.max(json.length + 10, 30),
+                                column: 26,
+                                celldata
+                            }});
+                        }});
+                        
+                        luckysheet.create({{
+                            container: 'luckysheet',
+                            showinfobar: false,
+                            lang: 'ru',
+                            title: fileName,
+                            data: luckySheets
+                        }});
+                        hideLoading();
+                        setStatus('Готов к редактированию', '#22c55e');
                     }});
-                }} else {{
-                    setStatus("Ошибка загрузки SDK", "#ef4444");
-                    document.getElementById('editor-container').innerHTML = `
-                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-family:sans-serif;text-align:center;padding:20px;">
-                            <h3 style="color:#f87171;margin-bottom:8px;">Не удалось загрузить ONLYOFFICE DocSpace SDK</h3>
-                            <p style="font-size:0.9rem;max-width:500px;">Проверьте подключение к сети и настройки Embed SDK в консоли DocSpace.</p>
-                        </div>
-                    `;
+                }} else if (isDoc) {{
+                    const response = await fetch(rawUrl);
+                    const blob = await response.blob();
+                    const container = document.getElementById('word-body');
+                    
+                    if (fileName.endsWith('.docx')) {{
+                        await docx.renderAsync(blob, container);
+                    }} else {{
+                        const text = await blob.text();
+                        container.innerText = text;
+                    }}
+                    container.addEventListener('input', () => {{
+                        hasUnsavedChanges = true;
+                        setStatus('Есть несохраненные правки', '#f59e0b');
+                    }});
+                    hideLoading();
+                    setStatus('Готов к редактированию', '#22c55e');
+                }} else if (isPdf || isPresentation) {{
+                    const frame = document.getElementById('pdf-frame');
+                    frame.src = rawUrl;
+                    hideLoading();
+                    setStatus('Режим просмотра', '#38bdf8');
                 }}
             }} catch(e) {{
-                console.error("DocSpace Init Error:", e);
-                setStatus("Ошибка инициализации", "#ef4444");
+                console.error('Document load error:', e);
+                hideLoading();
+                setStatus('Ошибка загрузки', '#ef4444');
+                document.getElementById('editor-workspace').innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;padding:20px;text-align:center;">
+                        <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#f87171;margin-bottom:16px;"></i>
+                        <h3 style="color:#f87171;margin-bottom:8px;">Не удалось открыть документ</h3>
+                        <p style="margin-bottom:16px;">${{e.message || 'Ошибка чтения файла'}}</p>
+                        <button onclick="downloadOriginal()" class="btn-action"><i class="fas fa-download"></i> Скачать оригинал на компьютер</button>
+                    </div>
+                `;
             }}
         }}
 
-        if (document.readyState === 'complete') {{
-            initDocSpace();
-        }} else {{
-            window.addEventListener('load', initDocSpace);
-        }}
+        // Auto-save every 60 seconds if changes present
+        setInterval(() => {{
+            if (hasUnsavedChanges && !isSaving) {{
+                saveDocument(false);
+            }}
+        }}, 60000);
+
+        window.addEventListener('load', loadDocument);
     </script>
 </body>
 </html>"""
