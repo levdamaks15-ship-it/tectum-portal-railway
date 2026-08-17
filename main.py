@@ -6207,9 +6207,11 @@ def open_editor(
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css" />
     
-    <!-- SheetJS and LuckyExcel -->
+    <!-- SheetJS, Luckysheet Locales and LuckyExcel -->
     <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/locale/ru.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/locale/en.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.min.js"></script>
