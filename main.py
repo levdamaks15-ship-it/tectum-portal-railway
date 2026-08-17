@@ -5798,18 +5798,19 @@ def delete_document(
             cat_id = int(item_id.split("_")[1])
             folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
             if folder:
-                # Recursive cascade delete for folder and all subfolders/files
-                def collect_folder_ids_recursive(f_id: int) -> list[int]:
-                    ids = [f_id]
+                # Proper post-order traversal (children before parents)
+                def get_all_descendant_ids_post_order(f_id: int) -> list[int]:
+                    result = []
                     children = db.query(models.DocumentCategory).filter(models.DocumentCategory.parent_id == f_id).all()
                     for ch in children:
-                        ids.extend(collect_folder_ids_recursive(ch.id))
-                    return ids
+                        result.extend(get_all_descendant_ids_post_order(ch.id))
+                    result.append(f_id)
+                    return result
 
-                all_cat_ids = collect_folder_ids_recursive(folder.id)
-                
-                # Find all files inside these folders and delete them from disk & Google Drive
-                docs_to_delete = db.query(models.Document).filter(models.Document.category_id.in_(all_cat_ids)).all()
+                all_cat_ids_to_delete = get_all_descendant_ids_post_order(folder.id)
+
+                # 1. Delete all files inside these folders
+                docs_to_delete = db.query(models.Document).filter(models.Document.category_id.in_(all_cat_ids_to_delete)).all()
                 for doc in docs_to_delete:
                     if doc.file_path and os.path.exists(doc.file_path):
                         try:
@@ -5823,9 +5824,16 @@ def delete_document(
                         except Exception:
                             pass
                     db.delete(doc)
-                
-                # Delete folders in reverse order (children first)
-                for c_id in reversed(all_cat_ids):
+                db.flush()
+
+                # 2. Break parent_id foreign key references within categories to avoid constraint violations
+                db.query(models.DocumentCategory).filter(models.DocumentCategory.id.in_(all_cat_ids_to_delete)).update(
+                    {models.DocumentCategory.parent_id: None}, synchronize_session=False
+                )
+                db.flush()
+
+                # 3. Delete folders from database and Google Drive in post-order
+                for c_id in all_cat_ids_to_delete:
                     f_obj = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == c_id).first()
                     if f_obj:
                         if f_obj.google_drive_folder_id:
@@ -5835,6 +5843,7 @@ def delete_document(
                             except Exception:
                                 pass
                         db.delete(f_obj)
+                        db.flush()
                         
                 db.commit()
         elif item_id.startswith("file_"):

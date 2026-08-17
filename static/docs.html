@@ -2445,6 +2445,7 @@
             }
             if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
+            showToast('Удаление объекта...', 'info');
             try {
                 const res = await fetch(`/api/documents/${itemId}`, { 
                     method: 'DELETE',
@@ -2455,12 +2456,12 @@
                     docsCache.clear();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
-                    showToast('Элемент удален');
+                    showToast('Элемент успешно удален');
                 } else {
                     alert('Ошибка при удалении: ' + data.message);
                 }
             } catch (error) {
-                alert('Ошибка соединения');
+                alert('Ошибка соединения при удалении');
             }
         }
 
