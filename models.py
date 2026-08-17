@@ -291,6 +291,7 @@ class Document(Base):
     google_drive_id = Column(String, nullable=True)
     google_drive_url = Column(String, nullable=True)
     r2_key = Column(String, nullable=True) # Key in Cloudflare R2 bucket
+    docspace_file_id = Column(Integer, nullable=True) # ID of the document in ONLYOFFICE DocSpace
 
 class Task(Base):
     __tablename__ = "tasks"

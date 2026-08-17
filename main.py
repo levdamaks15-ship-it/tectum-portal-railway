@@ -193,16 +193,36 @@ async def lifespan(app: FastAPI):
         if 'db' in locals():
             db.close()
 
-    # Document Google Drive and R2 columns migration
+    # Document Google Drive, R2 and DocSpace columns migration
     try:
-        conn = sqlite3.connect("tectum.db")
-        conn.execute("ALTER TABLE documents ADD COLUMN google_drive_id VARCHAR(255)")
-        conn.execute("ALTER TABLE documents ADD COLUMN google_drive_url VARCHAR")
-        conn.execute("ALTER TABLE documents ADD COLUMN r2_key VARCHAR(512)")
-        conn.execute("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255)")
-        conn.commit()
-        conn.close()
-    except: pass
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT")]:
+                try:
+                    db.execute(text(f"ALTER TABLE documents ADD COLUMN IF NOT EXISTS {col} {col_type};"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        elif driver == 'sqlite':
+            conn = sqlite3.connect("tectum.db")
+            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT")]:
+                try:
+                    conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
+                    conn.commit()
+                except Exception:
+                    pass
+            try:
+                conn.execute("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255)")
+                conn.commit()
+            except Exception: pass
+            conn.close()
+    except Exception as e:
+        pass
+    finally:
+        if 'db' in locals() and db:
+            db.close()
 
     # Automatic deduplication of duplicate document folders on startup
     try:
@@ -6034,49 +6054,46 @@ def download_document(
     return {"status": "error", "message": "Файл не найден"}
 
 # ==========================================
-# ONLYOFFICE CLOUD EDITOR INTEGRATION
+# ONLYOFFICE DOCSPACE CLOUD EDITOR INTEGRATION
 # ==========================================
 
-class OnlyOfficeCallback(BaseModel):
-    status: int
-    url: Optional[str] = None
-    key: Optional[str] = None
-    users: Optional[list] = None
-
-@app.post("/api/editor/callback/{file_id}")
-async def onlyoffice_callback(file_id: int, request: Request, db: Session = Depends(get_db)):
+@app.post("/api/editor/sync/{file_id}")
+def sync_docspace_to_r2(file_id: int, db: Session = Depends(get_db)):
     """
-    Handles save events from OnlyOffice Editor.
-    When user edits and saves, OnlyOffice posts the new file URL here,
-    and we save it directly to Cloudflare R2!
+    Downloads the latest version of the file from ONLYOFFICE DocSpace
+    and saves it back to Cloudflare R2 storage.
     """
-    try:
-        body = await request.json()
-        status = body.get("status")
-        download_url = body.get("url")
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"error": "Документ не найден"}, status_code=404)
+    
+    if not doc.docspace_file_id:
+        return JSONResponse({"error": "Документ не связан с DocSpace"}, status_code=400)
+        
+    import docspace_integration
+    import r2_integration
+    
+    file_bytes = docspace_integration.download_file_from_docspace(doc.docspace_file_id)
+    if not file_bytes:
+        return JSONResponse({"error": "Не удалось скачать файл из DocSpace"}, status_code=500)
+        
+    if doc.r2_key:
+        try:
+            client = r2_integration.get_r2_client()
+            client.put_object(
+                Bucket=r2_integration.R2_BUCKET_NAME,
+                Key=doc.r2_key,
+                Body=file_bytes,
+                ContentType=doc.mime_type or "application/octet-stream"
+            )
+            doc.uploaded_at = datetime.datetime.utcnow()
+            db.commit()
+            return {"status": "ok", "size": len(file_bytes), "updated_at": doc.uploaded_at.isoformat()}
+        except Exception as e:
+            return JSONResponse({"error": f"Ошибка сохранения в R2: {str(e)}"}, status_code=500)
+    
+    return {"status": "ok", "note": "doc has no r2_key"}
 
-        # Status 2 = ready for saving, Status 6 = force save
-        if status in [2, 6] and download_url:
-            doc = db.query(models.Document).filter(models.Document.id == file_id).first()
-            if doc and doc.r2_key:
-                import requests
-                import r2_integration
-
-                # Download updated file from OnlyOffice
-                file_resp = requests.get(download_url, timeout=30)
-                if file_resp.status_code == 200:
-                    client = r2_integration.get_r2_client()
-                    client.put_object(
-                        Bucket=r2_integration.R2_BUCKET_NAME,
-                        Key=doc.r2_key,
-                        Body=file_resp.content,
-                        ContentType=doc.mime_type or "application/octet-stream"
-                    )
-
-        return {"error": 0}
-    except Exception as e:
-        print(f"OnlyOffice Callback Error for doc #{file_id}: {e}")
-        return {"error": 0}
 
 @app.get("/editor")
 def open_editor(
@@ -6108,73 +6125,42 @@ def open_editor(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
 
-    # Determine document type for OnlyOffice
-    filename = doc.title
-    ext = filename.split(".")[-1].lower() if "." in filename else ""
-    
-    doc_type = "word"
-    if ext in ["xlsx", "xls", "csv", "ods"]:
-        doc_type = "cell"
-    elif ext in ["pptx", "ppt", "odp"]:
-        doc_type = "slide"
-
-    # Get file download URL from R2 (or fallback)
+    import docspace_integration
     import r2_integration
-    if doc.r2_key:
-        file_download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=86400)
-    else:
-        # If legacy Google drive doc, redirect directly
-        if doc.google_drive_url:
-            return RedirectResponse(url=doc.google_drive_url)
-        file_download_url = str(request.base_url).rstrip("/") + f"/api/documents/download/{doc.id}"
 
-    # OnlyOffice DocSpace & Cloud Document Server Configuration
-    docspace_url = os.getenv("ONLYOFFICE_DOCSPACE_URL", "https://docspace-edxqm0.onlyoffice.com").rstrip("/")
-    api_key = os.getenv("ONLYOFFICE_API_KEY", "sk-e606e9a780644a3c3d237df4ee38562bf80f65ba9330cd6032607a3efa9fae38")
+    docspace_url = docspace_integration.DOCSPACE_URL
+    filename = doc.title
 
-    base_url = str(request.base_url).rstrip("/")
-    callback_url = f"{base_url}/api/editor/callback/{doc.id}"
-    user_name = request.session.get("user_name") or "Сотрудник Tectum"
+    # Ensure document exists in DocSpace
+    docspace_file_id = doc.docspace_file_id
+    is_valid_in_docspace = False
+    if docspace_file_id:
+        is_valid_in_docspace = docspace_integration.check_file_in_docspace(docspace_file_id)
 
-    # Build unique document key based on upload timestamp and id
-    import time
-    doc_key = f"doc_{doc.id}_{int(doc.uploaded_at.timestamp() if doc.uploaded_at else time.time())}"
-
-    # Generate JWT token for OnlyOffice Document Server
-    import jwt
-    payload = {
-        "document": {
-            "fileType": ext,
-            "key": doc_key,
-            "title": filename,
-            "url": file_download_url,
-            "permissions": {
-                "download": True,
-                "edit": True,
-                "print": True,
-                "review": True
-            }
-        },
-        "documentType": doc_type,
-        "editorConfig": {
-            "lang": "ru",
-            "callbackUrl": callback_url,
-            "user": {
-                "id": f"user_{request.session.get('user_id') or 1}",
-                "name": user_name
-            },
-            "customization": {
-                "autosave": True,
-                "forcesave": True,
-                "compactHeader": True,
-                "feedback": False,
-                "help": False,
-                "toolbarNoTabs": False
-            }
-        }
-    }
-    
-    jwt_token = jwt.encode(payload, api_key, algorithm="HS256")
+    if not is_valid_in_docspace:
+        # Fetch file from R2 and upload to DocSpace
+        file_bytes = None
+        if doc.r2_key:
+            try:
+                client = r2_integration.get_r2_client()
+                obj = client.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
+                file_bytes = obj['Body'].read()
+            except Exception as e:
+                print(f"Error fetching doc #{doc.id} from R2: {e}")
+        
+        if file_bytes:
+            new_docspace_id = docspace_integration.upload_file_to_docspace(file_bytes, filename)
+            if new_docspace_id:
+                doc.docspace_file_id = new_docspace_id
+                db.commit()
+                docspace_file_id = new_docspace_id
+            else:
+                return HTMLResponse(
+                    "<h3>Не удалось подготовить документ в ONLYOFFICE DocSpace.</h3><p>Проверьте настройки API-ключа DocSpace.</p>",
+                    status_code=500
+                )
+        else:
+            return HTMLResponse("<h3>Файл документа не найден в хранилище Cloudflare R2.</h3>", status_code=404)
 
     editor_html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -6193,23 +6179,8 @@ def open_editor(
             background-color: #0f172a;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }}
-        #editor-container {{
-            height: calc(100vh - 44px);
-            width: 100%;
-            background: #ffffff;
-        }}
-        #editor-container iframe, .frame-container iframe {{
-            height: 100% !important;
-            width: 100% !important;
-            border: none;
-            display: block;
-        }}
-        .frame-container {{
-            height: 100% !important;
-            width: 100% !important;
-        }}
         .editor-topbar {{
-            height: 44px;
+            height: 48px;
             background: #1e293b;
             display: flex;
             align-items: center;
@@ -6218,6 +6189,7 @@ def open_editor(
             color: #f8fafc;
             border-bottom: 1px solid #334155;
             box-sizing: border-box;
+            user-select: none;
         }}
         .topbar-left {{
             display: flex;
@@ -6227,11 +6199,12 @@ def open_editor(
         .btn-back {{
             background: #334155;
             color: #f8fafc;
-            border: none;
+            border: 1px solid #475569;
             padding: 6px 14px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.85rem;
+            font-weight: 500;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
@@ -6240,79 +6213,231 @@ def open_editor(
         }}
         .btn-back:hover {{
             background: #475569;
+            color: #ffffff;
+        }}
+        .btn-save {{
+            background: #0284c7;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }}
+        .btn-save:hover {{
+            background: #0369a1;
+        }}
+        .btn-save:disabled {{
+            opacity: 0.6;
+            cursor: not-allowed;
         }}
         .doc-title {{
             font-weight: 600;
             font-size: 0.95rem;
             color: #38bdf8;
-            max-width: 400px;
+            max-width: 380px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }}
-        .topbar-right {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.85rem;
-            color: #94a3b8;
-        }}
         .badge {{
-            background: #0284c7;
-            color: white;
+            background: #0369a1;
+            color: #e0f2fe;
             padding: 3px 8px;
             border-radius: 4px;
             font-size: 0.75rem;
             font-weight: 600;
         }}
+        .topbar-right {{
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }}
+        .status-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.82rem;
+            color: #94a3b8;
+        }}
+        .status-dot {{
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+        }}
+        #editor-container {{
+            height: calc(100vh - 48px);
+            width: 100%;
+            background: #ffffff;
+            position: relative;
+        }}
+        #editor-container iframe, .frame-container iframe {{
+            height: 100% !important;
+            width: 100% !important;
+            border: none;
+            display: block;
+        }}
+        .toast {{
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #0f172a;
+            color: #f8fafc;
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            font-size: 0.85rem;
+            display: none;
+            z-index: 9999;
+        }}
     </style>
-    <!-- Official OnlyOffice DocSpace SDK Script -->
+    <!-- ONLYOFFICE DocSpace JavaScript SDK -->
+    <script type="text/javascript" src="{docspace_url}/static/scripts/sdk/2.2.0/api.js"></script>
     <script type="text/javascript" src="{docspace_url}/static/scripts/sdk/1.0.0/api.js"></script>
-    <script type="text/javascript" src="{docspace_url}/web-apps/apps/api/documents/api.js"></script>
-    <script type="text/javascript" src="{docspace_url}/OfficeWeb/apps/api/documents/api.js"></script>
 </head>
 <body>
     <div class="editor-topbar">
         <div class="topbar-left">
-            <a href="javascript:window.close()" class="btn-back" onclick="if(history.length>1){{history.back();return false;}}">← Назад в портал</a>
-            <span class="doc-title">{html.escape(filename)}</span>
-            <span class="badge">ONLYOFFICE Cloud</span>
+            <button onclick="handleBack()" class="btn-back">← Назад в портал</button>
+            <span class="doc-title" title="{html.escape(filename)}">{html.escape(filename)}</span>
+            <span class="badge">ONLYOFFICE DocSpace</span>
         </div>
         <div class="topbar-right">
-            <span>Редактирование активно</span>
+            <div class="status-badge">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Подключение...</span>
+            </div>
+            <button id="btn-save" onclick="syncToCloud(true)" class="btn-save">💾 Сохранить в R2</button>
         </div>
     </div>
+    
     <div id="editor-container"></div>
+    <div id="toast" class="toast"></div>
 
     <script>
-        const config = {json.dumps(payload, ensure_ascii=False)};
-        config.token = "{jwt_token}";
-        config.height = "100%";
-        config.width = "100%";
+        const docspaceFileId = {docspace_file_id};
+        const internalDocId = {doc.id};
 
-        function initEditor() {{
+        function showToast(text, color = '#22c55e') {{
+            const toast = document.getElementById('toast');
+            if (toast) {{
+                toast.innerText = text;
+                toast.style.borderColor = color;
+                toast.style.display = 'block';
+                setTimeout(() => {{ toast.style.display = 'none'; }}, 3500);
+            }}
+        }}
+
+        function setStatus(text, dotColor = '#22c55e') {{
+            const st = document.getElementById('status-text');
+            const sd = document.getElementById('status-dot');
+            if (st) st.innerText = text;
+            if (sd) sd.style.background = dotColor;
+        }}
+
+        let isSaving = false;
+        async function syncToCloud(isManual = false) {{
+            if (isSaving) return;
+            isSaving = true;
+            const btn = document.getElementById('btn-save');
+            if (btn && isManual) {{
+                btn.disabled = true;
+                btn.innerText = "⏳ Сохранение...";
+            }}
+            setStatus("Синхронизация с R2...", "#38bdf8");
+
             try {{
-                config.frameId = "editor-container";
-                config.editorConfig = config.editorConfig || {{}};
-                config.editorConfig.mode = "edit";
-                config.editorConfig.lang = "ru";
-                config.width = "100%";
-                config.height = "100%";
-                
-                if (typeof DocSpace !== 'undefined' && DocSpace.SDK && DocSpace.SDK.initEditor) {{
-                    DocSpace.SDK.initEditor(config);
-                }} else if (typeof DocsAPI !== 'undefined' && DocsAPI.DocEditor) {{
-                    new DocsAPI.DocEditor("editor-container", config);
+                const res = await fetch(`/api/editor/sync/${{internalDocId}}`, {{
+                    method: "POST"
+                }});
+                const data = await res.json();
+                if (res.ok && data.status === 'ok') {{
+                    setStatus("Сохранено в R2", "#22c55e");
+                    if (isManual) showToast("✅ Изменения успешно сохранены в Cloudflare R2!");
+                }} else {{
+                    setStatus("Ошибка сохранения", "#ef4444");
+                    if (isManual) showToast("❌ " + (data.error || "Ошибка сохранения"), "#ef4444");
                 }}
             }} catch(e) {{
-                console.error("OnlyOffice init error:", e);
+                console.error("Sync error:", e);
+                setStatus("Сбой сети", "#ef4444");
+            }} finally {{
+                isSaving = false;
+                if (btn) {{
+                    btn.disabled = false;
+                    btn.innerText = "💾 Сохранить в R2";
+                }}
+            }}
+        }}
+
+        async function handleBack() {{
+            setStatus("Сохранение перед выходом...", "#38bdf8");
+            try {{
+                await syncToCloud(false);
+            }} catch(e) {{}}
+            
+            if (window.opener || history.length <= 1) {{
+                window.close();
+            }} else {{
+                history.back();
+            }}
+        }}
+
+        // Auto-save every 45 seconds
+        setInterval(() => {{
+            syncToCloud(false);
+        }}, 45000);
+
+        // Sync before tab close
+        window.addEventListener("beforeunload", () => {{
+            navigator.sendBeacon(`/api/editor/sync/${{internalDocId}}`);
+        }});
+
+        function initDocSpace() {{
+            try {{
+                if (typeof DocSpace !== 'undefined' && DocSpace.SDK && DocSpace.SDK.initEditor) {{
+                    DocSpace.SDK.initEditor({{
+                        id: docspaceFileId,
+                        frameId: "editor-container",
+                        width: "100%",
+                        height: "100%",
+                        events: {{
+                            onAppReady: function() {{
+                                console.log("DocSpace App Ready");
+                                setStatus("Редактор готов", "#22c55e");
+                            }},
+                            onDocumentReady: function() {{
+                                console.log("DocSpace Document Ready");
+                                setStatus("Редактирование активно", "#22c55e");
+                            }}
+                        }}
+                    }});
+                }} else {{
+                    setStatus("Ошибка загрузки SDK", "#ef4444");
+                    document.getElementById('editor-container').innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;font-family:sans-serif;text-align:center;padding:20px;">
+                            <h3 style="color:#f87171;margin-bottom:8px;">Не удалось загрузить ONLYOFFICE DocSpace SDK</h3>
+                            <p style="font-size:0.9rem;max-width:500px;">Проверьте подключение к сети и настройки Embed SDK в консоли DocSpace.</p>
+                        </div>
+                    `;
+                }}
+            }} catch(e) {{
+                console.error("DocSpace Init Error:", e);
+                setStatus("Ошибка инициализации", "#ef4444");
             }}
         }}
 
         if (document.readyState === 'complete') {{
-            initEditor();
+            initDocSpace();
         }} else {{
-            window.addEventListener('load', initEditor);
+            window.addEventListener('load', initDocSpace);
         }}
     </script>
 </body>
