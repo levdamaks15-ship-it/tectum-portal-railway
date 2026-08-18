@@ -6227,17 +6227,15 @@ def open_editor(
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Luckysheet Spreadsheets Engine -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/css/pluginsCss.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/plugins.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/css/luckysheet.css" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet/dist/assets/iconfont/iconfont.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/css/pluginsCss.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/plugins.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css" />
     
-    <!-- SheetJS, Luckysheet Locales and LuckyExcel -->
-    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/plugins/js/plugin.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/luckysheet.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/locale/ru.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luckysheet/dist/locale/en.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luckyexcel/dist/luckyexcel.umd.js"></script>
+    <!-- Scripts: Plugin first, then Luckysheet, then LuckyExcel & SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.min.js"></script>
 
@@ -6632,7 +6630,6 @@ def open_editor(
                             container: 'luckysheet',
                             showinfobar: false,
                             myFolderUrl: '#',
-                            lang: 'ru',
                             title: fileName,
                             data: exportJson.sheets,
                             userInfo: 'Сотрудник Tectum',
@@ -6713,7 +6710,6 @@ def open_editor(
                         luckysheet.create({{
                             container: 'luckysheet',
                             showinfobar: false,
-                            lang: 'ru',
                             title: fileName,
                             data: luckySheets
                         }});
