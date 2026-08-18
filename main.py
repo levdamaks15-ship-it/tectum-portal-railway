@@ -5439,7 +5439,7 @@ def list_documents(
         file_data = []
         for f in files:
             is_editable = is_editable_doc(f.title)
-            file_link = f"/editor?id=file_{f.id}" if is_editable else (f.google_drive_url if f.google_drive_url else f"/api/documents/download/{f.id}")
+            file_link = f"/editor?id=file_{f.id}" if is_editable else f"/api/documents/download/{f.id}"
             file_data.append({
                 "id": f"file_{f.id}",
                 "name": f.title,
@@ -5472,7 +5472,7 @@ def get_documents_tree(db: Session = Depends(get_db)):
         file_data = []
         for d in docs:
             is_editable = is_editable_doc(d.title)
-            file_link = f"/editor?id=file_{d.id}" if is_editable else (d.google_drive_url if d.google_drive_url else f"/api/documents/download/{d.id}")
+            file_link = f"/editor?id=file_{d.id}" if is_editable else f"/api/documents/download/{d.id}"
             file_data.append({
                 "id": f"file_{d.id}",
                 "name": d.title,
@@ -6204,47 +6204,6 @@ def open_editor(
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
 
-    # Sync to Koofr Cloud Office
-    if not doc.koofr_link:
-        file_bytes = None
-        if doc.r2_key:
-            try:
-                import r2_integration
-                s3 = r2_integration.get_r2_client()
-                obj = s3.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
-                file_bytes = obj['Body'].read()
-            except Exception as e:
-                logger.error(f"Error fetching R2 for Koofr sync: {e}")
-        elif doc.file_path and os.path.exists(doc.file_path):
-            try:
-                with open(doc.file_path, "rb") as f:
-                    file_bytes = f.read()
-            except Exception as e:
-                logger.error(f"Error reading local file for Koofr: {e}")
-                
-        if file_bytes:
-            import koofr_integration, re
-            clean_name = re.sub(r'[^\w\.\-\(\) ]', '_', doc.title)
-            remote_path = f"/Tectum/Folder_{doc.category_id or 0}/{doc.id}_{clean_name}"
-            if koofr_integration.upload_file_to_koofr(file_bytes, remote_path):
-                link = koofr_integration.create_share_link(remote_path)
-                if link:
-                    doc.koofr_path = remote_path
-                    doc.koofr_link = link
-                    try:
-                        db.commit()
-                    except Exception:
-                        db.rollback()
-
-    if doc.koofr_path:
-        import posixpath
-        from urllib.parse import quote
-        parent_dir = posixpath.dirname(doc.koofr_path) or "/Tectum"
-        direct_url = f"https://app.koofr.net/app/admin/files#{quote(parent_dir)}"
-        return RedirectResponse(url=direct_url, status_code=302)
-    elif doc.koofr_link:
-        return RedirectResponse(url=doc.koofr_link, status_code=302)
-
     filename = doc.title
     ext = filename.split(".")[-1].lower() if "." in filename else ""
     
@@ -6807,6 +6766,13 @@ def open_editor(
                 saveDocument(false);
             }}
         }}, 60000);
+
+        window.addEventListener('beforeunload', (e) => {{
+            if (hasUnsavedChanges) {{
+                e.preventDefault();
+                e.returnValue = 'Есть несохраненные изменения!';
+            }}
+        }});
 
         window.addEventListener('load', loadDocument);
     </script>
