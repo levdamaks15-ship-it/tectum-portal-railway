@@ -5473,8 +5473,7 @@ def list_documents(
             
         file_data = []
         for f in files:
-            is_editable = is_editable_doc(f.title)
-            file_link = f"/editor?id=file_{f.id}" if is_editable else f"/api/documents/download/{f.id}"
+            file_link = f"/api/documents/download/{f.id}"
             file_data.append({
                 "id": f"file_{f.id}",
                 "name": f.title,
@@ -5510,8 +5509,7 @@ def get_documents_tree(db: Session = Depends(get_db)):
         docs = db.query(models.Document).order_by(models.Document.title).all()
         file_data = []
         for d in docs:
-            is_editable = is_editable_doc(d.title)
-            file_link = f"/editor?id=file_{d.id}" if is_editable else f"/api/documents/download/{d.id}"
+            file_link = f"/api/documents/download/{d.id}"
             file_data.append({
                 "id": f"file_{d.id}",
                 "name": d.title,

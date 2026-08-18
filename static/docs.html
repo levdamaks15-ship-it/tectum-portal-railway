@@ -1539,16 +1539,13 @@
         }
 
         function getWebViewLink(file) {
-            const name = (file.name || '').toLowerCase();
-            if (isEditableFile(name)) {
-                return `/editor?id=${file.id}`;
-            }
-            return file.webViewLink;
+            const rawId = (file.id || '').replace('file_', '');
+            return `/api/documents/download/${rawId}`;
         }
 
         function isEditableFile(fileName) {
             const name = (fileName || '').toLowerCase();
-            return name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.pptx') || name.endsWith('.ppt') || name.endsWith('.pdf');
+            return name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.docx') || name.endsWith('.doc') || name.endsWith('.pptx') || name.endsWith('.ppt');
         }
 
         function getFolderPasswordHeader() {
