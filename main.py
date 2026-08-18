@@ -6345,11 +6345,20 @@ def open_editor(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{html.escape(filename)} — ONLYOFFICE Editor</title>
+    <title>{html.escape(filename)} — Редактор Tectum</title>
     <link rel="icon" type="image/x-icon" href="/static/img/favicon.ico">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script type="text/javascript" src="{onlyoffice_server_url}/web-apps/apps/api/documents/api.js"></script>
+    <!-- Luckysheet & Preview Dependencies as Instant Fallback -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/css/pluginsCss.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/plugins.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css" />
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/plugins/js/plugin.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luckyexcel@latest/dist/luckyexcel.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.1.15/dist/docx-preview.min.js"></script>
 
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -6470,6 +6479,37 @@ def open_editor(
             height: 100%;
         }}
         
+        #luckysheet {{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            display: none;
+        }}
+        
+        .doc-preview-container {{
+            background: #525659;
+            padding: 20px;
+            display: none;
+            justify-content: center;
+            height: 100%;
+            overflow: auto;
+        }}
+        
+        .doc-editor-wrapper {{
+            max-width: 900px;
+            width: 100%;
+            margin: 20px auto;
+            background: #ffffff;
+            color: #1e293b;
+            padding: 40px 60px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            border-radius: 4px;
+            min-height: calc(100vh - 120px);
+            outline: none;
+        }}
+        
         .loading-overlay {{
             position: absolute;
             inset: 0;
@@ -6506,8 +6546,9 @@ def open_editor(
         <div class="topbar-right">
             <div class="status-badge">
                 <span class="status-dot" id="status-dot"></span>
-                <span id="status-text">ONLYOFFICE подключен</span>
+                <span id="status-text">Загрузка редактора...</span>
             </div>
+            <button id="btn-save-fallback" onclick="saveFallbackDocument()" style="display:none;" class="btn-action"><i class="fas fa-save"></i> Сохранить</button>
             <button onclick="downloadOriginal()" class="btn-action btn-secondary"><i class="fas fa-download"></i> Скачать файл</button>
         </div>
     </div>
@@ -6515,17 +6556,36 @@ def open_editor(
     <div id="editor-workspace">
         <div id="loading" class="loading-overlay">
             <div class="spinner"></div>
-            <div style="font-size:1.05rem;font-weight:600;">Загрузка ONLYOFFICE Document Server...</div>
+            <div style="font-size:1.05rem;font-weight:600;">Открытие документа...</div>
             <div style="font-size:0.85rem;color:#94a3b8;">{html.escape(filename)}</div>
         </div>
+        
         <div id="onlyoffice-container"></div>
+        <div id="luckysheet"></div>
+        <div id="word-container" class="doc-preview-container">
+            <div id="word-body" class="doc-editor-wrapper" contenteditable="true" spellcheck="false"></div>
+        </div>
+        <iframe id="pdf-frame" style="display:none; width:100%; height:100%; border:none;"></iframe>
     </div>
 
     <script>
         const docId = {doc.id};
         const pwdParam = "{actual_pwd or ''}";
         const config = {config_json};
+        const onlyofficeScriptUrl = "{onlyoffice_server_url}/web-apps/apps/api/documents/api.js";
+        const isSheet = {'true' if doc_type == 'cell' else 'false'};
+        const isDoc = {'true' if doc_type == 'word' and ext != 'pdf' else 'false'};
+        const isPdf = {'true' if ext == 'pdf' else 'false'};
+        const fileName = "{html.escape(filename)}";
         let docEditor = null;
+        let isUsingOnlyOffice = false;
+
+        function setStatus(text, color = '#22c55e') {{
+            const st = document.getElementById('status-text');
+            const sd = document.getElementById('status-dot');
+            if (st) st.innerText = text;
+            if (sd) sd.style.background = color;
+        }}
 
         function hideLoading() {{
             const el = document.getElementById('loading');
@@ -6545,47 +6605,154 @@ def open_editor(
             }}
         }}
 
-        function initOnlyOffice() {{
-            if (typeof DocsAPI === "undefined") {{
-                document.getElementById('loading').innerHTML = `
-                    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#94a3b8;padding:20px;text-align:center;">
-                        <i class="fas fa-exclamation-triangle" style="font-size:3rem;color:#f87171;margin-bottom:16px;"></i>
-                        <h3 style="color:#f87171;margin-bottom:8px;">Не удалось связаться с ONLYOFFICE</h3>
-                        <p style="margin-bottom:16px;">Проверьте адрес ONLYOFFICE_URL в Railway или статус сервиса OnlyOffice</p>
-                        <button onclick="downloadOriginal()" class="btn-action"><i class="fas fa-download"></i> Скачать файл на компьютер</button>
-                    </div>
-                `;
-                return;
-            }}
-
-            config.events = {{
-                onAppReady: function() {{
-                    hideLoading();
-                }},
-                onDocumentStateChange: function(event) {{
-                    const st = document.getElementById('status-text');
-                    const sd = document.getElementById('status-dot');
-                    if (event.data) {{
-                        if (st) st.innerText = 'Есть несохраненные правки';
-                        if (sd) sd.style.background = '#f59e0b';
-                    }} else {{
-                        if (st) st.innerText = 'Все изменения сохранены';
-                        if (sd) sd.style.background = '#22c55e';
-                    }}
-                }},
-                onError: function(event) {{
-                    console.error('ONLYOFFICE Error:', event);
-                }}
-            }};
-
-            docEditor = new DocsAPI.DocEditor("onlyoffice-container", config);
+        // Попытка загрузки скрипта OnlyOffice динамически с таймаутом
+        function tryLoadOnlyOffice() {{
+            return new Promise((resolve, reject) => {{
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = onlyofficeScriptUrl;
+                script.onload = () => resolve(true);
+                script.onerror = () => reject(new Error('OnlyOffice script failed to load'));
+                document.head.appendChild(script);
+                setTimeout(() => reject(new Error('OnlyOffice timeout')), 4000);
+            }});
         }}
 
-        window.addEventListener('load', initOnlyOffice);
+        // Резервный встроенный загрузчик
+        async function loadFallbackEditor() {{
+            try {{
+                const rawUrl = `/api/documents/raw/${{docId}}` + (pwdParam ? `?pwd=${{encodeURIComponent(pwdParam)}}` : '');
+                
+                if (isSheet) {{
+                    const res = await fetch(rawUrl);
+                    const ab = await res.arrayBuffer();
+                    LuckyExcel.transformExcelToLucky(ab, function(exportJson) {{
+                        document.getElementById('luckysheet').style.display = 'block';
+                        document.getElementById('btn-save-fallback').style.display = 'inline-flex';
+                        luckysheet.create({{
+                            container: 'luckysheet',
+                            showinfobar: false,
+                            title: fileName,
+                            data: exportJson.sheets,
+                            allowEdit: true
+                        }});
+                        hideLoading();
+                        setStatus('Редактор готов (Встроенный)', '#22c55e');
+                    }}, function(err) {{
+                        const wb = XLSX.read(new Uint8Array(ab), {{ type: 'array' }});
+                        const luckySheets = [];
+                        wb.SheetNames.forEach((name, i) => {{
+                            const ws = wb.Sheets[name];
+                            const json = XLSX.utils.sheet_to_json(ws, {{ header: 1, defval: '' }});
+                            const celldata = [];
+                            for (let r = 0; r < json.length; r++) {{
+                                for (let c = 0; c < json[r].length; c++) {{
+                                    const v = json[r][c];
+                                    if (v !== '') celldata.push({{ r, c, v: {{ v, m: String(v) }} }});
+                                }}
+                            }}
+                            luckySheets.push({{ name, index: i, status: i === 0 ? 1 : 0, row: 30, column: 26, celldata }});
+                        }});
+                        document.getElementById('luckysheet').style.display = 'block';
+                        document.getElementById('btn-save-fallback').style.display = 'inline-flex';
+                        luckysheet.create({{ container: 'luckysheet', showinfobar: false, data: luckySheets }});
+                        hideLoading();
+                        setStatus('Редактор готов (Встроенный)', '#22c55e');
+                    }});
+                }} else if (isDoc) {{
+                    const res = await fetch(rawUrl);
+                    const blob = await res.blob();
+                    const container = document.getElementById('word-body');
+                    document.getElementById('word-container').style.display = 'flex';
+                    document.getElementById('btn-save-fallback').style.display = 'inline-flex';
+                    if (fileName.endsWith('.docx')) {{
+                        await docx.renderAsync(blob, container);
+                    }} else {{
+                        container.innerText = await blob.text();
+                    }}
+                    hideLoading();
+                    setStatus('Редактор готов (Встроенный)', '#22c55e');
+                }} else {{
+                    const frame = document.getElementById('pdf-frame');
+                    frame.style.display = 'block';
+                    frame.src = rawUrl;
+                    hideLoading();
+                    setStatus('Просмотр документа', '#38bdf8');
+                }}
+            }} catch(e) {{
+                hideLoading();
+                setStatus('Ошибка открытия', '#ef4444');
+            }}
+        }}
+
+        async function saveFallbackDocument() {{
+            setStatus('Сохранение...', '#38bdf8');
+            try {{
+                let blobData = null;
+                if (isSheet) {{
+                    const sheets = luckysheet.getAllSheets();
+                    const wb = XLSX.utils.book_new();
+                    sheets.forEach((s) => {{
+                        const rawData = luckysheet.getSheetData(s.index);
+                        const simpleData = [];
+                        for (let r = 0; r < rawData.length; r++) {{
+                            const row = [];
+                            for (let c = 0; c < rawData[r].length; c++) {{
+                                const cell = rawData[r][c];
+                                row.push(cell && cell.v !== undefined ? cell.v : '');
+                            }}
+                            simpleData.push(row);
+                        }}
+                        const ws = XLSX.utils.aoa_to_sheet(simpleData);
+                        XLSX.utils.book_append_sheet(wb, ws, s.name || ('Лист' + (s.index + 1)));
+                    }});
+                    const outBuffer = XLSX.write(wb, {{ bookType: 'xlsx', type: 'array' }});
+                    blobData = new Blob([outBuffer], {{ type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }});
+                }} else if (isDoc) {{
+                    const htmlContent = document.getElementById('word-body').innerHTML;
+                    blobData = new Blob([htmlContent], {{ type: 'text/html;charset=utf-8' }});
+                }}
+                if (blobData) {{
+                    const saveUrl = `/api/documents/save_content/${{docId}}` + (pwdParam ? `?pwd=${{encodeURIComponent(pwdParam)}}` : '');
+                    const res = await fetch(saveUrl, {{ method: 'POST', body: blobData }});
+                    if (res.ok) setStatus('Сохранено в базе', '#22c55e');
+                    else setStatus('Ошибка сохранения', '#ef4444');
+                }}
+            }} catch(e) {{
+                setStatus('Сбой сохранения', '#ef4444');
+            }}
+        }}
+
+        async function startEditor() {{
+            try {{
+                await tryLoadOnlyOffice();
+                if (typeof DocsAPI !== "undefined") {{
+                    isUsingOnlyOffice = true;
+                    config.events = {{
+                        onAppReady: function() {{
+                            hideLoading();
+                            setStatus('ONLYOFFICE подключен', '#22c55e');
+                        }},
+                        onDocumentStateChange: function(event) {{
+                            if (event.data) setStatus('Есть несохраненные правки', '#f59e0b');
+                            else setStatus('Все изменения сохранены', '#22c55e');
+                        }}
+                    }};
+                    docEditor = new DocsAPI.DocEditor("onlyoffice-container", config);
+                    return;
+                }}
+            }} catch(e) {{
+                console.warn('OnlyOffice server unavailable, switching to instant fallback:', e);
+            }}
+
+            // Если OnlyOffice не ответил за 4 сек — мгновенно открываем встроенный редактор
+            await loadFallbackEditor();
+        }}
+
+        window.addEventListener('load', startEditor);
     </script>
 </body>
 </html>"""
-    return HTMLResponse(content=editor_html)
     return HTMLResponse(content=editor_html)
 
 
