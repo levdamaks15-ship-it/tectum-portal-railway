@@ -6034,30 +6034,10 @@ def download_document(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
-    # For PDF files and direct downloads: stream directly inline so mobile browsers & PCs open native PDF reader immediately without Yandex app prompts
+
     filename = doc.title or ""
     is_pdf = filename.lower().endswith(".pdf")
-    
-    if is_pdf:
-        if doc.r2_key:
-            import r2_integration
-            try:
-                download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
-                return RedirectResponse(url=download_url)
-            except Exception:
-                pass
-
-    if doc.yandex_url and not is_pdf:
-        return RedirectResponse(url=doc.yandex_url)
-
-    if doc.r2_key:
-        import r2_integration
-        try:
-            download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
-            return RedirectResponse(url=download_url)
-        except Exception:
-            pass
-
+    # Direct stream from Railway server / Database storage
     if doc.file_path and os.path.exists(doc.file_path):
         mime_type = doc.mime_type
         if not mime_type or mime_type == "application/octet-stream":
@@ -6065,16 +6045,16 @@ def download_document(
             if guessed:
                 mime_type = guessed
                 
-        encoded_filename = quote(doc.title)
+        encoded_filename = quote(doc.title or "file")
         headers = {"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
             
         return FileResponse(
             path=doc.file_path, 
             filename=doc.title, 
-            media_type=mime_type or "application/octet-stream",
+            media_type=mime_type or ("application/pdf" if is_pdf else "application/octet-stream"),
             headers=headers
         )
-    return {"status": "error", "message": "Файл не найден"}
+    return {"status": "error", "message": "Файл не найден на сервере"}
 
 # ==========================================
 # UNIVERSAL BROWSER OFFICE & R2 CLOUD EDITOR
