@@ -6420,8 +6420,7 @@ def download_document(
                 raise HTTPException(status_code=403, detail="Access Denied")
 
     filename = doc.title or ""
-    is_pdf = filename.lower().endswith(".pdf")
-    # Direct stream from Railway server / Database storage
+    # 1. Прямой стриминг с локального диска Railway
     if doc.file_path and os.path.exists(doc.file_path):
         mime_type = doc.mime_type
         if not mime_type or mime_type == "application/octet-stream":
@@ -6438,6 +6437,37 @@ def download_document(
             media_type=mime_type or ("application/pdf" if is_pdf else "application/octet-stream"),
             headers=headers
         )
+
+    # 2. Если файл загружен в Cloudflare R2
+    if doc.r2_key:
+        try:
+            import r2_integration
+            client = r2_integration.get_r2_client()
+            obj = client.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
+            content = obj['Body'].read()
+            encoded_filename = quote(doc.title or "file")
+            return Response(
+                content=content,
+                media_type=doc.mime_type or ("application/pdf" if is_pdf else "application/octet-stream"),
+                headers={"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
+            )
+        except Exception as r2_err:
+            print(f"R2 download fallback error: {r2_err}")
+
+    # 3. Если файл загружен в Яндекс.Диск
+    if doc.yandex_path:
+        try:
+            import yandex_disk_integration
+            dl_url = yandex_disk_integration.get_yandex_download_url(doc.yandex_path)
+            if dl_url:
+                return RedirectResponse(url=dl_url)
+        except Exception as ya_err:
+            print(f"Yandex Disk download fallback error: {ya_err}")
+
+    # 4. Если файл в Google Drive
+    if doc.google_drive_url:
+        return RedirectResponse(url=doc.google_drive_url)
+
     return {"status": "error", "message": "Файл не найден на сервере"}
 
 # ==========================================
