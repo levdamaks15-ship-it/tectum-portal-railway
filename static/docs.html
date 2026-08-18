@@ -1245,6 +1245,10 @@
                     <i class="fas fa-cloud-upload-alt"></i> Файл
                 </button>
                 <input type="file" id="file-upload" style="display: none;" onchange="handleFileUpload(event)">
+
+                <button class="btn-action" style="background: #0078d4; color: #fff;" onclick="openAddLinkModal()" title="Прикрепить ссылку на OneDrive, Google или внешний файл">
+                    <i class="fab fa-microsoft"></i> OneDrive / Ссылка
+                </button>
             </div>
         </div>
 
@@ -1305,6 +1309,37 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeRenameModal()">Отмена</button>
                 <button class="btn-action btn-upload-file" onclick="submitRename()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Добавить ссылку на OneDrive / Облако -->
+    <div id="add-link-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fab fa-microsoft" style="color: #0078d4;"></i> Добавить ссылку на OneDrive / Облако
+                </h3>
+                <button onclick="closeAddLinkModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label>Название документа</label>
+                <input type="text" id="add-link-title" placeholder="Например: График смен мастеров (OneDrive)">
+            </div>
+
+            <div class="form-group">
+                <label>Ссылка на файл / папку в OneDrive или Google</label>
+                <input type="url" id="add-link-url" placeholder="https://1drv.ms/... или https://onedrive.live.com/...">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAddLinkModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-add-link" onclick="submitAddLink()" style="background: #0078d4;">
+                    <i class="fas fa-link"></i> Прикрепить ссылку
+                </button>
             </div>
         </div>
     </div>
@@ -1507,6 +1542,15 @@
         }
 
         function getFileIcon(mimeType, fileName = '') {
+            if (mimeType === 'application/vnd.ms-onedrive' || fileName.toLowerCase().includes('onedrive')) {
+                return { icon: 'fab fa-microsoft', color: '#0078d4' };
+            }
+            if (mimeType === 'application/vnd.yandex-disk' || fileName.toLowerCase().includes('яндекс')) {
+                return { icon: 'fab fa-yandex', color: '#fc3f1d' };
+            }
+            if (mimeType === 'application/x-external-link') {
+                return { icon: 'fas fa-arrow-up-right-from-square', color: '#38bdf8' };
+            }
             const name = fileName.toLowerCase();
             if (mimeType.includes('pdf') || name.endsWith('.pdf')) {
                 return { icon: 'fas fa-file-pdf', color: '#ef4444' };
@@ -1524,6 +1568,9 @@
         }
 
         function getFileTypeName(fileName, mimeType) {
+            if (mimeType === 'application/vnd.ms-onedrive') return 'OneDrive Документ';
+            if (mimeType === 'application/vnd.yandex-disk') return 'Яндекс.Диск Ссылка';
+            if (mimeType === 'application/x-external-link') return 'Внешняя ссылка';
             const ext = fileName.split('.').pop().toUpperCase();
             if (ext && ext !== fileName.toUpperCase() && ext.length <= 5) return `${ext} документ`;
             return 'Документ';
@@ -1539,6 +1586,9 @@
         }
 
         function getWebViewLink(file) {
+            if (file.external_url) {
+                return file.external_url;
+            }
             const rawId = (file.id || '').replace('file_', '');
             const name = (file.name || '').toLowerCase();
             if (isViewableOnline(name)) {
@@ -2015,6 +2065,10 @@
                 </div>
                 <div class="context-menu-item" onclick="openCreateDocModal('spreadsheet')">
                     <i class="fas fa-file-excel" style="color: #10b981;"></i> Google Таблицу
+                </div>
+                <div class="context-menu-separator"></div>
+                <div class="context-menu-item" onclick="openAddLinkModal()">
+                    <i class="fab fa-microsoft" style="color: #0078d4;"></i> Прикрепить OneDrive / Ссылку
                 </div>
                 <div class="context-menu-separator"></div>
                 <div class="context-menu-item" onclick="showFolderModal()">
@@ -2735,6 +2789,74 @@
                 }
             } catch (error) {
                 alert('Ошибка соединения');
+            }
+        }
+
+        /* ==========================================================
+           EXTERNAL LINK / ONEDRIVE HANDLERS
+           ========================================================== */
+        function openAddLinkModal() {
+            hideContextMenu();
+            document.getElementById('add-link-title').value = '';
+            document.getElementById('add-link-url').value = '';
+            document.getElementById('add-link-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('add-link-title').focus(), 50);
+        }
+
+        function closeAddLinkModal() {
+            document.getElementById('add-link-modal').style.display = 'none';
+        }
+
+        async function submitAddLink() {
+            if (currentFolderProtected && !await ensurePassword(true)) return;
+
+            const title = document.getElementById('add-link-title').value.trim();
+            const url = document.getElementById('add-link-url').value.trim();
+
+            if (!title) {
+                alert('Введите название документа!');
+                return;
+            }
+            if (!url) {
+                alert('Введите ссылку на OneDrive / Google Диск!');
+                return;
+            }
+
+            const btn = document.getElementById('btn-submit-add-link');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/documents/add_link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getFolderPasswordHeader()
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        external_url: url,
+                        parent_id: currentFolderId
+                    })
+                });
+                const data = await res.json();
+                btn.innerHTML = orig;
+                btn.disabled = false;
+
+                if (data.status === 'success') {
+                    closeAddLinkModal();
+                    showToast(data.message || 'Ссылка успешно прикреплена!');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (e) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+                alert('Ошибка соединения с сервером');
             }
         }
 

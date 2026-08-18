@@ -208,6 +208,7 @@ async def lifespan(app: FastAPI):
                 ("koofr_link", "TEXT"), 
                 ("yandex_path", "VARCHAR(512)"), 
                 ("yandex_url", "TEXT"),
+                ("external_url", "TEXT"),
                 ("version_number", "INTEGER DEFAULT 1"),
                 ("locked_by_user", "VARCHAR(255)"),
                 ("locked_at", "TIMESTAMP"),
@@ -232,6 +233,7 @@ async def lifespan(app: FastAPI):
                 ("koofr_link", "TEXT"), 
                 ("yandex_path", "VARCHAR(512)"), 
                 ("yandex_url", "TEXT"),
+                ("external_url", "TEXT"),
                 ("version_number", "INTEGER DEFAULT 1"),
                 ("locked_by_user", "VARCHAR(255)"),
                 ("locked_at", "TIMESTAMP"),
@@ -5473,12 +5475,13 @@ def list_documents(
             
         file_data = []
         for f in files:
-            file_link = f"/api/documents/download/{f.id}"
+            file_link = f.external_url if f.external_url else f"/api/documents/download/{f.id}"
             file_data.append({
                 "id": f"file_{f.id}",
                 "name": f.title,
                 "mimeType": f.mime_type or "application/octet-stream",
                 "webViewLink": file_link,
+                "external_url": f.external_url,
                 "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else "",
                 "is_protected": prot_map.get(f.category_id, False) if f.category_id else False,
                 "version_number": f.version_number or 1,
@@ -5509,13 +5512,14 @@ def get_documents_tree(db: Session = Depends(get_db)):
         docs = db.query(models.Document).order_by(models.Document.title).all()
         file_data = []
         for d in docs:
-            file_link = f"/api/documents/download/{d.id}"
+            file_link = d.external_url if d.external_url else f"/api/documents/download/{d.id}"
             file_data.append({
                 "id": f"file_{d.id}",
                 "name": d.title,
                 "parent_id": f"folder_{d.category_id}" if d.category_id else None,
                 "mimeType": d.mime_type or "application/octet-stream",
                 "webViewLink": file_link,
+                "external_url": d.external_url,
                 "is_protected": prot_map.get(d.category_id, False) if d.category_id else False,
                 "version_number": d.version_number or 1,
                 "locked_by_user": d.locked_by_user,
@@ -5804,6 +5808,71 @@ def register_direct_upload(
             }
         }
     except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class AddExternalLinkRequest(BaseModel):
+    title: str
+    external_url: str
+    parent_id: Optional[str] = None
+
+@app.post("/api/documents/add_link")
+def add_external_document_link(
+    req: AddExternalLinkRequest,
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Добавляет ссылку на внешний документ (OneDrive, Google Docs, SharePoint, Яндекс.Диск и т.д.)
+    """
+    try:
+        cat_id = None
+        if req.parent_id and req.parent_id.startswith("folder_"):
+            cat_id = int(req.parent_id.split("_")[1])
+
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+
+        clean_url = req.external_url.strip()
+        if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+            clean_url = "https://" + clean_url
+
+        # Определение типа иконки
+        clean_title = req.title.strip()
+        mime_type = "application/x-external-link"
+        low_url = clean_url.lower()
+        if "1drv.ms" in low_url or "onedrive" in low_url or "sharepoint" in low_url:
+            mime_type = "application/vnd.ms-onedrive"
+        elif "docs.google" in low_url or "drive.google" in low_url:
+            mime_type = "application/vnd.google-apps.document"
+        elif "disk.yandex" in low_url or "yadi.sk" in low_url:
+            mime_type = "application/vnd.yandex-disk"
+
+        new_doc = models.Document(
+            title=clean_title,
+            category_id=cat_id,
+            external_url=clean_url,
+            mime_type=mime_type,
+            uploaded_at=datetime.datetime.utcnow()
+        )
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+
+        return {
+            "status": "success",
+            "message": "Ссылка успешно добавлена!",
+            "file": {
+                "id": f"file_{new_doc.id}",
+                "name": new_doc.title,
+                "external_url": new_doc.external_url,
+                "mimeType": new_doc.mime_type
+            }
+        }
+    except Exception as e:
+        db.rollback()
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/documents/folders")

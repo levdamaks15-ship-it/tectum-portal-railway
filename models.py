@@ -296,6 +296,7 @@ class Document(Base):
     koofr_link = Column(String, nullable=True) # Sharing/View Link in Koofr Cloud
     yandex_path = Column(String, nullable=True) # Remote path in Yandex Disk
     yandex_url = Column(String, nullable=True) # Public edit/view URL in Yandex Disk
+    external_url = Column(String, nullable=True) # Внешняя ссылка (OneDrive, Google Docs, etc)
     
     # Versioning & Check-out fields
     version_number = Column(Integer, default=1)
