@@ -2124,6 +2124,20 @@
             }, item, isFolder);
         }
 
+        function openFileMenuById(fileId, e) {
+            e.stopPropagation();
+            const file = currentFilesData.find(f => f.id === fileId);
+            if (!file) return;
+            openItemMoreMenu(e, file, false);
+        }
+
+        function openFolderMenuById(folderId, e) {
+            e.stopPropagation();
+            const folder = currentFoldersData.find(f => f.id === folderId);
+            if (!folder) return;
+            openItemMoreMenu(e, folder, true);
+        }
+
         async function copyItemLink(viewUrl, isProtected) {
             hideContextMenu();
             let finalUrl = viewUrl.startsWith('http') ? viewUrl : `${window.location.origin}${viewUrl}`;
@@ -2305,11 +2319,11 @@
                         </div>
                         <div class="row-meta">Папка</div>
                         <div class="row-actions">
-                            <button class="btn-icon btn-icon-more" onclick="openItemMoreMenu(event, ${folderJson}, true)" title="Дополнительно">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку" style="color: #ef4444;">
                                 <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="btn-icon btn-icon-more" onclick="openFolderMenuById('${folder.id}', event)" title="Дополнительно">
+                                <i class="fas fa-ellipsis-v"></i>
                             </button>
                         </div>
                     </div>
@@ -2362,7 +2376,10 @@
                             <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon" title="Просмотреть">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <button class="btn-icon btn-icon-more" onclick="openItemMoreMenu(event, ${fileJson}, false)" title="Меню файла">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event, ${file.is_protected})" title="Удалить файл" style="color: #ef4444;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="btn-icon btn-icon-more" onclick="openFileMenuById('${file.id}', event)" title="Меню файла">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                         </div>
