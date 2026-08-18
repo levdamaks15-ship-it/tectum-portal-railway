@@ -86,6 +86,18 @@ def upload_file_to_yandex_disk(file_bytes: bytes, remote_path: str) -> Optional[
         meta_res = requests.get(meta_url, headers=_get_headers(), timeout=10)
         if meta_res.status_code == 200:
             meta = meta_res.json()
+            pub_key = meta.get("public_key")
+            name = meta.get("name", "")
+            ext = name.split(".")[-1].lower() if "." in name else ""
+            
+            if pub_key and ext in ["xlsx", "xls", "docx", "doc", "pptx", "ppt", "csv", "ods", "odt"]:
+                import urllib.parse
+                enc_key = urllib.parse.quote(pub_key)
+                enc_name = urllib.parse.quote(name)
+                direct_docs_url = f"https://docs.yandex.kz/docs/view?url=ya-disk-public%3A%2F%2F{enc_key}&name={enc_name}&nosw=1"
+                logger.info(f"Successfully uploaded to Yandex Disk: {clean_path} -> {direct_docs_url}")
+                return direct_docs_url
+
             public_url = meta.get("public_url")
             logger.info(f"Successfully uploaded to Yandex Disk: {clean_path} -> {public_url}")
             return public_url
@@ -167,7 +179,20 @@ def publish_and_get_public_url(remote_path: str) -> Optional[str]:
         meta_url = f"{API_BASE}/resources?path={clean_path}"
         meta_res = requests.get(meta_url, headers=_get_headers(), timeout=10)
         if meta_res.status_code == 200:
-            return meta_res.json().get("public_url")
+            meta = meta_res.json()
+            pub_key = meta.get("public_key")
+            name = meta.get("name", "")
+            ext = name.split(".")[-1].lower() if "." in name else ""
+            
+            # If office document (xlsx, docx, pptx, etc.), generate direct full-screen online Docs editor link
+            if pub_key and ext in ["xlsx", "xls", "docx", "doc", "pptx", "ppt", "csv", "ods", "odt"]:
+                import urllib.parse
+                enc_key = urllib.parse.quote(pub_key)
+                enc_name = urllib.parse.quote(name)
+                return f"https://docs.yandex.kz/docs/view?url=ya-disk-public%3A%2F%2F{enc_key}&name={enc_name}&nosw=1"
+
+            public_url = meta.get("public_url")
+            return public_url
         return None
     except Exception as e:
         logger.error(f"Error publishing Yandex resource {clean_path}: {e}")
