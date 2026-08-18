@@ -6514,6 +6514,21 @@ def get_document_raw(
             media_type=doc.mime_type or "application/octet-stream",
             headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.title)}"}
         )
+
+    if doc.yandex_path:
+        try:
+            import yandex_disk_integration
+            dl_url = yandex_disk_integration.get_yandex_download_url(doc.yandex_path)
+            if dl_url:
+                resp = requests.get(dl_url, timeout=30)
+                if resp.status_code == 200:
+                    return Response(
+                        content=resp.content,
+                        media_type=doc.mime_type or "application/octet-stream",
+                        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.title)}"}
+                    )
+        except Exception as ya_err:
+            print(f"Yandex raw read error: {ya_err}")
         
     raise HTTPException(status_code=404, detail="Файл не найден в хранилище")
 
@@ -7157,34 +7172,7 @@ def open_editor(
         }}
 
         async function startEditor() {{
-            try {{
-                await tryLoadOnlyOffice();
-                if (typeof DocsAPI !== "undefined") {{
-                    isUsingOnlyOffice = true;
-                    config.events = {{
-                        onAppReady: function() {{
-                            hideLoading();
-                            setStatus('ONLYOFFICE подключен', '#22c55e');
-                        }},
-                        onDocumentStateChange: function(event) {{
-                            if (event.data) {{
-                                setStatus('Есть несохраненные правки', '#f59e0b');
-                            }} else {{
-                                setStatus('Все изменения сохранены', '#22c55e');
-                            }}
-                        }},
-                        onSave: function() {{
-                            setStatus('Сохранено в базе', '#22c55e');
-                        }}
-                    }};
-                    docEditor = new DocsAPI.DocEditor("onlyoffice-container", config);
-                    return;
-                }}
-            }} catch(e) {{
-                console.warn('OnlyOffice server unavailable, switching to instant fallback:', e);
-            }}
-
-            // Если OnlyOffice не ответил за 4 сек — мгновенно открываем встроенный редактор
+            // Мгновенный встроенный просмотрщик документов (Excel, Word, PDF) без внешних серверов
             const btnSaveOO = document.getElementById('btn-save-oo');
             if (btnSaveOO) btnSaveOO.style.display = 'none';
             await loadFallbackEditor();
