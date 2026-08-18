@@ -6284,8 +6284,9 @@ def open_editor(
         
     callback_url = f"{base_portal_url}/api/documents/onlyoffice_callback/{doc.id}"
 
-    # Стабильный ключ документа для OnlyOffice
-    doc_key = f"tectum_doc_{doc.id}"
+    # Генерируем уникальный сессионный ключ для OnlyOffice
+    session_seed = uuid.uuid4().hex[:8]
+    doc_key = f"tectum_doc_{doc.id}_{session_seed}"
 
     # Пользователь
     user_name = request.session.get("user_name") or "Сотрудник Tectum"
