@@ -6190,12 +6190,17 @@ async def onlyoffice_callback(
                         with open(doc.file_path, "wb") as f:
                             f.write(resp.content)
                             
-                        doc.uploaded_at = datetime.datetime.utcnow()
-                        db.commit()
-                        print(f"Document #{file_id} ('{doc.title}') successfully saved from ONLYOFFICE! Size: {len(resp.content)} bytes")
+                        if status == 2:
+                            doc.uploaded_at = datetime.datetime.utcnow()
+                            db.commit()
+                        else:
+                            # При статусе 6 (forcesave) коммитим путь, но не меняем метку времени сессии
+                            db.commit()
+                            
+                        print(f"Document #{file_id} ('{doc.title}') successfully saved from ONLYOFFICE! (status: {status}, size: {len(resp.content)} bytes)")
                         
                         # Также синхронизируем с Google Drive, если настроен
-                        if doc.google_drive_id:
+                        if doc.google_drive_id and status == 2:
                             try:
                                 import google_drive_integration
                                 google_drive_integration.upload_file_to_drive(doc.file_path, doc.title, parent_drive_id=None)
