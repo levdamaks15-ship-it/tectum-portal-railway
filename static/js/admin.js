@@ -828,11 +828,15 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
 
         const prodSelect = document.getElementById('uni-product');
         prodSelect.innerHTML = '';
+        const currentProd = shift.product_name || (lfm[0]?.product_name) || (batches[0]?.product_name) || 'Шифер 8 волн рифленый';
         const standardProds = [
             'Шифер 8 волн рифленый', 'Шифер 8 волн цветной', 'Шифер 7 волн 3500*980',
             'Шифер 7 волн 1750*980', 'Шифер 6 волн 1750*1130', 'Шифер плоский 8мм',
             'Шифер плоский 10мм', 'Шифер 8 волн неокрашенный'
         ];
+        if (!standardProds.includes(currentProd) && currentProd) {
+            standardProds.push(currentProd);
+        }
         standardProds.forEach(p => {
             prodSelect.innerHTML += `<option value="${p}" ${p === currentProd ? 'selected' : ''}>${p}</option>`;
         });
