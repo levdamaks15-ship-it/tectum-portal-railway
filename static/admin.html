@@ -780,42 +780,43 @@
                 <style>
                     .uni-rm-grid {
                         display: grid;
-                        grid-template-columns: minmax(140px, 2fr) 1fr 1fr 1fr;
-                        gap: 0.6rem;
+                        grid-template-columns: minmax(130px, 1.8fr) repeat(4, minmax(55px, 1fr)) minmax(65px, 1fr);
+                        gap: 0.5rem;
                         align-items: center;
                         margin-bottom: 1rem;
                     }
                     @media (max-width: 768px) {
                         .uni-rm-grid {
-                            grid-template-columns: minmax(90px, 1.5fr) 1fr 1fr 1fr;
-                            gap: 0.3rem;
+                            grid-template-columns: minmax(80px, 1.3fr) repeat(4, 1fr) 1.1fr;
+                            gap: 0.25rem;
                         }
                         .uni-rm-header {
-                            font-size: 0.7rem !important;
+                            font-size: 0.65rem !important;
                         }
                         .uni-rm-label-row {
-                            font-size: 0.75rem !important;
+                            font-size: 0.72rem !important;
                         }
                         .uni-rm-grid input[type="number"], .uni-rm-grid input[type="text"] {
-                            padding: 0.3rem !important;
-                            font-size: 0.85rem !important;
+                            padding: 0.25rem 0.2rem !important;
+                            font-size: 0.75rem !important;
                         }
                     }
                     .uni-rm-header {
                         font-weight: 600;
                         color: var(--text-secondary);
-                        font-size: 0.85rem;
+                        font-size: 0.82rem;
                         padding-bottom: 0.4rem;
                         border-bottom: 1px solid var(--glass-border);
+                        text-align: center;
                     }
                     .uni-rm-grid .form-group {
                         margin-bottom: 0;
                     }
                     .uni-rm-grid input[type="number"], .uni-rm-grid input[type="text"] {
-                        padding: 0.5rem;
+                        padding: 0.5rem 0.3rem;
                         text-align: right;
                         width: 100%;
-                        font-size: 0.9rem;
+                        font-size: 0.88rem;
                         border-radius: 6px;
                         border: 1px solid var(--glass-border);
                         background: rgba(255, 255, 255, 0.05);
@@ -826,42 +827,52 @@
                         outline: none;
                     }
                     .uni-rm-label-row {
-                        font-size: 0.9rem;
+                        font-size: 0.88rem;
                         color: var(--text-primary);
                         font-weight: 500;
                     }
                 </style>
 
                 <div class="uni-rm-grid" id="uni-rm-calculator-grid">
-                    <div class="uni-rm-header">Материал</div>
-                    <div class="uni-rm-header" id="uni-rm-header-siloA">Силос 1</div>
-                    <div class="uni-rm-header" id="uni-rm-header-siloB">Силос 2</div>
-                    <div class="uni-rm-header" style="text-align: right;">Итого (в базу)</div>
+                    <div class="uni-rm-header" style="text-align: left;">Материал</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo1">Силос 1</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo2">Силос 2</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo3">Силос 3</div>
+                    <div class="uni-rm-header" id="uni-rm-header-silo4">Силос 4</div>
+                    <div class="uni-rm-header" style="text-align: right;">Итого</div>
                     
                     <!-- Хризотил 4-20 -->
                     <div class="uni-rm-label-row">Хризотил 4-20 (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-A" oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-B" oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-1" oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-2" oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-3" oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-4-20-4" oninput="calcAdminSumRM('chr-4-20')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-chr-4-20" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Хризотил 5-65 -->
                     <div class="uni-rm-label-row">Хризотил 5-65 (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-A" oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-B" oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-1" oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-2" oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-3" oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-5-65-4" oninput="calcAdminSumRM('chr-5-65')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-chr-5-65" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Хризотил 6-40 -->
                     <div class="uni-rm-label-row">Хризотил 6-40 (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-A" oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-B" oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-1" oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-2" oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-3" oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-chr-6-40-4" oninput="calcAdminSumRM('chr-6-40')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-chr-6-40" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.4rem 0;"></div>
 
                     <!-- Цемент -->
                     <div class="uni-rm-label-row" style="font-weight: 600; color: var(--primary-color);">Цемент (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-cem-A" oninput="calcAdminCem()" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-cem-B" oninput="calcAdminCem()" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-1" oninput="calcAdminCem()" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-2" oninput="calcAdminCem()" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-3" oninput="calcAdminCem()" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cem-4" oninput="calcAdminCem()" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="text" id="uni-zo-cem-total-readonly" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Скрытые поля силосов для отправки в базу -->
@@ -919,57 +930,69 @@
 
                     <!-- Целлюлоза -->
                     <div class="uni-rm-label-row">Целлюлоза (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-cellulose-A" oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-cellulose-B" oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-1" oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-2" oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-3" oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-cellulose-4" oninput="calcAdminSumRM('cellulose')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-cellulose" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Дробленый шифер -->
                     <div class="uni-rm-label-row">Дробленый шифер (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-A" oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-B" oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-1" oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-2" oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-3" oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-crushed-slate-4" oninput="calcAdminSumRM('crushed-slate')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-crushed-slate" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Асбозурит -->
                     <div class="uni-rm-label-row">Асбозурит (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-A" oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-B" oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-1" oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-2" oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-3" oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbozurit-4" oninput="calcAdminSumRM('asbozurit')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-asbozurit" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Стекловолокно -->
                     <div class="uni-rm-label-row">Стекловолокно (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-A" oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-B" oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-1" oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-2" oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-3" oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-fiberglass-4" oninput="calcAdminSumRM('fiberglass')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-fiberglass" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Лапрол -->
                     <div class="uni-rm-label-row">Лапрол (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-laprol-A" oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-laprol-B" oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-laprol-1" oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-laprol-2" oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-laprol-3" oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-laprol-4" oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-laprol" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <!-- Асбокартон -->
                     <div class="uni-rm-label-row">Асбокартон (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-A" oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-B" oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-1" oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-2" oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-3" oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
+                    <div class="form-group"><input type="number" id="uni-calc-asbocarton-4" oninput="calcAdminSumRM('asbocarton')" placeholder="0" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-asbocarton" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                     <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.4rem 0;"></div>
 
                     <!-- Сливы -->
                     <div class="uni-rm-label-row">Слив хризотила (ЗО, кг)</div>
-                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
                     <div class="form-group"><input type="number" id="uni-zo-asb-drain" placeholder="0" step="0.1"></div>
 
                     <div class="uni-rm-label-row">Слив цемента (ЗО, кг)</div>
-                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
                     <div class="form-group"><input type="number" id="uni-zo-cem-drain" placeholder="0" step="0.1"></div>
 
                     <div class="uni-rm-label-row">Слив асбеста (ЛФМ, кг)</div>
-                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
                     <div class="form-group"><input type="number" id="uni-lfm-asb-drain" placeholder="0" step="0.1"></div>
 
                     <div class="uni-rm-label-row">Слив цемента (ЛФМ, кг)</div>
-                    <div></div><div></div>
+                    <div></div><div></div><div></div><div></div>
                     <div class="form-group"><input type="number" id="uni-lfm-cem-drain" placeholder="0" step="0.1"></div>
                 </div>
             </div>
@@ -1135,6 +1158,6 @@
         </div>
     </div>
 
-    <script src="/static/js/admin.js?v=20260816_silos_v2"></script>
+    <script src="/static/js/admin.js?v=20260818_silos_4"></script>
 </body>
 </html>

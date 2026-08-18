@@ -756,14 +756,13 @@ function updateAdminLineSiloHeaders() {
 }
 
 function calcAdminSumRM(key) {
-    const a = parseFloat(document.getElementById('uni-calc-' + key + '-A')?.value) || 0;
-    const b = parseFloat(document.getElementById('uni-calc-' + key + '-B')?.value) || 0;
-    const total = a + b;
+    const s1 = parseFloat(document.getElementById('uni-calc-' + key + '-1')?.value) || 0;
+    const s2 = parseFloat(document.getElementById('uni-calc-' + key + '-2')?.value) || 0;
+    const s3 = parseFloat(document.getElementById('uni-calc-' + key + '-3')?.value) || 0;
+    const s4 = parseFloat(document.getElementById('uni-calc-' + key + '-4')?.value) || 0;
+    const total = s1 + s2 + s3 + s4;
     const target = document.getElementById('uni-zo-' + key);
     if (target) target.value = total > 0 ? total : '';
-    
-    const lineVal = document.getElementById('uni-line')?.value || "1";
-    const isLine1 = lineVal === '1' || lineVal.includes('1');
     
     const hiddenKey = key === 'cellulose' ? 'uni-zo-cel' : 
                       key === 'crushed-slate' ? 'uni-zo-csl' : 
@@ -774,44 +773,27 @@ function calcAdminSumRM(key) {
                       'uni-zo-' + key;
                       
     if (document.getElementById(hiddenKey + '-1')) {
-        document.getElementById(hiddenKey + '-1').value = '0';
-        document.getElementById(hiddenKey + '-2').value = '0';
-        document.getElementById(hiddenKey + '-3').value = '0';
-        document.getElementById(hiddenKey + '-4').value = '0';
-        
-        if (isLine1) {
-            document.getElementById(hiddenKey + '-1').value = a > 0 ? a : '0';
-            document.getElementById(hiddenKey + '-2').value = b > 0 ? b : '0';
-        } else {
-            document.getElementById(hiddenKey + '-3').value = a > 0 ? a : '0';
-            document.getElementById(hiddenKey + '-4').value = b > 0 ? b : '0';
-        }
+        document.getElementById(hiddenKey + '-1').value = s1 > 0 ? s1 : '0';
+        document.getElementById(hiddenKey + '-2').value = s2 > 0 ? s2 : '0';
+        document.getElementById(hiddenKey + '-3').value = s3 > 0 ? s3 : '0';
+        document.getElementById(hiddenKey + '-4').value = s4 > 0 ? s4 : '0';
     }
 }
 
 function calcAdminCem() {
-    const a = parseFloat(document.getElementById('uni-calc-cem-A')?.value) || 0;
-    const b = parseFloat(document.getElementById('uni-calc-cem-B')?.value) || 0;
-    const total = a + b;
+    const s1 = parseFloat(document.getElementById('uni-calc-cem-1')?.value) || 0;
+    const s2 = parseFloat(document.getElementById('uni-calc-cem-2')?.value) || 0;
+    const s3 = parseFloat(document.getElementById('uni-calc-cem-3')?.value) || 0;
+    const s4 = parseFloat(document.getElementById('uni-calc-cem-4')?.value) || 0;
+    const total = s1 + s2 + s3 + s4;
     const target = document.getElementById('uni-zo-cem-total-readonly');
     if (target) target.value = total > 0 ? total : '';
 
-    const lineVal = document.getElementById('uni-line')?.value || "1";
-    const isLine1 = lineVal === '1' || lineVal.includes('1');
-
     if (document.getElementById('uni-zo-cem-1')) {
-        document.getElementById('uni-zo-cem-1').value = '0';
-        document.getElementById('uni-zo-cem-2').value = '0';
-        document.getElementById('uni-zo-cem-3').value = '0';
-        document.getElementById('uni-zo-cem-4').value = '0';
-
-        if (isLine1) {
-            document.getElementById('uni-zo-cem-1').value = a > 0 ? a : '0';
-            document.getElementById('uni-zo-cem-2').value = b > 0 ? b : '0';
-        } else {
-            document.getElementById('uni-zo-cem-3').value = a > 0 ? a : '0';
-            document.getElementById('uni-zo-cem-4').value = b > 0 ? b : '0';
-        }
+        document.getElementById('uni-zo-cem-1').value = s1 > 0 ? s1 : '0';
+        document.getElementById('uni-zo-cem-2').value = s2 > 0 ? s2 : '0';
+        document.getElementById('uni-zo-cem-3').value = s3 > 0 ? s3 : '0';
+        document.getElementById('uni-zo-cem-4').value = s4 > 0 ? s4 : '0';
     }
 }
 
@@ -848,10 +830,9 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         prodSelect.innerHTML = '';
         const standardProds = [
             'Шифер 8 волн рифленый', 'Шифер 8 волн цветной', 'Шифер 7 волн 3500*980',
-            'Трубы безнапорные', 'Плоский лист'
+            'Шифер 7 волн 1750*980', 'Шифер 6 волн 1750*1130', 'Шифер плоский 8мм',
+            'Шифер плоский 10мм', 'Шифер 8 волн неокрашенный'
         ];
-        const currentProd = shift.product_name || (lfm[0]?.product_name) || (batches[0]?.product_name) || 'Шифер 8 волн рифленый';
-        if (!standardProds.includes(currentProd)) standardProds.push(currentProd);
         standardProds.forEach(p => {
             prodSelect.innerHTML += `<option value="${p}" ${p === currentProd ? 'selected' : ''}>${p}</option>`;
         });
@@ -906,15 +887,13 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
             if (document.getElementById(`${mat.hiddenKey}-3`)) document.getElementById(`${mat.hiddenKey}-3`).value = s3;
             if (document.getElementById(`${mat.hiddenKey}-4`)) document.getElementById(`${mat.hiddenKey}-4`).value = s4;
 
-            // Prefill Silo A and Silo B inputs based on line
-            const calcA = document.getElementById(`uni-calc-${mat.uiKey}-A`);
-            const calcB = document.getElementById(`uni-calc-${mat.uiKey}-B`);
-            if (isLine1) {
-                if (calcA) calcA.value = s1 > 0 ? s1 : (total > 0 && s2 === 0 ? total : '');
-                if (calcB) calcB.value = s2 > 0 ? s2 : '';
-            } else {
-                if (calcA) calcA.value = s3 > 0 ? s3 : (total > 0 && s4 === 0 ? total : '');
-                if (calcB) calcB.value = s4 > 0 ? s4 : '';
+            // Prefill Silo 1..4 inputs directly
+            for (let s = 1; s <= 4; s++) {
+                const calcInp = document.getElementById(`uni-calc-${mat.uiKey}-${s}`);
+                if (calcInp) {
+                    const sVal = shift[`${mat.dbKey}_silo${s}`];
+                    calcInp.value = (sVal !== undefined && sVal !== null && sVal > 0) ? sVal : '';
+                }
             }
         });
 

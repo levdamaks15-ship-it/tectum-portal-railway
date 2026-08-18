@@ -589,17 +589,13 @@ function prefillReportForm(shift) {
             document.getElementById(`${mat.hiddenKey}-4`).value = shift[`${mat.dbKey}_silo4`] || '0';
         }
         
-        // Form inputs A and B
-        if (shift.line === 'Линия 1') {
-            const calcA = document.getElementById(`calc-${mat.uiKey}-A`);
-            if(calcA) calcA.value = shift[`${mat.dbKey}_silo1`] || '0';
-            const calcB = document.getElementById(`calc-${mat.uiKey}-B`);
-            if(calcB) calcB.value = shift[`${mat.dbKey}_silo2`] || '0';
-        } else {
-            const calcA = document.getElementById(`calc-${mat.uiKey}-A`);
-            if(calcA) calcA.value = shift[`${mat.dbKey}_silo3`] || '0';
-            const calcB = document.getElementById(`calc-${mat.uiKey}-B`);
-            if(calcB) calcB.value = shift[`${mat.dbKey}_silo4`] || '0';
+        // Form inputs 1..4
+        for (let s = 1; s <= 4; s++) {
+            const calcInput = document.getElementById(`calc-${mat.uiKey}-${s}`);
+            if (calcInput) {
+                const sVal = shift[`${mat.dbKey}_silo${s}`];
+                calcInput.value = (sVal !== undefined && sVal !== null && sVal > 0) ? sVal : '';
+            }
         }
     });
 
@@ -818,11 +814,17 @@ function resetReportForm() {
         'rec-chr-4-20', 'rec-chr-5-65', 'rec-chr-6-40', 'rec-cement-1', 'rec-cement-2', 'rec-cement-3', 'rec-cement-4', 'rec-cellulose', 'rec-crushed-slate', 
         'rec-asbozurit', 'rec-asbocarton', 'rec-pallets', 'rec-fiberglass', 'rec-laprol',
         
-        // New calculator inputs
-        'calc-chr-4-20-A', 'calc-chr-4-20-B', 'calc-chr-5-65-A', 'calc-chr-5-65-B', 'calc-chr-6-40-A', 'calc-chr-6-40-B',
-        'calc-cem-A', 'calc-cem-B', 'calc-cellulose-A', 'calc-cellulose-B', 'calc-crushed-slate-A', 'calc-crushed-slate-B',
-        'calc-asbozurit-A', 'calc-asbozurit-B', 'calc-fiberglass-A', 'calc-fiberglass-B', 'calc-laprol-A', 'calc-laprol-B',
-        'calc-asbocarton-A', 'calc-asbocarton-B', 'calc-asb-drain-A', 'calc-asb-drain-B', 'calc-cem-drain-A', 'calc-cem-drain-B',
+        // Calculator inputs
+        'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
+        'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
+        'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
+        'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
+        'calc-cellulose-1', 'calc-cellulose-2', 'calc-cellulose-3', 'calc-cellulose-4',
+        'calc-crushed-slate-1', 'calc-crushed-slate-2', 'calc-crushed-slate-3', 'calc-crushed-slate-4',
+        'calc-asbozurit-1', 'calc-asbozurit-2', 'calc-asbozurit-3', 'calc-asbozurit-4',
+        'calc-fiberglass-1', 'calc-fiberglass-2', 'calc-fiberglass-3', 'calc-fiberglass-4',
+        'calc-laprol-1', 'calc-laprol-2', 'calc-laprol-3', 'calc-laprol-4',
+        'calc-asbocarton-1', 'calc-asbocarton-2', 'calc-asbocarton-3', 'calc-asbocarton-4',
         'zo-chr-total-readonly', 'zo-cem-total-readonly'
     ];
     
@@ -2757,10 +2759,16 @@ const REPORT_FIELDS = [
     'zo-asbocarton', 'zo-asb-drain', 'zo-cem-drain',
     
     // Calculator inputs for draft saving
-    'calc-chr-4-20-A', 'calc-chr-4-20-B', 'calc-chr-5-65-A', 'calc-chr-5-65-B', 'calc-chr-6-40-A', 'calc-chr-6-40-B',
-    'calc-cem-A', 'calc-cem-B', 'calc-cellulose-A', 'calc-cellulose-B', 'calc-crushed-slate-A', 'calc-crushed-slate-B',
-    'calc-asbozurit-A', 'calc-asbozurit-B', 'calc-fiberglass-A', 'calc-fiberglass-B', 'calc-laprol-A', 'calc-laprol-B',
-    'calc-asbocarton-A', 'calc-asbocarton-B', 'calc-asb-drain-A', 'calc-asb-drain-B', 'calc-cem-drain-A', 'calc-cem-drain-B'
+    'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
+    'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
+    'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
+    'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
+    'calc-cellulose-1', 'calc-cellulose-2', 'calc-cellulose-3', 'calc-cellulose-4',
+    'calc-crushed-slate-1', 'calc-crushed-slate-2', 'calc-crushed-slate-3', 'calc-crushed-slate-4',
+    'calc-asbozurit-1', 'calc-asbozurit-2', 'calc-asbozurit-3', 'calc-asbozurit-4',
+    'calc-fiberglass-1', 'calc-fiberglass-2', 'calc-fiberglass-3', 'calc-fiberglass-4',
+    'calc-laprol-1', 'calc-laprol-2', 'calc-laprol-3', 'calc-laprol-4',
+    'calc-asbocarton-1', 'calc-asbocarton-2', 'calc-asbocarton-3', 'calc-asbocarton-4'
 ];
 
 let draftSaveTimeout = null;

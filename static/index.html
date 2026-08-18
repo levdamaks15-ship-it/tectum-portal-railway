@@ -429,92 +429,104 @@
                         </div>
                                                                         <div id="sec-raw" class="accordion-content">
                             <style>
-                                .rm-grid {
-                                    display: grid;
-                                    grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr;
-                                    gap: 0.8rem;
-                                    align-items: center;
-                                    margin-bottom: 1.5rem;
-                                    padding: 0.5rem 0;
-                                }
-                                @media (max-width: 768px) {
                                     .rm-grid {
-                                        grid-template-columns: minmax(90px, 1.5fr) 1fr 1fr 1fr;
-                                        gap: 0.3rem;
+                                        display: grid;
+                                        grid-template-columns: minmax(130px, 1.8fr) repeat(4, minmax(60px, 1fr)) minmax(70px, 1fr);
+                                        gap: 0.5rem;
+                                        align-items: center;
+                                        margin-bottom: 1.5rem;
+                                        padding: 0.5rem 0;
+                                    }
+                                    @media (max-width: 768px) {
+                                        .rm-grid {
+                                            grid-template-columns: minmax(80px, 1.3fr) repeat(4, 1fr) 1.1fr;
+                                            gap: 0.25rem;
+                                        }
+                                        .rm-header {
+                                            font-size: 0.65rem;
+                                            padding-bottom: 0.3rem;
+                                        }
+                                        .rm-label-row {
+                                            font-size: 0.72rem;
+                                        }
+                                        .rm-grid input[type="number"], .rm-grid input[type="text"] {
+                                            padding: 0.25rem 0.2rem;
+                                            font-size: 0.75rem;
+                                        }
                                     }
                                     .rm-header {
-                                        font-size: 0.7rem;
+                                        font-weight: 600;
+                                        color: var(--text-secondary);
+                                        font-size: 0.82rem;
+                                        padding-bottom: 0.4rem;
+                                        border-bottom: 1px solid var(--glass-border);
+                                        text-align: center;
                                     }
-                                    .rm-label-row {
-                                        font-size: 0.75rem;
+                                    .rm-grid .form-group {
+                                        margin-bottom: 0;
                                     }
                                     .rm-grid input[type="number"], .rm-grid input[type="text"] {
-                                        padding: 0.3rem;
-                                        font-size: 0.8rem;
+                                        padding: 0.5rem 0.4rem;
+                                        text-align: right;
+                                        width: 100%;
+                                        font-size: 0.9rem;
+                                        border-radius: 6px;
+                                        border: 1px solid var(--glass-border);
+                                        background: rgba(255, 255, 255, 0.05);
+                                        color: var(--text-primary);
                                     }
-                                }
-                                .rm-header {
-                                    font-weight: 600;
-                                    color: var(--text-secondary);
-                                    font-size: 0.85rem;
-                                    padding-bottom: 0.5rem;
-                                    border-bottom: 1px solid var(--glass-border);
-                                }
-                                .rm-grid .form-group {
-                                    margin-bottom: 0;
-                                }
-                                .rm-grid input[type="number"], .rm-grid input[type="text"] {
-                                    padding: 0.6rem;
-                                    text-align: right;
-                                    width: 100%;
-                                    font-size: 0.95rem;
-                                    border-radius: 6px;
-                                    border: 1px solid var(--glass-border);
-                                    background: rgba(255, 255, 255, 0.05);
-                                    color: var(--text-primary);
-                                }
-                                .rm-grid input[type="number"]:focus {
-                                    border-color: var(--accent-color);
-                                    outline: none;
-                                }
-                                .rm-label-row {
-                                    font-size: 0.95rem;
-                                    color: var(--text-primary);
-                                    font-weight: 500;
-                                }
-                            </style>
+                                    .rm-grid input[type="number"]:focus {
+                                        border-color: var(--accent-color);
+                                        outline: none;
+                                    }
+                                    .rm-label-row {
+                                        font-size: 0.9rem;
+                                        color: var(--text-primary);
+                                        font-weight: 500;
+                                    }
+                                </style>
 
                             <div>
                                 <div class="rm-grid" id="rm-calculator-grid">
-                                    <div class="rm-header">Материал</div>
-                                    <div class="rm-header" id="rm-header-siloA">Силос 1</div>
-                                    <div class="rm-header" id="rm-header-siloB">Силос 2</div>
-                                    <div class="rm-header" style="text-align: right;">Итого (в базу)</div>
+                                    <div class="rm-header" style="text-align: left;">Материал</div>
+                                    <div class="rm-header" id="rm-header-silo1">Силос 1</div>
+                                    <div class="rm-header" id="rm-header-silo2">Силос 2</div>
+                                    <div class="rm-header" id="rm-header-silo3">Силос 3</div>
+                                    <div class="rm-header" id="rm-header-silo4">Силос 4</div>
+                                    <div class="rm-header" style="text-align: right;">Итого</div>
                                     
                                     <!-- Хризотил 4-20 -->
                                     <div class="rm-label-row">Хризотил 4-20 (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-chr-4-20-A" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-4-20-B" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-1" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-2" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-3" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-4" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-chr-4-20" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Хризотил 5-65 -->
                                     <div class="rm-label-row">Хризотил 5-65 (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-chr-5-65-A" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-5-65-B" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-1" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-2" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-3" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-4" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-chr-5-65" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Хризотил 6-40 -->
                                     <div class="rm-label-row">Хризотил 6-40 (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-chr-6-40-A" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-6-40-B" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-1" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-2" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-3" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-4" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-chr-6-40" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
 
                                     <!-- Цемент -->
                                     <div class="rm-label-row" style="font-weight: 600; color: var(--primary-color);">Цемент (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-cem-A" oninput="calcCem()" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cem-B" oninput="calcCem()" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-1" oninput="calcCem()" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-2" oninput="calcCem()" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-3" oninput="calcCem()" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-4" oninput="calcCem()" placeholder="0"></div>
                                     <div class="form-group"><input type="text" id="zo-cem-total-readonly" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
                                     
                                     <!-- Скрытые поля цемента для сохранения в базу -->
@@ -564,42 +576,56 @@
 
                                     <!-- Целлюлоза -->
                                     <div class="rm-label-row">Целлюлоза (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-cellulose-A" oninput="calcSumRM('cellulose')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cellulose-B" oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-1" oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-2" oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-3" oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-4" oninput="calcSumRM('cellulose')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-cellulose" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Дробленый шифер -->
                                     <div class="rm-label-row">Дробленый шифер (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-crushed-slate-A" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-crushed-slate-B" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-1" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-2" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-3" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-4" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-crushed-slate" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Асбозурит -->
                                     <div class="rm-label-row">Асбозурит (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-asbozurit-A" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbozurit-B" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-1" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-2" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-3" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-4" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-asbozurit" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Стекловолокно -->
                                     <div class="rm-label-row">Стекловолокно (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-fiberglass-A" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-fiberglass-B" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-1" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-2" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-3" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-4" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-fiberglass" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Лапрол -->
                                     <div class="rm-label-row">Лапрол (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-A" oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-B" oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-1" oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-2" oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-3" oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-4" oninput="calcSumRM('laprol')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-laprol" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Асбокартон -->
                                     <div class="rm-label-row">Асбокартон (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-asbocarton-A" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbocarton-B" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-1" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-2" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-3" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-4" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
                                     <div class="form-group"><input type="number" id="zo-asbocarton" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
 
                                     <!-- Слив хризотила -->
                                     <div class="rm-label-row" style="margin-top: 10px;">Слив хризотила (кг)</div>
+                                    <div></div>
+                                    <div></div>
                                     <div></div>
                                     <div></div>
                                     <div class="form-group" style="margin-top: 10px;"><input type="number" id="zo-asb-drain" placeholder="0"></div>
@@ -608,21 +634,22 @@
                                     <div class="rm-label-row">Слив цемента (кг)</div>
                                     <div></div>
                                     <div></div>
+                                    <div></div>
+                                    <div></div>
                                     <div class="form-group"><input type="number" id="zo-cem-drain" placeholder="0"></div>
                                 </div>
                             </div>
                             
                             <script>
-function calcSumRM(key) {
-                                    const a = parseFloat(document.getElementById('calc-' + key + '-A')?.value) || 0;
-                                    const b = parseFloat(document.getElementById('calc-' + key + '-B')?.value) || 0;
-                                    const total = a + b;
+                                function calcSumRM(key) {
+                                    const s1 = parseFloat(document.getElementById('calc-' + key + '-1')?.value) || 0;
+                                    const s2 = parseFloat(document.getElementById('calc-' + key + '-2')?.value) || 0;
+                                    const s3 = parseFloat(document.getElementById('calc-' + key + '-3')?.value) || 0;
+                                    const s4 = parseFloat(document.getElementById('calc-' + key + '-4')?.value) || 0;
+                                    const total = s1 + s2 + s3 + s4;
                                     const target = document.getElementById('zo-' + key);
                                     if (target) target.value = total > 0 ? total : '';
                                     
-                                    const line = document.getElementById('rep-line')?.value;
-                                    
-                                    // Reset specific hidden silos for this key
                                     const hiddenKey = key === 'cellulose' ? 'zo-cel' : 
                                                       key === 'crushed-slate' ? 'zo-csl' : 
                                                       key === 'asbozurit' ? 'zo-asb' :
@@ -632,18 +659,10 @@ function calcSumRM(key) {
                                                       key.startsWith('chr') ? 'zo-' + key : 'zo-' + key;
                                                       
                                     if (document.getElementById(hiddenKey + '-1')) {
-                                        document.getElementById(hiddenKey + '-1').value = '0';
-                                        document.getElementById(hiddenKey + '-2').value = '0';
-                                        document.getElementById(hiddenKey + '-3').value = '0';
-                                        document.getElementById(hiddenKey + '-4').value = '0';
-                                        
-                                        if (line === 'Линия 1') {
-                                            document.getElementById(hiddenKey + '-1').value = a > 0 ? a : '0';
-                                            document.getElementById(hiddenKey + '-2').value = b > 0 ? b : '0';
-                                        } else if (line === 'Линия 2') {
-                                            document.getElementById(hiddenKey + '-3').value = a > 0 ? a : '0';
-                                            document.getElementById(hiddenKey + '-4').value = b > 0 ? b : '0';
-                                        }
+                                        document.getElementById(hiddenKey + '-1').value = s1 > 0 ? s1 : '0';
+                                        document.getElementById(hiddenKey + '-2').value = s2 > 0 ? s2 : '0';
+                                        document.getElementById(hiddenKey + '-3').value = s3 > 0 ? s3 : '0';
+                                        document.getElementById(hiddenKey + '-4').value = s4 > 0 ? s4 : '0';
                                     }
                                     
                                     if(key.startsWith('chr-')){
@@ -652,42 +671,25 @@ function calcSumRM(key) {
                                 }
 
                                 function calcCem() {
-                                    const a = parseFloat(document.getElementById('calc-cem-A').value) || 0;
-                                    const b = parseFloat(document.getElementById('calc-cem-B').value) || 0;
-                                    const line = document.getElementById('rep-line')?.value;
+                                    const s1 = parseFloat(document.getElementById('calc-cem-1')?.value) || 0;
+                                    const s2 = parseFloat(document.getElementById('calc-cem-2')?.value) || 0;
+                                    const s3 = parseFloat(document.getElementById('calc-cem-3')?.value) || 0;
+                                    const s4 = parseFloat(document.getElementById('calc-cem-4')?.value) || 0;
                                     
-                                    // Reset DB inputs
-                                    document.getElementById('zo-cem-1').value = '0';
-                                    document.getElementById('zo-cem-2').value = '0';
-                                    document.getElementById('zo-cem-3').value = '0';
-                                    document.getElementById('zo-cem-4').value = '0';
-                                    
-                                    if (line === 'Линия 1') {
-                                        document.getElementById('zo-cem-1').value = a > 0 ? a : '0';
-                                        document.getElementById('zo-cem-2').value = b > 0 ? b : '0';
-                                    } else {
-                                        document.getElementById('zo-cem-3').value = a > 0 ? a : '0';
-                                        document.getElementById('zo-cem-4').value = b > 0 ? b : '0';
+                                    if (document.getElementById('zo-cem-1')) {
+                                        document.getElementById('zo-cem-1').value = s1 > 0 ? s1 : '0';
+                                        document.getElementById('zo-cem-2').value = s2 > 0 ? s2 : '0';
+                                        document.getElementById('zo-cem-3').value = s3 > 0 ? s3 : '0';
+                                        document.getElementById('zo-cem-4').value = s4 > 0 ? s4 : '0';
                                     }
                                     if (typeof recalcCemTotal === 'function') recalcCemTotal();
                                 }
                                 
                                 window.updateLineSiloHeaders = function() {
-                                    const lineSelect = document.getElementById('rep-line');
-                                    if (lineSelect) {
-                                        const line = lineSelect.value;
-                                        if (line === 'Линия 1') {
-                                            document.getElementById('rm-header-siloA').innerText = 'Силос 1';
-                                            document.getElementById('rm-header-siloB').innerText = 'Силос 2';
-                                        } else {
-                                            document.getElementById('rm-header-siloA').innerText = 'Силос 3';
-                                            document.getElementById('rm-header-siloB').innerText = 'Силос 4';
-                                        }
-                                        calcCem();
-                                    }
+                                    calcCem();
                                 };
                                 
-                                // Hook into line change to update headers
+                                // Hook into line change to update calculations if needed
                                 document.addEventListener('DOMContentLoaded', () => {
                                     const lineSelect = document.getElementById('rep-line');
                                     if (lineSelect) {
@@ -1371,6 +1373,6 @@ function calcSumRM(key) {
         </button>
     </div>
 
-    <script src="/static/js/app.js?v=20260804_v1"></script>
+    <script src="/static/js/app.js?v=20260818_silos_4"></script>
 </body>
 </html>
