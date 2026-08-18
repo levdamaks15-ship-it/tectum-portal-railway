@@ -8,6 +8,13 @@ window.fetch = function (url, options) {
     return originalFetch(url, options);
 };
 
+// Global handler: prevent mouse wheel from changing input[type="number"] values
+document.addEventListener('wheel', function (e) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+}, { passive: true });
+
 let currentAdmin = null;
 
 function initAdminLogin() {

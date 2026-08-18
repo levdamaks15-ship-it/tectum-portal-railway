@@ -6,6 +6,13 @@ let productNorms = {};
 let mastersList = [];
 window.currentLoadedShiftId = null;
 
+// Global handler: prevent mouse wheel from changing input[type="number"] values
+document.addEventListener('wheel', function (e) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
+}, { passive: true });
+
 // UX Helpers
 function showNotification(type, title, message) {
     const modal = document.getElementById('universal-notification-modal');
