@@ -6284,13 +6284,15 @@ def open_editor(
         
     callback_url = f"{base_portal_url}/api/documents/onlyoffice_callback/{doc.id}"
 
-    # Генерируем уникальный сессионный ключ для OnlyOffice
-    session_seed = uuid.uuid4().hex[:8]
-    doc_key = f"tectum_doc_{doc.id}_{session_seed}"
+    # Ключ документа для соавторства (Co-Editing):
+    # Он должен быть одинаковым для всех пользователей, одновременно редактирующих файл,
+    # и обновляться только после успешного завершения сессии редактирования (по uploaded_at).
+    v_timestamp = str(int(doc.uploaded_at.timestamp())) if doc.uploaded_at else "0"
+    doc_key = f"tectum_doc_{doc.id}_v{v_timestamp}"
 
-    # Пользователь
+    # Имя и ID текущего пользователя
     user_name = request.session.get("user_name") or "Сотрудник Tectum"
-    user_id = str(request.session.get("user_id") or "1")
+    user_id = str(request.session.get("user_id") or uuid.uuid4().hex[:6])
 
     editor_config = {
         "documentType": doc_type,
@@ -6304,13 +6306,20 @@ def open_editor(
                 "download": True,
                 "print": True,
                 "review": True,
-                "comment": True
+                "comment": True,
+                "copy": True,
+                "modifyContentControl": True,
+                "modifyFilter": True
             }
         },
         "editorConfig": {
             "mode": "view" if ext == "pdf" else "edit",
             "lang": "ru",
             "callbackUrl": callback_url,
+            "coEditing": {
+                "mode": "fast",
+                "change": True
+            },
             "user": {
                 "id": user_id,
                 "name": user_name
@@ -6322,7 +6331,10 @@ def open_editor(
                 "help": False,
                 "uiTheme": "theme-classic-dark",
                 "compactHeader": False,
-                "toolbarNoTabs": False
+                "toolbarNoTabs": False,
+                "features": {
+                    "spellcheck": True
+                }
             }
         },
         "height": "100%",
