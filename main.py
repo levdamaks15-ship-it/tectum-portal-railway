@@ -6065,7 +6065,20 @@ def download_document(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
-    if doc.yandex_url:
+    # For PDF files and direct downloads: stream directly inline so mobile browsers & PCs open native PDF reader immediately without Yandex app prompts
+    filename = doc.title or ""
+    is_pdf = filename.lower().endswith(".pdf")
+    
+    if is_pdf:
+        if doc.r2_key:
+            import r2_integration
+            try:
+                download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
+                return RedirectResponse(url=download_url)
+            except Exception:
+                pass
+
+    if doc.yandex_url and not is_pdf:
         return RedirectResponse(url=doc.yandex_url)
 
     if doc.r2_key:
