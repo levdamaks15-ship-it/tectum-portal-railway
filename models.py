@@ -296,6 +296,28 @@ class Document(Base):
     koofr_link = Column(String, nullable=True) # Sharing/View Link in Koofr Cloud
     yandex_path = Column(String, nullable=True) # Remote path in Yandex Disk
     yandex_url = Column(String, nullable=True) # Public edit/view URL in Yandex Disk
+    
+    # Versioning & Check-out fields
+    version_number = Column(Integer, default=1)
+    locked_by_user = Column(String, nullable=True) # Имя сотрудника, взявшего файл на редактирование
+    locked_at = Column(DateTime, nullable=True)    # Время блокировки
+    last_modified_by = Column(String, nullable=True) # Кто загрузил последнюю версию
+
+    versions = relationship("DocumentVersion", back_populates="document", cascade="all, delete-orphan", order_by="DocumentVersion.version_number.desc()")
+
+class DocumentVersion(Base):
+    __tablename__ = "document_versions"
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"))
+    version_number = Column(Integer, default=1)
+    file_path = Column(String, nullable=False)
+    file_size = Column(Integer, default=0)
+    mime_type = Column(String, nullable=True)
+    author_name = Column(String, default="Сотрудник")
+    comment = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    document = relationship("Document", back_populates="versions")
 
 class Task(Base):
     __tablename__ = "tasks"

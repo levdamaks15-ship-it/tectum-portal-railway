@@ -1309,6 +1309,69 @@
         </div>
     </div>
 
+    <!-- Модальное окно: Загрузка новой версии (Check-in) -->
+    <div id="checkin-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-file-arrow-up" style="color: #10b981;"></i> Загрузить новую версию
+                </h3>
+                <button onclick="closeCheckinModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p id="checkin-doc-title" style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; font-weight: 500;"></p>
+            
+            <div class="form-group">
+                <label>Выберите обновленный файл (.docx, .xlsx, .pdf и др.)</label>
+                <input type="file" id="checkin-file-input" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px dashed #475569; border-radius: 8px; width: 100%; color: #fff;">
+            </div>
+
+            <div class="form-group">
+                <label>Ваше имя / Должность</label>
+                <input type="text" id="checkin-author-input" placeholder="Например: Иван (Мастер смены)">
+            </div>
+
+            <div class="form-group">
+                <label>Комментарий к изменениям (опционально)</label>
+                <input type="text" id="checkin-comment-input" placeholder="Например: Обновил нормы расхода на август">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeCheckinModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-checkin" onclick="submitCheckin()" style="background: #10b981;">
+                    <i class="fas fa-upload"></i> Загрузить в базу
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: История и архив версий -->
+    <div id="versions-modal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-history" style="color: #38bdf8;"></i> История изменений документа
+                </h3>
+                <button onclick="closeVersionsModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="versions-modal-header" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 1.2rem;">
+                <div id="versions-doc-name" style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 0.3rem;"></div>
+                <div id="versions-doc-status" style="font-size: 0.82rem; color: #94a3b8;"></div>
+            </div>
+
+            <div id="versions-list-container" style="max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.2rem;">
+                <div style="text-align: center; color: #94a3b8; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Загрузка истории...</div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeVersionsModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Контекстное меню (Google Drive Style / Mobile Bottom Sheet) -->
     <div id="custom-context-menu" class="context-menu"></div>
 
@@ -1897,15 +1960,25 @@
                         ${closeBtnHtml}
                     </div>
                     <div class="context-menu-item" onclick="openFileLink('${viewUrl}', ${item.is_protected}, event)">
-                        <i class="fas fa-eye" style="color:#3b82f6;"></i> Просмотреть
+                        <i class="fas fa-eye" style="color:#3b82f6;"></i> Просмотреть файл
                     </div>
-                    ${isEditable ? `
-                        <div class="context-menu-item" onclick="openFileLink('/editor?id=${item.id}', ${item.is_protected}, event)">
-                            <i class="fas fa-file-pen" style="color:#10b981;"></i> Открыть и редактировать
+                    <div class="context-menu-item" onclick="checkoutDoc('${item.id.replace('file_','')}', '${escapeHtml(item.name)}', ${item.is_protected})">
+                        <i class="fas fa-file-arrow-down" style="color:#f59e0b;"></i> Взять на редактирование (Скачать)
+                    </div>
+                    <div class="context-menu-item" onclick="openCheckinModal('${item.id.replace('file_','')}', '${escapeHtml(item.name)}', ${item.is_protected})">
+                        <i class="fas fa-file-arrow-up" style="color:#10b981;"></i> Загрузить новую версию
+                    </div>
+                    <div class="context-menu-item" onclick="openVersionsModal('${item.id.replace('file_','')}', '${escapeHtml(item.name)}', ${item.is_protected})">
+                        <i class="fas fa-history" style="color:#38bdf8;"></i> История и архив версий
+                    </div>
+                    ${item.locked_by_user ? `
+                        <div class="context-menu-item" onclick="unlockDoc('${item.id.replace('file_','')}', ${item.is_protected})">
+                            <i class="fas fa-lock-open" style="color:#94a3b8;"></i> Снять блокировку
                         </div>
                     ` : ''}
+                    <div class="context-menu-separator"></div>
                     <div class="context-menu-item" onclick="downloadFile('${item.id.replace('file_','')}', '${escapeHtml(item.name)}', event, ${item.is_protected})">
-                        <i class="fas fa-download" style="color:#60a5fa;"></i> Скачать файл
+                        <i class="fas fa-download" style="color:#60a5fa;"></i> Скачать копию
                     </div>
                     <div class="context-menu-item" onclick="copyItemLink('${viewUrl}', ${item.is_protected})">
                         <i class="fas fa-link" style="color:#a855f7;"></i> Копировать ссылку
@@ -2167,6 +2240,14 @@
                 const typeName = getFileTypeName(file.name, file.mimeType);
                 const viewUrl = getWebViewLink(file);
                 const fileJson = escapeHtml(JSON.stringify(file));
+                const vNum = file.version_number || 1;
+                const fileIdNum = file.id.replace('file_','');
+                
+                let lockBadge = '';
+                if (file.locked_by_user) {
+                    lockBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px;" title="Взят на редактирование ${file.locked_at || ''}"><i class="fas fa-lock" style="font-size: 0.65rem;"></i> Редактирует: ${escapeHtml(file.locked_by_user)}</span>`;
+                }
+
                 html += `
                     <div class="docs-table-row" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
                         <div class="row-name">
@@ -2174,20 +2255,28 @@
                                 <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
                             </div>
                             <div class="item-info">
-                                <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="file-link" title="${escapeHtml(file.name)}">
-                                    <span class="item-title">${escapeHtml(file.name)}</span>
-                                    ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : ''}
-                                </a>
-                                <span class="item-mobile-meta">${typeName}</span>
+                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
+                                    <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="file-link" title="${escapeHtml(file.name)}">
+                                        <span class="item-title">${escapeHtml(file.name)}</span>
+                                        ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : ''}
+                                    </a>
+                                    <span style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.7rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);" title="Версия документа">v${vNum}</span>
+                                    ${lockBadge}
+                                </div>
+                                <span class="item-mobile-meta">${typeName} • v${vNum}</span>
                             </div>
                         </div>
-                        <div class="row-meta">${typeName}</div>
+                        <div class="row-meta">${typeName} (v${vNum})</div>
                         <div class="row-actions">
-                            ${isEditableFile(file.name) ? `
-                                <a href="#" onclick="openFileLink('/editor?id=${file.id}', ${file.is_protected}, event)" class="btn-icon" style="color: #10b981;" title="Открыть и редактировать">
-                                    <i class="fas fa-file-pen"></i>
-                                </a>
-                            ` : ''}
+                            <button onclick="checkoutDoc('${fileIdNum}', '${escapeHtml(file.name)}', ${file.is_protected})" class="btn-icon" style="color: #f59e0b;" title="Взять на редактирование (Скачать)">
+                                <i class="fas fa-file-arrow-down"></i>
+                            </button>
+                            <button onclick="openCheckinModal('${fileIdNum}', '${escapeHtml(file.name)}', ${file.is_protected})" class="btn-icon" style="color: #10b981;" title="Загрузить новую версию">
+                                <i class="fas fa-file-arrow-up"></i>
+                            </button>
+                            <button onclick="openVersionsModal('${fileIdNum}', '${escapeHtml(file.name)}', ${file.is_protected})" class="btn-icon" style="color: #38bdf8;" title="История версий и архив">
+                                <i class="fas fa-history"></i>
+                            </button>
                             <a href="#" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon" title="Просмотреть">
                                 <i class="fas fa-eye"></i>
                             </a>
@@ -2644,6 +2733,239 @@
                     alert('Ошибка: ' + data.message);
                 }
             } catch (error) {
+                alert('Ошибка соединения');
+            }
+        }
+
+        /* ==========================================================
+           DOCUMENT VERSIONING & ARCHIVE JS HANDLERS
+           ========================================================== */
+        let currentCheckinDocId = null;
+        let currentCheckinProtected = false;
+
+        async function checkoutDoc(fileId, fileName, isProtected = false) {
+            hideContextMenu();
+            if (isProtected && !await ensurePassword(true)) return;
+
+            const userName = prompt('Введите ваше имя (для отметки "Кто редактирует"):', localStorage.getItem('last_editor_name') || 'Мастер смены');
+            if (userName === null) return;
+            if (userName.trim()) localStorage.setItem('last_editor_name', userName.trim());
+
+            const formData = new FormData();
+            formData.append('user_name', userName.trim() || 'Сотрудник');
+
+            try {
+                const res = await fetch(`/api/documents/${fileId}/checkout`, {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader(),
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (res.status === 423) {
+                    alert(data.message);
+                    return;
+                }
+
+                if (data.status === 'success') {
+                    showToast('Документ взят на редактирование');
+                    // Скачиваем файл
+                    downloadFile(fileId, fileName, null, isProtected);
+                    // Обновляем список документов для отображения бейджа
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка: ' + (data.message || 'Не удалось взять на редактирование'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Ошибка соединения с сервером');
+            }
+        }
+
+        async function unlockDoc(fileId, isProtected = false) {
+            hideContextMenu();
+            if (isProtected && !await ensurePassword(true)) return;
+
+            if (!confirm('Снять отметку о редактировании с документа?')) return;
+
+            try {
+                const res = await fetch(`/api/documents/${fileId}/unlock`, {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader()
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('Блокировка снята');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (e) {
+                alert('Ошибка соединения');
+            }
+        }
+
+        function openCheckinModal(fileId, fileName, isProtected = false) {
+            hideContextMenu();
+            currentCheckinDocId = fileId;
+            currentCheckinProtected = isProtected;
+            document.getElementById('checkin-doc-title').innerText = 'Документ: ' + fileName;
+            document.getElementById('checkin-file-input').value = '';
+            document.getElementById('checkin-comment-input').value = '';
+            document.getElementById('checkin-author-input').value = localStorage.getItem('last_editor_name') || '';
+            document.getElementById('checkin-modal').style.display = 'flex';
+        }
+
+        function closeCheckinModal() {
+            document.getElementById('checkin-modal').style.display = 'none';
+            currentCheckinDocId = null;
+        }
+
+        async function submitCheckin() {
+            if (!currentCheckinDocId) return;
+            if (currentCheckinProtected && !await ensurePassword(true)) return;
+
+            const fileInput = document.getElementById('checkin-file-input');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Пожалуйста, выберите файл с вашего компьютера/телефона!');
+                return;
+            }
+
+            const authorName = document.getElementById('checkin-author-input').value.trim() || 'Сотрудник';
+            localStorage.setItem('last_editor_name', authorName);
+            const comment = document.getElementById('checkin-comment-input').value.trim();
+
+            const btn = document.getElementById('btn-submit-checkin');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('author_name', authorName);
+            if (comment) formData.append('comment', comment);
+
+            try {
+                const res = await fetch(`/api/documents/${currentCheckinDocId}/checkin`, {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader(),
+                    body: formData
+                });
+                const data = await res.json();
+                btn.innerHTML = origText;
+                btn.disabled = false;
+
+                if (data.status === 'success') {
+                    closeCheckinModal();
+                    showToast(data.message || 'Новая версия сохранена в базе!');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка загрузки версии: ' + data.message);
+                }
+            } catch (e) {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+                alert('Ошибка связи с сервером');
+            }
+        }
+
+        let currentVersionsDocId = null;
+        let currentVersionsDocProtected = false;
+
+        async function openVersionsModal(fileId, fileName, isProtected = false) {
+            hideContextMenu();
+            currentVersionsDocId = fileId;
+            currentVersionsDocProtected = isProtected;
+            if (isProtected && !await ensurePassword(true)) return;
+
+            document.getElementById('versions-doc-name').innerText = fileName;
+            document.getElementById('versions-modal').style.display = 'flex';
+            const listEl = document.getElementById('versions-list-container');
+            listEl.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Загрузка истории версий...</div>';
+
+            try {
+                const res = await fetch(`/api/documents/${fileId}/versions`, {
+                    headers: getFolderPasswordHeader()
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const statusEl = document.getElementById('versions-doc-status');
+                    if (data.locked_by) {
+                        statusEl.innerHTML = `<span style="color:#f59e0b;"><i class="fas fa-lock"></i> Сейчас редактирует: <b>${escapeHtml(data.locked_by)}</b> (с ${data.locked_at || ''})</span>`;
+                    } else {
+                        statusEl.innerHTML = `<span style="color:#10b981;"><i class="fas fa-check-circle"></i> Документ свободен для редактирования (Актуальная версия v${data.current_version})</span>`;
+                    }
+
+                    if (!data.versions || data.versions.length === 0) {
+                        listEl.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 1.5rem;">Нет записей в архиве</div>';
+                        return;
+                    }
+
+                    let vHtml = '';
+                    data.versions.forEach(v => {
+                        const sizeKb = v.file_size ? (v.file_size / 1024).toFixed(1) + ' КБ' : '—';
+                        const isCurr = v.is_current;
+                        vHtml += `
+                            <div style="background: ${isCurr ? 'rgba(16, 185, 129, 0.08)' : 'rgba(30, 41, 59, 0.6)'}; border: 1px solid ${isCurr ? 'rgba(16, 185, 129, 0.3)' : 'var(--docs-panel-border, #334155)'}; border-radius: 10px; padding: 0.8rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 0.8rem;">
+                                    <span style="font-weight: 800; font-size: 1rem; color: ${isCurr ? '#10b981' : '#38bdf8'}; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 6px;">v${v.version_number}</span>
+                                    <div>
+                                        <div style="font-weight: 600; font-size: 0.9rem; color: #fff;">
+                                            ${escapeHtml(v.author_name)} ${isCurr ? '<span style="color:#10b981; font-size: 0.75rem; margin-left: 6px;">(Текущая)</span>' : ''}
+                                        </div>
+                                        <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 2px;">
+                                            ${v.created_at} • ${sizeKb} ${v.comment ? `• <i>"${escapeHtml(v.comment)}"</i>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <a href="${v.download_url}" target="_blank" class="btn-action" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #3b82f6; text-decoration: none; color: #fff; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="fas fa-download"></i> Скачать
+                                    </a>
+                                    ${!isCurr ? `
+                                        <button onclick="restoreVersion(${fileId}, ${v.id}, ${v.version_number})" class="btn-action" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #f59e0b; border: none; border-radius: 6px; cursor: pointer; color: #000; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="fas fa-rotate-left"></i> Восстановить
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    listEl.innerHTML = vHtml;
+                } else {
+                    listEl.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 1.5rem;">Ошибка: ${data.message}</div>`;
+                }
+            } catch (e) {
+                listEl.innerHTML = '<div style="color: #ef4444; text-align: center; padding: 1.5rem;">Сбой загрузки версий</div>';
+            }
+        }
+
+        function closeVersionsModal() {
+            document.getElementById('versions-modal').style.display = 'none';
+            currentVersionsDocId = null;
+        }
+
+        async function restoreVersion(fileId, versionId, vNumber) {
+            if (!confirm(`Вы действительно хотите восстановить документ из архивной версии v${vNumber}? Текущий рабочий документ будет автоматически заархивирован.`)) return;
+
+            try {
+                const res = await fetch(`/api/documents/${fileId}/restore/${versionId}`, {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader()
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message);
+                    closeVersionsModal();
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (e) {
                 alert('Ошибка соединения');
             }
         }

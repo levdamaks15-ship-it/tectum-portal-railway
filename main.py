@@ -199,15 +199,44 @@ async def lifespan(app: FastAPI):
         driver = db.bind.dialect.name if db.bind else 'unknown'
         if driver == 'postgresql':
             from sqlalchemy import text
-            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT"), ("yandex_path", "VARCHAR(512)"), ("yandex_url", "TEXT")]:
+            for col, col_type in [
+                ("r2_key", "VARCHAR(512)"), 
+                ("docspace_file_id", "INTEGER"), 
+                ("google_drive_id", "VARCHAR(255)"), 
+                ("google_drive_url", "TEXT"), 
+                ("koofr_path", "VARCHAR(512)"), 
+                ("koofr_link", "TEXT"), 
+                ("yandex_path", "VARCHAR(512)"), 
+                ("yandex_url", "TEXT"),
+                ("version_number", "INTEGER DEFAULT 1"),
+                ("locked_by_user", "VARCHAR(255)"),
+                ("locked_at", "TIMESTAMP"),
+                ("last_modified_by", "VARCHAR(255)")
+            ]:
                 try:
                     db.execute(text(f"ALTER TABLE documents ADD COLUMN IF NOT EXISTS {col} {col_type};"))
                     db.commit()
                 except Exception:
                     db.rollback()
+            try:
+                models.DocumentVersion.__table__.create(bind=engine, checkfirst=True)
+            except Exception: pass
         elif driver == 'sqlite':
             conn = sqlite3.connect("tectum.db")
-            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT"), ("yandex_path", "VARCHAR(512)"), ("yandex_url", "TEXT")]:
+            for col, col_type in [
+                ("r2_key", "VARCHAR(512)"), 
+                ("docspace_file_id", "INTEGER"), 
+                ("google_drive_id", "VARCHAR(255)"), 
+                ("google_drive_url", "TEXT"), 
+                ("koofr_path", "VARCHAR(512)"), 
+                ("koofr_link", "TEXT"), 
+                ("yandex_path", "VARCHAR(512)"), 
+                ("yandex_url", "TEXT"),
+                ("version_number", "INTEGER DEFAULT 1"),
+                ("locked_by_user", "VARCHAR(255)"),
+                ("locked_at", "TIMESTAMP"),
+                ("last_modified_by", "VARCHAR(255)")
+            ]:
                 try:
                     conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
                     conn.commit()
@@ -217,6 +246,12 @@ async def lifespan(app: FastAPI):
                 conn.execute("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255)")
                 conn.commit()
             except Exception: pass
+            
+            # Create document_versions table if not exists
+            try:
+                models.DocumentVersion.__table__.create(bind=engine, checkfirst=True)
+            except Exception: pass
+            
             conn.close()
     except Exception as e:
         pass
@@ -5446,7 +5481,11 @@ def list_documents(
                 "mimeType": f.mime_type or "application/octet-stream",
                 "webViewLink": file_link,
                 "uploaded_at": f.uploaded_at.isoformat() if f.uploaded_at else "",
-                "is_protected": prot_map.get(f.category_id, False) if f.category_id else False
+                "is_protected": prot_map.get(f.category_id, False) if f.category_id else False,
+                "version_number": f.version_number or 1,
+                "locked_by_user": f.locked_by_user,
+                "locked_at": f.locked_at.strftime("%d.%m %H:%M") if f.locked_at else None,
+                "last_modified_by": f.last_modified_by or ""
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -5479,7 +5518,11 @@ def get_documents_tree(db: Session = Depends(get_db)):
                 "parent_id": f"folder_{d.category_id}" if d.category_id else None,
                 "mimeType": d.mime_type or "application/octet-stream",
                 "webViewLink": file_link,
-                "is_protected": prot_map.get(d.category_id, False) if d.category_id else False
+                "is_protected": prot_map.get(d.category_id, False) if d.category_id else False,
+                "version_number": d.version_number or 1,
+                "locked_by_user": d.locked_by_user,
+                "locked_at": d.locked_at.strftime("%d.%m %H:%M") if d.locked_at else None,
+                "last_modified_by": d.last_modified_by or ""
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -5813,6 +5856,349 @@ def create_document_folder(
         }}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+import shutil
+
+# ========================================================
+# DOCUMENT VERSIONING, CHECK-OUT & ARCHIVE API ENDPOINTS
+# ========================================================
+
+@app.post("/api/documents/{file_id}/checkout")
+def checkout_document(
+    file_id: int,
+    request: Request,
+    user_name: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Берет документ на редактирование (Check-out).
+    Блокирует файл для других пользователей и отдает его для скачивания.
+    """
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"status": "error", "message": "Файл не найден"}, status_code=404)
+
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Access Denied")
+
+    editor_name = user_name or request.session.get("user_name") or "Сотрудник"
+    
+    # Если уже заблокирован другим пользователем
+    if doc.locked_by_user and doc.locked_by_user != editor_name:
+        # Проверяем, не зависла ли блокировка больше 24 часов
+        if doc.locked_at and (datetime.datetime.utcnow() - doc.locked_at).total_seconds() < 86400:
+            return JSONResponse({
+                "status": "locked",
+                "message": f"Документ уже редактирует: {doc.locked_by_user} (с {doc.locked_at.strftime('%d.%m %H:%M')}).",
+                "locked_by": doc.locked_by_user,
+                "locked_at": doc.locked_at.isoformat() if doc.locked_at else None
+            }, status_code=423)
+
+    doc.locked_by_user = editor_name
+    doc.locked_at = datetime.datetime.utcnow()
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Документ взят на редактирование пользователем {editor_name}",
+        "locked_by": doc.locked_by_user,
+        "locked_at": doc.locked_at.isoformat(),
+        "download_url": f"/api/documents/download/{doc.id}"
+    }
+
+
+@app.post("/api/documents/{file_id}/unlock")
+def unlock_document(
+    file_id: int,
+    request: Request,
+    force: bool = Form(False),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Снимает блокировку с документа (если взяли по ошибке или отменили правки).
+    """
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"status": "error", "message": "Файл не найден"}, status_code=404)
+
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Access Denied")
+
+    user_role = request.session.get("user_role") or "master"
+    current_user = request.session.get("user_name") or "Сотрудник"
+
+    # Только автор блокировки или админ/директор может принудительно разблокировать
+    if doc.locked_by_user and doc.locked_by_user != current_user and user_role not in ["admin", "director"] and not force:
+        return JSONResponse({
+            "status": "error", 
+            "message": f"Только {doc.locked_by_user} или Администратор может снять блокировку."
+        }, status_code=403)
+
+    doc.locked_by_user = None
+    doc.locked_at = None
+    db.commit()
+
+    return {"status": "success", "message": "Блокировка успешно снята"}
+
+
+@app.post("/api/documents/{file_id}/checkin")
+async def checkin_document(
+    file_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    comment: Optional[str] = Form(None),
+    author_name: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Загружает новую версию документа (Check-in).
+    1. Архивирует текущую рабочую версию в папку storage/documents/versions/
+    2. Создает запись в таблице document_versions
+    3. Заменяет рабочий файл на новый
+    4. Снимает блокировку с документа
+    """
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"status": "error", "message": "Файл не найден"}, status_code=404)
+
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Access Denied")
+
+    editor_name = author_name or request.session.get("user_name") or "Сотрудник"
+    new_version_num = (doc.version_number or 1) + 1
+
+    # Базовая директория для документов
+    docs_dir = os.path.join(os.path.dirname(__file__), "storage", "documents")
+    versions_dir = os.path.join(docs_dir, "versions")
+    os.makedirs(versions_dir, exist_ok=True)
+
+    # 1. Архивация существующей версии
+    if doc.file_path and os.path.exists(doc.file_path):
+        timestamp_slug = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ext = doc.title.split(".")[-1] if "." in doc.title else "bin"
+        archived_filename = f"{doc.id}_v{doc.version_number or 1}_{timestamp_slug}.{ext}"
+        archived_path = os.path.join(versions_dir, archived_filename)
+
+        try:
+            shutil.copy2(doc.file_path, archived_path)
+            archived_size = os.path.getsize(archived_path)
+            
+            # Запись в БД об архивной версии
+            prev_version = models.DocumentVersion(
+                document_id=doc.id,
+                version_number=doc.version_number or 1,
+                file_path=archived_path,
+                file_size=archived_size,
+                mime_type=doc.mime_type,
+                author_name=doc.last_modified_by or "Первоначальная версия",
+                comment=f"Архивная копия перед обновлением до v{new_version_num}",
+                created_at=doc.uploaded_at or datetime.datetime.utcnow()
+            )
+            db.add(prev_version)
+            db.commit()
+        except Exception as e:
+            print(f"Error archiving previous document version: {e}")
+
+    # 2. Сохранение нового рабочего файла
+    new_content = await file.read()
+    if not doc.file_path:
+        clean_fn = doc.title or file.filename or "document"
+        doc.file_path = os.path.join(docs_dir, f"{doc.id}_{clean_fn}")
+
+    os.makedirs(os.path.dirname(doc.file_path), exist_ok=True)
+    with open(doc.file_path, "wb") as f:
+        f.write(new_content)
+
+    # 3. Обновление записи документа
+    doc.version_number = new_version_num
+    doc.last_modified_by = editor_name
+    doc.locked_by_user = None
+    doc.locked_at = None
+    doc.uploaded_at = datetime.datetime.utcnow()
+    db.commit()
+
+    # Фоновая синхронизация с Google Drive при наличии
+    if doc.google_drive_id:
+        try:
+            import google_drive_integration
+            google_drive_integration.upload_file_to_drive(doc.file_path, doc.title, parent_drive_id=None)
+        except Exception as g_err:
+            print(f"Google Drive sync error: {g_err}")
+
+    return {
+        "status": "success",
+        "message": f"Новая версия v{new_version_num} успешно загружена!",
+        "version": new_version_num,
+        "author": editor_name,
+        "uploaded_at": doc.uploaded_at.isoformat()
+    }
+
+
+@app.get("/api/documents/{file_id}/versions")
+def get_document_versions(
+    file_id: int,
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Возвращает полную историю версий файла с авторами, датами и размерами.
+    """
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"status": "error", "message": "Файл не найден"}, status_code=404)
+
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Access Denied")
+
+    current_size = os.path.getsize(doc.file_path) if doc.file_path and os.path.exists(doc.file_path) else 0
+
+    history = [
+        {
+            "id": 0,
+            "version_number": doc.version_number or 1,
+            "author_name": doc.last_modified_by or "Текущий автор",
+            "comment": "Текущая актуальная версия",
+            "file_size": current_size,
+            "created_at": doc.uploaded_at.strftime("%d.%m.%Y %H:%M") if doc.uploaded_at else "",
+            "is_current": True,
+            "download_url": f"/api/documents/download/{doc.id}"
+        }
+    ]
+
+    archived = db.query(models.DocumentVersion).filter(
+        models.DocumentVersion.document_id == file_id
+    ).order_by(models.DocumentVersion.version_number.desc()).all()
+
+    for v in archived:
+        history.append({
+            "id": v.id,
+            "version_number": v.version_number,
+            "author_name": v.author_name or "Не указан",
+            "comment": v.comment or "",
+            "file_size": v.file_size or 0,
+            "created_at": v.created_at.strftime("%d.%m.%Y %H:%M") if v.created_at else "",
+            "is_current": False,
+            "download_url": f"/api/documents/version/{v.id}/download"
+        })
+
+    return {
+        "status": "success",
+        "document_title": doc.title,
+        "current_version": doc.version_number or 1,
+        "locked_by": doc.locked_by_user,
+        "locked_at": doc.locked_at.strftime("%d.%m.%Y %H:%M") if doc.locked_at else None,
+        "versions": history
+    }
+
+
+@app.get("/api/documents/version/{version_id}/download")
+def download_archived_version(
+    version_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Скачивает конкретную архивную версию файла.
+    """
+    version = db.query(models.DocumentVersion).filter(models.DocumentVersion.id == version_id).first()
+    if not version or not version.file_path or not os.path.exists(version.file_path):
+        raise HTTPException(status_code=404, detail="Архивная версия не найдена")
+
+    doc = version.document
+    filename = f"v{version.version_number}_{doc.title if doc else 'document'}"
+    encoded_filename = quote(filename)
+
+    return FileResponse(
+        path=version.file_path,
+        filename=filename,
+        media_type=version.mime_type or "application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+    )
+
+
+@app.post("/api/documents/{file_id}/restore/{version_id}")
+def restore_document_version(
+    file_id: int,
+    version_id: int,
+    request: Request,
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Откатывает документ к выбранной архивной версии (Rollback).
+    """
+    doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+    if not doc:
+        return JSONResponse({"status": "error", "message": "Документ не найден"}, status_code=404)
+
+    version = db.query(models.DocumentVersion).filter(
+        models.DocumentVersion.id == version_id,
+        models.DocumentVersion.document_id == file_id
+    ).first()
+    if not version or not version.file_path or not os.path.exists(version.file_path):
+        return JSONResponse({"status": "error", "message": "Архивная версия не найдена"}, status_code=404)
+
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                raise HTTPException(status_code=403, detail="Access Denied")
+
+    user_name = request.session.get("user_name") or "Сотрудник"
+
+    # Архивируем текущую перед откатом
+    docs_dir = os.path.join(os.path.dirname(__file__), "storage", "documents")
+    versions_dir = os.path.join(docs_dir, "versions")
+    os.makedirs(versions_dir, exist_ok=True)
+
+    if doc.file_path and os.path.exists(doc.file_path):
+        timestamp_slug = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ext = doc.title.split(".")[-1] if "." in doc.title else "bin"
+        archived_filename = f"{doc.id}_v{doc.version_number or 1}_{timestamp_slug}.{ext}"
+        archived_path = os.path.join(versions_dir, archived_filename)
+        shutil.copy2(doc.file_path, archived_path)
+
+        prev_version = models.DocumentVersion(
+            document_id=doc.id,
+            version_number=doc.version_number or 1,
+            file_path=archived_path,
+            file_size=os.path.getsize(archived_path),
+            mime_type=doc.mime_type,
+            author_name=doc.last_modified_by or "Система",
+            comment=f"Архивная копия перед откатом к v{version.version_number}",
+            created_at=doc.uploaded_at or datetime.datetime.utcnow()
+        )
+        db.add(prev_version)
+
+    # Восстанавливаем файл из архива
+    shutil.copy2(version.file_path, doc.file_path)
+    new_v = (doc.version_number or 1) + 1
+    doc.version_number = new_v
+    doc.last_modified_by = f"{user_name} (Откат к v{version.version_number})"
+    doc.locked_by_user = None
+    doc.locked_at = None
+    doc.uploaded_at = datetime.datetime.utcnow()
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Документ успешно восстановлен из версии v{version.version_number}! Новая версия: v{new_v}",
+        "new_version": new_v
+    }
 
 @app.post("/api/documents/clean_duplicates")
 def clean_duplicate_folders(request: Request, db: Session = Depends(get_db)):
