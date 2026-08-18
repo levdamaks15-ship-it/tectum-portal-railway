@@ -6160,13 +6160,19 @@ async def onlyoffice_callback(
 ):
     """
     ONLYOFFICE Document Server Callback Handler.
-    Статус 2 или 6 означает, что документ был отредактирован и готов к сохранению.
+    Статус 1: документ редактируется.
+    Статус 2: документ готов к сохранению (пользователи закрыли документ).
+    Статус 3: ошибка сохранения.
+    Статус 4: документ закрыт без изменений.
+    Статус 6: документ принудительно сохранен (forcesave / кнопка сохранить / автосохранение).
+    Статус 7: ошибка принудительного сохранения.
     """
     try:
         data = await request.json()
         status = data.get("status")
-        # status 2: документ закрыт для редактирования и готов к сохранению
-        # status 6: документ принудительно сохранен (forcesave)
+        print(f"ONLYOFFICE Callback received for doc #{file_id}, status = {status}")
+        
+        # Статусы 2 (закрыт с сохранением) и 6 (автосохранение / forcesave)
         if status in [2, 6]:
             download_url = data.get("url")
             if download_url:
@@ -6174,8 +6180,8 @@ async def onlyoffice_callback(
                 if resp.status_code == 200:
                     doc = db.query(models.Document).filter(models.Document.id == file_id).first()
                     if doc:
-                        # Сохраняем в локальный файл если есть путь
-                        if not doc.file_path:
+                        # Если файла еще нет на диске, создаем надежный путь
+                        if not doc.file_path or not os.path.exists(doc.file_path):
                             docs_dir = os.path.join(os.path.dirname(__file__), "storage", "documents")
                             os.makedirs(docs_dir, exist_ok=True)
                             doc.file_path = os.path.join(docs_dir, f"{doc.id}_{doc.title}")
@@ -6186,8 +6192,9 @@ async def onlyoffice_callback(
                             
                         doc.uploaded_at = datetime.datetime.utcnow()
                         db.commit()
+                        print(f"Document #{file_id} ('{doc.title}') successfully saved from ONLYOFFICE! Size: {len(resp.content)} bytes")
                         
-                        # Также фоново обновляем в Google Drive если подключен
+                        # Также синхронизируем с Google Drive, если настроен
                         if doc.google_drive_id:
                             try:
                                 import google_drive_integration
@@ -6714,8 +6721,14 @@ def open_editor(
                             setStatus('ONLYOFFICE подключен', '#22c55e');
                         }},
                         onDocumentStateChange: function(event) {{
-                            if (event.data) setStatus('Есть несохраненные правки', '#f59e0b');
-                            else setStatus('Все изменения сохранены', '#22c55e');
+                            if (event.data) {{
+                                setStatus('Сохранение изменений...', '#f59e0b');
+                            }} else {{
+                                setStatus('Все изменения сохранены', '#22c55e');
+                            }}
+                        }},
+                        onSave: function() {{
+                            setStatus('Сохранено в базе', '#22c55e');
                         }}
                     }};
                     docEditor = new DocsAPI.DocEditor("onlyoffice-container", config);
@@ -6730,6 +6743,13 @@ def open_editor(
         }}
 
         window.addEventListener('load', startEditor);
+        
+        // Гарантируем сброс правок в OnlyOffice при закрытии вкладки
+        window.addEventListener('beforeunload', function() {{
+            if (docEditor && typeof docEditor.destroyEditor === 'function') {{
+                docEditor.destroyEditor();
+            }}
+        }});
     </script>
 </body>
 </html>"""
