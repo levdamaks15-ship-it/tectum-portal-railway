@@ -294,6 +294,8 @@ class Document(Base):
     docspace_file_id = Column(Integer, nullable=True) # ID of the document in ONLYOFFICE DocSpace
     koofr_path = Column(String, nullable=True) # Path in Koofr Cloud
     koofr_link = Column(String, nullable=True) # Sharing/View Link in Koofr Cloud
+    yandex_path = Column(String, nullable=True) # Remote path in Yandex Disk
+    yandex_url = Column(String, nullable=True) # Public edit/view URL in Yandex Disk
 
 class Task(Base):
     __tablename__ = "tasks"

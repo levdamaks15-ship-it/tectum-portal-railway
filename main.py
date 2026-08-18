@@ -199,7 +199,7 @@ async def lifespan(app: FastAPI):
         driver = db.bind.dialect.name if db.bind else 'unknown'
         if driver == 'postgresql':
             from sqlalchemy import text
-            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT")]:
+            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT"), ("yandex_path", "VARCHAR(512)"), ("yandex_url", "TEXT")]:
                 try:
                     db.execute(text(f"ALTER TABLE documents ADD COLUMN IF NOT EXISTS {col} {col_type};"))
                     db.commit()
@@ -207,7 +207,7 @@ async def lifespan(app: FastAPI):
                     db.rollback()
         elif driver == 'sqlite':
             conn = sqlite3.connect("tectum.db")
-            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT")]:
+            for col, col_type in [("r2_key", "VARCHAR(512)"), ("docspace_file_id", "INTEGER"), ("google_drive_id", "VARCHAR(255)"), ("google_drive_url", "TEXT"), ("koofr_path", "VARCHAR(512)"), ("koofr_link", "TEXT"), ("yandex_path", "VARCHAR(512)"), ("yandex_url", "TEXT")]:
                 try:
                     conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
                     conn.commit()
@@ -5996,6 +5996,12 @@ def delete_document(
                         google_drive_integration.delete_drive_file(doc.google_drive_id)
                     except Exception:
                         pass
+                if doc.yandex_path:
+                    try:
+                        import yandex_disk_integration
+                        yandex_disk_integration.delete_file_from_yandex_disk(doc.yandex_path)
+                    except Exception:
+                        pass
                 db.delete(doc)
                 db.commit()
                 
@@ -6203,6 +6209,40 @@ def open_editor(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 return HTMLResponse("Доступ запрещен (неверный пароль)", status_code=403)
+
+    # 1. Check/Sync to Yandex Disk for Native Docs Editor
+    if not doc.yandex_url:
+        file_bytes = None
+        if doc.r2_key:
+            try:
+                import r2_integration
+                s3 = r2_integration.get_r2_client()
+                obj = s3.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=doc.r2_key)
+                file_bytes = obj['Body'].read()
+            except Exception as e:
+                logger.error(f"Error fetching R2 for Yandex sync: {e}")
+        elif doc.file_path and os.path.exists(doc.file_path):
+            try:
+                with open(doc.file_path, "rb") as f:
+                    file_bytes = f.read()
+            except Exception as e:
+                logger.error(f"Error reading local file for Yandex: {e}")
+
+        if file_bytes:
+            import yandex_disk_integration, re
+            clean_name = re.sub(r'[^\w\.\-\(\) ]', '_', doc.title)
+            remote_path = f"/Tectum/Folder_{doc.category_id or 0}/{doc.id}_{clean_name}"
+            pub_url = yandex_disk_integration.upload_file_to_yandex_disk(file_bytes, remote_path)
+            if pub_url:
+                doc.yandex_path = remote_path
+                doc.yandex_url = pub_url
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
+
+    if doc.yandex_url:
+        return RedirectResponse(url=doc.yandex_url, status_code=302)
 
     filename = doc.title
     ext = filename.split(".")[-1].lower() if "." in filename else ""
