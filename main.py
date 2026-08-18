@@ -5875,6 +5875,48 @@ def add_external_document_link(
         db.rollback()
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/documents/fetch_link_title")
+def fetch_external_link_title(url: str = Query(...)):
+    """
+    Автоматически извлекает реальный заголовок/название файла по ссылке (OneDrive, Google Docs, Yandex и др.)
+    """
+    clean_url = url.strip()
+    if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+        clean_url = "https://" + clean_url
+        
+    try:
+        # 1. Попытка запросить метаданные страницы
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(clean_url, headers=headers, timeout=6, allow_redirects=True)
+        
+        title = ""
+        # Поиск тега <title> или og:title
+        import re
+        og_match = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
+        if not og_match:
+            og_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+property=["\']og:title["\']', resp.text, re.IGNORECASE)
+            
+        if og_match:
+            title = og_match.group(1).strip()
+        else:
+            title_match = re.search(r'<title>(.*?)</title>', resp.text, re.IGNORECASE | re.DOTALL)
+            if title_match:
+                title = title_match.group(1).strip()
+                
+        # Очистка мусора вроде " - OneDrive", " - Google Таблицы", " - Excel"
+        if title:
+            title = html.unescape(title)
+            for suffix in [" - OneDrive", " - Excel", " - Word", " - Google Таблицы", " - Google Документы", " - Google Диск", " — Яндекс Диск", " - Microsoft OneDrive"]:
+                if title.endswith(suffix):
+                    title = title[:-len(suffix)].strip()
+            return {"status": "success", "title": title}
+    except Exception as e:
+        print(f"Error fetching link title: {e}")
+        
+    return {"status": "error", "message": "Не удалось автоматически извлечь заголовок"}
+
 @app.post("/api/documents/folders")
 def create_document_folder(
     folder_name: str = Form(...),

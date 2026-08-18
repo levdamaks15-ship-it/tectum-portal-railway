@@ -2857,12 +2857,13 @@
             titleInput.focus();
         }
 
-        function onLinkUrlInput(val) {
+        let fetchTitleTimer = null;
+        async function onLinkUrlInput(val) {
             const titleInput = document.getElementById('add-link-title');
             const trimmed = val.trim();
-            if (!trimmed) return;
+            if (!trimmed || !trimmed.startsWith('http')) return;
 
-            // Если название пустое — попробуем сгенерировать понятное
+            // Сначала ставим базовый плейсхолдер если поле пустое
             if (!titleInput.value.trim()) {
                 if (trimmed.includes('1drv.ms') || trimmed.includes('onedrive.live.com') || trimmed.includes('sharepoint.com')) {
                     titleInput.value = 'Документ OneDrive';
@@ -2874,6 +2875,20 @@
                     titleInput.value = 'Файл Яндекс.Диск';
                 }
             }
+
+            // Запрашиваем точное оригинальное название документа с сервера
+            clearTimeout(fetchTitleTimer);
+            fetchTitleTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/documents/fetch_link_title?url=${encodeURIComponent(trimmed)}`);
+                    const data = await res.json();
+                    if (data.status === 'success' && data.title) {
+                        titleInput.value = data.title;
+                    }
+                } catch (e) {
+                    console.log('Title fetch skipped:', e);
+                }
+            }, 300);
         }
 
         // Глобальный перехват Ctrl+V для мгновенной вставки ссылок из буфера
