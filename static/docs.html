@@ -2342,7 +2342,7 @@
                 }
             }
 
-            appendWidgetLog(`Старт прямой сверхбыстрой загрузки (${total} объектов) в Cloudflare R2...`, 'info');
+            appendWidgetLog(`Старт загрузки (${total} объектов) в Облако Яндекс...`, 'info');
 
             const concurrency = 6;
             let currentIndex = 0;
@@ -2362,14 +2362,14 @@
                 });
                 const tokenData = await tRes.json();
                 if (tokenData.status !== 'success') {
-                    throw new Error(tokenData.message || 'Ошибка генерации ссылки Cloudflare');
+                    throw new Error(tokenData.message || 'Ошибка генерации ссылки хранилища');
                 }
 
                 const uploadUrl = tokenData.upload_url;
                 const r2Key = tokenData.r2_key;
                 const catId = tokenData.category_id;
 
-                // 2. Direct binary PUT upload straight to Cloudflare R2 datacenter
+                // 2. Direct binary PUT upload straight to storage
                 const putRes = await fetch(uploadUrl, {
                     method: 'PUT',
                     headers: {
@@ -2378,7 +2378,7 @@
                     body: file
                 });
 
-                // 3. Register file metadata in Tectum Database (takes 5-10ms)
+                // 3. Register file metadata in Tectum Database and trigger Yandex Disk background sync
                 const regRes = await fetch('/api/documents/register_direct_upload', {
                     method: 'POST',
                     headers: {
@@ -2413,7 +2413,7 @@
                     try {
                         await uploadSingleDirectR2(file, relPath);
                         successCount++;
-                        appendWidgetLog(`✓ Сохранен в Cloudflare R2: ${file.name}`, 'success');
+                        appendWidgetLog(`✓ Сохранен и отправлен на Яндекс.Диск: ${file.name}`, 'success');
                     } catch (error) {
                         console.error('Ошибка прямой загрузки:', file.name, error);
                         errorCount++;
