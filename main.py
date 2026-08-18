@@ -6279,9 +6279,8 @@ def open_editor(
         
     callback_url = f"{base_portal_url}/api/documents/onlyoffice_callback/{doc.id}"
 
-    # Генерируем уникальный ключ версии документа для OnlyOffice cache
-    timestamp_str = str(int(doc.uploaded_at.timestamp())) if doc.uploaded_at else "1"
-    doc_key = hashlib.md5(f"tectum_doc_{doc.id}_{timestamp_str}_{doc.title}".encode()).hexdigest()[:20]
+    # Стабильный ключ документа для OnlyOffice
+    doc_key = f"tectum_doc_{doc.id}"
 
     # Пользователь
     user_name = request.session.get("user_name") or "Сотрудник Tectum"
