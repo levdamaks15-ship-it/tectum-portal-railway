@@ -2259,6 +2259,241 @@
             }
         }
 
+        async function deleteItem(itemId, event, isProtected = false) {
+            if (event) event.stopPropagation();
+            hideContextMenu();
+            if (isProtected || currentFolderProtected) {
+                if (!await ensurePassword(true)) return;
+            }
+            if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
+
+            try {
+                const res = await fetch(`/api/documents/${itemId}`, { 
+                    method: 'DELETE',
+                    headers: getFolderPasswordHeader()
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                    showToast('Элемент успешно удален');
+                } else {
+                    alert('Ошибка при удалении: ' + data.message);
+                }
+            } catch (error) {
+                alert('Ошибка соединения при удалении');
+            }
+        }
+
+        function showFolderModal() { 
+            hideContextMenu();
+            document.getElementById('folder-modal').style.display = 'flex'; 
+            setTimeout(() => document.getElementById('new-folder-name').focus(), 50);
+        }
+        function closeFolderModal() { 
+            document.getElementById('folder-modal').style.display = 'none'; 
+            document.getElementById('new-folder-name').value = '';
+        }
+
+        async function createFolder() {
+            let requiresPassword = currentFolderProtected;
+            if (!currentFolderId) {
+                requiresPassword = true;
+            }
+            if (!await ensurePassword(requiresPassword)) return;
+            
+            const name = document.getElementById('new-folder-name').value.trim();
+            if (!name) return;
+
+            const formData = new FormData();
+            formData.append('folder_name', name);
+            if (currentFolderId) formData.append('parent_id', currentFolderId);
+
+            try {
+                const res = await fetch('/api/documents/folders', {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader(),
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    docsCache.clear();
+                    closeFolderModal();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    if (!currentFolderId) {
+                        loadDocuments(); 
+                    }
+                    loadSidebarTree();
+                    showToast('Папка создана');
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (error) {
+                alert('Ошибка соединения');
+            }
+        }
+
+        /* ==========================================================
+           EXTERNAL LINK HANDLERS (GOOGLE & MICROSOFT UX)
+           ========================================================== */
+        function openAddLinkModal(prefilledUrl = '', cloudType = 'all') {
+            hideContextMenu();
+            const urlInput = document.getElementById('add-link-url');
+            const titleInput = document.getElementById('add-link-title');
+            const modalTitle = document.getElementById('add-link-modal-title');
+            const btnSubmit = document.getElementById('btn-submit-add-link');
+            
+            if (urlInput) urlInput.value = prefilledUrl;
+            if (titleInput) titleInput.value = '';
+
+            if (modalTitle && urlInput && btnSubmit) {
+                if (cloudType === 'google') {
+                    modalTitle.innerHTML = '<i class="fab fa-google" style="color: #4285f4;"></i> Прикрепить Google Документ / Таблицу';
+                    urlInput.placeholder = 'Вставьте ссылку (https://docs.google.com/...)';
+                    btnSubmit.style.background = '#1a73e8';
+                } else if (cloudType === 'microsoft') {
+                    modalTitle.innerHTML = '<i class="fab fa-microsoft" style="color: #0078d4;"></i> Прикрепить OneDrive / Excel Онлайн';
+                    urlInput.placeholder = 'Вставьте ссылку (https://1drv.ms/... или SharePoint)';
+                    btnSubmit.style.background = '#0078d4';
+                } else {
+                    modalTitle.innerHTML = '<i class="fas fa-link" style="color: #3b82f6;"></i> Прикрепить онлайн-документ';
+                    urlInput.placeholder = 'Вставьте ссылку (Google Docs, Sheets, OneDrive, Excel)';
+                    btnSubmit.style.background = '#2563eb';
+                }
+            }
+            
+            if (prefilledUrl) {
+                onLinkUrlInput(prefilledUrl);
+            }
+            
+            const modal = document.getElementById('add-link-modal');
+            if (modal) modal.style.display = 'flex';
+            setTimeout(() => {
+                if (prefilledUrl && titleInput) {
+                    titleInput.focus();
+                } else if (urlInput) {
+                    urlInput.focus();
+                }
+            }, 60);
+        }
+
+        function closeAddLinkModal() {
+            const modal = document.getElementById('add-link-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        let fetchTitleTimer = null;
+        async function onLinkUrlInput(val) {
+            const titleInput = document.getElementById('add-link-title');
+            if (!titleInput) return;
+            const trimmed = val.trim();
+            if (!trimmed || !trimmed.startsWith('http')) return;
+
+            // Базовый плейсхолдер пока подтягивается оригинальное название
+            if (!titleInput.value.trim()) {
+                if (trimmed.includes('1drv.ms') || trimmed.includes('onedrive.live.com') || trimmed.includes('sharepoint.com')) {
+                    titleInput.value = 'Документ OneDrive';
+                } else if (trimmed.includes('docs.google.com/spreadsheets')) {
+                    titleInput.value = 'Таблица Google';
+                } else if (trimmed.includes('docs.google.com/document')) {
+                    titleInput.value = 'Документ Google';
+                } else if (trimmed.includes('disk.yandex') || trimmed.includes('yadi.sk')) {
+                    titleInput.value = 'Файл Яндекс.Диск';
+                }
+            }
+
+            // Запрашиваем точное название документа с сервера
+            clearTimeout(fetchTitleTimer);
+            fetchTitleTimer = setTimeout(async () => {
+                try {
+                    const res = await fetch(`/api/documents/fetch_link_title?url=${encodeURIComponent(trimmed)}`);
+                    const data = await res.json();
+                    if (data.status === 'success' && data.title) {
+                        titleInput.value = data.title;
+                    }
+                } catch (e) {
+                    console.log('Title fetch skipped:', e);
+                }
+            }, 300);
+        }
+
+        // Глобальный перехват Ctrl+V для мгновенной вставки ссылок из буфера
+        window.addEventListener('paste', function(e) {
+            if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                return;
+            }
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (text && (text.startsWith('http://') || text.startsWith('https://') || text.includes('1drv.ms') || text.includes('onedrive') || text.includes('drive.google') || text.includes('docs.google'))) {
+                e.preventDefault();
+                const isGoogle = text.includes('google');
+                const isMs = text.includes('1drv.ms') || text.includes('onedrive') || text.includes('sharepoint');
+                openAddLinkModal(text.trim(), isGoogle ? 'google' : (isMs ? 'microsoft' : 'all'));
+                showToast('Ссылка вставлена из буфера обмена');
+            }
+        });
+
+        async function submitAddLink() {
+            if (currentFolderProtected && !await ensurePassword(true)) return;
+
+            let title = document.getElementById('add-link-title').value.trim();
+            let url = document.getElementById('add-link-url').value.trim();
+
+            if (!url) {
+                alert('Вставьте ссылку на файл!');
+                return;
+            }
+            if (!title) {
+                if (url.includes('google')) title = 'Документ Google';
+                else if (url.includes('onedrive') || url.includes('1drv.ms')) title = 'Документ OneDrive';
+                else title = 'Внешний документ';
+            }
+
+            // Автоматическое добавление русской локали для OneDrive
+            if ((url.includes('onedrive.live.com') || url.includes('1drv.ms') || url.includes('sharepoint.com')) && !url.includes('locale=') && !url.includes('ui=')) {
+                const separator = url.includes('?') ? '&' : '?';
+                url = `${url}${separator}locale=ru-RU`;
+            }
+
+            const btn = document.getElementById('btn-submit-add-link');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/documents/add_link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getFolderPasswordHeader()
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        external_url: url,
+                        parent_id: currentFolderId
+                    })
+                });
+                const data = await res.json();
+                btn.innerHTML = orig;
+                btn.disabled = false;
+
+                if (data.status === 'success') {
+                    closeAddLinkModal();
+                    showToast(data.message || 'Ссылка успешно прикреплена!');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (e) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+                alert('Ошибка соединения с сервером');
+            }
+        }
+
         /* ==========================================================
            THEME MANAGEMENT (LIGHT / DARK)
            ========================================================== */
