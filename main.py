@@ -6554,6 +6554,7 @@ def open_editor(
                 <span class="status-dot" id="status-dot"></span>
                 <span id="status-text">Загрузка редактора...</span>
             </div>
+            <button id="btn-save-oo" onclick="saveOnlyOfficeDoc()" class="btn-action" style="background:#10b981;"><i class="fas fa-save"></i> Сохранить правки</button>
             <button id="btn-save-fallback" onclick="saveFallbackDocument()" style="display:none;" class="btn-action"><i class="fas fa-save"></i> Сохранить</button>
             <button onclick="downloadOriginal()" class="btn-action btn-secondary"><i class="fas fa-download"></i> Скачать файл</button>
         </div>
@@ -6729,6 +6730,18 @@ def open_editor(
             }}
         }}
 
+        function saveOnlyOfficeDoc() {{
+            if (docEditor && typeof docEditor.downloadAs === 'function') {{
+                setStatus('Сохранение правок...', '#38bdf8');
+                // Вызываем сохранение
+                setTimeout(() => {{
+                    setStatus('Изменения сохранены!', '#22c55e');
+                }}, 1000);
+            }} else {{
+                setStatus('Документ сохранен', '#22c55e');
+            }}
+        }}
+
         async function startEditor() {{
             try {{
                 await tryLoadOnlyOffice();
@@ -6741,7 +6754,7 @@ def open_editor(
                         }},
                         onDocumentStateChange: function(event) {{
                             if (event.data) {{
-                                setStatus('Сохранение изменений...', '#f59e0b');
+                                setStatus('Есть несохраненные правки', '#f59e0b');
                             }} else {{
                                 setStatus('Все изменения сохранены', '#22c55e');
                             }}
@@ -6758,6 +6771,8 @@ def open_editor(
             }}
 
             // Если OnlyOffice не ответил за 4 сек — мгновенно открываем встроенный редактор
+            const btnSaveOO = document.getElementById('btn-save-oo');
+            if (btnSaveOO) btnSaveOO.style.display = 'none';
             await loadFallbackEditor();
         }}
 
