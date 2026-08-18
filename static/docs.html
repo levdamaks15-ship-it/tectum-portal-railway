@@ -547,6 +547,23 @@
             cursor: default;
         }
 
+        .quick-tag {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #38bdf8;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .quick-tag:hover {
+            background: #38bdf8;
+            color: #0f172a;
+            border-color: #38bdf8;
+        }
+
         .docs-table-row:last-child {
             border-bottom: none;
         }
@@ -1324,21 +1341,31 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
-            <div class="form-group">
-                <label>Название документа</label>
-                <input type="text" id="add-link-title" placeholder="Например: График смен мастеров (OneDrive)">
-            </div>
 
             <div class="form-group">
                 <label>Ссылка на файл / папку в OneDrive или Google</label>
-                <input type="url" id="add-link-url" placeholder="https://1drv.ms/... или https://onedrive.live.com/...">
+                <input type="url" id="add-link-url" placeholder="Вставьте ссылку (https://1drv.ms/...)" oninput="onLinkUrlInput(this.value)" onkeydown="if(event.key==='Enter') submitAddLink()">
+                <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">
+                    <i class="fas fa-info-circle"></i> Совет: можно просто нажать <b>Ctrl + V</b> в Базе Знаний для быстрой вставки!
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Название документа</label>
+                <input type="text" id="add-link-title" placeholder="Например: График смен мастеров" onkeydown="if(event.key==='Enter') submitAddLink()">
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;">
+                    <span class="quick-tag" onclick="setQuickTitle('График смен')">+ График смен</span>
+                    <span class="quick-tag" onclick="setQuickTitle('Таблица выработки')">+ Выработка</span>
+                    <span class="quick-tag" onclick="setQuickTitle('Инструкция')">+ Инструкция</span>
+                    <span class="quick-tag" onclick="setQuickTitle('Регламент')">+ Регламент</span>
+                    <span class="quick-tag" onclick="setQuickTitle('Отчет')">+ Отчет</span>
+                </div>
             </div>
 
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeAddLinkModal()">Отмена</button>
                 <button class="btn-action" id="btn-submit-add-link" onclick="submitAddLink()" style="background: #0078d4;">
-                    <i class="fas fa-link"></i> Прикрепить ссылку
+                    <i class="fas fa-link"></i> Прикрепить ссылку (Enter)
                 </button>
             </div>
         </div>
@@ -2793,33 +2820,94 @@
         }
 
         /* ==========================================================
-           EXTERNAL LINK / ONEDRIVE HANDLERS
+           EXTERNAL LINK / ONEDRIVE HANDLERS (SMART UX)
            ========================================================== */
-        function openAddLinkModal() {
+        function openAddLinkModal(prefilledUrl = '') {
             hideContextMenu();
-            document.getElementById('add-link-title').value = '';
-            document.getElementById('add-link-url').value = '';
+            const urlInput = document.getElementById('add-link-url');
+            const titleInput = document.getElementById('add-link-title');
+            urlInput.value = prefilledUrl;
+            titleInput.value = '';
+            
+            if (prefilledUrl) {
+                onLinkUrlInput(prefilledUrl);
+            }
+            
             document.getElementById('add-link-modal').style.display = 'flex';
-            setTimeout(() => document.getElementById('add-link-title').focus(), 50);
+            setTimeout(() => {
+                if (prefilledUrl) {
+                    titleInput.focus();
+                } else {
+                    urlInput.focus();
+                }
+            }, 60);
         }
 
         function closeAddLinkModal() {
             document.getElementById('add-link-modal').style.display = 'none';
         }
 
+        function setQuickTitle(prefix) {
+            const titleInput = document.getElementById('add-link-title');
+            if (titleInput.value.trim()) {
+                titleInput.value = `${prefix} - ${titleInput.value.trim()}`;
+            } else {
+                titleInput.value = prefix;
+            }
+            titleInput.focus();
+        }
+
+        function onLinkUrlInput(val) {
+            const titleInput = document.getElementById('add-link-title');
+            const trimmed = val.trim();
+            if (!trimmed) return;
+
+            // Если название пустое — попробуем сгенерировать понятное
+            if (!titleInput.value.trim()) {
+                if (trimmed.includes('1drv.ms') || trimmed.includes('onedrive.live.com') || trimmed.includes('sharepoint.com')) {
+                    titleInput.value = 'Документ OneDrive';
+                } else if (trimmed.includes('docs.google.com/spreadsheets')) {
+                    titleInput.value = 'Таблица Google';
+                } else if (trimmed.includes('docs.google.com/document')) {
+                    titleInput.value = 'Документ Google';
+                } else if (trimmed.includes('disk.yandex') || trimmed.includes('yadi.sk')) {
+                    titleInput.value = 'Файл Яндекс.Диск';
+                }
+            }
+        }
+
+        // Глобальный перехват Ctrl+V для мгновенной вставки ссылок из буфера
+        window.addEventListener('paste', function(e) {
+            // Если фокус уже в поле ввода — не перехватываем
+            if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                return;
+            }
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (text && (text.startsWith('http://') || text.startsWith('https://') || text.includes('1drv.ms') || text.includes('onedrive') || text.includes('drive.google'))) {
+                e.preventDefault();
+                openAddLinkModal(text.trim());
+                showToast('Ссылка вставлена из буфера обмена');
+            }
+        });
+
         async function submitAddLink() {
             if (currentFolderProtected && !await ensurePassword(true)) return;
 
-            const title = document.getElementById('add-link-title').value.trim();
-            const url = document.getElementById('add-link-url').value.trim();
+            let title = document.getElementById('add-link-title').value.trim();
+            let url = document.getElementById('add-link-url').value.trim();
 
-            if (!title) {
-                alert('Введите название документа!');
+            if (!url) {
+                alert('Вставьте ссылку на файл!');
                 return;
             }
-            if (!url) {
-                alert('Введите ссылку на OneDrive / Google Диск!');
-                return;
+            if (!title) {
+                title = 'Документ OneDrive';
+            }
+
+            // Автоматическое добавление русской локали для OneDrive (чтобы Excel открывался на русском)
+            if ((url.includes('onedrive.live.com') || url.includes('1drv.ms') || url.includes('sharepoint.com')) && !url.includes('locale=') && !url.includes('ui=')) {
+                const separator = url.includes('?') ? '&' : '?';
+                url = `${url}${separator}locale=ru-RU`;
             }
 
             const btn = document.getElementById('btn-submit-add-link');
