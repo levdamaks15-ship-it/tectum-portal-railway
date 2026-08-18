@@ -2366,10 +2366,10 @@
                 }
 
                 const uploadUrl = tokenData.upload_url;
-                const r2Key = tokenData.r2_key;
+                const yandexPath = tokenData.yandex_path;
                 const catId = tokenData.category_id;
 
-                // 2. Direct binary PUT upload straight to storage
+                // 2. Direct binary PUT upload straight to Yandex Disk API
                 const putRes = await fetch(uploadUrl, {
                     method: 'PUT',
                     headers: {
@@ -2378,7 +2378,7 @@
                     body: file
                 });
 
-                // 3. Register file metadata in Tectum Database and trigger Yandex Disk background sync
+                // 3. Register and publish in Yandex Disk & Tectum DB
                 const regRes = await fetch('/api/documents/register_direct_upload', {
                     method: 'POST',
                     headers: {
@@ -2387,7 +2387,7 @@
                     body: JSON.stringify({
                         title: file.name,
                         category_id: catId,
-                        r2_key: r2Key,
+                        yandex_path: yandexPath,
                         mime_type: file.type || 'application/octet-stream'
                     })
                 });

@@ -5648,8 +5648,9 @@ def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id
 class DirectUploadRegisterRequest(BaseModel):
     title: str
     category_id: Optional[int] = None
-    r2_key: str
+    yandex_path: Optional[str] = None
     mime_type: Optional[str] = None
+    r2_key: Optional[str] = None
 
 @app.post("/api/documents/direct_upload_token")
 def get_direct_upload_token(
@@ -5661,8 +5662,8 @@ def get_direct_upload_token(
     db: Session = Depends(get_db)
 ):
     """
-    Generates a high-speed Direct-to-Cloudflare-R2 presigned PUT URL.
-    The browser uploads the file directly to Cloudflare without touching Railway server disk!
+    Generates a direct PUT URL straight to Yandex Disk.
+    The browser uploads directly into Yandex Disk without touching Railway server disk!
     """
     try:
         cat_id = None
@@ -5680,7 +5681,6 @@ def get_direct_upload_token(
             current_parent = cat_id
             for part in parts:
                 if not part: continue
-                # Re-query inside commit block to avoid race condition duplicates
                 existing_folder = db.query(models.DocumentCategory).filter(
                     models.DocumentCategory.name == part,
                     models.DocumentCategory.parent_id == current_parent
@@ -5704,21 +5704,19 @@ def get_direct_upload_token(
                     current_parent = existing_folder.id
             cat_id = current_parent
 
-        import r2_integration
-        clean_name = os.path.basename(filename.replace("\\", "/"))
-        unique_prefix = uuid.uuid4().hex[:12]
-        r2_key = f"documents/{cat_id or 0}/{unique_prefix}_{clean_name}"
+        import yandex_disk_integration, migrate_all_to_yandex, re
+        clean_name = re.sub(r'[\\/:*?"<>|]', '_', filename.strip())
+        folder_path = migrate_all_to_yandex.build_category_path(db, cat_id) if cat_id else "/Tectum"
+        remote_path = f"{folder_path}/{clean_name}"
         
-        presigned_url = r2_integration.generate_presigned_upload_url(
-            object_key=r2_key,
-            content_type=mime_type or "application/octet-stream",
-            expires_in=3600
-        )
+        upload_url = yandex_disk_integration.get_yandex_upload_url(remote_path)
+        if not upload_url:
+            raise HTTPException(status_code=500, detail="Не удалось получить ссылку для загрузки в Яндекс.Диск")
 
         return {
             "status": "success",
-            "upload_url": presigned_url,
-            "r2_key": r2_key,
+            "upload_url": upload_url,
+            "yandex_path": remote_path,
             "category_id": cat_id
         }
     except HTTPException:
@@ -5726,61 +5724,32 @@ def get_direct_upload_token(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-def upload_doc_to_yandex_bg(doc_id: int, r2_key: str, clean_title: str, cat_id: Optional[int] = None):
-    """Фоновая выгрузка загруженного файла из R2 в Яндекс.Диск со структурой папок"""
-    try:
-        import r2_integration, yandex_disk_integration, migrate_all_to_yandex
-        bg_db = database.SessionLocal()
-        try:
-            s3 = r2_integration.get_r2_client()
-            obj = s3.get_object(Bucket=r2_integration.R2_BUCKET_NAME, Key=r2_key)
-            file_bytes = obj['Body'].read()
-            
-            folder_path = migrate_all_to_yandex.build_category_path(bg_db, cat_id) if cat_id else "/Tectum/Общие документы"
-            clean_filename = re.sub(r'[\\/:*?"<>|]', '_', clean_title.strip())
-            remote_path = f"{folder_path}/{clean_filename}"
-            
-            pub_url = yandex_disk_integration.upload_file_to_yandex_disk(file_bytes, remote_path)
-            if pub_url:
-                doc = bg_db.query(models.Document).filter(models.Document.id == doc_id).first()
-                if doc:
-                    doc.yandex_path = remote_path
-                    doc.yandex_url = pub_url
-                    bg_db.commit()
-        finally:
-            bg_db.close()
-    except Exception as y_err:
-        print(f"Background upload to Yandex Disk failed for doc #{doc_id}: {y_err}")
-
 @app.post("/api/documents/register_direct_upload")
 def register_direct_upload(
     req: DirectUploadRegisterRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
-    Registers a file in Tectum database after successful direct browser upload to Cloudflare R2 and syncs to Yandex Disk in background.
+    Registers a file in Tectum database after direct upload straight to Yandex Disk and publishes it.
     """
     try:
+        import yandex_disk_integration
+        pub_url = None
+        if req.yandex_path:
+            pub_url = yandex_disk_integration.publish_and_get_public_url(req.yandex_path)
+
         new_doc = models.Document(
             title=req.title,
             category_id=req.category_id,
             file_path=None,
             mime_type=req.mime_type or "application/octet-stream",
+            yandex_path=req.yandex_path,
+            yandex_url=pub_url,
             r2_key=req.r2_key
         )
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)
-
-        # Trigger automatic background sync to Yandex Disk
-        background_tasks.add_task(
-            upload_doc_to_yandex_bg,
-            new_doc.id,
-            req.r2_key,
-            new_doc.title,
-            new_doc.category_id
-        )
 
         is_editable = is_editable_doc(new_doc.title)
 
@@ -6252,9 +6221,10 @@ def open_editor(
                 logger.error(f"Error reading local file for Yandex: {e}")
 
         if file_bytes:
-            import yandex_disk_integration, re
-            clean_name = re.sub(r'[^\w\.\-\(\) ]', '_', doc.title)
-            remote_path = f"/Tectum/Folder_{doc.category_id or 0}/{doc.id}_{clean_name}"
+            import yandex_disk_integration, migrate_all_to_yandex, re
+            folder_path = migrate_all_to_yandex.build_category_path(db, doc.category_id) if doc.category_id else "/Tectum"
+            clean_name = re.sub(r'[\\/:*?"<>|]', '_', doc.title.strip())
+            remote_path = f"{folder_path}/{clean_name}"
             pub_url = yandex_disk_integration.upload_file_to_yandex_disk(file_bytes, remote_path)
             if pub_url:
                 doc.yandex_path = remote_path

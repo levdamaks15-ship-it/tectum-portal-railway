@@ -124,6 +124,55 @@ def download_file_from_yandex_disk(remote_path: str) -> Optional[bytes]:
         logger.error(f"Error downloading from Yandex Disk: {e}")
         return None
 
+def get_yandex_upload_url(remote_path: str) -> Optional[str]:
+    """Generates direct binary upload URL from Yandex Disk API for browser upload"""
+    if not YANDEX_DISK_TOKEN:
+        return None
+        
+    clean_path = remote_path.replace("\\", "/")
+    if not clean_path.startswith("disk:"):
+        if not clean_path.startswith("/"):
+            clean_path = "/" + clean_path
+        clean_path = f"disk:{clean_path}"
+
+    parent_dir = "/".join(clean_path.split("/")[:-1])
+    ensure_yandex_folder(parent_dir)
+
+    try:
+        url = f"{API_BASE}/resources/upload?path={clean_path}&overwrite=true"
+        res = requests.get(url, headers=_get_headers(), timeout=10)
+        if res.status_code == 200:
+            return res.json().get("href")
+        logger.error(f"Failed to get Yandex upload URL: {res.status_code} {res.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Error in get_yandex_upload_url: {e}")
+        return None
+
+def publish_and_get_public_url(remote_path: str) -> Optional[str]:
+    """Publishes a resource in Yandex Disk and returns its public URL"""
+    if not YANDEX_DISK_TOKEN:
+        return None
+
+    clean_path = remote_path.replace("\\", "/")
+    if not clean_path.startswith("disk:"):
+        if not clean_path.startswith("/"):
+            clean_path = "/" + clean_path
+        clean_path = f"disk:{clean_path}"
+
+    try:
+        pub_url = f"{API_BASE}/resources/publish?path={clean_path}"
+        requests.put(pub_url, headers=_get_headers(), timeout=10)
+
+        meta_url = f"{API_BASE}/resources?path={clean_path}"
+        meta_res = requests.get(meta_url, headers=_get_headers(), timeout=10)
+        if meta_res.status_code == 200:
+            return meta_res.json().get("public_url")
+        return None
+    except Exception as e:
+        logger.error(f"Error publishing Yandex resource {clean_path}: {e}")
+        return None
+
 def delete_file_from_yandex_disk(remote_path: str) -> bool:
     """Deletes resource from Yandex Disk"""
     if not YANDEX_DISK_TOKEN:
