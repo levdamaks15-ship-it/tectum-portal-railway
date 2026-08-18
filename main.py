@@ -6316,8 +6316,7 @@ def open_editor(
             },
             "customization": {
                 "autosave": True,
-                "forcesave": True,
-                "chat": False,
+                "forcesave": False,
                 "comments": True,
                 "help": False,
                 "uiTheme": "theme-classic-dark",
