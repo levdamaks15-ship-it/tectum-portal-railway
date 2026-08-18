@@ -5855,7 +5855,7 @@ def add_external_document_link(
             category_id=cat_id,
             external_url=clean_url,
             mime_type=mime_type,
-            uploaded_at=datetime.datetime.utcnow()
+            uploaded_at=datetime.utcnow()
         )
         db.add(new_doc)
         db.commit()
@@ -6071,7 +6071,7 @@ async def checkin_document(
                 mime_type=doc.mime_type,
                 author_name=doc.last_modified_by or "Первоначальная версия",
                 comment=f"Архивная копия перед обновлением до v{new_version_num}",
-                created_at=doc.uploaded_at or datetime.datetime.utcnow()
+                created_at=doc.uploaded_at or datetime.utcnow()
             )
             db.add(prev_version)
             db.commit()
@@ -6093,7 +6093,7 @@ async def checkin_document(
     doc.last_modified_by = editor_name
     doc.locked_by_user = None
     doc.locked_at = None
-    doc.uploaded_at = datetime.datetime.utcnow()
+    doc.uploaded_at = datetime.utcnow()
     db.commit()
 
     # Фоновая синхронизация с Google Drive при наличии
@@ -6247,7 +6247,7 @@ def restore_document_version(
             mime_type=doc.mime_type,
             author_name=doc.last_modified_by or "Система",
             comment=f"Архивная копия перед откатом к v{version.version_number}",
-            created_at=doc.uploaded_at or datetime.datetime.utcnow()
+            created_at=doc.uploaded_at or datetime.utcnow()
         )
         db.add(prev_version)
 
@@ -6258,7 +6258,7 @@ def restore_document_version(
     doc.last_modified_by = f"{user_name} (Откат к v{version.version_number})"
     doc.locked_by_user = None
     doc.locked_at = None
-    doc.uploaded_at = datetime.datetime.utcnow()
+    doc.uploaded_at = datetime.utcnow()
     db.commit()
 
     return {
