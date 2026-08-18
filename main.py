@@ -6065,43 +6065,17 @@ def download_document(
         if protected_folder:
             if not actual_pwd or protected_folder.password_hash != hashlib.sha256(actual_pwd.encode()).hexdigest():
                 raise HTTPException(status_code=403, detail="Access Denied")
-        if doc.koofr_path:
-            try:
-                import koofr_integration
-                koofr_bytes = koofr_integration.download_file_from_koofr(doc.koofr_path)
-                if koofr_bytes:
-                    if doc.r2_key:
-                        try:
-                            import r2_integration
-                            s3 = r2_integration.get_r2_client()
-                            s3.put_object(
-                                Bucket=r2_integration.R2_BUCKET_NAME,
-                                Key=doc.r2_key,
-                                Body=koofr_bytes,
-                                ContentType=doc.mime_type or "application/octet-stream"
-                            )
-                        except Exception:
-                            pass
-                    encoded_filename = quote(doc.title)
-                    return Response(
-                        content=koofr_bytes,
-                        media_type=doc.mime_type or "application/octet-stream",
-                        headers={"Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"}
-                    )
-            except Exception as e:
-                logger.error(f"Error downloading from Koofr: {e}")
+    if doc.yandex_url:
+        return RedirectResponse(url=doc.yandex_url)
 
-        if doc.r2_key:
-            import r2_integration
+    if doc.r2_key:
+        import r2_integration
+        try:
             download_url = r2_integration.generate_presigned_download_url(doc.r2_key, expires_in=3600)
             return RedirectResponse(url=download_url)
+        except Exception:
+            pass
 
-    if doc.google_drive_id:
-        import google_drive_integration
-        ext = doc.title.split(".")[-1] if "." in doc.title else ""
-        export_link = google_drive_integration.get_drive_export_link(doc.google_drive_id, ext)
-        return RedirectResponse(url=export_link)
-        
     if doc.file_path and os.path.exists(doc.file_path):
         mime_type = doc.mime_type
         if not mime_type or mime_type == "application/octet-stream":
