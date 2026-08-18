@@ -6284,11 +6284,14 @@ def open_editor(
         
     callback_url = f"{base_portal_url}/api/documents/onlyoffice_callback/{doc.id}"
 
-    # Ключ документа для соавторства (Co-Editing):
-    # Он должен быть одинаковым для всех пользователей, одновременно редактирующих файл,
-    # и обновляться только после успешного завершения сессии редактирования (по uploaded_at).
-    v_timestamp = str(int(doc.uploaded_at.timestamp())) if doc.uploaded_at else "0"
-    doc_key = f"tectum_doc_{doc.id}_v{v_timestamp}"
+    # Точный ключ версии файла на основе физического файла на диске
+    if doc.file_path and os.path.exists(doc.file_path):
+        mtime = int(os.path.getmtime(doc.file_path))
+        fsize = os.path.getsize(doc.file_path)
+        doc_key = f"doc_{doc.id}_{mtime}_{fsize}"
+    else:
+        v_timestamp = str(int(doc.uploaded_at.timestamp())) if doc.uploaded_at else "0"
+        doc_key = f"doc_{doc.id}_v{v_timestamp}"
 
     # Имя и ID текущего пользователя
     user_name = request.session.get("user_name") or "Сотрудник Tectum"
