@@ -342,5 +342,53 @@ class Task(Base):
     assigned_master = relationship("Master", foreign_keys=[assigned_master_id])
     attached_document = relationship("Document", foreign_keys=[attached_document_id])
 
+class ChecklistEmployee(Base):
+    __tablename__ = "checklist_employees"
+    id = Column(Integer, primary_key=True, index=True)
+    num = Column(Integer, nullable=True)
+    shift_group = Column(String, index=True) # "1-я смена", "2-я смена", "3-я смена", "4-я смена", "Котельная", "Дневной персонал"
+    position = Column(String, index=True)    # "Мастер", "Машинист", "Оператор дестакера" и т.д.
+    name = Column(String, index=True)        # ФИО
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class ShiftScheduleEntry(Base):
+    __tablename__ = "shift_schedule_entries"
+    id = Column(Integer, primary_key=True, index=True)
+    date_str = Column(String, index=True)    # "01.08.2026"
+    day_of_week = Column(String)             # "Сб", "Пн" и т.д.
+    shift1_status = Column(String)           # "О", "В", "Н", "Д"
+    shift2_status = Column(String)
+    shift3_status = Column(String)
+    shift4_status = Column(String)
+    day_shift_group = Column(String)         # "Смена 4" (08:00 - 19:00)
+    night_shift_group = Column(String)       # "Смена 3" (19:00 - 08:00)
 
+class ChecklistSubmission(Base):
+    __tablename__ = "checklist_submissions"
+    id = Column(Integer, primary_key=True, index=True)
+    template_code = Column(String, index=True) # "master_shift", "worker_shift_handover", "day_inspection"
+    template_title = Column(String)            # "Чек-лист мастера смены", "Чек-лист приема-передачи смены"
+    date_str = Column(String, index=True)      # "19.08.2026"
+    shift_name = Column(String)                # "День", "Ночь", "Дневная"
+    shift_group = Column(String, nullable=True) # "Смена 1", "Смена 2" и т.д.
+    department = Column(String, nullable=True) # Участок: "ЛФМ", "Дестакер", "ЗО", "Котельная", "Общий"
+    
+    # Принимающий / Проверяющий
+    inspector_name = Column(String, index=True)
+    inspector_position = Column(String, nullable=True)
+    
+    # Сдающий
+    submitter_name = Column(String, nullable=True, index=True)
+    submitter_position = Column(String, nullable=True)
+    
+    status = Column(String, default="completed") # "completed", "with_remarks"
+    remarks_count = Column(Integer, default=0)
+    notes = Column(String, nullable=True)       # Общие примечания / замечания
+    
+    # Содержимое пунктов проверки (JSON)
+    items_data = Column(String)                 # JSON array: [{ index, title, status: "ok"|"fail", comment }]
+    
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    google_synced = Column(Boolean, default=False)
+    google_sync_error = Column(String, nullable=True)

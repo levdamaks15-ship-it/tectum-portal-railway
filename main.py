@@ -6427,3 +6427,278 @@ def manual_sync_tasks_google(db: Session = Depends(get_db)):
         print(f"Error manually syncing tasks to Google: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ==========================================
+# ЧЕК-ЛИСТЫ: API И ИНТЕГРАЦИЯ
+# ==========================================
+
+class ChecklistEmployeeCreate(BaseModel):
+    name: str
+    position: str
+    shift_group: str
+    num: Optional[int] = None
+
+class ChecklistSubmissionCreate(BaseModel):
+    template_code: str
+    template_title: str
+    date_str: str
+    shift_name: str
+    shift_group: Optional[str] = None
+    department: Optional[str] = None
+    inspector_name: str
+    inspector_position: Optional[str] = None
+    submitter_name: Optional[str] = None
+    submitter_position: Optional[str] = None
+    notes: Optional[str] = None
+    items: list
+
+@app.get("/api/checklists/employees")
+def get_checklist_employees(db: Session = Depends(get_db)):
+    """Возвращает список сотрудников, сгруппированных по сменам и должностям."""
+    try:
+        employees = db.query(models.ChecklistEmployee).filter(models.ChecklistEmployee.is_active == True).order_by(
+            models.ChecklistEmployee.shift_group.asc(),
+            models.ChecklistEmployee.num.asc(),
+            models.ChecklistEmployee.name.asc()
+        ).all()
+        
+        # Если сотрудников еще нет в базе, пробуем автоматически импортировать из Google Sheets
+        if not employees:
+            import google_sheets_integration
+            google_sheets_integration.sync_employees_from_google_sheets(db)
+            employees = db.query(models.ChecklistEmployee).filter(models.ChecklistEmployee.is_active == True).all()
+            
+        return [
+            {
+                "id": e.id,
+                "num": e.num,
+                "shift_group": e.shift_group,
+                "position": e.position,
+                "name": e.name
+            }
+            for e in employees
+        ]
+    except Exception as e:
+        print(f"Error fetching checklist employees: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/checklists/employees/sync")
+def sync_checklist_employees_endpoint(db: Session = Depends(get_db)):
+    """Принудительная синхронизация списка сотрудников из Google Sheets."""
+    try:
+        import google_sheets_integration
+        res = google_sheets_integration.sync_employees_from_google_sheets(db)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/checklists/schedule/today")
+def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(get_db)):
+    """Возвращает текущую смену и дежурную бригаду по графику сменности."""
+    try:
+        now = datetime.now()
+        target_date_str = date if date else now.strftime("%d.%m.%Y")
+        
+        # Определение день/ночь по текущему времени:
+        # День: 08:00 - 19:00, Ночь: 19:00 - 08:00
+        hour = now.hour
+        is_day = 8 <= hour < 19
+        shift_name = "День" if is_day else "Ночь"
+        
+        entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == target_date_str).first()
+        if not entry:
+            # Попробуем подтянуть график
+            import google_sheets_integration
+            google_sheets_integration.sync_schedule_from_google_sheets(db)
+            entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == target_date_str).first()
+            
+        current_shift_group = ""
+        prev_shift_group = ""
+        if entry:
+            current_shift_group = entry.day_shift_group if is_day else entry.night_shift_group
+            # Сдающая смена — противоположная
+            prev_shift_group = entry.night_shift_group if is_day else entry.day_shift_group
+            
+        return {
+            "date": target_date_str,
+            "shift_name": shift_name,
+            "is_day": is_day,
+            "current_shift_group": current_shift_group,
+            "prev_shift_group": prev_shift_group,
+            "schedule_entry": {
+                "day_of_week": entry.day_of_week if entry else "",
+                "day_shift_group": entry.day_shift_group if entry else "",
+                "night_shift_group": entry.night_shift_group if entry else ""
+            } if entry else None
+        }
+    except Exception as e:
+        print(f"Error getting shift schedule: {e}")
+        return {
+            "date": datetime.now().strftime("%d.%m.%Y"),
+            "shift_name": "День" if 8 <= datetime.now().hour < 19 else "Ночь",
+            "current_shift_group": "1-я смена",
+            "prev_shift_group": "4-я смена"
+        }
+
+@app.get("/api/checklists/templates")
+def get_checklist_templates():
+    """Возвращает стандартные шаблоны чек-листов компании."""
+    return [
+        {
+            "code": "master_shift",
+            "title": "Чек-лист мастера смены",
+            "subtitle": "Проверка состояния оборудования и рабочих мест перед началом смены",
+            "department": "ЛФМ / Дестакер",
+            "has_submitter": True,
+            "inspector_label": "Принимающий смену мастер",
+            "submitter_label": "Сдающий смену мастер",
+            "items": [
+                {"index": 1, "title": "Состояние прокладок", "desc": "Целостность и износ прокладочного материала"},
+                {"index": 2, "title": "Подкрутка всех болтов и гаек на машине", "desc": "Проверка затяжки ключевых узлов и креплений"},
+                {"index": 3, "title": "Проверка состояния бахромы", "desc": "Состояние и очистка сукна / бахромы"},
+                {"index": 4, "title": "Наличие поддонов", "desc": "Запас деревянных поддонов на линии и участках"},
+                {"index": 5, "title": "Все ли расходники в достатке", "desc": "Наличие сырья, скотча, маркировочных материалов"},
+                {"index": 6, "title": "Таблички КВТ установлены правильно", "desc": "Контроль визуализации и знаков безопасности"},
+                {"index": 7, "title": "Отсутствие засорения и забивки механизмов и деталей", "desc": "Чистота направляющих, роликов, датчиков"},
+                {"index": 8, "title": "Порядок на рабочих местах", "desc": "5S, отсутствие посторонних предметов и мусора"},
+                {"index": 9, "title": "Готовые пачки продукции вывезены со склада/участка", "desc": "Своевременная передача на склад ГП"}
+            ]
+        },
+        {
+            "code": "worker_shift_handover",
+            "title": "Чек-лист приема-передачи смены (Рабочие)",
+            "subtitle": "Ауысымды қабылдау-тапсыру чек-парағы / Состояние рабочего места",
+            "department": "Сменный участок",
+            "has_submitter": True,
+            "inspector_label": "Принимающий / Қабылдаушы",
+            "submitter_label": "Сдающий / Тапсырушы",
+            "items": [
+                {"index": 1, "title": "Чистота рабочего места / Тазалық", "desc": "Уборка зоны, отсутствие шлама, грязи и отходов"},
+                {"index": 2, "title": "Состояние инвентаря / Мүкәммал", "desc": "Наличие и исправность лопат, щеток, емкостей"},
+                {"index": 3, "title": "Состояние инструмента / Құрал", "desc": "Комплектность и исправность рабочего инструмента"},
+                {"index": 4, "title": "Оборудование и механизмы / Қондырғылар", "desc": "Исправность узлов на позиции, отсутствие течей и шумов"},
+                {"index": 5, "title": "СИЗ и Безопасность / Қорғаныс құралдары", "desc": "Применение спецодежды, касок, защитных очков"}
+            ]
+        },
+        {
+            "code": "day_inspection",
+            "title": "Чек-лист дневных сотрудников и инспекций",
+            "subtitle": "Тексеру чек-парағы / Ежедневный контроль участка",
+            "department": "ИТР / Дневные службы",
+            "has_submitter": True,
+            "inspector_label": "Проверяющий / Тексеруші",
+            "submitter_label": "Ответственный сдающий / Тапсырушы",
+            "items": [
+                {"index": 1, "title": "Чистота и порядок в цехе / Тазалық", "desc": "Отсутствие захламления проходов и зон обслуживания"},
+                {"index": 2, "title": "Состояние инвентаря и оборудования / Мүкәммал", "desc": "Техническое состояние закрепленных агрегатов"},
+                {"index": 3, "title": "Исправность инструмента / Құрал", "desc": "Правильное хранение и безопасность использования"},
+                {"index": 4, "title": "Охрана труда и промбезопасность", "desc": "Соблюдение регламентов и инструкций персоналом"}
+            ]
+        }
+    ]
+
+@app.post("/api/checklists/submit")
+def submit_checklist(data: ChecklistSubmissionCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Сохраняет заполненный чек-лист и запускает синхронизацию с Google Sheets."""
+    try:
+        remarks_count = sum(1 for it in data.items if it.get("status") == "fail")
+        status = "with_remarks" if remarks_count > 0 else "completed"
+        
+        sub = models.ChecklistSubmission(
+            template_code=data.template_code,
+            template_title=data.template_title,
+            date_str=data.date_str,
+            shift_name=data.shift_name,
+            shift_group=data.shift_group,
+            department=data.department,
+            inspector_name=data.inspector_name,
+            inspector_position=data.inspector_position,
+            submitter_name=data.submitter_name,
+            submitter_position=data.submitter_position,
+            status=status,
+            remarks_count=remarks_count,
+            notes=data.notes,
+            items_data=json.dumps(data.items, ensure_ascii=False)
+        )
+        db.add(sub)
+        db.commit()
+        db.refresh(sub)
+        
+        # Запускаем экспорт в Google Sheets в фоновом режиме
+        try:
+            import google_sheets_integration
+            background_tasks.add_task(google_sheets_integration.export_checklists_to_google_sheets, db)
+        except Exception as e:
+            print(f"Error scheduling Google Sheets export for checklist: {e}")
+            
+        return {
+            "status": "ok",
+            "id": sub.id,
+            "remarks_count": remarks_count,
+            "message": "Чек-лист успешно сохранен и передан в Google Таблицу"
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"Error submitting checklist: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/checklists/submissions")
+def get_checklist_submissions(
+    date: Optional[str] = None,
+    template_code: Optional[str] = None,
+    shift_group: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Возвращает историю заполненных чек-листов с фильтрами."""
+    try:
+        query = db.query(models.ChecklistSubmission)
+        if date:
+            query = query.filter(models.ChecklistSubmission.date_str == date)
+        if template_code:
+            query = query.filter(models.ChecklistSubmission.template_code == template_code)
+        if shift_group:
+            query = query.filter(models.ChecklistSubmission.shift_group == shift_group)
+            
+        submissions = query.order_by(models.ChecklistSubmission.created_at.desc()).limit(limit).all()
+        
+        results = []
+        for s in submissions:
+            items = []
+            try:
+                items = json.loads(s.items_data or "[]")
+            except Exception:
+                pass
+                
+            results.append({
+                "id": s.id,
+                "template_code": s.template_code,
+                "template_title": s.template_title,
+                "date_str": s.date_str,
+                "shift_name": s.shift_name,
+                "shift_group": s.shift_group,
+                "department": s.department,
+                "inspector_name": s.inspector_name,
+                "inspector_position": s.inspector_position,
+                "submitter_name": s.submitter_name,
+                "submitter_position": s.submitter_position,
+                "status": s.status,
+                "remarks_count": s.remarks_count,
+                "notes": s.notes,
+                "items": items,
+                "created_at": s.created_at.strftime("%d.%m.%Y %H:%M") if s.created_at else ""
+            })
+        return results
+    except Exception as e:
+        print(f"Error getting checklist submissions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/checklists/sync_google")
+def manual_sync_checklists_google(db: Session = Depends(get_db)):
+    """Принудительный экспорт всех чек-листов в Google Таблицу."""
+    try:
+        import google_sheets_integration
+        google_sheets_integration.export_checklists_to_google_sheets(db)
+        return {"status": "ok", "message": "Синхронизация чек-листов с Google Таблицей выполнена"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

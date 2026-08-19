@@ -2296,3 +2296,234 @@ def export_tasks_to_google_sheets(db: Session):
     except Exception as e:
         print(f"Ошибка при выгрузке задач в Google Sheets: {e}")
 
+EMPLOYEES_SPREADSHEET_ID = "1QyDBTkU_y-E_pxgOp-l1J5ejvEwcDhBvt7s5GVOv5I8"
+SCHEDULE_SPREADSHEET_ID = "1WOp9ME0ThkQn8Uf7uZ4HZ03PaNtCn2Y65PpuVT0pkME"
+CHECKLISTS_SPREADSHEET_ID = os.getenv("CHECKLISTS_SPREADSHEET_ID") or SPREADSHEET_ID
+
+def sync_employees_from_google_sheets(db: Session):
+    """Импортирует или обновляет список сотрудников из Google Таблицы."""
+    import urllib.request, csv, io
+    
+    url = f"https://docs.google.com/spreadsheets/d/{EMPLOYEES_SPREADSHEET_ID}/export?format=csv&gid=652222344"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req) as resp:
+        content = resp.read().decode('utf-8')
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+        
+    if not rows or len(rows) < 2:
+        return {"status": "error", "message": "Пустой ответ от Google Таблицы"}
+        
+    count = 0
+    # Header: ['№', 'Смена', 'Должность', 'ФИО']
+    for r in rows[1:]:
+        if len(r) >= 4 and r[3].strip():
+            num_val = int(r[0].strip()) if r[0].strip().isdigit() else None
+            shift_g = r[1].strip()
+            pos = r[2].strip()
+            name_val = r[3].strip()
+            
+            emp = db.query(models.ChecklistEmployee).filter(
+                models.ChecklistEmployee.name == name_val,
+                models.ChecklistEmployee.shift_group == shift_g,
+                models.ChecklistEmployee.position == pos
+            ).first()
+            
+            if not emp:
+                emp = models.ChecklistEmployee(
+                    num=num_val,
+                    shift_group=shift_g,
+                    position=pos,
+                    name=name_val,
+                    is_active=True
+                )
+                db.add(emp)
+                count += 1
+            else:
+                emp.num = num_val
+                emp.is_active = True
+                
+    db.commit()
+    return {"status": "ok", "synced_count": count, "total_rows": len(rows)-1}
+
+def sync_schedule_from_google_sheets(db: Session):
+    """Импортирует или обновляет график сменности из Google Таблицы."""
+    import urllib.request, csv, io
+    
+    url = f"https://docs.google.com/spreadsheets/d/{SCHEDULE_SPREADSHEET_ID}/export?format=csv&gid=1540648819"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req) as resp:
+        content = resp.read().decode('utf-8')
+        reader = csv.reader(io.StringIO(content))
+        rows = list(reader)
+        
+    if not rows or len(rows) < 2:
+        return {"status": "error", "message": "Пустой ответ от Google Таблицы графика"}
+        
+    count = 0
+    # Header: ['Дата', 'День недели', 'Смена 1', 'Смена 2', 'Смена 3', 'Смена 4', 'Дневная смена (08:00 - 19:00)', 'Ночная смена (19:00 - 08:00)']
+    for r in rows[1:]:
+        if len(r) >= 8 and r[0].strip():
+            d_str = r[0].strip()
+            dow = r[1].strip()
+            s1 = r[2].strip()
+            s2 = r[3].strip()
+            s3 = r[4].strip()
+            s4 = r[5].strip()
+            day_g = r[6].strip()
+            night_g = r[7].strip()
+            
+            entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == d_str).first()
+            if not entry:
+                entry = models.ShiftScheduleEntry(
+                    date_str=d_str,
+                    day_of_week=dow,
+                    shift1_status=s1,
+                    shift2_status=s2,
+                    shift3_status=s3,
+                    shift4_status=s4,
+                    day_shift_group=day_g,
+                    night_shift_group=night_g
+                )
+                db.add(entry)
+                count += 1
+            else:
+                entry.day_of_week = dow
+                entry.shift1_status = s1
+                entry.shift2_status = s2
+                entry.shift3_status = s3
+                entry.shift4_status = s4
+                entry.day_shift_group = day_g
+                entry.night_shift_group = night_g
+                
+    db.commit()
+    return {"status": "ok", "synced_count": count, "total_rows": len(rows)-1}
+
+def export_checklists_to_google_sheets(db: Session):
+    """
+    Выгружает заполненные чек-листы в отдельную Google Таблицу на лист 'Чек-листы (Премирование)'
+    """
+    target_id = CHECKLISTS_SPREADSHEET_ID
+    if not target_id or target_id.startswith("1_mock"):
+        return
+        
+    try:
+        service = get_sheets_service()
+        sheet_title = "Чек-листы (Премирование)"
+        sheet_id = get_or_create_sheet(service, target_id, sheet_title)
+        
+        submissions = db.query(models.ChecklistSubmission).order_by(models.ChecklistSubmission.created_at.desc()).all()
+        
+        headers = [
+            "ID", "Дата", "Время сохранения", "Смена (День/Ночь)", "Бригада",
+            "Тип чек-листа", "Участок", "Принимающий / Проверяющий", "Сдающий",
+            "Статус", "Кол-во замечаний", "Выявленные замечания / Пункты с дефектами", "Общие примечания"
+        ]
+        
+        rows_data = [headers]
+        for sub in submissions:
+            # Парсим JSON пунктов
+            defects_list = []
+            try:
+                items = json.loads(sub.items_data or "[]")
+                for it in items:
+                    if it.get("status") == "fail":
+                        cm = f" ({it.get('comment')})" if it.get('comment') else ""
+                        defects_list.append(f"❌ {it.get('title')}{cm}")
+            except Exception:
+                pass
+                
+            defects_str = "\n".join(defects_list) if defects_list else "— Нет замечаний (Норма)"
+            status_display = "Замечания" if sub.remarks_count > 0 else "Норма"
+            
+            created_time_str = sub.created_at.strftime("%H:%M:%S") if sub.created_at else ""
+            
+            rows_data.append([
+                str(sub.id),
+                sub.date_str or "",
+                created_time_str,
+                sub.shift_name or "",
+                sub.shift_group or "",
+                sub.template_title or sub.template_code or "",
+                sub.department or "Общий",
+                sub.inspector_name or "",
+                sub.submitter_name or "",
+                status_display,
+                str(sub.remarks_count),
+                defects_str,
+                sub.notes or ""
+            ])
+            
+        # Очищаем и записываем
+        service.spreadsheets().values().clear(
+            spreadsheetId=target_id,
+            range=f"'{sheet_title}'!A1:Z{max(len(rows_data)+10, 100)}"
+        ).execute()
+        
+        service.spreadsheets().values().update(
+            spreadsheetId=target_id,
+            range=f"'{sheet_title}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+        
+        # Форматирование
+        requests = [
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {"red": 0.12, "green": 0.35, "blue": 0.65},
+                            "textFormat": {
+                                "bold": True,
+                                "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                                "fontSize": 11,
+                                "fontFamily": "Calibri"
+                            },
+                            "horizontalAlignment": "CENTER",
+                            "verticalAlignment": "MIDDLE"
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                }
+            },
+            {
+                "updateBorders": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": len(rows_data),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    "top": {"style": "SOLID"},
+                    "bottom": {"style": "SOLID"},
+                    "left": {"style": "SOLID"},
+                    "right": {"style": "SOLID"},
+                    "innerHorizontal": {"style": "SOLID"},
+                    "innerVertical": {"style": "SOLID"}
+                }
+            },
+            {
+                "autoResizeDimensions": {
+                    "dimensions": {
+                        "sheetId": sheet_id,
+                        "dimension": "COLUMNS",
+                        "startIndex": 0,
+                        "endIndex": len(headers)
+                    }
+                }
+            }
+        ]
+        service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
+        print(f"Экспорт чек-листов в отдельную Google Sheets завершен. Выгружено {len(submissions)} записей.")
+    except Exception as e:
+        print(f"Информация: экспорт в Google Sheets будет выполнен на продакшене через реальный Service Account (локальный ключ mock): {e}")
+

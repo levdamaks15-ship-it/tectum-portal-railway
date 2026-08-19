@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Кабинет чек-листов | Tectum Engineering</title>
+    <link rel="icon" type="image/png" href="/static/img/Logo.png">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cl-primary: #2563eb;
+            --cl-primary-hover: #1d4ed8;
+            --cl-success: #10b981;
+            --cl-danger: #ef4444;
+            --cl-warning: #f59e0b;
+            --cl-bg: #f8fafc;
+            --cl-card: #ffffff;
+            --cl-border: #e2e8f0;
+            --cl-text: #0f172a;
+            --cl-subtext: #64748b;
+        }
+        
+        [data-theme="dark"] {
+            --cl-bg: #0f172a;
+            --cl-card: #1e293b;
+            --cl-border: #334155;
+            --cl-text: #f8fafc;
+            --cl-subtext: #94a3b8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--cl-bg);
+            color: var(--cl-text);
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .cl-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .cl-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: var(--cl-card);
+            border: 1px solid var(--cl-border);
+            border-radius: 16px;
+            margin-bottom: 1.2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+
+        .cl-header-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cl-nav-tabs {
+            display: flex;
+            gap: 8px;
+            background: var(--cl-card);
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--cl-border);
+            margin-bottom: 1.2rem;
+            overflow-x: auto;
+        }
+
+        .cl-tab-btn {
+            flex: 1;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: var(--cl-subtext);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .cl-tab-btn.active {
+            background: var(--cl-primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        }
+
+        .template-selector-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .template-card {
+            background: var(--cl-card);
+            border: 2px solid var(--cl-border);
+            border-radius: 16px;
+            padding: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .template-card:hover {
+            border-color: var(--cl-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37,99,235,0.1);
+        }
+
+        .template-card.selected {
+            border-color: var(--cl-primary);
+            background: rgba(37,99,235,0.04);
+        }
+
+        .template-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(37,99,235,0.1);
+            color: var(--cl-primary);
+            margin-bottom: 8px;
+        }
+
+        .form-panel {
+            background: var(--cl-card);
+            border: 1px solid var(--cl-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--cl-border);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--cl-subtext);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--cl-border);
+            background: var(--cl-bg);
+            color: var(--cl-text);
+            font-size: 0.95rem;
+            font-weight: 500;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--cl-primary);
+        }
+
+        /* Check Item Rows */
+        .check-item {
+            background: var(--cl-bg);
+            border: 1px solid var(--cl-border);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .check-item.has-remark {
+            border-color: var(--cl-danger);
+            background: rgba(239, 68, 68, 0.03);
+        }
+
+        .check-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .check-item-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .check-item-desc {
+            font-size: 0.8rem;
+            color: var(--cl-subtext);
+            margin-top: 4px;
+        }
+
+        .status-toggle-btn-group {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .status-btn {
+            border: 1px solid var(--cl-border);
+            background: var(--cl-card);
+            color: var(--cl-subtext);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+
+        .status-btn.ok.active {
+            background: var(--cl-success);
+            border-color: var(--cl-success);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-btn.fail.active {
+            background: var(--cl-danger);
+            border-color: var(--cl-danger);
+            color: white;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .comment-field {
+            margin-top: 10px;
+            display: none;
+            animation: fadeIn 0.2s;
+        }
+
+        .comment-field.visible {
+            display: block;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--cl-primary);
+            color: white;
+            font-size: 1.05rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(37,99,235,0.3);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .submit-btn:hover {
+            background: var(--cl-primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* History Table */
+        .history-card {
+            background: var(--cl-card);
+            border: 1px solid var(--cl-border);
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .badge-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .badge-ok {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--cl-success);
+        }
+
+        .badge-fail {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--cl-danger);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 600px) {
+            .cl-container { padding: 0.6rem; }
+            .meta-grid { grid-template-columns: 1fr; }
+            .check-item-header { flex-direction: column; align-items: flex-start; }
+            .status-toggle-btn-group { width: 100%; margin-top: 8px; }
+            .status-btn { flex: 1; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="cl-container">
+    <!-- Header -->
+    <header class="cl-header">
+        <div class="cl-header-logo">
+            <a href="/" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit;">
+                <img src="/static/img/Logo.png" alt="Logo" style="height: 38px;">
+                <div>
+                    <div style="font-weight: 800; font-size: 1.1rem; letter-spacing: 0.5px;">TECTUM</div>
+                    <div style="font-size: 0.75rem; color: var(--cl-subtext); font-weight: 600;">КАБИНЕТ ЧЕК-ЛИСТОВ</div>
+                </div>
+            </a>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <a href="/" class="status-btn" style="text-decoration: none; padding: 8px 12px; font-size: 0.85rem;">
+                🏠 На портал
+            </a>
+            <button onclick="toggleTheme()" class="status-btn" style="padding: 8px 12px;">🌓</button>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="cl-nav-tabs">
+        <button class="cl-tab-btn active" onclick="switchClTab('fill')">✍️ Заполнить чек-лист</button>
+        <button class="cl-tab-btn" onclick="switchClTab('journal')">📋 Журнал сдачи</button>
+        <button class="cl-tab-btn" onclick="openGoogleSheet()">📊 Открыть Google Таблицу</button>
+    </div>
+
+    <!-- TAB 1: Fill Form -->
+    <div id="tab-fill-content">
+        <!-- Template Picker -->
+        <div style="margin-bottom: 0.8rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
+            ВЫБЕРИТЕ ТИП ЧЕК-ЛИСТА:
+        </div>
+        <div class="template-selector-grid" id="template-cards-container">
+            <!-- Rendered by JS -->
+        </div>
+
+        <!-- Form Panel -->
+        <div class="form-panel" id="checklist-form-panel">
+            <div style="margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2 id="active-template-title" style="margin: 0; font-size: 1.25rem;">Чек-лист мастера смены</h2>
+                    <p id="active-template-sub" style="margin: 4px 0 0; color: var(--cl-subtext); font-size: 0.85rem;">Проверка состояния оборудования</p>
+                </div>
+                <div id="duty-shift-badge" style="background: rgba(37,99,235,0.1); color: var(--cl-primary); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">
+                    Загрузка смены...
+                </div>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div class="meta-grid">
+                <div class="form-group">
+                    <label>Дата</label>
+                    <input type="text" id="cl-date" class="form-control" placeholder="19.08.2026">
+                </div>
+                <div class="form-group">
+                    <label>Смена (Время)</label>
+                    <select id="cl-shift-name" class="form-control" onchange="onShiftChange()">
+                        <option value="День">☀️ День (08:00 – 19:00)</option>
+                        <option value="Ночь">🌙 Ночь (19:00 – 08:00)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Дежурная бригада</label>
+                    <select id="cl-shift-group" class="form-control" onchange="filterEmployeesByShift()">
+                        <option value="1-я смена">1-я смена</option>
+                        <option value="2-я смена">2-я смена</option>
+                        <option value="3-я смена">3-я смена</option>
+                        <option value="4-я смена">4-я смена</option>
+                        <option value="Котельная">Котельная</option>
+                        <option value="Дневной персонал">Дневной персонал</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="inspector-label-text">Принимающий (ФИО)</label>
+                    <select id="cl-inspector-name" class="form-control">
+                        <!-- Loaded from API -->
+                    </select>
+                </div>
+                <div class="form-group" id="submitter-form-group">
+                    <label id="submitter-label-text">Сдающий (ФИО)</label>
+                    <select id="cl-submitter-name" class="form-control">
+                        <!-- Loaded from API -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Checklist Items -->
+            <div style="margin-bottom: 1rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
+                ПУНКТЫ ПРОВЕРКИ И СОСТОЯНИЕ РАБОЧИХ МЕСТ:
+            </div>
+            <div id="checklist-items-container">
+                <!-- Injected items -->
+            </div>
+
+            <!-- Overall Notes -->
+            <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                <label>Общие примечания / Выявленные замечания за смену</label>
+                <textarea id="cl-overall-notes" class="form-control" rows="3" placeholder="Укажите дополнительные замечания или важные детали смены..."></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button id="cl-submit-btn" class="submit-btn" onclick="submitChecklist()">
+                <span>💾 Сохранить и передать в отчет</span>
+            </button>
+            <div id="cl-submit-status" style="margin-top: 10px; text-align: center; font-weight: 600; display: none;"></div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Journal -->
+    <div id="tab-journal-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="margin: 0;">Журнал сданных чек-листов</h3>
+            <button onclick="loadChecklistJournal()" class="status-btn" style="padding: 6px 12px; font-size: 0.85rem;">🔄 Обновить</button>
+        </div>
+        <div id="journal-list-container">
+            <div style="text-align: center; color: var(--cl-subtext); padding: 2rem;">Загрузка истории...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentTemplates = [];
+    let activeTemplate = null;
+    let allEmployees = [];
+    let scheduleInfo = null;
+
+    const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/17AqmwqceblrAzlHfSztc80cmGJJ71B_godpYoK0QHrc/edit";
+
+    function openGoogleSheet() {
+        window.open(SPREADSHEET_URL, '_blank');
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const target = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', target);
+        localStorage.setItem('theme', target);
+    }
+
+    // Init Theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    function switchClTab(tab) {
+        document.querySelectorAll('.cl-tab-btn').forEach(btn => btn.classList.remove('active'));
+        if (tab === 'fill') {
+            document.querySelectorAll('.cl-tab-btn')[0].classList.add('active');
+            document.getElementById('tab-fill-content').style.display = 'block';
+            document.getElementById('tab-journal-content').style.display = 'none';
+        } else if (tab === 'journal') {
+            document.querySelectorAll('.cl-tab-btn')[1].classList.add('active');
+            document.getElementById('tab-fill-content').style.display = 'none';
+            document.getElementById('tab-journal-content').style.display = 'block';
+            loadChecklistJournal();
+        }
+    }
+
+    async function initChecklistApp() {
+        try {
+            // 1. Load Schedule
+            const schedResp = await fetch('/api/checklists/schedule/today');
+            scheduleInfo = await schedResp.json();
+            
+            document.getElementById('cl-date').value = scheduleInfo.date;
+            document.getElementById('cl-shift-name').value = scheduleInfo.shift_name;
+            
+            if (scheduleInfo.current_shift_group) {
+                document.getElementById('cl-shift-group').value = scheduleInfo.current_shift_group;
+                const dutyBadge = document.getElementById('duty-shift-badge');
+                if (dutyBadge) {
+                    dutyBadge.innerText = `Дежурит: ${scheduleInfo.current_shift_group} (${scheduleInfo.shift_name})`;
+                }
+            }
+
+            // 2. Load Employees
+            const empResp = await fetch('/api/checklists/employees');
+            allEmployees = await empResp.json();
+
+            // 3. Load Templates
+            const tplResp = await fetch('/api/checklists/templates');
+            currentTemplates = await tplResp.json();
+            
+            renderTemplateCards();
+            if (currentTemplates.length > 0) {
+                selectTemplate(currentTemplates[0].code);
+            }
+        } catch (e) {
+            console.error('Error initializing checklists:', e);
+        }
+    }
+
+    function renderTemplateCards() {
+        const container = document.getElementById('template-cards-container');
+        if (!container) return;
+        
+        container.innerHTML = currentTemplates.map(t => `
+            <div class="template-card ${activeTemplate && activeTemplate.code === t.code ? 'selected' : ''}" onclick="selectTemplate('${t.code}')">
+                <span class="template-badge">${t.department}</span>
+                <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 4px;">${t.title}</div>
+                <div style="font-size: 0.8rem; color: var(--cl-subtext);">${t.subtitle}</div>
+            </div>
+        `).join('');
+    }
+
+    function selectTemplate(code) {
+        activeTemplate = currentTemplates.find(t => t.code === code);
+        if (!activeTemplate) return;
+
+        renderTemplateCards();
+
+        document.getElementById('active-template-title').innerText = activeTemplate.title;
+        document.getElementById('active-template-sub').innerText = activeTemplate.subtitle;
+
+        document.getElementById('inspector-label-text').innerText = activeTemplate.inspector_label || "Принимающий (ФИО)";
+        document.getElementById('submitter-label-text').innerText = activeTemplate.submitter_label || "Сдающий (ФИО)";
+
+        filterEmployeesByShift();
+        renderChecklistItems();
+    }
+
+    function filterEmployeesByShift() {
+        const currentShiftG = document.getElementById('cl-shift-group').value;
+        const inspectorSelect = document.getElementById('cl-inspector-name');
+        const submitterSelect = document.getElementById('cl-submitter-name');
+
+        if (!inspectorSelect || !submitterSelect) return;
+
+        // Populate options with all employees, sorted / prioritizing current shift
+        let inspectorOpts = '<option value="">-- Выберите сотрудника --</option>';
+        let submitterOpts = '<option value="">-- Выберите сотрудника --</option>';
+
+        // Masters vs Workers
+        allEmployees.forEach(e => {
+            const label = `${e.name} (${e.position} - ${e.shift_group})`;
+            inspectorOpts += `<option value="${e.name}" data-pos="${e.position}" ${e.shift_group === currentShiftG ? 'style="font-weight:bold;"' : ''}>${label}</option>`;
+            submitterOpts += `<option value="${e.name}" data-pos="${e.position}">${label}</option>`;
+        });
+
+        inspectorSelect.innerHTML = inspectorOpts;
+        submitterSelect.innerHTML = submitterOpts;
+
+        // Auto select master if master template
+        if (activeTemplate && activeTemplate.code === 'master_shift') {
+            const curMaster = allEmployees.find(e => e.shift_group === currentShiftG && e.position.toLowerCase().includes('мастер'));
+            if (curMaster) inspectorSelect.value = curMaster.name;
+        }
+    }
+
+    function onShiftChange() {
+        const isDay = document.getElementById('cl-shift-name').value === 'День';
+        if (scheduleInfo && scheduleInfo.schedule_entry) {
+            const shiftG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
+            if (shiftG) {
+                document.getElementById('cl-shift-group').value = shiftG;
+                document.getElementById('duty-shift-badge').innerText = `Дежурит: ${shiftG} (${isDay ? 'День' : 'Ночь'})`;
+                filterEmployeesByShift();
+            }
+        }
+    }
+
+    function renderChecklistItems() {
+        const container = document.getElementById('checklist-items-container');
+        if (!container || !activeTemplate) return;
+
+        container.innerHTML = activeTemplate.items.map(item => `
+            <div class="check-item" id="check-item-row-${item.index}">
+                <div class="check-item-header">
+                    <div>
+                        <div class="check-item-title">
+                            <span style="color: var(--cl-primary); font-weight: 700; margin-right: 6px;">#${item.index}</span>
+                            ${item.title}
+                        </div>
+                        <div class="check-item-desc">${item.desc || ''}</div>
+                    </div>
+                    <div class="status-toggle-btn-group">
+                        <button type="button" class="status-btn ok active" id="btn-ok-${item.index}" onclick="setItemStatus(${item.index}, 'ok')">
+                            ✔️ Норма
+                        </button>
+                        <button type="button" class="status-btn fail" id="btn-fail-${item.index}" onclick="setItemStatus(${item.index}, 'fail')">
+                            ❌ Замечание
+                        </button>
+                    </div>
+                </div>
+                <div class="comment-field" id="comment-box-${item.index}">
+                    <input type="text" class="form-control" id="comment-input-${item.index}" placeholder="Опишите выявленный дефект или проблему...">
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function setItemStatus(index, status) {
+        const row = document.getElementById(`check-item-row-${index}`);
+        const btnOk = document.getElementById(`btn-ok-${index}`);
+        const btnFail = document.getElementById(`btn-fail-${index}`);
+        const commentBox = document.getElementById(`comment-box-${index}`);
+
+        if (status === 'ok') {
+            btnOk.classList.add('active');
+            btnFail.classList.remove('active');
+            row.classList.remove('has-remark');
+            commentBox.classList.remove('visible');
+        } else {
+            btnFail.classList.add('active');
+            btnOk.classList.remove('active');
+            row.classList.add('has-remark');
+            commentBox.classList.add('visible');
+            const commentInput = document.getElementById(`comment-input-${index}`);
+            if (commentInput) commentInput.focus();
+        }
+    }
+
+    async function submitChecklist() {
+        const inspectorName = document.getElementById('cl-inspector-name').value;
+        if (!inspectorName) {
+            alert('Пожалуйста, выберите ФИО принимающего / проверяющего сотрудника!');
+            return;
+        }
+
+        const submitterName = document.getElementById('cl-submitter-name').value;
+        const dateStr = document.getElementById('cl-date').value;
+        const shiftName = document.getElementById('cl-shift-name').value;
+        const shiftGroup = document.getElementById('cl-shift-group').value;
+        const notes = document.getElementById('cl-overall-notes').value;
+
+        // Gather items
+        const items = activeTemplate.items.map(item => {
+            const isOk = document.getElementById(`btn-ok-${item.index}`).classList.contains('active');
+            const comment = document.getElementById(`comment-input-${item.index}`).value;
+            return {
+                index: item.index,
+                title: item.title,
+                status: isOk ? 'ok' : 'fail',
+                comment: isOk ? '' : comment
+            };
+        });
+
+        const payload = {
+            template_code: activeTemplate.code,
+            template_title: activeTemplate.title,
+            date_str: dateStr,
+            shift_name: shiftName,
+            shift_group: shiftGroup,
+            department: activeTemplate.department,
+            inspector_name: inspectorName,
+            submitter_name: submitterName,
+            notes: notes,
+            items: items
+        };
+
+        const submitBtn = document.getElementById('cl-submit-btn');
+        const statusDiv = document.getElementById('cl-submit-status');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>⏳ Сохранение и передача в Google Sheets...</span>';
+        statusDiv.style.display = 'none';
+
+        try {
+            const resp = await fetch('/api/checklists/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const res = await resp.json();
+            if (resp.ok) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = 'var(--cl-success)';
+                statusDiv.innerHTML = `✅ Чек-лист успешно сохранен! ID: #${res.id}. Данные отправлены в Google Таблицу.`;
+                
+                // Clear fields
+                document.getElementById('cl-overall-notes').value = '';
+                renderChecklistItems();
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            } else {
+                throw new Error(res.detail || 'Ошибка сохранения');
+            }
+        } catch (err) {
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = 'var(--cl-danger)';
+            statusDiv.innerText = '❌ Ошибка: ' + err.message;
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>💾 Сохранить и передать в отчет</span>';
+        }
+    }
+
+    async function loadChecklistJournal() {
+        const container = document.getElementById('journal-list-container');
+        if (!container) return;
+
+        container.innerHTML = '<div style="text-align:center; color:var(--cl-subtext); padding:2rem;">Загрузка журнала...</div>';
+
+        try {
+            const resp = await fetch('/api/checklists/submissions?limit=30');
+            const data = await resp.json();
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:var(--cl-subtext); padding:2rem;">Заполненных чек-листов пока нет. Будьте первым!</div>';
+                return;
+            }
+
+            container.innerHTML = data.map(sub => `
+                <div class="history-card">
+                    <div class="history-header">
+                        <div>
+                            <span style="font-weight:700; font-size:1.05rem;">${sub.template_title}</span>
+                            <span style="font-size:0.8rem; color:var(--cl-subtext); margin-left:8px;">${sub.date_str} (${sub.shift_name}, ${sub.shift_group || ''})</span>
+                        </div>
+                        <span class="badge-status ${sub.remarks_count > 0 ? 'badge-fail' : 'badge-ok'}">
+                            ${sub.remarks_count > 0 ? `Замечаний: ${sub.remarks_count}` : '✔️ Норма'}
+                        </span>
+                    </div>
+                    <div style="font-size:0.85rem; margin-bottom:8px;">
+                        <strong>Принимающий:</strong> ${sub.inspector_name || '—'} | 
+                        <strong>Сдающий:</strong> ${sub.submitter_name || '—'}
+                    </div>
+                    ${sub.notes ? `<div style="font-size:0.85rem; color:var(--cl-subtext); background:var(--cl-bg); padding:6px 10px; border-radius:6px; margin-bottom:8px;"><strong>Замечания:</strong> ${sub.notes}</div>` : ''}
+                    <div style="font-size:0.75rem; color:var(--cl-subtext);">
+                        Сохранено: ${sub.created_at}
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) {
+            container.innerHTML = `<div style="color:var(--cl-danger); padding:1rem;">Ошибка загрузки журнала: ${e.message}</div>`;
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', initChecklistApp);
+</script>
+
+</body>
+</html>
