@@ -565,10 +565,10 @@
             document.getElementById('cl-shift-name').value = scheduleInfo.shift_name;
             
             if (scheduleInfo.current_shift_group) {
-                document.getElementById('cl-shift-group').value = scheduleInfo.current_shift_group;
+                setShiftGroupValue(scheduleInfo.current_shift_group);
                 const dutyBadge = document.getElementById('duty-shift-badge');
                 if (dutyBadge) {
-                    dutyBadge.innerText = `Дежурит: ${scheduleInfo.current_shift_group} (${scheduleInfo.shift_name})`;
+                    dutyBadge.innerText = `Дежурит: ${getShiftGroupDisplayName(scheduleInfo.current_shift_group)} (${scheduleInfo.shift_name})`;
                 }
             }
 
@@ -622,9 +622,23 @@
         updatePositionsList();
     }
 
+    function getShiftGroupDisplayName(shiftStr) {
+        if (!shiftStr) return '';
+        const num = (shiftStr.match(/\d+/) || [''])[0];
+        if (num) return `${num}-я смена`;
+        return shiftStr;
+    }
+
+    function setShiftGroupValue(shiftStr) {
+        const select = document.getElementById('cl-shift-group');
+        if (!select) return;
+        const norm = getShiftGroupDisplayName(shiftStr);
+        select.value = norm;
+    }
+
     function updatePositionsList() {
         const positionSelect = document.getElementById('cl-position');
-        const currentShiftG = document.getElementById('cl-shift-group').value;
+        const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
         const curNum = (currentShiftG.match(/\d+/) || [''])[0];
 
         if (!positionSelect || !activeTemplate) return;
@@ -632,7 +646,7 @@
         // Фильтруем сотрудников текущей смены
         const shiftEmployees = allEmployees.filter(e => {
             const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-            return eNum === curNum || e.shift_group === currentShiftG;
+            return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
         });
 
         // Собираем уникальные должности
@@ -645,6 +659,9 @@
         } else {
             // worker_shift_handover: берем все рабочие должности текущей смены
             positions = Array.from(new Set(shiftEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
+            if (positions.length === 0) {
+                positions = Array.from(new Set(allEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
+            }
         }
 
         positionSelect.innerHTML = positions.map(pos => `<option value="${pos}">${pos}</option>`).join('');
@@ -657,7 +674,7 @@
     }
 
     function filterEmployeesByPosition() {
-        const currentShiftG = document.getElementById('cl-shift-group').value;
+        const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
         const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
         const curNum = (currentShiftG.match(/\d+/) || [''])[0];
         const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
@@ -673,7 +690,7 @@
         // 1. Принимающие (строго из текущей смены и выбранной должности!)
         let curShiftEmployees = allEmployees.filter(e => {
             const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-            const matchShift = (eNum && eNum === curNum) || (e.shift_group === currentShiftG);
+            const matchShift = (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
             const matchPos = !selectedPos || selectedPos === 'Все должности' || e.position.toLowerCase() === selectedPos.toLowerCase();
             return matchShift && matchPos;
         });
@@ -681,7 +698,7 @@
         // 2. Сдающие (строго из предыдущей сдающей смены и выбранной должности!)
         let prevShiftEmployees = allEmployees.filter(e => {
             const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-            const matchShift = (eNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+            const matchShift = (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
             const matchPos = !selectedPos || selectedPos === 'Все должности' || e.position.toLowerCase() === selectedPos.toLowerCase();
             return matchShift && matchPos;
         });
@@ -695,10 +712,9 @@
 
         // Формируем выпадающий список сдающих
         if (prevShiftEmployees.length === 0) {
-            // Если в предыдущей смене нет точного совпадения, показываем всех из сдающей смены
             const allPrev = allEmployees.filter(e => {
                 const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-                return (eNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+                return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
             });
             submitterSelect.innerHTML = allPrev.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
         } else {
@@ -706,26 +722,22 @@
         }
     }
 
-    function onInspectorChange() {
-        // При смене принимающего, если есть соответствующий сдающий — автоматически синхронизируем
-    }
+    function onInspectorChange() {}
 
     async function onShiftChange() {
         const isDay = document.getElementById('cl-shift-name').value === 'День';
-        const targetDate = document.getElementById('cl-date').value;
 
-        // Обновляем данные с бэкенда для выбранной смены или пересчитываем локально
         if (scheduleInfo && scheduleInfo.schedule_entry) {
             const curG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
-            // Сдающая смена: для Дня это прошлая Ночь, для Ночи это сегодняшний День!
+            // Для Дня: сдавала прошлая Ночь. Для Ночи: сдает сегодняшний День.
             const prevG = isDay ? (scheduleInfo.prev_shift_group || scheduleInfo.schedule_entry.night_shift_group) : scheduleInfo.schedule_entry.day_shift_group;
 
             scheduleInfo.current_shift_group = curG;
             scheduleInfo.prev_shift_group = prevG;
             scheduleInfo.shift_name = isDay ? 'День' : 'Ночь';
 
-            document.getElementById('cl-shift-group').value = curG;
-            document.getElementById('duty-shift-badge').innerText = `Дежурит: ${curG} (${scheduleInfo.shift_name})`;
+            setShiftGroupValue(curG);
+            document.getElementById('duty-shift-badge').innerText = `Дежурит: ${getShiftGroupDisplayName(curG)} (${scheduleInfo.shift_name})`;
 
             updatePositionsList();
         }
