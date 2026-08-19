@@ -687,9 +687,21 @@
         updateDepartmentsList();
     }
 
+    function getShiftGroupDisplayName(shiftStr) {
+        if (!shiftStr) return "1-я смена";
+        const str = String(shiftStr).trim();
+        const numMatch = str.match(/\d+/);
+        if (numMatch) {
+            return `${numMatch[0]}-я смена`;
+        }
+        if (str.toLowerCase().includes("котельн")) return "Котельная";
+        if (str.toLowerCase().includes("дневн")) return "Дневной персонал";
+        return str;
+    }
+
     function getShiftPairDisplayName(curShiftStr, prevShiftStr) {
-        const curNum = (curShiftStr ? curShiftStr.match(/\d+/) || [''] : [''])[0];
-        const prevNum = (prevShiftStr ? prevShiftStr.match(/\d+/) || [''] : [''])[0];
+        const curNum = (curShiftStr ? String(curShiftStr).match(/\d+/) || [''] : [''])[0];
+        const prevNum = (prevShiftStr ? String(prevShiftStr).match(/\d+/) || [''] : [''])[0];
         if (curNum && prevNum) {
             return `Смена ${curNum} (прием) ➔ Смена ${prevNum} (сдача)`;
         }
@@ -752,8 +764,14 @@
     function filterEmployeesByDepartment() {
         const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
         const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
-        const curNum = (currentShiftG.match(/\d+/) || [''])[0];
-        const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
+        function normalizeShiftNum(str) {
+            if (!str) return "";
+            const m = String(str).match(/\d+/);
+            return m ? m[0] : "";
+        }
+
+        const curNum = normalizeShiftNum(currentShiftG);
+        const prevNum = normalizeShiftNum(prevShiftG);
 
         const deptSelect = document.getElementById('cl-department');
         const selectedDept = deptSelect ? deptSelect.value : '';
@@ -763,29 +781,30 @@
 
         if (!inspectorSelect || !submitterSelect) return;
 
+        if (!allEmployees || allEmployees.length === 0) {
+            inspectorSelect.innerHTML = '<option value="">Загрузка сотрудников...</option>';
+            submitterSelect.innerHTML = '<option value="">Загрузка сотрудников...</option>';
+            return;
+        }
+
         // Если это мастерский чек-лист, показываем строго мастеров
         if (activeTemplate && activeTemplate.code === 'master_shift') {
-            const curMasters = allEmployees.filter(e => {
-                const eNum = (e.shift_group ? e.shift_group.match(/\d+/) || [''] : [''])[0];
-                const isMaster = e.position && e.position.toLowerCase().includes('мастер');
-                return isMaster && (eNum === curNum || e.shift_group === currentShiftG);
-            });
-            const prevMasters = allEmployees.filter(e => {
-                const eNum = (e.shift_group ? e.shift_group.match(/\d+/) || [''] : [''])[0];
-                const isMaster = e.position && e.position.toLowerCase().includes('мастер');
-                return isMaster && (eNum === prevNum || e.shift_group === prevShiftG);
-            });
-
-            // Если не нашли по номеру смены, ищем любого мастера
             const allMasters = allEmployees.filter(e => e.position && e.position.toLowerCase().includes('мастер'));
 
-            inspectorSelect.innerHTML = curMasters.length 
-                ? curMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') 
-                : allMasters.map(e => `<option value="${e.name}">${e.name} (${e.position} - ${e.shift_group})</option>`).join('');
+            const curMasters = allMasters.filter(e => {
+                const eNum = normalizeShiftNum(e.shift_group);
+                return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
+            });
+            const prevMasters = allMasters.filter(e => {
+                const eNum = normalizeShiftNum(e.shift_group);
+                return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+            });
 
-            submitterSelect.innerHTML = prevMasters.length 
-                ? prevMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') 
-                : allMasters.map(e => `<option value="${e.name}">${e.name} (${e.position} - ${e.shift_group})</option>`).join('');
+            const inspectorList = curMasters.length ? curMasters : allMasters;
+            const submitterList = prevMasters.length ? prevMasters : allMasters;
+
+            inspectorSelect.innerHTML = inspectorList.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
+            submitterSelect.innerHTML = submitterList.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
             return;
         }
 
@@ -793,7 +812,7 @@
         function matchDept(emp) {
             if (!selectedDept || selectedDept === 'Все участки') return true;
             if (emp.department && emp.department.toLowerCase() === selectedDept.toLowerCase()) return true;
-            const p = emp.position.toLowerCase();
+            const p = (emp.position || '').toLowerCase();
             if (selectedDept === 'ЛФМ') return p.includes('машин') || p.includes('помощник');
             if (selectedDept === 'Дестакер') return p.includes('дестакер');
             if (selectedDept === 'Стакер') return p.includes('стакер') && !p.includes('дестакер');
@@ -809,35 +828,41 @@
 
         // 1. Принимающие (из текущей смены и выбранного участка)
         let curShiftEmployees = allEmployees.filter(e => {
-            const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+            const eNum = normalizeShiftNum(e.shift_group);
             const matchShift = (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
             return matchShift && matchDept(e);
         });
 
         // 2. Сдающие (из сдающей смены и выбранного участка)
         let prevShiftEmployees = allEmployees.filter(e => {
-            const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+            const eNum = normalizeShiftNum(e.shift_group);
             const matchShift = (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
             return matchShift && matchDept(e);
         });
 
-        // Формируем списки
+        // Fallbacks: если по участку нет людей, берем всех из смены
         if (curShiftEmployees.length === 0) {
-            // Если на конкретном участке нет людей в смене, показываем всех из текущей смены
             curShiftEmployees = allEmployees.filter(e => {
-                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                const eNum = normalizeShiftNum(e.shift_group);
                 return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
             });
         }
-        inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
+        if (curShiftEmployees.length === 0) {
+            curShiftEmployees = allEmployees;
+        }
 
         if (prevShiftEmployees.length === 0) {
             prevShiftEmployees = allEmployees.filter(e => {
-                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                const eNum = normalizeShiftNum(e.shift_group);
                 return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
             });
         }
-        submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
+        if (prevShiftEmployees.length === 0) {
+            prevShiftEmployees = allEmployees;
+        }
+
+        inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
+        submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
     }
 
     function onInspectorChange() {}
