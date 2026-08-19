@@ -443,19 +443,19 @@
             <!-- Parameters Grid -->
             <div class="meta-grid">
                 <div class="form-group">
-                    <label>Дата</label>
+                    <label>1. Дата</label>
                     <input type="text" id="cl-date" class="form-control" placeholder="19.08.2026">
                 </div>
                 <div class="form-group">
-                    <label>Смена (Время)</label>
+                    <label>2. Смена (Время)</label>
                     <select id="cl-shift-name" class="form-control" onchange="onShiftChange()">
                         <option value="День">☀️ День (08:00 – 19:00)</option>
                         <option value="Ночь">🌙 Ночь (19:00 – 08:00)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Дежурная бригада</label>
-                    <select id="cl-shift-group" class="form-control" onchange="filterEmployeesByShift()">
+                    <label>3. Дежурная бригада</label>
+                    <select id="cl-shift-group" class="form-control" onchange="onShiftGroupChange()">
                         <option value="1-я смена">1-я смена</option>
                         <option value="2-я смена">2-я смена</option>
                         <option value="3-я смена">3-я смена</option>
@@ -464,14 +464,20 @@
                         <option value="Дневной персонал">Дневной персонал</option>
                     </select>
                 </div>
+                <div class="form-group" id="position-form-group">
+                    <label>4. Должность / Позиция</label>
+                    <select id="cl-position" class="form-control" onchange="onPositionChange()">
+                        <!-- Loaded based on template & shift -->
+                    </select>
+                </div>
                 <div class="form-group">
-                    <label id="inspector-label-text">Принимающий (ФИО)</label>
+                    <label id="inspector-label-text">5. Принимающий (ФИО)</label>
                     <select id="cl-inspector-name" class="form-control" onchange="onInspectorChange()">
                         <!-- Loaded from API -->
                     </select>
                 </div>
                 <div class="form-group" id="submitter-form-group">
-                    <label id="submitter-label-text">Сдающий (ФИО)</label>
+                    <label id="submitter-label-text">6. Сдающий (ФИО)</label>
                     <select id="cl-submitter-name" class="form-control">
                         <!-- Loaded from API -->
                     </select>
@@ -605,88 +611,103 @@
         document.getElementById('active-template-title').innerText = activeTemplate.title;
         document.getElementById('active-template-sub').innerText = activeTemplate.subtitle;
 
-        document.getElementById('inspector-label-text').innerText = activeTemplate.inspector_label || "Принимающий (ФИО)";
-        document.getElementById('submitter-label-text').innerText = activeTemplate.submitter_label || "Сдающий (ФИО)";
+        document.getElementById('inspector-label-text').innerText = `5. ${activeTemplate.inspector_label || "Принимающий (ФИО)"}`;
+        document.getElementById('submitter-label-text').innerText = `6. ${activeTemplate.submitter_label || "Сдающий (ФИО)"}`;
 
-        filterEmployeesByShift();
+        updatePositionsList();
         renderChecklistItems();
     }
 
-    function filterEmployeesByShift() {
+    function onShiftGroupChange() {
+        updatePositionsList();
+    }
+
+    function updatePositionsList() {
+        const positionSelect = document.getElementById('cl-position');
+        const currentShiftG = document.getElementById('cl-shift-group').value;
+        const curNum = (currentShiftG.match(/\d+/) || [''])[0];
+
+        if (!positionSelect || !activeTemplate) return;
+
+        // Фильтруем сотрудников текущей смены
+        const shiftEmployees = allEmployees.filter(e => {
+            const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+            return eNum === curNum || e.shift_group === currentShiftG;
+        });
+
+        // Собираем уникальные должности
+        let positions = [];
+        if (activeTemplate.code === 'master_shift') {
+            positions = ['Мастер'];
+        } else if (activeTemplate.code === 'day_inspection') {
+            positions = Array.from(new Set(allEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
+            positions.unshift('Все должности');
+        } else {
+            // worker_shift_handover: берем все рабочие должности текущей смены
+            positions = Array.from(new Set(shiftEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
+        }
+
+        positionSelect.innerHTML = positions.map(pos => `<option value="${pos}">${pos}</option>`).join('');
+        
+        filterEmployeesByPosition();
+    }
+
+    function onPositionChange() {
+        filterEmployeesByPosition();
+    }
+
+    function filterEmployeesByPosition() {
         const currentShiftG = document.getElementById('cl-shift-group').value;
         const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
-        
+        const curNum = (currentShiftG.match(/\d+/) || [''])[0];
+        const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
+
+        const posSelect = document.getElementById('cl-position');
+        const selectedPos = posSelect ? posSelect.value : '';
+
         const inspectorSelect = document.getElementById('cl-inspector-name');
         const submitterSelect = document.getElementById('cl-submitter-name');
 
         if (!inspectorSelect || !submitterSelect) return;
 
-        // Populate options with all employees
-        let inspectorOpts = '<option value="">-- Выберите сотрудника --</option>';
-        let submitterOpts = '<option value="">-- Выберите сотрудника --</option>';
-
-        allEmployees.forEach(e => {
-            const label = `${e.name} (${e.position} - ${e.shift_group})`;
-            
-            // Нормализация для сравнения "1-я смена" vs "Смена 1"
+        // 1. Принимающие (строго из текущей смены и выбранной должности!)
+        let curShiftEmployees = allEmployees.filter(e => {
             const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-            const curNum = (currentShiftG.match(/\d+/) || [''])[0];
-            const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
-
-            const isCur = eNum && eNum === curNum;
-            const isPrev = eNum && eNum === prevNum;
-
-            inspectorOpts += `<option value="${e.name}" data-pos="${e.position}" ${isCur ? 'style="font-weight:bold; color:var(--cl-primary);"' : ''}>${label}</option>`;
-            submitterOpts += `<option value="${e.name}" data-pos="${e.position}" ${isPrev ? 'style="font-weight:bold; color:var(--cl-primary);"' : ''}>${label}</option>`;
+            const matchShift = (eNum && eNum === curNum) || (e.shift_group === currentShiftG);
+            const matchPos = !selectedPos || selectedPos === 'Все должности' || e.position.toLowerCase() === selectedPos.toLowerCase();
+            return matchShift && matchPos;
         });
 
-        inspectorSelect.innerHTML = inspectorOpts;
-        submitterSelect.innerHTML = submitterOpts;
+        // 2. Сдающие (строго из предыдущей сдающей смены и выбранной должности!)
+        let prevShiftEmployees = allEmployees.filter(e => {
+            const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+            const matchShift = (eNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+            const matchPos = !selectedPos || selectedPos === 'Все должности' || e.position.toLowerCase() === selectedPos.toLowerCase();
+            return matchShift && matchPos;
+        });
 
-        // Auto select for Master Checklist
-        if (activeTemplate && activeTemplate.code === 'master_shift') {
-            const curNum = (currentShiftG.match(/\d+/) || [''])[0];
-            const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
+        // Формируем выпадающий список принимающих
+        if (curShiftEmployees.length === 0) {
+            inspectorSelect.innerHTML = '<option value="">-- Нет сотрудников на позиции --</option>';
+        } else {
+            inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
+        }
 
-            // Находим мастера текущей смены (Принимающий)
-            const curMaster = allEmployees.find(e => {
+        // Формируем выпадающий список сдающих
+        if (prevShiftEmployees.length === 0) {
+            // Если в предыдущей смене нет точного совпадения, показываем всех из сдающей смены
+            const allPrev = allEmployees.filter(e => {
                 const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-                return eNum === curNum && e.position.toLowerCase().includes('мастер');
+                return (eNum && eNum === prevNum) || (e.shift_group === prevShiftG);
             });
-            if (curMaster) inspectorSelect.value = curMaster.name;
-
-            // Находим мастера предыдущей смены (Сдающий)
-            const prevMaster = allEmployees.find(e => {
-                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-                return eNum === prevNum && e.position.toLowerCase().includes('мастер');
-            });
-            if (prevMaster) submitterSelect.value = prevMaster.name;
+            submitterSelect.innerHTML = allPrev.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
+        } else {
+            submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
         }
     }
 
     function onInspectorChange() {
-        const inspectorSelect = document.getElementById('cl-inspector-name');
-        const selectedOpt = inspectorSelect.options[inspectorSelect.selectedIndex];
-        if (!selectedOpt || !selectedOpt.value) return;
-
-        const empName = selectedOpt.value;
-        const emp = allEmployees.find(e => e.name === empName);
-        if (!emp) return;
-
-        // Если это рабочий чек-лист, автоматически подбираем сдающего сотрудника с такой же должности из сдающей смены!
-        const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
-        const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
-
-        const submitterSelect = document.getElementById('cl-submitter-name');
-        if (submitterSelect && (!submitterSelect.value || submitterSelect.value === '')) {
-            const matchedSubmitter = allEmployees.find(e => {
-                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-                return eNum === prevNum && e.position.trim().toLowerCase() === emp.position.trim().toLowerCase();
-            });
-            if (matchedSubmitter) {
-                submitterSelect.value = matchedSubmitter.name;
-            }
-        }
+        // При смене принимающего, если есть соответствующий сдающий — автоматически синхронизируем
     }
 
     function onShiftChange() {
@@ -777,6 +798,8 @@
             };
         });
 
+        const posVal = document.getElementById('cl-position') ? document.getElementById('cl-position').value : '';
+
         const payload = {
             template_code: activeTemplate.code,
             template_title: activeTemplate.title,
@@ -785,7 +808,9 @@
             shift_group: shiftGroup,
             department: activeTemplate.department,
             inspector_name: inspectorName,
+            inspector_position: posVal,
             submitter_name: submitterName,
+            submitter_position: posVal,
             notes: notes,
             items: items
         };
