@@ -518,6 +518,19 @@
     </div>
 </div>
 
+<!-- Universal Notification Modal (как на портале) -->
+<div id="universal-notification-overlay" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; backdrop-filter: blur(4px);"></div>
+<div id="universal-notification-modal" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; width: 90%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); background: var(--cl-card); padding: 2.5rem 2rem; text-align: center; border: 1px solid var(--cl-border); border-radius: 16px;">
+    <div id="unm-icon" style="width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; transition: all 0.3s ease;">
+        <span id="unm-icon-text" style="font-size: 2.8rem; line-height: 1;"></span>
+    </div>
+    <h2 id="unm-title" style="margin-bottom: 0.8rem; color: var(--cl-text); font-size: 1.4rem;"></h2>
+    <p id="unm-message" style="color: var(--cl-subtext); margin-bottom: 1.8rem; font-size: 1rem; line-height: 1.5;"></p>
+    <button onclick="closeUniversalNotification()" class="submit-btn" id="unm-btn" style="font-size: 1.05rem; padding: 0.75rem 2.5rem; border-radius: 8px; width: auto; display: inline-block;">
+        ОК
+    </button>
+</div>
+
 <script>
     let currentTemplates = [];
     let activeTemplate = null;
@@ -540,6 +553,50 @@
     // Init Theme
     const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
+
+    function showNotification(type, title, message) {
+        const modal = document.getElementById('universal-notification-modal');
+        const overlay = document.getElementById('universal-notification-overlay');
+        const iconContainer = document.getElementById('unm-icon');
+        const iconText = document.getElementById('unm-icon-text');
+        const titleEl = document.getElementById('unm-title');
+        const messageEl = document.getElementById('unm-message');
+        const btn = document.getElementById('unm-btn');
+
+        if (!modal || !overlay) {
+            alert(`${title}\n${message}`);
+            return;
+        }
+
+        if (type === 'success') {
+            iconContainer.style.background = 'rgba(34, 197, 94, 0.15)';
+            iconContainer.style.border = '2px solid #22c55e';
+            iconText.style.color = '#22c55e';
+            iconText.innerHTML = '✓';
+            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
+        } else if (type === 'error') {
+            iconContainer.style.background = 'rgba(239, 68, 68, 0.15)';
+            iconContainer.style.border = '2px solid #ef4444';
+            iconText.style.color = '#ef4444';
+            iconText.innerHTML = '✕';
+            btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+            btn.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.3)';
+        }
+
+        titleEl.innerText = title;
+        messageEl.innerText = message;
+
+        overlay.style.display = 'block';
+        modal.style.display = 'block';
+    }
+
+    function closeUniversalNotification() {
+        const overlay = document.getElementById('universal-notification-overlay');
+        const modal = document.getElementById('universal-notification-modal');
+        if (overlay) overlay.style.display = 'none';
+        if (modal) modal.style.display = 'none';
+    }
 
     function switchClTab(tab) {
         document.querySelectorAll('.cl-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -995,24 +1052,21 @@
 
             const res = await resp.json();
             if (resp.ok) {
-                statusDiv.style.display = 'block';
-                statusDiv.style.color = 'var(--cl-success)';
-                statusDiv.innerHTML = `✅ Чек-лист успешно сохранен! ID: #${res.id}. Данные отправлены в Google Таблицу.`;
-                
-                // Clear fields
+                // Очистка полей ввода и возврат формы в начальное состояние
                 document.getElementById('cl-overall-notes').value = '';
                 renderChecklistItems();
-                
-                setTimeout(() => {
-                    statusDiv.style.display = 'none';
-                }, 5000);
+
+                // Модальное уведомление с кнопкой ОК (как на портале)
+                showNotification(
+                    'success', 
+                    'Чек-лист сохранен!', 
+                    `Чек-лист #${res.id} успешно зарегистрирован в базе данных и отправлен в Google Таблицу.`
+                );
             } else {
                 throw new Error(res.detail || 'Ошибка сохранения');
             }
         } catch (err) {
-            statusDiv.style.display = 'block';
-            statusDiv.style.color = 'var(--cl-danger)';
-            statusDiv.innerText = '❌ Ошибка: ' + err.message;
+            showNotification('error', 'Ошибка сохранения', err.message || 'Не удалось сохранить чек-лист');
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<span>💾 Сохранить и передать в отчет</span>';

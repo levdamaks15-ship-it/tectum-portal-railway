@@ -6721,6 +6721,17 @@ def get_checklist_templates():
         }
     ]
 
+def sync_checklists_google_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.export_checklists_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing checklists to Google Sheets: {e}")
+    finally:
+        db.close()
+
 @app.post("/api/checklists/submit")
 def submit_checklist(data: ChecklistSubmissionCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Сохраняет заполненный чек-лист и запускает синхронизацию с Google Sheets."""
@@ -6748,10 +6759,9 @@ def submit_checklist(data: ChecklistSubmissionCreate, background_tasks: Backgrou
         db.commit()
         db.refresh(sub)
         
-        # Запускаем экспорт в Google Sheets в фоновом режиме
+        # Запускаем экспорт в Google Sheets в фоновом режиме через независимую сессию
         try:
-            import google_sheets_integration
-            background_tasks.add_task(google_sheets_integration.export_checklists_to_google_sheets, db)
+            background_tasks.add_task(sync_checklists_google_bg)
         except Exception as e:
             print(f"Error scheduling Google Sheets export for checklist: {e}")
             

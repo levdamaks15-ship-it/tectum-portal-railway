@@ -2298,7 +2298,7 @@ def export_tasks_to_google_sheets(db: Session):
 
 EMPLOYEES_SPREADSHEET_ID = "1QyDBTkU_y-E_pxgOp-l1J5ejvEwcDhBvt7s5GVOv5I8"
 SCHEDULE_SPREADSHEET_ID = "1WOp9ME0ThkQn8Uf7uZ4HZ03PaNtCn2Y65PpuVT0pkME"
-CHECKLISTS_SPREADSHEET_ID = os.getenv("CHECKLISTS_SPREADSHEET_ID") or SPREADSHEET_ID
+CHECKLISTS_SPREADSHEET_ID = os.getenv("CHECKLISTS_SPREADSHEET_ID") or "17AqmwqceblrAzlHfSztc80cmGJJ71B_godpYoK0QHrc"
 
 def get_department_by_position(pos: str, shift_g: str = "") -> str:
     """Определяет утвержденный производственный участок по должности."""
