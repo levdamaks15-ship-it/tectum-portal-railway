@@ -2433,6 +2433,31 @@ def sync_schedule_from_google_sheets(db: Session):
     db.commit()
     return {"status": "ok", "synced_count": count, "total_rows": len(rows)-1}
 
+def get_or_create_sheet(service, spreadsheet_id: str, sheet_title: str):
+    """Возвращает sheet_id существующего листа или создает новый лист с таким названием."""
+    spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    for sh in spreadsheet.get("sheets", []):
+        if sh["properties"]["title"] == sheet_title:
+            return sh["properties"]["sheetId"]
+            
+    # Если лист не найден, создаем
+    body = {
+        "requests": [{
+            "addSheet": {
+                "properties": {
+                    "title": sheet_title,
+                    "gridProperties": {
+                        "rowCount": 1000,
+                        "columnCount": 30
+                    }
+                }
+            }
+        }]
+    }
+    res = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+    new_sheet_id = res["replies"][0]["addSheet"]["properties"]["sheetId"]
+    return new_sheet_id
+
 def export_checklists_to_google_sheets(db: Session):
     """
     Выгружает заполненные чек-листы в отдельную Google Таблицу с разделением по листам:
@@ -2443,6 +2468,7 @@ def export_checklists_to_google_sheets(db: Session):
     """
     target_id = CHECKLISTS_SPREADSHEET_ID
     if not target_id or target_id.startswith("1_mock"):
+        print(f"Skipping checklist export: target_id={target_id}")
         return
         
     try:
@@ -2584,5 +2610,6 @@ def export_checklists_to_google_sheets(db: Session):
 
         print(f"Экспорт чек-листов по листам в Google Sheets завершен. Всего выгружено {len(submissions)} записей.")
     except Exception as e:
-        print(f"Информация: экспорт в Google Sheets будет выполнен на продакшене через реальный Service Account (локальный ключ mock): {e}")
+        print(f"Ошибка экспорта чек-листов в Google Sheets: {e}")
+        raise e
 
