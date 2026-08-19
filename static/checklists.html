@@ -555,33 +555,98 @@
         }
     }
 
+    const FALLBACK_TEMPLATES = [
+        {
+            code: "master_shift",
+            title: "Чек-лист мастера смены",
+            subtitle: "Проверка состояния оборудования и рабочих мест перед началом смены",
+            department: "Цех ХЦИ",
+            has_submitter: true,
+            inspector_label: "Принимающий смену мастер",
+            submitter_label: "Сдающий смену мастер",
+            items: [
+                {index: 1, title: "Состояние прокладок", desc: "Целостность и износ прокладочного материала"},
+                {index: 2, title: "Подкрутка всех болтов и гаек на машине", desc: "Проверка затяжки ключевых узлов и креплений"},
+                {index: 3, title: "Проверка состояния бахромы", desc: "Состояние и очистка сукна / бахромы"},
+                {index: 4, title: "Наличие поддонов", desc: "Запас деревянных поддонов на линии и участках"},
+                {index: 5, title: "Все ли расходники в достатке", desc: "Наличие сырья, скотча, маркировочных материалов"},
+                {index: 6, title: "Таблички КВТ установлены правильно", desc: "Контроль визуализации и знаков безопасности"},
+                {index: 7, title: "Отсутствие засорения и забивки механизмов и деталей", desc: "Чистота направляющих, роликов, датчиков"},
+                {index: 8, title: "Порядок на рабочих местах", desc: "5S, отсутствие посторонних предметов и мусора"},
+                {index: 9, title: "Готовые пачки продукции вывезены со склада/участка", desc: "Своевременная передача на склад ГП"}
+            ]
+        },
+        {
+            code: "worker_shift_handover",
+            title: "Чек-лист приема-передачи смены (Рабочие)",
+            subtitle: "Ауысымды қабылдау-тапсыру чек-парағы / Состояние рабочего места",
+            department: "Сменный участок",
+            has_submitter: true,
+            inspector_label: "Принимающий / Қабылдаушы",
+            submitter_label: "Сдающий / Тапсырушы",
+            items: [
+                {index: 1, title: "Чистота рабочего места / Тазалық", desc: "Уборка зоны, отсутствие шлама, грязи и отходов"},
+                {index: 2, title: "Состояние инвентаря / Мүкәммал", desc: "Наличие и исправность лопат, щеток, емкостей"},
+                {index: 3, title: "Состояние инструмента / Құрал", desc: "Комплектность и исправность рабочего инструмента"},
+                {index: 4, title: "Оборудование и механизмы / Қондырғылар", desc: "Исправность узлов на позиции, отсутствие течей и шумов"},
+                {index: 5, title: "СИЗ и Безопасность / Қорғаныс құралдары", desc: "Применение спецодежды, касок, защитных очков"}
+            ]
+        },
+        {
+            code: "day_inspection",
+            title: "Чек-лист дневных сотрудников и инспекций",
+            subtitle: "Тексеру чек-парағы / Ежедневный контроль участка",
+            department: "ИТР / Дневные службы",
+            has_submitter: true,
+            inspector_label: "Проверяющий / Тексеруші",
+            submitter_label: "Ответственный сдающий / Тапсырушы",
+            items: [
+                {index: 1, title: "Чистота и порядок в цехе / Тазалық", desc: "Отсутствие захламления проходов и зон обслуживания"},
+                {index: 2, title: "Состояние инвентаря и оборудования / Мүкәммал", desc: "Техническое состояние закрепленных агрегатов"},
+                {index: 3, title: "Исправность инструмента / Құрал", desc: "Правильное хранение и безопасность использования"},
+                {index: 4, title: "Охрана труда и промбезопасность", desc: "Соблюдение регламентов и инструкций персоналом"}
+            ]
+        }
+    ];
+
     async function initChecklistApp() {
+        currentTemplates = FALLBACK_TEMPLATES;
+        renderTemplateCards();
+        selectTemplate(currentTemplates[0].code);
+
         try {
-            // 1. Load Schedule
-            const schedResp = await fetch('/api/checklists/schedule/today');
-            scheduleInfo = await schedResp.json();
-            
-            document.getElementById('cl-date').value = scheduleInfo.date;
-            document.getElementById('cl-shift-name').value = scheduleInfo.shift_name;
-            
-            if (scheduleInfo.current_shift_group) {
-                setShiftGroupValue(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group);
-                const dutyBadge = document.getElementById('duty-shift-badge');
-                if (dutyBadge) {
-                    dutyBadge.innerText = `Дежурит: ${getShiftPairDisplayName(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group)} (${scheduleInfo.shift_name})`;
+            const [schedRes, empRes, tplRes] = await Promise.allSettled([
+                fetch('/api/checklists/schedule/today').then(r => r.json()),
+                fetch('/api/checklists/employees').then(r => r.json()),
+                fetch('/api/checklists/templates').then(r => r.json())
+            ]);
+
+            if (schedRes.status === 'fulfilled' && schedRes.value) {
+                scheduleInfo = schedRes.value;
+                document.getElementById('cl-date').value = scheduleInfo.date || '19.08.2026';
+                document.getElementById('cl-shift-name').value = scheduleInfo.shift_name || 'День';
+                
+                if (scheduleInfo.current_shift_group) {
+                    setShiftGroupValue(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group);
+                    const dutyBadge = document.getElementById('duty-shift-badge');
+                    if (dutyBadge) {
+                        dutyBadge.innerText = `Дежурит: ${getShiftPairDisplayName(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group)} (${scheduleInfo.shift_name})`;
+                    }
                 }
             }
 
-            // 2. Load Employees
-            const empResp = await fetch('/api/checklists/employees');
-            allEmployees = await empResp.json();
+            if (empRes.status === 'fulfilled' && Array.isArray(empRes.value)) {
+                allEmployees = empRes.value;
+            }
 
-            // 3. Load Templates
-            const tplResp = await fetch('/api/checklists/templates');
-            currentTemplates = await tplResp.json();
-            
-            renderTemplateCards();
-            if (currentTemplates.length > 0) {
+            if (tplRes.status === 'fulfilled' && Array.isArray(tplRes.value) && tplRes.value.length > 0) {
+                currentTemplates = tplRes.value;
+                renderTemplateCards();
+            }
+
+            if (activeTemplate) {
+                selectTemplate(activeTemplate.code);
+            } else if (currentTemplates.length > 0) {
                 selectTemplate(currentTemplates[0].code);
             }
         } catch (e) {
