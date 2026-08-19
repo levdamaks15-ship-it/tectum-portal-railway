@@ -523,6 +523,14 @@ async def lifespan(app: FastAPI):
             db.add(models.Master(name="Инспектор СКК", pin="6666", role="qcd"))
             db.add(models.Master(name="Главный механик", pin="8888", role="mechanic"))
             db.commit()
+
+        # Автоматическое распределение участков для всех сотрудников в БД
+        try:
+            import google_sheets_integration
+            google_sheets_integration.sync_employees_from_google_sheets(db)
+        except Exception as sync_e:
+            print(f"Startup checklist employees sync warning: {sync_e}")
+
         if not db.query(models.Master).filter(models.Master.role == "director").first():
             db.add(models.Master(name="Технический директор", pin="7777", role="director"))
             db.commit()

@@ -1987,6 +1987,7 @@ function openChecklistEmpModal() {
     document.getElementById('cl-emp-pos').value = '';
     document.getElementById('cl-emp-num').value = '';
     document.getElementById('cl-emp-shift').value = '1-я смена';
+    document.getElementById('cl-emp-dept').value = 'ЛФМ';
     document.getElementById('checklist-emp-modal-title').innerHTML = '<i class="fa-solid fa-user-plus"></i> Добавить сотрудника';
     document.getElementById('checklist-emp-modal').style.display = 'flex';
 }
@@ -2000,6 +2001,9 @@ function editChecklistEmp(empId) {
     document.getElementById('cl-emp-pos').value = emp.position;
     document.getElementById('cl-emp-num').value = emp.num || '';
     document.getElementById('cl-emp-shift').value = emp.shift_group;
+    if (document.getElementById('cl-emp-dept')) {
+        document.getElementById('cl-emp-dept').value = emp.department || 'ЛФМ';
+    }
     document.getElementById('checklist-emp-modal-title').innerHTML = '<i class="fa-solid fa-user-pen"></i> Редактировать сотрудника';
     document.getElementById('checklist-emp-modal').style.display = 'flex';
 }
@@ -2009,6 +2013,7 @@ async function saveChecklistEmployee() {
     const name = document.getElementById('cl-emp-name').value.trim();
     const position = document.getElementById('cl-emp-pos').value.trim();
     const shiftGroup = document.getElementById('cl-emp-shift').value;
+    const dept = document.getElementById('cl-emp-dept') ? document.getElementById('cl-emp-dept').value : '';
     const num = document.getElementById('cl-emp-num').value;
 
     if (!name || !position) {
@@ -2020,6 +2025,7 @@ async function saveChecklistEmployee() {
         name: name,
         position: position,
         shift_group: shiftGroup,
+        department: dept,
         num: num ? parseInt(num) : null
     };
 
