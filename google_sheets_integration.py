@@ -2473,7 +2473,7 @@ def export_checklists_to_google_sheets(db: Session):
         
     try:
         service = get_sheets_service()
-        submissions = db.query(models.ChecklistSubmission).order_by(models.ChecklistSubmission.created_at.desc()).all()
+        submissions = db.query(models.ChecklistSubmission).order_by(models.ChecklistSubmission.created_at.asc(), models.ChecklistSubmission.id.asc()).all()
         
         headers = [
             "ID", "Дата", "Время сохранения", "Смена (День/Ночь)", "Бригада",
