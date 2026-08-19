@@ -31,6 +31,10 @@
             --cl-subtext: #94a3b8;
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--cl-bg);
@@ -38,47 +42,53 @@
             margin: 0;
             padding: 0;
             -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
         }
 
         .cl-container {
+            width: 100%;
             max-width: 900px;
             margin: 0 auto;
-            padding: 1rem;
+            padding: 0.8rem;
+            box-sizing: border-box;
         }
 
         .cl-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 1rem;
+            padding: 0.8rem 1rem;
             background: var(--cl-card);
             border: 1px solid var(--cl-border);
-            border-radius: 16px;
-            margin-bottom: 1.2rem;
+            border-radius: 14px;
+            margin-bottom: 1rem;
             box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .cl-header-logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .cl-nav-tabs {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             background: var(--cl-card);
-            padding: 6px;
+            padding: 4px;
             border-radius: 12px;
             border: 1px solid var(--cl-border);
-            margin-bottom: 1.2rem;
-            overflow-x: auto;
+            margin-bottom: 1rem;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .cl-tab-btn {
             flex: 1;
-            padding: 10px 16px;
-            font-size: 0.9rem;
+            padding: 8px 10px;
+            font-size: 0.82rem;
             font-weight: 600;
             border: none;
             background: transparent;
@@ -86,8 +96,9 @@
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
-            white-space: nowrap;
+            white-space: normal;
             text-align: center;
+            line-height: 1.2;
         }
 
         .cl-tab-btn.active {
@@ -98,19 +109,26 @@
 
         .template-selector-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: 1fr;
+            gap: 0.8rem;
+            margin-bottom: 1.2rem;
+        }
+
+        @media (min-width: 600px) {
+            .template-selector-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            }
         }
 
         .template-card {
             background: var(--cl-card);
             border: 2px solid var(--cl-border);
-            border-radius: 16px;
-            padding: 1.2rem;
+            border-radius: 14px;
+            padding: 1rem;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
+            box-sizing: border-box;
         }
 
         .template-card:hover {
@@ -126,37 +144,69 @@
 
         .template-badge {
             display: inline-block;
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 6px;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 700;
             background: rgba(37,99,235,0.1);
             color: var(--cl-primary);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .form-panel {
             background: var(--cl-card);
             border: 1px solid var(--cl-border);
-            border-radius: 16px;
-            padding: 1.5rem;
+            border-radius: 14px;
+            padding: 1.2rem;
             margin-bottom: 1.5rem;
             box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            box-sizing: border-box;
+            width: 100%;
         }
 
         .meta-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1.5rem;
+            grid-template-columns: 1fr;
+            gap: 0.8rem;
+            margin-bottom: 1.2rem;
+            padding-bottom: 1.2rem;
             border-bottom: 1px solid var(--cl-border);
+        }
+
+        @media (min-width: 600px) {
+            .meta-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .form-group label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--cl-subtext);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--cl-border);
+            background: var(--cl-bg);
+            color: var(--cl-text);
+            font-size: 0.9rem;
+            font-weight: 500;
+            outline: none;
+            transition: border-color 0.2s;
         }
 
         .form-group label {
@@ -416,7 +466,7 @@
                 </div>
                 <div class="form-group">
                     <label id="inspector-label-text">Принимающий (ФИО)</label>
-                    <select id="cl-inspector-name" class="form-control">
+                    <select id="cl-inspector-name" class="form-control" onchange="onInspectorChange()">
                         <!-- Loaded from API -->
                     </select>
                 </div>
@@ -564,29 +614,78 @@
 
     function filterEmployeesByShift() {
         const currentShiftG = document.getElementById('cl-shift-group').value;
+        const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
+        
         const inspectorSelect = document.getElementById('cl-inspector-name');
         const submitterSelect = document.getElementById('cl-submitter-name');
 
         if (!inspectorSelect || !submitterSelect) return;
 
-        // Populate options with all employees, sorted / prioritizing current shift
+        // Populate options with all employees
         let inspectorOpts = '<option value="">-- Выберите сотрудника --</option>';
         let submitterOpts = '<option value="">-- Выберите сотрудника --</option>';
 
-        // Masters vs Workers
         allEmployees.forEach(e => {
             const label = `${e.name} (${e.position} - ${e.shift_group})`;
-            inspectorOpts += `<option value="${e.name}" data-pos="${e.position}" ${e.shift_group === currentShiftG ? 'style="font-weight:bold;"' : ''}>${label}</option>`;
-            submitterOpts += `<option value="${e.name}" data-pos="${e.position}">${label}</option>`;
+            
+            // Нормализация для сравнения "1-я смена" vs "Смена 1"
+            const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+            const curNum = (currentShiftG.match(/\d+/) || [''])[0];
+            const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
+
+            const isCur = eNum && eNum === curNum;
+            const isPrev = eNum && eNum === prevNum;
+
+            inspectorOpts += `<option value="${e.name}" data-pos="${e.position}" ${isCur ? 'style="font-weight:bold; color:var(--cl-primary);"' : ''}>${label}</option>`;
+            submitterOpts += `<option value="${e.name}" data-pos="${e.position}" ${isPrev ? 'style="font-weight:bold; color:var(--cl-primary);"' : ''}>${label}</option>`;
         });
 
         inspectorSelect.innerHTML = inspectorOpts;
         submitterSelect.innerHTML = submitterOpts;
 
-        // Auto select master if master template
+        // Auto select for Master Checklist
         if (activeTemplate && activeTemplate.code === 'master_shift') {
-            const curMaster = allEmployees.find(e => e.shift_group === currentShiftG && e.position.toLowerCase().includes('мастер'));
+            const curNum = (currentShiftG.match(/\d+/) || [''])[0];
+            const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
+
+            // Находим мастера текущей смены (Принимающий)
+            const curMaster = allEmployees.find(e => {
+                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                return eNum === curNum && e.position.toLowerCase().includes('мастер');
+            });
             if (curMaster) inspectorSelect.value = curMaster.name;
+
+            // Находим мастера предыдущей смены (Сдающий)
+            const prevMaster = allEmployees.find(e => {
+                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                return eNum === prevNum && e.position.toLowerCase().includes('мастер');
+            });
+            if (prevMaster) submitterSelect.value = prevMaster.name;
+        }
+    }
+
+    function onInspectorChange() {
+        const inspectorSelect = document.getElementById('cl-inspector-name');
+        const selectedOpt = inspectorSelect.options[inspectorSelect.selectedIndex];
+        if (!selectedOpt || !selectedOpt.value) return;
+
+        const empName = selectedOpt.value;
+        const emp = allEmployees.find(e => e.name === empName);
+        if (!emp) return;
+
+        // Если это рабочий чек-лист, автоматически подбираем сдающего сотрудника с такой же должности из сдающей смены!
+        const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
+        const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
+
+        const submitterSelect = document.getElementById('cl-submitter-name');
+        if (submitterSelect && (!submitterSelect.value || submitterSelect.value === '')) {
+            const matchedSubmitter = allEmployees.find(e => {
+                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                return eNum === prevNum && e.position.trim().toLowerCase() === emp.position.trim().toLowerCase();
+            });
+            if (matchedSubmitter) {
+                submitterSelect.value = matchedSubmitter.name;
+            }
         }
     }
 

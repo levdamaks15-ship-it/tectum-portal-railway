@@ -6493,12 +6493,15 @@ def sync_checklist_employees_endpoint(db: Session = Depends(get_db)):
 
 @app.get("/api/checklists/schedule/today")
 def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(get_db)):
-    """Возвращает текущую смену и дежурную бригаду по графику сменности."""
+    """Возвращает текущую смену и дежурную бригаду по графику сменности с учетом часового пояса завода (UTC+5)."""
     try:
-        now = datetime.now()
+        from datetime import timezone
+        tz_kz = timezone(timedelta(hours=5))
+        now = datetime.now(tz_kz)
+        
         target_date_str = date if date else now.strftime("%d.%m.%Y")
         
-        # Определение день/ночь по текущему времени:
+        # Определение день/ночь по времени завода (UTC+5):
         # День: 08:00 - 19:00, Ночь: 19:00 - 08:00
         hour = now.hour
         is_day = 8 <= hour < 19
@@ -6506,17 +6509,33 @@ def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(g
         
         entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == target_date_str).first()
         if not entry:
-            # Попробуем подтянуть график
             import google_sheets_integration
             google_sheets_integration.sync_schedule_from_google_sheets(db)
             entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == target_date_str).first()
             
         current_shift_group = ""
         prev_shift_group = ""
+        
         if entry:
-            current_shift_group = entry.day_shift_group if is_day else entry.night_shift_group
-            # Сдающая смена — противоположная
-            prev_shift_group = entry.night_shift_group if is_day else entry.day_shift_group
+            if is_day:
+                # Текущая смена: День сегодняшней даты
+                current_shift_group = entry.day_shift_group
+                # Сдающая смена: Ночь предыдущего дня!
+                try:
+                    target_dt = datetime.strptime(target_date_str, "%d.%m.%Y")
+                    prev_dt_str = (target_dt - timedelta(days=1)).strftime("%d.%m.%Y")
+                    prev_entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == prev_dt_str).first()
+                    if prev_entry and prev_entry.night_shift_group:
+                        prev_shift_group = prev_entry.night_shift_group
+                    else:
+                        prev_shift_group = entry.night_shift_group
+                except Exception:
+                    prev_shift_group = entry.night_shift_group
+            else:
+                # Текущая смена: Ночь сегодняшней даты
+                current_shift_group = entry.night_shift_group
+                # Сдающая смена: День сегодняшней даты
+                prev_shift_group = entry.day_shift_group
             
         return {
             "date": target_date_str,
@@ -6533,10 +6552,10 @@ def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(g
     except Exception as e:
         print(f"Error getting shift schedule: {e}")
         return {
-            "date": datetime.now().strftime("%d.%m.%Y"),
-            "shift_name": "День" if 8 <= datetime.now().hour < 19 else "Ночь",
-            "current_shift_group": "1-я смена",
-            "prev_shift_group": "4-я смена"
+            "date": datetime.now(timezone(timedelta(hours=5))).strftime("%d.%m.%Y"),
+            "shift_name": "День",
+            "current_shift_group": "Смена 1",
+            "prev_shift_group": "Смена 4"
         }
 
 @app.get("/api/checklists/templates")
