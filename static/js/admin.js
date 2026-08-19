@@ -103,6 +103,10 @@ function switchAdminTab(tabId) {
     if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
     const tabPasswords = document.getElementById('tab-passwords');
     if (tabPasswords) tabPasswords.style.display = 'none';
+    const tabChecklistEmps = document.getElementById('tab-checklist-emps');
+    if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
+    const tabShiftSchedule = document.getElementById('tab-shift-schedule');
+    if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
     
     const targetTab = document.getElementById('tab-' + tabId);
     if (targetTab) targetTab.style.display = 'block';
@@ -126,10 +130,18 @@ function switchAdminTab(tabId) {
         loadDowntimesLog();
     } else if (tabId === 'passwords') {
         loadPasswords();
+    } else if (tabId === 'checklist-emps') {
+        loadAdminChecklistEmployees();
+    } else if (tabId === 'shift-schedule') {
+        loadAdminShiftSchedule();
     }
 }
 
 function closeModals() {
+    const clEmpModal = document.getElementById('checklist-emp-modal');
+    if (clEmpModal) clEmpModal.style.display = 'none';
+    const schedModal = document.getElementById('shift-schedule-modal');
+    if (schedModal) schedModal.style.display = 'none';
     document.getElementById('master-modal').style.display = 'none';
     document.getElementById('norm-modal').style.display = 'none';
     const shiftModal = document.getElementById('shift-modal');
@@ -1916,6 +1928,235 @@ async function syncFoldersToDrive() {
             btn.disabled = false;
             btn.innerHTML = origHtml;
         }
+    }
+}
+
+// ========================================================
+// УПРАВЛЕНИЕ СОТРУДНИКАМИ ЦЕХА (ЧЕК-ЛИСТЫ)
+// ========================================================
+let adminChecklistEmps = [];
+
+async function loadAdminChecklistEmployees() {
+    try {
+        const res = await fetch('/api/checklists/employees');
+        if (res.ok) {
+            adminChecklistEmps = await res.json();
+            renderChecklistEmployeesTable();
+        }
+    } catch (e) {
+        console.error("Error loading checklist employees:", e);
+    }
+}
+
+function renderChecklistEmployeesTable() {
+    const tbody = document.getElementById('checklist-emps-table-body');
+    if (!tbody) return;
+
+    const shiftFilter = document.getElementById('filter-emp-shift') ? document.getElementById('filter-emp-shift').value : '';
+    const searchFilter = document.getElementById('filter-emp-search') ? document.getElementById('filter-emp-search').value.toLowerCase().trim() : '';
+
+    let filtered = adminChecklistEmps.filter(e => {
+        const matchShift = !shiftFilter || e.shift_group === shiftFilter;
+        const matchSearch = !searchFilter || e.name.toLowerCase().includes(searchFilter) || e.position.toLowerCase().includes(searchFilter);
+        return matchShift && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Сотрудники не найдены</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(e => `
+        <tr>
+            <td style="font-weight: 600; color: var(--text-secondary);">${e.num || '—'}</td>
+            <td style="font-weight: 700; color: var(--text-primary);">${e.name}</td>
+            <td><span style="background: rgba(37,99,235,0.15); color: #60a5fa; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">${e.shift_group}</span></td>
+            <td><span style="background: rgba(16,185,129,0.15); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;">${e.department || 'Цех ХЦИ'}</span></td>
+            <td style="color: var(--text-secondary);">${e.position}</td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button class="action-btn btn-edit" onclick="editChecklistEmp(${e.id})" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button class="action-btn btn-delete" onclick="deleteChecklistEmp(${e.id}, '${e.name}')" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openChecklistEmpModal() {
+    document.getElementById('cl-emp-id').value = '';
+    document.getElementById('cl-emp-name').value = '';
+    document.getElementById('cl-emp-pos').value = '';
+    document.getElementById('cl-emp-num').value = '';
+    document.getElementById('cl-emp-shift').value = '1-я смена';
+    document.getElementById('checklist-emp-modal-title').innerHTML = '<i class="fa-solid fa-user-plus"></i> Добавить сотрудника';
+    document.getElementById('checklist-emp-modal').style.display = 'flex';
+}
+
+function editChecklistEmp(empId) {
+    const emp = adminChecklistEmps.find(e => e.id === empId);
+    if (!emp) return;
+
+    document.getElementById('cl-emp-id').value = emp.id;
+    document.getElementById('cl-emp-name').value = emp.name;
+    document.getElementById('cl-emp-pos').value = emp.position;
+    document.getElementById('cl-emp-num').value = emp.num || '';
+    document.getElementById('cl-emp-shift').value = emp.shift_group;
+    document.getElementById('checklist-emp-modal-title').innerHTML = '<i class="fa-solid fa-user-pen"></i> Редактировать сотрудника';
+    document.getElementById('checklist-emp-modal').style.display = 'flex';
+}
+
+async function saveChecklistEmployee() {
+    const empId = document.getElementById('cl-emp-id').value;
+    const name = document.getElementById('cl-emp-name').value.trim();
+    const position = document.getElementById('cl-emp-pos').value.trim();
+    const shiftGroup = document.getElementById('cl-emp-shift').value;
+    const num = document.getElementById('cl-emp-num').value;
+
+    if (!name || !position) {
+        alert("Пожалуйста, заполните ФИО и должность!");
+        return;
+    }
+
+    const payload = {
+        name: name,
+        position: position,
+        shift_group: shiftGroup,
+        num: num ? parseInt(num) : null
+    };
+
+    try {
+        const url = empId ? `/api/checklists/employees/${empId}` : `/api/checklists/employees`;
+        const method = empId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            closeModals();
+            loadAdminChecklistEmployees();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Неизвестная ошибка"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении сотрудника");
+    }
+}
+
+async function deleteChecklistEmp(empId, name) {
+    if (!confirm(`Вы действительно хотите удалить сотрудника "${name}"?`)) return;
+
+    try {
+        const res = await fetch(`/api/checklists/employees/${empId}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadAdminChecklistEmployees();
+        } else {
+            alert("Ошибка при удалении сотрудника");
+        }
+    } catch (e) {
+        alert("Ошибка сети");
+    }
+}
+
+async function syncChecklistEmployeesFromGoogle() {
+    if (!confirm("Запустить обновление базы сотрудников из Google Таблицы?")) return;
+    try {
+        const res = await fetch('/api/checklists/employees/sync', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert(`Синхронизация завершена!\nОбработано строк: ${data.total_rows}\nДобавлено/обновлено: ${data.synced_count}`);
+            loadAdminChecklistEmployees();
+        } else {
+            alert("Ошибка синхронизации: " + (data.message || data.detail));
+        }
+    } catch (e) {
+        alert("Ошибка сети при синхронизации");
+    }
+}
+
+// ========================================================
+// УПРАВЛЕНИЕ ГРАФИКОМ СМЕННОСТИ
+// ========================================================
+let adminShiftSchedule = [];
+
+async function loadAdminShiftSchedule() {
+    try {
+        const res = await fetch('/api/checklists/schedule/all');
+        if (res.ok) {
+            adminShiftSchedule = await res.json();
+            renderShiftScheduleTable();
+        }
+    } catch (e) {
+        console.error("Error loading shift schedule:", e);
+    }
+}
+
+function renderShiftScheduleTable() {
+    const tbody = document.getElementById('shift-schedule-table-body');
+    if (!tbody) return;
+
+    const searchDate = document.getElementById('schedule-search-date') ? document.getElementById('schedule-search-date').value.toLowerCase().trim() : '';
+
+    let filtered = adminShiftSchedule.filter(e => {
+        return !searchDate || (e.date_str && e.date_str.toLowerCase().includes(searchDate));
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">График не найден</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(e => `
+        <tr>
+            <td style="font-weight: 700; color: var(--primary-color);">${e.date_str}</td>
+            <td style="color: var(--text-secondary);">${e.day_of_week || '—'}</td>
+            <td><span style="background: rgba(245,158,11,0.15); color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-weight: 700;">☀️ ${e.day_shift_group || '—'}</span></td>
+            <td><span style="background: rgba(99,102,241,0.15); color: #818cf8; padding: 4px 8px; border-radius: 6px; font-weight: 700;">🌙 ${e.night_shift_group || '—'}</span></td>
+            <td style="text-align: center;">${e.shift1_status || '—'}</td>
+            <td style="text-align: center;">${e.shift2_status || '—'}</td>
+            <td style="text-align: center;">${e.shift3_status || '—'}</td>
+            <td style="text-align: center;">${e.shift4_status || '—'}</td>
+            <td style="text-align: right;">
+                <button class="action-btn btn-edit" onclick="openEditShiftScheduleModal('${e.date_str}', '${e.day_shift_group || ''}', '${e.night_shift_group || ''}')" title="Изменить смены"><i class="fa-solid fa-pen"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openEditShiftScheduleModal(dateStr, dayShift, nightShift) {
+    document.getElementById('sched-date-str').value = dateStr;
+    document.getElementById('sched-date-display').value = dateStr;
+    document.getElementById('sched-day-shift').value = dayShift || 'Смена 1';
+    document.getElementById('sched-night-shift').value = nightShift || 'Смена 2';
+    document.getElementById('shift-schedule-modal').style.display = 'flex';
+}
+
+async function saveShiftScheduleDay() {
+    const dateStr = document.getElementById('sched-date-str').value;
+    const dayShift = document.getElementById('sched-day-shift').value;
+    const nightShift = document.getElementById('sched-night-shift').value;
+
+    try {
+        const res = await fetch('/api/checklists/schedule/update_day', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                date_str: dateStr,
+                day_shift_group: dayShift,
+                night_shift_group: nightShift
+            })
+        });
+
+        if (res.ok) {
+            closeModals();
+            loadAdminShiftSchedule();
+        } else {
+            alert("Ошибка при сохранении графика");
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении");
     }
 }
 

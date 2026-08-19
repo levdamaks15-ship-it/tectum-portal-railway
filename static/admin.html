@@ -259,6 +259,8 @@
                 </button>
             </div>
             <div class="admin-nav-item active" onclick="switchAdminTab('masters')" id="nav-masters"><i class="fa-solid fa-users"></i> Сотрудники (Мастера)</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('checklist-emps')" id="nav-checklist-emps"><i class="fa-solid fa-id-card-clip"></i> Сотрудники цеха (Чек-листы)</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('shift-schedule')" id="nav-shift-schedule"><i class="fa-solid fa-calendar-check"></i> График сменности</div>
             <div class="admin-nav-item" onclick="switchAdminTab('norms')" id="nav-norms"><i class="fa-solid fa-scale-balanced"></i> Нормы продукции</div>
             <div class="admin-nav-item" onclick="switchAdminTab('plan-board')" id="nav-plan-board"><i class="fa-solid fa-clipboard-list"></i> Выработка (План/Факт)</div>
             <div class="admin-nav-item" onclick="switchAdminTab('shifts')" id="nav-shifts"><i class="fa-solid fa-calendar-days"></i> Управление сменами</div>
@@ -288,7 +290,7 @@
             <!-- Masters Tab -->
             <div id="tab-masters" style="display: block;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                    <h2>Управление сотрудниками</h2>
+                    <h2>Управление мастерами и аккаунтами</h2>
                     <button onclick="openMasterModal()" style="width: auto; padding: 0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
                 </div>
                 <div class="glass-panel" style="overflow-x: auto;">
@@ -299,6 +301,87 @@
                             </tr>
                         </thead>
                         <tbody id="masters-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Checklist Employees Tab -->
+            <div id="tab-checklist-emps" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-id-card-clip"></i> Сотрудники цеха (Чек-листы)</h2>
+                        <p style="color: var(--text-secondary); margin: 4px 0 0; font-size: 0.85rem;">База всех рабочих и мастеров для чек-листов и премий</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="openChecklistEmpModal()" style="width: auto; padding: 0.5rem 1rem; background: var(--accent-color);"><i class="fa-solid fa-user-plus"></i> Добавить сотрудника</button>
+                        <button onclick="syncChecklistEmployeesFromGoogle()" style="width: auto; padding: 0.5rem 1rem; background: #217346;"><i class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
+                    <select id="filter-emp-shift" class="form-control" style="width: auto; padding: 0.5rem;" onchange="renderChecklistEmployeesTable()">
+                        <option value="">Все смены</option>
+                        <option value="1-я смена">1-я смена</option>
+                        <option value="2-я смена">2-я смена</option>
+                        <option value="3-я смена">3-я смена</option>
+                        <option value="4-я смена">4-я смена</option>
+                        <option value="Котельная">Котельная</option>
+                        <option value="Дневной персонал">Дневной персонал</option>
+                    </select>
+                    <input type="text" id="filter-emp-search" placeholder="Поиск по ФИО или должности..." style="padding: 0.5rem 1rem; width: 260px;" oninput="renderChecklistEmployeesTable()">
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>ФИО Сотрудника</th>
+                                <th>Смена</th>
+                                <th>Участок</th>
+                                <th>Должность</th>
+                                <th style="text-align: right;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checklist-emps-table-body">
+                            <tr><td colspan="6" style="text-align: center;">Загрузка сотрудников...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Shift Schedule Tab -->
+            <div id="tab-shift-schedule" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-calendar-check"></i> График сменности</h2>
+                        <p style="color: var(--text-secondary); margin: 4px 0 0; font-size: 0.85rem;">Календарь дежурств бригад по дням и ночам</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem; display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="schedule-search-date" placeholder="Поиск даты (например, 19.08)..." style="padding: 0.5rem 1rem; width: 260px;" oninput="renderShiftScheduleTable()">
+                    <button onclick="loadAdminShiftSchedule()" style="width: auto; padding: 0.5rem 1rem; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-arrows-rotate"></i> Обновить</button>
+                </div>
+
+                <div class="glass-panel" style="overflow-x: auto;">
+                    <table class="data-table" style="width: 100%; text-align: left;">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>День недели</th>
+                                <th>☀️ Дневная смена (08:00 – 19:00)</th>
+                                <th>🌙 Ночная смена (19:00 – 08:00)</th>
+                                <th>Смена 1</th>
+                                <th>Смена 2</th>
+                                <th>Смена 3</th>
+                                <th>Смена 4</th>
+                                <th style="text-align: right;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shift-schedule-table-body">
+                            <tr><td colspan="9" style="text-align: center;">Загрузка графика...</td></tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -548,6 +631,75 @@
         </div>
     </div>
 
+
+    <!-- Checklist Employee Modal -->
+    <div id="checklist-emp-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="checklist-emp-modal-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-user-gear"></i> Сотрудник цеха</h3>
+            <input type="hidden" id="cl-emp-id">
+            <div class="form-group">
+                <label>ФИО Сотрудника</label>
+                <input type="text" id="cl-emp-name" placeholder="например, Иванов Иван Иванович" required>
+            </div>
+            <div class="form-group">
+                <label>Смена / Бригада</label>
+                <select id="cl-emp-shift">
+                    <option value="1-я смена">1-я смена</option>
+                    <option value="2-я смена">2-я смена</option>
+                    <option value="3-я смена">3-я смена</option>
+                    <option value="4-я смена">4-я смена</option>
+                    <option value="Котельная">Котельная</option>
+                    <option value="Дневной персонал">Дневной персонал</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Должность / Профессия</label>
+                <input type="text" id="cl-emp-pos" placeholder="например, Машинист листоформовочной машины" required>
+            </div>
+            <div class="form-group">
+                <label>Табельный / Порядковый номер (№)</label>
+                <input type="number" id="cl-emp-num" placeholder="например, 15">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button onclick="closeModals()" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveChecklistEmployee()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shift Schedule Day Edit Modal -->
+    <div id="shift-schedule-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="shift-schedule-modal-title" style="margin-bottom: 1.5rem;"><i class="fa-solid fa-calendar-day"></i> Редактирование смены на дату</h3>
+            <input type="hidden" id="sched-date-str">
+            <div class="form-group">
+                <label>Дата</label>
+                <input type="text" id="sched-date-display" readonly style="opacity: 0.8;">
+            </div>
+            <div class="form-group">
+                <label>☀️ Дневная смена (08:00 – 19:00)</label>
+                <select id="sched-day-shift">
+                    <option value="Смена 1">Смена 1</option>
+                    <option value="Смена 2">Смена 2</option>
+                    <option value="Смена 3">Смена 3</option>
+                    <option value="Смена 4">Смена 4</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>🌙 Ночная смена (19:00 – 08:00)</label>
+                <select id="sched-night-shift">
+                    <option value="Смена 1">Смена 1</option>
+                    <option value="Смена 2">Смена 2</option>
+                    <option value="Смена 3">Смена 3</option>
+                    <option value="Смена 4">Смена 4</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button onclick="closeModals()" style="background: transparent; border: 1px solid var(--glass-border);">Отмена</button>
+                <button onclick="saveShiftScheduleDay()" class="btn-save">Сохранить</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Master Modal -->
     <div id="master-modal" class="modal">

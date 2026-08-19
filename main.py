@@ -6483,14 +6483,110 @@ def get_checklist_employees(db: Session = Depends(get_db)):
         print(f"Error fetching checklist employees: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/checklists/employees/sync")
-def sync_checklist_employees_endpoint(db: Session = Depends(get_db)):
-    """Принудительная синхронизация списка сотрудников из Google Sheets."""
+@app.post("/api/checklists/employees")
+def create_checklist_employee(emp: ChecklistEmployeeCreate, db: Session = Depends(get_db)):
+    """Создает нового сотрудника для чек-листов."""
     try:
         import google_sheets_integration
-        res = google_sheets_integration.sync_employees_from_google_sheets(db)
-        return res
+        dept = google_sheets_integration.get_department_by_position(emp.position, emp.shift_group)
+        new_emp = models.ChecklistEmployee(
+            name=emp.name.strip(),
+            position=emp.position.strip(),
+            shift_group=emp.shift_group.strip(),
+            department=dept,
+            num=emp.num,
+            is_active=True
+        )
+        db.add(new_emp)
+        db.commit()
+        db.refresh(new_emp)
+        return {"status": "ok", "employee": {"id": new_emp.id, "name": new_emp.name, "position": new_emp.position, "shift_group": new_emp.shift_group, "department": new_emp.department}}
     except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/checklists/employees/{emp_id}")
+def update_checklist_employee(emp_id: int, emp: ChecklistEmployeeCreate, db: Session = Depends(get_db)):
+    """Обновляет данные сотрудника."""
+    try:
+        db_emp = db.query(models.ChecklistEmployee).filter(models.ChecklistEmployee.id == emp_id).first()
+        if not db_emp:
+            raise HTTPException(status_code=404, detail="Сотрудник не найден")
+        
+        import google_sheets_integration
+        dept = google_sheets_integration.get_department_by_position(emp.position, emp.shift_group)
+        
+        db_emp.name = emp.name.strip()
+        db_emp.position = emp.position.strip()
+        db_emp.shift_group = emp.shift_group.strip()
+        db_emp.department = dept
+        if emp.num is not None:
+            db_emp.num = emp.num
+        db.commit()
+        return {"status": "ok", "message": "Сотрудник обновлен"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/checklists/employees/{emp_id}")
+def delete_checklist_employee(emp_id: int, db: Session = Depends(get_db)):
+    """Удаляет (деактивирует) сотрудника."""
+    try:
+        db_emp = db.query(models.ChecklistEmployee).filter(models.ChecklistEmployee.id == emp_id).first()
+        if not db_emp:
+            raise HTTPException(status_code=404, detail="Сотрудник не найден")
+        db_emp.is_active = False
+        db.commit()
+        return {"status": "ok", "message": "Сотрудник удален"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/checklists/schedule/all")
+def get_all_shift_schedules(db: Session = Depends(get_db)):
+    """Возвращает весь график сменности."""
+    try:
+        entries = db.query(models.ShiftScheduleEntry).order_by(models.ShiftScheduleEntry.id.asc()).all()
+        if not entries:
+            import google_sheets_integration
+            google_sheets_integration.sync_schedule_from_google_sheets(db)
+            entries = db.query(models.ShiftScheduleEntry).order_by(models.ShiftScheduleEntry.id.asc()).all()
+        return [
+            {
+                "id": e.id,
+                "date_str": e.date_str,
+                "day_of_week": e.day_of_week,
+                "day_shift_group": e.day_shift_group,
+                "night_shift_group": e.night_shift_group,
+                "shift1_status": e.shift1_status,
+                "shift2_status": e.shift2_status,
+                "shift3_status": e.shift3_status,
+                "shift4_status": e.shift4_status
+            }
+            for e in entries
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/checklists/schedule/update_day")
+def update_shift_schedule_day(data: dict, db: Session = Depends(get_db)):
+    """Обновляет смены на конкретную дату."""
+    try:
+        date_str = data.get("date_str")
+        day_shift = data.get("day_shift_group")
+        night_shift = data.get("night_shift_group")
+        
+        entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == date_str).first()
+        if not entry:
+            entry = models.ShiftScheduleEntry(date_str=date_str, day_shift_group=day_shift, night_shift_group=night_shift)
+            db.add(entry)
+        else:
+            if day_shift: entry.day_shift_group = day_shift
+            if night_shift: entry.night_shift_group = night_shift
+        db.commit()
+        return {"status": "ok", "message": f"График на {date_str} обновлен"}
+    except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/checklists/schedule/today")
