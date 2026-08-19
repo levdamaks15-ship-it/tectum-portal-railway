@@ -464,10 +464,10 @@
                         <option value="Дневной персонал">Дневной персонал</option>
                     </select>
                 </div>
-                <div class="form-group" id="position-form-group">
-                    <label>4. Должность / Позиция</label>
-                    <select id="cl-position" class="form-control" onchange="onPositionChange()">
-                        <!-- Loaded based on template & shift -->
+                <div class="form-group" id="dept-form-group">
+                    <label>4. Производственный участок</label>
+                    <select id="cl-department" class="form-control" onchange="onDepartmentChange()">
+                        <!-- Loaded based on active template & factory areas -->
                     </select>
                 </div>
                 <div class="form-group">
@@ -614,12 +614,12 @@
         document.getElementById('inspector-label-text').innerText = `5. ${activeTemplate.inspector_label || "Принимающий (ФИО)"}`;
         document.getElementById('submitter-label-text').innerText = `6. ${activeTemplate.submitter_label || "Сдающий (ФИО)"}`;
 
-        updatePositionsList();
+        updateDepartmentsList();
         renderChecklistItems();
     }
 
     function onShiftGroupChange() {
-        updatePositionsList();
+        updateDepartmentsList();
     }
 
     function getShiftGroupDisplayName(shiftStr) {
@@ -636,90 +636,117 @@
         select.value = norm;
     }
 
-    function updatePositionsList() {
-        const positionSelect = document.getElementById('cl-position');
-        const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
-        const curNum = (currentShiftG.match(/\d+/) || [''])[0];
+    const FACTORY_DEPARTMENTS = [
+        "ЛФМ",
+        "Дестакер",
+        "Стакер",
+        "Заготовительное отделение",
+        "Участок дозировки",
+        "Слесарная мастерская",
+        "Зона ремонта насосов",
+        "Участок ремонта цилиндров",
+        "СКК"
+    ];
 
-        if (!positionSelect || !activeTemplate) return;
+    function updateDepartmentsList() {
+        const deptSelect = document.getElementById('cl-department');
+        if (!deptSelect || !activeTemplate) return;
 
-        // Фильтруем сотрудников текущей смены
-        const shiftEmployees = allEmployees.filter(e => {
-            const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-            return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
-        });
-
-        // Собираем уникальные должности
-        let positions = [];
+        let depts = [];
         if (activeTemplate.code === 'master_shift') {
-            positions = ['Мастер'];
+            depts = ['ЛФМ / Общезаводской'];
         } else if (activeTemplate.code === 'day_inspection') {
-            positions = Array.from(new Set(allEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
-            positions.unshift('Все должности');
+            depts = ['Все участки', ...FACTORY_DEPARTMENTS];
         } else {
-            // worker_shift_handover: берем все рабочие должности текущей смены
-            positions = Array.from(new Set(shiftEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
-            if (positions.length === 0) {
-                positions = Array.from(new Set(allEmployees.map(e => e.position))).filter(p => !p.toLowerCase().includes('мастер'));
-            }
+            depts = FACTORY_DEPARTMENTS;
         }
 
-        positionSelect.innerHTML = positions.map(pos => `<option value="${pos}">${pos}</option>`).join('');
+        deptSelect.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
         
-        filterEmployeesByPosition();
+        filterEmployeesByDepartment();
     }
 
-    function onPositionChange() {
-        filterEmployeesByPosition();
+    function onDepartmentChange() {
+        filterEmployeesByDepartment();
     }
 
-    function filterEmployeesByPosition() {
+    function filterEmployeesByDepartment() {
         const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
         const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
         const curNum = (currentShiftG.match(/\d+/) || [''])[0];
         const prevNum = (prevShiftG.match(/\d+/) || [''])[0];
 
-        const posSelect = document.getElementById('cl-position');
-        const selectedPos = posSelect ? posSelect.value : '';
+        const deptSelect = document.getElementById('cl-department');
+        const selectedDept = deptSelect ? deptSelect.value : '';
 
         const inspectorSelect = document.getElementById('cl-inspector-name');
         const submitterSelect = document.getElementById('cl-submitter-name');
 
         if (!inspectorSelect || !submitterSelect) return;
 
-        // 1. Принимающие (строго из текущей смены и выбранной должности!)
+        // Если это мастерский чек-лист, показываем строго мастеров
+        if (activeTemplate && activeTemplate.code === 'master_shift') {
+            const curMasters = allEmployees.filter(e => {
+                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                return ((curNum && eNum === curNum) || e.shift_group === currentShiftG) && e.position.toLowerCase().includes('мастер');
+            });
+            const prevMasters = allEmployees.filter(e => {
+                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                return ((prevNum && eNum === prevNum) || e.shift_group === prevShiftG) && e.position.toLowerCase().includes('мастер');
+            });
+
+            inspectorSelect.innerHTML = curMasters.length ? curMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') : '<option value="">-- Нет мастера --</option>';
+            submitterSelect.innerHTML = prevMasters.length ? prevMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') : '<option value="">-- Нет мастера --</option>';
+            return;
+        }
+
+        // Фильтрация по участку
+        function matchDept(emp) {
+            if (!selectedDept || selectedDept === 'Все участки') return true;
+            const p = emp.position.toLowerCase();
+            if (selectedDept === 'ЛФМ') return p.includes('машин') || p.includes('помощник') || p.includes('лфм');
+            if (selectedDept === 'Дестакер') return p.includes('дестакер');
+            if (selectedDept === 'Стакер') return p.includes('стакер') && !p.includes('дестакер');
+            if (selectedDept === 'Заготовительное отделение') return p.includes('зо') || p.includes('целлюлоз') || p.includes('рекуператор');
+            if (selectedDept === 'Участок дозировки') return p.includes('дозиров');
+            if (selectedDept === 'Слесарная мастерская') return p.includes('слесар') || p.includes('электрик');
+            if (selectedDept === 'Зона ремонта насосов') return p.includes('насос');
+            if (selectedDept === 'Участок ремонта цилиндров') return p.includes('цилиндр');
+            if (selectedDept === 'СКК') return p.includes('лаборант') || p.includes('отк') || p.includes('скк');
+            return true;
+        }
+
+        // 1. Принимающие (из текущей смены и выбранного участка)
         let curShiftEmployees = allEmployees.filter(e => {
             const eNum = (e.shift_group.match(/\d+/) || [''])[0];
             const matchShift = (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
-            const matchPos = !selectedPos || selectedPos === 'Все должности' || e.position.toLowerCase() === selectedPos.toLowerCase();
-            return matchShift && matchPos;
+            return matchShift && matchDept(e);
         });
 
-        // 2. Сдающие (строго из предыдущей сдающей смены и выбранной должности!)
+        // 2. Сдающие (из сдающей смены и выбранного участка)
         let prevShiftEmployees = allEmployees.filter(e => {
             const eNum = (e.shift_group.match(/\d+/) || [''])[0];
             const matchShift = (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
-            const matchPos = !selectedPos || selectedPos === 'Все должности' || e.position.toLowerCase() === selectedPos.toLowerCase();
-            return matchShift && matchPos;
+            return matchShift && matchDept(e);
         });
 
-        // Формируем выпадающий список принимающих
+        // Формируем списки
         if (curShiftEmployees.length === 0) {
-            inspectorSelect.innerHTML = '<option value="">-- Нет сотрудников на позиции --</option>';
-        } else {
-            inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
+            // Если на конкретном участке нет людей в смене, показываем всех из текущей смены
+            curShiftEmployees = allEmployees.filter(e => {
+                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
+                return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
+            });
         }
+        inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
 
-        // Формируем выпадающий список сдающих
         if (prevShiftEmployees.length === 0) {
-            const allPrev = allEmployees.filter(e => {
+            prevShiftEmployees = allEmployees.filter(e => {
                 const eNum = (e.shift_group.match(/\d+/) || [''])[0];
                 return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
             });
-            submitterSelect.innerHTML = allPrev.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
-        } else {
-            submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
         }
+        submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('');
     }
 
     function onInspectorChange() {}
@@ -739,7 +766,7 @@
             setShiftGroupValue(curG);
             document.getElementById('duty-shift-badge').innerText = `Дежурит: ${getShiftGroupDisplayName(curG)} (${scheduleInfo.shift_name})`;
 
-            updatePositionsList();
+            updateDepartmentsList();
         }
     }
 
@@ -819,7 +846,7 @@
             };
         });
 
-        const posVal = document.getElementById('cl-position') ? document.getElementById('cl-position').value : '';
+        const deptVal = document.getElementById('cl-department') ? document.getElementById('cl-department').value : activeTemplate.department;
 
         const payload = {
             template_code: activeTemplate.code,
@@ -827,11 +854,11 @@
             date_str: dateStr,
             shift_name: shiftName,
             shift_group: shiftGroup,
-            department: activeTemplate.department,
+            department: deptVal,
             inspector_name: inspectorName,
-            inspector_position: posVal,
+            inspector_position: activeTemplate.code === 'master_shift' ? 'Мастер' : deptVal,
             submitter_name: submitterName,
-            submitter_position: posVal,
+            submitter_position: activeTemplate.code === 'master_shift' ? 'Мастер' : deptVal,
             notes: notes,
             items: items
         };

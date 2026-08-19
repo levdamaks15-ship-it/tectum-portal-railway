@@ -6472,6 +6472,7 @@ def get_checklist_employees(db: Session = Depends(get_db)):
                 "id": e.id,
                 "num": e.num,
                 "shift_group": e.shift_group,
+                "department": e.department or "ЛФМ",
                 "position": e.position,
                 "name": e.name
             }

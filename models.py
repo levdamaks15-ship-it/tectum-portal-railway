@@ -347,6 +347,7 @@ class ChecklistEmployee(Base):
     id = Column(Integer, primary_key=True, index=True)
     num = Column(Integer, nullable=True)
     shift_group = Column(String, index=True) # "1-я смена", "2-я смена", "3-я смена", "4-я смена", "Котельная", "Дневной персонал"
+    department = Column(String, index=True, nullable=True) # Участок: "ЛФМ", "Дестакер", "Стакер", "Заготовительное отделение" и т.д.
     position = Column(String, index=True)    # "Мастер", "Машинист", "Оператор дестакера" и т.д.
     name = Column(String, index=True)        # ФИО
     is_active = Column(Boolean, default=True)

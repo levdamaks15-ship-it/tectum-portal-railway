@@ -2300,6 +2300,33 @@ EMPLOYEES_SPREADSHEET_ID = "1QyDBTkU_y-E_pxgOp-l1J5ejvEwcDhBvt7s5GVOv5I8"
 SCHEDULE_SPREADSHEET_ID = "1WOp9ME0ThkQn8Uf7uZ4HZ03PaNtCn2Y65PpuVT0pkME"
 CHECKLISTS_SPREADSHEET_ID = os.getenv("CHECKLISTS_SPREADSHEET_ID") or SPREADSHEET_ID
 
+def get_department_by_position(pos: str, shift_g: str = "") -> str:
+    """Определяет один из 9 утвержденных производственных участков по должности."""
+    p = pos.lower().strip()
+    if "мастер" in p:
+        return "ЛФМ"
+    if "машин" in p or "помощник" in p:
+        return "ЛФМ"
+    if "дозиров" in p:
+        return "Участок дозировки"
+    if "зо" in p or "целлюлоз" in p or "рекуператор" in p:
+        return "Заготовительное отделение"
+    if "стакер" in p and "дестакер" not in p:
+        return "Стакер"
+    if "дестакер" in p:
+        return "Дестакер"
+    if "лаборант" in p or "отк" in p or "скк" in p:
+        return "СКК"
+    if "слесар" in p:
+        return "Слесарная мастерская"
+    if "электрик" in p:
+        return "Слесарная мастерская"
+    if "насос" in p:
+        return "Зона ремонта насосов"
+    if "цилиндр" in p:
+        return "Участок ремонта цилиндров"
+    return "ЛФМ"
+
 def sync_employees_from_google_sheets(db: Session):
     """Импортирует или обновляет список сотрудников из Google Таблицы."""
     import urllib.request, csv, io
@@ -2322,6 +2349,7 @@ def sync_employees_from_google_sheets(db: Session):
             shift_g = r[1].strip()
             pos = r[2].strip()
             name_val = r[3].strip()
+            dept = get_department_by_position(pos, shift_g)
             
             emp = db.query(models.ChecklistEmployee).filter(
                 models.ChecklistEmployee.name == name_val,
@@ -2335,12 +2363,14 @@ def sync_employees_from_google_sheets(db: Session):
                     shift_group=shift_g,
                     position=pos,
                     name=name_val,
+                    department=dept,
                     is_active=True
                 )
                 db.add(emp)
                 count += 1
             else:
                 emp.num = num_val
+                emp.department = dept
                 emp.is_active = True
                 
     db.commit()
