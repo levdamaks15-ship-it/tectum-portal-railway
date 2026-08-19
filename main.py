@@ -6567,7 +6567,7 @@ def get_checklist_templates():
             "code": "master_shift",
             "title": "Чек-лист мастера смены",
             "subtitle": "Проверка состояния оборудования и рабочих мест перед началом смены",
-            "department": "ЛФМ / Дестакер",
+            "department": "Цех ХЦИ",
             "has_submitter": True,
             "inspector_label": "Принимающий смену мастер",
             "submitter_label": "Сдающий смену мастер",
