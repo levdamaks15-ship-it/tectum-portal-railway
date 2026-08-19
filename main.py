@@ -486,7 +486,8 @@ async def lifespan(app: FastAPI):
             ("batches", "qcd_defect_dent", "INTEGER DEFAULT 0"),
             ("batches", "qcd_defect_thickness", "INTEGER DEFAULT 0"),
             ("batches", "qcd_defect_delamination", "INTEGER DEFAULT 0"),
-            ("batches", "qcd_defect_edge", "INTEGER DEFAULT 0")
+            ("batches", "qcd_defect_edge", "INTEGER DEFAULT 0"),
+            ("checklist_employees", "department", "VARCHAR(255)")
         ]
         try:
             with engine.connect() as conn:

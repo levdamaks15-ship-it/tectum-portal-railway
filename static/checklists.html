@@ -565,10 +565,10 @@
             document.getElementById('cl-shift-name').value = scheduleInfo.shift_name;
             
             if (scheduleInfo.current_shift_group) {
-                setShiftGroupValue(scheduleInfo.current_shift_group);
+                setShiftGroupValue(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group);
                 const dutyBadge = document.getElementById('duty-shift-badge');
                 if (dutyBadge) {
-                    dutyBadge.innerText = `Дежурит: ${getShiftGroupDisplayName(scheduleInfo.current_shift_group)} (${scheduleInfo.shift_name})`;
+                    dutyBadge.innerText = `Дежурит: ${getShiftPairDisplayName(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group)} (${scheduleInfo.shift_name})`;
                 }
             }
 
@@ -622,18 +622,30 @@
         updateDepartmentsList();
     }
 
-    function getShiftGroupDisplayName(shiftStr) {
-        if (!shiftStr) return '';
-        const num = (shiftStr.match(/\d+/) || [''])[0];
-        if (num) return `${num}-я смена`;
-        return shiftStr;
+    function getShiftPairDisplayName(curShiftStr, prevShiftStr) {
+        const curNum = (curShiftStr ? curShiftStr.match(/\d+/) || [''] : [''])[0];
+        const prevNum = (prevShiftStr ? prevShiftStr.match(/\d+/) || [''] : [''])[0];
+        if (curNum && prevNum) {
+            return `Смена ${curNum} (прием) ➔ Смена ${prevNum} (сдача)`;
+        }
+        return getShiftGroupDisplayName(curShiftStr);
     }
 
-    function setShiftGroupValue(shiftStr) {
+    function setShiftGroupValue(curShiftStr, prevShiftStr) {
         const select = document.getElementById('cl-shift-group');
         if (!select) return;
-        const norm = getShiftGroupDisplayName(shiftStr);
-        select.value = norm;
+        const curNorm = getShiftGroupDisplayName(curShiftStr);
+        const pairLabel = getShiftPairDisplayName(curShiftStr, prevShiftStr);
+        
+        // Добавляем или обновляем кастомную опцию с парой смен
+        let opt = Array.from(select.options).find(o => o.value === curNorm);
+        if (opt) {
+            opt.innerText = pairLabel;
+            select.value = curNorm;
+        } else {
+            select.innerHTML = `<option value="${curNorm}" selected>${pairLabel}</option>` + select.innerHTML;
+            select.value = curNorm;
+        }
     }
 
     const FACTORY_DEPARTMENTS = [
@@ -687,16 +699,26 @@
         // Если это мастерский чек-лист, показываем строго мастеров
         if (activeTemplate && activeTemplate.code === 'master_shift') {
             const curMasters = allEmployees.filter(e => {
-                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-                return ((curNum && eNum === curNum) || e.shift_group === currentShiftG) && e.position.toLowerCase().includes('мастер');
+                const eNum = (e.shift_group ? e.shift_group.match(/\d+/) || [''] : [''])[0];
+                const isMaster = e.position && e.position.toLowerCase().includes('мастер');
+                return isMaster && (eNum === curNum || e.shift_group === currentShiftG);
             });
             const prevMasters = allEmployees.filter(e => {
-                const eNum = (e.shift_group.match(/\d+/) || [''])[0];
-                return ((prevNum && eNum === prevNum) || e.shift_group === prevShiftG) && e.position.toLowerCase().includes('мастер');
+                const eNum = (e.shift_group ? e.shift_group.match(/\d+/) || [''] : [''])[0];
+                const isMaster = e.position && e.position.toLowerCase().includes('мастер');
+                return isMaster && (eNum === prevNum || e.shift_group === prevShiftG);
             });
 
-            inspectorSelect.innerHTML = curMasters.length ? curMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') : '<option value="">-- Нет мастера --</option>';
-            submitterSelect.innerHTML = prevMasters.length ? prevMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') : '<option value="">-- Нет мастера --</option>';
+            // Если не нашли по номеру смены, ищем любого мастера
+            const allMasters = allEmployees.filter(e => e.position && e.position.toLowerCase().includes('мастер'));
+
+            inspectorSelect.innerHTML = curMasters.length 
+                ? curMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') 
+                : allMasters.map(e => `<option value="${e.name}">${e.name} (${e.position} - ${e.shift_group})</option>`).join('');
+
+            submitterSelect.innerHTML = prevMasters.length 
+                ? prevMasters.map(e => `<option value="${e.name}">${e.name} (${e.position})</option>`).join('') 
+                : allMasters.map(e => `<option value="${e.name}">${e.name} (${e.position} - ${e.shift_group})</option>`).join('');
             return;
         }
 
@@ -763,8 +785,8 @@
             scheduleInfo.prev_shift_group = prevG;
             scheduleInfo.shift_name = isDay ? 'День' : 'Ночь';
 
-            setShiftGroupValue(curG);
-            document.getElementById('duty-shift-badge').innerText = `Дежурит: ${getShiftGroupDisplayName(curG)} (${scheduleInfo.shift_name})`;
+            setShiftGroupValue(curG, prevG);
+            document.getElementById('duty-shift-badge').innerText = `Дежурит: ${getShiftPairDisplayName(curG, prevG)} (${scheduleInfo.shift_name})`;
 
             updateDepartmentsList();
         }
