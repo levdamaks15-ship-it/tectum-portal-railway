@@ -652,12 +652,14 @@
         "ЛФМ",
         "Дестакер",
         "Стакер",
-        "Заготовительное отделение",
+        "Заготовительное отделение (ЗО)",
+        "Рекуператоры и целлюлоза",
         "Участок дозировки",
+        "Сменные ремслужбы",
+        "СКК",
         "Слесарная мастерская",
         "Зона ремонта насосов",
-        "Участок ремонта цилиндров",
-        "СКК"
+        "Участок ремонта цилиндров"
     ];
 
     function updateDepartmentsList() {
@@ -725,13 +727,15 @@
         // Фильтрация по участку
         function matchDept(emp) {
             if (!selectedDept || selectedDept === 'Все участки') return true;
+            if (emp.department && emp.department.toLowerCase() === selectedDept.toLowerCase()) return true;
             const p = emp.position.toLowerCase();
-            if (selectedDept === 'ЛФМ') return p.includes('машин') || p.includes('помощник') || p.includes('лфм');
+            if (selectedDept === 'ЛФМ') return p.includes('машин') || p.includes('помощник');
             if (selectedDept === 'Дестакер') return p.includes('дестакер');
             if (selectedDept === 'Стакер') return p.includes('стакер') && !p.includes('дестакер');
-            if (selectedDept === 'Заготовительное отделение') return p.includes('зо') || p.includes('целлюлоз') || p.includes('рекуператор');
+            if (selectedDept.includes('Рекуператор') || selectedDept.includes('целлюлоз')) return p.includes('целлюлоз') || p.includes('рекуператор');
+            if (selectedDept.includes('Заготовительное') || selectedDept.includes('ЗО')) return p.includes('зо') && !p.includes('целлюлоз');
             if (selectedDept === 'Участок дозировки') return p.includes('дозиров');
-            if (selectedDept === 'Слесарная мастерская') return p.includes('слесар') || p.includes('электрик');
+            if (selectedDept.includes('Сменные ремслужбы') || selectedDept.includes('Слесарная')) return p.includes('слесар') || p.includes('электрик');
             if (selectedDept === 'Зона ремонта насосов') return p.includes('насос');
             if (selectedDept === 'Участок ремонта цилиндров') return p.includes('цилиндр');
             if (selectedDept === 'СКК') return p.includes('лаборант') || p.includes('отк') || p.includes('скк');

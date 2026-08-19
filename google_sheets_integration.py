@@ -2301,31 +2301,35 @@ SCHEDULE_SPREADSHEET_ID = "1WOp9ME0ThkQn8Uf7uZ4HZ03PaNtCn2Y65PpuVT0pkME"
 CHECKLISTS_SPREADSHEET_ID = os.getenv("CHECKLISTS_SPREADSHEET_ID") or SPREADSHEET_ID
 
 def get_department_by_position(pos: str, shift_g: str = "") -> str:
-    """Определяет один из 9 утвержденных производственных участков по должности."""
+    """Определяет утвержденный производственный участок по должности."""
     p = pos.lower().strip()
     if "мастер" in p:
-        return "ЛФМ"
+        return "Цех ХЦИ"
     if "машин" in p or "помощник" in p:
         return "ЛФМ"
-    if "дозиров" in p:
-        return "Участок дозировки"
-    if "зо" in p or "целлюлоз" in p or "рекуператор" in p:
-        return "Заготовительное отделение"
-    if "стакер" in p and "дестакер" not in p:
-        return "Стакер"
     if "дестакер" in p:
         return "Дестакер"
+    if "стакер" in p:
+        return "Стакер"
+    if "целлюлоз" in p or "рекуператор" in p:
+        return "Рекуператоры и целлюлоза"
+    if "зо" in p or "заготовительн" in p:
+        return "Заготовительное отделение (ЗО)"
+    if "дозиров" in p:
+        return "Участок дозировки"
+    if "дежурный слесарь" in p or "дежурный электрик" in p or "слесар" in p or "электрик" in p:
+        return "Сменные ремслужбы"
     if "лаборант" in p or "отк" in p or "скк" in p:
         return "СКК"
-    if "слесар" in p:
-        return "Слесарная мастерская"
-    if "электрик" in p:
-        return "Слесарная мастерская"
+    if "котельн" in p:
+        return "Котельная"
     if "насос" in p:
         return "Зона ремонта насосов"
     if "цилиндр" in p:
         return "Участок ремонта цилиндров"
-    return "ЛФМ"
+    if "мастерская" in p:
+        return "Слесарная мастерская"
+    return "Цех ХЦИ"
 
 def sync_employees_from_google_sheets(db: Session):
     """Импортирует или обновляет список сотрудников из Google Таблицы."""
