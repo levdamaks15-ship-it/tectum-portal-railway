@@ -2435,7 +2435,11 @@ def sync_schedule_from_google_sheets(db: Session):
 
 def export_checklists_to_google_sheets(db: Session):
     """
-    Выгружает заполненные чек-листы в отдельную Google Таблицу на лист 'Чек-листы (Премирование)'
+    Выгружает заполненные чек-листы в отдельную Google Таблицу с разделением по листам:
+    1. 'Сводный журнал' (все чек-листы)
+    2. 'Чек-листы Мастеров' (мастера ХЦИ)
+    3. 'Чек-листы Рабочих' (сменные рабочие по участкам)
+    4. 'Инспекции ИТР' (дневные проверки и аудит)
     """
     target_id = CHECKLISTS_SPREADSHEET_ID
     if not target_id or target_id.startswith("1_mock"):
@@ -2443,9 +2447,6 @@ def export_checklists_to_google_sheets(db: Session):
         
     try:
         service = get_sheets_service()
-        sheet_title = "Чек-листы (Премирование)"
-        sheet_id = get_or_create_sheet(service, target_id, sheet_title)
-        
         submissions = db.query(models.ChecklistSubmission).order_by(models.ChecklistSubmission.created_at.desc()).all()
         
         headers = [
@@ -2453,10 +2454,8 @@ def export_checklists_to_google_sheets(db: Session):
             "Тип чек-листа", "Участок", "Принимающий / Проверяющий", "Сдающий",
             "Статус", "Кол-во замечаний", "Выявленные замечания / Пункты с дефектами", "Общие примечания"
         ]
-        
-        rows_data = [headers]
-        for sub in submissions:
-            # Парсим JSON пунктов
+
+        def build_row(sub):
             defects_list = []
             try:
                 items = json.loads(sub.items_data or "[]")
@@ -2469,10 +2468,9 @@ def export_checklists_to_google_sheets(db: Session):
                 
             defects_str = "\n".join(defects_list) if defects_list else "— Нет замечаний (Норма)"
             status_display = "Замечания" if sub.remarks_count > 0 else "Норма"
-            
             created_time_str = sub.created_at.strftime("%H:%M:%S") if sub.created_at else ""
             
-            rows_data.append([
+            return [
                 str(sub.id),
                 sub.date_str or "",
                 created_time_str,
@@ -2486,78 +2484,105 @@ def export_checklists_to_google_sheets(db: Session):
                 str(sub.remarks_count),
                 defects_str,
                 sub.notes or ""
-            ])
+            ]
+
+        # Группировка записей по листам
+        all_rows = [headers] + [build_row(s) for s in submissions]
+        
+        master_subs = [s for s in submissions if s.template_code == "master_shift" or "мастер" in (s.template_title or "").lower()]
+        master_rows = [headers] + [build_row(s) for s in master_subs]
+
+        worker_subs = [s for s in submissions if s.template_code == "worker_shift_handover" or "рабоч" in (s.template_title or "").lower()]
+        worker_rows = [headers] + [build_row(s) for s in worker_subs]
+
+        day_subs = [s for s in submissions if s.template_code == "day_inspection" or "дневн" in (s.template_title or "").lower() or "итр" in (s.template_title or "").lower()]
+        day_rows = [headers] + [build_row(s) for s in day_subs]
+
+        sheets_to_sync = [
+            {"title": "Чек-листы (Премирование)", "rows": all_rows, "color": {"red": 0.12, "green": 0.35, "blue": 0.65}},
+            {"title": "Чек-листы Мастеров", "rows": master_rows, "color": {"red": 0.18, "green": 0.45, "blue": 0.25}},
+            {"title": "Чек-листы Рабочих", "rows": worker_rows, "color": {"red": 0.85, "green": 0.45, "blue": 0.12}},
+            {"title": "Инспекции ИТР", "rows": day_rows, "color": {"red": 0.45, "green": 0.22, "blue": 0.65}}
+        ]
+
+        for item in sheets_to_sync:
+            stitle = item["title"]
+            srows = item["rows"]
+            header_color = item["color"]
             
-        # Очищаем и записываем
-        service.spreadsheets().values().clear(
-            spreadsheetId=target_id,
-            range=f"'{sheet_title}'!A1:Z{max(len(rows_data)+10, 100)}"
-        ).execute()
-        
-        service.spreadsheets().values().update(
-            spreadsheetId=target_id,
-            range=f"'{sheet_title}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows_data}
-        ).execute()
-        
-        # Форматирование
-        requests = [
-            {
-                "repeatCell": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": 1,
-                        "startColumnIndex": 0,
-                        "endColumnIndex": len(headers)
-                    },
-                    "cell": {
-                        "userEnteredFormat": {
-                            "backgroundColor": {"red": 0.12, "green": 0.35, "blue": 0.65},
-                            "textFormat": {
-                                "bold": True,
-                                "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
-                                "fontSize": 11,
-                                "fontFamily": "Calibri"
-                            },
-                            "horizontalAlignment": "CENTER",
-                            "verticalAlignment": "MIDDLE"
+            sheet_id = get_or_create_sheet(service, target_id, stitle)
+            
+            # Очищаем и записываем
+            service.spreadsheets().values().clear(
+                spreadsheetId=target_id,
+                range=f"'{stitle}'!A1:Z{max(len(srows)+10, 100)}"
+            ).execute()
+            
+            service.spreadsheets().values().update(
+                spreadsheetId=target_id,
+                range=f"'{stitle}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": srows}
+            ).execute()
+            
+            # Форматирование
+            requests = [
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 1,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": len(headers)
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "backgroundColor": header_color,
+                                "textFormat": {
+                                    "bold": True,
+                                    "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                                    "fontSize": 11,
+                                    "fontFamily": "Calibri"
+                                },
+                                "horizontalAlignment": "CENTER",
+                                "verticalAlignment": "MIDDLE"
+                            }
+                        },
+                        "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                    }
+                },
+                {
+                    "updateBorders": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": len(srows),
+                            "startColumnIndex": 0,
+                            "endColumnIndex": len(headers)
+                        },
+                        "top": {"style": "SOLID"},
+                        "bottom": {"style": "SOLID"},
+                        "left": {"style": "SOLID"},
+                        "right": {"style": "SOLID"},
+                        "innerHorizontal": {"style": "SOLID"},
+                        "innerVertical": {"style": "SOLID"}
+                    }
+                },
+                {
+                    "autoResizeDimensions": {
+                        "dimensions": {
+                            "sheetId": sheet_id,
+                            "dimension": "COLUMNS",
+                            "startIndex": 0,
+                            "endIndex": len(headers)
                         }
-                    },
-                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
-                }
-            },
-            {
-                "updateBorders": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": len(rows_data),
-                        "startColumnIndex": 0,
-                        "endColumnIndex": len(headers)
-                    },
-                    "top": {"style": "SOLID"},
-                    "bottom": {"style": "SOLID"},
-                    "left": {"style": "SOLID"},
-                    "right": {"style": "SOLID"},
-                    "innerHorizontal": {"style": "SOLID"},
-                    "innerVertical": {"style": "SOLID"}
-                }
-            },
-            {
-                "autoResizeDimensions": {
-                    "dimensions": {
-                        "sheetId": sheet_id,
-                        "dimension": "COLUMNS",
-                        "startIndex": 0,
-                        "endIndex": len(headers)
                     }
                 }
-            }
-        ]
-        service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
-        print(f"Экспорт чек-листов в отдельную Google Sheets завершен. Выгружено {len(submissions)} записей.")
+            ]
+            service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
+
+        print(f"Экспорт чек-листов по листам в Google Sheets завершен. Всего выгружено {len(submissions)} записей.")
     except Exception as e:
         print(f"Информация: экспорт в Google Sheets будет выполнен на продакшене через реальный Service Account (локальный ключ mock): {e}")
 
