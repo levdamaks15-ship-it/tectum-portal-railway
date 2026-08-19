@@ -444,18 +444,18 @@
             <div class="meta-grid">
                 <div class="form-group">
                     <label>1. Дата</label>
-                    <input type="text" id="cl-date" class="form-control" placeholder="19.08.2026">
+                    <input type="text" id="cl-date" class="form-control" readonly style="opacity: 0.85; background: var(--cl-card);">
                 </div>
                 <div class="form-group">
                     <label>2. Смена (Время)</label>
-                    <select id="cl-shift-name" class="form-control" onchange="onShiftChange()">
+                    <select id="cl-shift-name" class="form-control" onchange="onShiftChange()" style="font-weight: 700; border-color: var(--cl-primary);">
                         <option value="День">☀️ День (08:00 – 19:00)</option>
                         <option value="Ночь">🌙 Ночь (19:00 – 08:00)</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>3. Дежурная бригада</label>
-                    <select id="cl-shift-group" class="form-control" onchange="onShiftGroupChange()">
+                    <select id="cl-shift-group" class="form-control" disabled style="opacity: 0.85; background: var(--cl-card);">
                         <option value="1-я смена">1-я смена</option>
                         <option value="2-я смена">2-я смена</option>
                         <option value="3-я смена">3-я смена</option>
@@ -471,13 +471,13 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label id="inspector-label-text">5. Принимающий (ФИО)</label>
+                    <label id="inspector-label-text">5. Принимающий смену</label>
                     <select id="cl-inspector-name" class="form-control" onchange="onInspectorChange()">
                         <!-- Loaded from API -->
                     </select>
                 </div>
                 <div class="form-group" id="submitter-form-group">
-                    <label id="submitter-label-text">6. Сдающий (ФИО)</label>
+                    <label id="submitter-label-text">6. Сдающий смену</label>
                     <select id="cl-submitter-name" class="form-control">
                         <!-- Loaded from API -->
                     </select>
@@ -710,15 +710,24 @@
         // При смене принимающего, если есть соответствующий сдающий — автоматически синхронизируем
     }
 
-    function onShiftChange() {
+    async function onShiftChange() {
         const isDay = document.getElementById('cl-shift-name').value === 'День';
+        const targetDate = document.getElementById('cl-date').value;
+
+        // Обновляем данные с бэкенда для выбранной смены или пересчитываем локально
         if (scheduleInfo && scheduleInfo.schedule_entry) {
-            const shiftG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
-            if (shiftG) {
-                document.getElementById('cl-shift-group').value = shiftG;
-                document.getElementById('duty-shift-badge').innerText = `Дежурит: ${shiftG} (${isDay ? 'День' : 'Ночь'})`;
-                filterEmployeesByShift();
-            }
+            const curG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
+            // Сдающая смена: для Дня это прошлая Ночь, для Ночи это сегодняшний День!
+            const prevG = isDay ? (scheduleInfo.prev_shift_group || scheduleInfo.schedule_entry.night_shift_group) : scheduleInfo.schedule_entry.day_shift_group;
+
+            scheduleInfo.current_shift_group = curG;
+            scheduleInfo.prev_shift_group = prevG;
+            scheduleInfo.shift_name = isDay ? 'День' : 'Ночь';
+
+            document.getElementById('cl-shift-group').value = curG;
+            document.getElementById('duty-shift-badge').innerText = `Дежурит: ${curG} (${scheduleInfo.shift_name})`;
+
+            updatePositionsList();
         }
     }
 
