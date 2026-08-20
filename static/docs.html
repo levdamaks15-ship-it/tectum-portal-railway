@@ -1018,14 +1018,34 @@
                 display: none !important; /* Replaced by dropdown on mobile */
             }
 
-            .dropdown-menu-create {
+            .action-buttons {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 0.6rem;
+            }
+
+            .action-buttons > .dropdown-menu-create {
                 flex: 1;
                 width: 100%;
             }
 
-            .dropdown-menu-create .btn-upload-file {
+            #btn-sync-titles {
                 width: 100%;
                 justify-content: center;
+            }
+
+            .cloud-quick-buttons {
+                width: 100%;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.6rem;
+            }
+
+            .cloud-quick-buttons .btn-action {
+                justify-content: center;
+                padding: 0.65rem 0.5rem;
+                font-size: 0.85rem;
             }
 
             .dropdown-content-create {
@@ -1249,18 +1269,25 @@
                     </div>
                 </div>
 
+                <!-- Кнопка Обновить названия сразу после Создать -->
+                <button class="btn-action" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
+                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
+                </button>
+
                 <!-- Standalone buttons on desktop -->
                 <button class="btn-action btn-create-folder btn-upload-file-standalone" onclick="showFolderModal()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
                     <i class="fas fa-folder-plus" style="color: #f59e0b;"></i> Новая папка
                 </button>
 
-                <button class="btn-action" style="background: #1a73e8; color: #fff;" onclick="openAddLinkModal('', 'google')" title="Прикрепить ссылку на Google Таблицу или Документ">
-                    <i class="fab fa-google"></i> Google Документ
-                </button>
+                <div class="cloud-quick-buttons" style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                    <button class="btn-action" style="background: #1a73e8; color: #fff;" onclick="openAddLinkModal('', 'google')" title="Прикрепить ссылку на Google Таблицу или Документ">
+                        <i class="fab fa-google"></i> Google Документ
+                    </button>
 
-                <button class="btn-action" style="background: #0078d4; color: #fff;" onclick="openAddLinkModal('', 'microsoft')" title="Прикрепить ссылку на OneDrive или Excel Online">
-                    <i class="fab fa-microsoft"></i> OneDrive / Excel
-                </button>
+                    <button class="btn-action" style="background: #0078d4; color: #fff;" onclick="openAddLinkModal('', 'microsoft')" title="Прикрепить ссылку на OneDrive или Excel Online">
+                        <i class="fab fa-microsoft"></i> OneDrive / Excel
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1271,11 +1298,8 @@
                 </button>
                 <h1 id="current-folder-name" class="page-title">Главная директория</h1>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-                <button class="btn-action" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="padding: 0.55rem 0.85rem; font-size: 0.88rem; background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-secondary);">
-                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
-                </button>
-                <select id="docs-sort" style="padding: 0.55rem 0.75rem; border-radius: 8px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit; cursor: pointer;" onchange="applySort()">
+            <div>
+                <select id="docs-sort" style="padding: 0.55rem 0.75rem; border-radius: 8px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit; cursor: pointer; width: 100%;" onchange="applySort()">
                     <option value="date_desc">Сначала новые (по дате)</option>
                     <option value="date_asc">Сначала старые (по дате)</option>
                     <option value="name_asc">По имени (А-Я)</option>
