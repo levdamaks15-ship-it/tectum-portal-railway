@@ -5890,16 +5890,11 @@ def add_external_document_link(
         db.rollback()
         return {"status": "error", "message": str(e)}
 
-@app.get("/api/documents/fetch_link_title")
-def fetch_external_link_title(url: str = Query(...)):
-    """
-    Автоматически извлекает реальный заголовок/название файла по ссылке (OneDrive, Google Docs, Sheets, Yandex и др.)
-    """
+def extract_external_link_title_sync(clean_url: str) -> Optional[str]:
+    """Вспомогательная функция для быстрого извлечения названия ссылки"""
     import re
     import html as py_html
-    import json
     
-    clean_url = url.strip()
     if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
         clean_url = "https://" + clean_url
         
@@ -5908,12 +5903,10 @@ def fetch_external_link_title(url: str = Query(...)):
         "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
-    # 1. Поиск идентификатора документа Google
     gdoc_match = re.search(r'docs\.google\.com/(spreadsheets|document|presentation)/d/([a-zA-Z0-9-_]+)', clean_url)
     target_urls_to_try = [clean_url]
     if gdoc_match:
         dtype, doc_id = gdoc_match.group(1), gdoc_match.group(2)
-        # Запрашиваем сначала прямой URL, затем preview/htmlview
         if dtype == "spreadsheets":
             target_urls_to_try = [
                 f"https://docs.google.com/spreadsheets/d/{doc_id}/edit",
@@ -5929,21 +5922,19 @@ def fetch_external_link_title(url: str = Query(...)):
 
     for test_url in target_urls_to_try:
         try:
-            resp = requests.get(test_url, headers=headers, timeout=5, allow_redirects=True)
+            resp = requests.get(test_url, headers=headers, timeout=4, allow_redirects=True)
             if resp.status_code != 200:
                 continue
                 
             text = resp.text
             title = ""
             
-            # 1. itemprop="name" (часто используется Google)
             itemprop_match = re.search(r'<meta\s+itemprop=["\']name["\']\s+content=["\']([^"\']+)["\']', text, re.IGNORECASE)
             if not itemprop_match:
                 itemprop_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+itemprop=["\']name["\']', text, re.IGNORECASE)
             if itemprop_match:
                 title = itemprop_match.group(1).strip()
 
-            # 2. og:title / twitter:title
             if not title:
                 og_match = re.search(r'<meta\s+(?:property|name)=["\'](?:og:title|twitter:title)["\']\s+content=["\']([^"\']+)["\']', text, re.IGNORECASE)
                 if not og_match:
@@ -5951,7 +5942,6 @@ def fetch_external_link_title(url: str = Query(...)):
                 if og_match:
                     title = og_match.group(1).strip()
 
-            # 3. <title>...</title>
             if not title:
                 title_match = re.search(r'<title>(.*?)</title>', text, re.IGNORECASE | re.DOTALL)
                 if title_match:
@@ -5959,7 +5949,6 @@ def fetch_external_link_title(url: str = Query(...)):
                     
             if title:
                 title = py_html.unescape(title)
-                # Очистка мусора и брендинга
                 for suffix in [
                     " - Google Таблицы", " - Google Документы", " - Google Презентации", 
                     " - Google Диск", " - Google Sheets", " - Google Docs", " - Google Drive",
@@ -5968,13 +5957,59 @@ def fetch_external_link_title(url: str = Query(...)):
                     if title.endswith(suffix):
                         title = title[:-len(suffix)].strip()
                 
-                # Игнорируем стандартные страницы входа
                 if title and not any(bad in title.lower() for bad in ["вход", "войти", "sign in", "login", "google accounts"]):
-                    return {"status": "success", "title": title}
-        except Exception as e:
+                    return title
+        except Exception:
             continue
-            
+    return None
+
+@app.get("/api/documents/fetch_link_title")
+def fetch_external_link_title(url: str = Query(...)):
+    """
+    Автоматически извлекает реальный заголовок/название файла по ссылке (OneDrive, Google Docs, Sheets, Yandex и др.)
+    """
+    title = extract_external_link_title_sync(url)
+    if title:
+        return {"status": "success", "title": title}
     return {"status": "error", "message": "Не удалось автоматически извлечь заголовок"}
+
+@app.post("/api/documents/sync_external_titles")
+def sync_external_documents_titles(
+    parent_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Фоновая синхронизация и актуализация названий документов по внешним облачным ссылкам
+    """
+    try:
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        query = db.query(models.Document).filter(models.Document.external_url != None)
+        if cat_id is not None:
+            query = query.filter(models.Document.category_id == cat_id)
+        elif parent_id == "root":
+            query = query.filter(models.Document.category_id == None)
+            
+        docs = query.all()
+        updated_count = 0
+        
+        for doc in docs:
+            if not doc.external_url:
+                continue
+            new_title = extract_external_link_title_sync(doc.external_url)
+            if new_title and new_title != doc.title:
+                doc.title = new_title
+                updated_count += 1
+                
+        if updated_count > 0:
+            db.commit()
+            
+        return {"status": "success", "updated_count": updated_count}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
 
 @app.post("/api/documents/folders")
 def create_document_folder(
