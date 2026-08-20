@@ -1177,7 +1177,7 @@
         <button class="mobile-menu-btn" onclick="toggleDocsSidebar()" aria-label="Открыть разделы" title="Папки">
             <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="mobile-brand">
+        <div class="mobile-brand" onclick="navigateToRootFolder()" style="cursor: pointer;" title="На главную директорию">
             <i class="fas fa-folder-tree"></i>
             <span>База Знаний</span>
         </div>
@@ -1185,7 +1185,7 @@
             <button class="mobile-menu-btn" onclick="toggleDocsTheme()" id="docs-mobile-theme-btn" title="Сменить тему">
                 <span class="theme-icon">🌓</span>
             </button>
-            <button class="mobile-menu-btn" onclick="window.location.href='/static/index.html'" title="На главную">
+            <button class="mobile-menu-btn" onclick="window.location.href='/static/index.html'" title="На главный портал">
                 <i class="fas fa-home"></i>
             </button>
         </div>
@@ -1197,7 +1197,7 @@
     <!-- Sidebar Tree Navigation -->
     <div class="docs-sidebar" id="docs-sidebar">
         <div class="sidebar-header-row">
-            <div class="sidebar-brand">
+            <div class="sidebar-brand" onclick="navigateToRootFolder()" style="cursor: pointer; user-select: none;" title="На главную директорию">
                 <i class="fas fa-folder-tree"></i> База Знаний
             </div>
             <button class="mobile-sidebar-close" onclick="toggleDocsSidebar(false)" aria-label="Закрыть">
@@ -1651,12 +1651,36 @@
             window.open(finalUrl, '_blank');
         }
 
+        function navigateToRootFolder() {
+            parentFolderIdHistory = [];
+            folderNameHistory = [];
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = '';
+            document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
+            loadDocuments(null, 'Главная директория', false);
+        }
+
         const docsCache = new Map();
 
         async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
             currentFolderProtected = isProtected;
             const container = document.getElementById('files-container');
             const cacheKey = searchQuery ? `search_${searchQuery}` : (folderId || 'root');
+            
+            // Сохраняем текущую папку в URL hash для сохранения позиции при F5
+            if (!searchQuery) {
+                if (folderId) {
+                    window.location.hash = folderId;
+                    sessionStorage.setItem('last_docs_folder_id', folderId);
+                    sessionStorage.setItem('last_docs_folder_name', folderName);
+                    sessionStorage.setItem('last_docs_folder_protected', isProtected ? '1' : '0');
+                } else {
+                    history.replaceState(null, null, ' ');
+                    sessionStorage.removeItem('last_docs_folder_id');
+                    sessionStorage.removeItem('last_docs_folder_name');
+                    sessionStorage.removeItem('last_docs_folder_protected');
+                }
+            }
             
             // Stale-While-Revalidate: If cached data exists and is under 60s old, show immediately
             if (docsCache.has(cacheKey) && !searchQuery) {
@@ -2601,7 +2625,19 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
-            loadDocuments();
+            
+            // Восстановление позиции папки при обновлении страницы (F5)
+            const hash = window.location.hash ? window.location.hash.substring(1) : null;
+            const savedFolderId = hash || sessionStorage.getItem('last_docs_folder_id');
+            const savedFolderName = sessionStorage.getItem('last_docs_folder_name') || 'Папка';
+            const savedProtected = sessionStorage.getItem('last_docs_folder_protected') === '1';
+
+            if (savedFolderId) {
+                expandedFolders.add(savedFolderId);
+                loadDocuments(savedFolderId, savedFolderName, false, null, savedProtected);
+            } else {
+                loadDocuments();
+            }
             loadSidebarTree();
         });
     </script>
