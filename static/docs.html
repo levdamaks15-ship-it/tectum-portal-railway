@@ -1345,7 +1345,31 @@
                 </button>
             </div>
         </div>
+    <!-- Модальное окно: Ввод пароля к защищенному разделу / действию -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 1rem auto;">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h3 style="margin-bottom: 0.5rem;">Доступ защищен</h3>
+            <p style="font-size: 0.88rem; color: var(--docs-text-muted); margin-bottom: 1.25rem;">Введите пароль для доступа к этому разделу или документу:</p>
+            <div class="form-group" style="text-align: left;">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="password" id="folder-password-input" placeholder="Введите пароль..." style="padding-right: 40px;" onkeydown="if(event.key==='Enter') submitPasswordModal(true)">
+                    <button type="button" onclick="togglePasswordVisibility('folder-password-input', this)" style="position: absolute; right: 10px; background: none; border: none; color: var(--docs-text-muted); cursor: pointer; padding: 4px; font-size: 0.95rem;">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions" style="justify-content: center; gap: 0.75rem; margin-top: 1.25rem;">
+                <button class="btn-cancel" onclick="submitPasswordModal(false)">Отмена</button>
+                <button class="btn-action" onclick="submitPasswordModal(true)" style="background: #ef4444; color: #fff;">
+                    <i class="fas fa-key"></i> Подтвердить
+                </button>
+            </div>
+        </div>
     </div>
+
 
     <!-- Контекстное меню (Google Drive Style / Mobile Bottom Sheet) -->
     <div id="custom-context-menu" class="context-menu"></div>
@@ -1549,15 +1573,67 @@
 
         let currentFolderProtected = false;
 
+        let passwordModalResolve = null;
+
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (icon) {
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                }
+            } else {
+                input.type = 'password';
+                if (icon) {
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            }
+        }
+
+        function submitPasswordModal(isConfirmed) {
+            const modal = document.getElementById('password-modal');
+            const input = document.getElementById('folder-password-input');
+            const pwd = input ? input.value : '';
+            if (modal) modal.style.display = 'none';
+            if (input) input.value = '';
+
+            if (passwordModalResolve) {
+                if (isConfirmed && pwd.trim()) {
+                    sessionStorage.setItem('folder_password', pwd.trim());
+                    passwordModalResolve(true);
+                } else {
+                    passwordModalResolve(false);
+                }
+                passwordModalResolve = null;
+            }
+        }
+
         async function ensurePassword(isProtected) {
             if (!isProtected) return true;
             let pwd = sessionStorage.getItem('folder_password');
-            if (!pwd) {
-                pwd = prompt("Для этого действия требуется пароль. Введите пароль:");
-                if (!pwd) return false;
-                sessionStorage.setItem('folder_password', pwd);
-            }
-            return true;
+            if (pwd) return true;
+
+            return new Promise((resolve) => {
+                passwordModalResolve = resolve;
+                const modal = document.getElementById('password-modal');
+                const input = document.getElementById('folder-password-input');
+                if (input) {
+                    input.type = 'password';
+                    input.value = '';
+                }
+                if (modal) {
+                    modal.style.display = 'flex';
+                    setTimeout(() => {
+                        if (input) input.focus();
+                    }, 50);
+                } else {
+                    resolve(false);
+                }
+            });
         }
 
         async function openFileLink(viewUrl, isProtected, event) {
