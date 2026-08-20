@@ -121,7 +121,7 @@ class DowntimeBase(ORMBaseModel):
     end_time: Optional[str] = None
     category: Optional[str] = None
     department: Optional[str] = None
-    node: str
+    node: Optional[str] = "Основное оборудование"
     description: Optional[str] = None
     comment: Optional[str] = None
     media_urls: Optional[str] = None

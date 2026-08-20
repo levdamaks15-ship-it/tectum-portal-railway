@@ -2768,11 +2768,11 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     if not shift: raise HTTPException(404)
     
     duration = 0
-    if data.end_time:
+    if data.end_time and data.start_time:
         fmt = "%H:%M"
         try:
-            t_start = datetime.strptime(data.start_time, fmt)
-            t_end = datetime.strptime(data.end_time, fmt)
+            t_start = datetime.strptime(data.start_time.strip(), fmt)
+            t_end = datetime.strptime(data.end_time.strip(), fmt)
             if t_end < t_start:
                 duration = int((t_end.timestamp() + 24*3600 - t_start.timestamp()) / 60)
             else:
@@ -2781,24 +2781,28 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
             duration = 0
             
     lost_tons, lost_tenge = calculate_downtime_losses(duration, shift, db)
-    
     status = "resolved" if data.end_time else "pending"
     
-    category_val = data.category
-    if not category_val and data.department and data.node and data.description:
-        dir_entry = db.query(models.DowntimeDirectory).filter(
-            models.DowntimeDirectory.department == data.department,
-            models.DowntimeDirectory.node == data.node,
-            models.DowntimeDirectory.breakdown == data.description
-        ).first()
-        if dir_entry and dir_entry.category:
-            category_val = dir_entry.category
-        else:
-            from import_downtimes_from_txt import get_category
-            category_val = get_category(data.description, data.node, data.department)
-
-    dt_data = data.model_dump(exclude={"status", "category"})
+    desc_text = (data.description or data.comment or "").strip()
+    
+    from import_downtimes_from_txt import categorize_and_parse_downtime
+    auto_cat, auto_node, auto_dept, auto_is_equip = categorize_and_parse_downtime(
+        desc_text, 
+        is_equipment=data.is_equipment_downtime if data.is_equipment_downtime is not None else True
+    )
+    
+    category_val = data.category or auto_cat
+    node_val = data.node if (data.node and data.node != "Основное оборудование" and data.node != "Разное") else auto_node
+    dept_val = data.department or auto_dept
+    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else auto_is_equip
+    
+    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime"})
+    dt_data["description"] = desc_text
+    dt_data["comment"] = data.comment or desc_text
     dt_data["category"] = category_val
+    dt_data["node"] = node_val
+    dt_data["department"] = dept_val
+    dt_data["is_equipment_downtime"] = is_equipment_val
     
     db_dt = models.Downtime(
         **dt_data,
@@ -2821,7 +2825,7 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404)
     
-    if user_role != "admin" and dt.created_at:
+    if user_role not in ["admin", "master", "mechanic", "technologist", "director"] and dt.created_at:
         time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
         if time_diff > 1800:
             raise HTTPException(
@@ -2830,11 +2834,11 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
             )
     
     duration = 0
-    if data.end_time:
+    if data.end_time and data.start_time:
         fmt = "%H:%M"
         try:
-            t_start = datetime.strptime(data.start_time, fmt)
-            t_end = datetime.strptime(data.end_time, fmt)
+            t_start = datetime.strptime(data.start_time.strip(), fmt)
+            t_end = datetime.strptime(data.end_time.strip(), fmt)
             if t_end < t_start:
                 duration = int((t_end.timestamp() + 24*3600 - t_start.timestamp()) / 60)
             else:
@@ -2847,37 +2851,41 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
         shift = db.query(models.Shift).get(dt.shift_id)
         
     lost_tons, lost_tenge = calculate_downtime_losses(duration, shift, db)
-    
     status = "resolved" if data.end_time else "pending"
     
-    category_val = data.category
-    if not category_val and data.department and data.node and data.description:
-        dir_entry = db.query(models.DowntimeDirectory).filter(
-            models.DowntimeDirectory.department == data.department,
-            models.DowntimeDirectory.node == data.node,
-            models.DowntimeDirectory.breakdown == data.description
-        ).first()
-        if dir_entry and dir_entry.category:
-            category_val = dir_entry.category
-        else:
-            from import_downtimes_from_txt import get_category
-            category_val = get_category(data.description, data.node, data.department)
-            
+    desc_text = (data.description or data.comment or "").strip()
+    
+    from import_downtimes_from_txt import categorize_and_parse_downtime
+    auto_cat, auto_node, auto_dept, auto_is_equip = categorize_and_parse_downtime(
+        desc_text,
+        is_equipment=data.is_equipment_downtime if data.is_equipment_downtime is not None else True
+    )
+    
+    category_val = data.category or auto_cat
+    node_val = data.node if (data.node and data.node != "Основное оборудование" and data.node != "Разное") else auto_node
+    dept_val = data.department or auto_dept
+    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else auto_is_equip
+    
     dt.start_time = data.start_time
     dt.end_time = data.end_time
+    dt.description = desc_text
+    dt.comment = data.comment or desc_text
     dt.category = category_val
-    dt.department = data.department
-    dt.node = data.node
-    dt.description = data.description
+    dt.department = dept_val
+    dt.node = node_val
     dt.media_urls = data.media_urls
-    dt.is_equipment_downtime = data.is_equipment_downtime
+    dt.is_equipment_downtime = is_equipment_val
     dt.duration = duration
     dt.lost_tons = lost_tons
     dt.lost_tenge = lost_tenge
     dt.status = status
-    
+    if data.breakdowns:
+        dt.breakdowns = data.breakdowns
+        
     db.commit()
     db.refresh(dt)
+    background_tasks.add_task(sync_downtimes_bg)
+    return dt
     background_tasks.add_task(sync_downtimes_bg)
     return dt
 

@@ -1660,71 +1660,121 @@ async function onJournalDeptChange() {
     }
 }
 
-async function onJournalNodeChange() {
-    const dept = document.getElementById('journal-dt-dept').value;
-    const node = document.getElementById('journal-dt-node').value;
-    const selectBk = document.getElementById('journal-dt-breakdown');
-    if (!dept || !node) {
-        selectBk.innerHTML = '<option value="">-- Сначала выберите узел --</option>';
+function formatDurationHM(minutes) {
+    if (!minutes || minutes <= 0) return '0:00';
+    const h = Math.floor(minutes / 60);
+    const m = Math.floor(minutes % 60);
+    return `${h}:${m < 10 ? '0' : ''}${m}`;
+}
+
+function parseDurationMinutes(startTime, endTime) {
+    if (!startTime || !endTime) return 0;
+    const parts1 = startTime.trim().split(':');
+    const parts2 = endTime.trim().split(':');
+    if (parts1.length < 2 || parts2.length < 2) return 0;
+    const h1 = parseInt(parts1[0], 10) || 0;
+    const m1 = parseInt(parts1[1], 10) || 0;
+    const h2 = parseInt(parts2[0], 10) || 0;
+    const m2 = parseInt(parts2[1], 10) || 0;
+    
+    let total1 = h1 * 60 + m1;
+    let total2 = h2 * 60 + m2;
+    if (total2 < total1) {
+        total2 += 24 * 60; // переход через полночь
+    }
+    return Math.max(0, total2 - total1);
+}
+
+function calcJournalDowntimeDuration() {
+    const s = document.getElementById('journal-dt-start')?.value || '';
+    const e = document.getElementById('journal-dt-end')?.value || '';
+    const preview = document.getElementById('journal-dt-duration-preview');
+    if (!preview) return;
+    if (!s || !e) {
+        preview.textContent = '0:00';
         return;
     }
-    
-    try {
-        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
-        if (res.ok) {
-            const breakdowns = await res.json();
-            breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
-            selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
-                breakdowns.map(b => `<option value="${b.breakdown}">${b.breakdown}</option>`).join('');
-        }
-    } catch(e) {
-        console.error(e);
+    const mins = parseDurationMinutes(s, e);
+    preview.textContent = `${formatDurationHM(mins)} (${mins} мин)`;
+}
+
+function calcEditDowntimeDuration() {
+    const s = document.getElementById('edit-dt-start')?.value || '';
+    const e = document.getElementById('edit-dt-end')?.value || '';
+    const preview = document.getElementById('edit-dt-duration-preview');
+    if (!preview) return;
+    if (!s || !e) {
+        preview.textContent = '0:00';
+        return;
+    }
+    const mins = parseDurationMinutes(s, e);
+    preview.textContent = `${formatDurationHM(mins)} (${mins} мин)`;
+}
+
+function onDowntimeTextChange() {
+    const desc = document.getElementById('journal-dt-desc')?.value || '';
+    const chk = document.getElementById('journal-dt-is-equipment-stop');
+    if (!chk) return;
+    const lower = desc.toLowerCase();
+    if (lower.includes('на ходу') || lower.includes('без остановки') || lower.includes('без простоя')) {
+        chk.checked = false;
     }
 }
 
-function onJournalSubnodeChange() {}
-function onJournalBreakdownChange() {}
-
 function renderDowntimesTable(shift) {
     const tbody = document.getElementById('journal-downtimes-list');
+    const totalBadge = document.getElementById('journal-dt-total-time-badge');
+    const countBadge = document.getElementById('journal-dt-rows-count');
     if (!tbody) return;
     tbody.innerHTML = '';
     
     const downtimes = shift.downtimes || [];
+    let totalMinutes = 0;
+    
     if (downtimes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Нет зафиксированных простоев за смену</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Нет зафиксированных простоев за смену</td></tr>';
+        if (totalBadge) totalBadge.textContent = '0:00 (0 мин)';
+        if (countBadge) countBadge.textContent = 'Всего записей: 0';
         return;
     }
 
-    downtimes.forEach(d => {
-        const durationStr = d.duration ? `${d.duration} мин` : 'В процессе';
-        const isEquipment = d.is_equipment_downtime ? '🔴 Да' : '🟡 Нет';
-        const mediaHtml = (d.media_files || []).map(f => `<a href="${f}" target="_blank">Файл</a>`).join(', ') || 'Нет';
+    if (countBadge) countBadge.textContent = `Всего записей: ${downtimes.length}`;
+
+    downtimes.forEach((d, idx) => {
+        const mins = d.duration || 0;
+        totalMinutes += mins;
+        const durationStr = mins > 0 ? formatDurationHM(mins) : (d.end_time ? '0:00' : 'В процессе');
+        const isEquipment = d.is_equipment_downtime ? '<span style="color: #ff6b6b; font-weight: 600;">🛑 Да</span>' : '<span style="color: #4ade80; font-weight: 600;">🟢 На ходу</span>';
+        
+        const cat = d.category || 'Механические';
+        const desc = d.description || d.comment || '-';
         
         const canEdit = (d.can_edit !== undefined) ? d.can_edit : true;
-        const deleteBtn = canEdit ? `<button onclick="deleteDowntime(${d.id})" class="btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Удалить</button>` : '';
-        const editBtn = canEdit ? `<button onclick="openEditDowntimeModal(${d.id})" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; margin-right: 0.3rem;">Редактировать</button>` : '';
-        const actionHtml = canEdit ? `${editBtn}${deleteBtn}` : '<span style="color: var(--text-secondary); font-size: 0.75rem;">🔒 Истекло</span>';
+        const deleteBtn = canEdit ? `<button onclick="deleteDowntime(${d.id})" class="btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px;" title="Удалить">🗑️</button>` : '';
+        const editBtn = canEdit ? `<button onclick="openEditDowntimeModal(${d.id})" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.4rem; border-radius: 6px;" title="Редактировать">✏️</button>` : '';
+        const actionHtml = canEdit ? `<div style="display: flex; justify-content: flex-end;">${editBtn}${deleteBtn}</div>` : '<span style="color: var(--text-secondary); font-size: 0.75rem;">🔒 Истекло</span>';
 
         tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--glass-border);">
-                <td>${shift.date} (${shift.shift_name})</td>
-                <td><span class="badge ${d.end_time ? 'badge-success' : 'badge-warning'}">${d.end_time ? 'Закрыт' : 'Открыт'}</span></td>
-                <td>${d.start_time}</td>
-                <td>${d.end_time || '-'}</td>
-                <td style="font-weight: bold;">${durationStr}</td>
-                <td>${d.lost_tons ? d.lost_tons.toFixed(2) : '0.00'} т</td>
-                <td>${d.department} / ${d.node} / ${isEquipment}</td>
-                <td>${d.comment || '-'}</td>
-                <td>${mediaHtml}</td>
-                <td style="white-space: nowrap;">${actionHtml}</td>
+            <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s ease;">
+                <td style="text-align: center; color: var(--text-secondary); padding: 0.75rem 0.5rem;">${idx + 1}</td>
+                <td style="font-family: monospace; font-weight: 600; padding: 0.75rem 0.5rem;">${d.start_time || '-'}</td>
+                <td style="font-family: monospace; font-weight: 600; padding: 0.75rem 0.5rem;">${d.end_time || '-'}</td>
+                <td style="font-family: monospace; font-weight: 700; color: #38bdf8; padding: 0.75rem 0.5rem;">${durationStr}</td>
+                <td style="padding: 0.75rem 0.5rem; word-break: break-word;">${desc}</td>
+                <td style="padding: 0.75rem 0.5rem;"><span class="badge badge-secondary" style="background: rgba(255,255,255,0.08); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${cat}</span></td>
+                <td style="text-align: center; padding: 0.75rem 0.5rem;">${isEquipment}</td>
+                <td style="padding: 0.75rem 0.5rem;">${actionHtml}</td>
             </tr>
         `;
     });
+
+    if (totalBadge) {
+        totalBadge.textContent = `${formatDurationHM(totalMinutes)} (${totalMinutes} мин)`;
+    }
 }
 
 async function addJournalDowntime() {
-    let shiftId = document.getElementById('journal-dt-active-shift-id').value;
+    let shiftId = document.getElementById('journal-dt-active-shift-id')?.value;
     
     const dateInput = document.getElementById('journal-dt-date');
     const shiftNameInput = document.getElementById('journal-dt-shift-name');
@@ -1742,6 +1792,21 @@ async function addJournalDowntime() {
         showNotification('error', 'Ошибка', "Выберите дату!");
         return;
     }
+    
+    const startTime = (document.getElementById('journal-dt-start')?.value || '').trim();
+    const endTime = (document.getElementById('journal-dt-end')?.value || '').trim();
+    const desc = (document.getElementById('journal-dt-desc')?.value || '').trim();
+    const isEquipmentStop = document.getElementById('journal-dt-is-equipment-stop')?.checked ?? true;
+
+    if (!desc) {
+        showNotification('error', 'Ошибка', "Введите описание поломки или выполненных работ!");
+        return;
+    }
+    if (!startTime) {
+        showNotification('error', 'Ошибка', "Укажите время начала простоя!");
+        return;
+    }
+
     setButtonLoading('btn-add-dt', true);
     
     if (!shiftId) {
@@ -1756,61 +1821,26 @@ async function addJournalDowntime() {
                 shiftId = createdShift.id;
                 document.getElementById('journal-dt-active-shift-id').value = shiftId;
             } else {
-                alert("Не удалось создать рапорт смены для добавления простоя!");
+                showNotification('error', 'Ошибка', "Не удалось создать рапорт смены для добавления простоя!");
+                setButtonLoading('btn-add-dt', false);
                 return;
             }
         } catch(e) {
             console.error(e);
-            alert("Ошибка сети при создании рапорта смены!");
+            showNotification('error', 'Ошибка сети', "Ошибка сети при создании рапорта смены!");
+            setButtonLoading('btn-add-dt', false);
             return;
         }
     }
-    
-    // Collect breakdowns
-    const breakdownRows = document.querySelectorAll('#journal-dt-breakdowns-container .breakdown-row');
-    const breakdownsList = [];
-    let firstDept = "", firstNode = "", firstDesc = "";
-
-    breakdownRows.forEach(row => {
-        const dept = row.querySelector('.brk-dept').value;
-        const node = row.querySelector('.brk-node').value;
-        const selDesc = row.querySelector('.brk-desc').value;
-        const custDesc = row.querySelector('.brk-custom-desc').value;
-        const cat = row.querySelector('.brk-category').value;
-        
-        let desc = selDesc;
-        if (selDesc === '_CUSTOM_') {
-            desc = custDesc;
-        }
-        
-        if (dept && node && desc) {
-            breakdownsList.push({ department: dept, node: node, description: desc, category: cat });
-            if (!firstDept) { firstDept = dept; firstNode = node; firstDesc = desc; }
-        }
-    });
-
-    if (breakdownsList.length === 0) {
-        alert("Добавьте хотя бы одну поломку (участок, узел, причина)!");
-        return;
-    }
 
     const data = {
-        start_time: document.getElementById('journal-dt-start').value,
-        end_time: document.getElementById('journal-dt-end').value || null,
-        department: firstDept, // backwards compatibility
-        node: firstNode, // backwards compatibility
-        description: firstDesc, // backwards compatibility
-        comment: document.getElementById('journal-dt-desc').value,
-        is_equipment_downtime: document.getElementById('journal-dt-is-equipment-stop').checked,
-        media_urls: null,
-        breakdowns: JSON.stringify(breakdownsList)
+        start_time: startTime,
+        end_time: endTime || null,
+        description: desc,
+        comment: desc,
+        is_equipment_downtime: isEquipmentStop,
+        media_urls: null
     };
-
-    if (!data.start_time) {
-        showNotification('error', 'Ошибка', "Укажите время начала простоя!");
-        setButtonLoading('btn-add-dt', false);
-        return;
-    }
 
     try {
         const res = await fetch(`/api/shifts/${shiftId}/downtimes`, {
@@ -1821,7 +1851,13 @@ async function addJournalDowntime() {
         
         if (res.ok) {
             saveLastLineAndShift(line, shift_name);
-            showNotification('success', 'Отлично!', 'Простой успешно зафиксирован и отправлен в облако.');
+            showNotification('success', 'Отлично!', 'Простой успешно зафиксирован.');
+            // Очищаем поля ввода
+            document.getElementById('journal-dt-desc').value = '';
+            document.getElementById('journal-dt-start').value = '';
+            document.getElementById('journal-dt-end').value = '';
+            document.getElementById('journal-dt-is-equipment-stop').checked = true;
+            calcJournalDowntimeDuration();
             refreshDowntimesTable();
         } else {
             const err = await res.json();
@@ -1843,7 +1879,7 @@ async function deleteDowntime(id) {
     try {
         const res = await fetch(`/api/downtimes/${id}`, { method: 'DELETE' });
         if (res.ok) {
-            alert("Запись удалена!");
+            showNotification('success', 'Успех', 'Запись удалена!');
             refreshDowntimesTable();
         }
     } catch(e) {
@@ -1858,114 +1894,48 @@ async function openEditDowntimeModal(id) {
         const d = await res.json();
         
         document.getElementById('edit-dt-id').value = d.id;
-        document.getElementById('edit-dt-start').value = d.start_time;
+        document.getElementById('edit-dt-start').value = d.start_time || '';
         document.getElementById('edit-dt-end').value = d.end_time || '';
-        document.getElementById('edit-dt-desc').value = d.comment || '';
-        document.getElementById('edit-dt-is-equipment-stop').checked = d.is_equipment_downtime;
+        document.getElementById('edit-dt-desc').value = d.description || d.comment || '';
+        document.getElementById('edit-dt-is-equipment-stop').checked = d.is_equipment_downtime !== false;
         
-        document.getElementById('edit-dt-breakdowns-container').innerHTML = '';
-        if (d.breakdowns) {
-            try {
-                const bkList = JSON.parse(d.breakdowns);
-                for (const bk of bkList) {
-                    await addEditBreakdownRow(bk);
-                }
-            } catch(e) {
-                await addEditBreakdownRow({ department: d.department, node: d.node, description: d.description });
-            }
-        } else {
-            await addEditBreakdownRow({ department: d.department, node: d.node, description: d.description });
-        }
-        
+        calcEditDowntimeDuration();
         document.getElementById('edit-dt-modal').style.display = 'block';
-        setupTimePickers();
+        if (typeof setupTimePickers === 'function') setupTimePickers();
     } catch(e) {
-        alert(e.message);
+        showNotification('error', 'Ошибка', e.message);
     }
 }
 
 function closeEditDowntimeModal() {
-    document.getElementById('edit-dt-modal').style.display = 'none';
-}
-
-async function onEditDeptChange(selectedNode = '', selectedBreakdown = '') {
-    const dept = document.getElementById('edit-dt-dept').value;
-    const selectNode = document.getElementById('edit-dt-node');
-    if (!dept) {
-        selectNode.innerHTML = '<option value="">-- Сначала выберите участок --</option>';
-        return;
-    }
-    
-    const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
-    if (res.ok) {
-        const nodes = await res.json();
-        nodes.sort((a, b) => a.localeCompare(b));
-        selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
-            nodes.map(n => `<option value="${n}">${n}</option>`).join('');
-        if (selectedNode) {
-            selectNode.value = selectedNode;
-            await onEditNodeChange(selectedBreakdown);
-        }
-    }
-}
-
-async function onEditNodeChange(selectedBreakdown = '') {
-    const dept = document.getElementById('edit-dt-dept').value;
-    const node = document.getElementById('edit-dt-node').value;
-    const selectBk = document.getElementById('edit-dt-breakdown');
-    
-    const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
-    if (res.ok) {
-        const breakdowns = await res.json();
-        breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
-        selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
-            breakdowns.map(b => `<option value="${b.breakdown}">${b.breakdown}</option>`).join('');
-        if (selectedBreakdown) {
-            selectBk.value = selectedBreakdown;
-        }
-    }
+    const modal = document.getElementById('edit-dt-modal');
+    if (modal) modal.style.display = 'none';
 }
 
 async function submitEditDowntime() {
-    const id = document.getElementById('edit-dt-id').value;
-    
-    const breakdownRows = document.querySelectorAll('#edit-dt-breakdowns-container .breakdown-row');
-    const breakdownsList = [];
-    let firstDept = "", firstNode = "", firstDesc = "";
+    const id = document.getElementById('edit-dt-id')?.value;
+    const startTime = (document.getElementById('edit-dt-start')?.value || '').trim();
+    const endTime = (document.getElementById('edit-dt-end')?.value || '').trim();
+    const desc = (document.getElementById('edit-dt-desc')?.value || '').trim();
+    const isEquipmentStop = document.getElementById('edit-dt-is-equipment-stop')?.checked ?? true;
 
-    breakdownRows.forEach(row => {
-        const dept = row.querySelector('.brk-dept').value;
-        const node = row.querySelector('.brk-node').value;
-        const selDesc = row.querySelector('.brk-desc').value;
-        const custDesc = row.querySelector('.brk-custom-desc').value;
-        const cat = row.querySelector('.brk-category').value;
-        
-        let desc = selDesc;
-        if (selDesc === '_CUSTOM_') {
-            desc = custDesc;
-        }
-        
-        if (dept && node && desc) {
-            breakdownsList.push({ department: dept, node: node, description: desc, category: cat });
-            if (!firstDept) { firstDept = dept; firstNode = node; firstDesc = desc; }
-        }
-    });
-
-    if (breakdownsList.length === 0) {
-        alert("Добавьте хотя бы одну поломку (участок, узел, причина)!");
+    if (!id) return;
+    if (!desc) {
+        alert("Введите описание поломки / работ!");
+        return;
+    }
+    if (!startTime) {
+        alert("Укажите время начала!");
         return;
     }
     
     const data = {
-        start_time: document.getElementById('edit-dt-start').value,
-        end_time: document.getElementById('edit-dt-end').value || null,
-        department: firstDept,
-        node: firstNode,
-        description: firstDesc,
-        comment: document.getElementById('edit-dt-desc').value,
-        is_equipment_downtime: document.getElementById('edit-dt-is-equipment-stop').checked,
-        media_urls: null,
-        breakdowns: JSON.stringify(breakdownsList)
+        start_time: startTime,
+        end_time: endTime || null,
+        description: desc,
+        comment: desc,
+        is_equipment_downtime: isEquipmentStop,
+        media_urls: null
     };
 
     try {
@@ -1975,9 +1945,13 @@ async function submitEditDowntime() {
             body: JSON.stringify(data)
         });
         if (res.ok) {
-            alert("Простой обновлен!");
             closeEditDowntimeModal();
             refreshDowntimesTable();
+            showNotification('success', 'Успех', 'Запись о простое обновлена');
+        } else {
+            const err = await res.json();
+            if (Array.isArray(err.detail)) {
+                alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {

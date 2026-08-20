@@ -7,33 +7,94 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from database import SessionLocal, engine
 import models
 
-def get_category(breakdown_name, node_name, dept_name):
-    b_lower = breakdown_name.lower()
-    n_lower = node_name.lower()
-    d_lower = dept_name.lower()
+def get_category(breakdown_name="", node_name="", dept_name=""):
+    b_lower = (breakdown_name or "").lower()
+    n_lower = (node_name or "").lower()
+    d_lower = (dept_name or "").lower()
+    full_text = f"{b_lower} {n_lower} {d_lower}"
     
-    if "санитарный день" in b_lower or "санитарный день" in n_lower:
+    if "санитарный день" in full_text or "сан день" in full_text or "сандень" in full_text:
         return "Санитарный день"
         
-    # Category rules
     # 1. ТО и ППР
-    if any(x in b_lower or x in n_lower for x in ["ппр", "комплексное обслуживание", "то и ппр"]):
+    if any(x in full_text for x in ["ппр", "комплексное обслуживание", "то и ппр", "плановый ремонт"]):
         return "ТО и ППР"
         
     # 2. Энергетические
-    if any(x in b_lower for x in ["двигател", "катушк", "реле", "датчик", "электрод", "кабель", "воздух", "нет воздуха", "нет пара", "пар", "электричес", "привод", "компрессор", "осушитель"]):
+    if any(x in full_text for x in ["двигател", "мотор", "матор", "катушк", "реле", "датчик", "электрод", "кабель", "воздух", "нет воздуха", "нет пара", "пар", "электричес", "привод", "компрессор", "осушитель", "сгорел"]):
         return "Энергетические"
         
     # 3. Технологические
-    if any(x in b_lower for x in ["очистка", "забился", "забилась", "промывка", "набивка", "сальник", "смазчик", "рекуператор", " приямок"]):
+    if any(x in full_text for x in ["очистка", "чистили", "забился", "забилась", "промывка", "набивка", "сальник", "смазчик", "рекуператор", "приямок", "сукно", "сетка", "кислот"]):
         return "Технологические"
         
     # 4. Остановки не связанные с простоем оборудования
-    if any(x in b_lower for x in ["нет тележки", "тележка съехала", "упала тележка", "не высыхает шифер"]):
+    if any(x in full_text for x in ["нет тележки", "тележка съехала", "упала тележка", "не высыхает шифер", "нет сырья", "нет цемента", "склад"]):
         return "Остановки не связанные с простоем оборудования"
         
     # 5. Механические (Default for other hardware repairs/replacements)
     return "Механические"
+
+def categorize_and_parse_downtime(text: str = "", is_equipment: bool = True):
+    t = (text or "").lower()
+    
+    if not is_equipment or "на ходу" in t or "без остановки" in t or "без простоя" in t:
+        cat = "Без остановки"
+        is_equip = False
+    elif any(k in t for k in ["санитарный день", "сан день", "сандень", "сан.день", "санитарная очистка"]):
+        cat = "Санитарный день"
+        is_equip = True
+    elif any(k in t for k in ["ппр", "комплексное обслуживание", "то и ппр", "плановый ремонт", "график ппр", "планово"]):
+        cat = "ТО и ППР"
+        is_equip = True
+    elif any(k in t for k in ["двигател", "мотор", "матор", "катушк", "реле", "датчик", "электрод", "кабель", "воздух", "нет воздуха", "нет пара", "пар", "электричес", "сгорел", "заклинило мотор", "частотник", "привод", "компрессор", "осушитель"]):
+        cat = "Энергетические"
+        is_equip = True
+    elif any(k in t for k in ["очистка", "чистили", "промывка", "забился", "забилась", "набивка", "сальник", "смазчик", "рекуператор", "приямок", "сукно", "сетка", "обрыв сукна", "замена сукна", "спринклер", "вакуум", "кислот", "кислотой"]):
+        cat = "Технологические"
+        is_equip = True
+    elif any(k in t for k in ["нет тележки", "тележка съехала", "упала тележка", "не высыхает шифер", "склад полон", "нет вагонеток", "нет поддонов", "нет сырья", "нет цемента", "пересменка", "нет листов", "нет форм"]):
+        cat = "Остановки не связанные с простоем оборудования"
+        is_equip = True
+    else:
+        cat = "Механические"
+        is_equip = True
+        
+    # Infer node and department
+    node = "Основное оборудование"
+    dept = "Формовочное отделение"
+    if any(k in t for k in ["бракомешалк", "бракамишалк"]):
+        node = "Бракомешалка"
+        dept = "Формовочное отделение"
+    elif any(k in t for k in ["рекуператор", "желоб рекуператора"]):
+        node = "Рекуператор"
+        dept = "Формовочное отделение"
+    elif any(k in t for k in ["барабан", "ф/барабан", "ф/б"]):
+        node = "Формовочный барабан"
+        dept = "Формовочное отделение"
+    elif any(k in t for k in ["турбо", "смесител", "турбосмесител"]):
+        node = "Турбосмеситель"
+        dept = "Заготовительное отделение"
+    elif any(k in t for k in ["бегун", "бегуны"]):
+        node = "Бегуны"
+        dept = "Заготовительное отделение"
+    elif any(k in t for k in ["дестакер", "разборщик"]):
+        node = "Дестакер"
+        dept = "Разборка и склад"
+    elif any(k in t for k in ["стакер", "укладчик"]):
+        node = "Стакер"
+        dept = "Формовочное отделение"
+    elif any(k in t for k in ["нож", "ножи", "дисковый нож", "ножевой"]):
+        node = "Ножевой вал / Ножи"
+        dept = "Формовочное отделение"
+    elif any(k in t for k in ["насос"]):
+        node = "Насос"
+        dept = "Формовочное отделение"
+    elif any(k in t for k in ["компрессор", "осушитель"]):
+        node = "Компрессор"
+        dept = "Энергоучасток"
+        
+    return cat, node, dept, is_equip
 
 def parse_txt_and_import():
     txt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "excel", "Инструкция по простоям.txt")
