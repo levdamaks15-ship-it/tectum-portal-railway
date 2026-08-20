@@ -800,6 +800,13 @@
             to { opacity: 1; transform: translate(-50%, 0); }
         }
 
+        /* Create + Sync Buttons Group */
+        .create-sync-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
         /* Dropdown New Button */
         .dropdown-menu-create {
             position: relative;
@@ -1025,14 +1032,26 @@
                 gap: 0.6rem;
             }
 
-            .action-buttons > .dropdown-menu-create {
-                flex: 1;
+            .create-sync-group {
                 width: 100%;
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+            }
+
+            .create-sync-group > .dropdown-menu-create {
+                flex: 0 0 auto;
+            }
+
+            .create-sync-group > .dropdown-menu-create .btn-action {
+                justify-content: center;
+                white-space: nowrap;
             }
 
             #btn-sync-titles {
-                width: 100%;
+                flex: 1;
                 justify-content: center;
+                white-space: nowrap;
             }
 
             .cloud-quick-buttons {
@@ -1250,29 +1269,32 @@
                     <span class="theme-icon">🌓</span>
                 </button>
 
-                <!-- Dropdown Создать -->
-                <div class="dropdown-menu-create">
-                    <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
-                        <i class="fas fa-plus"></i> Создать <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
-                    </button>
-                    <div id="create-dropdown" class="dropdown-content-create">
-                        <div class="dropdown-item" onclick="showFolderModal()">
-                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
-                        </div>
-                        <div class="context-menu-separator"></div>
-                        <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
-                            <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i> Ссылка Google (Docs / Sheets)
-                        </div>
-                        <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
-                            <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i> Ссылка Microsoft (OneDrive / Excel)
+                <!-- Группа Создать + Обновить названия -->
+                <div class="create-sync-group">
+                    <!-- Dropdown Создать -->
+                    <div class="dropdown-menu-create">
+                        <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
+                            <i class="fas fa-plus"></i> <span>Создать</span> <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
+                        </button>
+                        <div id="create-dropdown" class="dropdown-content-create">
+                            <div class="dropdown-item" onclick="showFolderModal()">
+                                <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
+                            </div>
+                            <div class="context-menu-separator"></div>
+                            <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
+                                <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i> Ссылка Google (Docs / Sheets)
+                            </div>
+                            <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
+                                <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i> Ссылка Microsoft (OneDrive / Excel)
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Кнопка Обновить названия сразу после Создать -->
-                <button class="btn-action" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
-                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
-                </button>
+                    <!-- Кнопка Обновить названия рядом с Создать -->
+                    <button class="btn-action" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
+                        <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
+                    </button>
+                </div>
 
                 <!-- Standalone buttons on desktop -->
                 <button class="btn-action btn-create-folder btn-upload-file-standalone" onclick="showFolderModal()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
@@ -1534,37 +1556,117 @@
             return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        function getFileIcon(mimeType, fileName = '') {
-            if (mimeType === 'application/vnd.ms-onedrive' || fileName.toLowerCase().includes('onedrive')) {
-                return { icon: 'fab fa-microsoft', color: '#0078d4' };
+        function getFileIcon(mimeType = '', fileName = '', externalUrl = '') {
+            const m = (mimeType || '').toLowerCase();
+            const name = (fileName || '').toLowerCase();
+            const url = (externalUrl || '').toLowerCase();
+
+            // 1. Таблицы (Excel, Google Sheets, CSV, TSV)
+            if (
+                m.includes('spreadsheet') || 
+                m.includes('excel') || 
+                m.includes('calc') || 
+                m.includes('csv') ||
+                url.includes('spreadsheets') || 
+                url.includes('excel') || 
+                name.endsWith('.xlsx') || 
+                name.endsWith('.xls') || 
+                name.endsWith('.csv') ||
+                name.endsWith('.xlsm') ||
+                name.endsWith('.ods') ||
+                name.includes('таблиц') ||
+                name.includes('реестр') ||
+                name.includes('ведомост')
+            ) {
+                return { icon: 'fas fa-file-excel', color: '#10b981', type: 'Таблица' };
             }
-            if (mimeType === 'application/vnd.yandex-disk' || fileName.toLowerCase().includes('яндекс')) {
-                return { icon: 'fab fa-yandex', color: '#fc3f1d' };
+
+            // 2. Документы / Тексты (Word, Google Docs, TXT, ODT)
+            if (
+                m.includes('word') || 
+                m.includes('document') || 
+                url.includes('docs.google.com/document') ||
+                name.endsWith('.docx') || 
+                name.endsWith('.doc') || 
+                name.endsWith('.rtf') || 
+                name.endsWith('.odt') ||
+                name.endsWith('.txt') ||
+                name.includes('документ') ||
+                name.includes('приказ') ||
+                name.includes('инструкци') ||
+                name.includes('регламент') ||
+                name.includes('положение') ||
+                name.includes('акт')
+            ) {
+                return { icon: 'fas fa-file-word', color: '#2563eb', type: 'Документ' };
             }
-            if (mimeType === 'application/x-external-link') {
-                return { icon: 'fas fa-arrow-up-right-from-square', color: '#38bdf8' };
+
+            // 3. Презентации (PowerPoint, Google Slides)
+            if (
+                m.includes('presentation') || 
+                m.includes('powerpoint') || 
+                url.includes('docs.google.com/presentation') ||
+                name.endsWith('.pptx') || 
+                name.endsWith('.ppt') || 
+                name.endsWith('.odp') ||
+                name.includes('презентац')
+            ) {
+                return { icon: 'fas fa-file-powerpoint', color: '#f97316', type: 'Презентация' };
             }
-            const name = fileName.toLowerCase();
-            if (mimeType.includes('pdf') || name.endsWith('.pdf')) {
-                return { icon: 'fas fa-file-pdf', color: '#ef4444' };
+
+            // 4. PDF файлы
+            if (m.includes('pdf') || name.endsWith('.pdf') || url.includes('.pdf')) {
+                return { icon: 'fas fa-file-pdf', color: '#ef4444', type: 'PDF Документ' };
             }
-            if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || name.endsWith('.xlsx') || name.endsWith('.xls')) {
-                return { icon: 'fas fa-file-excel', color: '#10b981' };
+
+            // 5. Изображения / Фото / Чертежи
+            if (
+                m.includes('image') || 
+                name.endsWith('.png') || 
+                name.endsWith('.jpg') || 
+                name.endsWith('.jpeg') || 
+                name.endsWith('.svg') || 
+                name.endsWith('.webp') ||
+                name.endsWith('.bmp') ||
+                name.endsWith('.dwg')
+            ) {
+                return { icon: 'fas fa-file-image', color: '#8b5cf6', type: 'Изображение' };
             }
-            if (mimeType.includes('document') || mimeType.includes('word') || name.endsWith('.docx') || name.endsWith('.doc')) {
-                return { icon: 'fas fa-file-word', color: '#3b82f6' };
+
+            // 6. Архивы
+            if (m.includes('zip') || m.includes('rar') || m.includes('tar') || m.includes('7z') || name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z')) {
+                return { icon: 'fas fa-file-zipper', color: '#eab308', type: 'Архив' };
             }
-            if (mimeType.includes('image') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) {
-                return { icon: 'fas fa-file-image', color: '#f59e0b' };
+
+            // 7. Видео / Аудио
+            if (m.includes('video') || name.endsWith('.mp4') || name.endsWith('.avi') || name.endsWith('.mkv') || name.endsWith('.mov')) {
+                return { icon: 'fas fa-file-video', color: '#ec4899', type: 'Видео' };
             }
-            return { icon: 'fas fa-file-alt', color: '#94a3b8' };
+
+            // 8. Облачные сервисы (если сущность не определилась по специфике)
+            if (m === 'application/vnd.ms-onedrive' || url.includes('1drv.ms') || url.includes('onedrive') || url.includes('sharepoint')) {
+                return { icon: 'fab fa-microsoft', color: '#0078d4', type: 'OneDrive' };
+            }
+            if (m === 'application/vnd.yandex-disk' || url.includes('yandex') || url.includes('yadi.sk') || name.toLowerCase().includes('яндекс')) {
+                return { icon: 'fab fa-yandex', color: '#fc3f1d', type: 'Яндекс.Диск' };
+            }
+            if (m.includes('google') || url.includes('drive.google') || url.includes('docs.google')) {
+                return { icon: 'fab fa-google', color: '#4285f4', type: 'Google Документ' };
+            }
+
+            if (m === 'application/x-external-link' || url.startsWith('http')) {
+                return { icon: 'fas fa-arrow-up-right-from-square', color: '#38bdf8', type: 'Внешняя ссылка' };
+            }
+
+            return { icon: 'fas fa-file-lines', color: '#94a3b8', type: 'Документ' };
         }
 
-        function getFileTypeName(fileName, mimeType) {
-            if (mimeType === 'application/vnd.ms-onedrive') return 'OneDrive Документ';
-            if (mimeType === 'application/vnd.yandex-disk') return 'Яндекс.Диск Ссылка';
-            if (mimeType === 'application/x-external-link') return 'Внешняя ссылка';
-            const ext = fileName.split('.').pop().toUpperCase();
+        function getFileTypeName(fileName, mimeType, externalUrl = '') {
+            const iconInfo = getFileIcon(mimeType, fileName, externalUrl);
+            if (iconInfo && iconInfo.type) {
+                return iconInfo.type;
+            }
+            const ext = fileName ? fileName.split('.').pop().toUpperCase() : '';
             if (ext && ext !== fileName.toUpperCase() && ext.length <= 5) return `${ext} документ`;
             return 'Документ';
         }
@@ -1859,7 +1961,7 @@
             const item = document.createElement('div');
             item.className = 'folder-item-tree';
             
-            const iconInfo = getFileIcon(file.mimeType, file.name);
+            const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
             const viewUrl = getWebViewLink(file);
             const lockIcon = file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
             
@@ -2072,7 +2174,7 @@
                 `;
             } else {
                 const viewUrl = getWebViewLink(item);
-                const iconInfo = getFileIcon(item.mimeType, item.name);
+                const iconInfo = getFileIcon(item.mimeType, item.name, item.external_url || item.webViewLink);
                 html = `
                     <div class="context-menu-header">
                         <span><i class="${iconInfo.icon}" style="color: ${iconInfo.color}; margin-right: 6px;"></i> ${escapeHtml(item.name)}</span>
@@ -2341,8 +2443,8 @@
 
             // Вывод файлов/ссылок (убраны иконки редактирования и три точки, оставлено открытие и удаление)
             files.forEach(file => {
-                const iconInfo = getFileIcon(file.mimeType, file.name);
-                const typeName = getFileTypeName(file.name, file.mimeType);
+                const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
+                const typeName = getFileTypeName(file.name, file.mimeType, file.external_url || file.webViewLink);
                 const viewUrl = getWebViewLink(file);
                 const fileJson = escapeHtml(JSON.stringify(file));
 
