@@ -750,8 +750,8 @@ function filterShifts() {
                     </div>
                 </td>
                 <td style="text-align: right; white-space: nowrap;">
-                    <button class="action-btn btn-edit" title="Редактировать рапорт и сырье" onclick="openUnifiedShiftModal(${s.id})" style="padding: 0.5rem 0.8rem; width: auto; font-size: 0.85rem; margin-right: 0.3rem;"><i class="fa-solid fa-pen-to-square"></i> Изменить</button>
-                    <button class="action-btn btn-delete" title="Удалить рапорт" onclick="deleteShift(${s.id})" style="padding: 0.5rem; width: auto;"><i class="fa-solid fa-trash"></i></button>
+                    <button class="action-btn btn-edit" title="Редактировать рапорт и сырье" onclick="openUnifiedShiftModal(${s.id})"><i class="fa-solid fa-pen-to-square"></i></button>
+                    <button class="action-btn btn-delete" title="Удалить рапорт" onclick="deleteShift(${s.id})"><i class="fa-solid fa-trash"></i></button>
                 </td>
             </tr>
         `;
