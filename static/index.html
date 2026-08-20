@@ -243,7 +243,8 @@
             <!-- Tabs Navigation -->
             <div id="tabs-menu" class="tabs-container" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
                 <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📝 Рапорт мастера</button>
-                <button class="tab-btn" id="tab-btn-checklists" onclick="window.location.href='/static/checklists.html'" style="background: rgba(37,99,235,0.15); border-color: #2563eb; color: #60a5fa;">✅ Кабинет чек-листов</button>
+                <a href="/static/checklists.html" target="_blank" class="tab-btn" id="tab-btn-checklists" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: rgba(37,99,235,0.15); border-color: #2563eb; color: #60a5fa;">✅ Кабинет чек-листов <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.72rem; opacity: 0.85;"></i></a>
+                <a href="/static/docs.html" target="_blank" class="tab-btn" id="tab-btn-docs" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #34d399;">📚 База знаний <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.72rem; opacity: 0.85;"></i></a>
                 <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📊 Сводка</button>
                 <button class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes')">⏱ Журнал Простоев</button>
                 <button class="tab-btn" id="tab-btn-analytics" onclick="switchTab('analytics')">📈 Аналитика простоев</button>

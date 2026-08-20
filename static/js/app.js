@@ -2996,14 +2996,10 @@ function renderMainScreenGrid() {
         <polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
     </svg>`;
 
-    const svgTasks = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>
-    </svg>`;
-
     grid.innerHTML = 
         createCardHTML('Кабинет мастера', 'Производство', svgMaster, "selectUser('Мастер смены', 'Мастер')") +
-        createCardHTML('Кабинет чек-листов', 'Смены и ТО', svgChecklists, "window.location.href='/static/checklists.html'") +
-        createCardHTML('База знаний', 'Документация', svgDocs, "window.location.href='/static/docs.html'") +
+        createCardHTML('Кабинет чек-листов', 'Смены и ТО', svgChecklists, null, '/static/checklists.html') +
+        createCardHTML('База знаний', 'Документация', svgDocs, null, '/static/docs.html') +
         createCardHTML('ИТР персонал', 'Сотрудники', svgITR, "renderItrGrid()");
 }
 
@@ -3028,14 +3024,7 @@ function renderItrGrid() {
         if (m.name.includes("Левда")) {
             roleDisplay = 'Специалист БП / Админ';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>`;
-        } else if (m.name.includes("Булеханов")) {
-            roleDisplay = 'Начальник производства';
-            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
             </svg>`;
         } else if (m.role === 'admin') {
             roleDisplay = 'Администратор';
@@ -3071,9 +3060,21 @@ function renderItrGrid() {
     }).join('');
 }
 
-function createCardHTML(title, subtitle, svgContent, onClickCode) {
+function createCardHTML(title, subtitle, svgContent, onClickCode, href = null) {
     const gradient = 'linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%)';
     const shadowColor = 'rgba(200, 35, 35, 0.3)';
+    
+    if (href) {
+        return `
+            <a href="${href}" class="user-card glass-panel" style="text-decoration: none; cursor: pointer; padding: 1.2rem 0.8rem; text-align: center; border: 1px solid var(--border-color); border-radius: 12px; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; box-sizing: border-box;">
+                <div class="user-avatar-gradient" style="background: ${gradient}; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.2rem; box-shadow: 0 4px 15px ${shadowColor}; flex-shrink: 0;">
+                    ${svgContent}
+                </div>
+                <div style="font-weight: bold; font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; width: 100%;">${title}</div>
+                <div style="font-size: 0.72rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; width: 100%;">${subtitle}</div>
+            </a>
+        `;
+    }
     
     return `
         <div class="user-card glass-panel" onclick="${onClickCode}" style="cursor: pointer; padding: 1.2rem 0.8rem; text-align: center; border: 1px solid var(--border-color); border-radius: 12px; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; box-sizing: border-box;">
