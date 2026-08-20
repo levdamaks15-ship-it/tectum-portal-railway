@@ -947,18 +947,49 @@
             background: rgba(100, 116, 139, 0.3);
             border-radius: 4px;
         }
+        .move-folder-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 2px;
+            width: 100%;
+        }
+        .move-tree-toggle {
+            cursor: pointer;
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--docs-text-muted);
+            font-size: 0.7rem;
+            transition: transform 0.2s ease;
+            border-radius: 4px;
+        }
+        .move-tree-toggle:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--docs-text-primary);
+        }
+        .move-tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
         .move-folder-item {
+            flex: 1;
+            min-width: 0;
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px;
-            border-radius: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
             cursor: pointer;
             color: var(--docs-text-primary);
-            font-size: 0.9rem;
-            transition: all 0.15s ease;
+            font-size: 0.88rem;
+            transition: background 0.15s, color 0.15s;
             user-select: none;
-            margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .move-folder-item:hover {
             background: var(--docs-context-item-hover);
@@ -967,11 +998,21 @@
             background: rgba(59, 130, 246, 0.22);
             border: 1px solid rgba(59, 130, 246, 0.5);
             font-weight: 600;
+            color: #3b82f6;
         }
         .move-folder-item.disabled {
             opacity: 0.4;
             cursor: not-allowed;
             pointer-events: none;
+        }
+        .move-tree-node {
+            margin-left: 11px;
+            border-left: 1px dashed var(--docs-sidebar-border, rgba(255, 255, 255, 0.12));
+            padding-left: 4px;
+            display: none;
+        }
+        .move-tree-node.expanded {
+            display: block;
         }
         .move-search-input {
             width: 100%;
@@ -2876,6 +2917,7 @@
         let moveTargetProtected = false;
         let moveSelectedFolderId = 'root';
         let allMoveFoldersList = [];
+        let expandedMoveFolders = new Set();
 
         async function openMoveModal(itemId, itemName, isFolder, currentParentId, isProtected) {
             hideContextMenu();
@@ -2883,6 +2925,7 @@
             moveTargetIsFolder = isFolder;
             moveTargetProtected = isProtected;
             moveSelectedFolderId = 'root';
+            expandedMoveFolders = new Set();
 
             const modal = document.getElementById('move-modal');
             const itemText = document.getElementById('move-modal-item-text');
@@ -2921,6 +2964,7 @@
         function buildAndRenderMoveTree(folders, movingItemId, movingIsFolder, currentParentId, filterQuery = '') {
             const treeContainer = document.getElementById('move-folder-tree');
             if (!treeContainer) return;
+            treeContainer.innerHTML = '';
 
             const movingFolderId = movingIsFolder ? movingItemId : null;
 
@@ -2939,20 +2983,29 @@
                 addChildren(movingFolderId);
             }
 
-            let html = '';
+            const cleanFilter = (filterQuery || '').trim().toLowerCase();
 
             // Root folder option
-            const isRootSelected = moveSelectedFolderId === 'root';
-            const rootMatch = !filterQuery || 'главная директория корень root'.includes(filterQuery.toLowerCase());
-
+            const rootMatch = !cleanFilter || 'главная директория корень root'.includes(cleanFilter);
             if (rootMatch) {
-                html += `
-                    <div class="move-folder-item ${isRootSelected ? 'selected' : ''}" 
-                         onclick="selectMoveTarget('root', '📁 Главная директория (Корень)', this)">
-                        <i class="fas fa-home" style="color: #38bdf8; font-size: 1rem;"></i>
-                        <span style="font-weight: 500;">Главная директория (Корень)</span>
-                    </div>
-                `;
+                const rootWrapper = document.createElement('div');
+                rootWrapper.className = 'move-folder-wrapper';
+
+                const rootSpacer = document.createElement('div');
+                rootSpacer.className = 'move-tree-toggle';
+                rootSpacer.style.visibility = 'hidden';
+
+                const rootItem = document.createElement('div');
+                rootItem.className = 'move-folder-item' + (moveSelectedFolderId === 'root' ? ' selected' : '');
+                rootItem.innerHTML = `<i class="fas fa-home" style="color: #38bdf8; font-size: 0.95rem; flex-shrink: 0;"></i> <span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">Главная директория (Корень)</span>`;
+
+                rootItem.onclick = () => {
+                    selectMoveTarget('root', '📁 Главная директория (Корень)', rootItem);
+                };
+
+                rootWrapper.appendChild(rootSpacer);
+                rootWrapper.appendChild(rootItem);
+                treeContainer.appendChild(rootWrapper);
             }
 
             // Build tree hierarchy
@@ -2970,49 +3023,134 @@
                 }
             });
 
-            function renderNode(f, depth = 1) {
-                const isDisabled = disabledIds.has(f.id);
-                const isSelected = moveSelectedFolderId === f.id;
-                const color = getFolderColor(f.name);
-                const lockIcon = f.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;"></i>' : '';
-                const paddingLeft = `${depth * 18 + 12}px`;
-                
-                let matches = true;
-                if (filterQuery) {
-                    matches = f.name.toLowerCase().includes(filterQuery.toLowerCase());
-                }
-
-                let nodeHtml = '';
-                if (matches) {
-                    nodeHtml += `
-                        <div class="move-folder-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
-                             style="padding-left: ${paddingLeft};"
-                             onclick="${isDisabled ? '' : `selectMoveTarget('${f.id}', '${escapeHtml(f.name).replace(/'/g, "\\'")}', this)`}">
-                            <i class="fas fa-folder" style="color: ${color}; font-size: 0.95rem;"></i>
-                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(f.name)}</span>
-                            ${lockIcon}
-                            ${isDisabled ? '<span style="margin-left: auto; font-size: 0.72rem; color: var(--docs-text-muted);">(текущая/вложенная)</span>' : ''}
-                        </div>
-                    `;
-                }
-
-                if (f.children && f.children.length > 0) {
-                    f.children.forEach(child => {
-                        nodeHtml += renderNode(child, depth + 1);
-                    });
-                }
-                return nodeHtml;
-            }
-
-            rootFolders.forEach(rf => {
-                html += renderNode(rf, 1);
+            // Strict sort for root folders
+            const strictOrder = {
+                "Должностные инструкции по всем сотрудникам": 0,
+                "ОТ и ТБ": 1,
+                "Договора с подрядчиками": 2,
+                "Отдел кадров": 3,
+                "Коммерческий департамент": 4,
+                "Технический директор": 5,
+                "Финансовый директор": 6,
+                "Начальник производства": 7,
+                "Главный технолог": 8,
+                "Служба контроля качества": 9,
+                "Бережливое производство": 10,
+                "ОГМ": 11
+            };
+            rootFolders.sort((a, b) => {
+                const orderA = strictOrder.hasOwnProperty(a.name) ? strictOrder[a.name] : 999;
+                const orderB = strictOrder.hasOwnProperty(b.name) ? strictOrder[b.name] : 999;
+                if (orderA !== orderB) return orderA - orderB;
+                return a.name.localeCompare(b.name);
             });
 
-            if (!html.trim()) {
-                html = '<div style="padding: 1rem; text-align: center; color: var(--docs-text-muted); font-size: 0.88rem;">Папки не найдены</div>';
+            // Helper to check if subtree contains a matching folder
+            function subtreeMatches(folder) {
+                if (folder.name.toLowerCase().includes(cleanFilter)) return true;
+                if (folder.children && folder.children.length > 0) {
+                    return folder.children.some(child => subtreeMatches(child));
+                }
+                return false;
             }
 
-            treeContainer.innerHTML = html;
+            function renderMoveTreeNode(folder) {
+                if (cleanFilter && !subtreeMatches(folder)) {
+                    return null;
+                }
+
+                const wrapper = document.createElement('div');
+                
+                const header = document.createElement('div');
+                header.className = 'move-folder-wrapper';
+                
+                const hasChildren = folder.children && folder.children.length > 0;
+                const isDisabled = disabledIds.has(folder.id);
+                const isSelected = moveSelectedFolderId === folder.id;
+                
+                const toggle = document.createElement('div');
+                toggle.className = 'move-tree-toggle';
+                if (hasChildren) {
+                    toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                } else {
+                    toggle.innerHTML = '';
+                    toggle.style.visibility = 'hidden';
+                }
+                
+                const item = document.createElement('div');
+                item.className = 'move-folder-item';
+                if (isSelected) item.classList.add('selected');
+                if (isDisabled) item.classList.add('disabled');
+                
+                const iconColor = getFolderColor(folder.name);
+                const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
+                const disabledText = isDisabled ? '<span style="margin-left: auto; font-size: 0.72rem; color: var(--docs-text-muted);">(текущая/вложенная)</span>' : '';
+                
+                item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 0.95rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(folder.name)}</span>${lockIcon}${disabledText}`;
+                
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'move-tree-node';
+                
+                const isExpanded = expandedMoveFolders.has(folder.id) || (cleanFilter.length > 0);
+                if (isExpanded) {
+                    childrenContainer.classList.add('expanded');
+                    toggle.classList.add('expanded');
+                }
+                
+                toggle.onclick = (e) => {
+                    e.stopPropagation();
+                    if (hasChildren) {
+                        if (expandedMoveFolders.has(folder.id)) {
+                            expandedMoveFolders.delete(folder.id);
+                            childrenContainer.classList.remove('expanded');
+                            toggle.classList.remove('expanded');
+                        } else {
+                            expandedMoveFolders.add(folder.id);
+                            childrenContainer.classList.add('expanded');
+                            toggle.classList.add('expanded');
+                        }
+                    }
+                };
+                
+                item.onclick = (e) => {
+                    if (isDisabled) return;
+                    selectMoveTarget(folder.id, folder.name, item);
+                    if (hasChildren && !expandedMoveFolders.has(folder.id)) {
+                        expandedMoveFolders.add(folder.id);
+                        childrenContainer.classList.add('expanded');
+                        toggle.classList.add('expanded');
+                    }
+                };
+                
+                header.appendChild(toggle);
+                header.appendChild(item);
+                wrapper.appendChild(header);
+                
+                if (hasChildren) {
+                    folder.children.forEach(child => {
+                        const childNode = renderMoveTreeNode(child);
+                        if (childNode) {
+                            childrenContainer.appendChild(childNode);
+                        }
+                    });
+                    wrapper.appendChild(childrenContainer);
+                }
+                
+                return wrapper;
+            }
+
+            let renderedCount = 0;
+            rootFolders.forEach(rf => {
+                const node = renderMoveTreeNode(rf);
+                if (node) {
+                    treeContainer.appendChild(node);
+                    renderedCount++;
+                }
+            });
+
+            if (!rootMatch && renderedCount === 0) {
+                treeContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--docs-text-muted); font-size: 0.88rem;">Папки не найдены</div>';
+            }
         }
 
         function filterMoveFolders(query) {
