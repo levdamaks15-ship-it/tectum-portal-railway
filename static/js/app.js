@@ -1952,12 +1952,8 @@ async function submitEditDowntime() {
             const err = await res.json();
             if (Array.isArray(err.detail)) {
                 alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
-        } else {
-            const err = await res.json();
-            if (Array.isArray(err.detail)) {
-                alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
             } else {
-                alert(`Ошибка: ${err.detail}`);
+                alert(`Ошибка: ${err.detail || 'Неизвестная ошибка'}`);
             }
         }
     } catch(e) {
