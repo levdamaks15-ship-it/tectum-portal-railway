@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, BackgroundTasks, Query
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, BackgroundTasks, Query, Body
 from typing import Optional
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
@@ -5008,13 +5008,25 @@ def delete_norm(norm_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 @app.post("/api/admin/clear_data/")
-def clear_operational_data(db: Session = Depends(get_db)):
+def clear_operational_data(request: Request, payload: dict = Body(default={}), db: Session = Depends(get_db)):
+    pwd = payload.get("password") if payload else ""
+    if pwd != "VjzJ,jhjyf15":
+        raise HTTPException(status_code=403, detail="Неверный пароль подтверждения очистки")
     try:
         deleted_batches = db.query(models.Batch).delete()
         deleted_lfm = db.query(models.LFMReport).delete()
         deleted_downtime = db.query(models.Downtime).delete()
         deleted_shifts = db.query(models.Shift).delete()
         deleted_plan_board = db.query(models.MonthlyPlanBoard).delete()
+        
+        user_name = request.session.get("user_name") or "Администратор"
+        db.add(models.AuditLog(
+            user_name=user_name,
+            action="DELETE",
+            target_table="shifts/lfm/batches/downtimes/plan_board",
+            target_id=0,
+            details=f"Сброс операционных данных. Удалено: смен {deleted_shifts}, отчетов ЛФМ {deleted_lfm}, партий {deleted_batches}, простоев {deleted_downtime}, строк плана {deleted_plan_board}"
+        ))
         db.commit()
         return {
             "status": "ok",
@@ -5026,6 +5038,8 @@ def clear_operational_data(db: Session = Depends(get_db)):
                 "plan_board": deleted_plan_board
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(500, str(e))
@@ -5042,7 +5056,7 @@ def get_plan_board(db: Session = Depends(get_db)):
 
 @app.get("/api/admin/audit_logs")
 def get_audit_logs(db: Session = Depends(get_db)):
-    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).limit(100).all()
+    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc(), models.AuditLog.id.desc()).limit(300).all()
 
 @app.post("/api/plan_board", response_model=schemas.MonthlyPlanBoard)
 def create_or_update_plan_board(data: schemas.MonthlyPlanBoardCreate, user_name: str = None, db: Session = Depends(get_db)):

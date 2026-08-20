@@ -320,7 +320,6 @@
             <div class="admin-nav-item" onclick="switchAdminTab('checklist-emps')" id="nav-checklist-emps"><i class="fa-solid fa-id-card-clip"></i> Сотрудники цеха (Чек-листы)</div>
             <div class="admin-nav-item" onclick="switchAdminTab('shift-schedule')" id="nav-shift-schedule"><i class="fa-solid fa-calendar-check"></i> График сменности</div>
             <div class="admin-nav-item" onclick="switchAdminTab('norms')" id="nav-norms"><i class="fa-solid fa-scale-balanced"></i> Нормы продукции</div>
-            <div class="admin-nav-item" onclick="switchAdminTab('plan-board')" id="nav-plan-board"><i class="fa-solid fa-clipboard-list"></i> Выработка (План/Факт)</div>
             <div class="admin-nav-item" onclick="switchAdminTab('shifts')" id="nav-shifts"><i class="fa-solid fa-calendar-days"></i> Управление сменами</div>
             <div class="admin-nav-item" onclick="switchAdminTab('receipts')" id="nav-receipts"><i class="fa-solid fa-truck-ramp-box"></i> Приходы сырья</div>
             <div class="admin-nav-item" onclick="switchAdminTab('cleanup')" id="nav-cleanup"><i class="fa-solid fa-trash-can"></i> Очистка данных</div>
@@ -329,14 +328,6 @@
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-log')" id="nav-downtimes-log"><i class="fa-solid fa-clock"></i> Журнал простоев</div>
             <div class="admin-nav-item" onclick="switchAdminTab('passwords')" id="nav-passwords"><i class="fa-solid fa-lock"></i> Пароли папок</div>
             <a href="/static/docs.html" class="admin-nav-item" style="display: block; text-decoration: none;"><i class="fa-solid fa-folder-open"></i> База Знаний (Drive)</a>
-            
-            <a href="/analytics" style="text-decoration: none;">
-                <div class="admin-nav-item" style="color: #60a5fa; margin-top: 0.5rem;"><i class="fa-solid fa-chart-pie"></i> Аналитика простоев (Техсовет)</div>
-            </a>
-
-            
-            <button id="btn-sync-google" onclick="syncDirectoriesFromGoogle()" style="background: #217346; margin-top: 0.8rem; margin-bottom: 0.3rem; width: 100%;"><i class="fa-solid fa-arrows-rotate"></i> Google Sheets</button>
-            <button id="btn-sync-drive" onclick="syncFoldersToDrive()" style="background: #2563eb; margin-bottom: 0.3rem; width: 100%;"><i class="fab fa-google-drive"></i> Структура в Google Drive</button>
             
             <div style="flex-grow: 1;"></div>
 
@@ -555,9 +546,12 @@
 
             <!-- Norms Tab -->
             <div id="tab-norms" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                    <h2>Нормы продукции</h2>
-                    <button onclick="openNormModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> Добавить продукт</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-scale-balanced"></i> Нормы продукции</h2>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="openNormModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> Добавить продукт</button>
+                        <button id="btn-sync-norms-google" onclick="syncNormsFromGoogle()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
+                    </div>
                 </div>
                 <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
                     <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
@@ -604,56 +598,39 @@
                         Справочники (сотрудники и нормы) останутся нетронутыми.
                     </p>
                     <div style="background: rgba(255,0,0,0.1); padding: 0.8rem; border: 1px solid var(--danger-color); border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem;">
-                        <strong>Внимание:</strong> Перед очисткой убедитесь, что вы выгрузили все необходимые отчеты (PDF/Excel). Отменить действие будет невозможно.
+                        <strong>Внимание:</strong> Перед очисткой убедитесь, что вы выгрузили все необходимые отчеты (PDF/Excel). Для подтверждения потребуется дважды ввести пароль администратора.
                     </div>
                     <button onclick="clearOperationalData()" class="btn-danger" style="width: 100%; padding: 0.75rem; font-size: 0.95rem;"><i class="fa-solid fa-triangle-exclamation"></i> ПОДТВЕРДИТЬ ОЧИСТКУ ДАННЫХ</button>
-                    
-                    <div class="glass-panel" style="margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--glass-border);">
-                        <h2 style="color: var(--primary-color); margin-bottom: 0.8rem;"><i class="fa-solid fa-file-excel"></i> Импорт данных рапорта АЦИ</h2>
-                        <p style="color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.8rem; font-size: 0.88rem;">
-                            Выберите Excel-файл рапорта АЦИ (например, <code>рапорт_АЦИ 10.06.26..xlsx</code>), чтобы наполнить базу данных достоверными производственными показателями.
-                        </p>
-                        <div style="margin-bottom: 1rem;">
-                            <input type="file" id="aci-report-file" accept=".xlsx" style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 8px; border: 1px solid var(--glass-border); width: 100%; color: var(--text-primary); font-size: 0.85rem;">
-                        </div>
-                        <button id="btn-upload-aci" onclick="uploadAciReport()" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-cloud-arrow-up"></i> ЗАГРУЗИТЬ И СИНХРОНИЗИРОВАТЬ</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Plan Board Tab -->
-            <div id="tab-plan-board" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                    <h2>Выработка (План/Факт)</h2>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="importPlanBoard()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-file-excel"></i> Импортировать из Excel</button>
-                        <button onclick="showAddPlanBoardModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--success-color);"><i class="fa-solid fa-plus"></i> Добавить запись</button>
-                    </div>
-                </div>
-                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
-                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
-                        <thead>
-                            <tr>
-                                <th>Дата</th><th>Линия</th><th>Смена</th><th>Смена (номер)</th><th>Мастер</th><th>План (листы)</th><th>Факт (листы)</th><th>1-й сорт</th><th>Брак</th><th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody id="plan-board-table-body">
-                            <tr><td colspan="10" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
             <!-- Audit Logs Tab -->
             <div id="tab-audit-logs" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                    <h2>История изменений (Лог аудита)</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> История изменений (Лог аудита)</h2>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button onclick="exportAuditLogsToCsv()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-file-excel"></i> Экспорт (CSV)</button>
+                        <button onclick="loadAuditLogs()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-arrows-rotate"></i> Обновить</button>
+                    </div>
                 </div>
+
+                <div style="margin-bottom: 0.6rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <select id="filter-audit-action" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;" onchange="renderAuditLogsTable()">
+                        <option value="">Все действия</option>
+                        <option value="CREATE">CREATE (Создание)</option>
+                        <option value="UPDATE">UPDATE (Изменение)</option>
+                        <option value="DELETE">DELETE (Удаление)</option>
+                        <option value="SYNC">SYNC (Синхронизация)</option>
+                        <option value="IMPORT">IMPORT (Импорт)</option>
+                    </select>
+                    <input type="text" id="filter-audit-search" placeholder="Поиск по пользователю, таблице или деталям..." style="padding: 0.35rem 0.8rem; width: 320px; font-size: 0.85rem;" oninput="renderAuditLogsTable()">
+                </div>
+
                 <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
                     <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
-                                <th>Время</th><th>Пользователь</th><th>Действие</th><th>Таблица</th><th>Детали</th>
+                                <th>Время</th><th>Пользователь</th><th>Действие</th><th>Таблица / Объект</th><th>Детализация изменений</th>
                             </tr>
                         </thead>
                         <tbody id="audit-logs-table-body">
@@ -665,11 +642,12 @@
 
             <!-- Downtime Directory Tab -->
             <div id="tab-downtimes-dir" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                    <h2>Справочник поломок (простоев)</h2>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h2 style="margin: 0;"><i class="fa-solid fa-list-check"></i> Справочник поломок (простоев)</h2>
+                    <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                         <input type="text" id="downtimes-dir-search" placeholder="Поиск поломки..." oninput="filterDowntimesDirTable()" style="width: 220px; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
                         <button onclick="openDowntimeDirModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
+                        <button id="btn-sync-downtimes-google" onclick="syncDowntimesDirFromGoogle()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
                     </div>
                 </div>
                 <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
@@ -1386,6 +1364,6 @@
         </div>
     </div>
 
-    <script src="/static/js/admin.js?v=20260820_compact_btns_1"></script>
+    <script src="/static/js/admin.js?v=20260820_admin_reorg_1"></script>
 </body>
 </html>

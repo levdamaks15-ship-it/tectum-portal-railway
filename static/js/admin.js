@@ -89,24 +89,18 @@ function switchAdminTab(tabId) {
     const activeNav = document.getElementById('nav-' + tabId);
     if (activeNav) activeNav.classList.add('active');
     
-    document.getElementById('tab-masters').style.display = 'none';
-    document.getElementById('tab-norms').style.display = 'none';
-    document.getElementById('tab-plan-board').style.display = 'none';
-    document.getElementById('tab-shifts').style.display = 'none';
-    const tabReceipts = document.getElementById('tab-receipts');
-    if (tabReceipts) tabReceipts.style.display = 'none';
-    document.getElementById('tab-cleanup').style.display = 'none';
-    document.getElementById('tab-audit-logs').style.display = 'none';
-    const tabDowntimes = document.getElementById('tab-downtimes-dir');
-    if (tabDowntimes) tabDowntimes.style.display = 'none';
-    const tabDowntimesLog = document.getElementById('tab-downtimes-log');
-    if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
-    const tabPasswords = document.getElementById('tab-passwords');
-    if (tabPasswords) tabPasswords.style.display = 'none';
-    const tabChecklistEmps = document.getElementById('tab-checklist-emps');
-    if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
-    const tabShiftSchedule = document.getElementById('tab-shift-schedule');
-    if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
+    const tabMasters = document.getElementById('tab-masters'); if (tabMasters) tabMasters.style.display = 'none';
+    const tabNorms = document.getElementById('tab-norms'); if (tabNorms) tabNorms.style.display = 'none';
+    const tabPlanBoard = document.getElementById('tab-plan-board'); if (tabPlanBoard) tabPlanBoard.style.display = 'none';
+    const tabShifts = document.getElementById('tab-shifts'); if (tabShifts) tabShifts.style.display = 'none';
+    const tabReceipts = document.getElementById('tab-receipts'); if (tabReceipts) tabReceipts.style.display = 'none';
+    const tabCleanup = document.getElementById('tab-cleanup'); if (tabCleanup) tabCleanup.style.display = 'none';
+    const tabAuditLogs = document.getElementById('tab-audit-logs'); if (tabAuditLogs) tabAuditLogs.style.display = 'none';
+    const tabDowntimes = document.getElementById('tab-downtimes-dir'); if (tabDowntimes) tabDowntimes.style.display = 'none';
+    const tabDowntimesLog = document.getElementById('tab-downtimes-log'); if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
+    const tabPasswords = document.getElementById('tab-passwords'); if (tabPasswords) tabPasswords.style.display = 'none';
+    const tabChecklistEmps = document.getElementById('tab-checklist-emps'); if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
+    const tabShiftSchedule = document.getElementById('tab-shift-schedule'); if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
     
     const targetTab = document.getElementById('tab-' + tabId);
     if (targetTab) targetTab.style.display = 'block';
@@ -357,17 +351,39 @@ async function deleteNorm(id) {
 // --- CLEANUP ---
 
 async function clearOperationalData() {
-    if (!confirm("ВЫ УВЕРЕНЫ? Все записи о сменах, простоях и партиях будут удалены БЕЗВОЗВРАТНО.")) return;
-    if (!confirm("Подтвердите еще раз: Вы выгрузили все нужные Excel/PDF отчеты?")) return;
+    if (!confirm("ВНИМАНИЕ! Вы собираетесь БЕЗВОЗВРАТНО удалить все записи о сменах, рапортах ЛФМ, простоях и партиях продукции.")) {
+        return;
+    }
+    const pwd1 = prompt("Введите пароль администратора для подтверждения сброса данных:");
+    if (!pwd1) {
+        alert("Очистка отменена: пароль не введен.");
+        return;
+    }
+    if (pwd1 !== "VjzJ,jhjyf15") {
+        alert("Неверный пароль администратора. Очистка отменена.");
+        return;
+    }
+
+    const pwd2 = prompt("ПОДТВЕРДИТЕ ЕЩЕ РАЗ: Повторите пароль для окончательного сброса базы:");
+    if (pwd2 !== "VjzJ,jhjyf15") {
+        alert("Пароли не совпадают или неверны. Очистка отменена.");
+        return;
+    }
 
     try {
-        const res = await fetch('/api/admin/clear_data/', { method: 'POST' });
+        const res = await fetch('/api/admin/clear_data/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pwd2 })
+        });
         if (res.ok) {
             const data = await res.json();
             alert(`Данные успешно очищены!\nУдалено смен: ${data.deleted.shifts}\nПартий: ${data.deleted.batches}\nПростоев: ${data.deleted.downtimes}\nЗаписей выработки: ${data.deleted.plan_board}`);
-            loadPlanBoard();
+            loadShifts();
+            if (typeof loadAuditLogs === 'function') loadAuditLogs();
         } else {
-            alert("Произошла ошибка при очистке БД на сервере.");
+            const err = await res.json();
+            alert("Ошибка при очистке БД: " + (err.detail || "Доступ запрещен"));
         }
     } catch (e) {
         alert("Сетевая ошибка при очистке БД.");
@@ -545,30 +561,96 @@ async function importPlanBoard() {
     }
 }
 
+let adminAuditLogsCached = [];
+
 async function loadAuditLogs() {
     try {
+        const tbody = document.getElementById('audit-logs-table-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Загрузка логов...</td></tr>';
+        
         const res = await fetch('/api/admin/audit_logs');
         const data = await res.json();
-        const tbody = document.getElementById('audit-logs-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Нет записей</td></tr>';
-            return;
-        }
-        data.forEach(log => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${log.timestamp || ''}</td>
-                <td>${log.user_name || ''} (${log.user_role || ''})</td>
-                <td>${log.action || ''}</td>
-                <td style="white-space: pre-wrap; font-size: 0.85rem;">${log.details || ''}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        adminAuditLogsCached = Array.isArray(data) ? data : [];
+        renderAuditLogsTable();
     } catch (e) {
         console.error("Error loading audit logs:", e);
+        const tbody = document.getElementById('audit-logs-table-body');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: red;">Ошибка загрузки логов</td></tr>';
     }
+}
+
+function renderAuditLogsTable() {
+    const tbody = document.getElementById('audit-logs-table-body');
+    if (!tbody) return;
+
+    const actionFilter = document.getElementById('filter-audit-action') ? document.getElementById('filter-audit-action').value : '';
+    const searchFilter = document.getElementById('filter-audit-search') ? document.getElementById('filter-audit-search').value.toLowerCase().trim() : '';
+
+    let filtered = adminAuditLogsCached.filter(log => {
+        const act = (log.action || '').toUpperCase();
+        const matchAction = !actionFilter || act === actionFilter.toUpperCase() || act.includes(actionFilter.toUpperCase());
+        
+        const textToSearch = `${log.user_name || ''} ${log.target_table || ''} ${log.details || ''} ${log.timestamp || ''}`.toLowerCase();
+        const matchSearch = !searchFilter || textToSearch.includes(searchFilter);
+        
+        return matchAction && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 1.5rem;">Записи не найдены</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(log => {
+        let actionBadge = `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.78rem;">${log.action || '—'}</span>`;
+        if (log.action === 'CREATE') {
+            actionBadge = `<span style="background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">CREATE</span>`;
+        } else if (log.action === 'UPDATE') {
+            actionBadge = `<span style="background: rgba(59,130,246,0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">UPDATE</span>`;
+        } else if (log.action === 'DELETE') {
+            actionBadge = `<span style="background: rgba(239,68,68,0.2); color: #f87171; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">DELETE</span>`;
+        } else if (log.action === 'IMPORT' || log.action === 'SYNC') {
+            actionBadge = `<span style="background: rgba(245,158,11,0.2); color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">${log.action}</span>`;
+        }
+
+        const dateFormatted = log.timestamp ? log.timestamp.replace('T', ' ').substring(0, 19) : '—';
+
+        return `
+            <tr>
+                <td style="white-space: nowrap; font-size: 0.78rem; color: var(--text-secondary);">${dateFormatted}</td>
+                <td style="font-weight: 600; color: var(--text-primary);">${log.user_name || 'Система'}</td>
+                <td>${actionBadge}</td>
+                <td style="font-weight: 500; color: var(--accent-color);">${log.target_table || '—'}</td>
+                <td style="white-space: pre-wrap; font-size: 0.82rem; line-height: 1.3;">${log.details || '—'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function exportAuditLogsToCsv() {
+    if (!adminAuditLogsCached || adminAuditLogsCached.length === 0) {
+        alert("Нет данных для экспорта");
+        return;
+    }
+
+    const headers = ["Время", "Пользователь", "Действие", "Таблица", "Детали"];
+    const rows = adminAuditLogsCached.map(log => [
+        `"${(log.timestamp || '').replace('T', ' ')}"`,
+        `"${(log.user_name || '').replace(/"/g, '""')}"`,
+        `"${(log.action || '').replace(/"/g, '""')}"`,
+        `"${(log.target_table || '').replace(/"/g, '""')}"`,
+        `"${(log.details || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(';'), ...rows.map(e => e.join(';'))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `audit_logs_${new Date().toISOString().substring(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 // --- SHIFTS CRUD & UNIFIED MANAGEMENT ---
@@ -1386,85 +1468,75 @@ async function deleteDowntimeDirEntry(id) {
     }
 }
 
-async function syncDirectoriesFromSharepoint() {
-    const btn = document.getElementById('btn-sync-sharepoint');
-    const originalText = btn.innerHTML;
+async function syncNormsFromGoogle() {
+    const btn = document.getElementById('btn-sync-norms-google');
+    const originalText = btn ? btn.innerHTML : '';
     
-    if (!confirm("Вы действительно хотите синхронизировать все нормативы и справочник простоев из файла Справочники_Tectum.xlsx в SharePoint? Это перезапишет текущие справочники на портале!")) {
+    if (!confirm("Синхронизировать нормы продукции из Google Таблицы? Это обновит технологические рецептуры и вес изделий.")) {
         return;
     }
     
     try {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Синхронизация...';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обновление...';
+        }
         
-        const res = await fetch('/api/admin/sync_directories_sharepoint', {
+        const res = await fetch('/api/norms/sync_from_google', {
             method: 'POST'
         });
         
         const data = await res.json();
         if (res.ok) {
-            alert(data.message || "Синхронизация выполнена успешно!");
+            alert(data.message || "Нормы продукции успешно обновлены из Google Таблицы!");
             loadNorms();
-            if (typeof loadDowntimesDir === 'function') {
-                loadDowntimesDir();
-            }
         } else {
-            alert("Ошибка синхронизации: " + (data.detail || "Неизвестная ошибка"));
+            alert("Ошибка синхронизации норм: " + (data.detail || "Неизвестная ошибка"));
         }
     } catch(e) {
         console.error(e);
-        alert("Сетевая ошибка при выполнении синхронизации: " + e.message);
+        alert("Сетевая ошибка при синхронизации норм: " + e.message);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 
-async function uploadAciReport() {
-    const fileInput = document.getElementById("aci-report-file");
-    const btn = document.getElementById("btn-upload-aci");
-    if (!fileInput.files || fileInput.files.length === 0) {
-        alert("Пожалуйста, выберите Excel-файл рапорта АЦИ (.xlsx)");
+async function syncDowntimesDirFromGoogle() {
+    const btn = document.getElementById('btn-sync-downtimes-google');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (!confirm("Синхронизировать справочник простоев из Google Таблицы?")) {
         return;
     }
     
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append("file", file);
-    
-    const originalText = btn.innerHTML;
     try {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обработка и импорт...';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Обновление...';
+        }
         
-        const res = await fetch("/api/admin/upload_aci_report", {
-            method: "POST",
-            body: formData
+        const res = await fetch('/api/downtimes/directory/sync_from_google', {
+            method: 'POST'
         });
         
         const data = await res.json();
         if (res.ok) {
-            let msg = `Импорт завершен успешно!\n`;
-            msg += `- Импортировано смен: ${data.shifts}\n`;
-            msg += `- Импортировано партий: ${data.batches}\n`;
-            msg += `- Импортировано отчетов ЛФМ: ${data.lfm_reports}\n`;
-            if (data.sharepoint_url) {
-                msg += `\nСводный отчет успешно сгенерирован и загружен в SharePoint.`;
-            } else if (data.sharepoint_error) {
-                msg += `\nВнимание: Сводный отчет не загрузился в SharePoint (ошибка: ${data.sharepoint_error})`;
-            }
-            alert(msg);
-            fileInput.value = ""; // Очищаем поле ввода
+            alert(data.message || "Справочник простоев успешно обновлен из Google Таблицы!");
+            loadDowntimesDir();
         } else {
-            alert("Ошибка импорта: " + (data.detail || "Неизвестная ошибка на сервере"));
+            alert("Ошибка синхронизации справочника: " + (data.detail || "Неизвестная ошибка"));
         }
     } catch(e) {
         console.error(e);
-        alert("Сетевая ошибка при загрузке файла: " + e.message);
+        alert("Сетевая ошибка при синхронизации справочника: " + e.message);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
     }
 }
 
@@ -1906,30 +1978,6 @@ async function clearPassword(catId) {
     }
 }
 
-async function syncFoldersToDrive() {
-    const btn = document.getElementById('btn-sync-drive');
-    const origHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка в Drive...';
-    }
-    try {
-        const res = await fetch('/api/documents/sync-folders-to-drive', { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'success') {
-            alert(`Успешно синхронизировано!\nПапок выгружено/проверено: ${data.folders_count}\nФайлов синхронизировано: ${data.docs_synced ? data.docs_synced.length : 0}`);
-        } else {
-            alert('Ошибка синхронизации: ' + data.message);
-        }
-    } catch (e) {
-        alert('Ошибка соединения с сервером');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = origHtml;
-        }
-    }
-}
 
 // ========================================================
 // УПРАВЛЕНИЕ СОТРУДНИКАМИ ЦЕХА (ЧЕК-ЛИСТЫ)
