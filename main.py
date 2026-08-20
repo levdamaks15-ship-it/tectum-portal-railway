@@ -5893,43 +5893,95 @@ def add_external_document_link(
 @app.get("/api/documents/fetch_link_title")
 def fetch_external_link_title(url: str = Query(...)):
     """
-    Автоматически извлекает реальный заголовок/название файла по ссылке (OneDrive, Google Docs, Sheets и др.)
+    Автоматически извлекает реальный заголовок/название файла по ссылке (OneDrive, Google Docs, Sheets, Yandex и др.)
     """
+    import re
+    import html as py_html
+    import json
+    
     clean_url = url.strip()
     if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
         clean_url = "https://" + clean_url
         
-    try:
-        # 1. Попытка запросить метаданные страницы
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        resp = requests.get(clean_url, headers=headers, timeout=6, allow_redirects=True)
-        
-        title = ""
-        # Поиск тега <title> или og:title
-        import re
-        og_match = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', resp.text, re.IGNORECASE)
-        if not og_match:
-            og_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+property=["\']og:title["\']', resp.text, re.IGNORECASE)
-            
-        if og_match:
-            title = og_match.group(1).strip()
-        else:
-            title_match = re.search(r'<title>(.*?)</title>', resp.text, re.IGNORECASE | re.DOTALL)
-            if title_match:
-                title = title_match.group(1).strip()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+    }
+
+    # 1. Специальная обработка Google Таблиц (Google Sheets) через GViz API / Meta
+    sheet_match = re.search(r'docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)', clean_url)
+    if sheet_match:
+        doc_id = sheet_match.group(1)
+        try:
+            # Способ 1.1: Быстрый запрос через GViz API метаданных таблицы
+            gviz_url = f"https://docs.google.com/spreadsheets/d/{doc_id}/gviz/tq?tqx=out:json"
+            gviz_resp = requests.get(gviz_url, headers=headers, timeout=4)
+            if gviz_resp.status_code == 200:
+                match = re.search(r'"table":\s*\{.*?"label":\s*"([^"]+)"', gviz_resp.text)
+                if match and match.group(1):
+                    return {"status": "success", "title": match.group(1).strip()}
+        except Exception as e:
+            pass
+
+    # 2. Специальная обработка Google Docs / Drive
+    gdoc_match = re.search(r'docs\.google\.com/(document|spreadsheets|presentation)/d/([a-zA-Z0-9-_]+)', clean_url)
+    target_urls_to_try = [clean_url]
+    if gdoc_match:
+        dtype, doc_id = gdoc_match.group(1), gdoc_match.group(2)
+        # Добавляем альтернативные публичные URL для быстрого извлечения OpenGraph
+        if dtype == "spreadsheets":
+            target_urls_to_try.insert(0, f"https://docs.google.com/spreadsheets/d/{doc_id}/htmlview")
+            target_urls_to_try.insert(0, f"https://docs.google.com/spreadsheets/d/{doc_id}/preview")
+        elif dtype == "document":
+            target_urls_to_try.insert(0, f"https://docs.google.com/document/d/{doc_id}/preview")
+
+    for test_url in target_urls_to_try:
+        try:
+            resp = requests.get(test_url, headers=headers, timeout=5, allow_redirects=True)
+            if resp.status_code != 200:
+                continue
                 
-        # Очистка мусора вроде " - OneDrive", " - Google Таблицы", " - Excel"
-        if title:
-            title = html.unescape(title)
-            for suffix in [" - OneDrive", " - Excel", " - Word", " - Google Таблицы", " - Google Документы", " - Google Презентации", " - Google Диск", " — Яндекс Диск", " - Microsoft OneDrive"]:
-                if title.endswith(suffix):
-                    title = title[:-len(suffix)].strip()
-            return {"status": "success", "title": title}
-    except Exception as e:
-        print(f"Error fetching link title: {e}")
-        
+            text = resp.text
+            title = ""
+            
+            # 1. itemprop="name" (часто используется Google)
+            itemprop_match = re.search(r'<meta\s+itemprop=["\']name["\']\s+content=["\']([^"\']+)["\']', text, re.IGNORECASE)
+            if not itemprop_match:
+                itemprop_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+itemprop=["\']name["\']', text, re.IGNORECASE)
+            if itemprop_match:
+                title = itemprop_match.group(1).strip()
+
+            # 2. og:title / twitter:title
+            if not title:
+                og_match = re.search(r'<meta\s+(?:property|name)=["\'](?:og:title|twitter:title)["\']\s+content=["\']([^"\']+)["\']', text, re.IGNORECASE)
+                if not og_match:
+                    og_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+(?:property|name)=["\'](?:og:title|twitter:title)["\']', text, re.IGNORECASE)
+                if og_match:
+                    title = og_match.group(1).strip()
+
+            # 3. <title>...</title>
+            if not title:
+                title_match = re.search(r'<title>(.*?)</title>', text, re.IGNORECASE | re.DOTALL)
+                if title_match:
+                    title = title_match.group(1).strip()
+                    
+            if title:
+                title = py_html.unescape(title)
+                # Очистка мусора и брендинга
+                for suffix in [
+                    " - Google Таблицы", " - Google Документы", " - Google Презентации", 
+                    " - Google Диск", " - Google Sheets", " - Google Docs", " - Google Drive",
+                    " - OneDrive", " - Excel", " - Word", " - Microsoft OneDrive", " — Яндекс Диск"
+                ]:
+                    if title.endswith(suffix):
+                        title = title[:-len(suffix)].strip()
+                
+                # Игнорируем стандартные страницы входа
+                if title and not any(bad in title.lower() for bad in ["вход", "войти", "sign in", "login", "google accounts"]):
+                    return {"status": "success", "title": title}
+        except Exception as e:
+            continue
+            
     return {"status": "error", "message": "Не удалось автоматически извлечь заголовок"}
 
 @app.post("/api/documents/folders")
