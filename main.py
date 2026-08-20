@@ -6154,6 +6154,81 @@ def rename_document(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.put("/api/documents/{item_id}/move")
+def move_document(
+    item_id: str,
+    target_folder_id: Optional[str] = Form(None),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        target_cat_id: Optional[int] = None
+        if target_folder_id and target_folder_id.strip() and target_folder_id != "root":
+            if target_folder_id.startswith("folder_"):
+                target_cat_id = int(target_folder_id.split("_")[1])
+            elif target_folder_id.isdigit():
+                target_cat_id = int(target_folder_id)
+            else:
+                return {"status": "error", "message": "Неверный формат идентификатора папки"}
+            
+            target_folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == target_cat_id).first()
+            if not target_folder:
+                return {"status": "error", "message": "Целевая папка не найдена"}
+                
+            target_protected = get_protected_ancestor(db, target_folder.id)
+            if target_protected:
+                if not x_folder_password or target_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+
+        if item_id.startswith("folder_"):
+            cat_id = int(item_id.split("_")[1])
+            folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
+            if not folder:
+                return {"status": "error", "message": "Перемещаемая папка не найдена"}
+
+            src_protected = get_protected_ancestor(db, folder.id)
+            if src_protected:
+                if not x_folder_password or src_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+
+            if target_cat_id == folder.id:
+                return {"status": "error", "message": "Нельзя переместить папку саму в себя"}
+
+            if target_cat_id is not None:
+                curr = target_cat_id
+                while curr is not None:
+                    if curr == folder.id:
+                        return {"status": "error", "message": "Нельзя переместить папку в её собственную подпапку"}
+                    parent_row = db.query(models.DocumentCategory.parent_id).filter(models.DocumentCategory.id == curr).first()
+                    curr = parent_row[0] if parent_row else None
+
+            folder.parent_id = target_cat_id
+            db.commit()
+            return {"status": "success", "message": "Папка успешно перемещена"}
+
+        elif item_id.startswith("file_"):
+            file_id = int(item_id.split("_")[1])
+            doc = db.query(models.Document).filter(models.Document.id == file_id).first()
+            if not doc:
+                return {"status": "error", "message": "Файл не найден"}
+
+            if doc.category_id:
+                src_protected = get_protected_ancestor(db, doc.category_id)
+                if src_protected:
+                    if not x_folder_password or src_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                        raise HTTPException(status_code=403, detail="Access Denied")
+
+            doc.category_id = target_cat_id
+            db.commit()
+            return {"status": "success", "message": "Файл успешно перемещен"}
+
+        return {"status": "error", "message": "Неизвестный тип объекта"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
 @app.delete("/api/documents/{item_id}")
 def delete_document(
     item_id: str, 

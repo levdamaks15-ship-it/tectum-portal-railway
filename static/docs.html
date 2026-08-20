@@ -927,6 +927,69 @@
         }
         .btn-cancel:hover { color: var(--docs-text-primary); border-color: var(--docs-text-muted); }
 
+        /* Move Modal Styles */
+        .move-tree-container {
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid var(--docs-input-border);
+            border-radius: 10px;
+            background: var(--docs-input-bg);
+            padding: 0.5rem;
+            margin-bottom: 0.9rem;
+        }
+        .move-tree-container::-webkit-scrollbar {
+            width: 5px;
+        }
+        .move-tree-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .move-tree-container::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.3);
+            border-radius: 4px;
+        }
+        .move-folder-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--docs-text-primary);
+            font-size: 0.9rem;
+            transition: all 0.15s ease;
+            user-select: none;
+            margin-bottom: 2px;
+        }
+        .move-folder-item:hover {
+            background: var(--docs-context-item-hover);
+        }
+        .move-folder-item.selected {
+            background: rgba(59, 130, 246, 0.22);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            font-weight: 600;
+        }
+        .move-folder-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .move-search-input {
+            width: 100%;
+            padding: 0.65rem 0.9rem;
+            margin-bottom: 0.75rem;
+            background: var(--docs-input-bg);
+            border: 1px solid var(--docs-input-border);
+            border-radius: 8px;
+            color: var(--docs-input-color);
+            font-size: 0.9rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .move-search-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
         .empty-state {
             padding: 4rem 1.5rem;
             text-align: center;
@@ -1361,6 +1424,44 @@
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeRenameModal()">Отмена</button>
                 <button class="btn-action btn-upload-file" onclick="submitRename()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Перемещение файла или папки -->
+    <div id="move-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                <h3 id="move-modal-title" style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                    <i class="fas fa-folder-tree" style="color: #3b82f6;"></i> <span>Переместить в папку</span>
+                </h3>
+                <button onclick="closeMoveModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Перемещение: <strong style="color: var(--docs-text-primary);" id="move-modal-item-text"></strong>
+            </p>
+
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+                <input type="text" id="move-folder-search" class="move-search-input" placeholder="🔍 Быстрый поиск папки..." oninput="filterMoveFolders(this.value)">
+            </div>
+
+            <div id="move-folder-tree" class="move-tree-container">
+                <!-- Загружается динамически -->
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; color: var(--docs-text-secondary); margin-bottom: 1.2rem; background: var(--docs-btn-bg); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--docs-btn-border);">
+                <span>Назначение:</span>
+                <span id="move-selected-label" style="font-weight: 600; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">📁 Главная директория (Корень)</span>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeMoveModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-move" onclick="submitMoveItem()" style="background: #2563eb; color: #fff; min-height: 44px;">
+                    <i class="fas fa-arrow-right-to-bracket"></i> Переместить сюда
+                </button>
             </div>
         </div>
     </div>
@@ -2164,6 +2265,9 @@
                     <div class="context-menu-item" onclick="loadDocuments('${item.id}', '${escapeHtml(item.name)}', true, null, ${item.is_protected})">
                         <i class="fas fa-folder-open" style="color:#3b82f6;"></i> Открыть папку
                     </div>
+                    <div class="context-menu-item" onclick="openMoveModal('${item.id}', '${escapeHtml(item.name).replace(/'/g, "\\'")}', true, '${item.parent_id || ''}', ${item.is_protected})">
+                        <i class="fas fa-folder-tree" style="color:#0284c7;"></i> Переместить
+                    </div>
                     <div class="context-menu-item" onclick="openRenameModal('${item.id}', '${escapeHtml(item.name)}', ${item.is_protected})">
                         <i class="fas fa-edit" style="color:#f59e0b;"></i> Переименовать
                     </div>
@@ -2185,6 +2289,9 @@
                     </div>
                     <div class="context-menu-item" onclick="copyItemLink('${viewUrl}', ${item.is_protected})">
                         <i class="fas fa-link" style="color:#a855f7;"></i> Копировать ссылку
+                    </div>
+                    <div class="context-menu-item" onclick="openMoveModal('${item.id}', '${escapeHtml(item.name).replace(/'/g, "\\'")}', false, '${item.category_id || ''}', ${item.is_protected})">
+                        <i class="fas fa-folder-tree" style="color:#0284c7;"></i> Переместить
                     </div>
                     <div class="context-menu-separator"></div>
                     <div class="context-menu-item" onclick="openRenameModal('${item.id}', '${escapeHtml(item.name)}', ${item.is_protected})">
@@ -2433,6 +2540,9 @@
                         </div>
                         <div class="row-meta">Папка</div>
                         <div class="row-actions">
+                            <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку" style="color: #0284c7;">
+                                <i class="fas fa-folder-tree"></i>
+                            </button>
                             <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку" style="color: #ef4444;">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -2469,6 +2579,9 @@
                             <a href="${escapeHtml(viewUrl)}" target="_blank" rel="noopener noreferrer" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon" title="Открыть в новой вкладке" style="color: #3b82f6;">
                                 <i class="fas fa-arrow-up-right-from-square"></i>
                             </a>
+                            <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${file.id}', '${escapeHtml(file.name).replace(/'/g, "\\'")}', false, '${file.category_id || ''}', ${file.is_protected})" title="Переместить файл" style="color: #0284c7;">
+                                <i class="fas fa-folder-tree"></i>
+                            </button>
                             <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event, ${file.is_protected})" title="Удалить" style="color: #ef4444;">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -2752,6 +2865,212 @@
             } finally {
                 if (icon) icon.classList.remove('fa-spin');
                 if (btn) btn.disabled = false;
+            }
+        }
+
+        /* ==========================================================
+           MOVE MODAL LOGIC (ROBUST MOBILE & DESKTOP MOVE)
+           ========================================================== */
+        let moveTargetItemId = null;
+        let moveTargetIsFolder = false;
+        let moveTargetProtected = false;
+        let moveSelectedFolderId = 'root';
+        let allMoveFoldersList = [];
+
+        async function openMoveModal(itemId, itemName, isFolder, currentParentId, isProtected) {
+            hideContextMenu();
+            moveTargetItemId = itemId;
+            moveTargetIsFolder = isFolder;
+            moveTargetProtected = isProtected;
+            moveSelectedFolderId = 'root';
+
+            const modal = document.getElementById('move-modal');
+            const itemText = document.getElementById('move-modal-item-text');
+            const searchInput = document.getElementById('move-folder-search');
+            const selectedLabel = document.getElementById('move-selected-label');
+            const treeContainer = document.getElementById('move-folder-tree');
+
+            if (itemText) itemText.innerText = itemName;
+            if (searchInput) searchInput.value = '';
+            if (selectedLabel) selectedLabel.innerText = '📁 Главная директория (Корень)';
+            if (treeContainer) treeContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--docs-text-muted);"><i class="fas fa-spinner fa-spin"></i> Загрузка структуры папок...</div>';
+
+            if (modal) modal.style.display = 'flex';
+
+            try {
+                const res = await fetch('/api/documents/tree');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const folders = data.data.folders || (Array.isArray(data.data) ? data.data : []);
+                    allMoveFoldersList = folders;
+                    buildAndRenderMoveTree(folders, itemId, isFolder, currentParentId);
+                } else {
+                    if (treeContainer) treeContainer.innerHTML = `<div style="color: #ef4444; padding: 1rem; text-align: center;">Ошибка: ${data.message}</div>`;
+                }
+            } catch (err) {
+                if (treeContainer) treeContainer.innerHTML = `<div style="color: #ef4444; padding: 1rem; text-align: center;">Ошибка загрузки папок</div>`;
+            }
+        }
+
+        function closeMoveModal() {
+            const modal = document.getElementById('move-modal');
+            if (modal) modal.style.display = 'none';
+            moveTargetItemId = null;
+        }
+
+        function buildAndRenderMoveTree(folders, movingItemId, movingIsFolder, currentParentId, filterQuery = '') {
+            const treeContainer = document.getElementById('move-folder-tree');
+            if (!treeContainer) return;
+
+            const movingFolderId = movingIsFolder ? movingItemId : null;
+
+            // Find all descendant IDs if moving a folder (to prevent cycle)
+            const disabledIds = new Set();
+            if (movingFolderId) {
+                disabledIds.add(movingFolderId);
+                const addChildren = (parentId) => {
+                    folders.forEach(f => {
+                        if (f.parent_id === parentId) {
+                            disabledIds.add(f.id);
+                            addChildren(f.id);
+                        }
+                    });
+                };
+                addChildren(movingFolderId);
+            }
+
+            let html = '';
+
+            // Root folder option
+            const isRootSelected = moveSelectedFolderId === 'root';
+            const rootMatch = !filterQuery || 'главная директория корень root'.includes(filterQuery.toLowerCase());
+
+            if (rootMatch) {
+                html += `
+                    <div class="move-folder-item ${isRootSelected ? 'selected' : ''}" 
+                         onclick="selectMoveTarget('root', '📁 Главная директория (Корень)', this)">
+                        <i class="fas fa-home" style="color: #38bdf8; font-size: 1rem;"></i>
+                        <span style="font-weight: 500;">Главная директория (Корень)</span>
+                    </div>
+                `;
+            }
+
+            // Build tree hierarchy
+            const folderMap = {};
+            const rootFolders = [];
+            folders.forEach(f => {
+                f.children = [];
+                folderMap[f.id] = f;
+            });
+            folders.forEach(f => {
+                if (f.parent_id && folderMap[f.parent_id]) {
+                    folderMap[f.parent_id].children.push(f);
+                } else {
+                    rootFolders.push(f);
+                }
+            });
+
+            function renderNode(f, depth = 1) {
+                const isDisabled = disabledIds.has(f.id);
+                const isSelected = moveSelectedFolderId === f.id;
+                const color = getFolderColor(f.name);
+                const lockIcon = f.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;"></i>' : '';
+                const paddingLeft = `${depth * 18 + 12}px`;
+                
+                let matches = true;
+                if (filterQuery) {
+                    matches = f.name.toLowerCase().includes(filterQuery.toLowerCase());
+                }
+
+                let nodeHtml = '';
+                if (matches) {
+                    nodeHtml += `
+                        <div class="move-folder-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
+                             style="padding-left: ${paddingLeft};"
+                             onclick="${isDisabled ? '' : `selectMoveTarget('${f.id}', '${escapeHtml(f.name).replace(/'/g, "\\'")}', this)`}">
+                            <i class="fas fa-folder" style="color: ${color}; font-size: 0.95rem;"></i>
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(f.name)}</span>
+                            ${lockIcon}
+                            ${isDisabled ? '<span style="margin-left: auto; font-size: 0.72rem; color: var(--docs-text-muted);">(текущая/вложенная)</span>' : ''}
+                        </div>
+                    `;
+                }
+
+                if (f.children && f.children.length > 0) {
+                    f.children.forEach(child => {
+                        nodeHtml += renderNode(child, depth + 1);
+                    });
+                }
+                return nodeHtml;
+            }
+
+            rootFolders.forEach(rf => {
+                html += renderNode(rf, 1);
+            });
+
+            if (!html.trim()) {
+                html = '<div style="padding: 1rem; text-align: center; color: var(--docs-text-muted); font-size: 0.88rem;">Папки не найдены</div>';
+            }
+
+            treeContainer.innerHTML = html;
+        }
+
+        function filterMoveFolders(query) {
+            const q = query.trim();
+            buildAndRenderMoveTree(allMoveFoldersList, moveTargetItemId, moveTargetIsFolder, null, q);
+        }
+
+        function selectMoveTarget(folderId, folderName, el) {
+            moveSelectedFolderId = folderId;
+            document.querySelectorAll('.move-folder-item').forEach(item => item.classList.remove('selected'));
+            if (el) el.classList.add('selected');
+            const label = document.getElementById('move-selected-label');
+            if (label) {
+                label.innerText = folderName;
+            }
+        }
+
+        async function submitMoveItem() {
+            if (!moveTargetItemId) return;
+            
+            const targetFolder = allMoveFoldersList.find(f => f.id === moveSelectedFolderId);
+            const isTargetProtected = targetFolder ? targetFolder.is_protected : false;
+            
+            if (moveTargetProtected || isTargetProtected || currentFolderProtected) {
+                if (!await ensurePassword(true)) return;
+            }
+
+            const btnSubmit = document.getElementById('btn-submit-move');
+            const originalText = btnSubmit.innerHTML;
+            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Перемещение...';
+            btnSubmit.disabled = true;
+
+            const formData = new FormData();
+            formData.append('target_folder_id', moveSelectedFolderId === 'root' ? '' : moveSelectedFolderId);
+
+            try {
+                const res = await fetch(`/api/documents/${moveTargetItemId}/move`, {
+                    method: 'PUT',
+                    headers: getFolderPasswordHeader(),
+                    body: formData
+                });
+                const data = await res.json();
+                btnSubmit.innerHTML = originalText;
+                btnSubmit.disabled = false;
+
+                if (data.status === 'success') {
+                    docsCache.clear();
+                    closeMoveModal();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                    showToast(moveTargetIsFolder ? 'Папка успешно перемещена' : 'Файл успешно перемещен');
+                } else {
+                    alert('Ошибка перемещения: ' + data.message);
+                }
+            } catch (err) {
+                btnSubmit.innerHTML = originalText;
+                btnSubmit.disabled = false;
+                alert('Ошибка соединения с сервером');
             }
         }
 
