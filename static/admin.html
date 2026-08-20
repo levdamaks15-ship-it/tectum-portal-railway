@@ -9,78 +9,114 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <style>
         :root {
-            --sidebar-width: 260px;
+            --sidebar-width: 250px;
         }
         body {
             margin: 0;
             display: flex;
             background-color: var(--bg-color);
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
         #admin-app {
             display: none;
             width: 100%;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
         .admin-sidebar {
             width: var(--sidebar-width);
             background: rgba(10, 15, 30, 0.95);
             backdrop-filter: blur(12px);
             border-right: 1px solid var(--glass-border);
-            padding: 1.5rem 1rem;
+            padding: 0.8rem 0.6rem;
             display: flex;
             flex-direction: column;
-            gap: 0.6rem;
-            min-height: 100vh;
+            gap: 0.25rem;
+            height: 100vh;
             flex-shrink: 0;
             transition: transform 0.3s ease;
             z-index: 1050;
+            overflow-y: auto;
+        }
+        .admin-sidebar h2 {
+            font-size: 1.1rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        .admin-sidebar button {
+            padding: 0.45rem 0.6rem !important;
+            font-size: 0.82rem !important;
         }
         .admin-content {
             flex: 1;
-            padding: 2rem;
+            padding: 1rem 1.25rem;
             overflow-y: auto;
-            min-width: 0; /* prevent flex items from overflowing horizontally */
+            min-width: 0;
+            height: 100vh;
+        }
+        .admin-content h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
         }
         .admin-nav-item {
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
+            padding: 0.45rem 0.65rem;
+            border-radius: 6px;
             cursor: pointer;
             transition: 0.2s ease;
             color: var(--text-secondary);
-            font-weight: 600;
+            font-weight: 500;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            font-size: 0.95rem;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1.2;
             user-select: none;
         }
         .admin-nav-item i {
-            width: 20px;
+            width: 16px;
+            font-size: 0.85rem;
             text-align: center;
         }
         .admin-nav-item:hover, .admin-nav-item.active {
             background: rgba(255,255,255,0.1);
             color: var(--primary-color);
         }
-        .data-table th, .data-table td {
-            padding: 0.75rem 0.6rem;
+        .data-table {
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            line-height: 1.25;
+        }
+        .data-table th {
+            padding: 0.45rem 0.5rem;
             border-bottom: 1px solid var(--glass-border);
             white-space: nowrap;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .data-table td {
+            padding: 0.35rem 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+            white-space: nowrap;
+            font-size: 0.82rem;
+        }
+        .data-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
         }
         .action-btn {
-            padding: 0.4rem 0.75rem;
-            border-radius: 6px;
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
             cursor: pointer;
             border: none;
             color: white;
-            font-size: 0.85rem;
-            margin-right: 0.3rem;
-            min-height: 36px;
-            min-width: 36px;
+            font-size: 0.78rem;
+            margin-right: 0.25rem;
+            min-height: 26px;
+            min-width: 26px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            line-height: 1;
         }
         .btn-edit { background: var(--accent-color); }
         .btn-delete { background: var(--danger-color); }
@@ -93,13 +129,13 @@
             box-sizing: border-box;
         }
         .modal-content {
-            background: #1e293b; padding: 1.5rem; border-radius: 14px; width: 100%; max-width: 600px;
+            background: #1e293b; padding: 1.25rem; border-radius: 12px; width: 100%; max-width: 600px;
             border: 1px solid var(--glass-border);
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             box-sizing: border-box;
         }
         .form-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;
         }
 
         /* Mobile top bar and drawer backdrop */
@@ -252,9 +288,9 @@
     <!-- Main Admin App -->
     <div id="admin-app" style="display: none; width: 100%;">
         <div class="admin-sidebar" id="admin-sidebar">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h2 style="color: var(--primary-color); margin: 0; font-size: 1.3rem;"><i class="fa-solid fa-user-shield"></i> Админ-Панель</h2>
-                <button class="mobile-menu-btn" onclick="toggleAdminSidebar(false)" style="display: none; border: none; font-size: 1.4rem; padding: 0.2rem;" id="mobile-close-sidebar-btn">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                <h2 style="color: var(--primary-color); margin: 0; font-size: 1.1rem;"><i class="fa-solid fa-user-shield"></i> Админ-Панель</h2>
+                <button class="mobile-menu-btn" onclick="toggleAdminSidebar(false)" style="display: none; border: none; font-size: 1.2rem; padding: 0.2rem;" id="mobile-close-sidebar-btn">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -273,12 +309,12 @@
             <a href="/static/docs.html" class="admin-nav-item" style="display: block; text-decoration: none;"><i class="fa-solid fa-folder-open"></i> База Знаний (Drive)</a>
             
             <a href="/analytics" style="text-decoration: none;">
-                <div class="admin-nav-item" style="color: #60a5fa; margin-top: 1rem;"><i class="fa-solid fa-chart-pie"></i> Аналитика простоев (Техсовет)</div>
+                <div class="admin-nav-item" style="color: #60a5fa; margin-top: 0.5rem;"><i class="fa-solid fa-chart-pie"></i> Аналитика простоев (Техсовет)</div>
             </a>
 
             
-            <button id="btn-sync-google" onclick="syncDirectoriesFromGoogle()" style="background: #217346; margin-top: 1.5rem; margin-bottom: 0.5rem; width: 100%;"><i class="fa-solid fa-arrows-rotate"></i> Синхронизация с Google Sheets</button>
-            <button id="btn-sync-drive" onclick="syncFoldersToDrive()" style="background: #2563eb; margin-bottom: 0.5rem; width: 100%;"><i class="fab fa-google-drive"></i> Выгрузить структуру в Google Drive</button>
+            <button id="btn-sync-google" onclick="syncDirectoriesFromGoogle()" style="background: #217346; margin-top: 0.8rem; margin-bottom: 0.3rem; width: 100%;"><i class="fa-solid fa-arrows-rotate"></i> Google Sheets</button>
+            <button id="btn-sync-drive" onclick="syncFoldersToDrive()" style="background: #2563eb; margin-bottom: 0.3rem; width: 100%;"><i class="fab fa-google-drive"></i> Структура в Google Drive</button>
             
             <div style="flex-grow: 1;"></div>
 
@@ -289,11 +325,11 @@
             
             <!-- Masters Tab -->
             <div id="tab-masters" style="display: block;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
                     <h2>Управление мастерами и аккаунтами</h2>
-                    <button onclick="openMasterModal()" style="width: auto; padding: 0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
+                    <button onclick="openMasterModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
                     <table class="data-table" style="width: 100%; text-align: left;">
                         <thead>
                             <tr>
@@ -307,19 +343,19 @@
 
             <!-- Checklist Employees Tab -->
             <div id="tab-checklist-emps" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
                     <div>
                         <h2 style="margin: 0;"><i class="fa-solid fa-id-card-clip"></i> Сотрудники цеха (Чек-листы)</h2>
-                        <p style="color: var(--text-secondary); margin: 4px 0 0; font-size: 0.85rem;">База всех рабочих и мастеров для чек-листов и премий</p>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">База всех рабочих и мастеров для чек-листов и премий</p>
                     </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button onclick="openChecklistEmpModal()" style="width: auto; padding: 0.5rem 1rem; background: var(--accent-color);"><i class="fa-solid fa-user-plus"></i> Добавить сотрудника</button>
-                        <button onclick="syncChecklistEmployeesFromGoogle()" style="width: auto; padding: 0.5rem 1rem; background: #217346;"><i class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
+                        <button onclick="openChecklistEmpModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--accent-color);"><i class="fa-solid fa-user-plus"></i> Добавить сотрудника</button>
+                        <button onclick="syncChecklistEmployeesFromGoogle()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-arrows-rotate"></i> Обновить из Google</button>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 1rem; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <select id="filter-emp-shift" class="form-control" style="width: auto; padding: 0.5rem;" onchange="renderChecklistEmployeesTable()">
+                <div style="margin-bottom: 0.6rem; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <select id="filter-emp-shift" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;" onchange="renderChecklistEmployeesTable()">
                         <option value="">Все смены</option>
                         <option value="1-я смена">1-я смена</option>
                         <option value="2-я смена">2-я смена</option>
@@ -328,10 +364,10 @@
                         <option value="Котельная">Котельная</option>
                         <option value="Дневной персонал">Дневной персонал</option>
                     </select>
-                    <input type="text" id="filter-emp-search" placeholder="Поиск по ФИО или должности..." style="padding: 0.5rem 1rem; width: 260px;" oninput="renderChecklistEmployeesTable()">
+                    <input type="text" id="filter-emp-search" placeholder="Поиск по ФИО или должности..." style="padding: 0.35rem 0.8rem; width: 240px; font-size: 0.85rem;" oninput="renderChecklistEmployeesTable()">
                 </div>
 
-                <div class="glass-panel" style="overflow-x: auto;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
                     <table class="data-table" style="width: 100%; text-align: left;">
                         <thead>
                             <tr>
@@ -352,19 +388,19 @@
 
             <!-- Shift Schedule Tab -->
             <div id="tab-shift-schedule" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
                     <div>
                         <h2 style="margin: 0;"><i class="fa-solid fa-calendar-check"></i> График сменности</h2>
-                        <p style="color: var(--text-secondary); margin: 4px 0 0; font-size: 0.85rem;">Календарь дежурств бригад по дням и ночам</p>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">Календарь дежурств бригад по дням и ночам</p>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 1rem; display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="schedule-search-date" placeholder="Поиск даты (например, 19.08)..." style="padding: 0.5rem 1rem; width: 260px;" oninput="renderShiftScheduleTable()">
-                    <button onclick="loadAdminShiftSchedule()" style="width: auto; padding: 0.5rem 1rem; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-arrows-rotate"></i> Обновить</button>
+                <div style="margin-bottom: 0.6rem; display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="schedule-search-date" placeholder="Поиск даты (например, 19.08)..." style="padding: 0.35rem 0.8rem; width: 240px; font-size: 0.85rem;" oninput="renderShiftScheduleTable()">
+                    <button onclick="loadAdminShiftSchedule()" style="width: auto; padding: 0.35rem 0.8rem; font-size: 0.85rem; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-arrows-rotate"></i> Обновить</button>
                 </div>
 
-                <div class="glass-panel" style="overflow-x: auto;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
                     <table class="data-table" style="width: 100%; text-align: left;">
                         <thead>
                             <tr>
@@ -388,10 +424,10 @@
 
             <!-- Passwords Tab -->
             <div id="tab-passwords" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
                     <h2>Управление паролями папок</h2>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
                     <table class="data-table" style="width: 100%; text-align: left;">
                         <thead>
                             <tr>
@@ -405,47 +441,47 @@
 
             <!-- Shifts Tab -->
             <div id="tab-shifts" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
                     <h2 style="margin: 0;"><i class="fa-solid fa-calendar-days"></i> Управление сменами и рапортами</h2>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <button class="filter-btn active" id="filter-period-week" onclick="setShiftPeriod('week')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; background: var(--accent-color);"><i class="fa-solid fa-calendar-week"></i> Неделя</button>
-                        <button class="filter-btn" id="filter-period-month" onclick="setShiftPeriod('month')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-calendar-minus"></i> Месяц</button>
-                        <button class="filter-btn" id="filter-period-all" onclick="setShiftPeriod('all')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-infinity"></i> Все время</button>
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <button class="filter-btn active" id="filter-period-week" onclick="setShiftPeriod('week')" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: var(--accent-color);"><i class="fa-solid fa-calendar-week"></i> Неделя</button>
+                        <button class="filter-btn" id="filter-period-month" onclick="setShiftPeriod('month')" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-calendar-minus"></i> Месяц</button>
+                        <button class="filter-btn" id="filter-period-all" onclick="setShiftPeriod('all')" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-infinity"></i> Все время</button>
                     </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 1.2rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
-                    <div style="flex: 1; min-width: 140px;">
-                        <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Линия</label>
-                        <select id="filter-line" onchange="filterShifts()" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border);">
+                <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                    <div style="flex: 1; min-width: 130px;">
+                        <label style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem;">Линия</label>
+                        <select id="filter-line" onchange="filterShifts()" style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.82rem;">
                             <option value="">Все линии</option>
                             <option value="1">Линия 1</option>
                             <option value="2">Линия 2</option>
                         </select>
                     </div>
-                    <div style="flex: 1; min-width: 160px;">
-                        <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Мастер</label>
-                        <select id="filter-master" onchange="filterShifts()" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border);">
+                    <div style="flex: 1; min-width: 150px;">
+                        <label style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem;">Мастер</label>
+                        <select id="filter-master" onchange="filterShifts()" style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.82rem;">
                             <option value="">Все мастера</option>
                         </select>
                     </div>
-                    <div style="flex: 1.5; min-width: 180px;">
-                        <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Продукция</label>
-                        <select id="filter-product" onchange="filterShifts()" style="width: 100%; padding: 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border);">
+                    <div style="flex: 1.5; min-width: 160px;">
+                        <label style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem;">Продукция</label>
+                        <select id="filter-product" onchange="filterShifts()" style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.82rem;">
                             <option value="">Вся продукция</option>
                         </select>
                     </div>
-                    <div style="flex: 1.5; min-width: 180px;">
-                        <label style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Поиск (Партия / ID)</label>
-                        <input type="text" id="filter-search" oninput="filterShifts()" placeholder="№ партии или ID..." style="width: 100%; padding: 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.9rem;">
+                    <div style="flex: 1.5; min-width: 160px;">
+                        <label style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem;">Поиск (Партия / ID)</label>
+                        <input type="text" id="filter-search" oninput="filterShifts()" placeholder="№ партии или ID..." style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.82rem;">
                     </div>
-                    <div style="display: flex; align-items: flex-end; padding-top: 1.2rem;">
-                        <button onclick="resetShiftFilters()" style="padding: 0.5rem 1rem; width: auto; background: rgba(255,255,255,0.1); font-size: 0.85rem;" title="Сбросить фильтры"><i class="fa-solid fa-rotate-left"></i> Сброс</button>
+                    <div style="display: flex; align-items: flex-end; padding-top: 0.9rem;">
+                        <button onclick="resetShiftFilters()" style="padding: 0.35rem 0.8rem; width: auto; background: rgba(255,255,255,0.1); font-size: 0.8rem;" title="Сбросить фильтры"><i class="fa-solid fa-rotate-left"></i> Сброс</button>
                     </div>
                 </div>
 
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.9rem;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -465,17 +501,17 @@
 
             <!-- Receipts Tab -->
             <div id="tab-receipts" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
                     <h2 style="margin: 0;"><i class="fa-solid fa-truck-ramp-box"></i> Приходы сырья</h2>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <button class="filter-btn active" id="filter-receipt-period-week" onclick="setReceiptPeriod('week')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; background: var(--accent-color);"><i class="fa-solid fa-calendar-week"></i> Неделя</button>
-                        <button class="filter-btn" id="filter-receipt-period-month" onclick="setReceiptPeriod('month')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-calendar-minus"></i> Месяц</button>
-                        <button class="filter-btn" id="filter-receipt-period-all" onclick="setReceiptPeriod('all')" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-infinity"></i> Все время</button>
+                    <div style="display: flex; gap: 0.4rem; align-items: center;">
+                        <button class="filter-btn active" id="filter-receipt-period-week" onclick="setReceiptPeriod('week')" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: var(--accent-color);"><i class="fa-solid fa-calendar-week"></i> Неделя</button>
+                        <button class="filter-btn" id="filter-receipt-period-month" onclick="setReceiptPeriod('month')" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-calendar-minus"></i> Месяц</button>
+                        <button class="filter-btn" id="filter-receipt-period-all" onclick="setReceiptPeriod('all')" style="padding: 0.35rem 0.7rem; font-size: 0.8rem; width: auto; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-infinity"></i> Все время</button>
                     </div>
                 </div>
 
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.9rem;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -497,12 +533,12 @@
 
             <!-- Norms Tab -->
             <div id="tab-norms" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
                     <h2>Нормы продукции</h2>
-                    <button onclick="openNormModal()" style="width: auto; padding: 0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Добавить продукт</button>
+                    <button onclick="openNormModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> Добавить продукт</button>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.85rem;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>Продукция</th><th>Вес (кг)</th><th>Норма Хризотил 4-20</th><th>Норма Хризотил 5-65</th><th>Норма Хризотил 6-40</th>
@@ -516,11 +552,11 @@
 
             <!-- Downtimes Log Tab -->
             <div id="tab-downtimes-log" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
                     <h2 style="margin: 0;"><i class="fa-solid fa-clock"></i> Журнал простоев (редактирование)</h2>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>Дата / Смена</th>
@@ -540,40 +576,40 @@
             <!-- Cleanup Tab -->
             <div id="tab-cleanup" style="display: none;">
                 <div style="max-width: 600px;">
-                    <h2 style="color: var(--danger-color); margin-bottom: 1.5rem;"><i class="fa-solid fa-triangle-exclamation"></i> Сброс операционных данных</h2>
-                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
+                    <h2 style="color: var(--danger-color); margin-bottom: 0.8rem;"><i class="fa-solid fa-triangle-exclamation"></i> Сброс операционных данных</h2>
+                    <p style="color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.8rem; font-size: 0.88rem;">
                         Эта операция безвозвратно удалит все записи о сменах, отчетах ЛФМ, простоях оборудования и партиях продукции. 
                         Справочники (сотрудники и нормы) останутся нетронутыми.
                     </p>
-                    <div style="background: rgba(255,0,0,0.1); padding: 1rem; border: 1px solid var(--danger-color); border-radius: 8px; margin-bottom: 1.5rem;">
+                    <div style="background: rgba(255,0,0,0.1); padding: 0.8rem; border: 1px solid var(--danger-color); border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem;">
                         <strong>Внимание:</strong> Перед очисткой убедитесь, что вы выгрузили все необходимые отчеты (PDF/Excel). Отменить действие будет невозможно.
                     </div>
-                    <button onclick="clearOperationalData()" class="btn-danger" style="width: 100%; padding: 1rem; font-size: 1.1rem;"><i class="fa-solid fa-triangle-exclamation"></i> ПОДТВЕРДИТЬ ОЧИСТКУ ДАННЫХ</button>
+                    <button onclick="clearOperationalData()" class="btn-danger" style="width: 100%; padding: 0.75rem; font-size: 0.95rem;"><i class="fa-solid fa-triangle-exclamation"></i> ПОДТВЕРДИТЬ ОЧИСТКУ ДАННЫХ</button>
                     
-                    <div class="glass-panel" style="margin-top: 3rem; padding: 2rem; border: 1px solid var(--glass-border);">
-                        <h2 style="color: var(--primary-color); margin-bottom: 1.5rem;"><i class="fa-solid fa-file-excel"></i> Импорт данных рапорта АЦИ</h2>
-                        <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
+                    <div class="glass-panel" style="margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--glass-border);">
+                        <h2 style="color: var(--primary-color); margin-bottom: 0.8rem;"><i class="fa-solid fa-file-excel"></i> Импорт данных рапорта АЦИ</h2>
+                        <p style="color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.8rem; font-size: 0.88rem;">
                             Выберите Excel-файл рапорта АЦИ (например, <code>рапорт_АЦИ 10.06.26..xlsx</code>), чтобы наполнить базу данных достоверными производственными показателями.
                         </p>
-                        <div style="margin-bottom: 1.5rem;">
-                            <input type="file" id="aci-report-file" accept=".xlsx" style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); width: 100%; color: var(--text-primary);">
+                        <div style="margin-bottom: 1rem;">
+                            <input type="file" id="aci-report-file" accept=".xlsx" style="background: rgba(255,255,255,0.05); padding: 0.5rem; border-radius: 8px; border: 1px solid var(--glass-border); width: 100%; color: var(--text-primary); font-size: 0.85rem;">
                         </div>
-                        <button id="btn-upload-aci" onclick="uploadAciReport()" style="width: 100%; padding: 1rem; font-size: 1.1rem; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-cloud-arrow-up"></i> ЗАГРУЗИТЬ И СИНХРОНИЗИРОВАТЬ</button>
+                        <button id="btn-upload-aci" onclick="uploadAciReport()" style="width: 100%; padding: 0.75rem; font-size: 0.95rem; background: var(--primary-color); color: white; border: none; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-cloud-arrow-up"></i> ЗАГРУЗИТЬ И СИНХРОНИЗИРОВАТЬ</button>
                     </div>
                 </div>
             </div>
 
             <!-- Plan Board Tab -->
             <div id="tab-plan-board" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
                     <h2>Выработка (План/Факт)</h2>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="importPlanBoard()" style="width: auto; padding: 0.5rem 1rem; background: #217346;"><i class="fa-solid fa-file-excel"></i> Импортировать из Excel</button>
-                        <button onclick="showAddPlanBoardModal()" style="width: auto; padding: 0.5rem 1rem; background: var(--success-color);"><i class="fa-solid fa-plus"></i> Добавить запись</button>
+                        <button onclick="importPlanBoard()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-file-excel"></i> Импортировать из Excel</button>
+                        <button onclick="showAddPlanBoardModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--success-color);"><i class="fa-solid fa-plus"></i> Добавить запись</button>
                     </div>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>Дата</th><th>Линия</th><th>Смена</th><th>Смена (номер)</th><th>Мастер</th><th>План (листы)</th><th>Факт (листы)</th><th>1-й сорт</th><th>Брак</th><th>Действия</th>
@@ -588,11 +624,11 @@
 
             <!-- Audit Logs Tab -->
             <div id="tab-audit-logs" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
                     <h2>История изменений (Лог аудита)</h2>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>Время</th><th>Пользователь</th><th>Действие</th><th>Таблица</th><th>Детали</th>
@@ -607,15 +643,15 @@
 
             <!-- Downtime Directory Tab -->
             <div id="tab-downtimes-dir" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
                     <h2>Справочник поломок (простоев)</h2>
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <input type="text" id="downtimes-dir-search" placeholder="Поиск поломки..." oninput="filterDowntimesDirTable()" style="width: 250px; padding: 0.4rem 0.8rem; font-size: 0.9rem;">
-                        <button onclick="openDowntimeDirModal()" style="width: auto; padding: 0.5rem 1rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="text" id="downtimes-dir-search" placeholder="Поиск поломки..." oninput="filterDowntimesDirTable()" style="width: 220px; padding: 0.35rem 0.6rem; font-size: 0.85rem;">
+                        <button onclick="openDowntimeDirModal()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> Добавить</button>
                     </div>
                 </div>
-                <div class="glass-panel" style="overflow-x: auto;">
-                    <table class="data-table" style="width: 100%; text-align: left;">
+                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
+                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
                         <thead>
                             <tr>
                                 <th>Участок</th><th>Узел/Подузел</th><th>Поломка (Неисправность)</th><th>Категория</th><th>Комментарий</th><th>Действия</th>
