@@ -80,7 +80,7 @@ function openUserSwitchModal() {
     if (!modal || !container) return;
 
     const defaultProfiles = [
-        { name: "Левда М.", role: "Специалист по бережливому производству / Админ", pin: "6282" },
+        { name: "Левда М.", role: "Администратор", pin: "6282" },
         { name: "Булеханов К.", role: "Начальник производства", pin: "2026" }
     ];
 

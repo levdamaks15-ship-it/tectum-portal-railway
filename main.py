@@ -537,9 +537,6 @@ async def lifespan(app: FastAPI):
         if not db.query(models.Master).filter(models.Master.role == "technologist").first():
             db.add(models.Master(name="Главный технолог", pin="9999", role="technologist"))
             db.commit()
-        if not db.query(models.Master).filter(models.Master.email == "admin@TectumEngineering.onmicrosoft.com").first():
-            db.add(models.Master(name="Tectum Engineering", pin="0000", role="admin", email="admin@TectumEngineering.onmicrosoft.com"))
-            db.commit()
         
         # Auto-import downtimes directory if empty
         try:
@@ -564,7 +561,11 @@ async def lifespan(app: FastAPI):
             db.commit()
             print("Successfully seeded 'Мастер смены' profile.")
 
-        # Seed / update Levda M. and Bulekhanov K.
+        # Seed / update Levda M. and Bulekhanov K., clean up obsolete Tectum admin profile
+        tectum_entries = db.query(models.Master).filter(models.Master.name.like("%Tectum%")).all()
+        for t_adm in tectum_entries:
+            db.delete(t_adm)
+
         levda = db.query(models.Master).filter(models.Master.name.like("%Левда%")).first()
         if not levda:
             db.add(models.Master(name="Левда М.", pin="6282", role="admin"))
@@ -572,6 +573,7 @@ async def lifespan(app: FastAPI):
             levda.name = "Левда М."
             levda.pin = "6282"
             levda.role = "admin"
+            levda.email = None
 
         bulekhanov = db.query(models.Master).filter(or_(models.Master.name.like("%Булеханов%"), models.Master.name.like("%Булекпаев%"))).first()
         if not bulekhanov:
@@ -581,7 +583,7 @@ async def lifespan(app: FastAPI):
             bulekhanov.pin = "2026"
             bulekhanov.role = "director"
         db.commit()
-        print("Successfully seeded/updated 'Левда М.' and 'Булеханов К.' profiles.")
+        print("Successfully seeded/updated 'Левда М.' and 'Булеханов К.' profiles, removed duplicate Tectum admin.")
     except Exception as e:
         print(f"Error seeding users: {e}")
         db.rollback()

@@ -3022,9 +3022,16 @@ function renderItrGrid() {
         let svgContent = '';
         
         if (m.name.includes("Левда")) {
-            roleDisplay = 'Специалист БП / Админ';
+            roleDisplay = 'Администратор';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>`;
+        } else if (m.name.includes("Булеханов") || m.name.includes("Булекпаев")) {
+            roleDisplay = 'Начальник производства';
+            svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>`;
         } else if (m.role === 'admin') {
             roleDisplay = 'Администратор';
@@ -3038,7 +3045,6 @@ function renderItrGrid() {
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>`;
-
         } else if (m.role === 'technologist') {
             roleDisplay = 'Технолог';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
