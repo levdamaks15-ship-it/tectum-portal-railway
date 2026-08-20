@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum - Панель Администратора</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
-    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v12">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260820_compact_v3">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <style>
         :root {
@@ -83,44 +83,60 @@
         }
         .data-table {
             border-collapse: collapse;
-            font-size: 0.82rem;
-            line-height: 1.25;
+            font-size: 0.8rem;
+            line-height: 1.2;
+            width: 100%;
         }
         .data-table th {
-            padding: 0.45rem 0.5rem;
+            padding: 0.35rem 0.4rem;
+            border-bottom: 1px solid var(--glass-border);
+            white-space: nowrap;
+            font-size: 0.78rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.03);
+            letter-spacing: 0.3px;
+        }
+        .data-table th, .data-table td {
+            padding: 0.25rem 0.4rem;
             border-bottom: 1px solid var(--glass-border);
             white-space: nowrap;
             font-size: 0.8rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.03);
         }
-        .data-table td {
-            padding: 0.35rem 0.5rem;
-            border-bottom: 1px solid var(--glass-border);
+        .data-table th:last-child, .data-table td:last-child {
+            width: 1%;
             white-space: nowrap;
-            font-size: 0.82rem;
+            text-align: right;
+            padding-right: 0.3rem;
         }
         .data-table tr:hover td {
             background: rgba(255, 255, 255, 0.02);
         }
-        .action-btn {
-            padding: 0.25rem 0.5rem;
+        .data-table .action-btn, .action-btn {
+            width: auto !important;
+            min-width: 28px !important;
+            max-width: 32px !important;
+            height: 26px !important;
+            min-height: 26px !important;
+            padding: 0 0.4rem !important;
             border-radius: 5px;
             cursor: pointer;
             border: none;
             color: white;
             font-size: 0.78rem;
             margin-right: 0.25rem;
-            min-height: 26px;
-            min-width: 26px;
-            display: inline-flex;
+            display: inline-flex !important;
             align-items: center;
             justify-content: center;
             line-height: 1;
+            box-shadow: none !important;
         }
-        .btn-edit { background: var(--accent-color); }
-        .btn-delete { background: var(--danger-color); }
-        .btn-save { background: var(--success-color); }
+        .data-table td:last-child {
+            display: table-cell;
+            white-space: nowrap;
+        }
+        .btn-edit { background: var(--accent-color) !important; }
+        .btn-delete { background: var(--danger-color) !important; }
+        .btn-save { background: var(--success-color) !important; }
         
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;

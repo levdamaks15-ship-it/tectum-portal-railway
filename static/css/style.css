@@ -223,17 +223,21 @@ input:focus, select:focus {
 }
 
 button {
-    width: 100%;
-    padding: 0.75rem;
+    width: auto;
+    padding: 0.5rem 1rem;
     background: var(--primary-color);
     color: white;
     border: none;
     border-radius: 8px;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(200, 35, 35, 0.2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 button:hover {
