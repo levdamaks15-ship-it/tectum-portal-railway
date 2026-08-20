@@ -5908,32 +5908,24 @@ def fetch_external_link_title(url: str = Query(...)):
         "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
-    # 1. Специальная обработка Google Таблиц (Google Sheets) через GViz API / Meta
-    sheet_match = re.search(r'docs\.google\.com/spreadsheets/d/([a-zA-Z0-9-_]+)', clean_url)
-    if sheet_match:
-        doc_id = sheet_match.group(1)
-        try:
-            # Способ 1.1: Быстрый запрос через GViz API метаданных таблицы
-            gviz_url = f"https://docs.google.com/spreadsheets/d/{doc_id}/gviz/tq?tqx=out:json"
-            gviz_resp = requests.get(gviz_url, headers=headers, timeout=4)
-            if gviz_resp.status_code == 200:
-                match = re.search(r'"table":\s*\{.*?"label":\s*"([^"]+)"', gviz_resp.text)
-                if match and match.group(1):
-                    return {"status": "success", "title": match.group(1).strip()}
-        except Exception as e:
-            pass
-
-    # 2. Специальная обработка Google Docs / Drive
-    gdoc_match = re.search(r'docs\.google\.com/(document|spreadsheets|presentation)/d/([a-zA-Z0-9-_]+)', clean_url)
+    # 1. Поиск идентификатора документа Google
+    gdoc_match = re.search(r'docs\.google\.com/(spreadsheets|document|presentation)/d/([a-zA-Z0-9-_]+)', clean_url)
     target_urls_to_try = [clean_url]
     if gdoc_match:
         dtype, doc_id = gdoc_match.group(1), gdoc_match.group(2)
-        # Добавляем альтернативные публичные URL для быстрого извлечения OpenGraph
+        # Запрашиваем сначала прямой URL, затем preview/htmlview
         if dtype == "spreadsheets":
-            target_urls_to_try.insert(0, f"https://docs.google.com/spreadsheets/d/{doc_id}/htmlview")
-            target_urls_to_try.insert(0, f"https://docs.google.com/spreadsheets/d/{doc_id}/preview")
+            target_urls_to_try = [
+                f"https://docs.google.com/spreadsheets/d/{doc_id}/edit",
+                f"https://docs.google.com/spreadsheets/d/{doc_id}/preview",
+                clean_url
+            ]
         elif dtype == "document":
-            target_urls_to_try.insert(0, f"https://docs.google.com/document/d/{doc_id}/preview")
+            target_urls_to_try = [
+                f"https://docs.google.com/document/d/{doc_id}/edit",
+                f"https://docs.google.com/document/d/{doc_id}/preview",
+                clean_url
+            ]
 
     for test_url in target_urls_to_try:
         try:
