@@ -4,3 +4,7 @@ __pycache__/
 .env
 .idea/
 .vscode/
+client_secrets.json
+google_credentials.json
+scratch/
+
