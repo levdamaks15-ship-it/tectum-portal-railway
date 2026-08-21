@@ -698,8 +698,9 @@ async def lifespan(app: FastAPI):
                     continue
                 if (not d.department or d.department in ["Формовочное отделение", "Общее", "Основное оборудование"] or 
                     d.node in ["Основное оборудование", "Разное", "Общее", None, ""] or 
+                    (d.department == "Заготовительное отделение (ЗО)" and d.node == "Ковшевая мешалка") or
                     d.category not in VALID_CATEGORIES):
-                    dept, node, cat, is_equip = classify_downtime_text(text, d.is_equipment_downtime)
+                    dept, node, cat, is_equip = classify_downtime_text(text, d.is_equipment_downtime, db=db)
                     d.department = dept
                     d.node = node
                     d.category = cat
@@ -2823,7 +2824,8 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     from downtime_classifier import classify_downtime_text
     auto_dept, auto_node, auto_cat, auto_is_equip = classify_downtime_text(
         desc_text, 
-        is_equipment_param=data.is_equipment_downtime if data.is_equipment_downtime is not None else True
+        is_equipment_param=data.is_equipment_downtime if data.is_equipment_downtime is not None else True,
+        db=db
     )
     
     category_val = data.category or auto_cat
@@ -2893,7 +2895,8 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     from downtime_classifier import classify_downtime_text
     auto_dept, auto_node, auto_cat, auto_is_equip = classify_downtime_text(
         desc_text,
-        is_equipment_param=data.is_equipment_downtime if data.is_equipment_downtime is not None else True
+        is_equipment_param=data.is_equipment_downtime if data.is_equipment_downtime is not None else True,
+        db=db
     )
     
     category_val = data.category or auto_cat
