@@ -1597,6 +1597,9 @@ async function loadDowntimesByParams() {
         if (res.ok) {
             const shift = await res.json();
             document.getElementById('journal-dt-active-shift-id').value = shift.id;
+            if (shift.master_id && masterSelect && !master_id) {
+                masterSelect.value = shift.master_id;
+            }
             renderDowntimesTable(shift);
         } else {
             document.getElementById('journal-dt-active-shift-id').value = '';
@@ -1839,7 +1842,8 @@ async function addJournalDowntime() {
         description: desc,
         comment: desc,
         is_equipment_downtime: isEquipmentStop,
-        media_urls: null
+        media_urls: null,
+        master_id: master_id ? parseInt(master_id) : null
     };
 
     try {
@@ -1929,13 +1933,17 @@ async function submitEditDowntime() {
         return;
     }
     
+    const masterSelect = document.getElementById('journal-dt-master-select');
+    const master_id = masterSelect ? masterSelect.value : '';
+
     const data = {
         start_time: startTime,
         end_time: endTime || null,
         description: desc,
         comment: desc,
         is_equipment_downtime: isEquipmentStop,
-        media_urls: null
+        media_urls: null,
+        master_id: master_id ? parseInt(master_id) : null
     };
 
     try {

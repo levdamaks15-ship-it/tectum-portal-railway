@@ -437,8 +437,10 @@ def query_gemini_flash(text: str, db=None):
             headers={"Content-Type": "application/json"}
         )
 
+        t_start = time.time()
         try:
             with urllib.request.urlopen(req, timeout=3.0) as resp:
+                elapsed = time.time() - t_start
                 data = json.loads(resp.read().decode("utf-8"))
                 raw_json = data["candidates"][0]["content"]["parts"][0]["text"].strip()
                 if raw_json.startswith("```"):
@@ -458,6 +460,7 @@ def query_gemini_flash(text: str, db=None):
                 node = parsed.get("node") or "Общее по участку"
                 is_equip = parsed.get("is_equipment_downtime", True)
                 
+                print(f"[AI Gemini Flash] '{text[:45]}' -> Модель: {model_name} ({elapsed:.2f}s) -> [{dept}] / [{node}] / [{cat}]")
                 return {
                     "department": dept,
                     "node": node,
@@ -494,4 +497,5 @@ def classify_downtime_text(text: str, is_equipment_param: bool = True, db=None):
     final_cat = refine_category_rule_based(cleaned_text, cat)
     is_equip = is_equipment_stop_check(cleaned_text, is_equipment_param if is_equipment_param is not None else True)
     
+    print(f"[Local Classifier] '{cleaned_text[:45]}' -> [{dept}] / [{node}] / [{final_cat}]")
     return dept, node, final_cat, is_equip
