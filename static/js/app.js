@@ -104,22 +104,14 @@ window.fetch = function (url, options) {
 };
 
 function initTheme() {
-    const theme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
 }
 
 function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme');
-    const target = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', target);
-    localStorage.setItem('theme', target);
-    
-    // Redraw charts with new text color theme if applicable
-    if (currentUser) {
-        loadReportSummary();
-        loadAnalyticsData();
-        loadDailyReport();
-    }
+    // Light theme only
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
 }
 
 function showSsoLogin() {

@@ -9,37 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --docs-bg: #0f172a;
-            --docs-sidebar-bg: #1e293b;
-            --docs-sidebar-border: rgba(255, 255, 255, 0.08);
-            --docs-text-primary: #f8fafc;
-            --docs-text-secondary: #94a3b8;
-            --docs-text-muted: #64748b;
-            --docs-panel-bg: rgba(30, 41, 59, 0.6);
-            --docs-panel-border: rgba(255, 255, 255, 0.08);
-            --docs-table-header-bg: rgba(15, 23, 42, 0.8);
-            --docs-table-row-hover: rgba(51, 65, 85, 0.5);
-            --docs-card-bg: rgba(30, 41, 59, 0.7);
-            --docs-card-hover: rgba(51, 65, 85, 0.85);
-            --docs-search-bg: rgba(30, 41, 59, 0.8);
-            --docs-search-border: rgba(255, 255, 255, 0.12);
-            --docs-input-bg: #0f172a;
-            --docs-input-border: rgba(255, 255, 255, 0.12);
-            --docs-input-color: #ffffff;
-            --docs-modal-bg: #1e293b;
-            --docs-modal-border: rgba(255, 255, 255, 0.15);
-            --docs-context-bg: #1e293b;
-            --docs-context-border: rgba(255, 255, 255, 0.15);
-            --docs-context-item-hover: rgba(59, 130, 246, 0.2);
-            --docs-dropdown-bg: #1e293b;
-            --docs-dropdown-border: rgba(255, 255, 255, 0.15);
-            --docs-btn-bg: rgba(255, 255, 255, 0.06);
-            --docs-btn-border: rgba(255, 255, 255, 0.1);
-            --docs-btn-color: #f1f5f9;
-            --docs-item-badge-bg: rgba(255, 255, 255, 0.05);
-        }
-
-        [data-theme="light"] {
             --docs-bg: #f1f5f9;
             --docs-sidebar-bg: #ffffff;
             --docs-sidebar-border: rgba(0, 0, 0, 0.08);
@@ -1325,9 +1294,6 @@
             <span>База Знаний</span>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="mobile-menu-btn" onclick="toggleDocsTheme()" id="docs-mobile-theme-btn" title="Сменить тему">
-                <span class="theme-icon">🌓</span>
-            </button>
             <button class="mobile-menu-btn" onclick="window.location.href='/static/index.html'" title="На главный портал">
                 <i class="fas fa-home"></i>
             </button>
@@ -1368,11 +1334,6 @@
                 <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)" autocomplete="off">
             </div>
             <div class="action-buttons">
-                <!-- Theme Toggle Button (Desktop) -->
-                <button class="btn-theme-toggle" onclick="toggleDocsTheme()" id="docs-top-theme-btn" title="Переключить тему">
-                    <span class="theme-icon">🌓</span>
-                </button>
-
                 <!-- Группа Создать + Обновить названия -->
                 <div class="create-sync-group">
                     <!-- Dropdown Создать -->
@@ -3213,30 +3174,19 @@
         }
 
         /* ==========================================================
-           THEME MANAGEMENT (LIGHT / DARK)
+           THEME MANAGEMENT (LIGHT ONLY)
            ========================================================== */
         function initTheme() {
-            const savedTheme = localStorage.getItem("theme") || "dark";
-            applyTheme(savedTheme);
+            applyTheme("light");
         }
 
         function toggleDocsTheme() {
-            const current = document.documentElement.getAttribute("data-theme") || "dark";
-            const next = current === "light" ? "dark" : "light";
-            applyTheme(next);
+            applyTheme("light");
         }
 
         function applyTheme(theme) {
-            document.documentElement.setAttribute("data-theme", theme);
-            localStorage.setItem("theme", theme);
-            
-            const iconHtml = `<span class="theme-icon">${theme === "light" ? "☀️" : "🌙"}</span>`;
-            
-            const topBtn = document.getElementById("docs-top-theme-btn");
-            if (topBtn) topBtn.innerHTML = iconHtml;
-            
-            const mobileBtn = document.getElementById("docs-mobile-theme-btn");
-            if (mobileBtn) mobileBtn.innerHTML = iconHtml;
+            document.documentElement.setAttribute("data-theme", "light");
+            localStorage.setItem("theme", "light");
         }
 
         window.addEventListener('DOMContentLoaded', () => {

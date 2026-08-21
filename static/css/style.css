@@ -3,33 +3,19 @@
 :root {
     --primary-color: #C82323;
     --accent-color: #E53935;
-    --bg-color: #121212;
-    --surface-color: #1E1E1E;
-    --text-primary: #f8fafc;
-    --text-secondary: #a0a0a0;
-    --danger-color: #ff5252;
-    --success-color: #4caf50;
-    --glass-bg: rgba(30, 30, 30, 0.8);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --body-bg-gradient: radial-gradient(circle at top right, #2c1a1a 0%, #121212 100%);
-    --input-bg: rgba(15, 23, 42, 0.6);
-    --input-color: white;
-    --table-header-bg: rgba(0,0,0,0.2);
-    --chart-bg: rgba(0,0,0,0.2);
-}
-
-[data-theme="light"] {
     --bg-color: #f0f2f5;
     --surface-color: #ffffff;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
-    --glass-bg: rgba(255, 255, 255, 0.8);
-    --glass-border: rgba(0, 0, 0, 0.1);
-    --body-bg-gradient: radial-gradient(circle at top right, #f8e5e5 0%, #f0f2f5 100%);
-    --input-bg: rgba(255, 255, 255, 0.8);
+    --danger-color: #ef4444;
+    --success-color: #10b981;
+    --glass-bg: rgba(255, 255, 255, 0.88);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --body-bg-gradient: radial-gradient(circle at top right, #fce8e8 0%, #f0f2f5 100%);
+    --input-bg: rgba(255, 255, 255, 0.95);
     --input-color: #1e293b;
-    --table-header-bg: rgba(0,0,0,0.05);
-    --chart-bg: rgba(0,0,0,0.03);
+    --table-header-bg: rgba(0,0,0,0.04);
+    --chart-bg: rgba(0,0,0,0.02);
 }
 
 * {
@@ -60,7 +46,7 @@ body {
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
     animation: fadeIn 0.4s ease-out;
 }
 
@@ -85,7 +71,7 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
     gap: 1rem;
 }
@@ -93,7 +79,7 @@ header {
 .header-logo-container {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1.2rem;
 }
 
 .header-title-block {
@@ -122,25 +108,70 @@ header {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.8rem;
     flex-wrap: wrap;
 }
 
-.theme-toggle-btn {
-    border: 1px solid var(--glass-border);
-    padding: 0.5rem;
-    display: flex;
+/* Header Quick Navigation Chips */
+.header-quick-links {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.header-chip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    white-space: nowrap;
+}
+
+.header-chip-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.chip-checklists {
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    color: #1d4ed8;
+}
+
+.chip-checklists:hover {
+    background: rgba(37, 99, 235, 0.15);
+    border-color: #2563eb;
+    color: #1e40af;
+}
+
+.chip-docs {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #047857;
+}
+
+.chip-docs:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+    color: #065f46;
+}
+
+.chip-ext-icon {
+    font-size: 0.68rem;
+    opacity: 0.75;
 }
 
 .header-user-container {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.8rem;
     flex-wrap: wrap;
 }
 
@@ -478,16 +509,27 @@ button.btn-secondary:hover {
     .header-actions {
         justify-content: center;
         width: 100%;
+        gap: 0.6rem;
+        flex-direction: column;
+        align-items: center;
+    }
+    .header-quick-links {
+        justify-content: center;
+        width: 100%;
         gap: 0.5rem;
+    }
+    .header-chip-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
     }
     .header-user-container {
-        flex-direction: column;
+        flex-direction: row;
         width: 100%;
         justify-content: center;
-        gap: 0.5rem;
+        gap: 0.75rem;
     }
     .header-user-container > div {
-        text-align: center !important;
+        text-align: right !important;
     }
     h1 {
         font-size: 1.6rem;

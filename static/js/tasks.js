@@ -30,26 +30,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 /* ==========================================================
-   THEME MANAGEMENT (LIGHT / DARK)
+   THEME MANAGEMENT (LIGHT ONLY)
    ========================================================== */
 function initTheme() {
-    const savedTheme = localStorage.getItem("theme") || "dark";
-    applyTheme(savedTheme);
+    applyTheme("light");
 }
 
 function toggleTasksTheme() {
-    const current = document.documentElement.getAttribute("data-theme") || "dark";
-    const next = current === "light" ? "dark" : "light";
-    applyTheme(next);
+    applyTheme("light");
 }
 
 function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-    const icon = document.getElementById("theme-toggle-icon");
-    if (icon) {
-        icon.textContent = theme === "light" ? "☀️" : "🌙";
-    }
+    document.documentElement.setAttribute("data-theme", "light");
+    localStorage.setItem("theme", "light");
 }
 
 /* ==========================================================
