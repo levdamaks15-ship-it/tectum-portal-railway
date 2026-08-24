@@ -242,34 +242,11 @@ def sync_report_to_google_sheets(db: Session):
     ).execute()
     existing_rows = result.get("values", [])
     
-    # 2. Инициализируем или находим индексы строк для обновления
-    # Ключ: (Дата, Линия, Смена)
-    row_mapping = {}
-    if len(existing_rows) > 1:
-        for idx, row in enumerate(existing_rows[1:], start=2): # 1-based index, row 1 is header
-            if len(row) >= 4:
-                key = (row[0], row[2], row[3]) # (Дата, Линия, Смена)
-                row_mapping[key] = idx
-                
-    # Всегда обновляем шапку таблицы (Строка 1), чтобы новые колонки гарантированно отображались
-    service.spreadsheets().values().update(
+    # Полная очистка диапазона перед записью новых данных, чтобы избежать наложения и сдвига колонок
+    service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1",
-        valueInputOption="USER_ENTERED",
-        body={"values": [headers]}
+        range=f"'{sheet_name}'!A1:AZ2000"
     ).execute()
-
-    # Вместо clear() делаем жесткую перезапись диапазона A2:AO1000 пустыми значениями
-    # Это решает проблему Умной Таблицы, не сдвигая строки вниз
-    empty_block = [["" for _ in range(len(headers))] for _ in range(999)]
-    service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A2:AO1000",
-        valueInputOption="USER_ENTERED",
-        body={"values": empty_block}
-    ).execute()
-    
-    row_mapping = {}
     
     # Очищаем старые правила условного форматирования для этого листа
     sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
@@ -285,14 +262,13 @@ def sync_report_to_google_sheets(db: Session):
             })
         service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": clear_requests}).execute()
         
-    # Записываем все строки данных разом, начиная с ячейки A2
-    if len(rows_data) > 1:
-        service.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A2",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows_data[1:]}
-        ).execute()
+    # Записываем шапку и все строки данных разом
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1",
+        valueInputOption="USER_ENTERED",
+        body={"values": rows_data}
+    ).execute()
     
     # 3. Применяем форматирование (Navy Blue заголовок, стили, границы, цвета)
     total_rows = len(rows_data)
