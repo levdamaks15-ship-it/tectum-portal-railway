@@ -293,7 +293,29 @@ def sync_report_to_google_sheets(db: Session):
             }
         })
 
-    # Форматирование отклонений (колонки 32-42, индексы 31-42) как проценты (+0.00% / -0.00%)
+    # Сброс формата для всех колонок данных (0-30: обычные числа/текст)
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": total_rows,
+                "startColumnIndex": 0,
+                "endColumnIndex": 31
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": "#,##0"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
+
+    # Форматирование отклонений (колонки AF-AP, индексы 31-42) как проценты (+0.00% / -0.00%)
     requests.append({
         "repeatCell": {
             "range": {
