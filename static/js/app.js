@@ -2730,7 +2730,7 @@ function exportDailyReportPDF() {
         ctx.fillText(k.val, x + kpiW / 2, y + 68);
         
         if (k.subtext) {
-            ctx.fillStyle = '#1e293b'; // High contrast, bold subtext
+            ctx.fillStyle = '#000000'; // Pure black, bold subtext for perfect print visibility
             ctx.font = 'bold 13px Arial';
             ctx.fillText(k.subtext, x + kpiW / 2, y + 95);
         }
