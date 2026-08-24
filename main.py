@@ -3666,22 +3666,25 @@ def get_daily_report(
             total_1st += (b.ds_first_grade or 0)
             total_def += (b.ds_defect or 0)
             
+        slot_key = (line_key, day_key, s_name)
+        if slot_key not in processed_slots:
+            processed_slots.add(slot_key)
+            data[line_key][day_key][s_name]["tons"] = 0.0
+            if data[line_key][day_key][s_name]["sheets"] == 0 or shift_number is not None:
+                accumulate_sheets_slots.add(slot_key)
+                data[line_key][day_key][s_name]["sheets"] = 0
+            # Всегда инициализируем и накапливаем 1 сорт и брак напрямую из рапортов мастеров
+            data[line_key][day_key][s_name]["first_grade"] = 0
+            data[line_key][day_key][s_name]["defect"] = 0
+        
+        # Накапливаем 1 сорт и брак Дестакера напрямую из сменного рапорта
+        data[line_key][day_key][s_name]["first_grade"] += total_1st
+        data[line_key][day_key][s_name]["defect"] += total_def
+
         if total_s > 0:
-            slot_key = (line_key, day_key, s_name)
-            if slot_key not in processed_slots:
-                processed_slots.add(slot_key)
-                data[line_key][day_key][s_name]["tons"] = 0.0
-                if data[line_key][day_key][s_name]["sheets"] == 0 or shift_number is not None:
-                    accumulate_sheets_slots.add(slot_key)
-                    data[line_key][day_key][s_name]["sheets"] = 0
-                    data[line_key][day_key][s_name]["first_grade"] = 0
-                    data[line_key][day_key][s_name]["defect"] = 0
-            
             data[line_key][day_key][s_name]["tons"] += total_w / 1000.0
             if slot_key in accumulate_sheets_slots:
                 data[line_key][day_key][s_name]["sheets"] += total_s
-                data[line_key][day_key][s_name]["first_grade"] += total_1st
-                data[line_key][day_key][s_name]["defect"] += total_def
             
     last_known_weight = {}
     for l_k in data:

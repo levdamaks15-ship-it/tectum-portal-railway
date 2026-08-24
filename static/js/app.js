@@ -2332,8 +2332,8 @@ async function loadDailyReport() {
 
             document.getElementById('kpi-avg-plan-percent').innerText = Math.round(data.avg_plan_percent) + '%';
             document.getElementById('kpi-plan-fact-detail').innerText = `План: ${(data.total_plan_sheets || 0).toLocaleString()} / Факт: ${(data.total_fact_sheets || 0).toLocaleString()}`;
-            document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(1) + '%';
-            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} / Формовка: ${(data.total_fact_sheets || 0).toLocaleString()}`;
+            document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(2) + '%';
+            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} / 1 сорт: ${(data.total_first_grade || 0).toLocaleString()}`;
 
             // Renders charts
             renderDailyReportCharts(data.days);
@@ -2347,7 +2347,14 @@ function renderDailyReportCharts(days) {
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
 
-    const labels = days.map(d => d.label || d.date.split('-').slice(2).join('.'));
+    // Two-line compact label: line 1 = day of month (e.g. "01"), line 2 = shift type ("Д" or "Н")
+    const labels = days.map(d => {
+        const parts = (d.date || '').split('-');
+        const dayStr = parts.length === 3 ? parts[2] : '';
+        const isDay = d.label && d.label.includes('(Д)');
+        const shiftLetter = isDay ? 'Д' : 'Н';
+        return [dayStr, shiftLetter];
+    });
     
     // Determine bar colors dynamically based on Day/Night shift and Plan fulfillment
     const sheetsColors = days.map(d => {
@@ -2364,6 +2371,61 @@ function renderDailyReportCharts(days) {
         return isDay ? '#3b82f6' : '#8b5cf6'; // Blue for Day, Purple for Night
     });
 
+    const commonPlugins = {
+        legend: {
+            labels: {
+                color: textCol,
+                font: { size: 12 },
+                generateLabels: function(chart) {
+                    return [
+                        { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
+                        { text: 'Факт (недовыполнение, День)', fillStyle: '#3b82f6', strokeStyle: '#3b82f6', lineWidth: 1 },
+                        { text: 'Факт (недовыполнение, Ночь)', fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 1 },
+                        { text: 'План День (2700)', fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
+                        { text: 'План Ночь (3300)', fillStyle: '#ef4444', strokeStyle: '#ef4444', lineWidth: 2 }
+                    ];
+                }
+            }
+        },
+        tooltip: {
+            callbacks: {
+                title: function(context) {
+                    const idx = context[0].dataIndex;
+                    const d = days[idx];
+                    const shiftName = (d.label && d.label.includes('(Д)')) ? 'День' : 'Ночь';
+                    return `📅 ${d.date} — Смена: ${shiftName}`;
+                }
+            }
+        }
+    };
+
+    const commonXScale = {
+        grid: {
+            display: true,
+            color: function(context) {
+                // Thicker/darker grid line between pairs of days (every 2 shifts)
+                if (context.index % 2 === 0) {
+                    return isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.12)';
+                }
+                return 'transparent';
+            }
+        },
+        ticks: {
+            color: textCol,
+            autoSkip: false, // Ensure EVERY single shift label (all 62) is rendered!
+            maxRotation: 0,
+            minRotation: 0,
+            font: {
+                size: 10,
+                weight: function(context) {
+                    // Bold shift letter
+                    return '600';
+                }
+            },
+            padding: 2
+        }
+    };
+
     // Sheets Chart
     const ctxSheets = document.getElementById('chart-daily-sheets').getContext('2d');
     if (chartDailySheets) chartDailySheets.destroy();
@@ -2377,7 +2439,9 @@ function renderDailyReportCharts(days) {
                     data: days.map(d => d.fact_sheets),
                     backgroundColor: sheetsColors,
                     borderColor: sheetsColors,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    categoryPercentage: 0.92,
+                    barPercentage: 0.95
                 },
                 {
                     label: 'План День (2700)',
@@ -2404,24 +2468,9 @@ function renderDailyReportCharts(days) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: textCol,
-                        generateLabels: function(chart) {
-                            return [
-                                { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
-                                { text: 'Факт (недовыполнение, День)', fillStyle: '#3b82f6', strokeStyle: '#3b82f6', lineWidth: 1 },
-                                { text: 'Факт (недовыполнение, Ночь)', fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 1 },
-                                { text: 'План День (2700)', fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
-                                { text: 'План Ночь (3300)', fillStyle: '#ef4444', strokeStyle: '#ef4444', lineWidth: 2 }
-                            ];
-                        }
-                    }
-                }
-            },
+            plugins: commonPlugins,
             scales: {
-                x: { ticks: { color: textCol } },
+                x: commonXScale,
                 y: { ticks: { color: textCol } }
             }
         }
@@ -2440,7 +2489,9 @@ function renderDailyReportCharts(days) {
                     data: days.map(d => d.fact_tons),
                     backgroundColor: tonsColors,
                     borderColor: tonsColors,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    categoryPercentage: 0.92,
+                    barPercentage: 0.95
                 },
                 {
                     label: 'План День (52.9 т)',
@@ -2468,9 +2519,11 @@ function renderDailyReportCharts(days) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
+                ...commonPlugins,
                 legend: {
                     labels: {
                         color: textCol,
+                        font: { size: 12 },
                         generateLabels: function(chart) {
                             return [
                                 { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
@@ -2484,7 +2537,7 @@ function renderDailyReportCharts(days) {
                 }
             },
             scales: {
-                x: { ticks: { color: textCol } },
+                x: commonXScale,
                 y: { ticks: { color: textCol } }
             }
         }
@@ -2495,10 +2548,52 @@ function exportDailyReportPDF() {
     const { jsPDF } = window.jspdf;
     
     // Get values from page
-    const titleText = document.getElementById('daily-report-title')?.innerText || "Месячный отчет выработки";
-    const lineVal = document.getElementById('daily-report-line')?.value || "Все линии";
+    const titleText = document.getElementById('daily-report-title')?.innerText || "Месячная сводка выработки";
     const monthVal = document.getElementById('daily-report-month')?.value || "";
-    
+
+    // Get line readable label
+    const lineSelect = document.getElementById('daily-report-line');
+    let lineLabel = lineSelect ? lineSelect.options[lineSelect.selectedIndex]?.text : "Все линии";
+    if (lineLabel.includes('ЛФМ-1')) lineLabel = 'ЛФМ-1';
+    else if (lineLabel.includes('ЛФМ-2')) lineLabel = 'ЛФМ-2';
+
+    // Format readable period range
+    const rangeType = document.getElementById('daily-report-range-type')?.value || 'month';
+    const weekSelect = document.getElementById('daily-report-week-select');
+    let periodLabel = monthVal;
+
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    if (rangeType === 'week' && weekSelect && weekSelect.selectedIndex >= 0) {
+        // Option text is usually like "Неделя 1 (01.08 - 07.08)"
+        const optText = weekSelect.options[weekSelect.selectedIndex]?.text || '';
+        const match = optText.match(/\((.*?)\)/);
+        if (match) {
+            periodLabel = `с ${match[1].replace(' - ', ' по ')}`;
+        } else {
+            periodLabel = optText;
+        }
+    } else if (monthVal) {
+        const parts = monthVal.split('-');
+        if (parts.length === 2) {
+            const yr = parseInt(parts[0]);
+            const mo = parseInt(parts[1]);
+            const moStr = String(mo).padStart(2, '0');
+
+            if (monthVal === currentYearMonth) {
+                // Current ongoing month -> from 01 to today
+                const todayDay = String(now.getDate()).padStart(2, '0');
+                periodLabel = `с 01.${moStr} по ${todayDay}.${moStr}.${yr}`;
+            } else {
+                // Past or future month -> full calendar range
+                const lastDay = new Date(yr, mo, 0).getDate();
+                const lastDayStr = String(lastDay).padStart(2, '0');
+                periodLabel = `с 01.${moStr} по ${lastDayStr}.${moStr}.${yr}`;
+            }
+        }
+    }
+
     const kpiSheets = document.getElementById('kpi-total-sheets')?.innerText || "0";
     const kpiTons = document.getElementById('kpi-total-tons')?.innerText || "0.0";
     const kpiTonsDetail = document.getElementById('kpi-tons-detail')?.innerText || "";
@@ -2541,7 +2636,7 @@ function exportDailyReportPDF() {
     
     ctx.fillStyle = '#64748b';
     ctx.font = '22px Arial';
-    ctx.fillText(`Линия: ${lineVal}   |   Период: ${monthVal}`, cw / 2, 120);
+    ctx.fillText(`Линия: ${lineLabel}   |   Период: ${periodLabel}`, cw / 2, 120);
     
     // Draw horizontal line
     ctx.strokeStyle = '#e2e8f0';
