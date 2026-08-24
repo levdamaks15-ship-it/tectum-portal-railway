@@ -724,6 +724,7 @@ function resetShiftFilters() {
     const lineEl = document.getElementById('filter-line'); if (lineEl) lineEl.value = '';
     const masterEl = document.getElementById('filter-master'); if (masterEl) masterEl.value = '';
     const prodEl = document.getElementById('filter-product'); if (prodEl) prodEl.value = '';
+    const expEl = document.getElementById('filter-export-type'); if (expEl) expEl.value = '';
     const searchEl = document.getElementById('filter-search'); if (searchEl) searchEl.value = '';
     setShiftPeriod('week');
 }
@@ -732,6 +733,7 @@ function filterShifts() {
     const lineFilter = document.getElementById('filter-line')?.value || '';
     const masterFilter = document.getElementById('filter-master')?.value || '';
     const prodFilter = document.getElementById('filter-product')?.value || '';
+    const expFilter = document.getElementById('filter-export-type')?.value || '';
     const searchFilter = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
     
     const now = new Date();
@@ -750,6 +752,10 @@ function filterShifts() {
         if (lineFilter && !s.line.includes(lineFilter)) return false;
         if (masterFilter && s.master_id != masterFilter) return false;
         
+        // Export matching
+        const sExp = s.export_type || 'Эталон';
+        if (expFilter && sExp !== expFilter) return false;
+
         // Product matching
         const sProd = s.product_name || (s.lfm_reports?.[0]?.product_name) || (s.batches?.[0]?.product_name) || '';
         if (prodFilter && sProd !== prodFilter) {
@@ -767,7 +773,8 @@ function filterShifts() {
             const matchBatch = batchNum.toLowerCase().includes(searchFilter);
             const matchDate = s.date.includes(searchFilter);
             const matchMaster = mName.includes(searchFilter);
-            if (!matchId && !matchBatch && !matchDate && !matchMaster) return false;
+            const matchExp = sExp.toLowerCase().includes(searchFilter);
+            if (!matchId && !matchBatch && !matchDate && !matchMaster && !matchExp) return false;
         }
         return true;
     });
@@ -794,6 +801,14 @@ function filterShifts() {
 
         const prodName = s.product_name || (s.lfm_reports?.[0]?.product_name) || (s.batches?.[0]?.product_name) || 'Шифер 8 волн рифленый';
         const batchNum = s.batch_number || (s.batches?.[0]?.batch_number) || '-';
+        const exportType = s.export_type || 'Эталон';
+
+        let expBadge = `<span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; background: rgba(255,255,255,0.08); color: var(--text-secondary); margin-left: 4px;">${exportType}</span>`;
+        if (exportType === 'Оренбург') {
+            expBadge = `<span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; background: rgba(14, 165, 233, 0.2); color: #38bdf8; font-weight: bold; margin-left: 4px;">Оренбург</span>`;
+        } else if (exportType === 'Шымкент') {
+            expBadge = `<span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; background: rgba(168, 85, 247, 0.2); color: #c084fc; font-weight: bold; margin-left: 4px;">Шымкент</span>`;
+        }
 
         const shiftBadgeColor = s.shift_name === 'День' ? 'background: rgba(255, 193, 7, 0.2); color: #ffc107;' : 'background: rgba(13, 110, 253, 0.2); color: #6ea8fe;';
         const statusBadge = s.status === 'active' 
@@ -815,7 +830,9 @@ function filterShifts() {
                     <div style="font-size: 0.85rem; color: var(--text-secondary);">${masterName}</div>
                 </td>
                 <td>
-                    <div style="font-weight: 500; color: white;">${prodName}</div>
+                    <div style="font-weight: 500; color: white; display: flex; align-items: center; flex-wrap: wrap; gap: 2px;">
+                        <span>${prodName}</span> ${expBadge}
+                    </div>
                     <div style="font-size: 0.85rem; color: var(--accent-color);">Партия: <b>${batchNum}</b></div>
                 </td>
                 <td>
@@ -941,6 +958,11 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         standardProds.forEach(p => {
             prodSelect.innerHTML += `<option value="${p}" ${p === currentProd ? 'selected' : ''}>${p}</option>`;
         });
+
+        const expSelect = document.getElementById('uni-export-type');
+        if (expSelect) {
+            expSelect.value = shift.export_type || (lfm[0]?.export_type) || (batches[0]?.export_type) || 'Эталон';
+        }
 
         document.getElementById('uni-batch-number').value = shift.batch_number || (batches[0]?.batch_number) || '';
 
@@ -1090,6 +1112,7 @@ async function saveUnifiedShiftReport() {
         master_id: parseInt(document.getElementById('uni-master').value),
         status: document.getElementById('uni-status').value,
         product_name: document.getElementById('uni-product').value,
+        export_type: document.getElementById('uni-export-type')?.value || 'Эталон',
         batch_number: document.getElementById('uni-batch-number').value.trim(),
 
         lfm_sheets: parseInt(document.getElementById('uni-lfm-sheets').value) || 0,

@@ -33,7 +33,7 @@ def generate_flat_report(db: Session) -> bytes:
     ws.title = "Сводный отчет"
     
     headers = [
-        "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта",
+        "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта", "Назначение (Экспорт)",
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
         "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы наката",
         "Слив асб. (кг)", "Слив цем. (кг)",
@@ -152,6 +152,8 @@ def generate_flat_report(db: Session) -> bytes:
                 return 100.0
             return ((fact_val - theo_val) / theo_val) * 100.0
             
+        export_type = s.export_type or "Эталон"
+        
         row_data = [
             date_str,
             batch_numbers,
@@ -159,6 +161,7 @@ def generate_flat_report(db: Session) -> bytes:
             s.shift_name or "",
             s.master.name if s.master else "",
             product_names,
+            export_type,
             s.zo_batches or 0,
             formovka_sheets,
             round(formovka_tons, 3),
@@ -207,21 +210,21 @@ def generate_flat_report(db: Session) -> bytes:
             cell.border = border_thin
             
             # Alignments
-            if col_idx in [1, 2, 3, 4, 5, 6]:
+            if col_idx in [1, 2, 3, 4, 5, 6, 7]:
                 cell.alignment = Alignment(horizontal="left")
             else:
                 cell.alignment = Alignment(horizontal="right")
                 
-            # Defect cell (col 12)
-            if col_idx == 12:
+            # Defect cell (col 13)
+            if col_idx == 13:
                 val = cell.value
                 if val == 0:
                     cell.fill = green_fill
                 else:
                     cell.fill = red_fill
                     
-            # Deviation cols (cols 31 to 41)
-            if col_idx in range(31, 42):
+            # Deviation cols (cols 32 to 42)
+            if col_idx in range(32, 43):
                 val = cell.value
                 if val is not None and isinstance(val, (int, float)):
                     # Format as percentage string with sign
@@ -243,10 +246,11 @@ def generate_flat_report(db: Session) -> bytes:
         col_letter = get_column_letter(col[0].column)
         ws.column_dimensions[col_letter].width = max(max_len + 3, 11)
         
-    # Convert range to Excel Table (Formatted Table)
+    # Convert range to Excel Table (Formatted Table with Auto-Filter)
     if ws.max_row > 1:
         from openpyxl.worksheet.table import Table, TableStyleInfo
-        ref_range = f"A1:AO{ws.max_row}"
+        last_col_letter = get_column_letter(len(headers))
+        ref_range = f"A1:{last_col_letter}{ws.max_row}"
         table = Table(displayName="TectumSummaryTable", ref=ref_range)
         style = TableStyleInfo(name="TableStyleMedium9", showFirstColumn=False,
                                showLastColumn=False, showRowStripes=True, showColumnStripes=False)

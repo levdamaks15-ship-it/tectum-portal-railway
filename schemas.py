@@ -49,6 +49,7 @@ class ORMBaseModel(BaseModel):
 class BatchBase(ORMBaseModel):
     batch_number: str
     product_name: str
+    export_type: Optional[str] = "Эталон"
     status: str = "stacked"
     
     stacked_stacks: int = 0
@@ -100,6 +101,7 @@ class Batch(BatchBase):
 
 class LFMReportBase(ORMBaseModel):
     product_name: str
+    export_type: Optional[str] = "Эталон"
     lfm_sheets: int = 0
     lfm_wind_resets: int = 0
     formed_1st_grade: int = 0
@@ -150,6 +152,7 @@ class ShiftBase(ORMBaseModel):
     line: str
     batch_number: Optional[str] = None
     product_name: Optional[str] = None
+    export_type: Optional[str] = "Эталон"
     created_at: Optional[datetime] = None
     
     plan_sheets: Optional[int] = 0
@@ -440,6 +443,7 @@ class ShiftReportCreate(ORMBaseModel):
     master_id: int
     batch_number: str
     product_name: str
+    export_type: Optional[str] = "Эталон"
     
     # Производство / ЛФМ
     lfm_sheets: int = 0
@@ -538,6 +542,7 @@ class AdminShiftReportUpdate(ORMBaseModel):
     master_id: Optional[int] = None
     batch_number: Optional[str] = None
     product_name: Optional[str] = None
+    export_type: Optional[str] = None
     status: Optional[str] = None
     
     # Производство / ЛФМ

@@ -22,6 +22,7 @@ class Shift(Base):
     sharepoint_url = Column(String(500), nullable=True)
     batch_number = Column(String, default="", nullable=True)
     product_name = Column(String, default="", nullable=True)
+    export_type = Column(String(50), default="Эталон", nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     # План
@@ -163,6 +164,7 @@ class LFMReport(Base):
     id = Column(Integer, primary_key=True, index=True)
     shift_id = Column(Integer, ForeignKey("shifts.id"))
     product_name = Column(String)
+    export_type = Column(String(50), default="Эталон", nullable=True)
     lfm_sheets = Column(Integer)
     lfm_wind_resets = Column(Integer)
     formed_1st_grade = Column(Integer, default=0)
@@ -177,6 +179,7 @@ class Batch(Base):
     shift_id = Column(Integer, ForeignKey("shifts.id")) # Смена, в которую партия была создана Стакером
     batch_number = Column(String) # например, "0154"
     product_name = Column(String) # "8 волн"
+    export_type = Column(String(50), default="Эталон", nullable=True)
     status = Column(String, default="stacked") # "stacked", "destacked", "qcd_checked"
     
     # --- 4. Стакер (Укладчик) ---

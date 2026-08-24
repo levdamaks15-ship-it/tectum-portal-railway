@@ -13,7 +13,7 @@ import html
 import m365_integration
 import excel_exporter
 import import_aci_excel
-from datetime import datetime
+from datetime import datetime, date
 from pydantic import BaseModel
 from sqlalchemy import or_, func
 from sqlalchemy.orm import selectinload, joinedload
@@ -101,6 +101,24 @@ async def lifespan(app: FastAPI):
     try:
         conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE shifts ADD COLUMN product_name VARCHAR(255)")
+        conn.commit()
+        conn.close()
+    except: pass
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE shifts ADD COLUMN export_type VARCHAR(50) DEFAULT 'Эталон'")
+        conn.commit()
+        conn.close()
+    except: pass
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE lfm_reports ADD COLUMN export_type VARCHAR(50) DEFAULT 'Эталон'")
+        conn.commit()
+        conn.close()
+    except: pass
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE batches ADD COLUMN export_type VARCHAR(50) DEFAULT 'Эталон'")
         conn.commit()
         conn.close()
     except: pass
@@ -199,6 +217,12 @@ async def lifespan(app: FastAPI):
         driver = db.bind.dialect.name if db.bind else 'unknown'
         if driver == 'postgresql':
             from sqlalchemy import text
+            for tbl in ["shifts", "lfm_reports", "batches"]:
+                try:
+                    db.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS export_type VARCHAR(50) DEFAULT 'Эталон';"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
             for col, col_type in [
                 ("r2_key", "VARCHAR(512)"), 
                 ("docspace_file_id", "INTEGER"), 
@@ -671,6 +695,9 @@ async def lifespan(app: FastAPI):
                 "UPDATE batches SET qcd_defect = ds_defect WHERE qcd_defect = 0 AND ds_defect > 0",
                 "UPDATE shifts SET batch_number = '' WHERE batch_number IS NULL",
                 "UPDATE shifts SET product_name = '' WHERE product_name IS NULL",
+                "UPDATE shifts SET export_type = 'Эталон' WHERE export_type IS NULL OR export_type = ''",
+                "UPDATE lfm_reports SET export_type = 'Эталон' WHERE export_type IS NULL OR export_type = ''",
+                "UPDATE batches SET export_type = 'Эталон' WHERE export_type IS NULL OR export_type = ''",
                 "UPDATE shifts SET status = 'active' WHERE status IS NULL"
             ]
             for q in cleanup_queries:
@@ -1188,7 +1215,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
         return []
 
 @app.get("/api/shifts/by_params")
-def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, batch_number: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
+def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, batch_number: Optional[str] = None, export_type: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -1197,8 +1224,11 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
         raise HTTPException(status_code=403, detail="Доступ запрещен")
         
     try:
-        parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
-    except ValueError:
+        if hasattr(date, "strftime"):
+            parsed_date = date.date() if hasattr(date, "date") else date
+        else:
+            parsed_date = datetime.strptime(str(date), "%Y-%m-%d").date()
+    except Exception:
         raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
         
     query = db.query(models.Shift).filter(
@@ -1210,6 +1240,8 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
         query = query.filter(models.Shift.product_name == product_name)
     if batch_number:
         query = query.filter(models.Shift.batch_number == batch_number)
+    if export_type:
+        query = query.filter(models.Shift.export_type == export_type)
     shift = query.first()
     
     if not shift:
@@ -1233,6 +1265,7 @@ def get_shift_by_params(date: str, shift_name: str, line: str, request: Request,
             master_id=final_master_id,
             product_name=product_name or "",
             batch_number=batch_number or "",
+            export_type=export_type or "Эталон",
             status="closed",
             plan_sheets=0,
             plan_tons=0.0,
@@ -1895,6 +1928,8 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     shift.zo_cem_drain = data.zo_cem_drain
     shift.zo_batches = data.zo_batches
     shift.zo_submitted = True
+    if data.export_type is not None:
+        shift.export_type = data.export_type or "Эталон"
 
     # Update LFM report
     lfm_report = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
@@ -1902,6 +1937,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
         lfm_report = models.LFMReport(shift_id=shift.id)
         db.add(lfm_report)
     lfm_report.product_name = data.product_name
+    lfm_report.export_type = data.export_type or "Эталон"
     lfm_report.lfm_sheets = data.lfm_sheets
     lfm_report.lfm_wind_resets = data.lfm_wind_resets
     lfm_report.formed_1st_grade = data.first_grade
@@ -1915,6 +1951,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
         db.add(batch)
     batch.batch_number = data.batch_number
     batch.product_name = data.product_name
+    batch.export_type = data.export_type or "Эталон"
     batch.status = "qcd_checked"
     batch.stacked_stacks = data.lfm_sheets
     batch.ds_condition = data.warehouse_gp
@@ -2088,6 +2125,8 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
         query = query.filter(models.Shift.product_name == data.product_name)
     if data.batch_number:
         query = query.filter(models.Shift.batch_number == data.batch_number)
+    if data.export_type:
+        query = query.filter(models.Shift.export_type == data.export_type)
     shift = query.first()
     
     is_new = False
@@ -2100,6 +2139,7 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
             master_id=data.master_id,
             product_name=data.product_name or "",
             batch_number=data.batch_number or "",
+            export_type=data.export_type or "Эталон",
             status="closed",
             created_at=datetime.utcnow()
         )
@@ -2329,6 +2369,7 @@ def get_report_summary(
     to_date: str = None,
     line: str = None,
     master_id: int = None,
+    export_type: str = None,
     db: Session = Depends(get_db)
 ):
     user_id = request.session.get("user_id")
@@ -2336,17 +2377,28 @@ def get_report_summary(
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
+    result = []
     try:
         query = db.query(models.Shift)
     
         if from_date:
-            query = query.filter(models.Shift.date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+            if isinstance(from_date, (datetime, date)):
+                f_date = from_date if isinstance(from_date, date) else from_date.date()
+            else:
+                f_date = datetime.strptime(str(from_date), "%Y-%m-%d").date()
+            query = query.filter(models.Shift.date >= f_date)
         if to_date:
-            query = query.filter(models.Shift.date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+            if isinstance(to_date, (datetime, date)):
+                t_date = to_date if isinstance(to_date, date) else to_date.date()
+            else:
+                t_date = datetime.strptime(str(to_date), "%Y-%m-%d").date()
+            query = query.filter(models.Shift.date <= t_date)
         if line:
             query = query.filter(models.Shift.line == line)
         if master_id:
             query = query.filter(models.Shift.master_id == master_id)
+        if export_type:
+            query = query.filter(models.Shift.export_type == export_type)
         
         shifts = query.options(
             joinedload(models.Shift.master),
@@ -2401,6 +2453,7 @@ def get_report_summary(
         
             product_name = shift.product_name if not is_other_master else "Скрыто"
             batch_number = shift.batch_number if not is_other_master else "Скрыто"
+            export_type_val = shift.export_type if not is_other_master else "Скрыто"
             master_name = "Смена другого мастера" if is_other_master else (shift.master.name if shift.master else "Мастер удалён")
         
             lfm_tons = round(lfm_sheets * get_product_finished_weight_kg(db, product_name) / 1000.0, 2) if (lfm_sheets and not is_other_master) else 0.0
@@ -2428,6 +2481,7 @@ def get_report_summary(
                 "master_name": master_name,
                 "batch_number": batch_number,
                 "product_name": product_name,
+                "export_type": export_type_val or "Эталон",
                 "status": shift.status,
                 "created_at": created_at_iso,
                 "remaining_edit_seconds": remaining_secs,
@@ -4603,6 +4657,9 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     if data.product_name is not None and shift.product_name != data.product_name:
         changes.append(f"product_name: {shift.product_name} -> {data.product_name}")
         shift.product_name = data.product_name
+    if data.export_type is not None and shift.export_type != data.export_type:
+        changes.append(f"export_type: {shift.export_type} -> {data.export_type}")
+        shift.export_type = data.export_type
     if data.status is not None and shift.status != data.status:
         changes.append(f"status: {shift.status} -> {data.status}")
         shift.status = data.status
@@ -4636,6 +4693,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         lfm_report = models.LFMReport(
             shift_id=shift_id,
             product_name=shift.product_name or "",
+            export_type=shift.export_type or "Эталон",
             lfm_sheets=data.lfm_sheets or 0,
             lfm_wind_resets=data.lfm_wind_resets or 0,
             transferred_to_warehouse=data.warehouse_gp or 0,
@@ -4662,6 +4720,8 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
             lfm_report.formed_defect = data.qcd_defect
         if data.product_name is not None and lfm_report.product_name != data.product_name:
             lfm_report.product_name = data.product_name
+        if data.export_type is not None and lfm_report.export_type != data.export_type:
+            lfm_report.export_type = data.export_type
             
     # 3. Update Batch
     batch = db.query(models.Batch).filter(models.Batch.shift_id == shift_id).first()
@@ -4670,6 +4730,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
             shift_id=shift_id,
             batch_number=shift.batch_number or "",
             product_name=shift.product_name or "",
+            export_type=shift.export_type or "Эталон",
             status="stacked"
         )
         db.add(batch)
@@ -4677,6 +4738,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     else:
         batch.batch_number = shift.batch_number or ""
         batch.product_name = shift.product_name or ""
+        batch.export_type = shift.export_type or "Эталон"
         
     if data.warehouse_gp is not None:
         batch.ds_condition = data.warehouse_gp

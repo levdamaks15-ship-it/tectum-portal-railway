@@ -82,7 +82,7 @@ def sync_report_to_google_sheets(db: Session):
     db.commit()
     
     headers = [
-        "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта",
+        "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта", "Назначение (Экспорт)",
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
         "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы наката",
         "Слив асб. (кг)", "Слив цем. (кг)",
@@ -159,6 +159,7 @@ def sync_report_to_google_sheets(db: Session):
         total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
         total_fact_cement = fact["cement_silo1"] + fact["cement_silo2"] + fact["cement_silo3"] + fact["cement_silo4"]
         theory_cement = theory["cement"]
+        export_type = s.export_type or "Эталон"
         
         row_data = [
             date_str,
@@ -167,6 +168,7 @@ def sync_report_to_google_sheets(db: Session):
             s.shift_name or "",
             s.master.name if s.master else "",
             product_names,
+            export_type,
             s.zo_batches or 0,
             formovka_sheets,
             round(formovka_tons, 3),
@@ -249,15 +251,13 @@ def sync_report_to_google_sheets(db: Session):
                 key = (row[0], row[2], row[3]) # (Дата, Линия, Смена)
                 row_mapping[key] = idx
                 
-    # Записываем шапку, если лист вообще пустой
-    if not existing_rows:
-        service.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": [headers]}
-        ).execute()
-        existing_rows = [headers]
+    # Всегда обновляем шапку таблицы (Строка 1), чтобы новые колонки гарантированно отображались
+    service.spreadsheets().values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1",
+        valueInputOption="USER_ENTERED",
+        body={"values": [headers]}
+    ).execute()
 
     # Вместо clear() делаем жесткую перезапись диапазона A2:AO1000 пустыми значениями
     # Это решает проблему Умной Таблицы, не сдвигая строки вниз
@@ -341,15 +341,15 @@ def sync_report_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"
             }
         },
-        # Форматирование отклонений (колонки 31-41, индексы 30-40) как проценты (+0.00% / -0.00%)
+        # Форматирование отклонений (колонки 32-42, индексы 31-42) как проценты (+0.00% / -0.00%)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 30,
-                    "endColumnIndex": 41
+                    "startColumnIndex": 31,
+                    "endColumnIndex": 42
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -360,6 +360,20 @@ def sync_report_to_google_sheets(db: Session):
                     }
                 },
                 "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        # Включение автофильтра по всей шапке таблицы
+        {
+            "setBasicFilter": {
+                "filter": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": total_rows,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    }
+                }
             }
         }
     ]

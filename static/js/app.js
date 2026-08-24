@@ -177,10 +177,11 @@ async function onProductChange(event) {
     const line = document.getElementById('rep-line')?.value;
     const productName = document.getElementById('rep-product')?.value;
     const batchNumber = document.getElementById('rep-batch')?.value;
+    const exportType = document.getElementById('rep-export-type')?.value || "Эталон";
     
     if (date && shiftName && line && productName) {
         try {
-            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shiftName)}&line=${encodeURIComponent(line)}&product_name=${encodeURIComponent(productName)}`;
+            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shiftName)}&line=${encodeURIComponent(line)}&product_name=${encodeURIComponent(productName)}&export_type=${encodeURIComponent(exportType)}`;
             if (batchNumber) {
                 url += `&batch_number=${encodeURIComponent(batchNumber)}`;
             }
@@ -191,14 +192,14 @@ async function onProductChange(event) {
                 prefillReportForm(shift);
             } else if (res.status === 404) {
                 // Not found, so we are creating a new product report.
-                // Clear the form but keep the selected date/shift/line/product/master/batch
+                // Clear the form but keep the selected date/shift/line/product/master/batch/export_type
                 const masterId = document.getElementById('rep-master')?.value;
                 const batchNum = document.getElementById('rep-batch')?.value;
                 
-                // Determine what triggered the change. If it's a product or batch change, 
+                // Determine what triggered the change. If it's a product, batch or export_type change, 
                 // we strictly clear per AGENTS.md rule. Otherwise, only clear if we are 
                 // transitioning AWAY from a previously loaded shift (to avoid wiping a new draft).
-                const isProductOrBatchChange = event && event.target && (event.target.id === 'rep-product' || event.target.id === 'rep-batch');
+                const isProductOrBatchChange = event && event.target && (event.target.id === 'rep-product' || event.target.id === 'rep-batch' || event.target.id === 'rep-export-type');
                 if (window.currentLoadedShiftId || isProductOrBatchChange) {
                     resetReportForm();
                 }
@@ -208,6 +209,7 @@ async function onProductChange(event) {
                 if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
                 if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
                 if (document.getElementById('rep-product')) document.getElementById('rep-product').value = productName;
+                if (document.getElementById('rep-export-type')) document.getElementById('rep-export-type').value = exportType;
                 if (document.getElementById('rep-master')) document.getElementById('rep-master').value = masterId || '';
                 if (document.getElementById('rep-batch')) document.getElementById('rep-batch').value = batchNum || '';
             }
@@ -557,6 +559,9 @@ function prefillReportForm(shift) {
     document.getElementById('rep-master').value = shift.master_id || '';
     document.getElementById('rep-batch').value = shift.batch_number || '';
     document.getElementById('rep-product').value = shift.product_name || '';
+    if (document.getElementById('rep-export-type')) {
+        document.getElementById('rep-export-type').value = shift.export_type || 'Эталон';
+    }
     
     // Quantities
     document.getElementById('rep-batches').value = shift.zo_batches || '0';
@@ -657,6 +662,7 @@ async function submitShiftReport() {
         master_id: parseInt(document.getElementById('rep-master').value),
         batch_number: document.getElementById('rep-batch').value,
         product_name: document.getElementById('rep-product').value,
+        export_type: document.getElementById('rep-export-type')?.value || 'Эталон',
         
         lfm_sheets: parseInt(document.getElementById('rep-sheets').value) || 0,
         lfm_wind_resets: parseInt(document.getElementById('rep-resets').value) || 0,
@@ -1018,12 +1024,15 @@ async function loadReportSummary() {
 
     const lineEl = document.getElementById('filter-line');
     const masterEl = document.getElementById('filter-master');
+    const exportTypeEl = document.getElementById('summary-filter-export-type');
     const line = lineEl ? lineEl.value : '';
     const master_id = masterEl ? masterEl.value : '';
+    const export_type = exportTypeEl ? exportTypeEl.value : '';
 
     let url = `/api/report/summary?from_date=${from_date}&to_date=${to_date}`;
     if (line) url += `&line=${encodeURIComponent(line)}`;
     if (master_id) url += `&master_id=${master_id}`;
+    if (export_type) url += `&export_type=${encodeURIComponent(export_type)}`;
 
     try {
         const res = await fetch(url);
@@ -1055,13 +1064,11 @@ function renderSummaryTable(rows) {
     tbody.innerHTML = '';
     
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="42" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="43" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
         return;
     }
 
     rows.forEach(r => {
-
-
         const u = r.zo_usage || {};
         const chrys_4_20 = u.chrysotile_4_20 || 0;
         const chrys_5_65 = u.chrysotile_5_65 || 0;
@@ -1076,6 +1083,15 @@ function renderSummaryTable(rows) {
 
         // Defect color: 0 is green, anything else is red
         const defectColor = r.defect === 0 ? 'var(--success-color)' : 'var(--danger-color)';
+
+        // Export badge styling
+        const expType = r.export_type || 'Эталон';
+        let exportBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.75rem; background: rgba(255,255,255,0.08); color: var(--text-secondary);">${expType}</span>`;
+        if (expType === 'Оренбург') {
+            exportBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.75rem; background: rgba(14, 165, 233, 0.2); color: #38bdf8; font-weight: bold;">Оренбург</span>`;
+        } else if (expType === 'Шымкент') {
+            exportBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.75rem; background: rgba(168, 85, 247, 0.2); color: #c084fc; font-weight: bold;">Шымкент</span>`;
+        }
 
         // Theoretical values for relative deviations
         const theo = r.deviations && r.deviations.theoretical ? r.deviations.theoretical : {};
@@ -1116,6 +1132,7 @@ function renderSummaryTable(rows) {
                 <td>${r.shift_name}</td>
                 <td style="font-weight: 500;">${r.master_name}</td>
                 <td>${r.product_name}</td>
+                <td>${exportBadge}</td>
                 <td>${r.zo_batches}</td>
                 <td style="font-weight: bold;">${r.lfm_sheets}</td>
                 <td>${r.lfm_tons.toFixed(2)}</td>
@@ -2726,7 +2743,7 @@ async function syncDowntimesFromGoogle() {
 
 // --- Auto-Save Draft Logic ---
 const REPORT_FIELDS = [
-    'rep-date', 'rep-shift', 'rep-line', 'rep-master', 'rep-batch', 'rep-product',
+    'rep-date', 'rep-shift', 'rep-line', 'rep-master', 'rep-batch', 'rep-product', 'rep-export-type',
     'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade',
     'rep-has-defect', 'def-chip', 'def-scratch', 'def-bad-cut', 'def-stick-bottom',
     'def-stick-top', 'def-broken', 'def-fell', 'def-dent', 'def-thickness',
@@ -2898,6 +2915,7 @@ async function init() {
     document.getElementById('rep-shift')?.addEventListener('change', onProductChange);
     document.getElementById('rep-line')?.addEventListener('change', onProductChange);
     document.getElementById('rep-product')?.addEventListener('change', onProductChange);
+    document.getElementById('rep-export-type')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
     

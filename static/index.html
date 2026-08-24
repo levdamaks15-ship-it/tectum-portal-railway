@@ -337,6 +337,14 @@
                                         <option value="Шифер РП 1750*930">Шифер РП 1750*930</option>
                                     </select>
                                 </div>
+                                <div class="form-group">
+                                    <label>Назначение / Экспорт</label>
+                                    <select id="rep-export-type" onchange="onProductChange()">
+                                        <option value="Эталон" selected>Эталон (по умолчанию)</option>
+                                        <option value="Оренбург">Оренбург</option>
+                                        <option value="Шымкент">Шымкент</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -846,6 +854,15 @@
                             <option value="">-- Все мастера --</option>
                         </select>
                     </div>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 140px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary);">Экспорт / Назначение</label>
+                        <select id="summary-filter-export-type" style="margin-bottom: 0;">
+                            <option value="">-- Все назначения --</option>
+                            <option value="Эталон">Эталон</option>
+                            <option value="Оренбург">Оренбург</option>
+                            <option value="Шымкент">Шымкент</option>
+                        </select>
+                    </div>
                     <button onclick="loadReportSummary()" class="btn-success" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0;">Применить</button>
                     <button id="btn-export-google-sheets" onclick="syncGoogleSheetsManually()" class="btn-secondary" style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #0f9d58; color: white; border: none;">📈 Выгрузить в Гугл Таблицы</button>
                     <button onclick="downloadExcelLocal()" class="btn-secondary" style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #107c41; color: white; border: none;">📊 Скачать в Excel</button>
@@ -865,6 +882,7 @@
                                      <th>Смена</th>
                                      <th>Мастер</th>
                                      <th>Продукт</th>
+                                     <th>Назначение</th>
                                      <th>Замесы</th>
                                      <th>Формовка<br>(листы)</th>
                                      <th>Формовка<br>(тонны)</th>

@@ -484,6 +484,15 @@
                             <option value="">Вся продукция</option>
                         </select>
                     </div>
+                    <div style="flex: 1.2; min-width: 140px;">
+                        <label style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem;">Назначение</label>
+                        <select id="filter-export-type" onchange="filterShifts()" style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.82rem;">
+                            <option value="">Все назначения</option>
+                            <option value="Эталон">Эталон</option>
+                            <option value="Оренбург">Оренбург</option>
+                            <option value="Шымкент">Шымкент</option>
+                        </select>
+                    </div>
                     <div style="flex: 1.5; min-width: 160px;">
                         <label style="display: block; font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.2rem;">Поиск (Партия / ID)</label>
                         <input type="text" id="filter-search" oninput="filterShifts()" placeholder="№ партии или ID..." style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 6px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); font-size: 0.82rem;">
@@ -937,6 +946,14 @@
                     <div>
                         <label>Продукция</label>
                         <select id="uni-product"></select>
+                    </div>
+                    <div>
+                        <label>Назначение / Экспорт</label>
+                        <select id="uni-export-type">
+                            <option value="Эталон">Эталон</option>
+                            <option value="Оренбург">Оренбург</option>
+                            <option value="Шымкент">Шымкент</option>
+                        </select>
                     </div>
                     <div>
                         <label>Статус записи</label>
