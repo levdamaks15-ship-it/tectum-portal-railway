@@ -270,76 +270,16 @@ def sync_report_to_google_sheets(db: Session):
         body={"values": rows_data}
     ).execute()
     
-    # 3. Применяем форматирование (Navy Blue заголовок, стили, границы, цвета)
+    # 3. Проверяем наличие автофильтра на листе
+    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    has_basic_filter = "basicFilter" in sheet_meta
+
     total_rows = len(rows_data)
-    
-    requests = [
-        # Устанавливаем только шрифт Calibri 11pt для всех ячеек, НЕ меняя цвет текста (чтобы не перекрывать белый цвет Умной Таблицы)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "fontFamily": "Calibri",
-                            "fontSize": 11
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
-            }
-        },
-        # Стилизация заголовка (Строка 1): Выравнивание и жирный текст (Цвета берем из встроенных стилей Умной Таблицы)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "bold": True
-                        },
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
-                    }
-                },
-                "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"
-            }
-        },
-        # Форматирование отклонений (колонки 32-42, индексы 31-42) как проценты (+0.00% / -0.00%)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 31,
-                    "endColumnIndex": 42
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "+0.00%;-0.00%;0.00%"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        },
-        # Включение автофильтра по всей шапке таблицы
-        {
+    requests = []
+
+    # Устанавливаем автофильтр только если он еще не был создан
+    if not has_basic_filter:
+        requests.append({
             "setBasicFilter": {
                 "filter": {
                     "range": {
@@ -351,11 +291,33 @@ def sync_report_to_google_sheets(db: Session):
                     }
                 }
             }
+        })
+
+    # Форматирование отклонений (колонки 32-42, индексы 31-42) как проценты (+0.00% / -0.00%)
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": total_rows,
+                "startColumnIndex": 31,
+                "endColumnIndex": 42
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "PERCENT",
+                        "pattern": "+0.00%;-0.00%;0.00%"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
         }
-    ]
+    })
     
-    body = {"requests": requests}
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+    if requests:
+        body = {"requests": requests}
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
     print("Синхронизация отчета с Google Таблицами выполнена успешно.")
 
 
