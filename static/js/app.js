@@ -2332,8 +2332,14 @@ async function loadDailyReport() {
 
             document.getElementById('kpi-avg-plan-percent').innerText = Math.round(data.avg_plan_percent) + '%';
             document.getElementById('kpi-plan-fact-detail').innerText = `План: ${(data.total_plan_sheets || 0).toLocaleString()} / Факт: ${(data.total_fact_sheets || 0).toLocaleString()}`;
+            
+            const firstGradePercentEl = document.getElementById('kpi-first-grade-percent');
+            if (firstGradePercentEl) firstGradePercentEl.innerText = (data.first_grade_percent || 0).toFixed(2) + '%';
+            const firstGradeDetailEl = document.getElementById('kpi-first-grade-detail');
+            if (firstGradeDetailEl) firstGradeDetailEl.innerText = `1 сорт: ${(data.total_first_grade || 0).toLocaleString()} листов`;
+
             document.getElementById('kpi-defect-percent').innerText = (data.defect_percent || 0).toFixed(2) + '%';
-            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} / 1 сорт: ${(data.total_first_grade || 0).toLocaleString()}`;
+            document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} листов`;
 
             // Renders charts
             renderDailyReportCharts(data.days);
@@ -2599,7 +2605,9 @@ function exportDailyReportPDF() {
     const kpiLagTonsDetail = document.getElementById('kpi-lag-tons-detail')?.innerText || "";
     const kpiAvgPlan = document.getElementById('kpi-avg-plan-percent')?.innerText || "0%";
     const kpiPlanDetail = document.getElementById('kpi-plan-fact-detail')?.innerText || "";
-    const kpiDefect = document.getElementById('kpi-defect-percent')?.innerText || "0%";
+    const kpiFirstGrade = document.getElementById('kpi-first-grade-percent')?.innerText || "0.00%";
+    const kpiFirstGradeDetail = document.getElementById('kpi-first-grade-detail')?.innerText || "";
+    const kpiDefect = document.getElementById('kpi-defect-percent')?.innerText || "0.00%";
     const kpiDefectDetail = document.getElementById('kpi-defect-detail')?.innerText || "";
 
     // Today / MTD KPIs
@@ -2630,8 +2638,8 @@ function exportDailyReportPDF() {
     ctx.textAlign = 'center';
     ctx.fillText(titleText, cw / 2, 80);
     
-    ctx.fillStyle = '#64748b';
-    ctx.font = '22px Arial';
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 22px Arial';
     ctx.fillText(`Линия: ${lineLabel}   |   Период: ${periodLabel}`, cw / 2, 120);
     
     // Draw horizontal line
@@ -2668,8 +2676,8 @@ function exportDailyReportPDF() {
         ctx.strokeRect(cardX, y, cardW, 110);
         
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#475569';
-        ctx.font = '18px Arial';
+        ctx.fillStyle = '#334155';
+        ctx.font = 'bold 18px Arial';
         ctx.fillText(k.label, x + todayW / 2, y + 30);
         
         ctx.fillStyle = k.color;
@@ -2677,52 +2685,53 @@ function exportDailyReportPDF() {
         ctx.fillText(k.val, x + todayW / 2, y + 70);
         
         if (k.subtext) {
-            ctx.fillStyle = '#64748b';
-            ctx.font = '15px Arial';
+            ctx.fillStyle = '#334155';
+            ctx.font = 'bold 15px Arial';
             ctx.fillText(k.subtext, x + todayW / 2, y + 95);
         }
     });
 
-    // Row 2: Total Month KPIs
+    // Row 2: Total Month KPIs (7 cards)
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#334155';
     ctx.font = 'bold 20px Arial';
-    ctx.fillText("ИТОГОВЫЕ ПРОГНОЗНЫЕ ПОКАЗАТЕЛИ ЗА ВЕСЬ МЕСЯЦ", 80, 335);
+    ctx.fillText("ИТОГОВЫЕ ПРОГНОЗНЫЕ ПОКАЗАТЕЛИ ЗА ВЕСЬ ПЕРИОД", 80, 335);
 
     const kpis = [
-        { label: "Выработка (Листы)", val: kpiSheets, color: '#3b82f6', subtext: "" },
-        { label: "Выработка (Тонны)", val: kpiTons, color: '#10b981', subtext: kpiTonsDetail },
-        { label: "Остаток (Листы)", val: kpiLagSheets, color: '#8b5cf6', subtext: kpiLagSheetsDetail },
+        { label: "Выработка (Листы)", val: kpiSheets, color: '#2563eb', subtext: "" },
+        { label: "Выработка (Тонны)", val: kpiTons, color: '#059669', subtext: kpiTonsDetail },
+        { label: "Остаток (Листы)", val: kpiLagSheets, color: '#7c3aed', subtext: kpiLagSheetsDetail },
         { label: "Остаток (Тонны)", val: kpiLagTons, color: '#6366f1', subtext: kpiLagTonsDetail },
-        { label: "Ср. % плана", val: kpiAvgPlan, color: '#f59e0b', subtext: kpiPlanDetail },
-        { label: "Процент брака", val: kpiDefect, color: '#ef4444', subtext: kpiDefectDetail }
+        { label: "Ср. % плана", val: kpiAvgPlan, color: '#d97706', subtext: kpiPlanDetail },
+        { label: "% 1-го сорта", val: kpiFirstGrade, color: '#16a34a', subtext: kpiFirstGradeDetail },
+        { label: "% брака", val: kpiDefect, color: '#dc2626', subtext: kpiDefectDetail }
     ];
     
-    const kpiW = (cw - 160) / 6;
+    const kpiW = (cw - 160) / 7;
     kpis.forEach((k, idx) => {
         const x = 80 + idx * kpiW;
         const y = 350;
         
-        const cardW = kpiW - 20;
-        const cardX = x + 10;
+        const cardW = kpiW - 14;
+        const cardX = x + 7;
         ctx.fillStyle = '#f8fafc';
         ctx.fillRect(cardX, y, cardW, 110);
-        ctx.strokeStyle = '#e2e8f0';
+        ctx.strokeStyle = '#cbd5e1';
         ctx.lineWidth = 1;
         ctx.strokeRect(cardX, y, cardW, 110);
         
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#64748b';
-        ctx.font = '17px Arial';
-        ctx.fillText(k.label, x + kpiW / 2, y + 30);
+        ctx.fillStyle = '#334155';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText(k.label, x + kpiW / 2, y + 28);
         
         ctx.fillStyle = k.color;
-        ctx.font = 'bold 28px Arial';
-        ctx.fillText(k.val, x + kpiW / 2, y + 70);
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText(k.val, x + kpiW / 2, y + 68);
         
         if (k.subtext) {
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '14px Arial';
+            ctx.fillStyle = '#1e293b'; // High contrast, bold subtext
+            ctx.font = 'bold 13px Arial';
             ctx.fillText(k.subtext, x + kpiW / 2, y + 95);
         }
     });

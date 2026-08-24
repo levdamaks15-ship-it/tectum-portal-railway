@@ -3791,6 +3791,7 @@ def get_daily_report(
     total_first_grade = sum(d["first_grade"] for d in days_list)
     total_defect = sum(d["defect"] for d in days_list)
     defect_percent = (total_defect / total_fact_sheets * 100.0) if total_fact_sheets > 0 else 0.0
+    first_grade_percent = (total_first_grade / total_fact_sheets * 100.0) if total_fact_sheets > 0 else 0.0
     
     lag_sheets = total_plan_sheets - total_fact_sheets
     lag_tons = round(total_plan_tons - total_fact_tons, 2)
@@ -3804,6 +3805,7 @@ def get_daily_report(
         "lag_sheets": lag_sheets,
         "lag_tons": lag_tons,
         "total_first_grade": total_first_grade,
+        "first_grade_percent": first_grade_percent,
         "total_defect": total_defect,
         "avg_plan_percent": avg_plan_percent,
         "defect_percent": defect_percent,
