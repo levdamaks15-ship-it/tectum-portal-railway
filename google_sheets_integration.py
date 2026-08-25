@@ -293,7 +293,7 @@ def sync_report_to_google_sheets(db: Session):
             }
         })
 
-    # Сброс формата для всех колонок данных (0-30: обычные числа/текст)
+    # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy)
     requests.append({
         "repeatCell": {
             "range": {
@@ -301,6 +301,28 @@ def sync_report_to_google_sheets(db: Session):
                 "startRowIndex": 1,
                 "endRowIndex": total_rows,
                 "startColumnIndex": 0,
+                "endColumnIndex": 1
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "DATE",
+                        "pattern": "dd.MM.yyyy"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
+
+    # Сброс числового формата для колонок данных (1-30: обычные числа/текст, пропуская дату)
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": total_rows,
+                "startColumnIndex": 1,
                 "endColumnIndex": 31
             },
             "cell": {
