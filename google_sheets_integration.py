@@ -270,28 +270,34 @@ def sync_report_to_google_sheets(db: Session):
         body={"values": rows_data}
     ).execute()
     
-    # 3. Проверяем наличие автофильтра на листе
+    # 3. Обновляем автофильтр на весь актуальный диапазон строк
     sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     has_basic_filter = "basicFilter" in sheet_meta
 
     total_rows = len(rows_data)
     requests = []
 
-    # Устанавливаем автофильтр только если он еще не был создан
-    if not has_basic_filter:
+    if has_basic_filter:
         requests.append({
-            "setBasicFilter": {
-                "filter": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 0,
-                        "endColumnIndex": len(headers)
-                    }
-                }
+            "clearBasicFilter": {
+                "sheetId": sheet_id
             }
         })
+
+    # Всегда устанавливаем автофильтр на точный размер актуальных данных
+    requests.append({
+        "setBasicFilter": {
+            "filter": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                }
+            }
+        }
+    })
 
     # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy)
     requests.append({
