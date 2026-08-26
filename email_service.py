@@ -9,6 +9,20 @@ GMAIL_WEBHOOK_URL = os.getenv(
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Tectum Планнер")
 PORTAL_URL = os.getenv("PORTAL_URL", "https://tectum-portal-railway-production.up.railway.app/tasks")
 
+def _clean_subject(subject: str) -> str:
+    """Удаляет эмодзи из темы письма, чтобы тема отображалась идеально во всех почтовых сервисах."""
+    import re
+    if not subject:
+        return "Tectum Планнер"
+    clean = re.sub(r'[\U00010000-\U0010ffff]', '', subject)
+    for sym in ['📌', '🚀', '🟢', '🔵', '🟡', '✍️', '📅', '🗓️', '📷', '➔', '⚪', '🔴']:
+        clean = clean.replace(sym, '')
+    clean = " ".join(clean.split())
+    if not clean.startswith("[Tectum"):
+        clean = f"[Tectum] {clean}"
+    return clean
+
+
 def send_task_html_email(
     to_email: str,
     subject: str,
@@ -24,6 +38,7 @@ def send_task_html_email(
         print(f"[Email Service] {err}")
         return False, err
 
+    subject_clean = _clean_subject(subject)
     text_content = _build_plain_text(event_type, task_data)
     html_content = _build_html_template(event_type, task_data)
     from_name = os.getenv("SMTP_FROM_NAME", SMTP_FROM_NAME)
@@ -38,7 +53,7 @@ def send_task_html_email(
         import json
         payload = {
             "to": to_email.strip(),
-            "subject": subject,
+            "subject": subject_clean,
             "html": html_content,
             "text": text_content,
             "from_name": from_name
