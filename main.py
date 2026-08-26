@@ -7127,7 +7127,7 @@ def test_planner_email(
         "week_label": "Неделя 4 (24.08 - 28.08)"
     }
 
-    success = send_task_html_email(
+    success, err = send_task_html_email(
         to_email=to_email.strip(),
         subject="🚀 Проверка почтовых уведомлений Tectum Планнер",
         event_type="Тестовое уведомление",
@@ -7137,7 +7137,7 @@ def test_planner_email(
     if success:
         return {"status": "ok", "message": f"Тестовое письмо успешно отправлено на {to_email}!"}
     else:
-        raise HTTPException(status_code=500, detail="Не удалось отправить письмо. Проверьте переменные SMTP_USER и SMTP_PASSWORD в Railway.")
+        raise HTTPException(status_code=500, detail=f"Не удалось отправить письмо: {err or 'Неизвестная ошибка'}")
 
 
 

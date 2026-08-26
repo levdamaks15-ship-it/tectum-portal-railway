@@ -16,14 +16,15 @@ def send_task_html_email(
     subject: str,
     event_type: str,
     task_data: Dict[str, Any]
-) -> bool:
+) -> (bool, Optional[str]):
     """
     Отправляет красивое брендированное HTML-письмо с уведомлением по задаче через SMTP.
-    Поддерживает Gmail, Mail.ru, Yandex и корпоративные SMTP-серверы.
+    Возвращает (успех: bool, текст_ошибки: Optional[str]).
     """
     if not to_email or "@" not in to_email:
-        print(f"[Email Service] Пропущен: некорректный email '{to_email}'")
-        return False
+        err = f"Некорректный email получателя: '{to_email}'"
+        print(f"[Email Service] {err}")
+        return False, err
 
     smtp_user = os.getenv("SMTP_USER", SMTP_USER)
     smtp_pass = os.getenv("SMTP_PASSWORD", SMTP_PASSWORD).replace(" ", "")
@@ -31,9 +32,15 @@ def send_task_html_email(
     smtp_port = int(os.getenv("SMTP_PORT", SMTP_PORT))
     from_name = os.getenv("SMTP_FROM_NAME", SMTP_FROM_NAME)
 
-    if not smtp_user or not smtp_pass:
-        print(f"[Email Service Warning] SMTP_USER или SMTP_PASSWORD не настроены в переменных окружения. Уведомление для {to_email} не отправлено.")
-        return False
+    if not smtp_user:
+        err = "Переменная SMTP_USER не найдена в окружении Railway"
+        print(f"[Email Service Warning] {err}")
+        return False, err
+
+    if not smtp_pass:
+        err = "Переменная SMTP_PASSWORD не найдена в окружении Railway"
+        print(f"[Email Service Warning] {err}")
+        return False, err
 
     try:
         msg = MIMEMultipart("alternative")
@@ -63,11 +70,13 @@ def send_task_html_email(
                 server.sendmail(smtp_user, [to_email], msg.as_string())
 
         print(f"[Email Service Success] Письмо успешно отправлено на {to_email} (Событие: {event_type})")
-        return True
+        return True, None
 
     except Exception as e:
-        print(f"[Email Service Error] Ошибка отправки на {to_email}: {e}")
-        return False
+        err = f"Ошибка SMTP ({type(e).__name__}): {str(e)}"
+        print(f"[Email Service Error] Ошибка отправки на {to_email}: {err}")
+        return False, err
+
 
 
 def _build_plain_text(event_type: str, d: Dict[str, Any]) -> str:
