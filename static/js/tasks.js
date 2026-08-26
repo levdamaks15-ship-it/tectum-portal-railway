@@ -277,6 +277,12 @@ function renderTasksTable(tasks) {
 }
 
 async function quickUpdateField(taskId, fieldName, fieldValue) {
+    // Мгновенно обновляем локальный объект в массиве
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) {
+        task[fieldName] = fieldValue;
+    }
+
     try {
         const payload = {};
         payload[fieldName] = fieldValue;
@@ -319,25 +325,13 @@ function switchViewMode(mode) {
     loadTasks();
 }
 
-function toggleMyTasksFilter() {
-    myTasksOnly = !myTasksOnly;
-    const btn = document.getElementById("btn-my-tasks");
-    if (btn) {
-        if (myTasksOnly) {
-            btn.className = "btn-action btn-primary-action";
-            showToast("Фильтр: только мои задачи");
-        } else {
-            btn.className = "btn-action btn-secondary-action";
-            showToast("Фильтр снят");
-        }
-    }
-    loadTasks();
-}
-
 /* ==========================================================
    QUICK INLINE ACTIONS
    ========================================================== */
 async function quickUpdateStatus(taskId, newStatus) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) task.status = newStatus;
+
     try {
         const res = await fetch(`/api/tasks/${taskId}`, {
             method: "PUT",
@@ -345,7 +339,7 @@ async function quickUpdateStatus(taskId, newStatus) {
             body: JSON.stringify({ status: newStatus })
         });
         if (res.ok) {
-            showToast(`Статус изменен: ${newStatus}`);
+            showToast(`Статус: ${newStatus}`);
             loadTasks();
         }
     } catch (e) {
@@ -356,6 +350,9 @@ async function quickUpdateStatus(taskId, newStatus) {
 async function inlineEditComment(taskId, currentComment) {
     const newComment = prompt("Введите факт / комментарий к задаче:", currentComment);
     if (newComment === null) return;
+
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) task.comment = newComment;
 
     try {
         const res = await fetch(`/api/tasks/${taskId}`, {
@@ -402,7 +399,7 @@ function debounceAutoTranslateModal() {
         } catch (e) {
             console.error("Auto-translate error:", e);
         }
-    }, 400);
+    }, 300);
 }
 
 function setDueQuick(val) {
@@ -414,6 +411,7 @@ function setDueQuick(val) {
    MODAL CREATE & EDIT
    ========================================================== */
 function openAddTaskModal() {
+    populateDropdowns();
     document.getElementById("modal-title").textContent = "Новая задача";
     document.getElementById("task-id-input").value = "";
     document.getElementById("task-ru-input").value = "";
@@ -429,10 +427,11 @@ function openAddTaskModal() {
 }
 
 function openEditTaskModal(taskId) {
+    populateDropdowns();
     const task = allTasks.find(t => t.id === taskId);
     if (!task) return;
 
-    document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code}]`;
+    document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code || ('TSK-' + task.id)}]`;
     document.getElementById("task-id-input").value = task.id;
     document.getElementById("task-ru-input").value = task.title || "";
     document.getElementById("task-kz-input").value = task.title_kz || "";
@@ -440,9 +439,14 @@ function openEditTaskModal(taskId) {
     document.getElementById("task-photo-input").value = task.photo_link || "";
     document.getElementById("task-author-input").value = task.author_name || "";
     document.getElementById("task-assignee-input").value = task.assignee_name || "";
-    document.getElementById("task-due-input").value = task.due_date_str || "";
+    document.getElementById("task-due-input").value = task.due_date_str || "В теч. недели";
     document.getElementById("task-status-input").value = task.status || "⚪ В очереди";
     document.getElementById("task-comment-input").value = task.comment || "";
+
+    // Если нет KZ перевода - запускаем фоновый перевод
+    if (!task.title_kz && task.title) {
+        debounceAutoTranslateModal();
+    }
 
     document.getElementById("task-modal").style.display = "flex";
 }
@@ -454,18 +458,33 @@ function closeTaskModal() {
 async function saveTaskModal() {
     const taskId = document.getElementById("task-id-input").value;
     const titleRu = document.getElementById("task-ru-input").value.trim();
-    const titleKz = document.getElementById("task-kz-input").value.trim();
+    let titleKz = document.getElementById("task-kz-input").value.trim();
     const zone = document.getElementById("task-zone-input").value;
     const photoLink = document.getElementById("task-photo-input").value.trim();
     const author = document.getElementById("task-author-input").value;
     const assignee = document.getElementById("task-assignee-input").value;
-    const due = document.getElementById("task-due-input").value.trim();
+    const due = document.getElementById("task-due-input").value.trim() || "В теч. недели";
     const status = document.getElementById("task-status-input").value;
     const comment = document.getElementById("task-comment-input").value.trim();
 
     if (!titleRu) {
         alert("Пожалуйста, введите суть задачи!");
         return;
+    }
+
+    // Если казахский перевод еще не подтянулся - получаем синхронно
+    if (!titleKz) {
+        try {
+            const transRes = await fetch("/api/tasks/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: titleRu })
+            });
+            if (transRes.ok) {
+                const transData = await transRes.json();
+                titleKz = transData.text_kz || "";
+            }
+        } catch (e) {}
     }
 
     const payload = {
