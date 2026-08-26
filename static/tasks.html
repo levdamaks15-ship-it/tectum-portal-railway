@@ -2,86 +2,54 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Планнер задач — Tectum Engineering</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260816_tasks_v1">
-    
+    <link rel="stylesheet" href="/static/css/style.css?v=20260826_planner_v1">
+
     <style>
         :root {
-            --task-bg: #f8fafc;
-            --task-body-bg: #f0f2f5;
-            --task-body-gradient: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.06) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.06) 0px, transparent 50%);
-            --task-card: #ffffff;
-            --task-card-border: rgba(0, 0, 0, 0.08);
-            --task-card-border-hover: rgba(0, 0, 0, 0.16);
-            --task-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            --task-text-primary: #1e293b;
-            --task-text-secondary: #64748b;
-            --task-text-muted: #94a3b8;
-            --task-header-bg: rgba(255, 255, 255, 0.9);
-            --task-header-border: rgba(0, 0, 0, 0.08);
-            --task-btn-bg: rgba(0, 0, 0, 0.05);
-            --task-btn-border: rgba(0, 0, 0, 0.1);
-            --task-btn-color: #1e293b;
-            --task-input-bg: #ffffff;
-            --task-input-border: rgba(0, 0, 0, 0.15);
-            --task-input-color: #0f172a;
-            --task-modal-overlay: rgba(0, 0, 0, 0.5);
-            --task-kanban-col-bg: rgba(241, 245, 249, 0.7);
-            --task-kanban-col-border: rgba(0, 0, 0, 0.06);
-            --task-primary: #3b82f6;
-            --task-success: #10b981;
-            --task-warning: #f59e0b;
-            --task-danger: #ef4444;
-            --task-purple: #8b5cf6;
-            --task-cyan: #06b6d4;
-            --task-font-size: 15px;
-        }
-
-        body.font-compact {
-            --task-font-size: 13px;
-        }
-        body.font-large {
-            --task-font-size: 17px;
-        }
-        body.font-xlarge {
-            --task-font-size: 19px;
+            --tbl-border: rgba(255, 255, 255, 0.08);
+            --tbl-hover: rgba(255, 255, 255, 0.03);
+            --tbl-header-bg: rgba(30, 41, 59, 0.95);
+            --status-queue-bg: rgba(148, 163, 184, 0.15);
+            --status-queue-color: #cbd5e1;
+            --status-work-bg: rgba(245, 158, 11, 0.15);
+            --status-work-color: #fbbf24;
+            --status-done-bg: rgba(16, 185, 129, 0.15);
+            --status-done-color: #34d399;
+            --status-moved-bg: rgba(59, 130, 246, 0.15);
+            --status-moved-color: #60a5fa;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background: var(--task-body-bg);
-            background-image: var(--task-body-gradient);
-            color: var(--task-text-primary);
+            background: #0f172a;
+            color: #f8fafc;
             margin: 0;
             padding: 0;
-            font-size: var(--task-font-size);
             min-height: 100vh;
-            padding-bottom: 90px;
-            transition: background 0.3s ease, color 0.3s ease;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Top Header */
-        .task-header {
+        .planner-header {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: var(--task-header-bg);
+            background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--task-header-border);
-            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--tbl-border);
+            padding: 0.75rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 0.5rem;
-            transition: background 0.3s ease, border-color 0.3s ease;
+            gap: 1rem;
         }
 
         .header-brand {
@@ -91,666 +59,298 @@
             text-decoration: none;
             color: inherit;
         }
-
-        .header-brand img {
-            height: 38px;
-        }
-
+        .header-brand img { height: 36px; }
         .header-brand h1 {
             font-size: 1.1rem;
-            font-weight: 700;
+            font-weight: 800;
             margin: 0;
-            line-height: 1.2;
-            letter-spacing: -0.02em;
-            color: var(--task-text-primary);
+            letter-spacing: 0.5px;
+            color: #f8fafc;
         }
-
         .header-brand span {
             font-size: 0.75rem;
-            color: var(--task-text-secondary);
+            color: #94a3b8;
             font-weight: 500;
             display: block;
         }
 
-        .header-actions {
+        /* Navigation Toolbar */
+        .toolbar {
+            background: rgba(30, 41, 59, 0.7);
+            border-bottom: 1px solid var(--tbl-border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .toolbar-group {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
-        .btn-icon-round {
-            background: var(--task-btn-bg);
-            border: 1px solid var(--task-btn-border);
-            color: var(--task-btn-color);
-            padding: 0.45rem 0.75rem;
+        .select-filter {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--tbl-border);
+            color: #f8fafc;
+            padding: 0.45rem 0.8rem;
             border-radius: 8px;
             font-size: 0.85rem;
-            font-weight: 600;
+            font-family: inherit;
+            outline: none;
             cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .select-filter:focus {
+            border-color: #3b82f6;
+        }
+
+        .btn-action {
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            transition: all 0.2s ease;
-        }
-        .btn-icon-round:hover {
-            background: rgba(59, 130, 246, 0.15);
-            border-color: var(--task-primary);
-            color: var(--task-primary);
-        }
-
-        .btn-sync-google {
-            background: linear-gradient(135deg, #0284c7, #0369a1);
-            border: none;
-            color: white !important;
-            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
-        }
-
-        /* User badge */
-        .user-active-badge {
-            background: rgba(59, 130, 246, 0.15);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: #3b82f6;
-            padding: 0.4rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            cursor: pointer;
-        }
-
-        /* Container */
-        .task-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1rem;
-        }
-
-        /* KPI Dashboard Row */
-        .kpi-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 0.75rem;
-            margin-bottom: 1.25rem;
-        }
-
-        .kpi-box {
-            background: var(--task-card);
-            border: 1px solid var(--task-card-border);
-            border-radius: 12px;
-            padding: 0.85rem;
-            position: relative;
-            overflow: hidden;
-            box-shadow: var(--task-card-shadow);
-            transition: background 0.3s, border-color 0.3s;
-        }
-        .kpi-box::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 3px;
-            background: var(--kpi-color, var(--task-primary));
-        }
-        .kpi-box .kpi-label {
-            font-size: 0.75rem;
-            color: var(--task-text-secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            margin-bottom: 0.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .kpi-box .kpi-val {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--task-text-primary);
-            line-height: 1.1;
-        }
-
-        /* Progress Bar */
-        .progress-card {
-            grid-column: 1 / -1;
-            background: var(--task-card);
-            border: 1px solid var(--task-card-border);
-            border-radius: 12px;
-            padding: 0.85rem 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            box-shadow: var(--task-card-shadow);
-        }
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
-            font-size: 0.9rem;
-            color: var(--task-text-primary);
-        }
-        .progress-bar-bg {
-            height: 10px;
-            background: rgba(100, 116, 139, 0.2);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #10b981);
-            border-radius: 10px;
-            transition: width 0.4s ease;
-            width: 0%;
-        }
-
-        /* View Mode Switcher */
-        .view-switcher {
-            display: flex;
-            background: var(--task-card);
-            padding: 0.3rem;
-            border-radius: 10px;
-            border: 1px solid var(--task-card-border);
-            margin-bottom: 1rem;
-            gap: 0.3rem;
-            box-shadow: var(--task-card-shadow);
-        }
-        .view-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--task-text-secondary);
-            padding: 0.6rem 0.5rem;
-            border-radius: 7px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.4rem;
-            transition: all 0.2s;
-        }
-        .view-btn.active {
-            background: var(--task-primary);
-            color: white;
-            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-        }
-
-        /* Filter Controls */
-        .filter-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            margin-bottom: 1.25rem;
-        }
-
-        .filter-row-top {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .select-filter, .search-filter {
-            background: var(--task-card);
-            border: 1px solid var(--task-card-border);
-            color: var(--task-text-primary);
-            padding: 0.6rem 0.8rem;
+            padding: 0.45rem 0.9rem;
             border-radius: 8px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            text-decoration: none;
             font-family: inherit;
-            outline: none;
-            box-shadow: var(--task-card-shadow);
         }
-        .search-filter {
+        .btn-primary-action {
+            background: #2563eb;
+            color: #ffffff;
+        }
+        .btn-primary-action:hover {
+            background: #1d4ed8;
+        }
+        .btn-secondary-action {
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 1px solid var(--tbl-border);
+        }
+        .btn-secondary-action:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+        .btn-archive-action {
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            border: 1px solid rgba(139, 92, 246, 0.4);
+        }
+        .btn-archive-action:hover {
+            background: rgba(139, 92, 246, 0.3);
+        }
+
+        /* Main Table Container */
+        .table-container {
             flex: 1;
-            min-width: 160px;
-        }
-        .select-filter {
-            min-width: 140px;
-        }
-
-        /* Horizontal Category Chips */
-        .chips-scroll-container {
-            display: flex;
-            gap: 0.4rem;
+            padding: 1rem 1.5rem;
             overflow-x: auto;
-            padding-bottom: 0.3rem;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-        }
-        .chips-scroll-container::-webkit-scrollbar {
-            display: none;
         }
 
-        .category-chip {
-            background: var(--task-btn-bg);
-            border: 1px solid var(--task-btn-border);
-            color: var(--task-text-secondary);
-            padding: 0.35rem 0.85rem;
+        .planner-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--tbl-border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .planner-table th {
+            background: var(--tbl-header-bg);
+            color: #94a3b8;
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 0.6rem;
+            border-bottom: 1px solid var(--tbl-border);
+            font-size: 0.8rem;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .planner-table td {
+            padding: 0.6rem;
+            border-bottom: 1px solid var(--tbl-border);
+            color: #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .planner-table tr:hover td {
+            background: var(--tbl-hover);
+        }
+
+        .badge-code {
+            font-family: monospace;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.45rem;
+            border-radius: 6px;
+            color: #93c5fd;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .badge-zone {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.1);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Status Select in row */
+        .select-status {
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 0.3rem 0.6rem;
             border-radius: 20px;
             font-size: 0.8rem;
-            font-weight: 500;
+            font-weight: 600;
+            border: 1px solid transparent;
             cursor: pointer;
-            white-space: nowrap;
+            outline: none;
             transition: all 0.2s;
-            user-select: none;
+            text-align: center;
         }
-        .category-chip:hover {
-            background: rgba(59, 130, 246, 0.1);
-            color: var(--task-primary);
-        }
-        .category-chip.active {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: var(--task-primary);
-            color: var(--task-primary);
-            font-weight: 700;
-        }
+        .status-queue { background: var(--status-queue-bg); color: var(--status-queue-color); border-color: rgba(148, 163, 184, 0.3); }
+        .status-work { background: var(--status-work-bg); color: var(--status-work-color); border-color: rgba(245, 158, 11, 0.3); }
+        .status-done { background: var(--status-done-bg); color: var(--status-done-color); border-color: rgba(16, 185, 129, 0.3); }
+        .status-moved { background: var(--status-moved-bg); color: var(--status-moved-color); border-color: rgba(59, 130, 246, 0.3); }
 
-        /* Task Cards List (Mobile & Desktop) */
-        .task-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .task-card {
-            background: var(--task-card);
-            border: 1px solid var(--task-card-border);
-            border-radius: 12px;
-            padding: 1rem;
-            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
-            position: relative;
-            box-shadow: var(--task-card-shadow);
-        }
-        .task-card:hover {
-            border-color: var(--task-card-border-hover);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-        }
-        .task-card.status-done {
-            border-left: 4px solid var(--task-success);
-            opacity: 0.85;
-        }
-        .task-card.status-in-progress {
-            border-left: 4px solid var(--task-warning);
-        }
-        .task-card.status-postponed {
-            border-left: 4px solid var(--task-cyan);
-        }
-        .task-card.status-planned {
-            border-left: 4px solid #64748b;
-        }
-
-        .task-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .task-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.35rem;
+        .btn-photo-link {
+            display: inline-flex;
             align-items: center;
-        }
-
-        .badge-cat {
-            background: rgba(139, 92, 246, 0.15);
-            color: #8b5cf6;
-            padding: 0.2rem 0.5rem;
+            gap: 0.3rem;
+            padding: 0.25rem 0.5rem;
             border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .badge-priority {
-            padding: 0.2rem 0.5rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 700;
-        }
-        .badge-priority.high {
-            background: rgba(239, 68, 68, 0.15);
-            color: #ef4444;
-        }
-        .badge-priority.medium {
-            background: rgba(245, 158, 11, 0.15);
-            color: #d97706;
-        }
-        .badge-priority.low {
-            background: rgba(100, 116, 139, 0.15);
-            color: #64748b;
-        }
-
-        .task-title {
-            font-size: 1.05rem;
-            font-weight: 600;
-            color: var(--task-text-primary);
-            margin: 0.3rem 0 0.5rem 0;
-            line-height: 1.4;
-        }
-        .task-card.status-done .task-title {
-            text-decoration: line-through;
-            color: var(--task-text-secondary);
-        }
-
-        .task-desc {
-            font-size: 0.85rem;
-            color: var(--task-text-secondary);
-            margin-bottom: 0.75rem;
-            white-space: pre-line;
-            line-height: 1.4;
-        }
-
-        .task-meta-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            font-size: 0.8rem;
-            color: var(--task-text-muted);
-            border-top: 1px solid var(--task-card-border);
-            padding-top: 0.6rem;
-            margin-top: 0.4rem;
-        }
-
-        .task-meta-left {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.8rem;
-            align-items: center;
-        }
-        .task-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            color: var(--task-text-secondary);
-        }
-        .task-meta-item.overdue {
-            color: var(--task-danger);
-            font-weight: 700;
-        }
-
-        .task-actions-row {
-            display: flex;
-            gap: 0.4rem;
-            align-items: center;
-        }
-
-        .btn-status-quick {
-            background: var(--task-btn-bg);
-            border: 1px solid var(--task-btn-border);
-            color: var(--task-text-secondary);
-            padding: 0.35rem 0.65rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .btn-status-quick:hover {
-            background: rgba(59, 130, 246, 0.15);
-            color: var(--task-primary);
-        }
-        .btn-status-quick.done {
-            background: rgba(16, 185, 129, 0.15);
-            color: #10b981;
-            border-color: rgba(16, 185, 129, 0.4);
-        }
-        .btn-status-quick.work {
-            background: rgba(245, 158, 11, 0.15);
-            color: #d97706;
-            border-color: rgba(245, 158, 11, 0.4);
-        }
-
-        /* Attached Document Pill */
-        .doc-link-pill {
             background: rgba(6, 182, 212, 0.15);
+            color: #38bdf8;
             border: 1px solid rgba(6, 182, 212, 0.3);
-            color: #0891b2;
-            padding: 0.25rem 0.6rem;
-            border-radius: 6px;
             text-decoration: none;
             font-size: 0.75rem;
             font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
             transition: background 0.2s;
         }
-        .doc-link-pill:hover {
-            background: rgba(6, 182, 212, 0.25);
+        .btn-photo-link:hover {
+            background: rgba(6, 182, 212, 0.3);
         }
 
-        /* Kanban Board Styles */
-        .kanban-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1rem;
-            overflow-x: auto;
-            padding-bottom: 1rem;
-        }
-
-        .kanban-col {
-            background: var(--task-kanban-col-bg);
-            border: 1px solid var(--task-kanban-col-border);
-            border-radius: 12px;
-            padding: 0.85rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            min-height: 400px;
-        }
-
-        .kanban-header {
+        /* Quick actions cell */
+        .row-actions {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--task-card-border);
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: var(--task-text-primary);
+            gap: 0.3rem;
         }
-
-        .kanban-count {
-            background: var(--task-btn-bg);
-            border: 1px solid var(--task-btn-border);
-            color: var(--task-text-secondary);
-            padding: 0.15rem 0.5rem;
-            border-radius: 10px;
-            font-size: 0.75rem;
-        }
-
-        /* Floating Action Button (FAB) */
-        .fab-add {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-            width: 58px;
-            height: 58px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: white;
+        .btn-icon-cell {
+            background: transparent;
             border: none;
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+            color: #94a3b8;
             cursor: pointer;
-            z-index: 99;
-            transition: transform 0.2s, box-shadow 0.2s;
+            padding: 0.3rem;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            transition: color 0.2s, background 0.2s;
         }
-        .fab-add:hover {
-            transform: scale(1.08);
-            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.6);
+        .btn-icon-cell:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.1);
         }
-        .fab-add:active {
-            transform: scale(0.95);
+        .btn-icon-cell.delete:hover {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.15);
         }
 
-        /* Modal Sheet */
+        /* Modal dialogs */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--task-modal-overlay);
-            backdrop-filter: blur(6px);
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
             display: none;
             align-items: center;
             justify-content: center;
+            z-index: 1000;
             padding: 1rem;
-            animation: fadeIn 0.2s ease-out;
         }
-
-        .modal-card {
-            background: var(--task-card);
-            border: 1px solid var(--task-card-border);
-            border-radius: 16px;
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid var(--tbl-border);
+            border-radius: 12px;
             width: 100%;
             max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            color: var(--task-text-primary);
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
-
         .modal-header {
-            padding: 1.2rem 1.5rem;
-            border-bottom: 1px solid var(--task-card-border);
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
         }
         .modal-header h3 {
             margin: 0;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--task-text-primary);
+            font-size: 1.15rem;
+            color: #f8fafc;
         }
         .modal-close {
             background: transparent;
             border: none;
-            color: var(--task-text-secondary);
-            font-size: 1.2rem;
+            color: #94a3b8;
+            font-size: 1.25rem;
             cursor: pointer;
         }
-
-        .modal-body {
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        .form-row {
+            margin-bottom: 1rem;
         }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-        .form-group label {
+        .form-row label {
+            display: block;
             font-size: 0.8rem;
             font-weight: 600;
-            color: var(--task-text-secondary);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            color: #94a3b8;
+            margin-bottom: 0.35rem;
         }
         .form-input, .form-textarea, .form-select {
-            background: var(--task-input-bg);
-            border: 1px solid var(--task-input-border);
-            color: var(--task-input-color);
-            padding: 0.75rem 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
+            background: #0f172a;
+            border: 1px solid var(--tbl-border);
             border-radius: 8px;
-            font-size: 0.95rem;
+            padding: 0.55rem 0.8rem;
+            color: #f8fafc;
             font-family: inherit;
+            font-size: 0.9rem;
             outline: none;
-            transition: border-color 0.2s;
         }
         .form-input:focus, .form-textarea:focus, .form-select:focus {
-            border-color: var(--task-primary);
+            border-color: #3b82f6;
         }
 
-        /* Voice dictation button */
-        .btn-voice {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #ef4444;
-            padding: 0.25rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            transition: all 0.2s;
-        }
-        .btn-voice:hover, .btn-voice.listening {
-            background: #ef4444;
-            color: white;
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
-        }
-        .btn-voice.listening {
-            animation: pulse 1s infinite;
-        }
-
-        .voice-lang-switch {
-            font-size: 0.75rem;
-            background: var(--task-btn-bg);
-            border: 1px solid var(--task-btn-border);
-            color: var(--task-text-secondary);
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .modal-footer {
-            padding: 1rem 1.5rem;
-            border-top: 1px solid var(--task-card-border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-        }
-
-        .btn-primary {
-            background: var(--task-primary);
-            color: white;
-            border: none;
-            padding: 0.7rem 1.4rem;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-secondary {
-            background: var(--task-btn-bg);
-            color: var(--task-text-primary);
-            border: 1px solid var(--task-btn-border);
-            padding: 0.7rem 1.2rem;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* Toast notification */
         .toast {
             position: fixed;
             bottom: 25px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
-            background: var(--task-card);
-            color: var(--task-text-primary);
-            border: 1px solid var(--task-card-border);
+            background: #1e293b;
+            border: 1px solid var(--tbl-border);
+            color: #f8fafc;
             padding: 0.75rem 1.5rem;
             border-radius: 30px;
             font-size: 0.9rem;
             font-weight: 600;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             z-index: 2000;
             transition: transform 0.3s ease;
             display: flex;
@@ -761,21 +361,20 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        @media (max-width: 768px) {
+            .planner-header, .toolbar, .table-container {
+                padding: 0.6rem 0.8rem;
+            }
+            .hide-mobile {
+                display: none !important;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Header Navigation -->
-    <header class="task-header">
+    <!-- Header -->
+    <header class="planner-header">
         <a href="/" class="header-brand">
             <img src="/static/img/Logo.png" alt="Tectum Logo">
             <div>
@@ -784,357 +383,226 @@
             </div>
         </a>
 
-        <div class="header-actions">
-            <!-- Font Scale Toggle -->
-            <button class="btn-icon-round" onclick="cycleFontSize()" title="Размер шрифта (A-/A+)">
-                <i class="fa-solid fa-text-height"></i> <span id="font-scale-label">A</span>
-            </button>
-
-            <!-- Sync to Google Sheets -->
-            <button class="btn-icon-round btn-sync-google" onclick="syncWithGoogleSheets()" title="Синхронизировать с Google Таблицей">
-                <i class="fa-solid fa-cloud-arrow-up"></i> <span class="hide-mobile">Google</span>
-            </button>
-
-            <!-- User Selector / Badge -->
-            <div class="user-active-badge" onclick="openUserSwitchModal()" id="user-badge-display">
-                <i class="fa-solid fa-user"></i> <span id="user-name-label">Левда М.</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <!-- Current User display -->
+            <div style="font-size: 0.85rem; color: #cbd5e1; background: rgba(255,255,255,0.05); border: 1px solid var(--tbl-border); padding: 0.35rem 0.75rem; border-radius: 20px;">
+                <i class="fa-solid fa-user" style="color: #38bdf8;"></i> <span id="current-user-name">Левда М.</span>
             </div>
-
-            <!-- Docs link -->
-            <a href="/static/docs.html" class="btn-icon-round" title="База знаний">
-                <i class="fa-solid fa-folder-open"></i>
+            <a href="/static/docs.html" class="btn-action btn-secondary-action" title="База знаний">
+                <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
-
-            <!-- Home -->
-            <a href="/" class="btn-icon-round" title="На главную">
+            <a href="/" class="btn-action btn-secondary-action" title="На главную">
                 <i class="fa-solid fa-house"></i>
             </a>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="task-container">
-
-        <!-- KPI Dashboard Section -->
-        <section class="kpi-row">
-            <div class="kpi-box" style="--kpi-color: #3b82f6;">
-                <div class="kpi-label">Всего задач <i class="fa-solid fa-list-check"></i></div>
-                <div class="kpi-val" id="kpi-total">0</div>
-            </div>
-            <div class="kpi-box" style="--kpi-color: #10b981;">
-                <div class="kpi-label">Выполнено <i class="fa-solid fa-circle-check"></i></div>
-                <div class="kpi-val" id="kpi-completed">0</div>
-            </div>
-            <div class="kpi-box" style="--kpi-color: #f59e0b;">
-                <div class="kpi-label">В процессе <i class="fa-solid fa-spinner"></i></div>
-                <div class="kpi-val" id="kpi-in-progress">0</div>
-            </div>
-            <div class="kpi-box" style="--kpi-color: #06b6d4;">
-                <div class="kpi-label">Перенесено <i class="fa-solid fa-calendar-days"></i></div>
-                <div class="kpi-val" id="kpi-postponed">0</div>
-            </div>
-            <div class="kpi-box" style="--kpi-color: #ef4444;">
-                <div class="kpi-label">Просрочено <i class="fa-solid fa-triangle-exclamation"></i></div>
-                <div class="kpi-val" id="kpi-overdue">0</div>
-            </div>
-
-            <!-- Progress Bar -->
-            <div class="progress-card">
-                <div class="progress-header">
-                    <span>Общий прогресс выполнения</span>
-                    <span id="progress-pct-label" style="color: var(--task-success);">0%</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- View Mode Switcher -->
-        <section class="view-switcher">
-            <button class="view-btn active" onclick="switchView('list')" id="view-btn-list">
-                <i class="fa-solid fa-table-list"></i> Список карточек
+    <!-- Toolbar: Month/Week Selector & Filters -->
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <!-- Mode Switch: Active Plan / Archive -->
+            <button class="btn-action btn-primary-action" id="btn-mode-active" onclick="switchViewMode('active')">
+                <i class="fa-solid fa-list-check"></i> План
             </button>
-            <button class="view-btn" onclick="switchView('kanban')" id="view-btn-kanban">
-                <i class="fa-solid fa-table-columns"></i> Канбан-доска
+            <button class="btn-action btn-secondary-action" id="btn-mode-archive" onclick="switchViewMode('archive')">
+                <i class="fa-solid fa-box-archive"></i> Архив
             </button>
-            <button class="view-btn" onclick="switchView('analytics')" id="view-btn-analytics">
-                <i class="fa-solid fa-chart-pie"></i> Аналитика
+
+            <!-- Month Selector -->
+            <select class="select-filter" id="filter-month" onchange="onMonthChange()">
+                <option value="Август 2026">Август 2026</option>
+                <option value="Сентябрь 2026">Сентябрь 2026</option>
+            </select>
+
+            <!-- Week Selector (Mon-Fri) -->
+            <select class="select-filter" id="filter-week" onchange="loadTasks()">
+                <!-- Populated dynamically -->
+            </select>
+        </div>
+
+        <div class="toolbar-group">
+            <!-- Filter by Zone -->
+            <select class="select-filter" id="filter-zone" onchange="loadTasks()">
+                <option value="all">📁 Все зоны</option>
+                <option value="Ремонт и зоны">Ремонт и зоны</option>
+                <option value="Инфостенды">Инфостенды</option>
+                <option value="Обучение">Обучение</option>
+                <option value="Цифровой портал">Цифровой портал</option>
+                <option value="СКК">СКК</option>
+                <option value="Документация">Документация</option>
+                <option value="Цилиндры">Цилиндры</option>
+                <option value="Дестакер">Дестакер</option>
+                <option value="Дозировка">Дозировка</option>
+                <option value="ЗО">ЗО</option>
+                <option value="Зона двигателей">Зона двигателей</option>
+                <option value="Слесарная мастерская">Слесарная мастерская</option>
+                <option value="Бережливое производство">Бережливое производство</option>
+            </select>
+
+            <!-- Filter by Assignee -->
+            <select class="select-filter" id="filter-assignee" onchange="loadTasks()">
+                <option value="all">👤 Все исполнители</option>
+                <!-- Populated from Masters -->
+            </select>
+
+            <!-- Quick "My Tasks" Button -->
+            <button class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" id="btn-my-tasks">
+                <i class="fa-solid fa-user-check"></i> Мои задачи
             </button>
-        </section>
 
-        <!-- Filter Controls -->
-        <section class="filter-controls">
-            <div class="filter-row-top">
-                <!-- User Scope filter: All vs My -->
-                <select class="select-filter" id="filter-user-scope" onchange="applyFilters()">
-                    <option value="all">👥 Все задачи</option>
-                    <option value="my">👤 Только мои задачи</option>
-                </select>
+            <!-- Add Task Button -->
+            <button class="btn-action btn-primary-action" onclick="openAddTaskModal()">
+                <i class="fa-solid fa-plus"></i> <span class="hide-mobile">Добавить задачу</span>
+            </button>
 
-                <!-- Week Selector -->
-                <select class="select-filter" id="filter-week" onchange="applyFilters()">
-                    <option value="all">📅 Все недели</option>
-                    <!-- Populated dynamically -->
-                </select>
+            <!-- Complete Week Button -->
+            <button class="btn-action btn-archive-action" id="btn-archive-week" onclick="archiveCurrentWeek()">
+                <i class="fa-solid fa-calendar-check"></i> <span class="hide-mobile">Завершить неделю</span>
+            </button>
 
-                <!-- Status Filter -->
-                <select class="select-filter" id="filter-status" onchange="applyFilters()">
-                    <option value="all">Все статусы</option>
-                    <option value="Запланировано">Запланировано</option>
-                    <option value="В процессе">В процессе</option>
-                    <option value="Выполнено">Выполнено</option>
-                    <option value="Перенесено">Перенесено</option>
-                </select>
-
-                <!-- Search box -->
-                <input type="text" class="search-filter" id="filter-search" placeholder="🔍 Поиск задачи или ответственного..." oninput="debounceApplyFilters()">
-            </div>
-
-            <!-- Category Chips Scroll -->
-            <div class="chips-scroll-container" id="category-chips">
-                <div class="category-chip active" data-cat="all" onclick="selectCategoryChip('all')">Все категории</div>
-                <div class="category-chip" data-cat="СКК" onclick="selectCategoryChip('СКК')">СКК</div>
-                <div class="category-chip" data-cat="Ремонт и зоны" onclick="selectCategoryChip('Ремонт и зоны')">Ремонт и зоны</div>
-                <div class="category-chip" data-cat="Цифровой портал" onclick="selectCategoryChip('Цифровой портал')">Цифровой портал</div>
-                <div class="category-chip" data-cat="Обучение" onclick="selectCategoryChip('Обучение')">Обучение</div>
-                <div class="category-chip" data-cat="Документация" onclick="selectCategoryChip('Документация')">Документация</div>
-                <div class="category-chip" data-cat="Инфостенды" onclick="selectCategoryChip('Инфостенды')">Инфостенды</div>
-                <div class="category-chip" data-cat="Цилиндры" onclick="selectCategoryChip('Цилиндры')">Цилиндры</div>
-                <div class="category-chip" data-cat="ТОиР" onclick="selectCategoryChip('ТОиР')">ТОиР</div>
-                <div class="category-chip" data-cat="Охрана труда" onclick="selectCategoryChip('Охрана труда')">Охрана труда</div>
-            </div>
-        </section>
-
-        <!-- VIEW 1: TASK LIST -->
-        <section id="view-list-container">
-            <div class="task-list" id="task-cards-container">
-                <!-- Task Cards injected by JS -->
-            </div>
-        </section>
-
-        <!-- VIEW 2: KANBAN BOARD -->
-        <section id="view-kanban-container" style="display: none;">
-            <div class="kanban-grid">
-                <!-- Col: Запланировано -->
-                <div class="kanban-col" id="kanban-col-planned">
-                    <div class="kanban-header">
-                        <span style="color: #94a3b8;"><i class="fa-regular fa-clock"></i> Запланировано</span>
-                        <span class="kanban-count" id="kanban-count-planned">0</span>
-                    </div>
-                    <div class="kanban-cards-wrapper" id="kanban-cards-planned"></div>
-                </div>
-
-                <!-- Col: В процессе -->
-                <div class="kanban-col" id="kanban-col-in-progress">
-                    <div class="kanban-header">
-                        <span style="color: #fbbf24;"><i class="fa-solid fa-spinner"></i> В процессе</span>
-                        <span class="kanban-count" id="kanban-count-in-progress">0</span>
-                    </div>
-                    <div class="kanban-cards-wrapper" id="kanban-cards-in-progress"></div>
-                </div>
-
-                <!-- Col: Перенесено -->
-                <div class="kanban-col" id="kanban-col-postponed">
-                    <div class="kanban-header">
-                        <span style="color: #38bdf8;"><i class="fa-solid fa-calendar-days"></i> Перенесено</span>
-                        <span class="kanban-count" id="kanban-count-postponed">0</span>
-                    </div>
-                    <div class="kanban-cards-wrapper" id="kanban-cards-postponed"></div>
-                </div>
-
-                <!-- Col: Выполнено -->
-                <div class="kanban-col" id="kanban-col-done">
-                    <div class="kanban-header">
-                        <span style="color: #34d399;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>
-                        <span class="kanban-count" id="kanban-count-done">0</span>
-                    </div>
-                    <div class="kanban-cards-wrapper" id="kanban-cards-done"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- VIEW 3: ANALYTICS DASHBOARD -->
-        <section id="view-analytics-container" style="display: none;">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-                <div class="kpi-box" style="padding: 1.2rem;">
-                    <h3 style="margin-top: 0; font-size: 1rem;">Распределение по категориям</h3>
-                    <div style="height: 250px; position: relative;">
-                        <canvas id="chart-categories"></canvas>
-                    </div>
-                </div>
-                <div class="kpi-box" style="padding: 1.2rem;">
-                    <h3 style="margin-top: 0; font-size: 1rem;">Статусы задач</h3>
-                    <div style="height: 250px; position: relative;">
-                        <canvas id="chart-statuses"></canvas>
-                    </div>
-                </div>
-                <div class="kpi-box" style="grid-column: 1 / -1; padding: 1.2rem;">
-                    <h3 style="margin-top: 0; font-size: 1rem;">Загрузка и продуктивность исполнителей</h3>
-                    <div style="height: 280px; position: relative;">
-                        <canvas id="chart-assignees"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Floating Action Button -->
-    <button class="fab-add" onclick="openTaskModal()" title="Добавить новую задачу">
-        <i class="fa-solid fa-plus"></i>
-    </button>
-
-    <!-- CREATE / EDIT TASK MODAL -->
-    <div class="modal-overlay" id="task-modal">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3 id="modal-task-title">Новая задача</h3>
-                <button class="modal-close" onclick="closeTaskModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="task-id-input" value="">
-
-                <!-- Title & Voice -->
-                <div class="form-group">
-                    <label>
-                        <span>Название задачи *</span>
-                        <div style="display: flex; gap: 0.3rem; align-items: center;">
-                            <select id="voice-lang-select" class="voice-lang-switch">
-                                <option value="ru-RU">🇷🇺 RU</option>
-                                <option value="kk-KZ">🇰🇿 KZ</option>
-                            </select>
-                            <button type="button" class="btn-voice" id="btn-voice-title" onclick="toggleVoiceInput('task-title-input', 'btn-voice-title')">
-                                <i class="fa-solid fa-microphone"></i> <span>Диктовка</span>
-                            </button>
-                        </div>
-                    </label>
-                    <input type="text" class="form-input" id="task-title-input" placeholder="Например: Провести зонирование мастерской..." required>
-                </div>
-
-                <!-- Description / Notes & Voice -->
-                <div class="form-group">
-                    <label>
-                        <span>Примечание / Детали</span>
-                        <button type="button" class="btn-voice" id="btn-voice-desc" onclick="toggleVoiceInput('task-desc-input', 'btn-voice-desc')">
-                            <i class="fa-solid fa-microphone"></i> <span>Диктовка</span>
-                        </button>
-                    </label>
-                    <textarea class="form-textarea" id="task-desc-input" rows="3" placeholder="Подробное описание задачи, комментарии, ход выполнения..."></textarea>
-                </div>
-
-                <!-- Category & Priority Row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                    <div class="form-group">
-                        <label>Категория</label>
-                        <select class="form-select" id="task-category-input">
-                            <option value="СКК">СКК</option>
-                            <option value="Ремонт и зоны">Ремонт и зоны</option>
-                            <option value="Цифровой портал">Цифровой портал</option>
-                            <option value="Обучение">Обучение</option>
-                            <option value="Документация">Документация</option>
-                            <option value="Инфостенды">Инфостенды</option>
-                            <option value="Цилиндры">Цилиндры</option>
-                            <option value="ТОиР">ТОиР</option>
-                            <option value="Охрана труда">Охрана труда</option>
-                            <option value="Производство">Производство</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Приоритет</label>
-                        <select class="form-select" id="task-priority-input">
-                            <option value="Высокий">🔥 Высокий</option>
-                            <option value="Средний" selected>⚡ Средний</option>
-                            <option value="Низкий">☕ Низкий</option>
-                            <option value="Критический">🚨 Критический</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Week & Status Row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                    <div class="form-group">
-                        <label>Неделя</label>
-                        <select class="form-select" id="task-week-input">
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Статус</label>
-                        <select class="form-select" id="task-status-input">
-                            <option value="Запланировано">Запланировано</option>
-                            <option value="В процессе">В процессе</option>
-                            <option value="Выполнено">Выполнено</option>
-                            <option value="Перенесено">Перенесено</option>
-                            <option value="Отменено">Отменено</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Assignee & Due Date Row -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                    <div class="form-group">
-                        <label>Ответственный</label>
-                        <select class="form-select" id="task-assignee-input">
-                            <!-- Populated from Masters -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Срок (Дедлайн)</label>
-                        <input type="date" class="form-input" id="task-duedate-input">
-                    </div>
-                </div>
-
-                <!-- Attached Cloud Document & Google Doc -->
-                <div class="form-group">
-                    <label>
-                        <span>Прикрепить документ из Облака</span>
-                        <a href="/static/docs.html" target="_blank" style="color: var(--task-primary); text-decoration: none; font-size: 0.75rem;"><i class="fa-solid fa-arrow-up-right-from-square"></i> База знаний</a>
-                    </label>
-                    <select class="form-select" id="task-doc-input">
-                        <option value="">-- Без документа --</option>
-                        <!-- Loaded from /api/documents/list -->
-                    </select>
-                </div>
-
-                <!-- Google Doc Action -->
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <button type="button" class="btn-secondary" style="font-size: 0.85rem; padding: 0.5rem 0.8rem;" onclick="createGoogleDocForCurrentTask()">
-                        <i class="fa-brands fa-google-drive" style="color: #38bdf8;"></i> Создать Google Doc к задаче
-                    </button>
-                    <span id="google-doc-link-container"></span>
-                </div>
-
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeTaskModal()">Отмена</button>
-                <button type="button" class="btn-primary" onclick="saveTaskFromModal()">Сохранить задачу</button>
-            </div>
+            <!-- Sync from Google Sheets -->
+            <button class="btn-action btn-secondary-action" onclick="syncFromGoogleSheets()" title="Импорт из Google Таблицы">
+                <i class="fa-solid fa-cloud-arrow-down"></i> <span class="hide-mobile">Google Sync</span>
+            </button>
         </div>
     </div>
 
-    <!-- USER SWITCH MODAL -->
-    <div class="modal-overlay" id="user-switch-modal">
-        <div class="modal-card" style="max-width: 400px;">
+    <!-- Main Table -->
+    <main class="table-container">
+        <table class="planner-table">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">ID</th>
+                    <th style="width: 140px;">Зона / Служба</th>
+                    <th>Суть задачи (RU)</th>
+                    <th>Суть задачи (KZ)</th>
+                    <th style="width: 70px; text-align: center;">Фото</th>
+                    <th style="width: 120px;">Автор</th>
+                    <th style="width: 130px;">Исполнитель</th>
+                    <th style="width: 90px;">Срок</th>
+                    <th style="width: 135px; text-align: center;">Статус</th>
+                    <th>Факт / Комментарий</th>
+                    <th style="width: 70px; text-align: center;">Действия</th>
+                </tr>
+            </thead>
+            <tbody id="tasks-table-body">
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </main>
+
+    <!-- CREATE / EDIT TASK MODAL -->
+    <div class="modal-overlay" id="task-modal">
+        <div class="modal-box">
             <div class="modal-header">
-                <h3>Смена профиля</h3>
-                <button class="modal-close" onclick="closeUserSwitchModal()">&times;</button>
+                <h3 id="modal-title">Новая задача</h3>
+                <button class="modal-close" onclick="closeTaskModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <p style="color: #94a3b8; font-size: 0.85rem; margin-top: 0;">Выберите ваш профиль для быстрой фильтрации «Мои задачи»:</p>
-                <div id="user-profiles-grid" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    <!-- Profiles list -->
+            
+            <input type="hidden" id="task-id-input" value="">
+
+            <div class="form-row">
+                <label>Суть задачи (введите на любом языке — перевод выполнится автоматически) *</label>
+                <textarea class="form-textarea" id="task-input-text" rows="2" placeholder="Например: Установить инфостенд на участке ЛФМ..." required></textarea>
+                <button type="button" class="btn-action btn-secondary-action" style="margin-top: 0.35rem; font-size: 0.75rem;" onclick="triggerAutoTranslate()">
+                    <i class="fa-solid fa-language"></i> Перевести RU ↔ KZ
+                </button>
+            </div>
+
+            <!-- Two Language Outputs -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
+                <div>
+                    <label>Текст (RU)</label>
+                    <input type="text" class="form-input" id="task-ru-input">
                 </div>
+                <div>
+                    <label>Текст (KZ)</label>
+                    <input type="text" class="form-input" id="task-kz-input">
+                </div>
+            </div>
+
+            <!-- Zone & Photo Link -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
+                <div>
+                    <label>Зона / Служба</label>
+                    <select class="form-select" id="task-zone-input">
+                        <option value="Ремонт и зоны">Ремонт и зоны</option>
+                        <option value="Инфостенды">Инфостенды</option>
+                        <option value="Обучение">Обучение</option>
+                        <option value="Цифровой портал">Цифровой портал</option>
+                        <option value="СКК">СКК</option>
+                        <option value="Документация">Документация</option>
+                        <option value="Цилиндры">Цилиндры</option>
+                        <option value="Дестакер">Дестакер</option>
+                        <option value="Дозировка">Дозировка</option>
+                        <option value="ЗО">ЗО</option>
+                        <option value="Зона двигателей">Зона двигателей</option>
+                        <option value="Слесарная мастерская">Слесарная мастерская</option>
+                        <option value="Бережливое производство" selected>Бережливое производство</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Ссылка на фото (Google Диск / Облако)</label>
+                    <input type="url" class="form-input" id="task-photo-input" placeholder="https://drive.google.com/...">
+                </div>
+            </div>
+
+            <!-- Author & Assignee -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
+                <div>
+                    <label>Автор задачи</label>
+                    <select class="form-select" id="task-author-input">
+                        <option value="">-- Выберите автора --</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Исполнитель</label>
+                    <select class="form-select" id="task-assignee-input">
+                        <option value="">-- Выберите исполнителя --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Deadline & Status -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
+                <div>
+                    <label>Срок (напр. 28.08 или В течение недели)</label>
+                    <input type="text" class="form-input" id="task-due-input" placeholder="28.08">
+                </div>
+                <div>
+                    <label>Статус</label>
+                    <select class="form-select" id="task-status-input">
+                        <option value="⚪ В очереди">⚪ В очереди</option>
+                        <option value="🟡 В работе">🟡 В работе</option>
+                        <option value="🟢 Выполнено">🟢 Выполнено</option>
+                        <option value="🔵 Перенесено">🔵 Перенесено</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Comment -->
+            <div class="form-row">
+                <label>Факт / Комментарий</label>
+                <input type="text" class="form-input" id="task-comment-input" placeholder="Ход выполнения, замечания...">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeTaskModal()">Отмена</button>
+                <button type="button" class="btn-action btn-primary-action" onclick="saveTaskModal()">Сохранить</button>
             </div>
         </div>
     </div>
 
     <!-- TOAST NOTIFICATION -->
-    <div class="toast" id="task-toast">
-        <i class="fa-solid fa-circle-check" style="color: var(--task-success);"></i>
-        <span id="toast-message">Действие выполнено</span>
+    <div class="toast" id="toast-msg">
+        <i class="fa-solid fa-circle-check" style="color: #34d399;"></i>
+        <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260816_tasks_v1"></script>
+    <script src="/static/js/tasks.js?v=20260826_planner_v1"></script>
 </body>
 </html>

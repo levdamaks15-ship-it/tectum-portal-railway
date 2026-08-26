@@ -314,10 +314,11 @@ def sync_report_to_google_sheets(db: Session):
                     "numberFormat": {
                         "type": "DATE",
                         "pattern": "dd.MM.yyyy"
-                    }
+                    },
+                    "horizontalAlignment": "CENTER"
                 }
             },
-            "fields": "userEnteredFormat.numberFormat"
+            "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
         }
     })
 

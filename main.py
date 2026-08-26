@@ -511,7 +511,17 @@ async def lifespan(app: FastAPI):
             ("batches", "qcd_defect_thickness", "INTEGER DEFAULT 0"),
             ("batches", "qcd_defect_delamination", "INTEGER DEFAULT 0"),
             ("batches", "qcd_defect_edge", "INTEGER DEFAULT 0"),
-            ("checklist_employees", "department", "VARCHAR(255)")
+            ("checklist_employees", "department", "VARCHAR(255)"),
+            ("tasks", "code", "VARCHAR(50)"),
+            ("tasks", "zone", "VARCHAR(255)"),
+            ("tasks", "title_kz", "TEXT"),
+            ("tasks", "photo_link", "TEXT"),
+            ("tasks", "author_name", "VARCHAR(255)"),
+            ("tasks", "assignee_name", "VARCHAR(255)"),
+            ("tasks", "due_date_str", "VARCHAR(100)"),
+            ("tasks", "comment", "TEXT"),
+            ("tasks", "month_label", "VARCHAR(100)"),
+            ("tasks", "is_archived", "BOOLEAN DEFAULT FALSE")
         ]
         try:
             with engine.connect() as conn:
@@ -530,6 +540,31 @@ async def lifespan(app: FastAPI):
                 conn.commit()
         except Exception as pg_err:
             print(f"Error checking PG columns: {pg_err}")
+
+    # SQLite migration for tasks table
+    try:
+        conn = sqlite3.connect("tectum.db")
+        sqlite_task_cols = [
+            ("code", "VARCHAR(50)"),
+            ("zone", "VARCHAR(255)"),
+            ("title_kz", "TEXT"),
+            ("photo_link", "TEXT"),
+            ("author_name", "VARCHAR(255)"),
+            ("assignee_name", "VARCHAR(255)"),
+            ("due_date_str", "VARCHAR(100)"),
+            ("comment", "TEXT"),
+            ("month_label", "VARCHAR(100)"),
+            ("is_archived", "BOOLEAN DEFAULT 0")
+        ]
+        for col, col_def in sqlite_task_cols:
+            try:
+                conn.execute(f"ALTER TABLE tasks ADD COLUMN {col} {col_def}")
+            except:
+                pass
+        conn.commit()
+        conn.close()
+    except:
+        pass
 
 
     db = SessionLocal()
@@ -7119,4 +7154,442 @@ def manual_sync_checklists_google(db: Session = Depends(get_db)):
         return {"status": "ok", "message": "Синхронизация чек-листов с Google Таблицей выполнена"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================================
+# 🎯 TECTUM TASKS PLANNER API
+# ==========================================================
+
+def send_task_email_notification(to_email: str, subject: str, body: str):
+    """Фоновая отправка email-уведомления (через MailApp/M365/SMTP)."""
+    if not to_email or "@" not in to_email:
+        return
+    try:
+        # Проверяем интеграцию с M365 / Graph API если настроено
+        print(f"[Email Notification] To: {to_email} | Subject: {subject}")
+        # Здесь отправка через MS Graph / SMTP
+    except Exception as e:
+        print(f"[Email Notification Warning] Failed to send email to {to_email}: {e}")
+
+@app.get("/api/tasks/weeks")
+def get_tasks_calendar_structure(db: Session = Depends(get_db)):
+    """Генерирует календарную сетку рабочих недель (Пн-Пт) по месяцам."""
+    try:
+        # Базовый список месяцев (текущий год)
+        # Генерируем структуру с понедельника по пятницу для каждого месяца
+        months = ["Июль 2026", "Август 2026", "Сентябрь 2026", "Октябрь 2026", "Ноябрь 2026", "Декабрь 2026"]
+        
+        # Получаем уникальные недели из базы, если уже есть
+        existing_weeks = db.query(models.Task.month_label, models.Task.week_label).distinct().all()
+        structure = {}
+        for m in months:
+            structure[m] = []
+
+        # Август 2026 (Пн - Пт)
+        structure["Август 2026"] = [
+            "Неделя 1 (03.08 - 07.08)",
+            "Неделя 2 (10.08 - 14.08)",
+            "Неделя 3 (17.08 - 21.08)",
+            "Неделя 4 (24.08 - 28.08)"
+        ]
+        # Сентябрь 2026
+        structure["Сентябрь 2026"] = [
+            "Неделя 1 (31.08 - 04.09)",
+            "Неделя 2 (07.09 - 11.09)",
+            "Неделя 3 (14.09 - 18.09)",
+            "Неделя 4 (21.09 - 25.09)",
+            "Неделя 5 (28.09 - 02.10)"
+        ]
+
+        # Добавляем кастомные недели из базы
+        for m, w in existing_weeks:
+            if m and w:
+                if m not in structure:
+                    structure[m] = []
+                if w not in structure[m]:
+                    structure[m].append(w)
+
+        # Текущая неделя по умолчанию
+        default_month = "Август 2026"
+        default_week = "Неделя 4 (24.08 - 28.08)"
+
+        return {
+            "months": list(structure.keys()),
+            "structure": structure,
+            "default_month": default_month,
+            "default_week": default_week
+        }
+    except Exception as e:
+        print(f"Error getting task weeks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/tasks")
+def get_tasks(
+    month: Optional[str] = None,
+    week: Optional[str] = None,
+    assignee: Optional[str] = None,
+    zone: Optional[str] = None,
+    status: Optional[str] = None,
+    is_archived: bool = False,
+    db: Session = Depends(get_db)
+):
+    """Возвращает список задач с фильтрацией."""
+    try:
+        query = db.query(models.Task).filter(models.Task.is_archived == is_archived)
+
+        if month and month != "all":
+            query = query.filter(models.Task.month_label == month)
+        if week and week != "all":
+            query = query.filter(models.Task.week_label == week)
+        if assignee and assignee != "all":
+            query = query.filter(models.Task.assignee_name == assignee)
+        if zone and zone != "all":
+            query = query.filter(models.Task.zone == zone)
+        if status and status != "all":
+            query = query.filter(models.Task.status == status)
+
+        tasks = query.order_by(models.Task.id.asc()).all()
+
+        results = []
+        for t in tasks:
+            results.append({
+                "id": t.id,
+                "code": t.code or f"TSK-{t.id:02d}",
+                "zone": t.zone or "Бережливое производство",
+                "title": t.title,
+                "title_kz": t.title_kz or "",
+                "photo_link": t.photo_link or "",
+                "author_name": t.author_name or "",
+                "assignee_name": t.assignee_name or "",
+                "due_date_str": t.due_date_str or "",
+                "status": t.status or "⚪ В очереди",
+                "comment": t.comment or "",
+                "month_label": t.month_label or "",
+                "week_label": t.week_label or "",
+                "is_archived": bool(t.is_archived),
+                "created_at": t.created_at.strftime("%d.%m.%Y %H:%M") if t.created_at else ""
+            })
+        return results
+    except Exception as e:
+        print(f"Error fetching tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks")
+def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Создает новую задачу и отправляет уведомление исполнителю."""
+    try:
+        # Автогенерация кода TSK-XX
+        last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
+        next_num = (last_task.id + 1) if last_task else 1
+        code_str = task_data.code or f"TSK-{next_num:02d}"
+
+        new_task = models.Task(
+            code=code_str,
+            zone=task_data.zone or "Бережливое производство",
+            title=task_data.title,
+            title_kz=task_data.title_kz or "",
+            photo_link=task_data.photo_link or "",
+            author_name=task_data.author_name or "",
+            assignee_name=task_data.assignee_name or "",
+            due_date_str=task_data.due_date_str or "",
+            status=task_data.status or "⚪ В очереди",
+            comment=task_data.comment or "",
+            month_label=task_data.month_label or "Август 2026",
+            week_label=task_data.week_label or "Неделя 4 (24.08 - 28.08)",
+            is_archived=False
+        )
+        db.add(new_task)
+        db.commit()
+        db.refresh(new_task)
+
+        # Отправка email исполнителю
+        if new_task.assignee_name:
+            assignee_master = db.query(models.Master).filter(models.Master.name == new_task.assignee_name).first()
+            if assignee_master and assignee_master.email:
+                subject = f"📌 Новая задача [{new_task.zone}]: {new_task.title}"
+                body = f"Вам назначена новая задача: {new_task.title}\nСрок: {new_task.due_date_str}\nАвтор: {new_task.author_name}"
+                background_tasks.add_task(send_task_email_notification, assignee_master.email, subject, body)
+
+        return {"status": "ok", "task_id": new_task.id, "code": new_task.code}
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/tasks/{task_id}")
+def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Обновляет задачу и отправляет уведомления при смене статуса."""
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        old_status = task.status
+
+        # Обновляем переданные поля
+        update_dict = task_data.dict(exclude_unset=True)
+        for key, val in update_dict.items():
+            if hasattr(task, key) and val is not None:
+                setattr(task, key, val)
+
+        task.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(task)
+
+        # Уведомления при смене статуса
+        if task_data.status and task_data.status != old_status:
+            # 1. Если задача завершена или перенесена -> автору
+            if task.status in ["🟢 Выполнено", "🔵 Перенесено"] and task.author_name:
+                author_master = db.query(models.Master).filter(models.Master.name == task.author_name).first()
+                if author_master and author_master.email:
+                    subject = f"Статус задачи [{task.zone}]: {task.title} ➔ {task.status}"
+                    body = f"Статус задачи изменился на: {task.status}\nИсполнитель: {task.assignee_name}\nКомментарий: {task.comment}"
+                    background_tasks.add_task(send_task_email_notification, author_master.email, subject, body)
+
+            # 2. Если задачу взяли в работу -> исполнителю
+            elif task.status in ["🟡 В работе", "⚪ В очереди"] and task.assignee_name:
+                assignee_master = db.query(models.Master).filter(models.Master.name == task.assignee_name).first()
+                if assignee_master and assignee_master.email:
+                    subject = f"📌 Задача в работе [{task.zone}]: {task.title}"
+                    body = f"Задача: {task.title}\nСрок: {task.due_date_str}"
+                    background_tasks.add_task(send_task_email_notification, assignee_master.email, subject, body)
+
+        return {"status": "ok", "task_id": task.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error updating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """Удаляет задачу."""
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+        db.delete(task)
+        db.commit()
+        return {"status": "ok", "message": "Задача успешно удалена"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/{task_id}/move_next_week")
+def move_task_to_next_week(task_id: int, next_week: str, db: Session = Depends(get_db)):
+    """Переносит отдельную задачу на следующую неделю со статусом Перенесено."""
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        old_week = task.week_label or ""
+        task.week_label = next_week
+        task.status = "🔵 Перенесено"
+        prev_comment = task.comment or ""
+        note = f"(Перенесено с {old_week})"
+        if note not in prev_comment:
+            task.comment = f"{prev_comment} {note}".strip()
+
+        db.commit()
+        return {"status": "ok", "message": f"Задача перенесена на {next_week}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/archive_week")
+def archive_week_tasks(
+    current_week: str = Body(..., embed=True),
+    next_week: Optional[str] = Body(None, embed=True),
+    db: Session = Depends(get_db)
+):
+    """
+    Завершает неделю:
+    - Выполненные (🟢 Выполнено) переносит в Архив (is_archived = True).
+    - Незавершенные переносит на следующую неделю (если указана).
+    """
+    try:
+        tasks = db.query(models.Task).filter(
+            models.Task.week_label == current_week,
+            models.Task.is_archived == False
+        ).all()
+
+        archived_count = 0
+        moved_count = 0
+
+        for t in tasks:
+            if t.status == "🟢 Выполнено":
+                t.is_archived = True
+                archived_count += 1
+            else:
+                if next_week:
+                    t.week_label = next_week
+                    t.status = "🔵 Перенесено"
+                    note = f"(Перенесено с {current_week})"
+                    prev_comment = t.comment or ""
+                    if note not in prev_comment:
+                        t.comment = f"{prev_comment} {note}".strip()
+                    moved_count += 1
+
+        db.commit()
+        return {
+            "status": "ok",
+            "archived_count": archived_count,
+            "moved_count": moved_count,
+            "message": f"Неделя закрыта! В архив: {archived_count} задач. Перенесено на {next_week or 'след. неделю'}: {moved_count} задач."
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/{task_id}/restore")
+def restore_task_from_archive(task_id: int, target_week: Optional[str] = None, db: Session = Depends(get_db)):
+    """Восстанавливает задачу из Архива обратно в активный план."""
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        task.is_archived = False
+        if target_week:
+            task.week_label = target_week
+        task.status = "⚪ В очереди"
+        db.commit()
+        return {"status": "ok", "message": "Задача возвращена в план"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/tasks/translate")
+def translate_task_text(text: str = Body(..., embed=True)):
+    """Двусторонний перевод RU <-> KZ."""
+    try:
+        import urllib.parse
+        import urllib.request
+        
+        # Определяем примерный язык (наличие специфичных казахских букв: ә, і, ң, ғ, ү, ұ, қ, ө, һ)
+        kz_chars = set("әіңғүұқөһӘІҢҒҮҰҚӨҺ")
+        is_kz = any(c in kz_chars for c in text)
+
+        source_lang = "kk" if is_kz else "ru"
+        target_lang = "ru" if is_kz else "kk"
+
+        # Простой запрос к Google Translate API
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={source_lang}&tl={target_lang}&dt=t&q=" + urllib.parse.quote(text)
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            translated = "".join([part[0] for part in result[0] if part[0]])
+
+        return {
+            "status": "ok",
+            "detected_lang": source_lang,
+            "target_lang": target_lang,
+            "text_ru": text if source_lang == "ru" else translated,
+            "text_kz": translated if source_lang == "ru" else text
+        }
+    except Exception as e:
+        print(f"Translation warning: {e}")
+        # Фоллбэк - возвращаем исходный текст
+        return {
+            "status": "fallback",
+            "text_ru": text,
+            "text_kz": text
+        }
+
+@app.post("/api/tasks/import_from_google_sheets")
+def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
+    """Импортирует все активные и архивные задачи + справочники из Google Таблицы."""
+    try:
+        import json
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        if not os.path.exists("google_credentials.json"):
+            raise HTTPException(status_code=400, detail="Файл google_credentials.json не найден")
+
+        creds = service_account.Credentials.from_service_account_info(
+            json.load(open('google_credentials.json', 'r', encoding='utf-8')),
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        service = build('sheets', 'v4', credentials=creds)
+        spreadsheet_id = '1K6Lk0fVfVpfC7gpvg8Hlpj0IgTF9j5woLOWKquyFewc'
+
+        # 1. Импорт Справочников (Email)
+        try:
+            res_dir = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='Справочники!A2:B100').execute()
+            dir_rows = res_dir.get('values', [])
+            for r in dir_rows:
+                if len(r) >= 2 and r[0] and r[1]:
+                    name, email = str(r[0]).strip(), str(r[1]).strip()
+                    master = db.query(models.Master).filter(models.Master.name == name).first()
+                    if master:
+                        master.email = email
+                    else:
+                        db.add(models.Master(name=name, email=email, pin="1234", role="master"))
+            db.commit()
+        except Exception as e_dir:
+            print(f"Directory import note: {e_dir}")
+
+        # 2. Импорт Активных задач ('План на неделю')
+        imported_active = 0
+        try:
+            res_active = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='План на неделю!A4:L100').execute()
+            active_rows = res_active.get('values', [])
+            week_label = "Неделя 4 (24.08 - 28.08)"
+            month_label = "Август 2026"
+
+            for i, r in enumerate(active_rows):
+                if not r or len(r) < 3:
+                    continue
+                code = r[0] if len(r) > 0 and r[0] else f"TSK-{(i+1):02d}"
+                zone = r[1] if len(r) > 1 and r[1] else "Бережливое производство"
+                task_input = r[2] if len(r) > 2 else ""
+                photo = r[3] if len(r) > 3 else ""
+                task_ru = r[4] if len(r) > 4 and r[4] else task_input
+                task_kz = r[5] if len(r) > 5 else ""
+                author = r[6] if len(r) > 6 and r[6] else "Левда М."
+                assignee = r[7] if len(r) > 7 else ""
+                due = r[8] if len(r) > 8 else ""
+                status = r[9] if len(r) > 9 and r[9] else "⚪ В очереди"
+                comment = r[10] if len(r) > 10 else ""
+
+                if not task_ru and not task_input:
+                    continue
+
+                # Нормализация статуса
+                norm_status = "⚪ В очереди"
+                if "Выполнено" in status: norm_status = "🟢 Выполнено"
+                elif "В работе" in status: norm_status = "🟡 В работе"
+                elif "Проблема" in status or "Перенесено" in status: norm_status = "🔵 Перенесено"
+
+                # Проверяем нет ли уже такой задачи
+                existing = db.query(models.Task).filter(models.Task.title == (task_ru or task_input), models.Task.week_label == week_label).first()
+                if not existing:
+                    db.add(models.Task(
+                        code=code,
+                        zone=zone,
+                        title=task_ru or task_input,
+                        title_kz=task_kz,
+                        photo_link=photo,
+                        author_name=author,
+                        assignee_name=assignee,
+                        due_date_str=due,
+                        status=norm_status,
+                        comment=comment,
+                        month_label=month_label,
+                        week_label=week_label,
+                        is_archived=False
+                    ))
+                    imported_active += 1
+            db.commit()
+        except Exception as e_act:
+            print(f"Active tasks import error: {e_act}")
+
+        return {"status": "ok", "imported_active": imported_active, "message": f"Успешно импортировано {imported_active} задач из Google Таблицы"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 

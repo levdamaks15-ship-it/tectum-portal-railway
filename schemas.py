@@ -637,16 +637,28 @@ class AdminShiftReportUpdate(ORMBaseModel):
 
 # --- TASK TRACKER SCHEMAS ---
 class TaskBase(ORMBaseModel):
+    code: Optional[str] = ""
+    zone: Optional[str] = "Бережливое производство"
     title: str
+    title_kz: Optional[str] = ""
+    photo_link: Optional[str] = ""
+    author_name: Optional[str] = ""
+    assignee_name: Optional[str] = ""
+    due_date_str: Optional[str] = ""
+    status: Optional[str] = "⚪ В очереди"
+    comment: Optional[str] = ""
+    month_label: Optional[str] = ""
+    week_label: Optional[str] = ""
+    is_archived: Optional[bool] = False
+    
+    # Legacy / Compatibility fields
     description: Optional[str] = ""
-    category: Optional[str] = "Производство"
+    category: Optional[str] = ""
     priority: Optional[str] = "Средний"
-    status: Optional[str] = "Запланировано"
     assigned_master_id: Optional[int] = None
     assignee_custom: Optional[str] = ""
     creator_name: Optional[str] = ""
     due_date: Optional[date] = None
-    week_label: Optional[str] = ""
     attached_document_id: Optional[int] = None
     google_doc_url: Optional[str] = ""
 
@@ -654,17 +666,29 @@ class TaskCreate(TaskBase):
     pass
 
 class TaskUpdate(ORMBaseModel):
+    code: Optional[str] = None
+    zone: Optional[str] = None
     title: Optional[str] = None
+    title_kz: Optional[str] = None
+    photo_link: Optional[str] = None
+    author_name: Optional[str] = None
+    assignee_name: Optional[str] = None
+    due_date_str: Optional[str] = None
+    status: Optional[str] = None
+    comment: Optional[str] = None
+    month_label: Optional[str] = None
+    week_label: Optional[str] = None
+    is_archived: Optional[bool] = None
+    
+    # Legacy
     description: Optional[str] = None
     category: Optional[str] = None
     priority: Optional[str] = None
-    status: Optional[str] = None
     assigned_master_id: Optional[int] = None
     assignee_custom: Optional[str] = None
     creator_name: Optional[str] = None
     due_date: Optional[date] = None
     completed_at: Optional[datetime] = None
-    week_label: Optional[str] = None
     attached_document_id: Optional[int] = None
     google_doc_url: Optional[str] = None
 

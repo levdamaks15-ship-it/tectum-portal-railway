@@ -326,19 +326,32 @@ class DocumentVersion(Base):
 class Task(Base):
     __tablename__ = "tasks"
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
+    code = Column(String, index=True, nullable=True) # "TSK-01"
+    zone = Column(String, nullable=True) # Зона / Служба
+    title = Column(String, nullable=False) # Суть задачи (RU)
+    title_kz = Column(String, nullable=True) # Суть задачи (KZ)
+    photo_link = Column(String, nullable=True) # Ссылка на Google Drive / Google Photo
+    author_name = Column(String, nullable=True) # Автор
+    assignee_name = Column(String, nullable=True) # Исполнитель
+    due_date_str = Column(String, nullable=True) # Срок (строка, напр. "28.08")
+    status = Column(String, default="⚪ В очереди") # ⚪ В очереди, 🟡 В работе, 🟢 Выполнено, 🔵 Перенесено
+    comment = Column(String, nullable=True) # Факт / Комментарий
+    month_label = Column(String, nullable=True, index=True) # например, "Август 2026"
+    week_label = Column(String, nullable=True, index=True) # например, "Неделя 4 (24.08 - 28.08)"
+    is_archived = Column(Boolean, default=False, index=True)
+    
+    # Legacy / Compatibility fields
     description = Column(String, nullable=True)
-    category = Column(String, nullable=True) # "СКК", "Ремонт и зоны", "Цифровой портал", "Обучение", "Документация", "Инфостенды", "Цилиндры", "ТОиР", "Охрана труда"
-    priority = Column(String, default="Средний") # "Высокий", "Средний", "Низкий", "Критический"
-    status = Column(String, default="Запланировано") # "Запланировано", "В процессе", "Выполнено", "Перенесено", "Отменено"
+    category = Column(String, nullable=True)
+    priority = Column(String, default="Средний")
     assigned_master_id = Column(Integer, ForeignKey("masters.id"), nullable=True)
     assignee_custom = Column(String, nullable=True)
     creator_name = Column(String, nullable=True)
     due_date = Column(Date, nullable=True)
     completed_at = Column(DateTime, nullable=True)
-    week_label = Column(String, nullable=True, index=True) # например, "Неделя с 17.08.2026"
     attached_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
     google_doc_url = Column(String, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
