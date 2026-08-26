@@ -6,7 +6,7 @@
 let allTasks = [];
 let allWeeksStructure = {};
 let allMasters = [];
-let viewMode = 'active'; // 'active' or 'archive'
+let showBacklog = false; // toggle to include unfinished tasks from other weeks
 let currentMonth = "Август 2026";
 let currentWeek = "Неделя 4 (24.08 - 28.08)";
 
@@ -230,13 +230,8 @@ async function loadTasks() {
 
     currentMonth = month;
     currentWeek = week;
-
-    const isArchived = (viewMode === 'archive');
     
-    let url = `/api/tasks?is_archived=${isArchived}&month=${encodeURIComponent(month)}`;
-    if (viewMode === 'active') {
-        url += `&week=${encodeURIComponent(week)}`;
-    }
+    let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
     if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
     if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
     if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
@@ -262,7 +257,7 @@ function renderTasksTable(tasks) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="11" style="text-align: center; padding: 2.5rem; color: #94a3b8; font-size: 0.95rem;">
-                    ${viewMode === 'active' ? '✨ Нет активных задач на выбранную неделю. Нажмите «+ Добавить задачу»!' : '📦 Архив пуст'}
+                    ✨ Нет задач на выбранную неделю. Нажмите «+ Добавить задачу»!
                 </td>
             </tr>
         `;
@@ -281,11 +276,20 @@ function renderTasksTable(tasks) {
             </a>
         ` : `<span style="color: #64748b; font-size: 0.75rem;">—</span>`;
 
-        const isArchived = t.is_archived;
+        const backlogBadge = t.is_backlog ? `
+            <div style="margin-top: 4px;">
+                <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
+                    <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Долг'}
+                </span>
+            </div>
+        ` : '';
 
         return `
             <tr id="task-row-${t.id}">
-                <td><span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span></td>
+                <td>
+                    <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
+                    ${backlogBadge}
+                </td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
                 <td style="font-weight: 500; min-width: 170px;">${t.title || '—'}</td>
                 <td style="color: #94a3b8; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
@@ -317,18 +321,12 @@ function renderTasksTable(tasks) {
                 </td>
                 <td style="text-align: center;">
                     <div class="row-actions">
-                        ${!isArchived ? `
-                            <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                            <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                        ` : `
-                            <button class="btn-icon-cell" onclick="restoreTaskFromArchive(${t.id})" title="Вернуть в активный план">
-                                <i class="fa-solid fa-rotate-left" style="color: #34d399;"></i>
-                            </button>
-                        `}
+                        <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
                         <button class="btn-icon-cell delete" onclick="deleteTask(${t.id})" title="Удалить">
                             <i class="fa-solid fa-trash"></i>
                         </button>
@@ -370,20 +368,17 @@ function escapeHtml(str) {
 /* ==========================================================
    VIEW MODES & FILTERS
    ========================================================== */
-function switchViewMode(mode) {
-    viewMode = mode;
-    const btnActive = document.getElementById("btn-mode-active");
-    const btnArchive = document.getElementById("btn-mode-archive");
-    const btnArchiveWeek = document.getElementById("btn-archive-week");
-
-    if (mode === 'active') {
-        btnActive.className = "btn-action btn-primary-action";
-        btnArchive.className = "btn-action btn-secondary-action";
-        if (btnArchiveWeek) btnArchiveWeek.style.display = "inline-flex";
-    } else {
-        btnActive.className = "btn-action btn-secondary-action";
-        btnArchive.className = "btn-action btn-primary-action";
-        if (btnArchiveWeek) btnArchiveWeek.style.display = "none";
+function toggleBacklog() {
+    showBacklog = !showBacklog;
+    const btn = document.getElementById("btn-toggle-backlog");
+    if (btn) {
+        if (showBacklog) {
+            btn.classList.add("btn-backlog-active");
+            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left" style="color: #fbbf24;"></i> <span>Долги включены</span>`;
+        } else {
+            btn.classList.remove("btn-backlog-active");
+            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span>Долги с прошлых недель</span>`;
+        }
     }
     loadTasks();
 }
@@ -860,56 +855,6 @@ async function moveTaskToNextWeekModal(taskId) {
         }
     } catch (e) {
         console.error("Move task error:", e);
-    }
-}
-
-async function archiveCurrentWeek() {
-    const next = getNextCalendarWeek();
-
-    const confirmMsg = `Завершить рабочую неделю «${currentWeek}»?\n\n• Выполненные задачи (🟢) уйдут в Архив.\n• Все оставшиеся задачи перенесутся на «${next.week}» (🔵 Перенесено).`;
-    if (!confirm(confirmMsg)) return;
-
-    try {
-        const res = await fetch("/api/tasks/archive_week", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ current_week: currentWeek, next_week: next.week })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            alert(`✅ ${data.message}`);
-            
-            // Если перешли в следующий месяц
-            if (next.month !== currentMonth) {
-                const monthSelect = document.getElementById("filter-month");
-                if (monthSelect) monthSelect.value = next.month;
-                currentMonth = next.month;
-                onMonthChange(next.week);
-            } else {
-                const weekSelect = document.getElementById("filter-week");
-                if (weekSelect) weekSelect.value = next.week;
-                currentWeek = next.week;
-                loadTasks();
-            }
-        }
-    } catch (e) {
-        console.error("Archive error:", e);
-    }
-}
-
-async function restoreTaskFromArchive(taskId) {
-    if (!confirm("Вернуть эту задачу из Архива обратно в активный рабочий план?")) return;
-
-    try {
-        const res = await fetch(`/api/tasks/${taskId}/restore?target_week=${encodeURIComponent(currentWeek)}`, {
-            method: "POST"
-        });
-        if (res.ok) {
-            showToast("Задача возвращена в активный план");
-            loadTasks();
-        }
-    } catch (e) {
-        console.error("Restore error:", e);
     }
 }
 

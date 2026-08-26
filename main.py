@@ -15,7 +15,7 @@ import excel_exporter
 import import_aci_excel
 from datetime import datetime, date
 from pydantic import BaseModel
-from sqlalchemy import or_, func
+from sqlalchemy import or_, and_, func
 from sqlalchemy.orm import selectinload, joinedload
 from contextlib import asynccontextmanager
 import seed_norms
@@ -611,6 +611,14 @@ async def lifespan(app: FastAPI):
             if deleted_test_count > 0:
                 db.commit()
                 print(f"[Tasks Cleanup] Deleted {deleted_test_count} obsolete test tasks.")
+
+            # Убеждаемся, что все задачи активны и доступны в своих неделях (концепция архива упразднена)
+            archived_tasks = db.query(models.Task).filter(models.Task.is_archived == True).all()
+            if archived_tasks:
+                for at in archived_tasks:
+                    at.is_archived = False
+                db.commit()
+                print(f"[Tasks Migration] Un-archived {len(archived_tasks)} tasks to make them visible in their weeks.")
         except Exception as task_cl_err:
             print(f"Warning cleaning test tasks: {task_cl_err}")
             db.rollback()
@@ -7261,17 +7269,36 @@ def get_tasks(
     author: Optional[str] = None,
     zone: Optional[str] = None,
     status: Optional[str] = None,
+    include_backlog: bool = False,
     is_archived: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Возвращает список задач с фильтрацией."""
+    """Возвращает список задач с фильтрацией по месяцу, неделе, исполнителю и опциональным включением долгов прошлых недель."""
     try:
-        query = db.query(models.Task).filter(models.Task.is_archived == is_archived)
+        query = db.query(models.Task)
 
-        if month and month != "all":
-            query = query.filter(models.Task.month_label == month)
-        if week and week != "all":
-            query = query.filter(models.Task.week_label == week)
+        # Фильтрация по неделе / месяцу с учетом долгов
+        if include_backlog and week and week != "all":
+            if month and month != "all":
+                week_match = and_(models.Task.month_label == month, models.Task.week_label == week)
+                backlog_match = and_(
+                    models.Task.status != "🟢 Выполнено",
+                    or_(models.Task.month_label != month, models.Task.week_label != week)
+                )
+                query = query.filter(or_(week_match, backlog_match))
+            else:
+                week_match = (models.Task.week_label == week)
+                backlog_match = and_(
+                    models.Task.status != "🟢 Выполнено",
+                    models.Task.week_label != week
+                )
+                query = query.filter(or_(week_match, backlog_match))
+        else:
+            if month and month != "all":
+                query = query.filter(models.Task.month_label == month)
+            if week and week != "all":
+                query = query.filter(models.Task.week_label == week)
+
         if assignee and assignee != "all":
             query = query.filter(models.Task.assignee_name == assignee)
         if author and author != "all":
@@ -7285,6 +7312,11 @@ def get_tasks(
 
         results = []
         for t in tasks:
+            is_backlog = False
+            if week and week != "all":
+                if t.week_label != week or (month and month != "all" and t.month_label != month):
+                    is_backlog = True
+
             results.append({
                 "id": t.id,
                 "code": t.code or f"TSK-{t.id:02d}",
@@ -7299,7 +7331,8 @@ def get_tasks(
                 "comment": t.comment or "",
                 "month_label": t.month_label or "",
                 "week_label": t.week_label or "",
-                "is_archived": bool(t.is_archived),
+                "is_archived": False,
+                "is_backlog": is_backlog,
                 "created_at": t.created_at.strftime("%d.%m.%Y %H:%M") if t.created_at else ""
             })
         return results

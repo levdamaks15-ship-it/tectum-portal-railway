@@ -139,13 +139,24 @@
             background: rgba(255, 255, 255, 0.15);
             color: #ffffff;
         }
-        .btn-archive-action {
-            background: rgba(139, 92, 246, 0.2);
-            color: #c4b5fd;
-            border: 1px solid rgba(139, 92, 246, 0.4);
+        .btn-backlog-active {
+            background: rgba(245, 158, 11, 0.2) !important;
+            color: #fbbf24 !important;
+            border-color: rgba(245, 158, 11, 0.6) !important;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
         }
-        .btn-archive-action:hover {
-            background: rgba(139, 92, 246, 0.3);
+        .badge-backlog {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            padding: 0.15rem 0.45rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
         /* Main Table Container */
@@ -396,14 +407,6 @@
     <!-- Toolbar: Month/Week Selector & Action Buttons -->
     <div class="toolbar">
         <div class="toolbar-group">
-            <!-- Mode Switch: Active Plan / Archive -->
-            <button class="btn-action btn-primary-action" id="btn-mode-active" onclick="switchViewMode('active')">
-                <i class="fa-solid fa-list-check"></i> План
-            </button>
-            <button class="btn-action btn-secondary-action" id="btn-mode-archive" onclick="switchViewMode('archive')">
-                <i class="fa-solid fa-box-archive"></i> Архив
-            </button>
-
             <!-- Month Selector -->
             <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: bold; background: #1e293b; color: #38bdf8; border-color: #38bdf8;">
                 <option value="Январь 2026">Январь 2026</option>
@@ -424,17 +427,17 @@
             <select class="select-filter" id="filter-week" onchange="loadTasks()" style="font-weight: 600; background: #1e293b; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">
                 <!-- Populated dynamically -->
             </select>
+
+            <!-- Backlog Toggle -->
+            <button class="btn-action btn-secondary-action" id="btn-toggle-backlog" onclick="toggleBacklog()" title="Показать незавершённые задачи с прошлых недель">
+                <i class="fa-solid fa-clock-rotate-left"></i> <span>Долги с прошлых недель</span>
+            </button>
         </div>
 
         <div class="toolbar-group">
             <!-- Add Task Button -->
             <button class="btn-action btn-primary-action" onclick="openAddTaskModal()">
                 <i class="fa-solid fa-plus"></i> <span class="hide-mobile">Добавить задачу</span>
-            </button>
-
-            <!-- Complete Week Button -->
-            <button class="btn-action btn-archive-action" id="btn-archive-week" onclick="archiveCurrentWeek()">
-                <i class="fa-solid fa-calendar-check"></i> <span class="hide-mobile">Завершить неделю</span>
             </button>
 
             <!-- Sync from Google Sheets -->
@@ -655,6 +658,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260826_datepicker_v2"></script>
+    <script src="/static/js/tasks.js?v=20260826_no_archive_backlog"></script>
 </body>
 </html>
