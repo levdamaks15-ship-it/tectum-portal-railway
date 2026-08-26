@@ -171,7 +171,7 @@ function populateDropdowns() {
     const persons = getUniquePersons();
     const zones = getPlannerZones();
 
-    // Table Header Filters
+    // 1. Table Header Filters (Desktop)
     const filterAuthor = document.getElementById("table-filter-author");
     if (filterAuthor) {
         const curVal = filterAuthor.value;
@@ -196,7 +196,32 @@ function populateDropdowns() {
         if (curVal && zones.includes(curVal)) filterZone.value = curVal;
     }
 
-    // Modal Dropdowns
+    // 2. Mobile Filters Drawer
+    const mobFilterAuthor = document.getElementById("mobile-filter-author");
+    if (mobFilterAuthor) {
+        const curVal = mobFilterAuthor.value;
+        mobFilterAuthor.innerHTML = `<option value="all">✍️ Все авторы</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (curVal && persons.includes(curVal)) mobFilterAuthor.value = curVal;
+    }
+
+    const mobFilterAssignee = document.getElementById("mobile-filter-assignee");
+    if (mobFilterAssignee) {
+        const curVal = mobFilterAssignee.value;
+        mobFilterAssignee.innerHTML = `<option value="all">👤 Все исполн.</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (curVal && persons.includes(curVal)) mobFilterAssignee.value = curVal;
+    }
+
+    const mobFilterZone = document.getElementById("mobile-filter-zone");
+    if (mobFilterZone) {
+        const curVal = mobFilterZone.value;
+        mobFilterZone.innerHTML = `<option value="all">📁 Все зоны</option>` + 
+            zones.map(z => `<option value="${z}">${z}</option>`).join('');
+        if (curVal && zones.includes(curVal)) mobFilterZone.value = curVal;
+    }
+
+    // 3. Modal Dropdowns
     const modalAuthor = document.getElementById("task-author-input");
     if (modalAuthor) {
         modalAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + 
@@ -215,9 +240,65 @@ function populateDropdowns() {
     }
 }
 
+function syncDesktopFilter(type, value) {
+    const mob = document.getElementById(`mobile-filter-${type}`);
+    if (mob) mob.value = value;
+    updateFilterBadge();
+    loadTasks();
+}
+
+function syncMobileFilter(type, value) {
+    const desk = document.getElementById(`table-filter-${type}`);
+    if (desk) desk.value = value;
+    updateFilterBadge();
+    loadTasks();
+}
+
+function toggleMobileFilters() {
+    const panel = document.getElementById("mobile-filters-panel");
+    if (!panel) return;
+    const isShown = panel.style.display === "flex";
+    panel.style.display = isShown ? "none" : "flex";
+}
+
+function updateFilterBadge() {
+    const zone = document.getElementById("table-filter-zone")?.value || "all";
+    const author = document.getElementById("table-filter-author")?.value || "all";
+    const assignee = document.getElementById("table-filter-assignee")?.value || "all";
+    const status = document.getElementById("table-filter-status")?.value || "all";
+    
+    let activeCount = 0;
+    if (zone !== "all") activeCount++;
+    if (author !== "all") activeCount++;
+    if (assignee !== "all") activeCount++;
+    if (status !== "all") activeCount++;
+    
+    const badge = document.getElementById("mobile-filter-badge");
+    if (badge) {
+        if (activeCount > 0) {
+            badge.innerText = activeCount;
+            badge.style.display = "inline-block";
+        } else {
+            badge.style.display = "none";
+        }
+    }
+}
+
+function resetAllFilters() {
+    ['zone', 'author', 'assignee', 'status'].forEach(type => {
+        const desk = document.getElementById(`table-filter-${type}`);
+        if (desk) desk.value = 'all';
+        const mob = document.getElementById(`mobile-filter-${type}`);
+        if (mob) mob.value = 'all';
+    });
+    updateFilterBadge();
+    loadTasks();
+}
+
 async function loadTasks() {
     const tableBody = document.getElementById("tasks-table-body");
-    if (!tableBody) return;
+    const cardsContainer = document.getElementById("tasks-cards-container");
+    if (!tableBody && !cardsContainer) return;
 
     const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "";
     const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : "";
@@ -230,6 +311,7 @@ async function loadTasks() {
 
     currentMonth = month;
     currentWeek = week;
+    updateFilterBadge();
     
     let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
     if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
@@ -242,10 +324,12 @@ async function loadTasks() {
         if (res.ok) {
             allTasks = await res.json();
             renderTasksTable(allTasks);
+            renderTasksCards(allTasks);
         }
     } catch (e) {
         console.error("Error loading tasks:", e);
-        tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
+        if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</div>`;
     }
 }
 
@@ -330,6 +414,110 @@ function renderTasksTable(tasks) {
                     </div>
                 </td>
             </tr>
+        `;
+    }).join('');
+}
+
+function renderTasksCards(tasks) {
+    const cardsContainer = document.getElementById("tasks-cards-container");
+    if (!cardsContainer) return;
+
+    if (!tasks || tasks.length === 0) {
+        cardsContainer.innerHTML = `
+            <div style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8; background: #ffffff; border-radius: 12px; border: 1px solid var(--tbl-border);">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
+                <div style="font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Нет задач на эту неделю</div>
+                <div style="font-size: 0.85rem; color: #94a3b8;">Нажмите «+ Задача», чтобы добавить первую задачу</div>
+            </div>
+        `;
+        return;
+    }
+
+    cardsContainer.innerHTML = tasks.map((t, idx) => {
+        let statusClass = "status-queue";
+        if (t.status && t.status.includes("В работе")) statusClass = "status-work";
+        else if (t.status && t.status.includes("Выполнено")) statusClass = "status-done";
+        else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
+
+        const backlogBadge = t.is_backlog ? `
+            <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
+                <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Долг'}
+            </span>
+        ` : '';
+
+        const photoBtn = t.photo_link ? `
+            <a href="${t.photo_link}" target="_blank" class="btn-photo-link" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">
+                <i class="fa-solid fa-image"></i> Фото
+            </a>
+        ` : '';
+
+        const commentBlock = t.comment ? `
+            <div class="card-comment-box" onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" title="Нажмите для редактирования">
+                <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
+                <div style="flex: 1;">${t.comment}</div>
+            </div>
+        ` : `
+            <div style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; padding: 2px 0;" onclick="inlineEditComment(${t.id}, '')">
+                <i class="fa-solid fa-plus" style="font-size: 0.7rem;"></i> Добавить факт/комментарий...
+            </div>
+        `;
+
+        const titleKzBlock = t.title_kz ? `
+            <div class="planner-card-title-kz">${t.title_kz}</div>
+        ` : '';
+
+        return `
+            <div class="planner-card" id="task-card-${t.id}">
+                <div class="planner-card-header">
+                    <div class="card-header-tags">
+                        <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
+                        <span class="badge-zone">${t.zone || 'Бережливое производство'}</span>
+                        ${backlogBadge}
+                    </div>
+                    <div>
+                        <select class="select-status ${statusClass}" onchange="quickUpdateStatus(${t.id}, this.value)" style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">
+                            <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
+                            <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
+                            <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
+                            <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="planner-card-body">
+                    <div class="planner-card-title">${t.title || '—'}</div>
+                    ${titleKzBlock}
+                </div>
+
+                <div class="planner-card-meta">
+                    <div class="card-meta-item assignee">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span title="${t.assignee_name || 'Не назначен'}">${t.assignee_name || 'Не назначен'}</span>
+                    </div>
+                    <div class="card-meta-item">
+                        <i class="fa-regular fa-calendar" style="color: #64748b;"></i>
+                        <span>${t.due_date_str || 'В теч. недели'}</span>
+                    </div>
+                    <div class="card-meta-item">
+                        <i class="fa-solid fa-pen-nib" style="color: #94a3b8; font-size: 0.75rem;"></i>
+                        <span title="${t.author_name || '—'}">${t.author_name || '—'}</span>
+                    </div>
+                    <div class="card-meta-item" style="justify-content: flex-end;">
+                        ${photoBtn || '<span style="color: #cbd5e1; font-size: 0.75rem;">Без фото</span>'}
+                    </div>
+                </div>
+
+                ${commentBlock}
+
+                <div class="card-actions-footer">
+                    <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
+                        <i class="fa-solid fa-arrow-right"></i> Перенести
+                    </button>
+                    <button class="btn-card-action" onclick="openEditTaskModal(${t.id})" title="Редактировать задачу">
+                        <i class="fa-solid fa-pen"></i> Редактировать
+                    </button>
+                </div>
+            </div>
         `;
     }).join('');
 }
@@ -443,6 +631,10 @@ function closeCompleteModal() {
         const rowSelect = document.querySelector(`#task-row-${pendingCompleteTaskId} .select-status`);
         if (rowSelect && previousTaskStatus[pendingCompleteTaskId]) {
             rowSelect.value = previousTaskStatus[pendingCompleteTaskId];
+        }
+        const cardSelect = document.querySelector(`#task-card-${pendingCompleteTaskId} .select-status`);
+        if (cardSelect && previousTaskStatus[pendingCompleteTaskId]) {
+            cardSelect.value = previousTaskStatus[pendingCompleteTaskId];
         }
     }
     pendingCompleteTaskId = null;
