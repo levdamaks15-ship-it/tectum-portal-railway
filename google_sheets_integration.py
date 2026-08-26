@@ -2197,32 +2197,26 @@ def export_tasks_to_google_sheets(db: Session):
         sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
 
         headers = [
-            "Недели", "Категория", "Задача", "Статус", "Приоритет",
-            "Ответственный", "Срок (Дедлайн)", "Примечание / Описание", "Создатель", "Ссылка / Документ"
+            "Код", "Зона / Служба", "Суть задачи (RU)", "Суть задачи (KZ)",
+            "Ссылка на фото", "Автор", "Исполнитель", "Срок", "Статус",
+            "Факт / Комментарий", "Месяц", "Неделя"
         ]
 
         rows_data = [headers]
         for t in tasks:
-            assignee = ""
-            if t.assigned_master:
-                assignee = t.assigned_master.name
-            elif t.assignee_custom:
-                assignee = t.assignee_custom
-
-            due_str = t.due_date.strftime("%d.%m.%Y") if t.due_date else ""
-            doc_link = t.google_doc_url or (f"/api/documents/download/{t.attached_document_id}" if t.attached_document_id else "")
-
             rows_data.append([
-                t.week_label or "",
-                t.category or "",
+                t.code or f"TSK-{t.id:02d}",
+                t.zone or "Бережливое производство",
                 t.title or "",
-                t.status or "Запланировано",
-                t.priority or "Средний",
-                assignee,
-                due_str,
-                t.description or "",
-                t.creator_name or "",
-                doc_link
+                t.title_kz or "",
+                t.photo_link or "",
+                t.author_name or "",
+                t.assignee_name or "",
+                t.due_date_str or "",
+                t.status or "⚪ В очереди",
+                t.comment or "",
+                t.month_label or "",
+                t.week_label or ""
             ])
 
         # Очищаем лист и записываем новые данные
