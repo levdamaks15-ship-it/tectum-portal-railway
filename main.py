@@ -1621,10 +1621,10 @@ def sync_directories_google(request: Request, db: Session = Depends(get_db)):
         google_sheets_integration.sync_downtime_directory_from_google_sheets(db)
         
         db.add(models.AuditLog(
-            user_id=user_id,
-            action="SYNC_DIRECTORIES",
-            entity="Directories",
-            entity_id=0,
+            user_name="Администратор",
+            action="SYNC",
+            target_table="downtime_directory",
+            target_id=None,
             details="Синхронизация нормативов и справочника простоев из Google Sheets"
         ))
         db.commit()
@@ -5284,8 +5284,70 @@ def get_plan_board(db: Session = Depends(get_db)):
         return []
 
 @app.get("/api/admin/audit_logs")
-def get_audit_logs(db: Session = Depends(get_db)):
-    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc(), models.AuditLog.id.desc()).limit(300).all()
+def get_audit_logs(
+    limit: int = 500,
+    module: Optional[str] = None,
+    action: Optional[str] = None,
+    user_name: Optional[str] = None,
+    search: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    try:
+        query = db.query(models.AuditLog)
+
+        if module:
+            mod = module.lower()
+            if mod == "tasks":
+                query = query.filter(models.AuditLog.target_table.ilike("%task%"))
+            elif mod == "shifts":
+                query = query.filter(models.AuditLog.target_table.in_(["shifts", "lfm_reports", "batches", "downtimes"]))
+            elif mod in ["plan_board", "plan"]:
+                query = query.filter(models.AuditLog.target_table.ilike("%plan%"))
+            elif mod in ["raw", "raw_materials"]:
+                query = query.filter(models.AuditLog.target_table.ilike("%raw%"))
+            elif mod in ["directories", "dir"]:
+                query = query.filter(models.AuditLog.target_table.in_(["downtime_directory", "product_norms", "masters", "directories"]))
+            elif mod in ["documents", "docs"]:
+                query = query.filter(models.AuditLog.target_table.ilike("%doc%"))
+
+        if action:
+            query = query.filter(models.AuditLog.action.ilike(f"%{action}%"))
+
+        if user_name:
+            query = query.filter(models.AuditLog.user_name.ilike(f"%{user_name}%"))
+
+        if search:
+            s = f"%{search}%"
+            query = query.filter(
+                or_(
+                    models.AuditLog.details.ilike(s),
+                    models.AuditLog.user_name.ilike(s),
+                    models.AuditLog.target_table.ilike(s),
+                    models.AuditLog.action.ilike(s)
+                )
+            )
+
+        if date_from:
+            try:
+                dt_from = datetime.strptime(date_from, "%Y-%m-%d")
+                query = query.filter(models.AuditLog.timestamp >= dt_from)
+            except Exception:
+                pass
+
+        if date_to:
+            try:
+                dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+                query = query.filter(models.AuditLog.timestamp < dt_to)
+            except Exception:
+                pass
+
+        return query.order_by(models.AuditLog.timestamp.desc(), models.AuditLog.id.desc()).limit(limit).all()
+    except Exception as e:
+        import traceback
+        print(f"Error in get_audit_logs: {str(e)}\n{traceback.format_exc()}")
+        return []
 
 @app.post("/api/plan_board", response_model=schemas.MonthlyPlanBoard)
 def create_or_update_plan_board(data: schemas.MonthlyPlanBoardCreate, user_name: str = None, db: Session = Depends(get_db)):
@@ -7425,6 +7487,17 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             is_archived=False
         )
         db.add(new_task)
+        db.flush()
+
+        # AuditLog
+        db.add(models.AuditLog(
+            user_name=new_task.author_name or "Планнер",
+            action="CREATE",
+            target_table="tasks",
+            target_id=new_task.id,
+            details=f"Создана задача [{new_task.code}] «{new_task.title}». Зона: {new_task.zone}, Исполнитель: {new_task.assignee_name or '—'}, Период: {new_task.month_label} / {new_task.week_label}"
+        ))
+
         db.commit()
         db.refresh(new_task)
 
@@ -7467,13 +7540,27 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         old_status = task.status
         old_assignee = task.assignee_name
 
-        # Обновляем переданные поля
+        # Фиксируем изменения для AuditLog
         update_dict = task_data.dict(exclude_unset=True)
+        changes = []
         for key, val in update_dict.items():
             if hasattr(task, key) and val is not None:
+                old_val = getattr(task, key)
+                if old_val != val:
+                    changes.append(f"{key}: '{old_val}' -> '{val}'")
                 setattr(task, key, val)
 
         task.updated_at = datetime.utcnow()
+
+        if changes:
+            db.add(models.AuditLog(
+                user_name=task.assignee_name or task.author_name or "Пользователь",
+                action="UPDATE",
+                target_table="tasks",
+                target_id=task.id,
+                details=f"Изменена задача [{task.code}] «{task.title}». Изменения: {'; '.join(changes)}"
+            ))
+
         db.commit()
         db.refresh(task)
 
@@ -7544,9 +7631,10 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         
         # Логирование в аудит
         db.add(models.AuditLog(
+            user_name="Администратор",
             action="DELETE",
-            entity="Task",
-            entity_id=task_id,
+            target_table="tasks",
+            target_id=task_id,
             details=f"Администратор удалил задачу [{task_info}]"
         ))
         
@@ -7578,6 +7666,14 @@ def move_task_to_next_week(
         note = f"(Перенесено с {old_week})"
         if note not in prev_comment:
             task.comment = f"{prev_comment} {note}".strip()
+
+        db.add(models.AuditLog(
+            user_name=task.assignee_name or task.author_name or "Пользователь",
+            action="UPDATE",
+            target_table="tasks",
+            target_id=task.id,
+            details=f"Перенос задачи [{task.code}] «{task.title}» с «{old_week}» на «{next_week}»"
+        ))
 
         db.commit()
         db.refresh(task)
@@ -7642,6 +7738,14 @@ def archive_week_tasks(
                     if note not in prev_comment:
                         t.comment = f"{prev_comment} {note}".strip()
                     moved_count += 1
+
+        db.add(models.AuditLog(
+            user_name="Администратор",
+            action="UPDATE",
+            target_table="tasks",
+            target_id=None,
+            details=f"Архивация недели «{current_week}»: {archived_count} завершено в архив, {moved_count} перенесено на «{next_week or 'след. неделю'}»"
+        ))
 
         db.commit()
         return {

@@ -566,66 +566,289 @@ async function importPlanBoard() {
 }
 
 let adminAuditLogsCached = [];
+let currentAuditModuleFilter = 'all';
+let currentAuditDatePreset = 'all';
 
 async function loadAuditLogs() {
     try {
         const tbody = document.getElementById('audit-logs-table-body');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Загрузка логов...</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка истории изменений...</td></tr>';
         
-        const res = await fetch('/api/admin/audit_logs');
+        const res = await fetch('/api/admin/audit_logs?limit=1000');
         const data = await res.json();
         adminAuditLogsCached = Array.isArray(data) ? data : [];
+        
+        populateAuditUserDropdown();
+        updateAuditKpis(adminAuditLogsCached);
         renderAuditLogsTable();
     } catch (e) {
         console.error("Error loading audit logs:", e);
         const tbody = document.getElementById('audit-logs-table-body');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: red;">Ошибка загрузки логов</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--danger-color); padding: 2rem;">Ошибка загрузки логов</td></tr>';
     }
+}
+
+function populateAuditUserDropdown() {
+    const userSelect = document.getElementById('filter-audit-user');
+    if (!userSelect) return;
+
+    const currentVal = userSelect.value;
+    const users = Array.from(new Set(adminAuditLogsCached.map(l => l.user_name || 'Система').filter(Boolean))).sort();
+    
+    userSelect.innerHTML = `<option value="">Все пользователи (${users.length})</option>` + 
+        users.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+
+    if (currentVal && users.includes(currentVal)) {
+        userSelect.value = currentVal;
+    }
+}
+
+function updateAuditKpis(logs) {
+    const totalEl = document.getElementById('audit-kpi-total');
+    const todayEl = document.getElementById('audit-kpi-today');
+    const tasksEl = document.getElementById('audit-kpi-tasks');
+    const shiftsEl = document.getElementById('audit-kpi-shifts');
+
+    if (!totalEl || !logs) return;
+
+    const todayStr = new Date().toISOString().substring(0, 10);
+    let todayCount = 0;
+    let tasksCount = 0;
+    let shiftsCount = 0;
+
+    logs.forEach(l => {
+        const ts = l.timestamp || '';
+        if (ts.startsWith(todayStr)) todayCount++;
+        
+        const tbl = (l.target_table || '').toLowerCase();
+        if (tbl.includes('task')) tasksCount++;
+        if (tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch')) shiftsCount++;
+    });
+
+    totalEl.textContent = logs.length;
+    if (todayEl) todayEl.textContent = todayCount;
+    if (tasksEl) tasksEl.textContent = tasksCount;
+    if (shiftsEl) shiftsEl.textContent = shiftsCount;
+}
+
+function setAuditModuleFilter(module, chipElement) {
+    currentAuditModuleFilter = module;
+    
+    // Update chip active classes
+    const chips = document.querySelectorAll('#audit-module-chips .audit-chip');
+    chips.forEach(c => c.classList.remove('active'));
+    if (chipElement) chipElement.classList.add('active');
+
+    renderAuditLogsTable();
+}
+
+function setAuditDatePreset(preset, btnElement) {
+    currentAuditDatePreset = preset;
+
+    const buttons = document.querySelectorAll('.btn-date-preset');
+    buttons.forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--text-secondary)';
+    });
+
+    if (btnElement) {
+        btnElement.classList.add('active');
+        btnElement.style.background = 'rgba(59, 130, 246, 0.3)';
+        btnElement.style.color = '#fff';
+    }
+
+    const dateFromEl = document.getElementById('filter-audit-date-from');
+    const dateToEl = document.getElementById('filter-audit-date-to');
+
+    const now = new Date();
+    const todayStr = now.toISOString().substring(0, 10);
+
+    if (preset === 'today') {
+        if (dateFromEl) dateFromEl.value = todayStr;
+        if (dateToEl) dateToEl.value = todayStr;
+    } else if (preset === 'yesterday') {
+        const y = new Date();
+        y.setDate(y.getDate() - 1);
+        const yStr = y.toISOString().substring(0, 10);
+        if (dateFromEl) dateFromEl.value = yStr;
+        if (dateToEl) dateToEl.value = yStr;
+    } else if (preset === '7days') {
+        const d7 = new Date();
+        d7.setDate(d7.getDate() - 7);
+        if (dateFromEl) dateFromEl.value = d7.toISOString().substring(0, 10);
+        if (dateToEl) dateToEl.value = todayStr;
+    } else if (preset === '30days') {
+        const d30 = new Date();
+        d30.setDate(d30.getDate() - 30);
+        if (dateFromEl) dateFromEl.value = d30.toISOString().substring(0, 10);
+        if (dateToEl) dateToEl.value = todayStr;
+    } else {
+        if (dateFromEl) dateFromEl.value = '';
+        if (dateToEl) dateToEl.value = '';
+    }
+
+    renderAuditLogsTable();
+}
+
+function onAuditCustomDateChange() {
+    currentAuditDatePreset = 'custom';
+    const buttons = document.querySelectorAll('.btn-date-preset');
+    buttons.forEach(b => {
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--text-secondary)';
+    });
+    renderAuditLogsTable();
+}
+
+function formatAuditModuleBadge(targetTable) {
+    const tbl = (targetTable || '').toLowerCase();
+    if (tbl.includes('task')) {
+        return `<span style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-list-check"></i> Планнер задач</span>`;
+    }
+    if (tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch')) {
+        return `<span style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-industry"></i> Смены ЛФМ</span>`;
+    }
+    if (tbl.includes('plan')) {
+        return `<span style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-calendar-days"></i> План-Факт</span>`;
+    }
+    if (tbl.includes('raw')) {
+        return `<span style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-boxes-stacked"></i> Сырьё</span>`;
+    }
+    if (tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director')) {
+        return `<span style="background: rgba(14, 165, 233, 0.12); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-book"></i> Справочники</span>`;
+    }
+    if (tbl.includes('doc')) {
+        return `<span style="background: rgba(236, 72, 153, 0.12); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-folder-open"></i> База знаний</span>`;
+    }
+    return `<span style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); padding: 3px 8px; border-radius: 6px; font-weight: 500; font-size: 0.76rem; white-space: nowrap;">${targetTable || '—'}</span>`;
+}
+
+function formatAuditDetails(rawText, targetTable) {
+    if (!rawText) return '<span style="color: var(--text-secondary);">—</span>';
+
+    let text = escapeHtml(rawText);
+
+    // 1. Highlight task codes: [TSK-12]
+    text = text.replace(/\[(TSK-\d+|ID:\s*\d+[^\]]*)\]/g, '<span style="font-family: monospace; font-weight: 700; color: #60a5fa; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.25); padding: 1px 5px; border-radius: 4px; font-size: 0.78rem;">[$1]</span>');
+
+    // 2. Format transition diffs: field: 'old' -> 'new' or field: old->new or План: 2500->2700
+    // Replace patterns with styled diff tokens
+    text = text.replace(/([a-zA-Zа-яА-Я0-9_ -]+):\s*&#39;([^&#]+)&#39;\s*-&gt;\s*&#39;([^&#]+)&#39;/g, (match, field, oldV, newV) => {
+        return `<span class="diff-tag"><span class="diff-field">${field}:</span> <span class="diff-old">${oldV}</span> <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span> <span class="diff-new">${newV}</span></span>`;
+    });
+
+    text = text.replace(/([a-zA-Zа-яА-Я0-9_ -]+):\s*([0-9.,]+)\s*-&gt;\s*([0-9.,]+)/g, (match, field, oldV, newV) => {
+        return `<span class="diff-tag"><span class="diff-field">${field}:</span> <span class="diff-old">${oldV}</span> <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span> <span class="diff-new">${newV}</span></span>`;
+    });
+
+    return `<div style="line-height: 1.45;">${text}</div>`;
 }
 
 function renderAuditLogsTable() {
     const tbody = document.getElementById('audit-logs-table-body');
     if (!tbody) return;
 
-    const actionFilter = document.getElementById('filter-audit-action') ? document.getElementById('filter-audit-action').value : '';
-    const searchFilter = document.getElementById('filter-audit-search') ? document.getElementById('filter-audit-search').value.toLowerCase().trim() : '';
+    const actionFilter = (document.getElementById('filter-audit-action')?.value || '').toUpperCase().trim();
+    const userFilter = (document.getElementById('filter-audit-user')?.value || '').toLowerCase().trim();
+    const searchFilter = (document.getElementById('filter-audit-search')?.value || '').toLowerCase().trim();
+    const dateFrom = document.getElementById('filter-audit-date-from')?.value;
+    const dateTo = document.getElementById('filter-audit-date-to')?.value;
 
     let filtered = adminAuditLogsCached.filter(log => {
-        const act = (log.action || '').toUpperCase();
-        const matchAction = !actionFilter || act === actionFilter.toUpperCase() || act.includes(actionFilter.toUpperCase());
-        
-        const textToSearch = `${log.user_name || ''} ${log.target_table || ''} ${log.details || ''} ${log.timestamp || ''}`.toLowerCase();
-        const matchSearch = !searchFilter || textToSearch.includes(searchFilter);
-        
-        return matchAction && matchSearch;
+        // Module filter
+        if (currentAuditModuleFilter !== 'all') {
+            const tbl = (log.target_table || '').toLowerCase();
+            if (currentAuditModuleFilter === 'tasks' && !tbl.includes('task')) return false;
+            if (currentAuditModuleFilter === 'shifts' && !(tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch'))) return false;
+            if (currentAuditModuleFilter === 'plan_board' && !tbl.includes('plan')) return false;
+            if (currentAuditModuleFilter === 'raw_materials' && !tbl.includes('raw')) return false;
+            if (currentAuditModuleFilter === 'directories' && !(tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director'))) return false;
+        }
+
+        // Action filter
+        if (actionFilter) {
+            const act = (log.action || '').toUpperCase();
+            if (act !== actionFilter && !act.includes(actionFilter)) return false;
+        }
+
+        // User filter
+        if (userFilter) {
+            const u = (log.user_name || 'система').toLowerCase();
+            if (u !== userFilter && !u.includes(userFilter)) return false;
+        }
+
+        // Date range filter
+        if (log.timestamp) {
+            const logDate = log.timestamp.substring(0, 10);
+            if (dateFrom && logDate < dateFrom) return false;
+            if (dateTo && logDate > dateTo) return false;
+        }
+
+        // Search text
+        if (searchFilter) {
+            const haystack = `${log.user_name || ''} ${log.target_table || ''} ${log.action || ''} ${log.details || ''} ${log.timestamp || ''}`.toLowerCase();
+            if (!haystack.includes(searchFilter)) return false;
+        }
+
+        return true;
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 1.5rem;">Записи не найдены</td></tr>';
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 3rem 1.5rem;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.4;"><i class="fa-solid fa-filter-circle-xmark"></i></div>
+                    <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">Записи не найдены</div>
+                    <div style="font-size: 0.8rem; margin-top: 4px;">Попробуйте сбросить фильтры или изменить поисковый запрос</div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
     tbody.innerHTML = filtered.map(log => {
-        let actionBadge = `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.78rem;">${log.action || '—'}</span>`;
-        if (log.action === 'CREATE') {
-            actionBadge = `<span style="background: rgba(16,185,129,0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">CREATE</span>`;
-        } else if (log.action === 'UPDATE') {
-            actionBadge = `<span style="background: rgba(59,130,246,0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">UPDATE</span>`;
-        } else if (log.action === 'DELETE') {
-            actionBadge = `<span style="background: rgba(239,68,68,0.2); color: #f87171; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">DELETE</span>`;
-        } else if (log.action === 'IMPORT' || log.action === 'SYNC') {
-            actionBadge = `<span style="background: rgba(245,158,11,0.2); color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 0.78rem;">${log.action}</span>`;
+        let actionBadge = `<span style="background: rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.76rem;">${log.action || '—'}</span>`;
+        const act = (log.action || '').toUpperCase();
+        if (act === 'CREATE') {
+            actionBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-plus"></i> CREATE</span>`;
+        } else if (act === 'UPDATE') {
+            actionBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-pen"></i> UPDATE</span>`;
+        } else if (act === 'DELETE') {
+            actionBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-trash"></i> DELETE</span>`;
+        } else if (act === 'IMPORT' || act === 'SYNC') {
+            actionBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrows-rotate"></i> ${act}</span>`;
         }
 
-        const dateFormatted = log.timestamp ? log.timestamp.replace('T', ' ').substring(0, 19) : '—';
+        const rawDate = log.timestamp || '';
+        let datePart = '—';
+        let timePart = '';
+        if (rawDate) {
+            const clean = rawDate.replace('T', ' ');
+            datePart = clean.substring(0, 10);
+            timePart = clean.substring(11, 19);
+        }
+
+        const userDisplay = log.user_name || 'Система';
 
         return `
             <tr>
-                <td style="white-space: nowrap; font-size: 0.78rem; color: var(--text-secondary);">${dateFormatted}</td>
-                <td style="font-weight: 600; color: var(--text-primary);">${log.user_name || 'Система'}</td>
-                <td>${actionBadge}</td>
-                <td style="font-weight: 500; color: var(--accent-color);">${log.target_table || '—'}</td>
-                <td style="white-space: pre-wrap; font-size: 0.82rem; line-height: 1.3;">${log.details || '—'}</td>
+                <td style="white-space: nowrap; font-size: 0.78rem;">
+                    <div style="font-weight: 600; color: var(--text-primary);"><i class="fa-regular fa-clock" style="color: var(--text-secondary); margin-right: 4px;"></i>${datePart}</div>
+                    <div style="color: var(--text-secondary); font-size: 0.73rem; margin-top: 2px; font-family: monospace;">${timePart}</div>
+                </td>
+                <td style="white-space: nowrap; font-size: 0.82rem;">
+                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #f1f5f9;">
+                        <span style="width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.08); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-secondary);">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        ${escapeHtml(userDisplay)}
+                    </div>
+                </td>
+                <td style="white-space: nowrap;">${actionBadge}</td>
+                <td style="white-space: nowrap;">${formatAuditModuleBadge(log.target_table)}</td>
+                <td style="font-size: 0.82rem;">${formatAuditDetails(log.details, log.target_table)}</td>
             </tr>
         `;
     }).join('');
@@ -637,10 +860,45 @@ function exportAuditLogsToCsv() {
         return;
     }
 
-    const headers = ["Время", "Пользователь", "Действие", "Таблица", "Детали"];
-    const rows = adminAuditLogsCached.map(log => [
+    const actionFilter = (document.getElementById('filter-audit-action')?.value || '').toUpperCase().trim();
+    const userFilter = (document.getElementById('filter-audit-user')?.value || '').toLowerCase().trim();
+    const searchFilter = (document.getElementById('filter-audit-search')?.value || '').toLowerCase().trim();
+    const dateFrom = document.getElementById('filter-audit-date-from')?.value;
+    const dateTo = document.getElementById('filter-audit-date-to')?.value;
+
+    const filtered = adminAuditLogsCached.filter(log => {
+        if (currentAuditModuleFilter !== 'all') {
+            const tbl = (log.target_table || '').toLowerCase();
+            if (currentAuditModuleFilter === 'tasks' && !tbl.includes('task')) return false;
+            if (currentAuditModuleFilter === 'shifts' && !(tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch'))) return false;
+            if (currentAuditModuleFilter === 'plan_board' && !tbl.includes('plan')) return false;
+            if (currentAuditModuleFilter === 'raw_materials' && !tbl.includes('raw')) return false;
+            if (currentAuditModuleFilter === 'directories' && !(tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director'))) return false;
+        }
+        if (actionFilter) {
+            const act = (log.action || '').toUpperCase();
+            if (act !== actionFilter && !act.includes(actionFilter)) return false;
+        }
+        if (userFilter) {
+            const u = (log.user_name || 'система').toLowerCase();
+            if (u !== userFilter && !u.includes(userFilter)) return false;
+        }
+        if (log.timestamp) {
+            const logDate = log.timestamp.substring(0, 10);
+            if (dateFrom && logDate < dateFrom) return false;
+            if (dateTo && logDate > dateTo) return false;
+        }
+        if (searchFilter) {
+            const haystack = `${log.user_name || ''} ${log.target_table || ''} ${log.action || ''} ${log.details || ''} ${log.timestamp || ''}`.toLowerCase();
+            if (!haystack.includes(searchFilter)) return false;
+        }
+        return true;
+    });
+
+    const headers = ["Время", "Пользователь", "Действие", "Таблица / Модуль", "Детализация изменений"];
+    const rows = filtered.map(log => [
         `"${(log.timestamp || '').replace('T', ' ')}"`,
-        `"${(log.user_name || '').replace(/"/g, '""')}"`,
+        `"${(log.user_name || 'Система').replace(/"/g, '""')}"`,
         `"${(log.action || '').replace(/"/g, '""')}"`,
         `"${(log.target_table || '').replace(/"/g, '""')}"`,
         `"${(log.details || '').replace(/"/g, '""')}"`
@@ -651,7 +909,7 @@ function exportAuditLogsToCsv() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `audit_logs_${new Date().toISOString().substring(0,10)}.csv`);
+    link.setAttribute("download", `audit_logs_${currentAuditModuleFilter}_${new Date().toISOString().substring(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2468,28 +2726,52 @@ function renderAdminTasksTable(tasks) {
     if (!tbody) return;
 
     if (!tasks || tasks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">Задач не найдено</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = tasks.map(t => `
-        <tr>
-            <td style="font-family: monospace; font-weight: 700; color: var(--accent-color); font-size: 0.8rem;">${t.code || ('TSK-' + t.id)}</td>
-            <td style="color: var(--text-secondary); font-size: 0.78rem; white-space: nowrap;">${t.month_label || '—'} / ${t.week_label || '—'}</td>
-            <td style="font-size: 0.82rem; color: var(--text-primary);"><span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${t.zone || '—'}</span></td>
-            <td style="font-weight: 500; color: var(--text-primary); max-width: 320px; font-size: 0.85rem;">
-                <div>${(t.title || '—')}</div>
-                ${t.title_kz ? `<div style="font-size: 0.75rem; color: var(--text-secondary);">${t.title_kz}</div>` : ''}
-            </td>
-            <td style="font-size: 0.82rem; color: var(--text-primary); white-space: nowrap;">${t.assignee_name || '—'}</td>
-            <td style="font-size: 0.78rem; white-space: nowrap;">${t.status || '—'}</td>
-            <td style="text-align: right; white-space: nowrap;">
-                <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить задачу навсегда">
-                    <i class="fa-solid fa-trash"></i> Удалить
-                </button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = tasks.map(t => {
+        let statusBadge = `<span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${t.status || '—'}</span>`;
+        const st = t.status || '';
+        if (st.includes('Выполнено')) {
+            statusBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
+        } else if (st.includes('В работе')) {
+            statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
+        } else if (st.includes('Перенесено')) {
+            statusBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrow-right-arrow-left"></i> Перенесено</span>`;
+        } else if (st.includes('В очереди')) {
+            statusBadge = `<span style="background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> В очереди</span>`;
+        }
+
+        const titleRu = (t.title || '—').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.25;">${(t.title_kz).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>` : '';
+
+        return `
+            <tr>
+                <td style="white-space: nowrap;">
+                    <span style="font-family: monospace; font-weight: 700; color: #60a5fa; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.25); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${t.code || ('TSK-' + t.id)}</span>
+                </td>
+                <td style="white-space: nowrap; font-size: 0.78rem;">
+                    <div style="font-weight: 600; color: var(--text-primary);">${t.month_label || '—'}</div>
+                    <div style="color: var(--text-secondary); font-size: 0.74rem; margin-top: 2px;">${t.week_label || '—'}</div>
+                </td>
+                <td style="white-space: nowrap;">
+                    <span style="background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 6px; font-weight: 600; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1); font-size: 0.78rem;">${t.zone || '—'}</span>
+                </td>
+                <td style="min-width: 280px; max-width: 460px; white-space: normal; word-break: break-word; line-height: 1.35; padding: 0.55rem 0.75rem;">
+                    <div style="font-weight: 500; color: var(--text-primary); font-size: 0.84rem;">${titleRu}</div>
+                    ${titleKz}
+                </td>
+                <td style="font-size: 0.82rem; color: #93c5fd; font-weight: 600; white-space: nowrap;">${t.assignee_name || '—'}</td>
+                <td style="white-space: nowrap;">${statusBadge}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" title="Удалить задачу навсегда">
+                        <i class="fa-solid fa-trash"></i> Удалить
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function filterAdminTasksTable() {

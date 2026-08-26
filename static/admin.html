@@ -143,6 +143,200 @@
         .btn-edit { background: var(--accent-color) !important; }
         .btn-delete { background: var(--danger-color) !important; }
         .btn-save { background: var(--success-color) !important; }
+
+        /* Dedicated tasks registry table */
+        .tasks-registry-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            line-height: 1.35;
+            table-layout: auto;
+        }
+        .tasks-registry-table th {
+            padding: 0.55rem 0.75rem;
+            background: rgba(30, 41, 59, 0.95);
+            border-bottom: 1px solid var(--glass-border);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .tasks-registry-table td {
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.03);
+            vertical-align: middle;
+            font-size: 0.82rem;
+        }
+        .tasks-registry-table td:last-child {
+            border-right: none;
+        }
+        .tasks-registry-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .btn-delete-task {
+            background: rgba(239, 68, 68, 0.2) !important;
+            color: #f87171 !important;
+            border: 1px solid rgba(239, 68, 68, 0.35) !important;
+            padding: 0.35rem 0.65rem !important;
+            font-size: 0.78rem !important;
+            font-weight: 500 !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            width: auto !important;
+            max-width: none !important;
+            height: auto !important;
+            box-shadow: none !important;
+            transition: all 0.15s ease !important;
+        }
+        .btn-delete-task:hover {
+            background: rgba(239, 68, 68, 0.9) !important;
+            color: #ffffff !important;
+            border-color: rgba(239, 68, 68, 1) !important;
+        }
+
+        /* Modern Audit Log Styles */
+        .audit-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .audit-kpi-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .audit-kpi-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .audit-kpi-val {
+            font-size: 1.25rem;
+            font-weight: 700;
+            line-height: 1.1;
+            color: var(--text-primary);
+        }
+        .audit-kpi-lbl {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        .audit-chips-container {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+        .audit-chip {
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+        }
+        .audit-chip:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+        .audit-chip.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+            color: #60a5fa;
+        }
+
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            line-height: 1.35;
+            table-layout: auto;
+        }
+        .audit-table th {
+            padding: 0.6rem 0.75rem;
+            background: rgba(30, 41, 59, 0.95);
+            border-bottom: 1px solid var(--glass-border);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .audit-table td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.03);
+            vertical-align: top;
+            font-size: 0.82rem;
+        }
+        .audit-table td:last-child {
+            border-right: none;
+        }
+        .audit-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .diff-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 2px 4px 2px 0;
+            font-size: 0.78rem;
+        }
+        .diff-field {
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .diff-old {
+            color: #f87171;
+            text-decoration: line-through;
+            opacity: 0.85;
+        }
+        .diff-arrow {
+            color: #cbd5e1;
+            font-size: 0.72rem;
+        }
+        .diff-new {
+            color: #34d399;
+            font-weight: 600;
+        }
         
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -616,35 +810,145 @@
 
             <!-- Audit Logs Tab -->
             <div id="tab-audit-logs" style="display: none;">
+                <!-- Header & Actions -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <h2 style="margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> История изменений (Лог аудита)</h2>
+                    <div>
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary-color);"></i> История изменений (Центр аудита)
+                        </h2>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary);">Полный журнал действий, корректировок данных и перемещений по всем модулям</span>
+                    </div>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <button onclick="exportAuditLogsToCsv()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #217346;"><i class="fa-solid fa-file-excel"></i> Экспорт (CSV)</button>
-                        <button onclick="loadAuditLogs()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(255,255,255,0.1);"><i class="fa-solid fa-arrows-rotate"></i> Обновить</button>
+                        <button onclick="exportAuditLogsToCsv()" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; background: #217346; border: none; border-radius: 6px; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-file-excel"></i> Экспорт (CSV)
+                        </button>
+                        <button onclick="loadAuditLogs()" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text-primary); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-arrows-rotate"></i> Обновить
+                        </button>
                     </div>
                 </div>
 
-                <div style="margin-bottom: 0.6rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                    <select id="filter-audit-action" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.85rem;" onchange="renderAuditLogsTable()">
-                        <option value="">Все действия</option>
-                        <option value="CREATE">CREATE (Создание)</option>
-                        <option value="UPDATE">UPDATE (Изменение)</option>
-                        <option value="DELETE">DELETE (Удаление)</option>
-                        <option value="SYNC">SYNC (Синхронизация)</option>
-                        <option value="IMPORT">IMPORT (Импорт)</option>
-                    </select>
-                    <input type="text" id="filter-audit-search" placeholder="Поиск по пользователю, таблице или деталям..." style="padding: 0.35rem 0.8rem; width: 320px; font-size: 0.85rem;" oninput="renderAuditLogsTable()">
+                <!-- KPI Summary Cards -->
+                <div class="audit-kpi-grid">
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-total">0</div>
+                            <div class="audit-kpi-lbl">Всего событий в логе</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                            <i class="fa-solid fa-calendar-day"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-today">0</div>
+                            <div class="audit-kpi-lbl">Событий за сегодня</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-tasks">0</div>
+                            <div class="audit-kpi-lbl">Задачи планнера</div>
+                        </div>
+                    </div>
+                    <div class="audit-kpi-card">
+                        <div class="audit-kpi-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+                            <i class="fa-solid fa-industry"></i>
+                        </div>
+                        <div>
+                            <div class="audit-kpi-val" id="audit-kpi-shifts">0</div>
+                            <div class="audit-kpi-lbl">Смены и производство</div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem;">
-                    <table class="data-table" style="width: 100%; text-align: left; font-size: 0.82rem;">
+                <!-- Module Filter Chips -->
+                <div class="audit-chips-container" id="audit-module-chips">
+                    <div class="audit-chip active" onclick="setAuditModuleFilter('all', this)">
+                        <i class="fa-solid fa-layer-group"></i> Все разделы
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('tasks', this)">
+                        <i class="fa-solid fa-list-check"></i> 📌 Планнер задач
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('shifts', this)">
+                        <i class="fa-solid fa-industry"></i> 🏭 Смены и рапорты ЛФМ
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('plan_board', this)">
+                        <i class="fa-solid fa-calendar-days"></i> 📊 План-факт доска
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('raw_materials', this)">
+                        <i class="fa-solid fa-boxes-stacked"></i> 📦 Приход сырья
+                    </div>
+                    <div class="audit-chip" onclick="setAuditModuleFilter('directories', this)">
+                        <i class="fa-solid fa-book"></i> 📖 Справочники и нормы
+                    </div>
+                </div>
+
+                <!-- Detailed Filter & Search Toolbar -->
+                <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                        <!-- Date Presets -->
+                        <div style="display: flex; gap: 3px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color);">
+                            <button type="button" class="btn-date-preset active" onclick="setAuditDatePreset('all', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: rgba(59, 130, 246, 0.3); color: #fff; cursor: pointer;">Все время</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('today', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">Сегодня</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('yesterday', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">Вчера</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('7days', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">7 дней</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('30days', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">30 дней</button>
+                        </div>
+
+                        <!-- Date Pickers -->
+                        <div style="display: flex; gap: 4px; align-items: center; font-size: 0.78rem; color: var(--text-secondary);">
+                            <span>С:</span>
+                            <input type="date" id="filter-audit-date-from" onchange="onAuditCustomDateChange()" style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.25); color: var(--text-primary);">
+                            <span>По:</span>
+                            <input type="date" id="filter-audit-date-to" onchange="onAuditCustomDateChange()" style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.25); color: var(--text-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                        <!-- Action filter -->
+                        <select id="filter-audit-action" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px;" onchange="renderAuditLogsTable()">
+                            <option value="">Все действия</option>
+                            <option value="CREATE">CREATE (Создание)</option>
+                            <option value="UPDATE">UPDATE (Изменение)</option>
+                            <option value="DELETE">DELETE (Удаление)</option>
+                            <option value="SYNC">SYNC (Синхронизация)</option>
+                            <option value="IMPORT">IMPORT (Импорт)</option>
+                        </select>
+
+                        <!-- User filter -->
+                        <select id="filter-audit-user" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px;" onchange="renderAuditLogsTable()">
+                            <option value="">Все пользователи</option>
+                        </select>
+
+                        <!-- Search -->
+                        <div style="position: relative;">
+                            <input type="text" id="filter-audit-search" placeholder="Поиск по деталям, ID..." style="padding: 0.35rem 0.75rem 0.35rem 1.8rem; width: 230px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.25); color: var(--text-primary);" oninput="renderAuditLogsTable()">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-secondary);"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Log Table -->
+                <div class="glass-panel" style="overflow-x: auto; padding: 0; border: 1px solid var(--glass-border); border-radius: 8px; max-height: 600px;">
+                    <table class="audit-table">
                         <thead>
                             <tr>
-                                <th>Время</th><th>Пользователь</th><th>Действие</th><th>Таблица / Объект</th><th>Детализация изменений</th>
+                                <th style="width: 135px;">Время</th>
+                                <th style="width: 140px;">Пользователь</th>
+                                <th style="width: 100px;">Действие</th>
+                                <th style="width: 140px;">Раздел / Объект</th>
+                                <th>Детализация изменений</th>
                             </tr>
                         </thead>
                         <tbody id="audit-logs-table-body">
-                            <tr><td colspan="5" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 2rem;">Загрузка истории изменений...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -747,21 +1051,21 @@
                             <button onclick="loadAdminTasksList()" style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.82rem; background: var(--bg-tertiary);" title="Обновить список"><i class="fa-solid fa-arrows-rotate"></i></button>
                         </div>
                     </div>
-                    <div style="overflow-x: auto; max-height: 450px;">
-                        <table class="data-table" style="width: 100%; text-align: left;">
+                    <div style="overflow-x: auto; max-height: 480px; border: 1px solid var(--glass-border); border-radius: 8px;">
+                        <table class="tasks-registry-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Период (Неделя)</th>
-                                    <th>Зона</th>
-                                    <th>Суть задачи (RU)</th>
-                                    <th>Исполнитель</th>
-                                    <th>Статус</th>
-                                    <th style="text-align: right;">Действия</th>
+                                    <th style="width: 85px;">ID / Код</th>
+                                    <th style="width: 170px;">Период (Неделя)</th>
+                                    <th style="width: 90px;">Зона</th>
+                                    <th style="min-width: 280px;">Суть задачи (RU / KZ)</th>
+                                    <th style="width: 130px;">Исполнитель</th>
+                                    <th style="width: 130px;">Статус</th>
+                                    <th style="text-align: right; width: 100px;">Действия</th>
                                 </tr>
                             </thead>
                             <tbody id="admin-tasks-table-body">
-                                <tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">Загрузка задач...</td></tr>
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Загрузка задач...</td></tr>
                             </tbody>
                         </table>
                     </div>
