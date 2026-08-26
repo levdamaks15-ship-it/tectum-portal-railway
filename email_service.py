@@ -54,12 +54,21 @@ def send_task_html_email(
     if resend_key and resend_key.startswith("re_"):
         try:
             from_sender = os.getenv("RESEND_FROM", RESEND_FROM)
+            reply_to_addr = os.getenv("REPLY_TO_EMAIL", "levdamaks15@gmail.com")
+            task_id = task_data.get("id", "general")
+            
             payload = {
                 "from": from_sender,
                 "to": [to_email.strip()],
+                "reply_to": reply_to_addr,
                 "subject": subject,
                 "html": html_content,
-                "text": text_content
+                "text": text_content,
+                "headers": {
+                    "X-Entity-Ref-ID": f"tectum-task-{task_id}",
+                    "Auto-Submitted": "auto-generated",
+                    "X-Auto-Response-Suppress": "All"
+                }
             }
             resp = requests.post(
                 "https://api.resend.com/emails",
