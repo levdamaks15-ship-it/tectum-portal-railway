@@ -98,6 +98,7 @@ function switchAdminTab(tabId) {
     const tabAuditLogs = document.getElementById('tab-audit-logs'); if (tabAuditLogs) tabAuditLogs.style.display = 'none';
     const tabDowntimes = document.getElementById('tab-downtimes-dir'); if (tabDowntimes) tabDowntimes.style.display = 'none';
     const tabDowntimesLog = document.getElementById('tab-downtimes-log'); if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
+    const tabPlannerSettings = document.getElementById('tab-planner-settings'); if (tabPlannerSettings) tabPlannerSettings.style.display = 'none';
     const tabPasswords = document.getElementById('tab-passwords'); if (tabPasswords) tabPasswords.style.display = 'none';
     const tabChecklistEmps = document.getElementById('tab-checklist-emps'); if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
     const tabShiftSchedule = document.getElementById('tab-shift-schedule'); if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
@@ -122,6 +123,8 @@ function switchAdminTab(tabId) {
         loadDowntimesDir();
     } else if (tabId === 'downtimes-log') {
         loadDowntimesLog();
+    } else if (tabId === 'planner-settings') {
+        loadPlannerSettings();
     } else if (tabId === 'passwords') {
         loadPasswords();
     } else if (tabId === 'checklist-emps') {
@@ -132,6 +135,7 @@ function switchAdminTab(tabId) {
 }
 
 function closeModals() {
+    closePlannerModals();
     const clEmpModal = document.getElementById('checklist-emp-modal');
     if (clEmpModal) clEmpModal.style.display = 'none';
     const schedModal = document.getElementById('shift-schedule-modal');
@@ -2236,4 +2240,205 @@ async function saveShiftScheduleDay() {
         alert("Ошибка сети при сохранении");
     }
 }
+
+
+// ==========================================================
+// ⚙️ PLANNER SETTINGS (EMPLOYEES & ZONES) ADMIN LOGIC
+// ==========================================================
+
+let adminPlannerEmployees = [];
+let adminPlannerZones = [];
+
+async function loadPlannerSettings() {
+    await Promise.all([loadPlannerEmployees(), loadPlannerZones()]);
+}
+
+async function loadPlannerEmployees() {
+    try {
+        const res = await fetch('/api/planner/employees');
+        if (res.ok) {
+            adminPlannerEmployees = await res.json();
+            renderPlannerEmployeesTable();
+        }
+    } catch (e) {
+        console.error("Error loading planner employees:", e);
+    }
+}
+
+function renderPlannerEmployeesTable() {
+    const tbody = document.getElementById('planner-employees-table-body');
+    if (!tbody) return;
+
+    if (adminPlannerEmployees.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">Нет добавленных сотрудников</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = adminPlannerEmployees.map((emp, idx) => `
+        <tr>
+            <td style="color: var(--text-secondary); width: 35px;">${idx + 1}</td>
+            <td style="font-weight: 600; color: var(--text-primary);">${emp.name}</td>
+            <td style="color: ${emp.email ? 'var(--accent-color)' : 'var(--text-secondary)'};">
+                ${emp.email ? `<i class="fa-regular fa-envelope"></i> ${emp.email}` : '—'}
+            </td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deletePlannerEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openPlannerEmployeeModal(id = null, name = '', email = '') {
+    document.getElementById('planner-emp-id').value = id || '';
+    document.getElementById('planner-emp-name').value = name || '';
+    document.getElementById('planner-emp-email').value = email || '';
+    document.getElementById('planner-emp-modal-title').innerHTML = id ? `<i class="fa-solid fa-pen"></i> Редактировать сотрудника` : `<i class="fa-solid fa-user-plus"></i> Добавить сотрудника`;
+    
+    const modal = document.getElementById('planner-emp-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+async function savePlannerEmployee() {
+    const id = document.getElementById('planner-emp-id').value;
+    const name = document.getElementById('planner-emp-name').value.trim();
+    const email = document.getElementById('planner-emp-email').value.trim();
+
+    if (!name) {
+        alert("Пожалуйста, укажите имя/ФИО сотрудника");
+        return;
+    }
+
+    try {
+        const url = id ? `/api/planner/employees/${id}` : '/api/planner/employees';
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: name, email: email })
+        });
+
+        if (res.ok) {
+            closePlannerModals();
+            loadPlannerEmployees();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении");
+    }
+}
+
+async function deletePlannerEmployee(id, name) {
+    if (!confirm(`Вы действительно хотите удалить сотрудника «${name}» из настроек планнера?`)) return;
+
+    try {
+        const res = await fetch(`/api/planner/employees/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadPlannerEmployees();
+        } else {
+            alert("Ошибка при удалении");
+        }
+    } catch (e) {
+        alert("Ошибка сети при удалении");
+    }
+}
+
+async function loadPlannerZones() {
+    try {
+        const res = await fetch('/api/planner/zones');
+        if (res.ok) {
+            adminPlannerZones = await res.json();
+            renderPlannerZonesTable();
+        }
+    } catch (e) {
+        console.error("Error loading planner zones:", e);
+    }
+}
+
+function renderPlannerZonesTable() {
+    const tbody = document.getElementById('planner-zones-table-body');
+    if (!tbody) return;
+
+    if (adminPlannerZones.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">Нет добавленных зон</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = adminPlannerZones.map((z, idx) => `
+        <tr>
+            <td style="color: var(--text-secondary); width: 35px;">${idx + 1}</td>
+            <td style="font-weight: 500; color: var(--text-primary);"><i class="fa-solid fa-tag" style="font-size: 0.75rem; color: var(--accent-color); margin-right: 4px;"></i> ${z.name}</td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button onclick="openPlannerZoneModal(${z.id}, '${z.name.replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deletePlannerZone(${z.id}, '${z.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openPlannerZoneModal(id = null, name = '') {
+    document.getElementById('planner-zone-id').value = id || '';
+    document.getElementById('planner-zone-name').value = name || '';
+    document.getElementById('planner-zone-modal-title').innerHTML = id ? `<i class="fa-solid fa-pen"></i> Редактировать зону` : `<i class="fa-solid fa-plus"></i> Добавить зону / подразделение`;
+    
+    const modal = document.getElementById('planner-zone-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+async function savePlannerZone() {
+    const id = document.getElementById('planner-zone-id').value;
+    const name = document.getElementById('planner-zone-name').value.trim();
+
+    if (!name) {
+        alert("Пожалуйста, укажите название зоны / подразделения");
+        return;
+    }
+
+    try {
+        const url = id ? `/api/planner/zones/${id}` : '/api/planner/zones';
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ name: name })
+        });
+
+        if (res.ok) {
+            closePlannerModals();
+            loadPlannerZones();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при сохранении");
+    }
+}
+
+async function deletePlannerZone(id, name) {
+    if (!confirm(`Вы действительно хотите удалить зону «${name}» из настроек планнера?`)) return;
+
+    try {
+        const res = await fetch(`/api/planner/zones/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadPlannerZones();
+        } else {
+            alert("Ошибка при удалении");
+        }
+    } catch (e) {
+        alert("Ошибка сети при удалении");
+    }
+}
+
+function closePlannerModals() {
+    const empModal = document.getElementById('planner-emp-modal');
+    if (empModal) empModal.style.display = 'none';
+    const zoneModal = document.getElementById('planner-zone-modal');
+    if (zoneModal) zoneModal.style.display = 'none';
+}
+
 

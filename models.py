@@ -409,3 +409,20 @@ class ChecklistSubmission(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     google_synced = Column(Boolean, default=False)
     google_sync_error = Column(String, nullable=True)
+
+class PlannerEmployee(Base):
+    __tablename__ = "planner_employees"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    email = Column(String, index=True, nullable=True)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class PlannerZone(Base):
+    __tablename__ = "planner_zones"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

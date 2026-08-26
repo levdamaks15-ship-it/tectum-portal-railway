@@ -10,25 +10,28 @@ let viewMode = 'active'; // 'active' or 'archive'
 let currentMonth = "Август 2026";
 let currentWeek = "Неделя 4 (24.08 - 28.08)";
 
+let allPlannerEmployees = [];
+let allPlannerZones = [];
+
 const CORE_NAMES = [
     "Левда М.",
     "Булеханов К.",
-    "Булаханов К.",
-    "Курилова",
-    "Сазонов",
-    "Носиков",
-    "Хохлов",
-    "Батырбекова",
-    "Маулен",
-    "Касимов",
-    "Алиев",
-    "Ким",
-    "Иванов"
+    "Курилова С.",
+    "Сазонов С.",
+    "Носиков Е.",
+    "Хохлов К.",
+    "Батырбекова Г.",
+    "Герлинг С.",
+    "Косумов Р.",
+    "Мастера цеха",
+    "Туматов Д.",
+    "ОГЭ",
+    "ОГМ"
 ];
 
 document.addEventListener("DOMContentLoaded", async () => {
     await loadCalendarStructure();
-    await loadMasters();
+    await loadPlannerDropdownData();
     await loadTasks();
 });
 
@@ -121,42 +124,76 @@ function onMonthChange(forcedWeek = null) {
     loadTasks();
 }
 
-async function loadMasters() {
+async function loadPlannerDropdownData() {
     try {
-        const res = await fetch("/api/masters/");
-        if (res.ok) {
-            allMasters = await res.json();
-            populateDropdowns();
+        const [empRes, zoneRes] = await Promise.all([
+            fetch("/api/planner/employees"),
+            fetch("/api/planner/zones")
+        ]);
+        if (empRes.ok) {
+            allPlannerEmployees = await empRes.json();
+        }
+        if (zoneRes.ok) {
+            allPlannerZones = await zoneRes.json();
         }
     } catch (e) {
-        console.error("Error loading masters:", e);
+        console.error("Error loading planner settings:", e);
     }
+    populateDropdowns();
 }
 
 function getUniquePersons() {
-    const set = new Set(CORE_NAMES);
-    allMasters.forEach(m => {
-        if (m.name && !m.name.includes("Мастер смены") && !m.name.includes("Оператор")) {
-            set.add(m.name);
-        }
-    });
-    return Array.from(set).sort();
+    if (allPlannerEmployees && allPlannerEmployees.length > 0) {
+        return allPlannerEmployees.filter(e => e.is_active !== false).map(e => e.name);
+    }
+    return CORE_NAMES;
+}
+
+function getPlannerZones() {
+    if (allPlannerZones && allPlannerZones.length > 0) {
+        return allPlannerZones.filter(z => z.is_active !== false).map(z => z.name);
+    }
+    return [
+        "Бережливое производство",
+        "Ремонт",
+        "Уборка",
+        "Производство",
+        "Отчетность",
+        "Документация",
+        "Цифровизация",
+        "Обучение",
+        "ОГЭ",
+        "ОГМ"
+    ];
 }
 
 function populateDropdowns() {
     const persons = getUniquePersons();
+    const zones = getPlannerZones();
 
     // Table Header Filters
     const filterAuthor = document.getElementById("table-filter-author");
     if (filterAuthor) {
+        const curVal = filterAuthor.value;
         filterAuthor.innerHTML = `<option value="all">✍️ Все авторы</option>` + 
             persons.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (curVal && persons.includes(curVal)) filterAuthor.value = curVal;
     }
 
     const filterAssignee = document.getElementById("table-filter-assignee");
     if (filterAssignee) {
+        const curVal = filterAssignee.value;
         filterAssignee.innerHTML = `<option value="all">👤 Все исполн.</option>` + 
             persons.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (curVal && persons.includes(curVal)) filterAssignee.value = curVal;
+    }
+
+    const filterZone = document.getElementById("table-filter-zone");
+    if (filterZone) {
+        const curVal = filterZone.value;
+        filterZone.innerHTML = `<option value="all">📁 Все зоны</option>` + 
+            zones.map(z => `<option value="${z}">${z}</option>`).join('');
+        if (curVal && zones.includes(curVal)) filterZone.value = curVal;
     }
 
     // Modal Dropdowns
@@ -170,6 +207,11 @@ function populateDropdowns() {
     if (modalAssignee) {
         modalAssignee.innerHTML = `<option value="">-- Выберите исполнителя --</option>` + 
             persons.map(n => `<option value="${n}">${n}</option>`).join('');
+    }
+
+    const modalZone = document.getElementById("task-zone-input");
+    if (modalZone) {
+        modalZone.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
     }
 }
 

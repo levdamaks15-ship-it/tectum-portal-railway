@@ -326,6 +326,7 @@
             <div class="admin-nav-item" onclick="switchAdminTab('audit-logs')" id="nav-audit-logs"><i class="fa-solid fa-clock-rotate-left"></i> История изменений</div>
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-dir')" id="nav-downtimes-dir"><i class="fa-solid fa-list-check"></i> Справочник простоев</div>
             <div class="admin-nav-item" onclick="switchAdminTab('downtimes-log')" id="nav-downtimes-log"><i class="fa-solid fa-clock"></i> Журнал простоев</div>
+            <div class="admin-nav-item" onclick="switchAdminTab('planner-settings')" id="nav-planner-settings"><i class="fa-solid fa-sliders"></i> Настройки планнера</div>
             <div class="admin-nav-item" onclick="switchAdminTab('passwords')" id="nav-passwords"><i class="fa-solid fa-lock"></i> Пароли папок</div>
             <a href="/static/docs.html" class="admin-nav-item" style="display: block; text-decoration: none;"><i class="fa-solid fa-folder-open"></i> База Знаний (Drive)</a>
             
@@ -670,6 +671,63 @@
                             <tr><td colspan="6" style="text-align:center; color: var(--text-secondary);">Загрузка...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Planner Settings Tab -->
+            <div id="tab-planner-settings" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <h2 style="margin: 0;"><i class="fa-solid fa-sliders"></i> Настройки Планнера (Задачи)</h2>
+                        <p style="color: var(--text-secondary); margin: 2px 0 0; font-size: 0.8rem;">Управление сотрудниками, Email для уведомлений и справочником зон / подразделений</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.25rem;">
+                    <!-- Employees & Emails Card -->
+                    <div class="glass-panel" style="padding: 1rem; display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                            <h3 style="margin: 0; font-size: 0.98rem; color: var(--primary-color);"><i class="fa-solid fa-users"></i> Сотрудники и Email уведомлений</h3>
+                            <button onclick="openPlannerEmployeeModal()" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; background: var(--accent-color);"><i class="fa-solid fa-user-plus"></i> Добавить</button>
+                        </div>
+                        <div style="overflow-x: auto; flex: 1;">
+                            <table class="data-table" style="width: 100%; text-align: left;">
+                                <thead>
+                                    <tr>
+                                        <th>№</th>
+                                        <th>Сотрудник</th>
+                                        <th>Email для уведомлений</th>
+                                        <th style="text-align: right;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="planner-employees-table-body">
+                                    <tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">Загрузка сотрудников...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Zones / Departments Card -->
+                    <div class="glass-panel" style="padding: 1rem; display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                            <h3 style="margin: 0; font-size: 0.98rem; color: var(--primary-color);"><i class="fa-solid fa-layer-group"></i> Зоны / Подразделения</h3>
+                            <button onclick="openPlannerZoneModal()" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; background: var(--accent-color);"><i class="fa-solid fa-plus"></i> Добавить</button>
+                        </div>
+                        <div style="overflow-x: auto; flex: 1;">
+                            <table class="data-table" style="width: 100%; text-align: left;">
+                                <thead>
+                                    <tr>
+                                        <th>№</th>
+                                        <th>Зона / Подразделение</th>
+                                        <th style="text-align: right;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="planner-zones-table-body">
+                                    <tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">Загрузка зон...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1381,6 +1439,49 @@
         </div>
     </div>
 
-    <script src="/static/js/admin.js?v=20260820_admin_reorg_1"></script>
+    <!-- Planner Employee Modal -->
+    <div id="planner-emp-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="planner-emp-modal-title" style="margin: 0; font-size: 1.1rem;"><i class="fa-solid fa-user-tag"></i> Сотрудник планнера</h3>
+                <span onclick="closePlannerModals()" style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</span>
+            </div>
+            <input type="hidden" id="planner-emp-id">
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);">Имя / ФИО *</label>
+                <input type="text" id="planner-emp-name" placeholder="Например: Левда М." style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; border-radius: 6px;">
+            </div>
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);">Email для уведомлений</label>
+                <input type="email" id="planner-emp-email" placeholder="name@tectum.ru или user@gmail.com" style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; border-radius: 6px;">
+            </div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button onclick="closePlannerModals()" style="background: transparent; border: 1px solid var(--glass-border); width: auto; padding: 0.45rem 1rem;">Отмена</button>
+                <button onclick="savePlannerEmployee()" class="btn-save" style="width: auto; padding: 0.45rem 1.25rem;"><i class="fa-solid fa-check"></i> Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Planner Zone Modal -->
+    <div id="planner-zone-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="planner-zone-modal-title" style="margin: 0; font-size: 1.1rem;"><i class="fa-solid fa-layer-group"></i> Зона / Подразделение</h3>
+                <span onclick="closePlannerModals()" style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary);">&times;</span>
+            </div>
+            <input type="hidden" id="planner-zone-id">
+            <div class="form-group" style="margin-bottom: 1.2rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: var(--text-secondary);">Название зоны / подразделения *</label>
+                <input type="text" id="planner-zone-name" placeholder="Например: Бережливое производство" style="width: 100%; padding: 0.5rem; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: white; border-radius: 6px;">
+            </div>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button onclick="closePlannerModals()" style="background: transparent; border: 1px solid var(--glass-border); width: auto; padding: 0.45rem 1rem;">Отмена</button>
+                <button onclick="savePlannerZone()" class="btn-save" style="width: auto; padding: 0.45rem 1.25rem;"><i class="fa-solid fa-check"></i> Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/admin.js?v=20260826_planner_settings_1"></script>
 </body>
 </html>
+

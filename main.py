@@ -856,6 +856,53 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Seed Planner Employees & Zones if empty
+    db = SessionLocal()
+    try:
+        if db.query(models.PlannerEmployee).count() == 0:
+            initial_employees = [
+                {"name": "Левда М.", "email": "levdamaks15@gmail.com", "sort_order": 1},
+                {"name": "Булеханов К.", "email": "", "sort_order": 2},
+                {"name": "Курилова С.", "email": "", "sort_order": 3},
+                {"name": "Сазонов С.", "email": "", "sort_order": 4},
+                {"name": "Носиков Е.", "email": "", "sort_order": 5},
+                {"name": "Хохлов К.", "email": "", "sort_order": 6},
+                {"name": "Батырбекова Г.", "email": "", "sort_order": 7},
+                {"name": "Герлинг С.", "email": "", "sort_order": 8},
+                {"name": "Косумов Р.", "email": "", "sort_order": 9},
+                {"name": "Мастера цеха", "email": "", "sort_order": 10},
+                {"name": "Туматов Д.", "email": "", "sort_order": 11},
+                {"name": "ОГЭ", "email": "", "sort_order": 12},
+                {"name": "ОГМ", "email": "", "sort_order": 13}
+            ]
+            for emp_data in initial_employees:
+                db.add(models.PlannerEmployee(**emp_data))
+            db.commit()
+            print("Successfully seeded initial Planner Employees.")
+
+        if db.query(models.PlannerZone).count() == 0:
+            initial_zones = [
+                {"name": "Бережливое производство", "sort_order": 1},
+                {"name": "Ремонт", "sort_order": 2},
+                {"name": "Уборка", "sort_order": 3},
+                {"name": "Производство", "sort_order": 4},
+                {"name": "Отчетность", "sort_order": 5},
+                {"name": "Документация", "sort_order": 6},
+                {"name": "Цифровизация", "sort_order": 7},
+                {"name": "Обучение", "sort_order": 8},
+                {"name": "ОГЭ", "sort_order": 9},
+                {"name": "ОГМ", "sort_order": 10}
+            ]
+            for zone_data in initial_zones:
+                db.add(models.PlannerZone(**zone_data))
+            db.commit()
+            print("Successfully seeded initial Planner Zones.")
+    except Exception as e:
+        print(f"Error seeding planner settings: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
     def bg_google_sync_init():
         db = SessionLocal()
         try:
@@ -6869,6 +6916,18 @@ def manual_sync_checklists_google(db: Session = Depends(get_db)):
 # 🎯 TECTUM TASKS PLANNER API
 # ==========================================================
 
+def get_task_person_email(db: Session, person_name: str) -> Optional[str]:
+    """Находит email сотрудника сначала в PlannerEmployee, затем в Master."""
+    if not person_name:
+        return None
+    pe = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == person_name).first()
+    if pe and pe.email and "@" in pe.email:
+        return pe.email
+    m = db.query(models.Master).filter(models.Master.name == person_name).first()
+    if m and m.email and "@" in m.email:
+        return m.email
+    return None
+
 def send_task_email_notification(to_email: str, subject: str, body: str):
     """Фоновая отправка email-уведомления (через MailApp/M365/SMTP)."""
     if not to_email or "@" not in to_email:
@@ -6879,6 +6938,160 @@ def send_task_email_notification(to_email: str, subject: str, body: str):
         # Здесь отправка через MS Graph / SMTP
     except Exception as e:
         print(f"[Email Notification Warning] Failed to send email to {to_email}: {e}")
+
+# --- PLANNER SETTINGS (EMPLOYEES & ZONES) ENDPOINTS ---
+
+@app.get("/api/planner/employees")
+def get_planner_employees(db: Session = Depends(get_db)):
+    """Возвращает список сотрудников планнера."""
+    try:
+        emps = db.query(models.PlannerEmployee).order_by(models.PlannerEmployee.sort_order.asc(), models.PlannerEmployee.id.asc()).all()
+        return [
+            {
+                "id": e.id,
+                "name": e.name,
+                "email": e.email or "",
+                "is_active": bool(e.is_active),
+                "sort_order": e.sort_order or 0
+            }
+            for e in emps
+        ]
+    except Exception as e:
+        print(f"Error getting planner employees: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/planner/employees")
+def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = Depends(get_db)):
+    """Добавляет сотрудника в настройки планнера."""
+    try:
+        new_emp = models.PlannerEmployee(
+            name=data.name.strip(),
+            email=data.email.strip() if data.email else "",
+            is_active=data.is_active if data.is_active is not None else True,
+            sort_order=data.sort_order or 0
+        )
+        db.add(new_emp)
+        db.commit()
+        db.refresh(new_emp)
+        return {"status": "ok", "id": new_emp.id, "name": new_emp.name, "email": new_emp.email}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/planner/employees/{emp_id}")
+def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db: Session = Depends(get_db)):
+    """Обновляет сотрудника планнера."""
+    try:
+        emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.id == emp_id).first()
+        if not emp:
+            raise HTTPException(status_code=404, detail="Сотрудник не найден")
+        if data.name is not None:
+            emp.name = data.name.strip()
+        if data.email is not None:
+            emp.email = data.email.strip()
+        if data.is_active is not None:
+            emp.is_active = data.is_active
+        if data.sort_order is not None:
+            emp.sort_order = data.sort_order
+        db.commit()
+        db.refresh(emp)
+        return {"status": "ok", "id": emp.id, "name": emp.name, "email": emp.email}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/planner/employees/{emp_id}")
+def delete_planner_employee(emp_id: int, db: Session = Depends(get_db)):
+    """Удаляет сотрудника из настроек планнера."""
+    try:
+        emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.id == emp_id).first()
+        if not emp:
+            raise HTTPException(status_code=404, detail="Сотрудник не найден")
+        db.delete(emp)
+        db.commit()
+        return {"status": "ok", "message": "Сотрудник удален"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/planner/zones")
+def get_planner_zones(db: Session = Depends(get_db)):
+    """Возвращает список зон / подразделений планнера."""
+    try:
+        zones = db.query(models.PlannerZone).order_by(models.PlannerZone.sort_order.asc(), models.PlannerZone.id.asc()).all()
+        return [
+            {
+                "id": z.id,
+                "name": z.name,
+                "is_active": bool(z.is_active),
+                "sort_order": z.sort_order or 0
+            }
+            for z in zones
+        ]
+    except Exception as e:
+        print(f"Error getting planner zones: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/planner/zones")
+def create_planner_zone(data: schemas.PlannerZoneCreate, db: Session = Depends(get_db)):
+    """Добавляет зону / подразделение в настройки планнера."""
+    try:
+        new_zone = models.PlannerZone(
+            name=data.name.strip(),
+            is_active=data.is_active if data.is_active is not None else True,
+            sort_order=data.sort_order or 0
+        )
+        db.add(new_zone)
+        db.commit()
+        db.refresh(new_zone)
+        return {"status": "ok", "id": new_zone.id, "name": new_zone.name}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/planner/zones/{zone_id}")
+def update_planner_zone(zone_id: int, data: schemas.PlannerZoneUpdate, db: Session = Depends(get_db)):
+    """Обновляет зону / подразделение планнера."""
+    try:
+        zone = db.query(models.PlannerZone).filter(models.PlannerZone.id == zone_id).first()
+        if not zone:
+            raise HTTPException(status_code=404, detail="Зона не найдена")
+        if data.name is not None:
+            zone.name = data.name.strip()
+        if data.is_active is not None:
+            zone.is_active = data.is_active
+        if data.sort_order is not None:
+            zone.sort_order = data.sort_order
+        db.commit()
+        db.refresh(zone)
+        return {"status": "ok", "id": zone.id, "name": zone.name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/planner/zones/{zone_id}")
+def delete_planner_zone(zone_id: int, db: Session = Depends(get_db)):
+    """Удаляет зону из настроек планнера."""
+    try:
+        zone = db.query(models.PlannerZone).filter(models.PlannerZone.id == zone_id).first()
+        if not zone:
+            raise HTTPException(status_code=404, detail="Зона не найдена")
+        db.delete(zone)
+        db.commit()
+        return {"status": "ok", "message": "Зона удалена"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 def generate_calendar_structure_mon_fri(year: int = 2026):
     """Генерирует строгую сетку рабочих недель (Пн-Пт) для всех 12 месяцев года."""
@@ -7033,11 +7246,11 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
 
         # Отправка email исполнителю
         if new_task.assignee_name:
-            assignee_master = db.query(models.Master).filter(models.Master.name == new_task.assignee_name).first()
-            if assignee_master and assignee_master.email:
+            assignee_email = get_task_person_email(db, new_task.assignee_name)
+            if assignee_email:
                 subject = f"📌 Новая задача [{new_task.zone}]: {new_task.title}"
                 body = f"Вам назначена новая задача: {new_task.title}\nСрок: {new_task.due_date_str}\nАвтор: {new_task.author_name}"
-                background_tasks.add_task(send_task_email_notification, assignee_master.email, subject, body)
+                background_tasks.add_task(send_task_email_notification, assignee_email, subject, body)
 
         return {"status": "ok", "task_id": new_task.id, "code": new_task.code}
     except Exception as e:
@@ -7069,19 +7282,19 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         if task_data.status and task_data.status != old_status:
             # 1. Если задача завершена или перенесена -> автору
             if task.status in ["🟢 Выполнено", "🔵 Перенесено"] and task.author_name:
-                author_master = db.query(models.Master).filter(models.Master.name == task.author_name).first()
-                if author_master and author_master.email:
+                author_email = get_task_person_email(db, task.author_name)
+                if author_email:
                     subject = f"Статус задачи [{task.zone}]: {task.title} ➔ {task.status}"
                     body = f"Статус задачи изменился на: {task.status}\nИсполнитель: {task.assignee_name}\nКомментарий: {task.comment}"
-                    background_tasks.add_task(send_task_email_notification, author_master.email, subject, body)
+                    background_tasks.add_task(send_task_email_notification, author_email, subject, body)
 
             # 2. Если задачу взяли в работу -> исполнителю
             elif task.status in ["🟡 В работе", "⚪ В очереди"] and task.assignee_name:
-                assignee_master = db.query(models.Master).filter(models.Master.name == task.assignee_name).first()
-                if assignee_master and assignee_master.email:
+                assignee_email = get_task_person_email(db, task.assignee_name)
+                if assignee_email:
                     subject = f"📌 Задача в работе [{task.zone}]: {task.title}"
                     body = f"Задача: {task.title}\nСрок: {task.due_date_str}"
-                    background_tasks.add_task(send_task_email_notification, assignee_master.email, subject, body)
+                    background_tasks.add_task(send_task_email_notification, assignee_email, subject, body)
 
         return {"status": "ok", "task_id": task.id}
     except HTTPException:

@@ -704,3 +704,48 @@ class TaskResponse(TaskBase):
         from_attributes = True
 
 
+# --- PLANNER SETTINGS SCHEMAS ---
+class PlannerEmployeeBase(ORMBaseModel):
+    name: str
+    email: Optional[str] = ""
+    is_active: Optional[bool] = True
+    sort_order: Optional[int] = 0
+
+class PlannerEmployeeCreate(PlannerEmployeeBase):
+    pass
+
+class PlannerEmployeeUpdate(ORMBaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+class PlannerEmployeeResponse(PlannerEmployeeBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PlannerZoneBase(ORMBaseModel):
+    name: str
+    is_active: Optional[bool] = True
+    sort_order: Optional[int] = 0
+
+class PlannerZoneCreate(PlannerZoneBase):
+    pass
+
+class PlannerZoneUpdate(ORMBaseModel):
+    name: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+class PlannerZoneResponse(PlannerZoneBase):
+    id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
