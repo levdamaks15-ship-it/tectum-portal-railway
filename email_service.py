@@ -56,7 +56,8 @@ def send_task_html_email(
             "subject": subject_clean,
             "html": html_content,
             "text": text_content,
-            "from_name": from_name
+            "from_name": from_name,
+            "reply_to": "levdamaks15@gmail.com"
         }
         headers = {"Content-Type": "application/json; charset=utf-8"}
         payload_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -281,7 +282,7 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
           <!-- Footer -->
           <tr>
             <td style="background-color:#f8fafc; border-top:1px solid #e2e8f0; padding:14px 28px; text-align:center; font-size:11.5px; color:#94a3b8;">
-              Это автоматическое уведомление системы Tectum Engineering. Пожалуйста, не отвечайте на это письмо.
+              Информационное уведомление цифрового портала Tectum Engineering.
             </td>
           </tr>
 
