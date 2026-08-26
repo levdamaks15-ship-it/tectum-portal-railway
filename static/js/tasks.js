@@ -192,8 +192,6 @@ function renderTasksTable(tasks) {
         return;
     }
 
-    const persons = getUniquePersons();
-
     tableBody.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
         if (t.status && t.status.includes("В работе")) statusClass = "status-work";
@@ -208,14 +206,6 @@ function renderTasksTable(tasks) {
 
         const isArchived = t.is_archived;
 
-        // Author Dropdown Options
-        const authorOptions = `<option value="">-- Автор --</option>` + 
-            persons.map(p => `<option value="${p}" ${t.author_name === p ? 'selected' : ''}>${p}</option>`).join('');
-
-        // Assignee Dropdown Options
-        const assigneeOptions = `<option value="">-- Исполнитель --</option>` + 
-            persons.map(p => `<option value="${p}" ${t.assignee_name === p ? 'selected' : ''}>${p}</option>`).join('');
-
         return `
             <tr id="task-row-${t.id}">
                 <td><span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span></td>
@@ -224,18 +214,14 @@ function renderTasksTable(tasks) {
                 <td style="color: #94a3b8; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
                 
-                <!-- Inline Author Dropdown -->
-                <td>
-                    <select class="select-filter" style="font-size: 0.75rem; padding: 2px 4px; width: 100%;" onchange="quickUpdateField(${t.id}, 'author_name', this.value)">
-                        ${authorOptions}
-                    </select>
+                <!-- Pure Text Author (No broken dropdowns inside table) -->
+                <td style="font-size: 0.85rem; color: #cbd5e1; white-space: nowrap;">
+                    ${t.author_name || '—'}
                 </td>
 
-                <!-- Inline Assignee Dropdown -->
-                <td>
-                    <select class="select-filter" style="font-size: 0.75rem; padding: 2px 4px; width: 100%; font-weight: 600; color: #93c5fd;" onchange="quickUpdateField(${t.id}, 'assignee_name', this.value)">
-                        ${assigneeOptions}
-                    </select>
+                <!-- Pure Text Assignee -->
+                <td style="font-weight: 600; font-size: 0.85rem; color: #93c5fd; white-space: nowrap;">
+                    ${t.assignee_name || '—'}
                 </td>
 
                 <td style="font-size: 0.82rem; white-space: nowrap;">${t.due_date_str || 'В теч. недели'}</td>
@@ -556,16 +542,28 @@ function getNextCalendarWeek() {
 
 async function moveTaskToNextWeekModal(taskId) {
     const next = getNextCalendarWeek();
-    const confirmMove = confirm(`Перенести задачу на следующую неделю «${next.week}» со статусом «🔵 Перенесено»?`);
+    const confirmMove = confirm(`Перенести задачу на «${next.week}» (${next.month}) со статусом «🔵 Перенесено»?`);
     if (!confirmMove) return;
 
     try {
-        const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}`, {
+        const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}&next_month=${encodeURIComponent(next.month)}`, {
             method: "POST"
         });
         if (res.ok) {
             showToast(`Задача перенесена на ${next.week}`);
-            loadTasks();
+            
+            // Если перешли в другой месяц - переключаем фильтр месяца
+            if (next.month !== currentMonth) {
+                const monthSelect = document.getElementById("filter-month");
+                if (monthSelect) monthSelect.value = next.month;
+                currentMonth = next.month;
+                onMonthChange(next.week);
+            } else {
+                const weekSelect = document.getElementById("filter-week");
+                if (weekSelect) weekSelect.value = next.week;
+                currentWeek = next.week;
+                loadTasks();
+            }
         }
     } catch (e) {
         console.error("Move task error:", e);

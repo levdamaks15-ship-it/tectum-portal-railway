@@ -7387,8 +7387,13 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/tasks/{task_id}/move_next_week")
-def move_task_to_next_week(task_id: int, next_week: str, db: Session = Depends(get_db)):
-    """Переносит отдельную задачу на следующую неделю со статусом Перенесено."""
+def move_task_to_next_week(
+    task_id: int, 
+    next_week: str, 
+    next_month: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """Переносит отдельную задачу на следующую неделю (и при необходимости в следующий месяц) со статусом Перенесено."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
@@ -7396,7 +7401,10 @@ def move_task_to_next_week(task_id: int, next_week: str, db: Session = Depends(g
 
         old_week = task.week_label or ""
         task.week_label = next_week
+        if next_month:
+            task.month_label = next_month
         task.status = "🔵 Перенесено"
+        
         prev_comment = task.comment or ""
         note = f"(Перенесено с {old_week})"
         if note not in prev_comment:
