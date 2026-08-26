@@ -87,24 +87,27 @@
             line-height: 1.2;
             width: max-content;
             min-width: 100%;
+            background: #ffffff;
         }
         .data-table th {
-            padding: 0.35rem 0.65rem;
-            border-bottom: 1px solid var(--glass-border);
-            border-right: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 0.5rem 0.65rem;
+            border-bottom: 2px solid #e2e8f0;
+            border-right: 1px solid #edf2f7;
             white-space: nowrap;
             font-size: 0.78rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.03);
+            font-weight: 700;
+            background: #f8fafc !important;
+            color: #475569 !important;
             letter-spacing: 0.3px;
             width: 1%;
         }
         .data-table th, .data-table td {
-            padding: 0.25rem 0.65rem;
-            border-bottom: 1px solid var(--glass-border);
-            border-right: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 0.45rem 0.65rem;
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 1px solid #f8fafc;
             white-space: nowrap;
             font-size: 0.8rem;
+            color: #1e293b;
             width: 1%;
         }
         .data-table th:last-child, .data-table td:last-child {
@@ -115,7 +118,7 @@
             border-right: none;
         }
         .data-table tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
+            background: #f8fafc !important;
         }
         .data-table .action-btn, .action-btn {
             width: auto !important;
@@ -151,15 +154,16 @@
             font-size: 0.82rem;
             line-height: 1.35;
             table-layout: auto;
+            background: #ffffff;
         }
         .tasks-registry-table th {
-            padding: 0.55rem 0.75rem;
-            background: rgba(30, 41, 59, 0.95);
-            border-bottom: 1px solid var(--glass-border);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.6rem 0.75rem;
+            background: #f8fafc !important;
+            border-bottom: 2px solid #e2e8f0;
+            border-right: 1px solid #edf2f7;
             font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--text-secondary);
+            font-weight: 700;
+            color: #475569 !important;
             letter-spacing: 0.3px;
             white-space: nowrap;
             text-align: left;
@@ -169,24 +173,25 @@
         }
         .tasks-registry-table td {
             padding: 0.55rem 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            border-right: 1px solid rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 1px solid #f8fafc;
             vertical-align: middle;
             font-size: 0.82rem;
+            color: #1e293b;
         }
         .tasks-registry-table td:last-child {
             border-right: none;
         }
         .tasks-registry-table tr:hover td {
-            background: rgba(255, 255, 255, 0.03);
+            background: #f8fafc !important;
         }
         .btn-delete-task {
-            background: rgba(239, 68, 68, 0.2) !important;
-            color: #f87171 !important;
-            border: 1px solid rgba(239, 68, 68, 0.35) !important;
+            background: #fef2f2 !important;
+            color: #dc2626 !important;
+            border: 1px solid #fecaca !important;
             padding: 0.35rem 0.65rem !important;
             font-size: 0.78rem !important;
-            font-weight: 500 !important;
+            font-weight: 600 !important;
             border-radius: 6px !important;
             cursor: pointer !important;
             display: inline-flex !important;
@@ -195,16 +200,16 @@
             width: auto !important;
             max-width: none !important;
             height: auto !important;
-            box-shadow: none !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
             transition: all 0.15s ease !important;
         }
         .btn-delete-task:hover {
-            background: rgba(239, 68, 68, 0.9) !important;
+            background: #dc2626 !important;
             color: #ffffff !important;
-            border-color: rgba(239, 68, 68, 1) !important;
+            border-color: #dc2626 !important;
         }
 
-        /* Modern Audit Log Styles */
+        /* Modern Light Audit Log Styles */
         .audit-kpi-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -212,34 +217,36 @@
             margin-bottom: 1rem;
         }
         .audit-kpi-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--glass-border);
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.85rem 1.1rem;
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.85rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
         .audit-kpi-icon {
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             flex-shrink: 0;
         }
         .audit-kpi-val {
-            font-size: 1.25rem;
+            font-size: 1.35rem;
             font-weight: 700;
             line-height: 1.1;
-            color: var(--text-primary);
+            color: #0f172a;
         }
         .audit-kpi-lbl {
-            font-size: 0.72rem;
-            color: var(--text-secondary);
+            font-size: 0.75rem;
+            color: #64748b;
             margin-top: 3px;
+            font-weight: 500;
         }
 
         .audit-chips-container {
@@ -249,28 +256,31 @@
             margin-bottom: 0.75rem;
         }
         .audit-chip {
-            padding: 0.35rem 0.75rem;
+            padding: 0.4rem 0.85rem;
             border-radius: 20px;
-            font-size: 0.78rem;
+            font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            color: var(--text-secondary);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
             transition: all 0.15s ease;
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             user-select: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         }
         .audit-chip:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #0f172a;
         }
         .audit-chip.active {
-            background: rgba(59, 130, 246, 0.2);
-            border-color: #3b82f6;
-            color: #60a5fa;
+            background: #eff6ff !important;
+            border-color: #3b82f6 !important;
+            color: #1d4ed8 !important;
+            box-shadow: 0 0 0 1px #3b82f6;
         }
 
         .audit-table {
@@ -279,15 +289,16 @@
             font-size: 0.82rem;
             line-height: 1.35;
             table-layout: auto;
+            background: #ffffff;
         }
         .audit-table th {
-            padding: 0.6rem 0.75rem;
-            background: rgba(30, 41, 59, 0.95);
-            border-bottom: 1px solid var(--glass-border);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.65rem 0.75rem;
+            background: #f8fafc !important;
+            border-bottom: 2px solid #e2e8f0;
+            border-right: 1px solid #edf2f7;
             font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--text-secondary);
+            font-weight: 700;
+            color: #475569 !important;
             letter-spacing: 0.3px;
             white-space: nowrap;
             text-align: left;
@@ -296,58 +307,90 @@
             z-index: 5;
         }
         .audit-table td {
-            padding: 0.6rem 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            border-right: 1px solid rgba(255, 255, 255, 0.03);
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 1px solid #f8fafc;
             vertical-align: top;
             font-size: 0.82rem;
+            color: #1e293b;
         }
         .audit-table td:last-child {
             border-right: none;
         }
         .audit-table tr:hover td {
-            background: rgba(255, 255, 255, 0.03);
+            background: #f8fafc !important;
         }
 
         .diff-tag {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            background: rgba(0, 0, 0, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 2px 6px;
-            border-radius: 4px;
+            gap: 5px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 2px 7px;
+            border-radius: 5px;
             margin: 2px 4px 2px 0;
             font-size: 0.78rem;
         }
         .diff-field {
-            color: #94a3b8;
+            color: #64748b;
             font-weight: 600;
         }
         .diff-old {
-            color: #f87171;
+            color: #dc2626;
             text-decoration: line-through;
             opacity: 0.85;
+            background: #fef2f2;
+            padding: 1px 4px;
+            border-radius: 3px;
         }
         .diff-arrow {
-            color: #cbd5e1;
+            color: #94a3b8;
             font-size: 0.72rem;
         }
         .diff-new {
-            color: #34d399;
+            color: #16a34a;
             font-weight: 600;
+            background: #f0fdf4;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        .btn-date-preset {
+            padding: 0.35rem 0.65rem;
+            font-size: 0.78rem;
+            border-radius: 5px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+        .btn-date-preset:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .btn-date-preset.active {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
         
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center;
             padding: 1rem;
             box-sizing: border-box;
+            backdrop-filter: blur(4px);
         }
         .modal-content {
-            background: #1e293b; padding: 1.25rem; border-radius: 12px; width: 100%; max-width: 600px;
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background: #ffffff; padding: 1.5rem; border-radius: 12px; width: 100%; max-width: 600px;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
             box-sizing: border-box;
         }
         .form-grid {
@@ -891,29 +934,29 @@
                 </div>
 
                 <!-- Detailed Filter & Search Toolbar -->
-                <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between;">
+                <div class="glass-panel" style="padding: 0.75rem 1rem; margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                     <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                         <!-- Date Presets -->
-                        <div style="display: flex; gap: 3px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border-color);">
-                            <button type="button" class="btn-date-preset active" onclick="setAuditDatePreset('all', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: rgba(59, 130, 246, 0.3); color: #fff; cursor: pointer;">Все время</button>
-                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('today', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">Сегодня</button>
-                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('yesterday', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">Вчера</button>
-                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('7days', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">7 дней</button>
-                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('30days', this)" style="padding: 3px 8px; font-size: 0.75rem; border-radius: 4px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer;">30 дней</button>
+                        <div style="display: flex; gap: 3px; background: #f1f5f9; padding: 3px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                            <button type="button" class="btn-date-preset active" onclick="setAuditDatePreset('all', this)">Все время</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('today', this)">Сегодня</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('yesterday', this)">Вчера</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('7days', this)">7 дней</button>
+                            <button type="button" class="btn-date-preset" onclick="setAuditDatePreset('30days', this)">30 дней</button>
                         </div>
 
                         <!-- Date Pickers -->
-                        <div style="display: flex; gap: 4px; align-items: center; font-size: 0.78rem; color: var(--text-secondary);">
+                        <div style="display: flex; gap: 4px; align-items: center; font-size: 0.78rem; color: #64748b; font-weight: 500;">
                             <span>С:</span>
-                            <input type="date" id="filter-audit-date-from" onchange="onAuditCustomDateChange()" style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.25); color: var(--text-primary);">
+                            <input type="date" id="filter-audit-date-from" onchange="onAuditCustomDateChange()" style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;">
                             <span>По:</span>
-                            <input type="date" id="filter-audit-date-to" onchange="onAuditCustomDateChange()" style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.25); color: var(--text-primary);">
+                            <input type="date" id="filter-audit-date-to" onchange="onAuditCustomDateChange()" style="padding: 0.25rem 0.4rem; font-size: 0.78rem; border-radius: 5px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;">
                         </div>
                     </div>
 
                     <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                         <!-- Action filter -->
-                        <select id="filter-audit-action" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px;" onchange="renderAuditLogsTable()">
+                        <select id="filter-audit-action" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;" onchange="renderAuditLogsTable()">
                             <option value="">Все действия</option>
                             <option value="CREATE">CREATE (Создание)</option>
                             <option value="UPDATE">UPDATE (Изменение)</option>
@@ -923,14 +966,14 @@
                         </select>
 
                         <!-- User filter -->
-                        <select id="filter-audit-user" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px;" onchange="renderAuditLogsTable()">
+                        <select id="filter-audit-user" class="form-control" style="width: auto; padding: 0.35rem 0.6rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;" onchange="renderAuditLogsTable()">
                             <option value="">Все пользователи</option>
                         </select>
 
                         <!-- Search -->
                         <div style="position: relative;">
-                            <input type="text" id="filter-audit-search" placeholder="Поиск по деталям, ID..." style="padding: 0.35rem 0.75rem 0.35rem 1.8rem; width: 230px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.25); color: var(--text-primary);" oninput="renderAuditLogsTable()">
-                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-secondary);"></i>
+                            <input type="text" id="filter-audit-search" placeholder="Поиск по деталям, ID..." style="padding: 0.35rem 0.75rem 0.35rem 1.8rem; width: 230px; font-size: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1e293b;" oninput="renderAuditLogsTable()">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #94a3b8;"></i>
                         </div>
                     </div>
                 </div>

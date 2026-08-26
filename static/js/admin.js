@@ -715,24 +715,24 @@ function onAuditCustomDateChange() {
 function formatAuditModuleBadge(targetTable) {
     const tbl = (targetTable || '').toLowerCase();
     if (tbl.includes('task')) {
-        return `<span style="background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-list-check"></i> Планнер задач</span>`;
+        return `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-list-check"></i> Планнер задач</span>`;
     }
     if (tbl.includes('shift') || tbl.includes('lfm') || tbl.includes('batch')) {
-        return `<span style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-industry"></i> Смены ЛФМ</span>`;
+        return `<span style="background: #faf5ff; color: #7e22ce; border: 1px solid #e9d5ff; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-industry"></i> Смены ЛФМ</span>`;
     }
     if (tbl.includes('plan')) {
-        return `<span style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-calendar-days"></i> План-Факт</span>`;
+        return `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-calendar-days"></i> План-Факт</span>`;
     }
     if (tbl.includes('raw')) {
-        return `<span style="background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-boxes-stacked"></i> Сырьё</span>`;
+        return `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-boxes-stacked"></i> Сырьё</span>`;
     }
     if (tbl.includes('downtime') || tbl.includes('norm') || tbl.includes('master') || tbl.includes('director')) {
-        return `<span style="background: rgba(14, 165, 233, 0.12); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-book"></i> Справочники</span>`;
+        return `<span style="background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-book"></i> Справочники</span>`;
     }
     if (tbl.includes('doc')) {
-        return `<span style="background: rgba(236, 72, 153, 0.12); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-folder-open"></i> База знаний</span>`;
+        return `<span style="background: #fdf2f8; color: #be185d; border: 1px solid #fbcfe8; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;"><i class="fa-solid fa-folder-open"></i> База знаний</span>`;
     }
-    return `<span style="background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.1); padding: 3px 8px; border-radius: 6px; font-weight: 500; font-size: 0.76rem; white-space: nowrap;">${targetTable || '—'}</span>`;
+    return `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px; font-weight: 500; font-size: 0.76rem; white-space: nowrap;">${escapeHtml(targetTable || '—')}</span>`;
 }
 
 function formatAuditDetails(rawText, targetTable) {
@@ -741,7 +741,7 @@ function formatAuditDetails(rawText, targetTable) {
     let text = escapeHtml(rawText);
 
     // 1. Highlight task codes: [TSK-12]
-    text = text.replace(/\[(TSK-\d+|ID:\s*\d+[^\]]*)\]/g, '<span style="font-family: monospace; font-weight: 700; color: #60a5fa; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.25); padding: 1px 5px; border-radius: 4px; font-size: 0.78rem;">[$1]</span>');
+    text = text.replace(/\[(TSK-\d+|ID:\s*\d+[^\]]*)\]/g, '<span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 1px 5px; border-radius: 4px; font-size: 0.78rem;">[$1]</span>');
 
     // 2. Format transition diffs: field: 'old' -> 'new' or field: old->new or План: 2500->2700
     // Replace patterns with styled diff tokens
@@ -753,7 +753,7 @@ function formatAuditDetails(rawText, targetTable) {
         return `<span class="diff-tag"><span class="diff-field">${field}:</span> <span class="diff-old">${oldV}</span> <span class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></span> <span class="diff-new">${newV}</span></span>`;
     });
 
-    return `<div style="line-height: 1.45;">${text}</div>`;
+    return `<div style="line-height: 1.45; color: #1e293b;">${text}</div>`;
 }
 
 function renderAuditLogsTable() {
@@ -808,9 +808,9 @@ function renderAuditLogsTable() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align:center; color: var(--text-secondary); padding: 3rem 1.5rem;">
+                <td colspan="5" style="text-align:center; color: #64748b; padding: 3rem 1.5rem; background: #ffffff;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.4;"><i class="fa-solid fa-filter-circle-xmark"></i></div>
-                    <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">Записи не найдены</div>
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #0f172a;">Записи не найдены</div>
                     <div style="font-size: 0.8rem; margin-top: 4px;">Попробуйте сбросить фильтры или изменить поисковый запрос</div>
                 </td>
             </tr>
@@ -819,16 +819,18 @@ function renderAuditLogsTable() {
     }
 
     tbody.innerHTML = filtered.map(log => {
-        let actionBadge = `<span style="background: rgba(255,255,255,0.08); padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.76rem;">${log.action || '—'}</span>`;
+        let actionBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.76rem;">${log.action || '—'}</span>`;
         const act = (log.action || '').toUpperCase();
         if (act === 'CREATE') {
-            actionBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-plus"></i> CREATE</span>`;
+            actionBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-plus"></i> CREATE</span>`;
         } else if (act === 'UPDATE') {
-            actionBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-pen"></i> UPDATE</span>`;
+            actionBadge = `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-pen"></i> UPDATE</span>`;
         } else if (act === 'DELETE') {
-            actionBadge = `<span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-trash"></i> DELETE</span>`;
+            actionBadge = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-trash"></i> DELETE</span>`;
         } else if (act === 'IMPORT' || act === 'SYNC') {
-            actionBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrows-rotate"></i> ${act}</span>`;
+            actionBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrows-rotate"></i> ${act}</span>`;
+        } else if (act === 'INFO') {
+            actionBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 5px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-info"></i> INFO</span>`;
         }
 
         const rawDate = log.timestamp || '';
@@ -845,12 +847,12 @@ function renderAuditLogsTable() {
         return `
             <tr>
                 <td style="white-space: nowrap; font-size: 0.78rem;">
-                    <div style="font-weight: 600; color: var(--text-primary);"><i class="fa-regular fa-clock" style="color: var(--text-secondary); margin-right: 4px;"></i>${datePart}</div>
-                    <div style="color: var(--text-secondary); font-size: 0.73rem; margin-top: 2px; font-family: monospace;">${timePart}</div>
+                    <div style="font-weight: 600; color: #0f172a;"><i class="fa-regular fa-clock" style="color: #64748b; margin-right: 4px;"></i>${datePart}</div>
+                    <div style="color: #64748b; font-size: 0.73rem; margin-top: 2px; font-family: monospace;">${timePart}</div>
                 </td>
                 <td style="white-space: nowrap; font-size: 0.82rem;">
-                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #f1f5f9;">
-                        <span style="width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,0.08); display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-secondary);">
+                    <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #0f172a;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #f1f5f9; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; color: #64748b;">
                             <i class="fa-solid fa-user"></i>
                         </span>
                         ${escapeHtml(userDisplay)}
@@ -858,7 +860,7 @@ function renderAuditLogsTable() {
                 </td>
                 <td style="white-space: nowrap;">${actionBadge}</td>
                 <td style="white-space: nowrap;">${formatAuditModuleBadge(log.target_table)}</td>
-                <td style="font-size: 0.82rem;">${formatAuditDetails(log.details, log.target_table)}</td>
+                <td style="font-size: 0.82rem; color: #1e293b;">${formatAuditDetails(log.details, log.target_table)}</td>
             </tr>
         `;
     }).join('');
@@ -2741,38 +2743,38 @@ function renderAdminTasksTable(tasks) {
     }
 
     tbody.innerHTML = tasks.map(t => {
-        let statusBadge = `<span style="background: rgba(255,255,255,0.08); padding: 3px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${t.status || '—'}</span>`;
+        let statusBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${escapeHtml(t.status || '—')}</span>`;
         const st = t.status || '';
         if (st.includes('Выполнено')) {
-            statusBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
+            statusBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
         } else if (st.includes('В работе')) {
-            statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
+            statusBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
         } else if (st.includes('Перенесено')) {
-            statusBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrow-right-arrow-left"></i> Перенесено</span>`;
+            statusBadge = `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrow-right-arrow-left"></i> Перенесено</span>`;
         } else if (st.includes('В очереди')) {
-            statusBadge = `<span style="background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> В очереди</span>`;
+            statusBadge = `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> В очереди</span>`;
         }
 
-        const titleRu = (t.title || '—').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.25;">${(t.title_kz).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>` : '';
+        const titleRu = escapeHtml(t.title || '—');
+        const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; font-style: italic; line-height: 1.25;">${escapeHtml(t.title_kz)}</div>` : '';
 
         return `
             <tr>
                 <td style="white-space: nowrap;">
-                    <span style="font-family: monospace; font-weight: 700; color: #60a5fa; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.25); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${t.code || ('TSK-' + t.id)}</span>
+                    <span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${escapeHtml(t.code || ('TSK-' + t.id))}</span>
                 </td>
                 <td style="white-space: nowrap; font-size: 0.78rem;">
-                    <div style="font-weight: 600; color: var(--text-primary);">${t.month_label || '—'}</div>
-                    <div style="color: var(--text-secondary); font-size: 0.74rem; margin-top: 2px;">${t.week_label || '—'}</div>
+                    <div style="font-weight: 600; color: #0f172a;">${escapeHtml(t.month_label || '—')}</div>
+                    <div style="color: #64748b; font-size: 0.74rem; margin-top: 2px;">${escapeHtml(t.week_label || '—')}</div>
                 </td>
                 <td style="white-space: nowrap;">
-                    <span style="background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 6px; font-weight: 600; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1); font-size: 0.78rem;">${t.zone || '—'}</span>
+                    <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; font-size: 0.78rem;">${escapeHtml(t.zone || '—')}</span>
                 </td>
                 <td style="min-width: 280px; max-width: 460px; white-space: normal; word-break: break-word; line-height: 1.35; padding: 0.55rem 0.75rem;">
-                    <div style="font-weight: 500; color: var(--text-primary); font-size: 0.84rem;">${titleRu}</div>
+                    <div style="font-weight: 500; color: #0f172a; font-size: 0.84rem;">${titleRu}</div>
                     ${titleKz}
                 </td>
-                <td style="font-size: 0.82rem; color: #93c5fd; font-weight: 600; white-space: nowrap;">${t.assignee_name || '—'}</td>
+                <td style="font-size: 0.82rem; color: #1d4ed8; font-weight: 600; white-space: nowrap;">${escapeHtml(t.assignee_name || '—')}</td>
                 <td style="white-space: nowrap;">${statusBadge}</td>
                 <td style="text-align: right; white-space: nowrap;">
                     <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" title="Удалить задачу навсегда">
