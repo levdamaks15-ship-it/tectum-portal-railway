@@ -1,34 +1,13 @@
 import os
-import smtplib
-import socket
 import requests
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Optional, Dict, Any
 
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-RESEND_FROM = os.getenv("RESEND_FROM", "Tectum Planner <onboarding@resend.dev>")
-
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
+GMAIL_WEBHOOK_URL = os.getenv(
+    "GMAIL_WEBHOOK_URL", 
+    "https://script.google.com/macros/s/AKfycbzB9yQs-wSCV25TrIK9v2-lJUBt7JysLPemxvrlIqV9v2fVHU8Rmx4e163-zb2s7dbEqQ/exec"
+).strip()
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Tectum Планнер")
 PORTAL_URL = os.getenv("PORTAL_URL", "https://tectum-portal-railway-production.up.railway.app/tasks")
-
-def _force_ipv4_socket():
-    """
-    На Railway и некоторых облачных платформах IPv6 недоступен.
-    Принудительно перенаправляем socket.getaddrinfo на AF_INET (IPv4).
-    """
-    old_getaddrinfo = socket.getaddrinfo
-    def getaddrinfo_ipv4(*args, **kwargs):
-        if len(args) >= 3 and args[2] == 0:
-            args = (args[0], args[1], socket.AF_INET) + args[3:]
-        elif len(args) == 2:
-            args = (args[0], args[1], socket.AF_INET)
-        return old_getaddrinfo(*args, **kwargs)
-    return getaddrinfo_ipv4
 
 def send_task_html_email(
     to_email: str,
@@ -37,9 +16,8 @@ def send_task_html_email(
     task_data: Dict[str, Any]
 ) -> (bool, Optional[str]):
     """
-    Отправляет красивое брендированное HTML-письмо с уведомлением по задаче.
-    В первую очередь использует Resend HTTPS API (порт 443, без блокировок фаерволами).
-    При отсутствии Resend переключается на SMTP.
+    Отправляет брендированное HTML-письмо с уведомлением по задаче через Google Apps Script (Gmail).
+    Работает без ограничений на домены получателей и не блокируется облачными фаерволами.
     """
     if not to_email or "@" not in to_email:
         err = f"Некорректный email получателя: '{to_email}'"
@@ -48,114 +26,50 @@ def send_task_html_email(
 
     text_content = _build_plain_text(event_type, task_data)
     html_content = _build_html_template(event_type, task_data)
-
-    # 1. Отправка через Resend HTTPS API (Самый надежный способ для Railway)
-    resend_key = os.getenv("RESEND_API_KEY", RESEND_API_KEY)
-    if resend_key and resend_key.startswith("re_"):
-        try:
-            from_sender = os.getenv("RESEND_FROM", RESEND_FROM)
-            reply_to_addr = os.getenv("REPLY_TO_EMAIL", "levdamaks15@gmail.com")
-            task_id = task_data.get("id", "general")
-            
-            payload = {
-                "from": from_sender,
-                "to": [to_email.strip()],
-                "reply_to": reply_to_addr,
-                "subject": subject,
-                "html": html_content,
-                "text": text_content,
-                "headers": {
-                    "X-Entity-Ref-ID": f"tectum-task-{task_id}",
-                    "Auto-Submitted": "auto-generated",
-                    "X-Auto-Response-Suppress": "All"
-                }
-            }
-            resp = requests.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {resend_key.strip()}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=10
-            )
-
-            if resp.status_code in [200, 201]:
-                print(f"[Email Service Success: Resend API] Письмо успешно отправлено на {to_email}!")
-                return True, None
-            else:
-                resp_json = resp.json() if resp.content else {}
-                err_msg = resp_json.get("message") or resp.text
-                print(f"[Email Service Warning: Resend API] Ошибка ({resp.status_code}): {err_msg}")
-                # Если в Resend ошибка, пробуем запасной SMTP
-        except Exception as ex:
-            print(f"[Email Service Warning: Resend Exception] {ex}")
-
-    # 2. Запасной путь: отправка через классический SMTP
-    smtp_user = os.getenv("SMTP_USER", SMTP_USER)
-    smtp_pass = os.getenv("SMTP_PASSWORD", SMTP_PASSWORD).replace(" ", "")
-    smtp_host = os.getenv("SMTP_HOST", SMTP_HOST)
-    smtp_port = int(os.getenv("SMTP_PORT", SMTP_PORT))
     from_name = os.getenv("SMTP_FROM_NAME", SMTP_FROM_NAME)
 
-    if not smtp_user or not smtp_pass:
-        return False, "Не удалось отправить: проверьте RESEND_API_KEY или SMTP_USER/SMTP_PASSWORD"
-
-    # Включаем принудительный IPv4 резолвинг для обхода ограничений сети Railway
-    original_getaddrinfo = socket.getaddrinfo
-    socket.getaddrinfo = _force_ipv4_socket()
-
-    ports_to_try = [smtp_port]
-    # Если порт 587, запасной - 465, и наоборот
-    if smtp_port == 587 and 465 not in ports_to_try:
-        ports_to_try.append(465)
-    elif smtp_port == 465 and 587 not in ports_to_try:
-        ports_to_try.append(587)
-
-    last_err = None
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"{from_name} <{smtp_user}>"
-        msg["To"] = to_email
-
-        # Генерация текстовой и HTML версии
-        text_content = _build_plain_text(event_type, task_data)
-        html_content = _build_html_template(event_type, task_data)
-
-        msg.attach(MIMEText(text_content, "plain", "utf-8"))
-        msg.attach(MIMEText(html_content, "html", "utf-8"))
-
-        for port in ports_to_try:
-            try:
-                if port == 465:
-                    # SSL соединение
-                    with smtplib.SMTP_SSL(smtp_host, port, timeout=12) as server:
-                        server.login(smtp_user, smtp_pass)
-                        server.sendmail(smtp_user, [to_email], msg.as_string())
-                else:
-                    # STARTTLS соединение
-                    with smtplib.SMTP(smtp_host, port, timeout=12) as server:
-                        server.ehlo()
-                        server.starttls()
-                        server.ehlo()
-                        server.login(smtp_user, smtp_pass)
-                        server.sendmail(smtp_user, [to_email], msg.as_string())
-
-                print(f"[Email Service Success] Письмо успешно отправлено на {to_email} через порт {port} (Событие: {event_type})")
-                return True, None
-
-            except Exception as e:
-                last_err = e
-                print(f"[Email Service Debug] Попытка через порт {port} не удалась: {e}")
-                continue
-
-        err = f"Ошибка SMTP: {str(last_err)}"
-        print(f"[Email Service Error] Все порты {ports_to_try} завершились ошибкой: {err}")
+    gmail_webhook = os.getenv("GMAIL_WEBHOOK_URL", GMAIL_WEBHOOK_URL).strip()
+    if not gmail_webhook:
+        err = "Не настроен GMAIL_WEBHOOK_URL для отправки писем"
+        print(f"[Email Service Error] {err}")
         return False, err
 
-    finally:
-        socket.getaddrinfo = original_getaddrinfo
+    try:
+        payload = {
+            "to": to_email.strip(),
+            "subject": subject,
+            "html": html_content,
+            "text": text_content,
+            "from_name": from_name
+        }
+        resp = requests.post(
+            gmail_webhook,
+            json=payload,
+            allow_redirects=True,
+            timeout=25
+        )
+        if resp.status_code == 200:
+            try:
+                res_data = resp.json()
+                if res_data.get("status") == "ok":
+                    print(f"[Email Service Success] Письмо успешно отправлено на {to_email}!")
+                    return True, None
+                else:
+                    err_msg = res_data.get("message", "Неизвестная ошибка скрипта")
+                    print(f"[Email Service Error] {err_msg}")
+                    return False, f"Ошибка шлюза: {err_msg}"
+            except Exception:
+                print(f"[Email Service Success] Письмо отправлено на {to_email} (200 OK)")
+                return True, None
+        else:
+            err_msg = f"HTTP {resp.status_code}: {resp.text[:200]}"
+            print(f"[Email Service Error] {err_msg}")
+            return False, f"Ошибка шлюза Google: {err_msg}"
+
+    except Exception as ex:
+        err_msg = str(ex)
+        print(f"[Email Service Exception] {err_msg}")
+        return False, f"Ошибка отправки: {err_msg}"
 
 
 
