@@ -35,6 +35,7 @@ def send_task_html_email(
         return False, err
 
     try:
+        import json
         payload = {
             "to": to_email.strip(),
             "subject": subject,
@@ -42,9 +43,13 @@ def send_task_html_email(
             "text": text_content,
             "from_name": from_name
         }
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        payload_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
         resp = requests.post(
             gmail_webhook,
-            json=payload,
+            data=payload_bytes,
+            headers=headers,
             allow_redirects=True,
             timeout=25
         )
