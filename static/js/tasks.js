@@ -7,28 +7,30 @@ let allTasks = [];
 let allWeeksStructure = {};
 let allMasters = [];
 let viewMode = 'active'; // 'active' or 'archive'
-let myTasksOnly = false;
 let currentMonth = "Август 2026";
 let currentWeek = "Неделя 4 (24.08 - 28.08)";
-let currentUser = { name: "Левда М.", role: "admin" };
+
+const CORE_NAMES = [
+    "Левда М.",
+    "Булеханов К.",
+    "Булаханов К.",
+    "Курилова",
+    "Сазонов",
+    "Носиков",
+    "Хохлов",
+    "Батырбекова",
+    "Маулен",
+    "Касимов",
+    "Алиев",
+    "Ким",
+    "Иванов"
+];
 
 document.addEventListener("DOMContentLoaded", async () => {
-    initUser();
     await loadCalendarStructure();
     await loadMasters();
     await loadTasks();
 });
-
-function initUser() {
-    const saved = localStorage.getItem("tectum_task_user");
-    if (saved) {
-        try { currentUser = JSON.parse(saved); } catch(e) {}
-    }
-    const label = document.getElementById("current-user-name");
-    if (label && currentUser) {
-        label.textContent = currentUser.name || "Сотрудник";
-    }
-}
 
 async function loadCalendarStructure() {
     try {
@@ -37,7 +39,7 @@ async function loadCalendarStructure() {
             const data = await res.json();
             allWeeksStructure = data.structure || {};
             
-            // Populate Month selector
+            // Populate Month selector with all 12 months
             const monthSelect = document.getElementById("filter-month");
             if (monthSelect && data.months) {
                 monthSelect.innerHTML = data.months.map(m => `<option value="${m}">${m}</option>`).join('');
@@ -62,13 +64,24 @@ function onMonthChange(forcedWeek = null) {
     currentMonth = monthSelect.value;
     const weeks = allWeeksStructure[currentMonth] || [];
 
-    weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
-    if (forcedWeek && weeks.includes(forcedWeek)) {
-        weekSelect.value = forcedWeek;
-        currentWeek = forcedWeek;
-    } else if (weeks.length > 0) {
-        weekSelect.value = weeks[0];
-        currentWeek = weeks[0];
+    if (weeks.length === 0) {
+        // Фоллбэк генерация 4 недель
+        weekSelect.innerHTML = [
+            `Неделя 1 (01 - 07)`,
+            `Неделя 2 (08 - 14)`,
+            `Неделя 3 (15 - 21)`,
+            `Неделя 4 (22 - 28)`
+        ].map(w => `<option value="${w}">${w}</option>`).join('');
+        currentWeek = `Неделя 1 (01 - 07)`;
+    } else {
+        weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+        if (forcedWeek && weeks.includes(forcedWeek)) {
+            weekSelect.value = forcedWeek;
+            currentWeek = forcedWeek;
+        } else {
+            weekSelect.value = weeks[0];
+            currentWeek = weeks[0];
+        }
     }
     loadTasks();
 }
@@ -78,41 +91,50 @@ async function loadMasters() {
         const res = await fetch("/api/masters/");
         if (res.ok) {
             allMasters = await res.json();
-            populateMasterDropdowns();
+            populateDropdowns();
         }
     } catch (e) {
         console.error("Error loading masters:", e);
     }
 }
 
-function populateMasterDropdowns() {
-    const filterSelect = document.getElementById("filter-assignee");
-    const authorSelect = document.getElementById("task-author-input");
-    const assigneeSelect = document.getElementById("task-assignee-input");
-
-    const coreNames = ["Левда М.", "Булеханов К.", "Булаханов К.", "Курилова", "Сазонов", "Носиков", "Хохлов", "Батырбекова", "Маулен"];
-    const allNamesSet = new Set(coreNames);
+function getUniquePersons() {
+    const set = new Set(CORE_NAMES);
     allMasters.forEach(m => {
         if (m.name && !m.name.includes("Мастер смены") && !m.name.includes("Оператор")) {
-            allNamesSet.add(m.name);
+            set.add(m.name);
         }
     });
+    return Array.from(set).sort();
+}
 
-    const options = Array.from(allNamesSet).sort();
+function populateDropdowns() {
+    const persons = getUniquePersons();
 
-    if (filterSelect) {
-        filterSelect.innerHTML = `<option value="all">👤 Все исполнители</option>` + 
-            options.map(n => `<option value="${n}">${n}</option>`).join('');
+    // Table Header Filters
+    const filterAuthor = document.getElementById("table-filter-author");
+    if (filterAuthor) {
+        filterAuthor.innerHTML = `<option value="all">✍️ Все авторы</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
     }
 
-    if (authorSelect) {
-        authorSelect.innerHTML = `<option value="">-- Выберите автора --</option>` + 
-            options.map(n => `<option value="${n}">${n}</option>`).join('');
+    const filterAssignee = document.getElementById("table-filter-assignee");
+    if (filterAssignee) {
+        filterAssignee.innerHTML = `<option value="all">👤 Все исполн.</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
     }
 
-    if (assigneeSelect) {
-        assigneeSelect.innerHTML = `<option value="">-- Выберите исполнителя --</option>` + 
-            options.map(n => `<option value="${n}">${n}</option>`).join('');
+    // Modal Dropdowns
+    const modalAuthor = document.getElementById("task-author-input");
+    if (modalAuthor) {
+        modalAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
+    }
+
+    const modalAssignee = document.getElementById("task-assignee-input");
+    if (modalAssignee) {
+        modalAssignee.innerHTML = `<option value="">-- Выберите исполнителя --</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
     }
 }
 
@@ -122,25 +144,26 @@ async function loadTasks() {
 
     const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "";
     const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : "";
-    const zone = document.getElementById("filter-zone") ? document.getElementById("filter-zone").value : "all";
-    let assignee = document.getElementById("filter-assignee") ? document.getElementById("filter-assignee").value : "all";
-
-    if (myTasksOnly && currentUser.name) {
-        assignee = currentUser.name;
-    }
+    
+    // Table Header Filters
+    const zone = document.getElementById("table-filter-zone") ? document.getElementById("table-filter-zone").value : "all";
+    const author = document.getElementById("table-filter-author") ? document.getElementById("table-filter-author").value : "all";
+    const assignee = document.getElementById("table-filter-assignee") ? document.getElementById("table-filter-assignee").value : "all";
+    const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
 
     currentMonth = month;
     currentWeek = week;
 
     const isArchived = (viewMode === 'archive');
     
-    // В режиме Архива показываем все задачи месяца (или выбранной недели)
     let url = `/api/tasks?is_archived=${isArchived}&month=${encodeURIComponent(month)}`;
     if (viewMode === 'active') {
         url += `&week=${encodeURIComponent(week)}`;
     }
     if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
+    if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
     if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
+    if (status !== "all") url += `&status=${encodeURIComponent(status)}`;
 
     try {
         const res = await fetch(url);
@@ -169,6 +192,8 @@ function renderTasksTable(tasks) {
         return;
     }
 
+    const persons = getUniquePersons();
+
     tableBody.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
         if (t.status.includes("В работе")) statusClass = "status-work";
@@ -177,21 +202,42 @@ function renderTasksTable(tasks) {
 
         const photoBtn = t.photo_link ? `
             <a href="${t.photo_link}" target="_blank" class="btn-photo-link" title="Открыть фото в новой вкладке">
-                <i class="fa-solid fa-image"></i> Фото
+                <i class="fa-solid fa-image"></i>
             </a>
         ` : `<span style="color: #64748b; font-size: 0.75rem;">—</span>`;
 
         const isArchived = t.is_archived;
 
+        // Author Dropdown Options
+        const authorOptions = `<option value="">-- Автор --</option>` + 
+            persons.map(p => `<option value="${p}" ${t.author_name === p ? 'selected' : ''}>${p}</option>`).join('');
+
+        // Assignee Dropdown Options
+        const assigneeOptions = `<option value="">-- Исполнитель --</option>` + 
+            persons.map(p => `<option value="${p}" ${t.assignee_name === p ? 'selected' : ''}>${p}</option>`).join('');
+
         return `
             <tr id="task-row-${t.id}">
                 <td><span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span></td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
-                <td style="font-weight: 500; min-width: 180px;">${t.title}</td>
-                <td style="color: #94a3b8; font-size: 0.85rem; min-width: 160px;">${t.title_kz || '—'}</td>
+                <td style="font-weight: 500; min-width: 170px;">${t.title}</td>
+                <td style="color: #94a3b8; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
-                <td style="font-size: 0.82rem; color: #cbd5e1;">${t.author_name || '—'}</td>
-                <td style="font-weight: 600; font-size: 0.85rem; color: #93c5fd;">${t.assignee_name || '—'}</td>
+                
+                <!-- Inline Author Dropdown -->
+                <td>
+                    <select class="select-filter" style="font-size: 0.75rem; padding: 2px 4px; width: 100%;" onchange="quickUpdateField(${t.id}, 'author_name', this.value)">
+                        ${authorOptions}
+                    </select>
+                </td>
+
+                <!-- Inline Assignee Dropdown -->
+                <td>
+                    <select class="select-filter" style="font-size: 0.75rem; padding: 2px 4px; width: 100%; font-weight: 600; color: #93c5fd;" onchange="quickUpdateField(${t.id}, 'assignee_name', this.value)">
+                        ${assigneeOptions}
+                    </select>
+                </td>
+
                 <td style="font-size: 0.82rem; white-space: nowrap;">${t.due_date_str || 'В теч. недели'}</td>
                 <td style="text-align: center;">
                     <select class="select-status ${statusClass}" onchange="quickUpdateStatus(${t.id}, this.value)">
@@ -201,7 +247,7 @@ function renderTasksTable(tasks) {
                         <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
                     </select>
                 </td>
-                <td style="font-size: 0.82rem; color: #cbd5e1; max-width: 200px;">
+                <td style="font-size: 0.82rem; color: #cbd5e1; max-width: 180px;">
                     <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);" title="Кликните для редактирования">
                         ${t.comment || '—'}
                     </span>
@@ -228,6 +274,23 @@ function renderTasksTable(tasks) {
             </tr>
         `;
     }).join('');
+}
+
+async function quickUpdateField(taskId, fieldName, fieldValue) {
+    try {
+        const payload = {};
+        payload[fieldName] = fieldValue;
+        const res = await fetch(`/api/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            showToast("Сохранено");
+        }
+    } catch (e) {
+        console.error("Error updating field:", e);
+    }
 }
 
 function escapeHtml(str) {

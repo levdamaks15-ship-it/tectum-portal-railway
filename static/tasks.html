@@ -384,10 +384,6 @@
         </a>
 
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <!-- Current User display -->
-            <div style="font-size: 0.85rem; color: #cbd5e1; background: rgba(255,255,255,0.05); border: 1px solid var(--tbl-border); padding: 0.35rem 0.75rem; border-radius: 20px;">
-                <i class="fa-solid fa-user" style="color: #38bdf8;"></i> <span id="current-user-name">Левда М.</span>
-            </div>
             <a href="/static/docs.html" class="btn-action btn-secondary-action" title="База знаний">
                 <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
@@ -397,7 +393,7 @@
         </div>
     </header>
 
-    <!-- Toolbar: Month/Week Selector & Filters -->
+    <!-- Toolbar: Month/Week Selector & Action Buttons -->
     <div class="toolbar">
         <div class="toolbar-group">
             <!-- Mode Switch: Active Plan / Archive -->
@@ -409,47 +405,17 @@
             </button>
 
             <!-- Month Selector -->
-            <select class="select-filter" id="filter-month" onchange="onMonthChange()">
+            <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: bold; background: #1e293b; color: #38bdf8; border-color: #38bdf8;">
                 <option value="Август 2026">Август 2026</option>
-                <option value="Сентябрь 2026">Сентябрь 2026</option>
             </select>
 
             <!-- Week Selector (Mon-Fri) -->
-            <select class="select-filter" id="filter-week" onchange="loadTasks()">
+            <select class="select-filter" id="filter-week" onchange="loadTasks()" style="font-weight: 600; background: #1e293b; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">
                 <!-- Populated dynamically -->
             </select>
         </div>
 
         <div class="toolbar-group">
-            <!-- Filter by Zone -->
-            <select class="select-filter" id="filter-zone" onchange="loadTasks()">
-                <option value="all">📁 Все зоны</option>
-                <option value="Ремонт и зоны">Ремонт и зоны</option>
-                <option value="Инфостенды">Инфостенды</option>
-                <option value="Обучение">Обучение</option>
-                <option value="Цифровой портал">Цифровой портал</option>
-                <option value="СКК">СКК</option>
-                <option value="Документация">Документация</option>
-                <option value="Цилиндры">Цилиндры</option>
-                <option value="Дестакер">Дестакер</option>
-                <option value="Дозировка">Дозировка</option>
-                <option value="ЗО">ЗО</option>
-                <option value="Зона двигателей">Зона двигателей</option>
-                <option value="Слесарная мастерская">Слесарная мастерская</option>
-                <option value="Бережливое производство">Бережливое производство</option>
-            </select>
-
-            <!-- Filter by Assignee -->
-            <select class="select-filter" id="filter-assignee" onchange="loadTasks()">
-                <option value="all">👤 Все исполнители</option>
-                <!-- Populated from Masters -->
-            </select>
-
-            <!-- Quick "My Tasks" Button -->
-            <button class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" id="btn-my-tasks">
-                <i class="fa-solid fa-user-check"></i> Мои задачи
-            </button>
-
             <!-- Add Task Button -->
             <button class="btn-action btn-primary-action" onclick="openAddTaskModal()">
                 <i class="fa-solid fa-plus"></i> <span class="hide-mobile">Добавить задачу</span>
@@ -473,14 +439,51 @@
             <thead>
                 <tr>
                     <th style="width: 70px;">ID</th>
-                    <th style="width: 140px;">Зона / Служба</th>
+                    <th style="width: 150px;">
+                        <div style="margin-bottom: 4px;">Зона / Служба</div>
+                        <select class="select-filter" id="table-filter-zone" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <option value="all">📁 Все зоны</option>
+                            <option value="Ремонт и зоны">Ремонт и зоны</option>
+                            <option value="Инфостенды">Инфостенды</option>
+                            <option value="Обучение">Обучение</option>
+                            <option value="Цифровой портал">Цифровой портал</option>
+                            <option value="СКК">СКК</option>
+                            <option value="Документация">Документация</option>
+                            <option value="Цилиндры">Цилиндры</option>
+                            <option value="Дестакер">Дестакер</option>
+                            <option value="Дозировка">Дозировка</option>
+                            <option value="ЗО">ЗО</option>
+                            <option value="Зона двигателей">Зона двигателей</option>
+                            <option value="Слесарная мастерская">Слесарная мастерская</option>
+                            <option value="Бережливое производство">Бережливое производство</option>
+                        </select>
+                    </th>
                     <th>Суть задачи (RU)</th>
                     <th>Суть задачи (KZ)</th>
-                    <th style="width: 70px; text-align: center;">Фото</th>
-                    <th style="width: 120px;">Автор</th>
-                    <th style="width: 130px;">Исполнитель</th>
-                    <th style="width: 90px;">Срок</th>
-                    <th style="width: 135px; text-align: center;">Статус</th>
+                    <th style="width: 60px; text-align: center;">Фото</th>
+                    <th style="width: 130px;">
+                        <div style="margin-bottom: 4px;">Автор</div>
+                        <select class="select-filter" id="table-filter-author" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <option value="all">✍️ Все авторы</option>
+                        </select>
+                    </th>
+                    <th style="width: 140px;">
+                        <div style="margin-bottom: 4px;">Исполнитель</div>
+                        <select class="select-filter" id="table-filter-assignee" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <option value="all">👤 Все исполн.</option>
+                        </select>
+                    </th>
+                    <th style="width: 80px;">Срок</th>
+                    <th style="width: 135px; text-align: center;">
+                        <div style="margin-bottom: 4px;">Статус</div>
+                        <select class="select-filter" id="table-filter-status" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <option value="all">⚡ Все статусы</option>
+                            <option value="⚪ В очереди">⚪ В очереди</option>
+                            <option value="🟡 В работе">🟡 В работе</option>
+                            <option value="🟢 Выполнено">🟢 Выполнено</option>
+                            <option value="🔵 Перенесено">🔵 Перенесено</option>
+                        </select>
+                    </th>
                     <th>Факт / Комментарий</th>
                     <th style="width: 70px; text-align: center;">Действия</th>
                 </tr>
@@ -603,6 +606,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260826_planner_v1"></script>
+    <script src="/static/js/tasks.js?v=20260826_planner_filters_v2"></script>
 </body>
 </html>

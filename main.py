@@ -7173,35 +7173,25 @@ def send_task_email_notification(to_email: str, subject: str, body: str):
 
 @app.get("/api/tasks/weeks")
 def get_tasks_calendar_structure(db: Session = Depends(get_db)):
-    """Генерирует календарную сетку рабочих недель (Пн-Пт) по месяцам."""
+    """Генерирует полную календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам 2026 года."""
     try:
-        # Базовый список месяцев (текущий год)
-        # Генерируем структуру с понедельника по пятницу для каждого месяца
-        months = ["Июль 2026", "Август 2026", "Сентябрь 2026", "Октябрь 2026", "Ноябрь 2026", "Декабрь 2026"]
-        
-        # Получаем уникальные недели из базы, если уже есть
-        existing_weeks = db.query(models.Task.month_label, models.Task.week_label).distinct().all()
-        structure = {}
-        for m in months:
-            structure[m] = []
-
-        # Август 2026 (Пн - Пт)
-        structure["Август 2026"] = [
-            "Неделя 1 (03.08 - 07.08)",
-            "Неделя 2 (10.08 - 14.08)",
-            "Неделя 3 (17.08 - 21.08)",
-            "Неделя 4 (24.08 - 28.08)"
-        ]
-        # Сентябрь 2026
-        structure["Сентябрь 2026"] = [
-            "Неделя 1 (31.08 - 04.09)",
-            "Неделя 2 (07.09 - 11.09)",
-            "Неделя 3 (14.09 - 18.09)",
-            "Неделя 4 (21.09 - 25.09)",
-            "Неделя 5 (28.09 - 02.10)"
-        ]
+        structure = {
+            "Январь 2026": ["Неделя 1 (05.01 - 09.01)", "Неделя 2 (12.01 - 16.01)", "Неделя 3 (19.01 - 23.01)", "Неделя 4 (26.01 - 30.01)"],
+            "Февраль 2026": ["Неделя 1 (02.02 - 06.02)", "Неделя 2 (09.02 - 13.02)", "Неделя 3 (16.02 - 20.02)", "Неделя 4 (23.02 - 27.02)"],
+            "Март 2026": ["Неделя 1 (02.03 - 06.03)", "Неделя 2 (09.03 - 13.03)", "Неделя 3 (16.03 - 20.03)", "Неделя 4 (23.03 - 27.03)", "Неделя 5 (30.03 - 03.04)"],
+            "Апрель 2026": ["Неделя 1 (06.04 - 10.04)", "Неделя 2 (13.04 - 17.04)", "Неделя 3 (20.04 - 24.04)", "Неделя 4 (27.04 - 01.05)"],
+            "Май 2026": ["Неделя 1 (04.05 - 08.05)", "Неделя 2 (11.05 - 15.05)", "Неделя 3 (18.05 - 22.05)", "Неделя 4 (25.05 - 29.05)"],
+            "Июнь 2026": ["Неделя 1 (01.06 - 05.06)", "Неделя 2 (08.06 - 12.06)", "Неделя 3 (15.06 - 19.06)", "Неделя 4 (22.06 - 26.06)"],
+            "Июль 2026": ["Неделя 1 (29.06 - 03.07)", "Неделя 2 (06.07 - 10.07)", "Неделя 3 (13.07 - 17.07)", "Неделя 4 (20.07 - 24.07)", "Неделя 5 (27.07 - 31.07)"],
+            "Август 2026": ["Неделя 1 (03.08 - 07.08)", "Неделя 2 (10.08 - 14.08)", "Неделя 3 (17.08 - 21.08)", "Неделя 4 (24.08 - 28.08)"],
+            "Сентябрь 2026": ["Неделя 1 (31.08 - 04.09)", "Неделя 2 (07.09 - 11.09)", "Неделя 3 (14.09 - 18.09)", "Неделя 4 (21.09 - 25.09)", "Неделя 5 (28.09 - 02.10)"],
+            "Октябрь 2026": ["Неделя 1 (05.10 - 09.10)", "Неделя 2 (12.10 - 16.10)", "Неделя 3 (19.10 - 23.10)", "Неделя 4 (26.10 - 30.10)"],
+            "Ноябрь 2026": ["Неделя 1 (02.11 - 06.11)", "Неделя 2 (09.11 - 13.11)", "Неделя 3 (16.11 - 20.11)", "Неделя 4 (23.11 - 27.11)"],
+            "Декабрь 2026": ["Неделя 1 (30.11 - 04.12)", "Неделя 2 (07.12 - 11.12)", "Неделя 3 (14.12 - 18.12)", "Неделя 4 (21.12 - 25.12)", "Неделя 5 (28.12 - 01.01)"]
+        }
 
         # Добавляем кастомные недели из базы
+        existing_weeks = db.query(models.Task.month_label, models.Task.week_label).distinct().all()
         for m, w in existing_weeks:
             if m and w:
                 if m not in structure:
@@ -7209,7 +7199,6 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
                 if w not in structure[m]:
                     structure[m].append(w)
 
-        # Текущая неделя по умолчанию
         default_month = "Август 2026"
         default_week = "Неделя 4 (24.08 - 28.08)"
 
@@ -7220,14 +7209,30 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
             "default_week": default_week
         }
     except Exception as e:
-        print(f"Error getting task weeks: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error getting calendar structure: {e}")
+        return {"months": ["Август 2026"], "structure": {"Август 2026": ["Неделя 4 (24.08 - 28.08)"]}, "default_month": "Август 2026", "default_week": "Неделя 4 (24.08 - 28.08)"}
+
+def auto_translate_text_internal(text: str) -> str:
+    """Внутренний хелпер для автоперевода RU -> KZ."""
+    if not text:
+        return ""
+    try:
+        import urllib.parse
+        import urllib.request
+        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=kk&dt=t&q=" + urllib.parse.quote(text)
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            return "".join([part[0] for part in result[0] if part[0]])
+    except Exception:
+        return ""
 
 @app.get("/api/tasks")
 def get_tasks(
     month: Optional[str] = None,
     week: Optional[str] = None,
     assignee: Optional[str] = None,
+    author: Optional[str] = None,
     zone: Optional[str] = None,
     status: Optional[str] = None,
     is_archived: bool = False,
@@ -7243,6 +7248,8 @@ def get_tasks(
             query = query.filter(models.Task.week_label == week)
         if assignee and assignee != "all":
             query = query.filter(models.Task.assignee_name == assignee)
+        if author and author != "all":
+            query = query.filter(models.Task.author_name == author)
         if zone and zone != "all":
             query = query.filter(models.Task.zone == zone)
         if status and status != "all":
@@ -7278,16 +7285,19 @@ def get_tasks(
 def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Создает новую задачу и отправляет уведомление исполнителю."""
     try:
-        # Автогенерация кода TSK-XX
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         next_num = (last_task.id + 1) if last_task else 1
         code_str = task_data.code or f"TSK-{next_num:02d}"
+
+        title_kz_final = task_data.title_kz or ""
+        if not title_kz_final and task_data.title:
+            title_kz_final = auto_translate_text_internal(task_data.title)
 
         new_task = models.Task(
             code=code_str,
             zone=task_data.zone or "Бережливое производство",
             title=task_data.title,
-            title_kz=task_data.title_kz or "",
+            title_kz=title_kz_final,
             photo_link=task_data.photo_link or "",
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
