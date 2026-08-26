@@ -440,8 +440,8 @@ function openAddTaskModal() {
     document.getElementById("task-photo-input").value = "";
     document.getElementById("task-author-input").value = "";
     document.getElementById("task-assignee-input").value = "";
-    document.getElementById("task-due-input").value = "В теч. недели";
-    document.getElementById("task-status-input").value = "⚪ В очереди";
+    document.getElementById("task-due-input").value = "";
+    document.getElementById("task-status-input").value = "🟡 В работе";
     document.getElementById("task-comment-input").value = "";
 
     document.getElementById("task-modal").style.display = "flex";
