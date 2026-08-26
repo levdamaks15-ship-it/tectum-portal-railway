@@ -519,15 +519,25 @@
             
             <input type="hidden" id="task-id-input" value="">
 
-            <!-- Task text: Single input with instant auto-translation -->
+            <!-- Task text: Smart Bilateral Input (RU <-> KZ) -->
             <div class="form-row">
-                <label>Суть задачи (RU) *</label>
-                <textarea class="form-textarea" id="task-ru-input" rows="2" placeholder="Например: Установить инфостенд на участке ЛФМ..." oninput="debounceAutoTranslateModal()" required></textarea>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin-bottom: 0;">Суть задачи (RU) <span style="color: #94a3b8; font-weight: normal; font-size: 0.75rem;">(Русский)</span> *</label>
+                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="swapTaskLanguages()" title="Поменять местами русский и казахский текст">
+                        <i class="fa-solid fa-right-left"></i> <span>Поменять (RU ⇄ KZ)</span>
+                    </button>
+                </div>
+                <textarea class="form-textarea" id="task-ru-input" rows="2" placeholder="Введите суть задачи на русском или казахском..." oninput="onTaskInputChanged('ru')" required></textarea>
             </div>
 
             <div class="form-row">
-                <label>Суть задачи (KZ) <span style="font-weight: normal; color: #94a3b8;">(автоперевод)</span></label>
-                <input type="text" class="form-input" id="task-kz-input" placeholder="Автоматический перевод на казахский...">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin-bottom: 0;">Суть задачи (KZ) <span style="color: #94a3b8; font-weight: normal; font-size: 0.75rem;">(Қазақша)</span></label>
+                    <div id="translate-status-badge" style="display: none; font-size: 0.75rem; color: #38bdf8; align-items: center; gap: 4px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Автоперевод</span>
+                    </div>
+                </div>
+                <input type="text" class="form-input" id="task-kz-input" placeholder="Автоматический перевод на казахский (или введите здесь на казахском)..." oninput="onTaskInputChanged('kz')">
             </div>
 
             <!-- Zone & Photo Link -->
@@ -572,23 +582,15 @@
                 </div>
             </div>
 
-            <!-- Deadline with Clickable Quick Selectors & Status -->
+            <!-- Deadline with Date Picker & Status -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
                 <div>
-                    <label>Срок выполнения</label>
-                    <div style="display: flex; gap: 0.35rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Пн')">Пн</button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Вт')">Вт</button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Ср')">Ср</button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Чт')">Чт</button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Пт')">Пт</button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('В теч. недели')">В теч. нед.</button>
-                    </div>
-                    <input type="text" class="form-input" id="task-due-input" placeholder="Напр. 28.08 или Пт">
+                    <label>Срок выполнения (Дата)</label>
+                    <input type="date" class="form-input" id="task-due-input">
                 </div>
                 <div>
                     <label>Статус</label>
-                    <select class="form-select" id="task-status-input" style="margin-top: 1.5rem;">
+                    <select class="form-select" id="task-status-input">
                         <option value="⚪ В очереди">⚪ В очереди</option>
                         <option value="🟡 В работе">🟡 В работе</option>
                         <option value="🟢 Выполнено">🟢 Выполнено</option>
@@ -610,12 +612,49 @@
         </div>
     </div>
 
+    <!-- COMPLETE TASK CONFIRMATION MODAL -->
+    <div class="modal-overlay" id="complete-task-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-circle-check" style="color: #34d399; font-size: 1.3rem;"></i>
+                    <h3 id="complete-modal-title" style="margin: 0;">Подтверждение выполнения</h3>
+                </div>
+                <button class="modal-close" onclick="closeCompleteModal()">&times;</button>
+            </div>
+            
+            <input type="hidden" id="complete-task-id" value="">
+            
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #93c5fd; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="complete-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; line-height: 1.4;" id="complete-task-title">Название задачи</div>
+            </div>
+
+            <div class="form-row">
+                <label>Что сделано / Факт выполнения <span style="color: #ef4444;">*</span></label>
+                <textarea class="form-textarea" id="complete-task-fact" rows="3" placeholder="Опишите результат выполнения задачи (например: монтаж завершен, стенд установлен)..." required></textarea>
+            </div>
+
+            <div class="form-row">
+                <label>Ссылка на подтверждающее фото <span style="color: #94a3b8; font-weight: normal;">(необязательно)</span></label>
+                <input type="url" class="form-input" id="complete-task-photo" placeholder="https://drive.google.com/...">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeCompleteModal()">Отмена</button>
+                <button type="button" class="btn-action" style="background: #10b981; color: #ffffff;" onclick="submitCompleteModal()">
+                    <i class="fa-solid fa-check"></i> Завершить задачу
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- TOAST NOTIFICATION -->
     <div class="toast" id="toast-msg">
         <i class="fa-solid fa-circle-check" style="color: #34d399;"></i>
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260826_planner_settings_v10"></script>
+    <script src="/static/js/tasks.js?v=20260826_datepicker_v2"></script>
 </body>
 </html>

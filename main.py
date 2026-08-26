@@ -7144,20 +7144,114 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
         print(f"Error getting calendar structure: {e}")
         return {"months": ["Август 2026"], "structure": {"Август 2026": ["Неделя 4 (24.08 - 28.08)"]}, "default_month": "Август 2026", "default_week": "Неделя 4 (24.08 - 28.08)"}
 
+def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
+    """Внутренний надежный переводчик (Google Translate + MyMemory fallback)."""
+    import urllib.parse
+    import urllib.request
+    import json
+    
+    # 1. Попытка через Google Translate API
+    try:
+        url_gt = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={sl}&tl={tl}&dt=t&q=" + urllib.parse.quote(text)
+        req_gt = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        with urllib.request.urlopen(req_gt, timeout=3) as resp:
+            res_json = json.loads(resp.read().decode('utf-8'))
+            if res_json and len(res_json) > 0 and res_json[0]:
+                trans = "".join([part[0] for part in res_json[0] if part and part[0]])
+                if trans:
+                    return trans
+    except Exception:
+        pass
+
+    # 2. Фоллбэк через MyMemory API (высокая точность и доступность)
+    try:
+        langpair = f"{sl}|{tl}" if sl != "auto" else (f"kk|{tl}" if tl == "ru" else f"ru|{tl}")
+        url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={langpair}"
+        req_mm = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req_mm, timeout=4) as resp:
+            data_mm = json.loads(resp.read().decode('utf-8'))
+            trans = data_mm.get("responseData", {}).get("translatedText")
+            if trans and not str(trans).startswith("MYMEMORY WARNING"):
+                return trans
+    except Exception:
+        pass
+
+    return None
+
+def detect_and_translate_task_text(text: str, forced_source: Optional[str] = None) -> dict:
+    """
+    Интеллектуальный анализатор языка и двусторонний переводчик (RU <-> KZ).
+    Определяет язык ввода:
+    - По характерным символам казахского алфавита (ә, і, ң, ғ, ү, ұ, қ, ө, һ, Ә, І, Ң, Ғ, Ү, Ұ, Қ, Ө, Һ)
+    - По автоматическому определению Google Translate (sl=auto)
+    Возвращает структуру: {"status": "ok", "detected_lang": "ru"|"kk", "text_ru": "...", "text_kz": "..."}
+    """
+    clean_text = (text or "").strip()
+    if not clean_text:
+        return {"status": "ok", "detected_lang": "ru", "text_ru": "", "text_kz": ""}
+
+    try:
+        kz_chars = set("әіңғүұқөһӘІҢҒҮҰҚӨҺ")
+        has_kz_chars = any(c in kz_chars for c in clean_text)
+
+        is_kz = False
+        detected_lang = "ru"
+
+        if forced_source == "kk" or has_kz_chars:
+            is_kz = True
+            detected_lang = "kk"
+        elif forced_source == "ru":
+            is_kz = False
+            detected_lang = "ru"
+        else:
+            # Автоопределение через Google Translate
+            import urllib.parse
+            import urllib.request
+            import json
+            try:
+                url_detect = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ru&dt=t&q=" + urllib.parse.quote(clean_text)
+                req = urllib.request.Request(url_detect, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=3) as response:
+                    res_json = json.loads(response.read().decode('utf-8'))
+                    if len(res_json) > 2 and isinstance(res_json[2], str):
+                        lang_code = res_json[2].lower()
+                        if lang_code in ["kk", "kaz", "ky"]:
+                            is_kz = True
+                            detected_lang = "kk"
+            except Exception:
+                pass
+
+        if is_kz:
+            # Исходный текст - казахский. Переводим на русский
+            trans_ru = _fetch_translation_api(clean_text, "kk", "ru") or clean_text
+            return {
+                "status": "ok",
+                "detected_lang": "kk",
+                "text_ru": trans_ru,
+                "text_kz": clean_text
+            }
+        else:
+            # Исходный текст - русский. Переводим на казахский
+            trans_kz = _fetch_translation_api(clean_text, "ru", "kk") or clean_text
+            return {
+                "status": "ok",
+                "detected_lang": "ru",
+                "text_ru": clean_text,
+                "text_kz": trans_kz
+            }
+    except Exception as e:
+        print(f"Translation analyzer error: {e}")
+        return {
+            "status": "fallback",
+            "detected_lang": "ru",
+            "text_ru": clean_text,
+            "text_kz": clean_text
+        }
+
 def auto_translate_text_internal(text: str) -> str:
     """Внутренний хелпер для автоперевода RU -> KZ."""
-    if not text:
-        return ""
-    try:
-        import urllib.parse
-        import urllib.request
-        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=kk&dt=t&q=" + urllib.parse.quote(text)
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=4) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            return "".join([part[0] for part in result[0] if part[0]])
-    except Exception:
-        return ""
+    res = detect_and_translate_task_text(text)
+    return res.get("text_kz", "")
 
 @app.get("/api/tasks")
 def get_tasks(
@@ -7221,15 +7315,24 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         next_num = (last_task.id + 1) if last_task else 1
         code_str = task_data.code or f"TSK-{next_num:02d}"
 
-        title_kz_final = task_data.title_kz or ""
-        if not title_kz_final and task_data.title:
-            title_kz_final = auto_translate_text_internal(task_data.title)
+        title_ru = (task_data.title or "").strip()
+        title_kz = (task_data.title_kz or "").strip()
+
+        # Интеллектуальное выравнивание языков
+        if title_ru and not title_kz:
+            trans_info = detect_and_translate_task_text(title_ru)
+            title_ru = trans_info.get("text_ru", title_ru)
+            title_kz = trans_info.get("text_kz", "")
+        elif not title_ru and title_kz:
+            trans_info = detect_and_translate_task_text(title_kz, forced_source="kk")
+            title_ru = trans_info.get("text_ru", "")
+            title_kz = trans_info.get("text_kz", title_kz)
 
         new_task = models.Task(
             code=code_str,
             zone=task_data.zone or "Бережливое производство",
-            title=task_data.title,
-            title_kz=title_kz_final,
+            title=title_ru,
+            title_kz=title_kz,
             photo_link=task_data.photo_link or "",
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
@@ -7412,41 +7515,11 @@ def restore_task_from_archive(task_id: int, target_week: Optional[str] = None, d
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/tasks/translate")
-def translate_task_text(text: str = Body(..., embed=True)):
-    """Двусторонний перевод RU <-> KZ."""
-    try:
-        import urllib.parse
-        import urllib.request
-        
-        # Определяем примерный язык (наличие специфичных казахских букв: ә, і, ң, ғ, ү, ұ, қ, ө, һ)
-        kz_chars = set("әіңғүұқөһӘІҢҒҮҰҚӨҺ")
-        is_kz = any(c in kz_chars for c in text)
-
-        source_lang = "kk" if is_kz else "ru"
-        target_lang = "ru" if is_kz else "kk"
-
-        # Простой запрос к Google Translate API
-        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={source_lang}&tl={target_lang}&dt=t&q=" + urllib.parse.quote(text)
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            translated = "".join([part[0] for part in result[0] if part[0]])
-
-        return {
-            "status": "ok",
-            "detected_lang": source_lang,
-            "target_lang": target_lang,
-            "text_ru": text if source_lang == "ru" else translated,
-            "text_kz": translated if source_lang == "ru" else text
-        }
-    except Exception as e:
-        print(f"Translation warning: {e}")
-        # Фоллбэк - возвращаем исходный текст
-        return {
-            "status": "fallback",
-            "text_ru": text,
-            "text_kz": text
-        }
+def translate_task_text(payload: dict = Body(...)):
+    """Интеллектуальный двусторонний анализ и перевод RU <-> KZ."""
+    text = payload.get("text", "") if isinstance(payload, dict) else str(payload)
+    source_lang = payload.get("source_lang", "auto") if isinstance(payload, dict) else "auto"
+    return detect_and_translate_task_text(text, forced_source=source_lang if source_lang != "auto" else None)
 
 @app.post("/api/tasks/import_from_google_sheets")
 def import_tasks_from_google_sheets(db: Session = Depends(get_db)):

@@ -389,10 +389,22 @@ function switchViewMode(mode) {
 }
 
 /* ==========================================================
-   QUICK INLINE ACTIONS
+   QUICK INLINE ACTIONS & COMPLETE CONFIRMATION
    ========================================================== */
+let pendingCompleteTaskId = null;
+let previousTaskStatus = {};
+
 async function quickUpdateStatus(taskId, newStatus) {
     const task = allTasks.find(t => t.id === taskId);
+    const oldStatus = task ? (task.status || "⚪ В очереди") : "⚪ В очереди";
+    previousTaskStatus[taskId] = oldStatus;
+
+    // Если выбрали "Выполнено" — требуем весомого подтверждения через модальное окно
+    if (newStatus === "🟢 Выполнено") {
+        openCompleteTaskModal(taskId);
+        return;
+    }
+
     if (task) task.status = newStatus;
 
     try {
@@ -407,6 +419,77 @@ async function quickUpdateStatus(taskId, newStatus) {
         }
     } catch (e) {
         console.error("Error updating status:", e);
+    }
+}
+
+function openCompleteTaskModal(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    pendingCompleteTaskId = taskId;
+
+    document.getElementById("complete-task-id").value = taskId;
+    document.getElementById("complete-task-code").textContent = task.code || `TSK-${task.id}`;
+    document.getElementById("complete-task-title").textContent = task.title || "—";
+    document.getElementById("complete-task-fact").value = task.comment || "";
+    document.getElementById("complete-task-photo").value = task.photo_link || "";
+
+    document.getElementById("complete-task-modal").style.display = "flex";
+    setTimeout(() => {
+        const factInput = document.getElementById("complete-task-fact");
+        if (factInput) factInput.focus();
+    }, 100);
+}
+
+function closeCompleteModal() {
+    const modal = document.getElementById("complete-task-modal");
+    if (modal) modal.style.display = "none";
+
+    // Возвращаем селектор статуса обратно к предыдущему значению при отмене
+    if (pendingCompleteTaskId) {
+        const rowSelect = document.querySelector(`#task-row-${pendingCompleteTaskId} .select-status`);
+        if (rowSelect && previousTaskStatus[pendingCompleteTaskId]) {
+            rowSelect.value = previousTaskStatus[pendingCompleteTaskId];
+        }
+    }
+    pendingCompleteTaskId = null;
+}
+
+async function submitCompleteModal() {
+    const taskId = document.getElementById("complete-task-id").value;
+    const factText = document.getElementById("complete-task-fact").value.trim();
+    const photoLink = document.getElementById("complete-task-photo").value.trim();
+
+    if (!factText) {
+        alert("Пожалуйста, обязательно укажите факт выполнения (что сделано)!");
+        const factInput = document.getElementById("complete-task-fact");
+        if (factInput) factInput.focus();
+        return;
+    }
+
+    try {
+        const payload = {
+            status: "🟢 Выполнено",
+            comment: factText,
+            photo_link: photoLink
+        };
+
+        const res = await fetch(`/api/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            closeCompleteModal();
+            showToast("Задача успешно выполнена ✅");
+            loadTasks();
+        } else {
+            alert("Ошибка при сохранении статуса задачи");
+        }
+    } catch (e) {
+        console.error("Error completing task:", e);
+        alert("Произошла ошибка при сохранении");
     }
 }
 
@@ -433,41 +516,130 @@ async function inlineEditComment(taskId, currentComment) {
 }
 
 /* ==========================================================
-   TRANSLATION (RU <-> KZ) - INSTANT AUTO-TRANSLATE
+   TRANSLATION (RU <-> KZ) - SMART BIDIRECTIONAL ANALYZER
    ========================================================== */
 let translateDebounceTimer = null;
-function debounceAutoTranslateModal() {
+let isTranslating = false;
+
+function onTaskInputChanged(sourceField) {
     clearTimeout(translateDebounceTimer);
+    
+    const ruInput = document.getElementById("task-ru-input");
+    const kzInput = document.getElementById("task-kz-input");
+    const badge = document.getElementById("translate-status-badge");
+    if (!ruInput || !kzInput) return;
+
+    const sourceText = (sourceField === 'ru' ? ruInput.value : kzInput.value).trim();
+    if (!sourceText) {
+        if (badge) badge.style.display = "none";
+        return;
+    }
+
+    if (badge) {
+        badge.style.display = "inline-flex";
+        badge.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> <span>Анализ языка...</span>`;
+    }
+
     translateDebounceTimer = setTimeout(async () => {
-        const ruInput = document.getElementById("task-ru-input");
-        const kzInput = document.getElementById("task-kz-input");
-        if (!ruInput || !kzInput) return;
-
-        const text = ruInput.value.trim();
-        if (!text) {
-            kzInput.value = "";
-            return;
-        }
-
         try {
+            isTranslating = true;
             const res = await fetch("/api/tasks/translate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text })
+                body: JSON.stringify({
+                    text: sourceText,
+                    source_lang: sourceField === 'kz' ? 'kk' : 'auto'
+                })
             });
+
             if (res.ok) {
                 const data = await res.json();
-                kzInput.value = data.text_kz || "";
+                
+                if (sourceField === 'ru') {
+                    if (data.detected_lang === 'kk') {
+                        // Пользователь ввел казахский текст в RU поле -> раскладываем по местам
+                        kzInput.value = data.text_kz || sourceText;
+                        if (data.text_ru) {
+                            ruInput.value = data.text_ru;
+                        }
+                        if (badge) {
+                            badge.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles" style="color: #38bdf8;"></i> <span style="color: #38bdf8;">Распознан <b>казахский</b> ➔ переведено на русский</span>`;
+                            badge.style.display = "inline-flex";
+                        }
+                    } else {
+                        // Обычный русский ввод
+                        kzInput.value = data.text_kz || "";
+                        if (badge) {
+                            badge.innerHTML = `<i class="fa-solid fa-check" style="color: #34d399;"></i> <span style="color: #94a3b8;">Переведено на <b>казахский</b></span>`;
+                            badge.style.display = "inline-flex";
+                        }
+                    }
+                } else if (sourceField === 'kz') {
+                    // Пользователь ввел казахский текст в KZ поле
+                    ruInput.value = data.text_ru || "";
+                    if (badge) {
+                        badge.innerHTML = `<i class="fa-solid fa-check" style="color: #34d399;"></i> <span style="color: #94a3b8;">Переведено на <b>русский</b></span>`;
+                        badge.style.display = "inline-flex";
+                    }
+                }
             }
         } catch (e) {
             console.error("Auto-translate error:", e);
+            if (badge) {
+                badge.innerHTML = `<span style="color: #ef4444;">Ошибка анализа</span>`;
+            }
+        } finally {
+            isTranslating = false;
         }
-    }, 300);
+    }, 350);
 }
 
-function setDueQuick(val) {
-    const input = document.getElementById("task-due-input");
-    if (input) input.value = val;
+function debounceAutoTranslateModal() {
+    onTaskInputChanged('ru');
+}
+
+function swapTaskLanguages() {
+    const ruInput = document.getElementById("task-ru-input");
+    const kzInput = document.getElementById("task-kz-input");
+    const badge = document.getElementById("translate-status-badge");
+    if (!ruInput || !kzInput) return;
+
+    const temp = ruInput.value;
+    ruInput.value = kzInput.value;
+    kzInput.value = temp;
+
+    if (badge) {
+        badge.innerHTML = `<i class="fa-solid fa-right-left" style="color: #fbbf24;"></i> <span style="color: #fbbf24;">Тексты поменяны местами</span>`;
+        badge.style.display = "inline-flex";
+    }
+}
+
+/* ==========================================================
+   DATE HELPERS
+   ========================================================== */
+function parseDateToIso(str) {
+    if (!str) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const parts = str.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/);
+    if (parts) {
+        const day = parts[1].padStart(2, '0');
+        const month = parts[2].padStart(2, '0');
+        const year = parts[3] || "2026";
+        return `${year}-${month}-${day}`;
+    }
+    return "";
+}
+
+function formatIsoToDisplayDate(isoStr) {
+    if (!isoStr) return "В теч. недели";
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        const daysRu = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+        const dayName = daysRu[d.getDay()] || "";
+        return `${parts[2]}.${parts[1]} (${dayName})`;
+    }
+    return isoStr;
 }
 
 /* ==========================================================
@@ -482,9 +654,19 @@ function openAddTaskModal() {
     document.getElementById("task-photo-input").value = "";
     document.getElementById("task-author-input").value = "";
     document.getElementById("task-assignee-input").value = "";
-    document.getElementById("task-due-input").value = "";
+    
+    // По умолчанию ставим сегодняшнюю дату в календарь
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById("task-due-input").value = `${yyyy}-${mm}-${dd}`;
+    
     document.getElementById("task-status-input").value = "🟡 В работе";
     document.getElementById("task-comment-input").value = "";
+
+    const badge = document.getElementById("translate-status-badge");
+    if (badge) badge.style.display = "none";
 
     document.getElementById("task-modal").style.display = "flex";
 }
@@ -502,13 +684,19 @@ function openEditTaskModal(taskId) {
     document.getElementById("task-photo-input").value = task.photo_link || "";
     document.getElementById("task-author-input").value = task.author_name || "";
     document.getElementById("task-assignee-input").value = task.assignee_name || "";
-    document.getElementById("task-due-input").value = task.due_date_str || "В теч. недели";
+    
+    // Синхронизируем дату в календарь (input type="date")
+    document.getElementById("task-due-input").value = parseDateToIso(task.due_date_str);
+    
     document.getElementById("task-status-input").value = task.status || "⚪ В очереди";
     document.getElementById("task-comment-input").value = task.comment || "";
 
+    const badge = document.getElementById("translate-status-badge");
+    if (badge) badge.style.display = "none";
+
     // Если нет KZ перевода - запускаем фоновый перевод
     if (!task.title_kz && task.title) {
-        debounceAutoTranslateModal();
+        onTaskInputChanged('ru');
     }
 
     document.getElementById("task-modal").style.display = "flex";
@@ -520,23 +708,48 @@ function closeTaskModal() {
 
 async function saveTaskModal() {
     const taskId = document.getElementById("task-id-input").value;
-    const titleRu = document.getElementById("task-ru-input").value.trim();
+    let titleRu = document.getElementById("task-ru-input").value.trim();
     let titleKz = document.getElementById("task-kz-input").value.trim();
     const zone = document.getElementById("task-zone-input").value;
     const photoLink = document.getElementById("task-photo-input").value.trim();
     const author = document.getElementById("task-author-input").value;
     const assignee = document.getElementById("task-assignee-input").value;
-    const due = document.getElementById("task-due-input").value.trim() || "В теч. недели";
+    
+    const rawDue = document.getElementById("task-due-input").value.trim();
+    const due = formatIsoToDisplayDate(rawDue);
+    
     const status = document.getElementById("task-status-input").value;
     const comment = document.getElementById("task-comment-input").value.trim();
 
-    if (!titleRu) {
+    if (!titleRu && !titleKz) {
         alert("Пожалуйста, введите суть задачи!");
         return;
     }
 
-    // Если казахский перевод еще не подтянулся - получаем синхронно
-    if (!titleKz) {
+    // Если статус Выполнено — факт обязателен
+    if (status === "🟢 Выполнено" && !comment) {
+        alert("При установке статуса «Выполнено» обязательно укажите факт / результат выполнения в поле «Факт / Комментарий»!");
+        const commInput = document.getElementById("task-comment-input");
+        if (commInput) commInput.focus();
+        return;
+    }
+
+    // Если одно из полей не заполнено — получаем перевод синхронно
+    if (!titleRu && titleKz) {
+        try {
+            const transRes = await fetch("/api/tasks/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: titleKz, source_lang: "kk" })
+            });
+            if (transRes.ok) {
+                const transData = await transRes.json();
+                titleRu = transData.text_ru || titleKz;
+            }
+        } catch (e) {
+            titleRu = titleKz;
+        }
+    } else if (titleRu && !titleKz) {
         try {
             const transRes = await fetch("/api/tasks/translate", {
                 method: "POST",
@@ -546,6 +759,9 @@ async function saveTaskModal() {
             if (transRes.ok) {
                 const transData = await transRes.json();
                 titleKz = transData.text_kz || "";
+                if (transData.detected_lang === 'kk' && transData.text_ru) {
+                    titleRu = transData.text_ru;
+                }
             }
         } catch (e) {}
     }
