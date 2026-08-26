@@ -4618,7 +4618,7 @@ def get_materials_report(shift_id: int, db: Session = Depends(get_db)):
     }
 
 
-# --- ADMIN PANEL ENDPOINTS ---
+# --- ADMIN PANEL & PAGES ENDPOINTS ---
 
 @app.get("/admin")
 def serve_admin():
@@ -4627,6 +4627,14 @@ def serve_admin():
 @app.get("/analytics")
 def read_analytics():
     return FileResponse("static/analytics.html")
+
+@app.get("/tasks")
+def serve_tasks():
+    return FileResponse("static/tasks.html")
+
+@app.get("/planner")
+def serve_planner():
+    return FileResponse("static/tasks.html")
 
 @app.post("/api/admin/masters/", response_model=schemas.Master)
 def create_master(master: schemas.MasterCreate, db: Session = Depends(get_db)):
