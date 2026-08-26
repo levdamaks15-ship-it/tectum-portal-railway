@@ -119,6 +119,28 @@ def _build_plain_text(event_type: str, d: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _convert_emojis_to_entities(text: str) -> str:
+    """
+    Преобразует любые эмодзи и спецсимволы в стандартные HTML-сущности (&#XXXXX;),
+    чтобы гарантировать 100% идеальное отображение во всех почтовых клиентах
+    без искажения кодировки шлюзами.
+    """
+    if not text:
+        return ""
+    res = []
+    for ch in text:
+        code = ord(ch)
+        # Кодируем эмодзи и спецсимволы вне базовой кириллицы/латиницы (код > 0x2000 или диапазон суррогатов/эмодзи)
+        # Оставляем стандартные символы кириллицы (0x0400-0x04FF), латиницы, цифр и базовой пунктуации
+        if (code >= 0x2600 and code <= 0x27BF) or (code >= 0x1F000 and code <= 0x1FFFF) or code == 0xFE0F:
+            res.append(f"&#{code};")
+        elif code > 0x2000 and not (0x0400 <= code <= 0x04FF):
+            res.append(f"&#{code};")
+        else:
+            res.append(ch)
+    return "".join(res)
+
+
 def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
     title = d.get("title", "—")
     title_kz = d.get("title_kz", "")
@@ -254,4 +276,4 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
   </table>
 </body>
 </html>"""
-    return html
+    return _convert_emojis_to_entities(html)
