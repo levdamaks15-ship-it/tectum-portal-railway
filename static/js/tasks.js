@@ -196,9 +196,9 @@ function renderTasksTable(tasks) {
 
     tableBody.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
-        if (t.status.includes("В работе")) statusClass = "status-work";
-        else if (t.status.includes("Выполнено")) statusClass = "status-done";
-        else if (t.status.includes("Перенесено")) statusClass = "status-moved";
+        if (t.status && t.status.includes("В работе")) statusClass = "status-work";
+        else if (t.status && t.status.includes("Выполнено")) statusClass = "status-done";
+        else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
 
         const photoBtn = t.photo_link ? `
             <a href="${t.photo_link}" target="_blank" class="btn-photo-link" title="Открыть фото в новой вкладке">
@@ -220,7 +220,7 @@ function renderTasksTable(tasks) {
             <tr id="task-row-${t.id}">
                 <td><span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span></td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
-                <td style="font-weight: 500; min-width: 170px;">${t.title}</td>
+                <td style="font-weight: 500; min-width: 170px;">${t.title || '—'}</td>
                 <td style="color: #94a3b8; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
                 
