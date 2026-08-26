@@ -56,32 +56,67 @@ async function loadCalendarStructure() {
     }
 }
 
+function generateClientFallbackWeeks(monthName) {
+    // Dynamic Mon-Fri fallback calculation
+    const monthsRu = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+    let mIdx = 7; // default August (0-indexed)
+    let year = 2026;
+    if (monthName) {
+        const parts = monthName.split(' ');
+        const found = monthsRu.indexOf(parts[0]);
+        if (found !== -1) mIdx = found;
+        if (parts[1]) year = parseInt(parts[1], 10) || 2026;
+    }
+
+    const weeks = [];
+    const cur = new Date(year, mIdx, 1);
+    const nextMonth = new Date(year, mIdx + 1, 1);
+
+    // Monday on or after 1st of month:
+    let day = cur.getDay(); // 0 is Sun, 1 is Mon...
+    let diff = (day === 0) ? 1 : (day === 1 ? 0 : (8 - day));
+    let curMonday = new Date(year, mIdx, 1 + diff);
+
+    let wIdx = 1;
+    while (curMonday < nextMonth) {
+        const fri = new Date(curMonday);
+        fri.setDate(curMonday.getDate() + 4);
+
+        const sm = String(curMonday.getMonth() + 1).padStart(2, '0');
+        const sd = String(curMonday.getDate()).padStart(2, '0');
+        const em = String(fri.getMonth() + 1).padStart(2, '0');
+        const ed = String(fri.getDate()).padStart(2, '0');
+
+        weeks.push(`Неделя ${wIdx} (${sd}.${sm} - ${ed}.${em})`);
+        wIdx++;
+        curMonday.setDate(curMonday.getDate() + 7);
+    }
+    return weeks;
+}
+
 function onMonthChange(forcedWeek = null) {
     const monthSelect = document.getElementById("filter-month");
     const weekSelect = document.getElementById("filter-week");
     if (!monthSelect || !weekSelect) return;
 
     currentMonth = monthSelect.value;
-    const weeks = allWeeksStructure[currentMonth] || [];
+    let weeks = allWeeksStructure[currentMonth] || [];
 
     if (weeks.length === 0) {
-        // Фоллбэк генерация 4 недель
-        weekSelect.innerHTML = [
-            `Неделя 1 (01 - 07)`,
-            `Неделя 2 (08 - 14)`,
-            `Неделя 3 (15 - 21)`,
-            `Неделя 4 (22 - 28)`
-        ].map(w => `<option value="${w}">${w}</option>`).join('');
-        currentWeek = `Неделя 1 (01 - 07)`;
+        // Динамический фоллбэк генерации недель строго (Пн-Пт)
+        weeks = generateClientFallbackWeeks(currentMonth);
+    }
+    
+    weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+    if (forcedWeek && weeks.includes(forcedWeek)) {
+        weekSelect.value = forcedWeek;
+        currentWeek = forcedWeek;
     } else {
-        weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
-        if (forcedWeek && weeks.includes(forcedWeek)) {
-            weekSelect.value = forcedWeek;
-            currentWeek = forcedWeek;
-        } else {
-            weekSelect.value = weeks[0];
-            currentWeek = weeks[0];
-        }
+        weekSelect.value = weeks[0] || "";
+        currentWeek = weeks[0] || "";
     }
     loadTasks();
 }

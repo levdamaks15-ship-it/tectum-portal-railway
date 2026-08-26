@@ -7171,24 +7171,40 @@ def send_task_email_notification(to_email: str, subject: str, body: str):
     except Exception as e:
         print(f"[Email Notification Warning] Failed to send email to {to_email}: {e}")
 
+def generate_calendar_structure_mon_fri(year: int = 2026):
+    """Генерирует строгую сетку рабочих недель (Пн-Пт) для всех 12 месяцев года."""
+    import datetime
+    months_ru = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ]
+    structure = {}
+    for m in range(1, 13):
+        m_name = f"{months_ru[m-1]} {year}"
+        weeks_list = []
+        cur = datetime.date(year, m, 1)
+        next_month = datetime.date(year + (1 if m == 12 else 0), 1 if m == 12 else m + 1, 1)
+        
+        # Первый понедельник начиная с 1-го числа месяца:
+        cur_monday = cur + datetime.timedelta(days=(0 - cur.weekday()) % 7)
+        
+        w_idx = 1
+        while cur_monday < next_month:
+            fri = cur_monday + datetime.timedelta(days=4)
+            s_str = cur_monday.strftime('%d.%m')
+            e_str = fri.strftime('%d.%m')
+            weeks_list.append(f"Неделя {w_idx} ({s_str} - {e_str})")
+            w_idx += 1
+            cur_monday += datetime.timedelta(days=7)
+            
+        structure[m_name] = weeks_list
+    return structure
+
 @app.get("/api/tasks/weeks")
 def get_tasks_calendar_structure(db: Session = Depends(get_db)):
     """Генерирует полную календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам 2026 года."""
     try:
-        structure = {
-            "Январь 2026": ["Неделя 1 (05.01 - 09.01)", "Неделя 2 (12.01 - 16.01)", "Неделя 3 (19.01 - 23.01)", "Неделя 4 (26.01 - 30.01)"],
-            "Февраль 2026": ["Неделя 1 (02.02 - 06.02)", "Неделя 2 (09.02 - 13.02)", "Неделя 3 (16.02 - 20.02)", "Неделя 4 (23.02 - 27.02)"],
-            "Март 2026": ["Неделя 1 (02.03 - 06.03)", "Неделя 2 (09.03 - 13.03)", "Неделя 3 (16.03 - 20.03)", "Неделя 4 (23.03 - 27.03)", "Неделя 5 (30.03 - 03.04)"],
-            "Апрель 2026": ["Неделя 1 (06.04 - 10.04)", "Неделя 2 (13.04 - 17.04)", "Неделя 3 (20.04 - 24.04)", "Неделя 4 (27.04 - 01.05)"],
-            "Май 2026": ["Неделя 1 (04.05 - 08.05)", "Неделя 2 (11.05 - 15.05)", "Неделя 3 (18.05 - 22.05)", "Неделя 4 (25.05 - 29.05)"],
-            "Июнь 2026": ["Неделя 1 (01.06 - 05.06)", "Неделя 2 (08.06 - 12.06)", "Неделя 3 (15.06 - 19.06)", "Неделя 4 (22.06 - 26.06)"],
-            "Июль 2026": ["Неделя 1 (29.06 - 03.07)", "Неделя 2 (06.07 - 10.07)", "Неделя 3 (13.07 - 17.07)", "Неделя 4 (20.07 - 24.07)", "Неделя 5 (27.07 - 31.07)"],
-            "Август 2026": ["Неделя 1 (03.08 - 07.08)", "Неделя 2 (10.08 - 14.08)", "Неделя 3 (17.08 - 21.08)", "Неделя 4 (24.08 - 28.08)"],
-            "Сентябрь 2026": ["Неделя 1 (31.08 - 04.09)", "Неделя 2 (07.09 - 11.09)", "Неделя 3 (14.09 - 18.09)", "Неделя 4 (21.09 - 25.09)", "Неделя 5 (28.09 - 02.10)"],
-            "Октябрь 2026": ["Неделя 1 (05.10 - 09.10)", "Неделя 2 (12.10 - 16.10)", "Неделя 3 (19.10 - 23.10)", "Неделя 4 (26.10 - 30.10)"],
-            "Ноябрь 2026": ["Неделя 1 (02.11 - 06.11)", "Неделя 2 (09.11 - 13.11)", "Неделя 3 (16.11 - 20.11)", "Неделя 4 (23.11 - 27.11)"],
-            "Декабрь 2026": ["Неделя 1 (30.11 - 04.12)", "Неделя 2 (07.12 - 11.12)", "Неделя 3 (14.12 - 18.12)", "Неделя 4 (21.12 - 25.12)", "Неделя 5 (28.12 - 01.01)"]
-        }
+        structure = generate_calendar_structure_mon_fri(2026)
 
         # Добавляем кастомные недели из базы
         existing_weeks = db.query(models.Task.month_label, models.Task.week_label).distinct().all()
@@ -7201,6 +7217,10 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
 
         default_month = "Август 2026"
         default_week = "Неделя 4 (24.08 - 28.08)"
+        if default_month in structure and structure[default_month]:
+            # Если default_week есть в списке - оставляем, иначе берем актуальную последнюю/первую
+            if default_week not in structure[default_month]:
+                default_week = structure[default_month][0]
 
         return {
             "months": list(structure.keys()),
