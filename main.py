@@ -597,6 +597,24 @@ async def lifespan(app: FastAPI):
             db.add(models.Master(name="Главный технолог", pin="9999", role="technologist"))
             db.commit()
         
+        # Очистка устаревших тестовых задач планнера с невалидными лейблами недель
+        try:
+            valid_weeks_prefix = ("Неделя 1 (", "Неделя 2 (", "Неделя 3 (", "Неделя 4 (", "Неделя 5 (")
+            invalid_tasks = db.query(models.Task).all()
+            deleted_test_count = 0
+            for it in invalid_tasks:
+                w_lbl = it.week_label or ""
+                # Если лейбл недели старый тестовый (например "Неделя 1", "Неделя 1 (01 - 07)", "Неделя 4 (22 - 28)", "Тестируем", "Привет")
+                if not any(w_lbl.startswith(pref) for pref in valid_weeks_prefix) or it.title in ["Привет", "Тестируем", "тест"]:
+                    db.delete(it)
+                    deleted_test_count += 1
+            if deleted_test_count > 0:
+                db.commit()
+                print(f"[Tasks Cleanup] Deleted {deleted_test_count} obsolete test tasks.")
+        except Exception as task_cl_err:
+            print(f"Warning cleaning test tasks: {task_cl_err}")
+            db.rollback()
+
         # Auto-import downtimes directory if empty
         try:
             from import_downtimes import import_downtimes
@@ -6893,23 +6911,13 @@ def generate_calendar_structure_mon_fri(year: int = 2026):
 
 @app.get("/api/tasks/weeks")
 def get_tasks_calendar_structure(db: Session = Depends(get_db)):
-    """Генерирует полную календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам 2026 года."""
+    """Генерирует строго чистую календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам 2026 года."""
     try:
         structure = generate_calendar_structure_mon_fri(2026)
-
-        # Добавляем кастомные недели из базы
-        existing_weeks = db.query(models.Task.month_label, models.Task.week_label).distinct().all()
-        for m, w in existing_weeks:
-            if m and w:
-                if m not in structure:
-                    structure[m] = []
-                if w not in structure[m]:
-                    structure[m].append(w)
 
         default_month = "Август 2026"
         default_week = "Неделя 4 (24.08 - 28.08)"
         if default_month in structure and structure[default_month]:
-            # Если default_week есть в списке - оставляем, иначе берем актуальную последнюю/первую
             if default_week not in structure[default_month]:
                 default_week = structure[default_month][0]
 
