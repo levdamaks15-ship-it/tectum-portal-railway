@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
-    <link rel="stylesheet" href="/static/css/style.css?v=20260712_unified_v12">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260826_light_theme_v1">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -1383,7 +1383,7 @@
             <label for="edit-dt-is-equipment-stop" style="margin: 0; cursor: pointer; font-size: 0.9rem; user-select: none;">Ремонт с остановкой оборудования</label>
         </div>
         <div style="display:flex; justify-content: flex-end; gap: 1rem;">
-            <button onclick="closeEditDowntimeModal()" style="background: rgba(255,255,255,0.1); color: white; width: auto; padding: 0.6rem 1.2rem;">Отмена</button>
+            <button type="button" onclick="closeEditDowntimeModal()" class="btn-secondary" style="width: auto; padding: 0.6rem 1.2rem;">Отмена</button>
             <button onclick="submitEditDowntime()" class="btn-primary" style="width: auto; padding: 0.6rem 1.5rem;">Сохранить изменения</button>
         </div>
     </div>

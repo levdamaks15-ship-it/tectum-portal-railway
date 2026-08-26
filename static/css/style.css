@@ -16,6 +16,14 @@
     --input-color: #1e293b;
     --table-header-bg: rgba(0,0,0,0.04);
     --chart-bg: rgba(0,0,0,0.02);
+    --bg-tertiary: #f1f5f9;
+    --border-color: #e2e8f0;
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e2e8f0;
+    --sidebar-text: #475569;
+    --sidebar-text-active: #b91c1c;
+    --sidebar-item-hover: #f1f5f9;
+    --sidebar-item-active: #fee2e2;
 }
 
 * {
@@ -289,17 +297,17 @@ button.btn-danger:hover {
     box-shadow: 0 4px 15px rgba(255, 82, 82, 0.3);
 }
 
-button.btn-secondary {
-    background: var(--input-bg);
-    border: 1px solid var(--glass-border);
-    color: var(--text-primary) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+button.btn-secondary, button.btn-cancel {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
-button.btn-secondary:hover {
-    background: var(--table-header-bg);
-    color: var(--text-primary) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
+button.btn-secondary:hover, button.btn-cancel:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
 }
 
 /* Main Dashboard */

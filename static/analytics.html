@@ -21,9 +21,9 @@
             margin-bottom: 2rem;
         }
         .btn-nav {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid var(--glass-border);
-            color: white;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #334155;
             padding: 0.8rem 1.5rem;
             border-radius: 8px;
             cursor: pointer;
@@ -32,11 +32,12 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            font-weight: 600;
         }
-        .btn-nav:hover { background: rgba(255,255,255,0.2); }
+        .btn-nav:hover { background: #e2e8f0; color: #0f172a; }
         
         .filters-panel {
-            background: rgba(10, 15, 30, 0.6);
+            background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1.5rem;
@@ -44,6 +45,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
         
         .preset-buttons {
@@ -54,17 +56,19 @@
             grid-column: 1 / -1;
         }
         .preset-buttons button {
-            background: transparent;
-            border: 1px solid var(--primary-color);
-            color: var(--primary-color);
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #475569;
             padding: 0.4rem 1rem;
             border-radius: 20px;
             cursor: pointer;
-            transition: 0.3s;
+            transition: 0.2s;
+            font-weight: 500;
         }
         .preset-buttons button.active, .preset-buttons button:hover {
             background: var(--primary-color);
             color: white;
+            border-color: var(--primary-color);
         }
 
         .kpi-row {
@@ -74,11 +78,12 @@
             margin-bottom: 2rem;
         }
         .kpi-card {
-            background: rgba(20, 25, 45, 0.7);
+            background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1.5rem;
             text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
         .kpi-value {
             font-size: 2.5rem;
@@ -104,19 +109,21 @@
             margin-bottom: 2rem;
         }
         .chart-card {
-            background: rgba(10, 15, 30, 0.6);
+            background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
         
         /* Advanced Pivot Table Styles */
         .pivot-table-wrapper {
-            background: rgba(10, 15, 30, 0.6);
+            background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1.5rem;
             overflow-x: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
         .pivot-table {
             width: 100%;
@@ -125,17 +132,19 @@
         .pivot-table th, .pivot-table td {
             padding: 1rem;
             text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
         }
         .pivot-table th {
             font-weight: bold;
-            color: var(--text-secondary);
+            color: #475569;
             cursor: pointer;
+            background: #f8fafc;
         }
-        .pivot-table th:hover { color: white; }
+        .pivot-table th:hover { color: #0f172a; }
         .row-category {
             font-weight: bold;
-            background: rgba(255,255,255,0.03);
+            background: #f8fafc;
             cursor: pointer;
         }
         .row-node {
@@ -143,7 +152,7 @@
         }
         .row-node td:first-child {
             padding-left: 3rem;
-            color: #aaa;
+            color: #64748b;
         }
         .expanded .row-node {
             display: table-row;

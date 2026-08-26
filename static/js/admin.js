@@ -984,12 +984,16 @@ function setShiftPeriod(period) {
     currentShiftPeriod = period;
     document.querySelectorAll('[id^="filter-period-"]').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.background = 'rgba(255,255,255,0.1)';
+        btn.style.background = '#f8fafc';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #cbd5e1';
     });
     const activeBtn = document.getElementById('filter-period-' + period);
     if (activeBtn) {
         activeBtn.classList.add('active');
         activeBtn.style.background = 'var(--accent-color)';
+        activeBtn.style.color = '#ffffff';
+        activeBtn.style.border = '1px solid var(--accent-color)';
     }
     filterShifts();
 }
@@ -1077,14 +1081,14 @@ function filterShifts() {
         const batchNum = s.batch_number || (s.batches?.[0]?.batch_number) || '-';
         const exportType = s.export_type || 'Эталон';
 
-        let expBadge = `<span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; background: rgba(255,255,255,0.08); color: var(--text-secondary); margin-left: 4px;">${exportType}</span>`;
+        let expBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; margin-left: 4px;">${exportType}</span>`;
         if (exportType === 'Оренбург') {
-            expBadge = `<span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; background: rgba(14, 165, 233, 0.2); color: #38bdf8; font-weight: bold; margin-left: 4px;">Оренбург</span>`;
+            expBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; background: #e0f2fe; color: #0284c7; font-weight: bold; border: 1px solid #bae6fd; margin-left: 4px;">Оренбург</span>`;
         } else if (exportType === 'Шымкент') {
-            expBadge = `<span style="padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; background: rgba(168, 85, 247, 0.2); color: #c084fc; font-weight: bold; margin-left: 4px;">Шымкент</span>`;
+            expBadge = `<span style="padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.72rem; background: #f3e8ff; color: #7e22ce; font-weight: bold; border: 1px solid #e9d5ff; margin-left: 4px;">Шымкент</span>`;
         }
 
-        const shiftBadgeColor = s.shift_name === 'День' ? 'background: rgba(255, 193, 7, 0.2); color: #ffc107;' : 'background: rgba(13, 110, 253, 0.2); color: #6ea8fe;';
+        const shiftBadgeColor = s.shift_name === 'День' ? 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;' : 'background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;';
         const statusBadge = s.status === 'active' 
             ? `<span style="color: var(--success-color); font-size: 0.8rem;"><i class="fa-solid fa-circle-check"></i> active</span>`
             : `<span style="color: var(--text-secondary); font-size: 0.8rem;"><i class="fa-solid fa-lock"></i> closed</span>`;
@@ -1361,7 +1365,9 @@ function switchUnifiedTab(tabName) {
     document.querySelectorAll('.unified-tab-content').forEach(el => el.style.display = 'none');
     document.querySelectorAll('[id^="btn-tab-"]').forEach(btn => {
         btn.classList.remove('active');
-        btn.style.background = 'rgba(255,255,255,0.1)';
+        btn.style.background = '#f1f5f9';
+        btn.style.color = '#475569';
+        btn.style.border = '1px solid #cbd5e1';
     });
     
     const targetEl = document.getElementById('unified-tab-' + tabName);
@@ -1371,6 +1377,8 @@ function switchUnifiedTab(tabName) {
     if (targetBtn) {
         targetBtn.classList.add('active');
         targetBtn.style.background = 'var(--accent-color)';
+        targetBtn.style.color = '#ffffff';
+        targetBtn.style.border = '1px solid var(--accent-color)';
     }
 }
 
@@ -1905,12 +1913,16 @@ function setReceiptPeriod(period) {
     currentReceiptPeriod = period;
     document.querySelectorAll('#tab-receipts .filter-btn').forEach(b => {
         b.classList.remove('active');
-        b.style.background = 'rgba(255,255,255,0.1)';
+        b.style.background = '#f8fafc';
+        b.style.color = '#475569';
+        b.style.border = '1px solid #cbd5e1';
     });
     const btn = document.getElementById(`filter-receipt-period-${period}`);
     if(btn) {
         btn.classList.add('active');
         btn.style.background = 'var(--accent-color)';
+        btn.style.color = '#ffffff';
+        btn.style.border = '1px solid var(--accent-color)';
     }
     loadAdminReceipts();
 }
@@ -2315,8 +2327,8 @@ function renderChecklistEmployeesTable() {
         <tr>
             <td style="font-weight: 600; color: var(--text-secondary);">${e.num || '—'}</td>
             <td style="font-weight: 700; color: var(--text-primary);">${e.name}</td>
-            <td><span style="background: rgba(37,99,235,0.15); color: #60a5fa; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">${e.shift_group}</span></td>
-            <td><span style="background: rgba(16,185,129,0.15); color: #34d399; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;">${e.department || 'Цех ХЦИ'}</span></td>
+            <td><span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">${e.shift_group}</span></td>
+            <td><span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;">${e.department || 'Цех ХЦИ'}</span></td>
             <td style="color: var(--text-secondary);">${e.position}</td>
             <td style="text-align: right; white-space: nowrap;">
                 <button class="action-btn btn-edit" onclick="editChecklistEmp(${e.id})" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
@@ -2463,8 +2475,8 @@ function renderShiftScheduleTable() {
         <tr>
             <td style="font-weight: 700; color: var(--primary-color);">${e.date_str}</td>
             <td style="color: var(--text-secondary);">${e.day_of_week || '—'}</td>
-            <td><span style="background: rgba(245,158,11,0.15); color: #fbbf24; padding: 4px 8px; border-radius: 6px; font-weight: 700;">☀️ ${e.day_shift_group || '—'}</span></td>
-            <td><span style="background: rgba(99,102,241,0.15); color: #818cf8; padding: 4px 8px; border-radius: 6px; font-weight: 700;">🌙 ${e.night_shift_group || '—'}</span></td>
+            <td><span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-weight: 700;">☀️ ${e.day_shift_group || '—'}</span></td>
+            <td><span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 4px 8px; border-radius: 6px; font-weight: 700;">🌙 ${e.night_shift_group || '—'}</span></td>
             <td style="text-align: center;">${e.shift1_status || '—'}</td>
             <td style="text-align: center;">${e.shift2_status || '—'}</td>
             <td style="text-align: center;">${e.shift3_status || '—'}</td>
