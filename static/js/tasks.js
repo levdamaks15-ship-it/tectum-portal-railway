@@ -274,7 +274,7 @@ function renderTasksTable(tasks) {
             <a href="${t.photo_link}" target="_blank" class="btn-photo-link" title="Открыть фото в новой вкладке">
                 <i class="fa-solid fa-image"></i>
             </a>
-        ` : `<span style="color: #64748b; font-size: 0.75rem;">—</span>`;
+        ` : `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
 
         const backlogBadge = t.is_backlog ? `
             <div style="margin-top: 4px;">
@@ -291,21 +291,21 @@ function renderTasksTable(tasks) {
                     ${backlogBadge}
                 </td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
-                <td style="font-weight: 500; min-width: 170px;">${t.title || '—'}</td>
-                <td style="color: #94a3b8; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
+                <td style="font-weight: 600; min-width: 170px; color: #0f172a;">${t.title || '—'}</td>
+                <td style="color: #64748b; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
                 
-                <!-- Pure Text Author (No broken dropdowns inside table) -->
-                <td style="font-size: 0.85rem; color: #cbd5e1; white-space: nowrap;">
+                <!-- Pure Text Author -->
+                <td style="font-size: 0.85rem; color: #475569; white-space: nowrap;">
                     ${t.author_name || '—'}
                 </td>
 
                 <!-- Pure Text Assignee -->
-                <td style="font-weight: 600; font-size: 0.85rem; color: #93c5fd; white-space: nowrap;">
+                <td style="font-weight: 600; font-size: 0.85rem; color: #1d4ed8; white-space: nowrap;">
                     ${t.assignee_name || '—'}
                 </td>
 
-                <td style="font-size: 0.82rem; white-space: nowrap;">${t.due_date_str || 'В теч. недели'}</td>
+                <td style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</td>
                 <td style="text-align: center;">
                     <select class="select-status ${statusClass}" onchange="quickUpdateStatus(${t.id}, this.value)">
                         <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
@@ -314,8 +314,8 @@ function renderTasksTable(tasks) {
                         <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
                     </select>
                 </td>
-                <td style="font-size: 0.82rem; color: #cbd5e1; max-width: 180px;">
-                    <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(255,255,255,0.2);" title="Кликните для редактирования">
+                <td style="font-size: 0.82rem; color: #334155; max-width: 180px;">
+                    <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
                         ${t.comment || '—'}
                     </span>
                 </td>
@@ -930,8 +930,8 @@ function getStatusColor(status) {
 }
 
 function showToast(message) {
-    const toast = document.getElementById("task-toast");
-    const msgEl = document.getElementById("toast-message");
+    const toast = document.getElementById("toast-msg");
+    const msgEl = document.getElementById("toast-text");
     if (!toast || !msgEl) return;
 
     msgEl.textContent = message;
@@ -939,4 +939,50 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.remove("show");
     }, 3000);
+}
+
+/* ==========================================================
+   PRINT & PDF EXPORT FOR INFOSTAND
+   ========================================================== */
+function printTasksPlanner() {
+    preparePrintMetaHeader();
+    window.print();
+}
+
+function exportTasksToPdf() {
+    preparePrintMetaHeader();
+    showToast("В открывшемся окне выберите «Сохранить как PDF»");
+    setTimeout(() => {
+        window.print();
+    }, 250);
+}
+
+function preparePrintMetaHeader() {
+    const metaContainer = document.getElementById("print-meta-info");
+    if (!metaContainer) return;
+
+    const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : currentMonth;
+    const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : currentWeek;
+    
+    const zone = document.getElementById("table-filter-zone") ? document.getElementById("table-filter-zone").value : "all";
+    const author = document.getElementById("table-filter-author") ? document.getElementById("table-filter-author").value : "all";
+    const assignee = document.getElementById("table-filter-assignee") ? document.getElementById("table-filter-assignee").value : "all";
+    const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
+
+    const filterDetails = [];
+    if (showBacklog) filterDetails.push("⚡ Включая долги прошлых недель");
+    if (zone !== "all") filterDetails.push(`Зона: ${zone}`);
+    if (author !== "all") filterDetails.push(`Автор: ${author}`);
+    if (assignee !== "all") filterDetails.push(`Исполнитель: ${assignee}`);
+    if (status !== "all") filterDetails.push(`Статус: ${status}`);
+
+    const filterText = filterDetails.length > 0 ? filterDetails.join(" • ") : "Все подразделения и статусы";
+    const now = new Date();
+    const nowStr = now.toLocaleDateString("ru-RU") + " " + now.toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' });
+
+    metaContainer.innerHTML = `
+        <div style="font-weight: 700; font-size: 9pt; color: #0f172a;">${month} / ${week}</div>
+        <div style="font-size: 8pt; color: #334155; margin: 2px 0;">Фильтр: ${filterText}</div>
+        <div style="font-size: 7.5pt; color: #64748b;">Всего задач: ${allTasks.length} | Сформировано: ${nowStr}</div>
+    `;
 }

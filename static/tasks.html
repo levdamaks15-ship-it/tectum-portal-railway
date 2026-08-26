@@ -13,23 +13,30 @@
 
     <style>
         :root {
-            --tbl-border: rgba(255, 255, 255, 0.08);
-            --tbl-hover: rgba(255, 255, 255, 0.03);
-            --tbl-header-bg: rgba(30, 41, 59, 0.95);
-            --status-queue-bg: rgba(148, 163, 184, 0.15);
-            --status-queue-color: #cbd5e1;
-            --status-work-bg: rgba(245, 158, 11, 0.15);
-            --status-work-color: #fbbf24;
-            --status-done-bg: rgba(16, 185, 129, 0.15);
-            --status-done-color: #34d399;
-            --status-moved-bg: rgba(59, 130, 246, 0.15);
-            --status-moved-color: #60a5fa;
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --text-main: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --tbl-border: #e2e8f0;
+            --tbl-border-subtle: #cbd5e1;
+            --tbl-hover: #f8fafc;
+            --tbl-header-bg: #f1f5f9;
+            
+            --status-queue-bg: #f1f5f9;
+            --status-queue-color: #475569;
+            --status-work-bg: #fef3c7;
+            --status-work-color: #b45309;
+            --status-done-bg: #dcfce7;
+            --status-done-color: #15803d;
+            --status-moved-bg: #e0f2fe;
+            --status-moved-color: #0369a1;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: #0f172a;
-            color: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
             margin: 0;
             padding: 0;
             min-height: 100vh;
@@ -42,14 +49,14 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(12px);
+            background: #ffffff;
             border-bottom: 1px solid var(--tbl-border);
             padding: 0.75rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
         }
 
         .header-brand {
@@ -61,22 +68,22 @@
         }
         .header-brand img { height: 36px; }
         .header-brand h1 {
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             font-weight: 800;
             margin: 0;
             letter-spacing: 0.5px;
-            color: #f8fafc;
+            color: #0f172a;
         }
         .header-brand span {
             font-size: 0.75rem;
-            color: #94a3b8;
-            font-weight: 500;
+            color: #64748b;
+            font-weight: 600;
             display: block;
         }
 
         /* Navigation Toolbar */
         .toolbar {
-            background: rgba(30, 41, 59, 0.7);
+            background: #ffffff;
             border-bottom: 1px solid var(--tbl-border);
             padding: 0.75rem 1.5rem;
             display: flex;
@@ -94,19 +101,20 @@
         }
 
         .select-filter {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid var(--tbl-border);
-            color: #f8fafc;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border-subtle);
+            color: #1e293b;
             padding: 0.45rem 0.8rem;
             border-radius: 8px;
             font-size: 0.85rem;
             font-family: inherit;
             outline: none;
             cursor: pointer;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
         .select-filter:focus {
-            border-color: #3b82f6;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
         }
 
         .btn-action {
@@ -118,7 +126,7 @@
             font-size: 0.85rem;
             font-weight: 600;
             cursor: pointer;
-            border: none;
+            border: 1px solid transparent;
             transition: all 0.2s;
             text-decoration: none;
             font-family: inherit;
@@ -126,32 +134,36 @@
         .btn-primary-action {
             background: #2563eb;
             color: #ffffff;
+            border-color: #1d4ed8;
+            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
         }
         .btn-primary-action:hover {
             background: #1d4ed8;
         }
         .btn-secondary-action {
-            background: rgba(255, 255, 255, 0.08);
-            color: #cbd5e1;
-            border: 1px solid var(--tbl-border);
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid var(--tbl-border-subtle);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }
         .btn-secondary-action:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
+            background: #f8fafc;
+            color: #0f172a;
+            border-color: #94a3b8;
         }
         .btn-backlog-active {
-            background: rgba(245, 158, 11, 0.2) !important;
-            color: #fbbf24 !important;
-            border-color: rgba(245, 158, 11, 0.6) !important;
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+            background: #fffbeb !important;
+            color: #b45309 !important;
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
         }
         .badge-backlog {
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            background: rgba(245, 158, 11, 0.15);
-            color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.35);
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
             padding: 0.15rem 0.45rem;
             border-radius: 6px;
             font-size: 0.72rem;
@@ -162,7 +174,7 @@
         /* Main Table Container */
         .table-container {
             flex: 1;
-            padding: 1rem 1.5rem;
+            padding: 1.25rem 1.5rem;
             overflow-x: auto;
         }
 
@@ -170,28 +182,29 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.88rem;
-            background: rgba(30, 41, 59, 0.4);
+            background: #ffffff;
             border: 1px solid var(--tbl-border);
             border-radius: 10px;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .planner-table th {
             background: var(--tbl-header-bg);
-            color: #94a3b8;
+            color: #475569;
             font-weight: 600;
             text-align: left;
             padding: 0.75rem 0.6rem;
-            border-bottom: 1px solid var(--tbl-border);
+            border-bottom: 2px solid var(--tbl-border);
             font-size: 0.8rem;
             letter-spacing: 0.3px;
             white-space: nowrap;
         }
 
         .planner-table td {
-            padding: 0.6rem;
+            padding: 0.65rem 0.6rem;
             border-bottom: 1px solid var(--tbl-border);
-            color: #e2e8f0;
+            color: #1e293b;
             vertical-align: middle;
         }
 
@@ -202,19 +215,20 @@
         .badge-code {
             font-family: monospace;
             font-weight: 700;
-            background: rgba(255, 255, 255, 0.05);
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
             padding: 0.2rem 0.45rem;
             border-radius: 6px;
-            color: #93c5fd;
+            color: #1e293b;
             font-size: 0.8rem;
             white-space: nowrap;
         }
 
         .badge-zone {
             display: inline-block;
-            background: rgba(59, 130, 246, 0.1);
-            color: #93c5fd;
-            border: 1px solid rgba(59, 130, 246, 0.2);
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
             padding: 0.2rem 0.5rem;
             border-radius: 6px;
             font-size: 0.78rem;
@@ -226,7 +240,7 @@
         .select-status {
             appearance: none;
             -webkit-appearance: none;
-            padding: 0.3rem 0.6rem;
+            padding: 0.35rem 0.65rem;
             border-radius: 20px;
             font-size: 0.8rem;
             font-weight: 600;
@@ -236,10 +250,10 @@
             transition: all 0.2s;
             text-align: center;
         }
-        .status-queue { background: var(--status-queue-bg); color: var(--status-queue-color); border-color: rgba(148, 163, 184, 0.3); }
-        .status-work { background: var(--status-work-bg); color: var(--status-work-color); border-color: rgba(245, 158, 11, 0.3); }
-        .status-done { background: var(--status-done-bg); color: var(--status-done-color); border-color: rgba(16, 185, 129, 0.3); }
-        .status-moved { background: var(--status-moved-bg); color: var(--status-moved-color); border-color: rgba(59, 130, 246, 0.3); }
+        .status-queue { background: var(--status-queue-bg); color: var(--status-queue-color); border-color: #cbd5e1; }
+        .status-work { background: var(--status-work-bg); color: var(--status-work-color); border-color: #fde68a; }
+        .status-done { background: var(--status-done-bg); color: var(--status-done-color); border-color: #a7f3d0; }
+        .status-moved { background: var(--status-moved-bg); color: var(--status-moved-color); border-color: #bfdbfe; }
 
         .btn-photo-link {
             display: inline-flex;
@@ -247,16 +261,16 @@
             gap: 0.3rem;
             padding: 0.25rem 0.5rem;
             border-radius: 6px;
-            background: rgba(6, 182, 212, 0.15);
-            color: #38bdf8;
-            border: 1px solid rgba(6, 182, 212, 0.3);
+            background: #ecfeff;
+            color: #0891b2;
+            border: 1px solid #a5f3fc;
             text-decoration: none;
             font-size: 0.75rem;
             font-weight: 600;
             transition: background 0.2s;
         }
         .btn-photo-link:hover {
-            background: rgba(6, 182, 212, 0.3);
+            background: #cffafe;
         }
 
         /* Quick actions cell */
@@ -268,27 +282,27 @@
         .btn-icon-cell {
             background: transparent;
             border: none;
-            color: #94a3b8;
+            color: #64748b;
             cursor: pointer;
-            padding: 0.3rem;
-            font-size: 0.85rem;
+            padding: 0.35rem;
+            font-size: 0.88rem;
             border-radius: 4px;
             transition: color 0.2s, background 0.2s;
         }
         .btn-icon-cell:hover {
-            color: #f8fafc;
-            background: rgba(255, 255, 255, 0.1);
+            color: #0f172a;
+            background: #e2e8f0;
         }
         .btn-icon-cell.delete:hover {
             color: #ef4444;
-            background: rgba(239, 68, 68, 0.15);
+            background: #fee2e2;
         }
 
         /* Modal dialogs */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(15, 23, 42, 0.5);
             backdrop-filter: blur(4px);
             display: none;
             align-items: center;
@@ -297,56 +311,68 @@
             padding: 1rem;
         }
         .modal-box {
-            background: #1e293b;
+            background: #ffffff;
             border: 1px solid var(--tbl-border);
             border-radius: 12px;
             width: 100%;
             max-width: 600px;
             padding: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            color: #0f172a;
         }
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--tbl-border);
+            padding-bottom: 0.75rem;
         }
         .modal-header h3 {
             margin: 0;
             font-size: 1.15rem;
-            color: #f8fafc;
+            color: #0f172a;
+            font-weight: 700;
         }
         .modal-close {
             background: transparent;
             border: none;
-            color: #94a3b8;
+            color: #64748b;
             font-size: 1.25rem;
             cursor: pointer;
+            padding: 0.2rem;
+            border-radius: 4px;
+        }
+        .modal-close:hover {
+            color: #0f172a;
+            background: #f1f5f9;
         }
         .form-row {
             margin-bottom: 1rem;
         }
         .form-row label {
             display: block;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: 600;
-            color: #94a3b8;
+            color: #334155;
             margin-bottom: 0.35rem;
         }
         .form-input, .form-textarea, .form-select {
             width: 100%;
             box-sizing: border-box;
-            background: #0f172a;
-            border: 1px solid var(--tbl-border);
+            background: #ffffff;
+            border: 1px solid var(--tbl-border-subtle);
             border-radius: 8px;
             padding: 0.55rem 0.8rem;
-            color: #f8fafc;
+            color: #0f172a;
             font-family: inherit;
             font-size: 0.9rem;
             outline: none;
+            transition: border-color 0.2s;
         }
         .form-input:focus, .form-textarea:focus, .form-select:focus {
-            border-color: #3b82f6;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
         }
 
         .toast {
@@ -354,14 +380,13 @@
             bottom: 25px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
-            background: #1e293b;
-            border: 1px solid var(--tbl-border);
+            background: #0f172a;
             color: #f8fafc;
             padding: 0.75rem 1.5rem;
             border-radius: 30px;
             font-size: 0.9rem;
             font-weight: 600;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
             z-index: 2000;
             transition: transform 0.3s ease;
             display: flex;
@@ -372,6 +397,11 @@
             transform: translateX(-50%) translateY(0);
         }
 
+        /* Printable Sheet Header for Infostand */
+        .print-only-header {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .planner-header, .toolbar, .table-container {
                 padding: 0.6rem 0.8rem;
@@ -380,13 +410,124 @@
                 display: none !important;
             }
         }
+
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 8mm 8mm 8mm 8mm;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 9pt !important;
+            }
+            .planner-header, .toolbar, .row-actions, .modal-overlay, .toast, .hide-print {
+                display: none !important;
+            }
+            .print-only-header {
+                display: flex !important;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #0f172a;
+                padding-bottom: 8px;
+                margin-bottom: 12px;
+            }
+            .print-header-brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .print-header-brand img {
+                height: 34px;
+            }
+            .print-header-title h2 {
+                margin: 0;
+                font-size: 13pt;
+                font-weight: 800;
+                color: #000000;
+                letter-spacing: 0.5px;
+            }
+            .print-header-title span {
+                font-size: 8.5pt;
+                color: #333333;
+                font-weight: 600;
+            }
+            .print-meta-info {
+                text-align: right;
+                font-size: 8pt;
+                color: #333333;
+                line-height: 1.35;
+            }
+            .table-container {
+                padding: 0 !important;
+                overflow: visible !important;
+            }
+            .planner-table {
+                width: 100% !important;
+                border: 1px solid #000000 !important;
+                box-shadow: none !important;
+                page-break-inside: auto;
+            }
+            .planner-table tr {
+                page-break-inside: avoid;
+            }
+            .planner-table th {
+                background: #f1f5f9 !important;
+                color: #000000 !important;
+                border: 1px solid #64748b !important;
+                padding: 5px 4px !important;
+                font-size: 8pt !important;
+                font-weight: 700 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .planner-table th select {
+                display: none !important;
+            }
+            .planner-table th .th-title {
+                display: block !important;
+            }
+            .planner-table td {
+                border: 1px solid #cbd5e1 !important;
+                color: #000000 !important;
+                padding: 5px 4px !important;
+                font-size: 8pt !important;
+            }
+            .planner-table th:last-child,
+            .planner-table td:last-child {
+                display: none !important; /* Скрываем колонку действий при печати */
+            }
+            .select-status {
+                border: 1px solid #64748b !important;
+                font-size: 7.5pt !important;
+                padding: 1px 3px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .badge-zone {
+                border: 1px solid #94a3b8 !important;
+                font-size: 7.5pt !important;
+                padding: 1px 3px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .badge-code {
+                font-size: 7.5pt !important;
+                border: 1px solid #94a3b8 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .btn-photo-link {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Header -->
+    <!-- Header Navigation -->
     <header class="planner-header">
-        <a href="/" class="header-brand">
+        <a href="/static/tasks.html" class="header-brand">
             <img src="/static/img/Logo.png" alt="Tectum Logo">
             <div>
                 <h1>TECTUM TASKS</h1>
@@ -408,7 +549,7 @@
     <div class="toolbar">
         <div class="toolbar-group">
             <!-- Month Selector -->
-            <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: bold; background: #1e293b; color: #38bdf8; border-color: #38bdf8;">
+            <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff;">
                 <option value="Январь 2026">Январь 2026</option>
                 <option value="Февраль 2026">Февраль 2026</option>
                 <option value="Март 2026">Март 2026</option>
@@ -424,7 +565,7 @@
             </select>
 
             <!-- Week Selector (Mon-Fri) -->
-            <select class="select-filter" id="filter-week" onchange="loadTasks()" style="font-weight: 600; background: #1e293b; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">
+            <select class="select-filter" id="filter-week" onchange="loadTasks()" style="font-weight: 600; color: #b45309; border-color: #fde68a; background: #fffbeb;">
                 <!-- Populated dynamically -->
             </select>
 
@@ -440,10 +581,29 @@
                 <i class="fa-solid fa-plus"></i> <span class="hide-mobile">Добавить задачу</span>
             </button>
 
-            <!-- Sync from Google Sheets -->
-            <button class="btn-action btn-secondary-action" onclick="syncFromGoogleSheets()" title="Импорт из Google Таблицы">
-                <i class="fa-solid fa-cloud-arrow-down"></i> <span class="hide-mobile">Google Sync</span>
+            <!-- Print Button (for Info Stand) -->
+            <button class="btn-action btn-secondary-action" onclick="printTasksPlanner()" title="Печать текущей таблицы задач для инфостенда">
+                <i class="fa-solid fa-print"></i> <span class="hide-mobile">Печать</span>
             </button>
+
+            <!-- PDF Export Button -->
+            <button class="btn-action btn-secondary-action" onclick="exportTasksToPdf()" title="Выгрузить отфильтрованные задачи в PDF для инфостенда">
+                <i class="fa-solid fa-file-pdf" style="color: #dc2626;"></i> <span class="hide-mobile">PDF</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Printable Header (Visible only on Print / PDF) -->
+    <div class="print-only-header" id="print-header">
+        <div class="print-header-brand">
+            <img src="/static/img/Logo.png" alt="Tectum Logo">
+            <div class="print-header-title">
+                <h2>TECTUM ENGINEERING — ПЛАННЕР ЗАДАЧ</h2>
+                <span>ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО</span>
+            </div>
+        </div>
+        <div class="print-meta-info" id="print-meta-info">
+            <!-- Populated dynamically -->
         </div>
     </div>
 
@@ -454,7 +614,7 @@
                 <tr>
                     <th style="width: 70px;">ID</th>
                     <th style="width: 150px;">
-                        <div style="margin-bottom: 4px;">Зона / Служба</div>
+                        <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
                         <select class="select-filter" id="table-filter-zone" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                             <option value="all">📁 Все зоны</option>
                             <option value="Ремонт и зоны">Ремонт и зоны</option>
@@ -476,20 +636,20 @@
                     <th>Суть задачи (KZ)</th>
                     <th style="width: 60px; text-align: center;">Фото</th>
                     <th style="width: 130px;">
-                        <div style="margin-bottom: 4px;">Автор</div>
+                        <div class="th-title" style="margin-bottom: 4px;">Автор</div>
                         <select class="select-filter" id="table-filter-author" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                             <option value="all">✍️ Все авторы</option>
                         </select>
                     </th>
                     <th style="width: 140px;">
-                        <div style="margin-bottom: 4px;">Исполнитель</div>
+                        <div class="th-title" style="margin-bottom: 4px;">Исполнитель</div>
                         <select class="select-filter" id="table-filter-assignee" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                             <option value="all">👤 Все исполн.</option>
                         </select>
                     </th>
                     <th style="width: 80px;">Срок</th>
                     <th style="width: 135px; text-align: center;">
-                        <div style="margin-bottom: 4px;">Статус</div>
+                        <div class="th-title" style="margin-bottom: 4px;">Статус</div>
                         <select class="select-filter" id="table-filter-status" onchange="loadTasks()" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                             <option value="all">⚡ Все статусы</option>
                             <option value="⚪ В очереди">⚪ В очереди</option>
@@ -504,7 +664,7 @@
             </thead>
             <tbody id="tasks-table-body">
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                    <td colspan="11" style="text-align: center; padding: 2rem; color: #64748b;">
                         <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
                     </td>
                 </tr>
@@ -525,7 +685,7 @@
             <!-- Task text: Smart Bilateral Input (RU <-> KZ) -->
             <div class="form-row">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;">Суть задачи (RU) <span style="color: #94a3b8; font-weight: normal; font-size: 0.75rem;">(Русский)</span> *</label>
+                    <label style="margin-bottom: 0;">Суть задачи (RU) <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Русский)</span> *</label>
                     <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="swapTaskLanguages()" title="Поменять местами русский и казахский текст">
                         <i class="fa-solid fa-right-left"></i> <span>Поменять (RU ⇄ KZ)</span>
                     </button>
@@ -535,8 +695,8 @@
 
             <div class="form-row">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;">Суть задачи (KZ) <span style="color: #94a3b8; font-weight: normal; font-size: 0.75rem;">(Қазақша)</span></label>
-                    <div id="translate-status-badge" style="display: none; font-size: 0.75rem; color: #38bdf8; align-items: center; gap: 4px;">
+                    <label style="margin-bottom: 0;">Суть задачи (KZ) <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Қазақша)</span></label>
+                    <div id="translate-status-badge" style="display: none; font-size: 0.75rem; color: #2563eb; align-items: center; gap: 4px;">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Автоперевод</span>
                     </div>
                 </div>
@@ -620,7 +780,7 @@
         <div class="modal-box" style="max-width: 520px;">
             <div class="modal-header">
                 <div style="display: flex; align-items: center; gap: 0.6rem;">
-                    <i class="fa-solid fa-circle-check" style="color: #34d399; font-size: 1.3rem;"></i>
+                    <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 1.3rem;"></i>
                     <h3 id="complete-modal-title" style="margin: 0;">Подтверждение выполнения</h3>
                 </div>
                 <button class="modal-close" onclick="closeCompleteModal()">&times;</button>
@@ -628,9 +788,9 @@
             
             <input type="hidden" id="complete-task-id" value="">
             
-            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.75rem; color: #93c5fd; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="complete-task-code">TSK-01</div>
-                <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; line-height: 1.4;" id="complete-task-title">Название задачи</div>
+            <div style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="complete-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="complete-task-title">Название задачи</div>
             </div>
 
             <div class="form-row">
@@ -639,7 +799,7 @@
             </div>
 
             <div class="form-row">
-                <label>Ссылка на подтверждающее фото <span style="color: #94a3b8; font-weight: normal;">(необязательно)</span></label>
+                <label>Ссылка на подтверждающее фото <span style="color: #64748b; font-weight: normal;">(необязательно)</span></label>
                 <input type="url" class="form-input" id="complete-task-photo" placeholder="https://drive.google.com/...">
             </div>
 
@@ -658,6 +818,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260826_no_archive_backlog"></script>
+    <script src="/static/js/tasks.js?v=20260826_light_theme_v1"></script>
 </body>
 </html>
