@@ -703,29 +703,47 @@
                 <input type="text" class="form-input" id="task-kz-input" placeholder="Автоматический перевод на казахский (или введите здесь на казахском)..." oninput="onTaskInputChanged('kz')">
             </div>
 
-            <!-- Zone & Photo Link -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
-                <div>
-                    <label>Зона / Служба</label>
-                    <select class="form-select" id="task-zone-input">
-                        <option value="Ремонт и зоны">Ремонт и зоны</option>
-                        <option value="Инфостенды">Инфостенды</option>
-                        <option value="Обучение">Обучение</option>
-                        <option value="Цифровой портал">Цифровой портал</option>
-                        <option value="СКК">СКК</option>
-                        <option value="Документация">Документация</option>
-                        <option value="Цилиндры">Цилиндры</option>
-                        <option value="Дестакер">Дестакер</option>
-                        <option value="Дозировка">Дозировка</option>
-                        <option value="ЗО">ЗО</option>
-                        <option value="Зона двигателей">Зона двигателей</option>
-                        <option value="Слесарная мастерская">Слесарная мастерская</option>
-                        <option value="Бережливое производство" selected>Бережливое производство</option>
-                    </select>
+            <!-- Zone -->
+            <div class="form-row">
+                <label>Зона / Служба</label>
+                <select class="form-select" id="task-zone-input">
+                    <option value="Ремонт и зоны">Ремонт и зоны</option>
+                    <option value="Инфостенды">Инфостенды</option>
+                    <option value="Обучение">Обучение</option>
+                    <option value="Цифровой портал">Цифровой портал</option>
+                    <option value="СКК">СКК</option>
+                    <option value="Документация">Документация</option>
+                    <option value="Цилиндры">Цилиндры</option>
+                    <option value="Дестакер">Дестакер</option>
+                    <option value="Дозировка">Дозировка</option>
+                    <option value="ЗО">ЗО</option>
+                    <option value="Зона двигателей">Зона двигателей</option>
+                    <option value="Слесарная мастерская">Слесарная мастерская</option>
+                    <option value="Бережливое производство" selected>Бережливое производство</option>
+                </select>
+            </div>
+
+            <!-- Photo Link with Google Photos integration -->
+            <div class="form-row">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;">Фото задачи <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Google Фото / Google Диск)</span></label>
+                    <div style="display: flex; gap: 4px;">
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openGooglePhotosPicker('task-photo-input')" title="Открыть Google Фото для выбора фотографии">
+                            <i class="fa-solid fa-image" style="color: #ea4335;"></i> <span>Google Фото</span>
+                        </button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="pastePhotoLinkFromClipboard('task-photo-input')" title="Вставить скопированную ссылку">
+                            <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить ссылку</span>
+                        </button>
+                    </div>
                 </div>
-                <div>
-                    <label>Ссылка на фото (Google Диск / Облако)</label>
-                    <input type="url" class="form-input" id="task-photo-input" placeholder="https://drive.google.com/...">
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="url" class="form-input" id="task-photo-input" placeholder="https://photos.app.goo.gl/... или https://drive.google.com/..." oninput="onPhotoInputChanged('task-photo-input')" style="padding-right: 85px;">
+                    <button type="button" id="task-photo-preview-btn" class="btn-action btn-secondary-action" style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;" onclick="testOpenPhotoLink('task-photo-input')">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Просмотр
+                    </button>
+                </div>
+                <div id="task-photo-preview-hint" style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-circle-check"></i> <span>Ссылка на фото прикреплена</span>
                 </div>
             </div>
 
@@ -799,8 +817,26 @@
             </div>
 
             <div class="form-row">
-                <label>Ссылка на подтверждающее фото <span style="color: #64748b; font-weight: normal;">(необязательно)</span></label>
-                <input type="url" class="form-input" id="complete-task-photo" placeholder="https://drive.google.com/...">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;">Ссылка на подтверждающее фото <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                    <div style="display: flex; gap: 4px;">
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openGooglePhotosPicker('complete-task-photo')" title="Открыть Google Фото для выбора фотографии">
+                            <i class="fa-solid fa-image" style="color: #ea4335;"></i> <span>Google Фото</span>
+                        </button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="pastePhotoLinkFromClipboard('complete-task-photo')" title="Вставить скопированную ссылку">
+                            <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить ссылку</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="url" class="form-input" id="complete-task-photo" placeholder="https://photos.app.goo.gl/... или https://drive.google.com/..." oninput="onPhotoInputChanged('complete-task-photo')" style="padding-right: 85px;">
+                    <button type="button" id="complete-photo-preview-btn" class="btn-action btn-secondary-action" style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;" onclick="testOpenPhotoLink('complete-task-photo')">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Просмотр
+                    </button>
+                </div>
+                <div id="complete-photo-preview-hint" style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-circle-check"></i> <span>Ссылка на фото прикреплена</span>
+                </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">

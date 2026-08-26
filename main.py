@@ -6923,6 +6923,9 @@ def manual_sync_checklists_google(db: Session = Depends(get_db)):
 # ==========================================================
 # 🎯 TECTUM TASKS PLANNER API
 # ==========================================================
+# EMAIL NOTIFICATIONS FOR TASKS PLANNER
+# ==========================================================
+from email_service import send_task_html_email
 
 def get_task_person_email(db: Session, person_name: str) -> Optional[str]:
     """Находит email сотрудника сначала в PlannerEmployee, затем в Master."""
@@ -6930,20 +6933,18 @@ def get_task_person_email(db: Session, person_name: str) -> Optional[str]:
         return None
     pe = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == person_name).first()
     if pe and pe.email and "@" in pe.email:
-        return pe.email
+        return pe.email.strip()
     m = db.query(models.Master).filter(models.Master.name == person_name).first()
     if m and m.email and "@" in m.email:
-        return m.email
+        return m.email.strip()
     return None
 
-def send_task_email_notification(to_email: str, subject: str, body: str):
-    """Фоновая отправка email-уведомления (через MailApp/M365/SMTP)."""
+def send_task_email_notification(to_email: str, subject: str, event_type: str, task_dict: dict):
+    """Фоновая отправка email-уведомления через email_service."""
     if not to_email or "@" not in to_email:
         return
     try:
-        # Проверяем интеграцию с M365 / Graph API если настроено
-        print(f"[Email Notification] To: {to_email} | Subject: {subject}")
-        # Здесь отправка через MS Graph / SMTP
+        send_task_html_email(to_email, subject, event_type, task_dict)
     except Exception as e:
         print(f"[Email Notification Warning] Failed to send email to {to_email}: {e}")
 
@@ -7099,6 +7100,45 @@ def delete_planner_zone(zone_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/planner/test_email")
+def test_planner_email(
+    to_email: str = Body(..., embed=True),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db)
+):
+    """Отправляет тестовое брендированное уведомление на указанный email."""
+    if not to_email or "@" not in to_email:
+        raise HTTPException(status_code=400, detail="Укажите корректный email адрес")
+
+    test_task = {
+        "id": 999,
+        "code": "TSK-TEST",
+        "title": "Тестовая проверка системы уведомлений Tectum",
+        "title_kz": "Tectum хабарландыру жүйесін сынақтан өткізу",
+        "zone": "Цифровой портал",
+        "due_date_str": datetime.now().strftime("%d.%m.%Y"),
+        "author_name": "Администратор",
+        "assignee_name": "Тестовый исполнитель",
+        "status": "🟡 В работе",
+        "comment": "Почтовый шлюз успешно настроен и готов к отправке уведомлений.",
+        "photo_link": "",
+        "month_label": "Август 2026",
+        "week_label": "Неделя 4 (24.08 - 28.08)"
+    }
+
+    success = send_task_html_email(
+        to_email=to_email.strip(),
+        subject="🚀 Проверка почтовых уведомлений Tectum Планнер",
+        event_type="Тестовое уведомление",
+        task_data=test_task
+    )
+
+    if success:
+        return {"status": "ok", "message": f"Тестовое письмо успешно отправлено на {to_email}!"}
+    else:
+        raise HTTPException(status_code=500, detail="Не удалось отправить письмо. Проверьте переменные SMTP_USER и SMTP_PASSWORD в Railway.")
+
 
 
 def generate_calendar_structure_mon_fri(year: int = 2026):
@@ -7385,8 +7425,22 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             assignee_email = get_task_person_email(db, new_task.assignee_name)
             if assignee_email:
                 subject = f"📌 Новая задача [{new_task.zone}]: {new_task.title}"
-                body = f"Вам назначена новая задача: {new_task.title}\nСрок: {new_task.due_date_str}\nАвтор: {new_task.author_name}"
-                background_tasks.add_task(send_task_email_notification, assignee_email, subject, body)
+                task_dict = {
+                    "id": new_task.id,
+                    "code": new_task.code,
+                    "title": new_task.title,
+                    "title_kz": new_task.title_kz,
+                    "zone": new_task.zone,
+                    "due_date_str": new_task.due_date_str,
+                    "author_name": new_task.author_name,
+                    "assignee_name": new_task.assignee_name,
+                    "status": new_task.status,
+                    "comment": new_task.comment,
+                    "photo_link": new_task.photo_link,
+                    "month_label": new_task.month_label,
+                    "week_label": new_task.week_label
+                }
+                background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Вам назначена новая задача", task_dict)
 
         return {"status": "ok", "task_id": new_task.id, "code": new_task.code}
     except Exception as e:
@@ -7403,6 +7457,7 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
         old_status = task.status
+        old_assignee = task.assignee_name
 
         # Обновляем переданные поля
         update_dict = task_data.dict(exclude_unset=True)
@@ -7414,23 +7469,51 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         db.commit()
         db.refresh(task)
 
-        # Уведомления при смене статуса
+        task_dict = {
+            "id": task.id,
+            "code": task.code,
+            "title": task.title,
+            "title_kz": task.title_kz,
+            "zone": task.zone,
+            "due_date_str": task.due_date_str,
+            "author_name": task.author_name,
+            "assignee_name": task.assignee_name,
+            "status": task.status,
+            "comment": task.comment,
+            "photo_link": task.photo_link,
+            "month_label": task.month_label,
+            "week_label": task.week_label
+        }
+
+        # 1. Если сменился исполнитель и назначен новый -> уведомление новому исполнителю
+        if task.assignee_name and task.assignee_name != old_assignee:
+            new_assignee_email = get_task_person_email(db, task.assignee_name)
+            if new_assignee_email:
+                subject = f"📌 Новая задача [{task.zone}]: {task.title}"
+                background_tasks.add_task(send_task_email_notification, new_assignee_email, subject, "Вам назначена новая задача", task_dict)
+
+        # 2. Уведомления при смене статуса
         if task_data.status and task_data.status != old_status:
-            # 1. Если задача завершена или перенесена -> автору
-            if task.status in ["🟢 Выполнено", "🔵 Перенесено"] and task.author_name:
+            # Если задача завершена -> автору
+            if task.status == "🟢 Выполнено" and task.author_name:
                 author_email = get_task_person_email(db, task.author_name)
                 if author_email:
-                    subject = f"Статус задачи [{task.zone}]: {task.title} ➔ {task.status}"
-                    body = f"Статус задачи изменился на: {task.status}\nИсполнитель: {task.assignee_name}\nКомментарий: {task.comment}"
-                    background_tasks.add_task(send_task_email_notification, author_email, subject, body)
+                    subject = f"🟢 Задача выполнена [{task.zone}]: {task.title}"
+                    background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача выполнена", task_dict)
 
-            # 2. Если задачу взяли в работу -> исполнителю
-            elif task.status in ["🟡 В работе", "⚪ В очереди"] and task.assignee_name:
+            # Если задача перенесена -> автору
+            elif task.status == "🔵 Перенесено" and task.author_name:
+                author_email = get_task_person_email(db, task.author_name)
+                if author_email:
+                    subject = f"🔵 Задача перенесена [{task.zone}]: {task.title}"
+                    background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача перенесена", task_dict)
+
+            # Если задачу взяли в работу -> исполнителю (если статус изменился)
+            elif task.status == "🟡 В работе" and task.assignee_name:
                 assignee_email = get_task_person_email(db, task.assignee_name)
                 if assignee_email:
                     subject = f"📌 Задача в работе [{task.zone}]: {task.title}"
-                    body = f"Задача: {task.title}\nСрок: {task.due_date_str}"
-                    background_tasks.add_task(send_task_email_notification, assignee_email, subject, body)
+                    background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Задача в работе", task_dict)
 
         return {"status": "ok", "task_id": task.id}
     except HTTPException:
@@ -7442,23 +7525,33 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
 @app.delete("/api/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    """Удаляет задачу."""
+    """Удаляет задачу (доступно только из панели администратора)."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
+        
+        task_info = f"ID: {task.id}, Код: {task.code}, Заголовок: {task.title}, Зона: {task.zone}, Период: {task.month_label}/{task.week_label}"
         db.delete(task)
+        
+        # Логирование в аудит
+        db.add(models.AuditLog(
+            action="DELETE",
+            entity="Task",
+            entity_id=task_id,
+            details=f"Администратор удалил задачу [{task_info}]"
+        ))
+        
         db.commit()
         return {"status": "ok", "message": "Задача успешно удалена"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
+    except HTTPException:
+        raise
 @app.post("/api/tasks/{task_id}/move_next_week")
 def move_task_to_next_week(
     task_id: int, 
     next_week: str, 
     next_month: Optional[str] = None, 
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
     """Переносит отдельную задачу на следующую неделю (и при необходимости в следующий месяц) со статусом Перенесено."""
@@ -7479,6 +7572,30 @@ def move_task_to_next_week(
             task.comment = f"{prev_comment} {note}".strip()
 
         db.commit()
+        db.refresh(task)
+
+        # Отправка уведомления автору и исполнителю о переносе
+        task_dict = {
+            "id": task.id,
+            "code": task.code,
+            "title": task.title,
+            "title_kz": task.title_kz,
+            "zone": task.zone,
+            "due_date_str": task.due_date_str,
+            "author_name": task.author_name,
+            "assignee_name": task.assignee_name,
+            "status": task.status,
+            "comment": task.comment,
+            "photo_link": task.photo_link,
+            "month_label": task.month_label,
+            "week_label": task.week_label
+        }
+        if task.author_name:
+            author_email = get_task_person_email(db, task.author_name)
+            if author_email:
+                subject = f"🔵 Задача перенесена на {next_week} [{task.zone}]: {task.title}"
+                background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача перенесена", task_dict)
+
         return {"status": "ok", "message": f"Задача перенесена на {next_week}"}
     except Exception as e:
         db.rollback()

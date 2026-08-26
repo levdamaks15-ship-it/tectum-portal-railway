@@ -327,9 +327,6 @@ function renderTasksTable(tasks) {
                         <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button class="btn-icon-cell delete" onclick="deleteTask(${t.id})" title="Удалить">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
                     </div>
                 </td>
             </tr>
@@ -428,6 +425,7 @@ function openCompleteTaskModal(taskId) {
     document.getElementById("complete-task-title").textContent = task.title || "—";
     document.getElementById("complete-task-fact").value = task.comment || "";
     document.getElementById("complete-task-photo").value = task.photo_link || "";
+    onPhotoInputChanged('complete-task-photo');
 
     document.getElementById("complete-task-modal").style.display = "flex";
     setTimeout(() => {
@@ -659,6 +657,7 @@ function openAddTaskModal() {
     
     document.getElementById("task-status-input").value = "🟡 В работе";
     document.getElementById("task-comment-input").value = "";
+    onPhotoInputChanged('task-photo-input');
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
@@ -685,6 +684,7 @@ function openEditTaskModal(taskId) {
     
     document.getElementById("task-status-input").value = task.status || "⚪ В очереди";
     document.getElementById("task-comment-input").value = task.comment || "";
+    onPhotoInputChanged('task-photo-input');
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
@@ -858,20 +858,6 @@ async function moveTaskToNextWeekModal(taskId) {
     }
 }
 
-async function deleteTask(taskId) {
-    if (!confirm("Вы уверены, что хотите удалить эту задачу?")) return;
-
-    try {
-        const res = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
-        if (res.ok) {
-            showToast("Задача удалена");
-            loadTasks();
-        }
-    } catch (e) {
-        console.error("Delete task error:", e);
-    }
-}
-
 /* ==========================================================
    SYNC FROM GOOGLE SHEETS
    ========================================================== */
@@ -985,4 +971,77 @@ function preparePrintMetaHeader() {
         <div style="font-size: 8pt; color: #334155; margin: 2px 0;">Фильтр: ${filterText}</div>
         <div style="font-size: 7.5pt; color: #64748b;">Всего задач: ${allTasks.length} | Сформировано: ${nowStr}</div>
     `;
+}
+
+/* ==========================================================
+   GOOGLE PHOTOS & LINK PICKER HELPERS
+   ========================================================== */
+function openGooglePhotosPicker(targetInputId) {
+    const photosUrl = "https://photos.google.com";
+    window.open(photosUrl, "_blank");
+    showToast("В Google Фото выберите фото и нажмите «Поделиться» ➔ «Создать ссылку»");
+}
+
+async function pastePhotoLinkFromClipboard(targetInputId) {
+    const inputEl = document.getElementById(targetInputId);
+    if (!inputEl) return;
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            const text = await navigator.clipboard.readText();
+            if (text && (text.startsWith("http://") || text.startsWith("https://"))) {
+                inputEl.value = text.trim();
+                onPhotoInputChanged(targetInputId);
+                showToast("Ссылка на фото вставлена! 📷");
+            } else if (text) {
+                inputEl.value = text.trim();
+                onPhotoInputChanged(targetInputId);
+                showToast("Текст из буфера вставлен");
+            } else {
+                promptFallbackPaste(inputEl);
+            }
+        } else {
+            promptFallbackPaste(inputEl);
+        }
+    } catch (err) {
+        promptFallbackPaste(inputEl);
+    }
+}
+
+function promptFallbackPaste(inputEl) {
+    const manualLink = prompt("Вставьте скопированную ссылку на Google Фото / Диск:", inputEl.value || "");
+    if (manualLink !== null) {
+        inputEl.value = manualLink.trim();
+        onPhotoInputChanged(inputEl.id);
+        if (inputEl.value) showToast("Ссылка на фото сохранена");
+    }
+}
+
+function onPhotoInputChanged(inputId) {
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl) return;
+
+    const val = inputEl.value.trim();
+    const isModal1 = (inputId === 'task-photo-input');
+    const previewBtn = document.getElementById(isModal1 ? 'task-photo-preview-btn' : 'complete-photo-preview-btn');
+    const hintEl = document.getElementById(isModal1 ? 'task-photo-preview-hint' : 'complete-photo-preview-hint');
+
+    if (val && (val.startsWith("http://") || val.startsWith("https://"))) {
+        if (previewBtn) previewBtn.style.display = "inline-flex";
+        if (hintEl) hintEl.style.display = "inline-flex";
+    } else {
+        if (previewBtn) previewBtn.style.display = "none";
+        if (hintEl) hintEl.style.display = "none";
+    }
+}
+
+function testOpenPhotoLink(inputId) {
+    const inputEl = document.getElementById(inputId);
+    if (!inputEl) return;
+    const url = inputEl.value.trim();
+    if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+        window.open(url, "_blank");
+    } else {
+        alert("Пожалуйста, укажите корректную ссылку на фото");
+    }
 }

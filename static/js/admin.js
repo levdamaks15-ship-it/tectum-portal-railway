@@ -2248,9 +2248,10 @@ async function saveShiftScheduleDay() {
 
 let adminPlannerEmployees = [];
 let adminPlannerZones = [];
+let adminAllTasks = [];
 
 async function loadPlannerSettings() {
-    await Promise.all([loadPlannerEmployees(), loadPlannerZones()]);
+    await Promise.all([loadPlannerEmployees(), loadPlannerZones(), loadAdminTasksList()]);
 }
 
 async function loadPlannerEmployees() {
@@ -2440,5 +2441,114 @@ function closePlannerModals() {
     const zoneModal = document.getElementById('planner-zone-modal');
     if (zoneModal) zoneModal.style.display = 'none';
 }
+
+/* ==========================================================
+   ADMIN TASKS REGISTRY & DELETION
+   ========================================================== */
+async function loadAdminTasksList() {
+    const tbody = document.getElementById('admin-tasks-table-body');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...</td></tr>`;
+
+    try {
+        const res = await fetch('/api/tasks?month=all');
+        if (res.ok) {
+            adminAllTasks = await res.json();
+            renderAdminTasksTable(adminAllTasks);
+        } else {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">Не удалось загрузить задачи</td></tr>`;
+        }
+    } catch (e) {
+        console.error("Error loading admin tasks:", e);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">Ошибка сети</td></tr>`;
+    }
+}
+
+function renderAdminTasksTable(tasks) {
+    const tbody = document.getElementById('admin-tasks-table-body');
+    if (!tbody) return;
+
+    if (!tasks || tasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">Задач не найдено</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = tasks.map(t => `
+        <tr>
+            <td style="font-family: monospace; font-weight: 700; color: var(--accent-color); font-size: 0.8rem;">${t.code || ('TSK-' + t.id)}</td>
+            <td style="color: var(--text-secondary); font-size: 0.78rem; white-space: nowrap;">${t.month_label || '—'} / ${t.week_label || '—'}</td>
+            <td style="font-size: 0.82rem; color: var(--text-primary);"><span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${t.zone || '—'}</span></td>
+            <td style="font-weight: 500; color: var(--text-primary); max-width: 320px; font-size: 0.85rem;">
+                <div>${(t.title || '—')}</div>
+                ${t.title_kz ? `<div style="font-size: 0.75rem; color: var(--text-secondary);">${t.title_kz}</div>` : ''}
+            </td>
+            <td style="font-size: 0.82rem; color: var(--text-primary); white-space: nowrap;">${t.assignee_name || '—'}</td>
+            <td style="font-size: 0.78rem; white-space: nowrap;">${t.status || '—'}</td>
+            <td style="text-align: right; white-space: nowrap;">
+                <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить задачу навсегда">
+                    <i class="fa-solid fa-trash"></i> Удалить
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterAdminTasksTable() {
+    const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
+    if (!q) {
+        renderAdminTasksTable(adminAllTasks);
+        return;
+    }
+    const filtered = adminAllTasks.filter(t => 
+        (t.title && t.title.toLowerCase().includes(q)) ||
+        (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
+        (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
+        (t.author_name && t.author_name.toLowerCase().includes(q)) ||
+        (t.zone && t.zone.toLowerCase().includes(q)) ||
+        (t.code && t.code.toLowerCase().includes(q)) ||
+        (t.month_label && t.month_label.toLowerCase().includes(q))
+    );
+    renderAdminTasksTable(filtered);
+}
+
+async function deleteTaskFromAdmin(taskId, taskTitle) {
+    if (!confirm(`Вы действительно хотите БЕЗВОЗВРАТНО удалить задачу ID ${taskId} («${taskTitle}»)?`)) return;
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        if (res.ok) {
+            alert("Задача успешно удалена");
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при удалении");
+    }
+}
+
+async function testSendPlannerEmailPrompt() {
+    const targetEmail = prompt("Введите Email для отправки тестового уведомления:", "");
+    if (!targetEmail || !targetEmail.trim()) return;
+
+    try {
+        const res = await fetch('/api/planner/test_email', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ to_email: targetEmail.trim() })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Тестовое письмо успешно отправлено! Проверьте входящие.");
+        } else {
+            alert("Ошибка отправки: " + (data.detail || "Проверьте переменные SMTP в Railway"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при проверке отправки");
+    }
+}
+
+
 
 
