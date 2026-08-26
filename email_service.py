@@ -1,5 +1,6 @@
 import os
 import smtplib
+import socket
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Optional, Dict, Any
@@ -11,6 +12,22 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Tectum Планнер")
 PORTAL_URL = os.getenv("PORTAL_URL", "https://tectum-portal-railway-production.up.railway.app/tasks")
 
+def _force_ipv4_socket():
+    """
+    На Railway и некоторых облачных платформах IPv6 недоступен.
+    Принудительно перенаправляем socket.getaddrinfo на AF_INET (IPv4),
+    чтобы избежать ошибки [Errno 101] Network is unreachable.
+    """
+    old_getaddrinfo = socket.getaddrinfo
+    def getaddrinfo_ipv4(*args, **kwargs):
+        # Если family не указан (0), принудительно ставим socket.AF_INET
+        if len(args) >= 3 and args[2] == 0:
+            args = (args[0], args[1], socket.AF_INET) + args[3:]
+        elif len(args) == 2:
+            args = (args[0], args[1], socket.AF_INET)
+        return old_getaddrinfo(*args, **kwargs)
+    return getaddrinfo_ipv4
+
 def send_task_html_email(
     to_email: str,
     subject: str,
@@ -19,7 +36,7 @@ def send_task_html_email(
 ) -> (bool, Optional[str]):
     """
     Отправляет красивое брендированное HTML-письмо с уведомлением по задаче через SMTP.
-    Возвращает (успех: bool, текст_ошибки: Optional[str]).
+    Автоматически пробует порты 465 (SSL) и 587 (STARTTLS) с поддержкой IPv4.
     """
     if not to_email or "@" not in to_email:
         err = f"Некорректный email получателя: '{to_email}'"
@@ -42,6 +59,18 @@ def send_task_html_email(
         print(f"[Email Service Warning] {err}")
         return False, err
 
+    # Включаем принудительный IPv4 резолвинг для обхода ограничений сети Railway
+    original_getaddrinfo = socket.getaddrinfo
+    socket.getaddrinfo = _force_ipv4_socket()
+
+    ports_to_try = [smtp_port]
+    # Если порт 587, запасной - 465, и наоборот
+    if smtp_port == 587 and 465 not in ports_to_try:
+        ports_to_try.append(465)
+    elif smtp_port == 465 and 587 not in ports_to_try:
+        ports_to_try.append(587)
+
+    last_err = None
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -55,27 +84,37 @@ def send_task_html_email(
         msg.attach(MIMEText(text_content, "plain", "utf-8"))
         msg.attach(MIMEText(html_content, "html", "utf-8"))
 
-        if smtp_port == 465:
-            # SSL
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as server:
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_user, [to_email], msg.as_string())
-        else:
-            # STARTTLS (порт 587 по умолчанию)
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(smtp_user, [to_email], msg.as_string())
+        for port in ports_to_try:
+            try:
+                if port == 465:
+                    # SSL соединение
+                    with smtplib.SMTP_SSL(smtp_host, port, timeout=12) as server:
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, [to_email], msg.as_string())
+                else:
+                    # STARTTLS соединение
+                    with smtplib.SMTP(smtp_host, port, timeout=12) as server:
+                        server.ehlo()
+                        server.starttls()
+                        server.ehlo()
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, [to_email], msg.as_string())
 
-        print(f"[Email Service Success] Письмо успешно отправлено на {to_email} (Событие: {event_type})")
-        return True, None
+                print(f"[Email Service Success] Письмо успешно отправлено на {to_email} через порт {port} (Событие: {event_type})")
+                return True, None
 
-    except Exception as e:
-        err = f"Ошибка SMTP ({type(e).__name__}): {str(e)}"
-        print(f"[Email Service Error] Ошибка отправки на {to_email}: {err}")
+            except Exception as e:
+                last_err = e
+                print(f"[Email Service Debug] Попытка через порт {port} не удалась: {e}")
+                continue
+
+        err = f"Ошибка SMTP: {str(last_err)}"
+        print(f"[Email Service Error] Все порты {ports_to_try} завершились ошибкой: {err}")
         return False, err
+
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
+
 
 
 
