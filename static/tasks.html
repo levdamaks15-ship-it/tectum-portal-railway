@@ -508,24 +508,15 @@
             
             <input type="hidden" id="task-id-input" value="">
 
+            <!-- Task text: Single input with instant auto-translation -->
             <div class="form-row">
-                <label>Суть задачи (введите на любом языке — перевод выполнится автоматически) *</label>
-                <textarea class="form-textarea" id="task-input-text" rows="2" placeholder="Например: Установить инфостенд на участке ЛФМ..." required></textarea>
-                <button type="button" class="btn-action btn-secondary-action" style="margin-top: 0.35rem; font-size: 0.75rem;" onclick="triggerAutoTranslate()">
-                    <i class="fa-solid fa-language"></i> Перевести RU ↔ KZ
-                </button>
+                <label>Суть задачи (RU) *</label>
+                <textarea class="form-textarea" id="task-ru-input" rows="2" placeholder="Например: Установить инфостенд на участке ЛФМ..." oninput="debounceAutoTranslateModal()" required></textarea>
             </div>
 
-            <!-- Two Language Outputs -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
-                <div>
-                    <label>Текст (RU)</label>
-                    <input type="text" class="form-input" id="task-ru-input">
-                </div>
-                <div>
-                    <label>Текст (KZ)</label>
-                    <input type="text" class="form-input" id="task-kz-input">
-                </div>
+            <div class="form-row">
+                <label>Суть задачи (KZ) <span style="font-weight: normal; color: #94a3b8;">(автоперевод)</span></label>
+                <input type="text" class="form-input" id="task-kz-input" placeholder="Автоматический перевод на казахский...">
             </div>
 
             <!-- Zone & Photo Link -->
@@ -570,15 +561,23 @@
                 </div>
             </div>
 
-            <!-- Deadline & Status -->
+            <!-- Deadline with Clickable Quick Selectors & Status -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
                 <div>
-                    <label>Срок (напр. 28.08 или В течение недели)</label>
-                    <input type="text" class="form-input" id="task-due-input" placeholder="28.08">
+                    <label>Срок выполнения</label>
+                    <div style="display: flex; gap: 0.35rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Пн')">Пн</button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Вт')">Вт</button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Ср')">Ср</button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Чт')">Чт</button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('Пт')">Пт</button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 6px;" onclick="setDueQuick('В теч. недели')">В теч. нед.</button>
+                    </div>
+                    <input type="text" class="form-input" id="task-due-input" placeholder="Напр. 28.08 или Пт">
                 </div>
                 <div>
                     <label>Статус</label>
-                    <select class="form-select" id="task-status-input">
+                    <select class="form-select" id="task-status-input" style="margin-top: 1.5rem;">
                         <option value="⚪ В очереди">⚪ В очереди</option>
                         <option value="🟡 В работе">🟡 В работе</option>
                         <option value="🟢 Выполнено">🟢 Выполнено</option>
@@ -606,6 +605,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260826_planner_filters_v2"></script>
+    <script src="/static/js/tasks.js?v=20260826_planner_filters_v3"></script>
 </body>
 </html>

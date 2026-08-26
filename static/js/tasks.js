@@ -373,30 +373,41 @@ async function inlineEditComment(taskId, currentComment) {
 }
 
 /* ==========================================================
-   TRANSLATION (RU <-> KZ)
+   TRANSLATION (RU <-> KZ) - INSTANT AUTO-TRANSLATE
    ========================================================== */
-async function triggerAutoTranslate() {
-    const inputEl = document.getElementById("task-input-text");
-    const ruEl = document.getElementById("task-ru-input");
-    const kzEl = document.getElementById("task-kz-input");
-    if (!inputEl || !inputEl.value.trim()) return;
+let translateDebounceTimer = null;
+function debounceAutoTranslateModal() {
+    clearTimeout(translateDebounceTimer);
+    translateDebounceTimer = setTimeout(async () => {
+        const ruInput = document.getElementById("task-ru-input");
+        const kzInput = document.getElementById("task-kz-input");
+        if (!ruInput || !kzInput) return;
 
-    const text = inputEl.value.trim();
-    try {
-        const res = await fetch("/api/tasks/translate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (ruEl) ruEl.value = data.text_ru || text;
-            if (kzEl) kzEl.value = data.text_kz || "";
-            showToast("Перевод выполнен ✨");
+        const text = ruInput.value.trim();
+        if (!text) {
+            kzInput.value = "";
+            return;
         }
-    } catch (e) {
-        console.error("Translation error:", e);
-    }
+
+        try {
+            const res = await fetch("/api/tasks/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                kzInput.value = data.text_kz || "";
+            }
+        } catch (e) {
+            console.error("Auto-translate error:", e);
+        }
+    }, 400);
+}
+
+function setDueQuick(val) {
+    const input = document.getElementById("task-due-input");
+    if (input) input.value = val;
 }
 
 /* ==========================================================
@@ -405,13 +416,12 @@ async function triggerAutoTranslate() {
 function openAddTaskModal() {
     document.getElementById("modal-title").textContent = "Новая задача";
     document.getElementById("task-id-input").value = "";
-    document.getElementById("task-input-text").value = "";
     document.getElementById("task-ru-input").value = "";
     document.getElementById("task-kz-input").value = "";
     document.getElementById("task-photo-input").value = "";
     document.getElementById("task-author-input").value = "";
     document.getElementById("task-assignee-input").value = "";
-    document.getElementById("task-due-input").value = "28.08";
+    document.getElementById("task-due-input").value = "В теч. недели";
     document.getElementById("task-status-input").value = "⚪ В очереди";
     document.getElementById("task-comment-input").value = "";
 
@@ -424,8 +434,7 @@ function openEditTaskModal(taskId) {
 
     document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code}]`;
     document.getElementById("task-id-input").value = task.id;
-    document.getElementById("task-input-text").value = task.title;
-    document.getElementById("task-ru-input").value = task.title;
+    document.getElementById("task-ru-input").value = task.title || "";
     document.getElementById("task-kz-input").value = task.title_kz || "";
     document.getElementById("task-zone-input").value = task.zone || "Бережливое производство";
     document.getElementById("task-photo-input").value = task.photo_link || "";
@@ -444,8 +453,7 @@ function closeTaskModal() {
 
 async function saveTaskModal() {
     const taskId = document.getElementById("task-id-input").value;
-    const inputText = document.getElementById("task-input-text").value.trim();
-    const titleRu = document.getElementById("task-ru-input").value.trim() || inputText;
+    const titleRu = document.getElementById("task-ru-input").value.trim();
     const titleKz = document.getElementById("task-kz-input").value.trim();
     const zone = document.getElementById("task-zone-input").value;
     const photoLink = document.getElementById("task-photo-input").value.trim();
@@ -503,21 +511,41 @@ async function saveTaskModal() {
 }
 
 /* ==========================================================
-   MOVE TO NEXT WEEK & ARCHIVE
+   MOVE TO NEXT WEEK & ARCHIVE (1-CLICK NO PROMPTS)
    ========================================================== */
-async function moveTaskToNextWeekModal(taskId) {
+function getNextCalendarWeek() {
     const weeks = allWeeksStructure[currentMonth] || [];
     const currentIdx = weeks.indexOf(currentWeek);
-    let nextWeek = (currentIdx >= 0 && currentIdx < weeks.length - 1) ? weeks[currentIdx + 1] : prompt("Введите название следующей недели (напр. Неделя 1 (31.08 - 04.09)):");
     
-    if (!nextWeek) return;
+    if (currentIdx >= 0 && currentIdx < weeks.length - 1) {
+        return { month: currentMonth, week: weeks[currentIdx + 1] };
+    }
+    
+    // Если это последняя неделя текущего месяца -> переходим на первую неделю следующего месяца
+    const months = Object.keys(allWeeksStructure);
+    const monthIdx = months.indexOf(currentMonth);
+    if (monthIdx >= 0 && monthIdx < months.length - 1) {
+        const nextMonth = months[monthIdx + 1];
+        const nextMonthWeeks = allWeeksStructure[nextMonth] || [];
+        if (nextMonthWeeks.length > 0) {
+            return { month: nextMonth, week: nextMonthWeeks[0] };
+        }
+    }
+    
+    return { month: currentMonth, week: `Неделя 1` };
+}
+
+async function moveTaskToNextWeekModal(taskId) {
+    const next = getNextCalendarWeek();
+    const confirmMove = confirm(`Перенести задачу на следующую неделю «${next.week}» со статусом «🔵 Перенесено»?`);
+    if (!confirmMove) return;
 
     try {
-        const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(nextWeek)}`, {
+        const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}`, {
             method: "POST"
         });
         if (res.ok) {
-            showToast(`Задача перенесена на: ${nextWeek}`);
+            showToast(`Задача перенесена на ${next.week}`);
             loadTasks();
         }
     } catch (e) {
@@ -526,28 +554,33 @@ async function moveTaskToNextWeekModal(taskId) {
 }
 
 async function archiveCurrentWeek() {
-    const weeks = allWeeksStructure[currentMonth] || [];
-    const currentIdx = weeks.indexOf(currentWeek);
-    const nextWeek = (currentIdx >= 0 && currentIdx < weeks.length - 1) ? weeks[currentIdx + 1] : "";
+    const next = getNextCalendarWeek();
 
-    const confirmMsg = `Завершить рабочую неделю «${currentWeek}»?\n\n• Задачи «Выполнено» будут перенесены в Архив.\n• Незавершенные задачи будут перенесены на ${nextWeek || 'следующую неделю'}.`;
+    const confirmMsg = `Завершить рабочую неделю «${currentWeek}»?\n\n• Выполненные задачи (🟢) уйдут в Архив.\n• Все оставшиеся задачи перенесутся на «${next.week}» (🔵 Перенесено).`;
     if (!confirm(confirmMsg)) return;
 
     try {
         const res = await fetch("/api/tasks/archive_week", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ current_week: currentWeek, next_week: nextWeek })
+            body: JSON.stringify({ current_week: currentWeek, next_week: next.week })
         });
         if (res.ok) {
             const data = await res.json();
             alert(`✅ ${data.message}`);
-            if (nextWeek) {
+            
+            // Если перешли в следующий месяц
+            if (next.month !== currentMonth) {
+                const monthSelect = document.getElementById("filter-month");
+                if (monthSelect) monthSelect.value = next.month;
+                currentMonth = next.month;
+                onMonthChange(next.week);
+            } else {
                 const weekSelect = document.getElementById("filter-week");
-                if (weekSelect) weekSelect.value = nextWeek;
-                currentWeek = nextWeek;
+                if (weekSelect) weekSelect.value = next.week;
+                currentWeek = next.week;
+                loadTasks();
             }
-            loadTasks();
         }
     } catch (e) {
         console.error("Archive error:", e);
