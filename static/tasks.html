@@ -1033,21 +1033,14 @@
                 </select>
             </div>
 
-            <!-- Photo Link with direct Camera / Gallery upload -->
+            <!-- Photo Link with single Gallery / File upload -->
             <div class="form-row">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото задачи</label>
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #2563eb;"></i> Фото задачи</label>
                     <div style="display: flex; gap: 6px;">
-                        <!-- Input for Direct Camera (capture) -->
-                        <input type="file" id="task-photo-camera" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn')">
-                        <!-- Input for Gallery (no capture) -->
                         <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;" onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn')">
-                        
-                        <button type="button" class="btn-action btn-primary-action" style="font-size: 0.75rem; padding: 4px 9px;" onclick="document.getElementById('task-photo-camera').click()" title="Сделать снимок на камеру">
-                            <i class="fa-solid fa-camera"></i> <span>Камера</span>
-                        </button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 4px 9px;" onclick="document.getElementById('task-photo-gallery').click()" title="Выбрать готовое фото из галереи">
-                            <i class="fa-solid fa-images"></i> <span>Галерея</span>
+                        <button type="button" class="btn-action btn-primary-action" style="font-size: 0.75rem; padding: 4px 10px;" onclick="document.getElementById('task-photo-gallery').click()" title="Выбрать фото из галереи или файлов">
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото</span>
                         </button>
                     </div>
                 </div>
@@ -1134,16 +1127,11 @@
 
             <div class="form-row">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-camera" style="color: #10b981;"></i> Подтверждающее фото <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #10b981;"></i> Подтверждающее фото <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
                     <div style="display: flex; gap: 6px;">
-                        <input type="file" id="complete-photo-camera" accept="image/*" capture="environment" style="display: none;" onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn')">
                         <input type="file" id="complete-photo-gallery" accept="image/*" style="display: none;" onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn')">
-                        
-                        <button type="button" class="btn-action" style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 4px 9px;" onclick="document.getElementById('complete-photo-camera').click()" title="Сделать снимок на камеру">
-                            <i class="fa-solid fa-camera"></i> <span>Камера</span>
-                        </button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 4px 9px;" onclick="document.getElementById('complete-photo-gallery').click()" title="Выбрать готовое фото из галереи">
-                            <i class="fa-solid fa-images"></i> <span>Галерея</span>
+                        <button type="button" class="btn-action" style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 4px 10px;" onclick="document.getElementById('complete-photo-gallery').click()" title="Выбрать фото из галереи или файлов">
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото</span>
                         </button>
                     </div>
                 </div>
@@ -1214,6 +1202,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260827_photo_lightbox_v6"></script>
+    <script src="/static/js/tasks.js?v=20260827_photo_gallery_v7"></script>
 </body>
 </html>
