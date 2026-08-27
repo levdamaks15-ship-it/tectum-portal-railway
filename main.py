@@ -8092,112 +8092,80 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
                     from_phone = msg.get("from") # Номер отправителя
                     msg_type = msg.get("type")
                     
-                    # 1. Текстовое сообщение
+                    user_text = ""
+                    btn_id = ""
+                    
                     if msg_type == "text":
                         user_text = msg.get("text", {}).get("body", "").strip()
-                        print(f"[WhatsApp Chat] Сообщение от {from_phone}: '{user_text}'")
-                        
-                        import whatsapp_service
-                        lower_text = user_text.lower()
-                        
-                        if any(w in lower_text for w in ["привет", "старт", "start", "меню", "помощь", "help"]):
-                            reply = (
-                                "🏭 *Tectum Enterprise Bot*\n\n"
-                                "Я ваш мобильный помощник по заводу.\n\n"
-                                "📌 *Доступные команды:*\n"
-                                "• *Сводка* — текущая выработка за сегодня\n"
-                                "• *Задачи* — список открытых задач планнера\n"
-                                "• *План* — выполнение месячного плана\n"
-                            )
-                            buttons = [
-                                {"id": "cmd_summary", "title": "📊 Сводка"},
-                                {"id": "cmd_tasks", "title": "📌 Задачи"}
-                            ]
-                            whatsapp_service.send_whatsapp_buttons(from_phone, reply, buttons)
-                            
-                        elif "сводк" in lower_text or "выработк" in lower_text:
-                            today_str = datetime.now().strftime("%Y-%m-%d")
-                            shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
-                            total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
-                            reply = (
-                                f"📊 *Сводка за сегодня ({today_str}):*\n\n"
-                                f"📦 Рапортов внесено: {len(shifts)}\n"
-                                f"📈 Общая выработка: *{total_sheets:,} листов*\n\n"
-                                f"🔗 Подробнее в портале: https://tectum-portal-railway-production.up.railway.app"
-                            )
-                            whatsapp_service.send_whatsapp_text(from_phone, reply)
-                            
-                        elif "задач" in lower_text:
-                            all_tasks = db.query(models.Task).filter(
-                                models.Task.is_archived == False
-                            ).order_by(models.Task.id.desc()).all()
-                            
-                            active_tasks = [
-                                t for t in all_tasks 
-                                if not ("заверш" in (t.status or "").lower() or "выполн" in (t.status or "").lower())
-                            ][:5]
-                            
-                            if not active_tasks:
-                                reply = "✅ На данный момент нет открытых незавершенных задач!"
-                                whatsapp_service.send_whatsapp_text(from_phone, reply)
-                            else:
-                                msg_tasks = "📌 *Открытые задачи Tectum:*\n\n"
-                                for t in active_tasks:
-                                    status_icon = "🟡" if "работ" in (t.status or "").lower() else "⚪"
-                                    msg_tasks += f"{status_icon} *{t.code or ''}* {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
-                                msg_tasks += "🔗 Открыть планнер: https://tectum-portal-railway-production.up.railway.app/tasks"
-                                whatsapp_service.send_whatsapp_text(from_phone, msg_tasks)
-                        else:
-                            reply = (
-                                f"Я получил ваше сообщение: «_{user_text}_».\n\n"
-                                f"Напишите *Меню* или *Сводка*, чтобы запросить данные с завода."
-                            )
-                            whatsapp_service.send_whatsapp_text(from_phone, reply)
-                            
-                    # 2. Нажатие на интерактивную кнопку
                     elif msg_type == "interactive":
                         interactive = msg.get("interactive", {})
                         btn_reply = interactive.get("button_reply", {})
-                        btn_id = btn_reply.get("id")
-                        btn_title = btn_reply.get("title")
+                        btn_id = btn_reply.get("id", "")
+                        user_text = btn_reply.get("title", "").strip()
                         
-                        print(f"[WhatsApp Button] Нажата кнопка {btn_id} ({btn_title}) от {from_phone}")
-                        import whatsapp_service
+                    print(f"[WhatsApp Incoming Event] from={from_phone}, type={msg_type}, text='{user_text}', btn_id='{btn_id}'")
+                    
+                    lower_text = (user_text or "").lower()
+                    
+                    # 1. Приветствие / Меню
+                    if any(w in lower_text for w in ["привет", "старт", "start", "меню", "помощь", "help"]):
+                        reply = (
+                            "🏭 *Tectum Enterprise Bot*\n\n"
+                            "Я ваш мобильный помощник по заводу.\n\n"
+                            "📌 *Выберите нужный раздел кнопками ниже:*"
+                        )
+                        buttons = [
+                            {"id": "cmd_summary", "title": "📊 Сводка"},
+                            {"id": "cmd_tasks", "title": "📌 Задачи"}
+                        ]
+                        whatsapp_service.send_whatsapp_buttons(from_phone, reply, buttons)
                         
-                        if btn_id == "cmd_summary":
-                            today_str = datetime.now().strftime("%Y-%m-%d")
-                            shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
-                            total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
-                            reply = (
-                                f"📊 *Сводка за сегодня ({today_str}):*\n\n"
-                                f"📦 Рапортов внесено: {len(shifts)}\n"
-                                f"📈 Общая выработка: *{total_sheets:,} листов*"
-                            )
+                    # 2. Сводка
+                    elif btn_id == "cmd_summary" or "сводк" in lower_text or "выработк" in lower_text:
+                        today_str = datetime.now().strftime("%Y-%m-%d")
+                        shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
+                        total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+                        reply = (
+                            f"📊 *Сводка за сегодня ({today_str}):*\n\n"
+                            f"📦 Рапортов внесено: *{len(shifts)}*\n"
+                            f"📈 Общая выработка: *{total_sheets:,} листов*\n\n"
+                            f"🔗 Открыть портал: https://tectum-portal-railway-production.up.railway.app"
+                        )
+                        whatsapp_service.send_whatsapp_text(from_phone, reply)
+                        
+                    # 3. Задачи
+                    elif btn_id == "cmd_tasks" or "задач" in lower_text:
+                        all_tasks = db.query(models.Task).filter(
+                            models.Task.is_archived == False
+                        ).order_by(models.Task.id.desc()).all()
+                        
+                        active_tasks = [
+                            t for t in all_tasks 
+                            if not ("заверш" in (t.status or "").lower() or "выполн" in (t.status or "").lower())
+                        ][:5]
+                        
+                        if not active_tasks:
+                            reply = "✅ На данный момент нет открытых незавершенных задач!"
                             whatsapp_service.send_whatsapp_text(from_phone, reply)
-                        elif btn_id == "cmd_tasks" or "задач" in lower_text:
-                            # Ищем все незавершенные задачи
-                            all_tasks = db.query(models.Task).filter(
-                                models.Task.is_archived == False
-                            ).order_by(models.Task.id.desc()).all()
+                        else:
+                            msg_tasks = "📌 *Открытые задачи Tectum:*\n\n"
+                            for t in active_tasks:
+                                status_icon = "🟡" if "работ" in (t.status or "").lower() else "⚪"
+                                msg_tasks += f"{status_icon} *{t.code or ''}* {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
+                            msg_tasks += "🔗 Открыть планнер: https://tectum-portal-railway-production.up.railway.app/tasks"
+                            whatsapp_service.send_whatsapp_text(from_phone, msg_tasks)
                             
-                            active_tasks = [
-                                t for t in all_tasks 
-                                if not ("заверш" in (t.status or "").lower() or "выполн" in (t.status or "").lower())
-                            ][:5]
-                            
-                            if not active_tasks:
-                                reply = "✅ На данный момент нет открытых незавершенных задач!"
-                                whatsapp_service.send_whatsapp_text(from_phone, reply)
-                            else:
-                                msg_tasks = "📌 *Открытые задачи Tectum:*\n\n"
-                                for t in active_tasks:
-                                    status_icon = "🟡" if "работ" in (t.status or "").lower() else "⚪"
-                                    msg_tasks += f"{status_icon} *{t.code or ''}* {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
-                                msg_tasks += "🔗 Открыть планнер: https://tectum-portal-railway-production.up.railway.app/tasks"
-                                whatsapp_service.send_whatsapp_text(from_phone, msg_tasks)
-                        elif btn_id in ("btn_accept", "btn_done"):
-                            reply = f"👍 Отлично! Статус действия зафиксирован: *{btn_title}*."
-                            whatsapp_service.send_whatsapp_text(from_phone, reply)
+                    # 4. Ответ на действия
+                    elif btn_id in ("btn_accept", "btn_done"):
+                        reply = f"👍 Отлично! Действие зафиксировано: *{user_text}*."
+                        whatsapp_service.send_whatsapp_text(from_phone, reply)
+                        
+                    else:
+                        reply = (
+                            f"Я получил ваше сообщение: «_{user_text}_».\n\n"
+                            f"Нажмите *Меню* или *Сводка*, чтобы запросить данные с завода."
+                        )
+                        whatsapp_service.send_whatsapp_text(from_phone, reply)
                             
         return {"status": "ok"}
     except Exception as e:
