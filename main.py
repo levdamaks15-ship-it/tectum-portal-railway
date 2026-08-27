@@ -7498,7 +7498,7 @@ def get_tasks(
         if status and status != "all":
             query = query.filter(models.Task.status == status)
 
-        tasks = query.order_by(models.Task.id.asc()).all()
+        tasks = query.order_by(models.Task.id.desc()).all()
 
         results = []
         for t in tasks:

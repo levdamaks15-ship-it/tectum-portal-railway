@@ -999,7 +999,7 @@ function renderTasksTable(tasks) {
         return `
             <tr id="task-row-${t.id}">
                 <td>
-                    <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
+                    <span class="badge-code">${t.code || ('TSK-' + t.id)}</span>
                     ${backlogBadge}
                 </td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
