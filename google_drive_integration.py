@@ -12,15 +12,47 @@ SCOPES = ["https://www.googleapis.com/auth/drive"]
 _drive_service = None
 
 def get_drive_credentials():
+    from google.oauth2 import service_account
+    
+    # 1. Сначала пробуем Service Account из переменных окружения
+    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if creds_json:
+        try:
+            info = json.loads(creds_json)
+            if "private_key" in info:
+                info["private_key"] = info["private_key"].replace("\\n", "\n")
+            return service_account.Credentials.from_service_account_info(
+                info,
+                scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Drive Service Account ENV parse error: {e}")
+
+    # 2. Локальный файл сервисного аккаунта
+    cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google_credentials.json")
+    if os.path.exists(cred_path):
+        try:
+            with open(cred_path, "r", encoding="utf-8") as f:
+                info = json.load(f)
+            if "private_key" in info:
+                info["private_key"] = info["private_key"].replace("\\n", "\n")
+            return service_account.Credentials.from_service_account_info(
+                info,
+                scopes=SCOPES
+            )
+        except Exception as e:
+            print(f"Drive Service Account file parse error: {e}")
+
+    # 3. OAuth2 User Credentials
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
     refresh_token = os.getenv("GOOGLE_REFRESH_TOKEN")
     
     if not all([client_id, client_secret, refresh_token]):
-        raise ValueError("Missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET or GOOGLE_REFRESH_TOKEN in .env")
+        raise ValueError("Missing GOOGLE_CREDENTIALS_JSON or GOOGLE_CLIENT_ID / GOOGLE_REFRESH_TOKEN")
         
     creds = Credentials(
-        None,  # Access token can be None, it will refresh automatically
+        None,
         refresh_token=refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,

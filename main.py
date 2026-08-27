@@ -7501,7 +7501,10 @@ def get_tasks(
 
 @app.post("/api/tasks/upload_photo")
 async def upload_task_photo(file: UploadFile = File(...)):
-    """Принимает сжатое webp/jpg фото задачи и сохраняет в static/uploads/tasks/."""
+    """
+    Принимает сжатое webp/jpg фото задачи, сохраняет локально и автоматически
+    загружает в Google Диск в папку 'Фото задач планнера' (вечное хранилище).
+    """
     try:
         upload_dir = os.path.join("static", "uploads", "tasks")
         os.makedirs(upload_dir, exist_ok=True)
@@ -7517,6 +7520,30 @@ async def upload_task_photo(file: UploadFile = File(...)):
             f.write(contents)
 
         public_url = f"/static/uploads/tasks/{unique_name}"
+
+        # Загрузка на Google Диск в указанную корневую папку Tectum
+        try:
+            import google_drive_integration
+            # Папка родитель: 1KFYUapKunSAzFaxml1NVgnnkEulrqHFW (Tectum-Engeneering-docs)
+            target_parent_folder = "1KFYUapKunSAzFaxml1NVgnnkEulrqHFW"
+            planner_folder_id = google_drive_integration.get_or_create_drive_folder("Фото задач планнера", parent_id=target_parent_folder)
+            
+            drive_res = google_drive_integration.upload_file_to_drive(
+                file_path=file_path,
+                title=unique_name,
+                parent_drive_id=planner_folder_id
+            )
+            if drive_res and drive_res.get("url"):
+                # Для прямого отображения картинок используем прямую ссылку Google Drive
+                drive_file_id = drive_res.get("id")
+                if drive_file_id:
+                    public_url = f"https://drive.google.com/uc?export=view&id={drive_file_id}"
+                else:
+                    public_url = drive_res.get("url")
+                print(f"[Google Drive] Task photo uploaded: {public_url}")
+        except Exception as drive_err:
+            print(f"[Google Drive Note] Could not upload to Drive, fallback to local URL: {drive_err}")
+
         return {"status": "ok", "url": public_url, "filename": unique_name}
     except Exception as e:
         print(f"Error uploading task photo: {e}")
