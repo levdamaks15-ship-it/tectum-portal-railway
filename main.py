@@ -7454,11 +7454,12 @@ def get_tasks(
     author: Optional[str] = None,
     zone: Optional[str] = None,
     status: Optional[str] = None,
+    my_person: Optional[str] = None,
     include_backlog: bool = False,
     is_archived: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Возвращает список задач с фильтрацией по месяцу, неделе, исполнителю и опциональным включением долгов прошлых недель."""
+    """Возвращает список задач с фильтрацией по месяцу, неделе, исполнителю, автору, службе и опциональным включением долгов прошлых недель."""
     try:
         query = db.query(models.Task)
 
@@ -7484,10 +7485,14 @@ def get_tasks(
             if week and week != "all":
                 query = query.filter(models.Task.week_label == week)
 
-        if assignee and assignee != "all":
-            query = query.filter(models.Task.assignee_name == assignee)
-        if author and author != "all":
-            query = query.filter(models.Task.author_name == author)
+        if my_person and my_person != "all":
+            query = query.filter(or_(models.Task.assignee_name == my_person, models.Task.author_name == my_person))
+        else:
+            if assignee and assignee != "all":
+                query = query.filter(models.Task.assignee_name == assignee)
+            if author and author != "all":
+                query = query.filter(models.Task.author_name == author)
+                
         if zone and zone != "all":
             query = query.filter(models.Task.zone == zone)
         if status and status != "all":

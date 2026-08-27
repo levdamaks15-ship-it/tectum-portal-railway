@@ -13,6 +13,12 @@ let currentWeek = "Неделя 4 (24.08 - 28.08)";
 let allPlannerEmployees = [];
 let allPlannerZones = [];
 
+let activeQuickPreset = "all"; // "all" | "my" | "in_work" | "zone"
+let myTasksFilterActive = false;
+let liveSyncIntervalId = null;
+let lastTasksDataHash = "";
+let isModalOpen = false;
+
 const CORE_NAMES = [
     "Левда М.",
     "Булеханов К.",
@@ -39,6 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadPlannerDropdownData();
     await handleUrlDeepLinking();
     await loadTasks();
+    startTasksLiveSync();
 });
 
 function initPlannerSession() {
@@ -74,17 +81,27 @@ function updatePlannerUserBadge() {
         badgeEl.title = "Нажмите, чтобы авторизоваться через PIN-код";
         if (logoutBtn) logoutBtn.style.display = "none";
     }
+    if (typeof updateChipsVisualState === "function") {
+        updateChipsVisualState();
+    }
 }
 
 function promptChangePlannerUser() {
     openPinModal(null, (user) => {
         showToast(`Вы вошли как ${user.name}`);
+        if (myTasksFilterActive) {
+            loadTasks();
+        }
     });
 }
 
 function logoutPlannerUser() {
     currentPlannerUser = null;
     sessionStorage.removeItem("planner_user_session");
+    if (myTasksFilterActive) {
+        myTasksFilterActive = false;
+        loadTasks();
+    }
     updatePlannerUserBadge();
     showToast("Вы вышли из сессии");
 }
@@ -210,31 +227,402 @@ function ensureUserAuthorized(requiredUser = null, onSuccess) {
 
 async function handleUrlDeepLinking() {
     const urlParams = new URLSearchParams(window.location.search);
+    
+    // 1. Task highlight & week auto-navigation
     const taskIdParam = urlParams.get("task_id");
-    if (!taskIdParam) return;
-
-    const tId = parseInt(taskIdParam, 10);
-    if (!tId) return;
-
-    targetHighlightTaskId = tId;
-
-    // Fetch the task info to automatically navigate to the right month and week
-    try {
-        const res = await fetch(`/api/tasks/${tId}`);
-        if (res.ok) {
-            const task = await res.json();
-            if (task.month_label) {
-                currentMonth = task.month_label;
-                const monthSelect = document.getElementById("filter-month");
-                if (monthSelect) monthSelect.value = task.month_label;
-            }
-            if (task.week_label) {
-                currentWeek = task.week_label;
-                onMonthChange(task.week_label);
+    if (taskIdParam) {
+        const tId = parseInt(taskIdParam, 10);
+        if (tId) {
+            targetHighlightTaskId = tId;
+            try {
+                const res = await fetch(`/api/tasks/${tId}`);
+                if (res.ok) {
+                    const task = await res.json();
+                    if (task.month_label) {
+                        currentMonth = task.month_label;
+                        const monthSelect = document.getElementById("filter-month");
+                        if (monthSelect) monthSelect.value = task.month_label;
+                    }
+                    if (task.week_label) {
+                        currentWeek = task.week_label;
+                        onMonthChange(task.week_label);
+                    }
+                }
+            } catch (e) {
+                console.error("Deep link task fetch error:", e);
             }
         }
+    } else {
+        // 2. Read month and week from URL
+        const monthParam = urlParams.get("month");
+        if (monthParam) {
+            currentMonth = monthParam;
+            const monthSelect = document.getElementById("filter-month");
+            if (monthSelect) monthSelect.value = monthParam;
+        }
+        const weekParam = urlParams.get("week");
+        if (weekParam) {
+            currentWeek = weekParam;
+            onMonthChange(weekParam);
+        }
+    }
+
+    // 3. Read specific filter parameters from URL
+    const zoneParam = urlParams.get("zone");
+    if (zoneParam) {
+        setFilterValueDirect('zone', zoneParam);
+    }
+
+    const assigneeParam = urlParams.get("assignee");
+    if (assigneeParam) {
+        setFilterValueDirect('assignee', assigneeParam);
+    }
+
+    const authorParam = urlParams.get("author");
+    if (authorParam) {
+        setFilterValueDirect('author', authorParam);
+    }
+
+    const statusParam = urlParams.get("status");
+    if (statusParam) {
+        setFilterValueDirect('status', statusParam);
+    }
+
+    const backlogParam = urlParams.get("backlog");
+    if (backlogParam === "true" || backlogParam === "1") {
+        showBacklog = true;
+        const btn = document.getElementById("btn-toggle-backlog");
+        if (btn) btn.classList.add("btn-backlog-active");
+    }
+
+    const myParam = urlParams.get("my");
+    if (myParam === "true" || myParam === "1") {
+        myTasksFilterActive = true;
+    }
+}
+
+function setFilterValueDirect(type, value) {
+    const desk = document.getElementById(`table-filter-${type}`);
+    if (desk) desk.value = value;
+    const mob = document.getElementById(`mobile-filter-${type}`);
+    if (mob) mob.value = value;
+}
+
+function updateUrlParams() {
+    try {
+        const url = new URL(window.location.href);
+        const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "";
+        const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : "";
+        const zone = document.getElementById("table-filter-zone") ? document.getElementById("table-filter-zone").value : "all";
+        const author = document.getElementById("table-filter-author") ? document.getElementById("table-filter-author").value : "all";
+        const assignee = document.getElementById("table-filter-assignee") ? document.getElementById("table-filter-assignee").value : "all";
+        const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
+
+        if (month) url.searchParams.set("month", month);
+        if (week) url.searchParams.set("week", week);
+        
+        if (zone && zone !== "all") url.searchParams.set("zone", zone);
+        else url.searchParams.delete("zone");
+
+        if (author && author !== "all") url.searchParams.set("author", author);
+        else url.searchParams.delete("author");
+
+        if (assignee && assignee !== "all") url.searchParams.set("assignee", assignee);
+        else url.searchParams.delete("assignee");
+
+        if (status && status !== "all") url.searchParams.set("status", status);
+        else url.searchParams.delete("status");
+
+        if (showBacklog) url.searchParams.set("backlog", "true");
+        else url.searchParams.delete("backlog");
+
+        if (myTasksFilterActive) url.searchParams.set("my", "true");
+        else url.searchParams.delete("my");
+
+        window.history.replaceState({}, "", url.toString());
     } catch (e) {
-        console.error("Deep link task fetch error:", e);
+        console.error("Error updating URL query params:", e);
+    }
+}
+
+function syncDesktopFilter(type, value) {
+    const mob = document.getElementById(`mobile-filter-${type}`);
+    if (mob) mob.value = value;
+    if (myTasksFilterActive && (type === 'assignee' || type === 'author')) {
+        myTasksFilterActive = false;
+    }
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    loadTasks();
+}
+
+function syncMobileFilter(type, value) {
+    const desk = document.getElementById(`table-filter-${type}`);
+    if (desk) desk.value = value;
+    if (myTasksFilterActive && (type === 'assignee' || type === 'author')) {
+        myTasksFilterActive = false;
+    }
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    loadTasks();
+}
+
+function toggleMobileFilters() {
+    const panel = document.getElementById("mobile-filters-panel");
+    if (!panel) return;
+    const isShown = panel.style.display === "flex";
+    panel.style.display = isShown ? "none" : "flex";
+}
+
+function toggleMyTasksFilter() {
+    if (!currentPlannerUser || !currentPlannerUser.name) {
+        openPinModal(null, (user) => {
+            myTasksFilterActive = true;
+            updateChipsVisualState();
+            updateFilterBadge();
+            updateUrlParams();
+            loadTasks();
+            showToast(`Фильтр по задачам: ${user.name}`);
+        });
+        return;
+    }
+
+    myTasksFilterActive = !myTasksFilterActive;
+    if (myTasksFilterActive) {
+        // Reset single assignee/author to avoid conflicting filters
+        setFilterValueDirect('assignee', 'all');
+        setFilterValueDirect('author', 'all');
+        showToast(`Показаны задачи: ${currentPlannerUser.name}`);
+    } else {
+        showToast("Режим «Мои задачи» выключен");
+    }
+
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    loadTasks();
+}
+
+function applyPresetFilter(presetType) {
+    if (presetType === 'all') {
+        resetAllFilters();
+        return;
+    }
+
+    if (presetType === 'in_work') {
+        const curStatus = document.getElementById("table-filter-status")?.value;
+        if (curStatus === "🟡 В работе") {
+            setFilterValueDirect('status', 'all');
+        } else {
+            setFilterValueDirect('status', '🟡 В работе');
+        }
+        updateChipsVisualState();
+        updateFilterBadge();
+        updateUrlParams();
+        loadTasks();
+    }
+}
+
+function applyZoneChip(zoneName) {
+    const curZone = document.getElementById("table-filter-zone")?.value;
+    if (curZone === zoneName) {
+        setFilterValueDirect('zone', 'all');
+    } else {
+        setFilterValueDirect('zone', zoneName);
+    }
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    loadTasks();
+}
+
+function updateChipsVisualState() {
+    const zone = document.getElementById("table-filter-zone")?.value || "all";
+    const status = document.getElementById("table-filter-status")?.value || "all";
+    const author = document.getElementById("table-filter-author")?.value || "all";
+    const assignee = document.getElementById("table-filter-assignee")?.value || "all";
+
+    // Chip All
+    const isAll = (zone === 'all' && status === 'all' && author === 'all' && assignee === 'all' && !myTasksFilterActive && !showBacklog);
+    const chipAll = document.getElementById("chip-all");
+    if (chipAll) chipAll.classList.toggle("active", isAll);
+
+    // Chip My Tasks
+    const chipMy = document.getElementById("chip-my");
+    const chipMyLabel = document.getElementById("chip-my-label");
+    if (chipMy) {
+        chipMy.classList.toggle("active", myTasksFilterActive);
+        if (chipMyLabel) {
+            chipMyLabel.textContent = (currentPlannerUser && currentPlannerUser.name && myTasksFilterActive) 
+                ? `Мои (${currentPlannerUser.name})` 
+                : "Мои задачи";
+        }
+    }
+
+    // Chip In Work
+    const chipInWork = document.getElementById("chip-inwork");
+    if (chipInWork) chipInWork.classList.toggle("active-warning", status === "🟡 В работе");
+
+    // Zone Chips
+    const zoneChips = {
+        'ОГЭ': 'chip-zone-oge',
+        'ОГМ': 'chip-zone-ogm',
+        'СКК': 'chip-zone-qcd',
+        'Цифровой портал': 'chip-zone-portal',
+        'Бережливое производство': 'chip-zone-lean'
+    };
+
+    Object.entries(zoneChips).forEach(([zName, btnId]) => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.classList.toggle("active", zone === zName);
+        }
+    });
+}
+
+function updateFilterBadge() {
+    const zone = document.getElementById("table-filter-zone")?.value || "all";
+    const author = document.getElementById("table-filter-author")?.value || "all";
+    const assignee = document.getElementById("table-filter-assignee")?.value || "all";
+    const status = document.getElementById("table-filter-status")?.value || "all";
+    
+    let activeCount = 0;
+    if (zone !== "all") activeCount++;
+    if (author !== "all") activeCount++;
+    if (assignee !== "all") activeCount++;
+    if (status !== "all") activeCount++;
+    if (myTasksFilterActive) activeCount++;
+    if (showBacklog) activeCount++;
+    
+    const badge = document.getElementById("mobile-filter-badge");
+    if (badge) {
+        if (activeCount > 0) {
+            badge.innerText = activeCount;
+            badge.style.display = "inline-block";
+        } else {
+            badge.style.display = "none";
+        }
+    }
+
+    // Top Chip Bar Reset Button
+    const resetChipBtn = document.getElementById("btn-reset-filters-chip");
+    const resetCountEl = document.getElementById("reset-filter-count");
+    if (resetChipBtn) {
+        if (activeCount > 0) {
+            resetChipBtn.style.display = "inline-flex";
+            if (resetCountEl) resetCountEl.innerText = activeCount;
+        } else {
+            resetChipBtn.style.display = "none";
+        }
+    }
+}
+
+function resetAllFilters() {
+    ['zone', 'author', 'assignee', 'status'].forEach(type => {
+        setFilterValueDirect(type, 'all');
+    });
+    myTasksFilterActive = false;
+    showBacklog = false;
+
+    const btnBacklog = document.getElementById("btn-toggle-backlog");
+    if (btnBacklog) btnBacklog.classList.remove("btn-backlog-active");
+
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    loadTasks();
+    showToast("Все фильтры сброшены");
+}
+
+function startTasksLiveSync() {
+    if (liveSyncIntervalId) clearInterval(liveSyncIntervalId);
+
+    liveSyncIntervalId = setInterval(async () => {
+        // Only run when tab is visible and no dialog modals are currently open
+        if (document.hidden || document.visibilityState !== 'visible' || isModalOpen) {
+            return;
+        }
+
+        try {
+            const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "";
+            const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : "";
+            const zone = document.getElementById("table-filter-zone") ? document.getElementById("table-filter-zone").value : "all";
+            const author = document.getElementById("table-filter-author") ? document.getElementById("table-filter-author").value : "all";
+            const assignee = document.getElementById("table-filter-assignee") ? document.getElementById("table-filter-assignee").value : "all";
+            const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
+
+            let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
+            if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+                url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+            } else {
+                if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
+                if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
+                if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
+            }
+            if (status !== "all") url += `&status=${encodeURIComponent(status)}`;
+
+            const res = await fetch(url);
+            if (res.ok) {
+                const freshTasks = await res.json();
+                const freshHash = JSON.stringify(freshTasks);
+                if (freshHash !== lastTasksDataHash) {
+                    lastTasksDataHash = freshHash;
+                    allTasks = freshTasks;
+                    renderTasksTable(allTasks);
+                    renderTasksCards(allTasks);
+                }
+            }
+        } catch (e) {
+            // Silently ignore background polling errors
+        }
+    }, 35000); // every 35 seconds
+}
+
+async function loadTasks() {
+    const tableBody = document.getElementById("tasks-table-body");
+    const cardsContainer = document.getElementById("tasks-cards-container");
+    if (!tableBody && !cardsContainer) return;
+
+    const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "";
+    const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : "";
+    
+    // Table Header Filters
+    const zone = document.getElementById("table-filter-zone") ? document.getElementById("table-filter-zone").value : "all";
+    const author = document.getElementById("table-filter-author") ? document.getElementById("table-filter-author").value : "all";
+    const assignee = document.getElementById("table-filter-assignee") ? document.getElementById("table-filter-assignee").value : "all";
+    const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
+
+    currentMonth = month;
+    currentWeek = week;
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    
+    let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
+    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+        url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+    } else {
+        if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
+        if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
+        if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
+    }
+    if (status !== "all") url += `&status=${encodeURIComponent(status)}`;
+
+    try {
+        const res = await fetch(url);
+        if (res.ok) {
+            allTasks = await res.json();
+            lastTasksDataHash = JSON.stringify(allTasks);
+            renderTasksTable(allTasks);
+            renderTasksCards(allTasks);
+            scrollToTargetTaskAfterRender();
+        }
+    } catch (e) {
+        console.error("Error loading tasks:", e);
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
+        if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</div>`;
     }
 }
 
@@ -631,7 +1019,7 @@ function renderTasksTable(tasks) {
                 </td>
 
                 <td style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</td>
-                <td style="text-align: center;">
+                <td style="text-align: center; white-space: nowrap; min-width: 140px;">
                     <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
                         <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
                         <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>

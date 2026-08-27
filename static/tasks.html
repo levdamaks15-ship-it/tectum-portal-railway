@@ -171,6 +171,82 @@
             white-space: nowrap;
         }
 
+        /* Quick Filter Chips Bar */
+        .quick-filters-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.45rem 1.5rem 0.55rem 1.5rem;
+            background: #ffffff;
+            border-bottom: 1px solid var(--tbl-border);
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        .quick-chips-group {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: nowrap;
+        }
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.32rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .filter-chip:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .filter-chip.active {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+        }
+        .filter-chip.active-warning {
+            background: #fffbeb;
+            color: #b45309;
+            border-color: #fde68a;
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+        }
+        .btn-reset-filters {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.3rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            background: #f1f5f9;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-reset-filters:hover {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+        .btn-reset-filters.active {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #fecaca;
+        }
+
         /* Main Table Container */
         .table-container {
             flex: 1;
@@ -249,6 +325,10 @@
             outline: none;
             transition: all 0.2s;
             text-align: center;
+            white-space: nowrap;
+            display: inline-block;
+            min-width: 125px;
+            box-sizing: border-box;
         }
         .status-queue { background: var(--status-queue-bg); color: var(--status-queue-color); border-color: #cbd5e1; }
         .status-work { background: var(--status-work-bg); color: var(--status-work-color); border-color: #fde68a; }
@@ -867,6 +947,37 @@
         </div>
     </div>
 
+    <!-- Quick Presets & Service Chips Bar -->
+    <div class="quick-filters-bar" id="quick-filters-bar">
+        <div class="quick-chips-group">
+            <button type="button" class="filter-chip active" id="chip-all" onclick="applyPresetFilter('all')" title="Показать все задачи недели">
+                <i class="fa-solid fa-layer-group"></i> <span>Все задачи</span>
+            </button>
+            <button type="button" class="filter-chip" id="chip-my" onclick="toggleMyTasksFilter()" title="Показать только мои задачи (автор или исполнитель)">
+                <i class="fa-solid fa-user-check"></i> <span id="chip-my-label">Мои задачи</span>
+            </button>
+            <button type="button" class="filter-chip" id="chip-inwork" onclick="applyPresetFilter('in_work')" title="Задачи в работе">
+                <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> <span>В работе</span>
+            </button>
+
+            <!-- Separator -->
+            <span style="color: #cbd5e1; font-weight: 300; margin: 0 2px;">|</span>
+
+            <!-- Service Zone Chips -->
+            <button type="button" class="filter-chip" id="chip-zone-oge" onclick="applyZoneChip('ОГЭ')">ОГЭ</button>
+            <button type="button" class="filter-chip" id="chip-zone-ogm" onclick="applyZoneChip('ОГМ')">ОГМ</button>
+            <button type="button" class="filter-chip" id="chip-zone-qcd" onclick="applyZoneChip('СКК')">СКК</button>
+            <button type="button" class="filter-chip" id="chip-zone-portal" onclick="applyZoneChip('Цифровой портал')">Портал</button>
+            <button type="button" class="filter-chip" id="chip-zone-lean" onclick="applyZoneChip('Бережливое производство')">Бережливое пр-во</button>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <button type="button" class="btn-reset-filters" id="btn-reset-filters-chip" onclick="resetAllFilters()" style="display: none;" title="Сбросить все активные фильтры">
+                <i class="fa-solid fa-rotate-left"></i> <span>Сбросить (<span id="reset-filter-count">0</span>)</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Mobile Filters Panel (Expandable on Mobile) -->
     <div class="mobile-filters-panel" id="mobile-filters-panel">
         <div class="mobile-filters-grid">
@@ -949,8 +1060,8 @@
                             <option value="all">👤 Все исполн.</option>
                         </select>
                     </th>
-                    <th style="width: 80px;">Срок</th>
-                    <th style="width: 135px; text-align: center;">
+                    <th style="width: 80px; white-space: nowrap;">Срок</th>
+                    <th style="width: 140px; min-width: 140px; text-align: center; white-space: nowrap;">
                         <div class="th-title" style="margin-bottom: 4px;">Статус</div>
                         <select class="select-filter" id="table-filter-status" onchange="syncDesktopFilter('status', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                             <option value="all">⚡ Все статусы</option>
@@ -1204,6 +1315,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260827_autotranslate_v10"></script>
+    <script src="/static/js/tasks.js?v=20260827_status_fix_v12"></script>
 </body>
 </html>
