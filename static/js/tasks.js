@@ -470,7 +470,6 @@ function updateChipsVisualState() {
         'ОГЭ': 'chip-zone-oge',
         'ОГМ': 'chip-zone-ogm',
         'СКК': 'chip-zone-qcd',
-        'Цифровой портал': 'chip-zone-portal',
         'Бережливое производство': 'chip-zone-lean'
     };
 
