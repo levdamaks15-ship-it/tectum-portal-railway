@@ -564,9 +564,9 @@ function renderTasksTable(tasks) {
         else if (isCancelled) statusClass = "status-cancelled";
 
         const photoBtn = t.photo_link ? `
-            <a href="${t.photo_link}" target="_blank" class="btn-photo-link" title="Открыть фото в новой вкладке">
+            <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer;" title="Просмотреть фото">
                 <i class="fa-solid fa-image"></i>
-            </a>
+            </button>
         ` : `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
 
         const backlogBadge = t.is_backlog ? `
@@ -684,9 +684,9 @@ function renderTasksCards(tasks) {
         ` : '';
 
         const photoBtn = t.photo_link ? `
-            <a href="${t.photo_link}" target="_blank" class="btn-photo-link" style="padding: 0.3rem 0.6rem; font-size: 0.78rem;">
+            <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer; padding: 0.3rem 0.6rem; font-size: 0.78rem;" title="Просмотреть фото">
                 <i class="fa-solid fa-image"></i> Фото
-            </a>
+            </button>
         ` : '';
 
         let commentBlock = '';
@@ -1666,13 +1666,21 @@ function onPhotoInputChanged(inputId) {
     }
 }
 
-function testOpenPhotoLink(inputId) {
-    const inputEl = document.getElementById(inputId);
-    if (!inputEl) return;
-    const url = inputEl.value.trim();
-    if (url && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/static/"))) {
-        window.open(url, "_blank");
-    } else {
-        alert("Пожалуйста, укажите корректную ссылку на фото");
-    }
+function openPhotoViewerModal(url) {
+    if (!url) return;
+    const modal = document.getElementById("photo-viewer-modal");
+    const img = document.getElementById("photo-viewer-img");
+    const directLink = document.getElementById("photo-viewer-direct-link");
+    if (!modal || !img) return;
+
+    img.src = url;
+    if (directLink) directLink.href = url;
+    modal.classList.add("active");
+}
+
+function closePhotoViewerModal() {
+    const modal = document.getElementById("photo-viewer-modal");
+    const img = document.getElementById("photo-viewer-img");
+    if (modal) modal.classList.remove("active");
+    if (img) img.src = "";
 }
