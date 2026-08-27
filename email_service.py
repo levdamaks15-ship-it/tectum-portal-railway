@@ -177,21 +177,47 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
     task_url = f"{PORTAL_URL}?task_id={task_id}" if task_id else PORTAL_URL
 
     # Цветовой акцент события
-    if "выполнено" in event_type.lower():
+    event_lower = event_type.lower()
+    if "выполнено" in event_lower or "завершена" in event_lower:
         badge_bg = "#dcfce7"
         badge_color = "#15803d"
         badge_icon = "🟢"
-        header_sub = "Задача успешно завершена и сдана"
-    elif "перенесено" in event_type.lower():
-        badge_bg = "#e0e7ff"
-        badge_color = "#4338ca"
+        header_sub = "Задача успешно выполнена и сдана"
+        comment_label = "Что сделано / Факт выполнения:"
+        comment_bg = "#f0fdf4"
+        comment_color = "#15803d"
+    elif "перенесена" in event_lower or "перенесено" in event_lower:
+        badge_bg = "#e0f2fe"
+        badge_color = "#0369a1"
         badge_icon = "🔵"
-        header_sub = "Срок задачи перенесен на следующую неделю"
+        header_sub = "Срок выполнения задачи перенесен"
+        comment_label = "Причина переноса срока:"
+        comment_bg = "#f0f9ff"
+        comment_color = "#0369a1"
+    elif "отменена" in event_lower or "отменено" in event_lower:
+        badge_bg = "#fee2e2"
+        badge_color = "#dc2626"
+        badge_icon = "🔴"
+        header_sub = "Задача снята с плана выполнения"
+        comment_label = "Причина отмены задачи:"
+        comment_bg = "#fef2f2"
+        comment_color = "#b91c1c"
+    elif "в работе" in event_lower:
+        badge_bg = "#fef3c7"
+        badge_color = "#b45309"
+        badge_icon = "🟡"
+        header_sub = "Задача взята в работу"
+        comment_label = "Комментарий / Пояснение:"
+        comment_bg = "#fffbeb"
+        comment_color = "#b45309"
     else:
         badge_bg = "#fef3c7"
         badge_color = "#b45309"
         badge_icon = "📌"
         header_sub = "Вам назначена новая задача"
+        comment_label = "Факт / Результат:"
+        comment_bg = "#f8fafc"
+        comment_color = "#334155"
 
     html = f"""<!DOCTYPE html>
 <html lang="ru">
@@ -261,12 +287,12 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
                   <td style="padding:6px 0; font-weight:600;">{status}</td>
                 </tr>
                 {f'''<tr>
-                  <td style="padding:6px 0; color:#64748b; vertical-align:top;">Факт / Результат:</td>
-                  <td style="padding:6px 0; font-weight:600; color:#15803d; background-color:#f0fdf4; padding:8px 10px; border-radius:6px;">{comment}</td>
+                  <td style="padding:6px 0; color:#64748b; vertical-align:top;">{comment_label}</td>
+                  <td style="padding:6px 0; font-weight:600; color:{comment_color}; background-color:{comment_bg}; padding:8px 10px; border-radius:6px;">{comment}</td>
                 </tr>''' if comment else ''}
                 {f'''<tr>
                   <td style="padding:6px 0; color:#64748b;">Фото фиксация:</td>
-                  <td style="padding:6px 0;"><a href="{photo}" target="_blank" style="color:#2563eb; text-decoration:underline; font-weight:600;">📷 Просмотреть в Google Фото</a></td>
+                  <td style="padding:6px 0;"><a href="{photo}" target="_blank" style="color:#2563eb; text-decoration:underline; font-weight:600;">📷 Просмотреть прикреплённое фото</a></td>
                 </tr>''' if photo else ''}
               </table>
 

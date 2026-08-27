@@ -340,9 +340,199 @@
         .status-moved { background: var(--status-moved-bg); color: var(--status-moved-color); border-color: #bfdbfe; }
         .status-cancelled { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 
+        .task-row-done {
+            opacity: 0.82;
+            background: #fafcfb !important;
+        }
+        .task-card-done {
+            opacity: 0.85;
+            background: #fafcfb !important;
+            border-color: #d1fae5 !important;
+        }
+
+        .task-row-cancelled {
+            opacity: 0.75;
+            background: #fdfafb !important;
+        }
+        .task-card-cancelled {
+            opacity: 0.78;
+            background: #fdfafb !important;
+            border-color: #fee2e2 !important;
+        }
+
         .task-cancelled-text {
             color: #94a3b8 !important;
             text-decoration: line-through;
+        }
+
+        /* Quick Reason Chips */
+        .reason-chips-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 0.5rem;
+        }
+        .reason-chip {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+            font-size: 0.78rem;
+            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .reason-chip:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+        .reason-chip.selected {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #3b82f6;
+            font-weight: 600;
+        }
+        .reason-chip.selected-danger {
+            background: #fef2f2;
+            color: #dc2626;
+            border-color: #ef4444;
+            font-weight: 600;
+        }
+
+        /* Date Preset Buttons */
+        .date-presets-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+        .date-preset-btn {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .date-preset-btn:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        /* KPI Summary Dashboard Bar */
+        .kpi-summary-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 1.5rem 0.25rem 1.5rem;
+            background: #ffffff;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        .kpi-card-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #f8fafc;
+            border: 1px solid var(--tbl-border);
+            padding: 0.35rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .kpi-card-chip:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+        }
+        .kpi-card-chip.active {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+        }
+        .kpi-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+        .kpi-value {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        /* Timeline History Styles */
+        .timeline-container {
+            position: relative;
+            padding-left: 20px;
+            margin-top: 1rem;
+        }
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            bottom: 5px;
+            left: 7px;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1.25rem;
+        }
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -20px;
+            top: 2px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 3px solid #3b82f6;
+            box-sizing: border-box;
+        }
+        .timeline-dot.dot-create { border-color: #10b981; }
+        .timeline-dot.dot-reschedule { border-color: #0284c7; }
+        .timeline-dot.dot-complete { border-color: #16a34a; }
+        .timeline-dot.dot-cancel { border-color: #ef4444; }
+        .timeline-dot.dot-update { border-color: #f59e0b; }
+        
+        .timeline-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.6rem 0.85rem;
+        }
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .timeline-user {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .timeline-date {
+            font-size: 0.74rem;
+            color: #94a3b8;
+        }
+        .timeline-body {
+            font-size: 0.82rem;
+            color: #334155;
+            line-height: 1.4;
         }
 
         .btn-photo-link {
@@ -1017,6 +1207,45 @@
         </div>
     </div>
 
+    <!-- KPI Summary Dashboard Bar -->
+    <div class="kpi-summary-bar" id="kpi-summary-bar">
+        <div class="kpi-card-chip" onclick="applyPresetFilter('all')" title="Показать все задачи">
+            <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Всего задач</div>
+                <div class="kpi-value" id="kpi-val-total">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('in_work')" title="Показать задачи в работе">
+            <i class="fa-solid fa-bolt" style="color: #f59e0b; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">В работе</div>
+                <div class="kpi-value" style="color: #b45309;" id="kpi-val-work">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('done')" title="Показать выполненные задачи">
+            <i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Выполнено (<span id="kpi-val-percent">0%</span>)</div>
+                <div class="kpi-value" style="color: #15803d;" id="kpi-val-done">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('moved')" title="Показать перенесённые задачи">
+            <i class="fa-solid fa-calendar-days" style="color: #0284c7; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Перенесено</div>
+                <div class="kpi-value" style="color: #0369a1;" id="kpi-val-moved">0</div>
+            </div>
+        </div>
+        <div class="kpi-card-chip" onclick="applyPresetFilter('cancelled')" title="Показать отменённые задачи">
+            <i class="fa-solid fa-ban" style="color: #ef4444; font-size: 0.9rem;"></i>
+            <div>
+                <div class="kpi-title">Отменено</div>
+                <div class="kpi-value" style="color: #b91c1c;" id="kpi-val-cancelled">0</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Presets & Service Chips Bar -->
     <div class="quick-filters-bar" id="quick-filters-bar">
         <div class="quick-chips-group">
@@ -1334,6 +1563,133 @@
         </div>
     </div>
 
+    <!-- RESCHEDULE TASK MODAL -->
+    <div class="modal-overlay" id="reschedule-task-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-calendar-days" style="color: #0284c7; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0;">Перенос срока задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeRescheduleModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="reschedule-task-id" value="">
+
+            <div style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #0369a1; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="reschedule-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="reschedule-task-title">Название задачи</div>
+                <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">
+                    Текущий срок: <span id="reschedule-task-current-due" style="font-weight: 600; color: #0f172a;">—</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Новый срок выполнения <span style="color: #ef4444;">*</span></label>
+                <input type="date" class="form-input" id="reschedule-task-date" required onchange="onRescheduleDatePicked(this.value)">
+                <div class="date-presets-row">
+                    <button type="button" class="date-preset-btn" onclick="applyDatePreset(1)">+1 день</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePreset(3)">+3 дня</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePreset(7)">+1 неделя</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePresetToFriday()">До пятницы</button>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Причина переноса <span style="color: #ef4444;">*</span></label>
+                <div class="reason-chips-grid" id="reschedule-reason-chips">
+                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Ожидание ТМЦ / запчастей')">⚙️ Ожидание ТМЦ/запчастей</button>
+                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Ремонт / наладка оборудования')">🔧 Ремонт линии</button>
+                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Смещение графика смен')">📅 Сдвиг графика</button>
+                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'По указанию руководства')">⚠️ Указание руководства</button>
+                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Высокая загрузка другим приоритетом')">⏳ Загрузка приоритетом</button>
+                </div>
+                <textarea class="form-textarea" id="reschedule-task-reason" rows="2" placeholder="Укажите подробную причину переноса срока..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeRescheduleModal()">Отмена</button>
+                <button type="button" class="btn-action" style="background: #0284c7; color: #ffffff;" onclick="submitRescheduleModal()">
+                    <i class="fa-solid fa-calendar-check"></i> Перенести срок
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CANCEL TASK MODAL -->
+    <div class="modal-overlay" id="cancel-task-modal">
+        <div class="modal-box" style="max-width: 500px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-ban" style="color: #dc2626; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0; color: #b91c1c;">Отмена задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeCancelModal()">&times;</button>
+            </div>
+
+            <input type="hidden" id="cancel-task-id" value="">
+
+            <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #b91c1c; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="cancel-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="cancel-task-title">Название задачи</div>
+                <div style="font-size: 0.78rem; color: #ef4444; margin-top: 0.35rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Отмена снимает задачу с плана и блокирует её редактирование
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label>Причина отмены <span style="color: #ef4444;">*</span></label>
+                <div class="reason-chips-grid" id="cancel-reason-chips">
+                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Дубликат задачи')">❌ Дубликат задачи</button>
+                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Неактуально / снято с плана')">🛑 Неактуально</button>
+                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Заменено другой задачей')">🔄 Заменено другой</button>
+                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Отменено по согласованию')">📋 По согласованию</button>
+                </div>
+                <textarea class="form-textarea" id="cancel-task-reason" rows="2" placeholder="Опишите причину отмены задачи..." required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeCancelModal()">Назад</button>
+                <button type="button" class="btn-action" style="background: #dc2626; color: #ffffff;" onclick="submitCancelModal()">
+                    <i class="fa-solid fa-ban"></i> Отменить задачу
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TASK HISTORY & AUDIT LOG MODAL -->
+    <div class="modal-overlay" id="task-history-modal">
+        <div class="modal-box" style="max-width: 580px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0;">История изменений задачи</h3>
+                </div>
+                <button class="modal-close" onclick="closeTaskHistoryModal()">&times;</button>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <span style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700;" id="history-task-code">TSK-01</span>
+                    <span id="history-task-status-badge" style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: #eff6ff; color: #1d4ed8;">🟡 В работе</span>
+                </div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="history-task-title">Название задачи</div>
+            </div>
+
+            <div style="max-height: 52vh; overflow-y: auto; padding-right: 4px;">
+                <div class="timeline-container" id="history-timeline-list">
+                    <div style="text-align: center; color: #94a3b8; padding: 1.5rem 0;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Загрузка истории...
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeTaskHistoryModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
     <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) -->
     <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()" style="z-index: 6000; background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px);">
         <div style="position: relative; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;" onclick="event.stopPropagation()">
@@ -1381,6 +1737,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260827_fix_chips_sync_v17"></script>
+    <script src="/static/js/tasks.js?v=20260827_stage3_history_kpi_v19"></script>
 </body>
 </html>

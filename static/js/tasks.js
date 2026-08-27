@@ -440,6 +440,49 @@ function applyPresetFilter(presetType) {
         updateFilterBadge();
         updateUrlParams();
         loadTasks();
+        return;
+    }
+
+    if (presetType === 'done') {
+        const curStatus = document.getElementById("table-filter-status")?.value;
+        if (curStatus === "🟢 Выполнено") {
+            setFilterValueDirect('status', 'all');
+        } else {
+            setFilterValueDirect('status', '🟢 Выполнено');
+        }
+        updateChipsVisualState();
+        updateFilterBadge();
+        updateUrlParams();
+        loadTasks();
+        return;
+    }
+
+    if (presetType === 'moved') {
+        const curStatus = document.getElementById("table-filter-status")?.value;
+        if (curStatus === "🔵 Перенесено") {
+            setFilterValueDirect('status', 'all');
+        } else {
+            setFilterValueDirect('status', '🔵 Перенесено');
+        }
+        updateChipsVisualState();
+        updateFilterBadge();
+        updateUrlParams();
+        loadTasks();
+        return;
+    }
+
+    if (presetType === 'cancelled') {
+        const curStatus = document.getElementById("table-filter-status")?.value;
+        if (curStatus === "🔴 Отменено") {
+            setFilterValueDirect('status', 'all');
+        } else {
+            setFilterValueDirect('status', '🔴 Отменено');
+        }
+        updateChipsVisualState();
+        updateFilterBadge();
+        updateUrlParams();
+        loadTasks();
+        return;
     }
 }
 
@@ -589,6 +632,7 @@ function startTasksLiveSync() {
                     allTasks = freshTasks;
                     renderTasksTable(allTasks);
                     renderTasksCards(allTasks);
+                    renderKpiSummary(allTasks);
                 }
             }
         } catch (e) {
@@ -634,6 +678,7 @@ async function loadTasks() {
             lastTasksDataHash = JSON.stringify(allTasks);
             renderTasksTable(allTasks);
             renderTasksCards(allTasks);
+            renderKpiSummary(allTasks);
             scrollToTargetTaskAfterRender();
         }
     } catch (e) {
@@ -884,10 +929,18 @@ function renderTasksTable(tasks) {
         const isCancelled = t.status && t.status.includes("Отменено");
         const isLocked = isCompleted || isCancelled;
 
-        if (t.status && t.status.includes("В работе")) statusClass = "status-work";
-        else if (isCompleted) statusClass = "status-done";
-        else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
-        else if (isCancelled) statusClass = "status-cancelled";
+        let rowExtraClass = "";
+        if (isCompleted) {
+            statusClass = "status-done";
+            rowExtraClass = "task-row-done";
+        } else if (isCancelled) {
+            statusClass = "status-cancelled";
+            rowExtraClass = "task-row-cancelled";
+        } else if (t.status && t.status.includes("Перенесено")) {
+            statusClass = "status-moved";
+        } else {
+            statusClass = "status-work";
+        }
 
         const photoBtn = t.photo_link ? `
             <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer;" title="Просмотреть фото">
@@ -917,12 +970,18 @@ function renderTasksTable(tasks) {
 
         const actionButtons = isLocked ? `
             <div class="row-actions">
+                <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                </button>
                 <button class="btn-icon-cell" disabled title="Заблокировано">
                     <i class="fa-solid fa-lock" style="font-size: 0.75rem;"></i>
                 </button>
             </div>
         ` : `
             <div class="row-actions">
+                <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                </button>
                 <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
                     <i class="fa-solid fa-arrow-right"></i>
                 </button>
@@ -933,9 +992,9 @@ function renderTasksTable(tasks) {
         `;
 
         return `
-            <tr id="task-row-${t.id}">
+            <tr id="task-row-${t.id}" class="${rowExtraClass}">
                 <td>
-                    <span class="badge-code">${t.code || ('TSK-' + t.id)}</span>
+                    <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
                     ${backlogBadge}
                 </td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
@@ -994,10 +1053,18 @@ function renderTasksCards(tasks) {
         const isCancelled = t.status && t.status.includes("Отменено");
         const isLocked = isCompleted || isCancelled;
 
-        if (t.status && t.status.includes("В работе")) statusClass = "status-work";
-        else if (isCompleted) statusClass = "status-done";
-        else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
-        else if (isCancelled) statusClass = "status-cancelled";
+        let cardExtraClass = "";
+        if (isCompleted) {
+            statusClass = "status-done";
+            cardExtraClass = "task-card-done";
+        } else if (isCancelled) {
+            statusClass = "status-cancelled";
+            cardExtraClass = "task-card-cancelled";
+        } else if (t.status && t.status.includes("Перенесено")) {
+            statusClass = "status-moved";
+        } else {
+            statusClass = "status-work";
+        }
 
         const backlogBadge = t.is_backlog ? `
             <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
@@ -1040,12 +1107,18 @@ function renderTasksCards(tasks) {
 
         const cardFooter = isLocked ? `
             <div class="card-actions-footer">
+                <button class="btn-card-action" onclick="openTaskHistoryModal(${t.id})" title="История задачи">
+                    <i class="fa-solid fa-clock-rotate-left"></i> История
+                </button>
                 <button class="btn-card-action" disabled title="Заблокировано для изменений">
-                    <i class="fa-solid fa-lock" style="font-size: 0.8rem;"></i> Завершено (заблокировано)
+                    <i class="fa-solid fa-lock" style="font-size: 0.8rem;"></i> Завершено
                 </button>
             </div>
         ` : `
             <div class="card-actions-footer">
+                <button class="btn-card-action" onclick="openTaskHistoryModal(${t.id})" title="История задачи">
+                    <i class="fa-solid fa-clock-rotate-left"></i> История
+                </button>
                 <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
                     <i class="fa-solid fa-arrow-right"></i> Перенести
                 </button>
@@ -1056,7 +1129,7 @@ function renderTasksCards(tasks) {
         `;
 
         return `
-            <div class="planner-card" id="task-card-${t.id}">
+            <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}">
                 <div class="planner-card-header">
                     <div class="card-header-tags">
                         <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
@@ -1188,6 +1261,8 @@ function toggleBacklog() {
    QUICK INLINE ACTIONS & COMPLETE CONFIRMATION
    ========================================================== */
 let pendingCompleteTaskId = null;
+let pendingRescheduleTaskId = null;
+let pendingCancelTaskId = null;
 let previousTaskStatus = {};
 
 async function quickUpdateStatus(taskId, newStatus) {
@@ -1195,49 +1270,25 @@ async function quickUpdateStatus(taskId, newStatus) {
     const oldStatus = task ? (task.status || "⚪ В очереди") : "⚪ В очереди";
     previousTaskStatus[taskId] = oldStatus;
 
-    // Если выбрали "Выполнено" — требуем весомого подтверждения через модальное окно
+    // 1. Если выбрали "Выполнено" — требуем подтверждения факта через модальное окно
     if (newStatus === "🟢 Выполнено") {
         openCompleteTaskModal(taskId);
         return;
     }
 
-    // Если выбрали "Отменено" — отменять может только Автор задачи (или Админ) с указанием причины
-    if (newStatus === "🔴 Отменено") {
-        const authorUser = task ? task.author_name : null;
-        ensureUserAuthorized(authorUser, async (authSession) => {
-            const reason = prompt("Укажите причину отмены задачи (будет сохранена в комментарии):", task.comment || "");
-            if (reason === null) {
-                loadTasks();
-                return;
-            }
-
-            try {
-                const commentText = reason ? `[Отменено] ${reason}` : "[Отменено]";
-                const res = await fetch(`/api/tasks/${taskId}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        status: "🔴 Отменено",
-                        comment: commentText,
-                        pin_code: authSession ? authSession.pin : ""
-                    })
-                });
-                if (res.ok) {
-                    showToast("Задача отменена 🔴");
-                    loadTasks();
-                } else {
-                    const err = await res.json();
-                    alert("Ошибка отмены задачи: " + (err.detail || "Доступ запрещен"));
-                    loadTasks();
-                }
-            } catch (e) {
-                console.error("Error cancelling task:", e);
-                loadTasks();
-            }
-        });
+    // 2. Если выбрали "Перенесено" — открываем специализированный диалог переноса срока
+    if (newStatus === "🔵 Перенесено") {
+        openRescheduleTaskModal(taskId);
         return;
     }
 
+    // 3. Если выбрали "Отменено" — модальный диалог отмены с причиной и авторизацией
+    if (newStatus === "🔴 Отменено") {
+        openCancelTaskModal(taskId);
+        return;
+    }
+
+    // 4. Обычный перевод (например "В работе")
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
     ensureUserAuthorized(requiredUser, async (authSession) => {
         if (task) task.status = newStatus;
@@ -1265,6 +1316,19 @@ async function quickUpdateStatus(taskId, newStatus) {
     });
 }
 
+function restoreSelectValue(taskId) {
+    if (!taskId) return;
+    const prev = previousTaskStatus[taskId];
+    if (!prev) return;
+    const rowSelect = document.querySelector(`#task-row-${taskId} .select-status`);
+    if (rowSelect) rowSelect.value = prev;
+    const cardSelect = document.querySelector(`#task-card-${taskId} .select-status`);
+    if (cardSelect) cardSelect.value = prev;
+}
+
+/* ==========================================================
+   1. COMPLETE TASK MODAL
+   ========================================================== */
 function openCompleteTaskModal(taskId) {
     const task = allTasks.find(t => t.id === taskId);
     if (!task) return;
@@ -1288,17 +1352,8 @@ function openCompleteTaskModal(taskId) {
 function closeCompleteModal() {
     const modal = document.getElementById("complete-task-modal");
     if (modal) modal.style.display = "none";
-
-    // Возвращаем селектор статуса обратно к предыдущему значению при отмене
     if (pendingCompleteTaskId) {
-        const rowSelect = document.querySelector(`#task-row-${pendingCompleteTaskId} .select-status`);
-        if (rowSelect && previousTaskStatus[pendingCompleteTaskId]) {
-            rowSelect.value = previousTaskStatus[pendingCompleteTaskId];
-        }
-        const cardSelect = document.querySelector(`#task-card-${pendingCompleteTaskId} .select-status`);
-        if (cardSelect && previousTaskStatus[pendingCompleteTaskId]) {
-            cardSelect.value = previousTaskStatus[pendingCompleteTaskId];
-        }
+        restoreSelectValue(pendingCompleteTaskId);
     }
     pendingCompleteTaskId = null;
 }
@@ -1343,6 +1398,231 @@ async function submitCompleteModal() {
         } catch (e) {
             console.error("Error completing task:", e);
             alert("Произошла ошибка при сохранении");
+        }
+    });
+}
+
+/* ==========================================================
+   2. RESCHEDULE (MOVE DEADLINE) MODAL
+   ========================================================== */
+function openRescheduleTaskModal(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    pendingRescheduleTaskId = taskId;
+
+    document.getElementById("reschedule-task-id").value = taskId;
+    document.getElementById("reschedule-task-code").textContent = task.code || `TSK-${task.id}`;
+    document.getElementById("reschedule-task-title").textContent = task.title || "—";
+    document.getElementById("reschedule-task-current-due").textContent = task.due_date_str || "В теч. недели";
+    
+    // Сбрасываем инпуты
+    document.getElementById("reschedule-task-date").value = "";
+    document.getElementById("reschedule-task-reason").value = "";
+    
+    // Сбрасываем выбранные чипы
+    const chips = document.querySelectorAll("#reschedule-reason-chips .reason-chip");
+    chips.forEach(c => c.classList.remove("selected"));
+
+    // По умолчанию предлагаем дату через 3 дня
+    applyDatePreset(3);
+
+    document.getElementById("reschedule-task-modal").style.display = "flex";
+}
+
+function closeRescheduleModal() {
+    const modal = document.getElementById("reschedule-task-modal");
+    if (modal) modal.style.display = "none";
+    if (pendingRescheduleTaskId) {
+        restoreSelectValue(pendingRescheduleTaskId);
+    }
+    pendingRescheduleTaskId = null;
+}
+
+function selectRescheduleChip(btn, text) {
+    const chips = document.querySelectorAll("#reschedule-reason-chips .reason-chip");
+    chips.forEach(c => c.classList.remove("selected"));
+    btn.classList.add("selected");
+    
+    const reasonInput = document.getElementById("reschedule-task-reason");
+    if (reasonInput) {
+        reasonInput.value = text;
+        reasonInput.focus();
+    }
+}
+
+function applyDatePreset(daysToAdd) {
+    const d = new Date();
+    d.setDate(d.getDate() + daysToAdd);
+    const dateInput = document.getElementById("reschedule-task-date");
+    if (dateInput) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+}
+
+function applyDatePresetToFriday() {
+    const d = new Date();
+    const day = d.getDay(); // 0 is Sunday, 5 is Friday
+    let diff = 5 - day;
+    if (diff <= 0) diff += 7;
+    d.setDate(d.getDate() + diff);
+    const dateInput = document.getElementById("reschedule-task-date");
+    if (dateInput) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+}
+
+function onRescheduleDatePicked(val) {
+    // Пользователь выбрал дату вручную
+}
+
+function formatDateToRuStr(dateStr) {
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const dayNames = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+        const dayOfWeek = dayNames[d.getDay()] || "";
+        return `${parts[2]}.${parts[1]} (${dayOfWeek})`;
+    }
+    return dateStr;
+}
+
+async function submitRescheduleModal() {
+    const taskId = document.getElementById("reschedule-task-id").value;
+    const newDateRaw = document.getElementById("reschedule-task-date").value.trim();
+    const reason = document.getElementById("reschedule-task-reason").value.trim();
+    const task = allTasks.find(t => t.id == taskId);
+
+    if (!newDateRaw) {
+        alert("Пожалуйста, укажите новую дату срока!");
+        return;
+    }
+    if (!reason) {
+        alert("Пожалуйста, укажите причину переноса срока!");
+        const reasonInput = document.getElementById("reschedule-task-reason");
+        if (reasonInput) reasonInput.focus();
+        return;
+    }
+
+    const newDueDateStr = formatDateToRuStr(newDateRaw);
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
+
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        try {
+            const commentText = `[Перенос на ${newDueDateStr}] ${reason}`;
+            const payload = {
+                status: "🔵 Перенесено",
+                due_date_str: newDueDateStr,
+                comment: commentText,
+                pin_code: authSession ? authSession.pin : ""
+            };
+
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeRescheduleModal();
+                showToast(`Срок перенесён на ${newDueDateStr} 🔵`);
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка переноса: " + (err.detail || "Не удалось сохранить"));
+            }
+        } catch (e) {
+            console.error("Error rescheduling task:", e);
+            alert("Произошла ошибка сети при переносе срока");
+        }
+    });
+}
+
+/* ==========================================================
+   3. CANCEL TASK MODAL
+   ========================================================== */
+function openCancelTaskModal(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    pendingCancelTaskId = taskId;
+
+    document.getElementById("cancel-task-id").value = taskId;
+    document.getElementById("cancel-task-code").textContent = task.code || `TSK-${task.id}`;
+    document.getElementById("cancel-task-title").textContent = task.title || "—";
+    document.getElementById("cancel-task-reason").value = "";
+
+    const chips = document.querySelectorAll("#cancel-reason-chips .reason-chip");
+    chips.forEach(c => c.classList.remove("selected-danger"));
+
+    document.getElementById("cancel-task-modal").style.display = "flex";
+}
+
+function closeCancelModal() {
+    const modal = document.getElementById("cancel-task-modal");
+    if (modal) modal.style.display = "none";
+    if (pendingCancelTaskId) {
+        restoreSelectValue(pendingCancelTaskId);
+    }
+    pendingCancelTaskId = null;
+}
+
+function selectCancelChip(btn, text) {
+    const chips = document.querySelectorAll("#cancel-reason-chips .reason-chip");
+    chips.forEach(c => c.classList.remove("selected-danger"));
+    btn.classList.add("selected-danger");
+
+    const reasonInput = document.getElementById("cancel-task-reason");
+    if (reasonInput) {
+        reasonInput.value = text;
+        reasonInput.focus();
+    }
+}
+
+async function submitCancelModal() {
+    const taskId = document.getElementById("cancel-task-id").value;
+    const reason = document.getElementById("cancel-task-reason").value.trim();
+    const task = allTasks.find(t => t.id == taskId);
+
+    if (!reason) {
+        alert("Пожалуйста, обязательно укажите причину отмены задачи!");
+        const reasonInput = document.getElementById("cancel-task-reason");
+        if (reasonInput) reasonInput.focus();
+        return;
+    }
+
+    const authorUser = task ? task.author_name : null;
+    ensureUserAuthorized(authorUser, async (authSession) => {
+        try {
+            const commentText = `[Отменено] ${reason}`;
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    status: "🔴 Отменено",
+                    comment: commentText,
+                    pin_code: authSession ? authSession.pin : ""
+                })
+            });
+
+            if (res.ok) {
+                closeCancelModal();
+                showToast("Задача отменена 🔴");
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка отмены задачи: " + (err.detail || "Доступ запрещен"));
+            }
+        } catch (e) {
+            console.error("Error cancelling task:", e);
+            alert("Произошла ошибка при отмене задачи");
         }
     });
 }
@@ -2021,4 +2301,149 @@ function closePhotoViewerModal() {
     const img = document.getElementById("photo-viewer-img");
     if (modal) modal.classList.remove("active");
     if (img) img.src = "";
+}
+
+/* ==========================================================
+   KPI SUMMARY DASHBOARD
+   ========================================================== */
+function renderKpiSummary(tasks) {
+    if (!tasks) tasks = [];
+    const total = tasks.length;
+    let inWork = 0;
+    let done = 0;
+    let moved = 0;
+    let cancelled = 0;
+
+    tasks.forEach(t => {
+        const st = t.status || "";
+        if (st.includes("Выполнено")) done++;
+        else if (st.includes("Перенесено")) moved++;
+        else if (st.includes("Отменено")) cancelled++;
+        else inWork++;
+    });
+
+    const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const elTotal = document.getElementById("kpi-val-total");
+    const elWork = document.getElementById("kpi-val-work");
+    const elDone = document.getElementById("kpi-val-done");
+    const elPercent = document.getElementById("kpi-val-percent");
+    const elMoved = document.getElementById("kpi-val-moved");
+    const elCancelled = document.getElementById("kpi-val-cancelled");
+
+    if (elTotal) elTotal.textContent = total;
+    if (elWork) elWork.textContent = inWork;
+    if (elDone) elDone.textContent = done;
+    if (elPercent) elPercent.textContent = `${percent}%`;
+    if (elMoved) elMoved.textContent = moved;
+    if (elCancelled) elCancelled.textContent = cancelled;
+}
+
+/* ==========================================================
+   TASK HISTORY & AUDIT LOG MODAL
+   ========================================================== */
+async function openTaskHistoryModal(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    const modal = document.getElementById("task-history-modal");
+    const timelineList = document.getElementById("history-timeline-list");
+    const codeEl = document.getElementById("history-task-code");
+    const titleEl = document.getElementById("history-task-title");
+    const statusBadgeEl = document.getElementById("history-task-status-badge");
+
+    if (!modal) return;
+
+    if (codeEl) codeEl.textContent = task ? (task.code || `TSK-${taskId}`) : `TSK-${taskId}`;
+    if (titleEl) titleEl.textContent = task ? (task.title || "—") : "—";
+    if (statusBadgeEl) statusBadgeEl.textContent = task ? (task.status || "—") : "—";
+
+    if (timelineList) {
+        timelineList.innerHTML = `<div style="text-align: center; color: #94a3b8; padding: 1.5rem 0;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка истории...</div>`;
+    }
+
+    modal.style.display = "flex";
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}/history`);
+        if (res.ok) {
+            const data = await res.json();
+            renderTimelineHistory(data.history || []);
+        } else {
+            if (timelineList) {
+                timelineList.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 1rem;">Не удалось загрузить историю изменений</div>`;
+            }
+        }
+    } catch (e) {
+        console.error("Error loading task history:", e);
+        if (timelineList) {
+            timelineList.innerHTML = `<div style="color: #ef4444; text-align: center; padding: 1rem;">Ошибка сети при получении истории</div>`;
+        }
+    }
+}
+
+function renderTimelineHistory(historyItems) {
+    const timelineList = document.getElementById("history-timeline-list");
+    if (!timelineList) return;
+
+    if (!historyItems || historyItems.length === 0) {
+        timelineList.innerHTML = `<div style="text-align: center; color: #94a3b8; padding: 1.5rem 0;">История изменений пуста</div>`;
+        return;
+    }
+
+    timelineList.innerHTML = historyItems.map(item => {
+        let dotClass = "dot-update";
+        let actionBadge = "Обновление";
+        let badgeColor = "#475569";
+        let badgeBg = "#f1f5f9";
+
+        const act = (item.action || "").toUpperCase();
+        const details = item.details || "";
+
+        if (act === "CREATE") {
+            dotClass = "dot-create";
+            actionBadge = "Создание задачи";
+            badgeColor = "#16a34a";
+            badgeBg = "#dcfce7";
+        } else if (details.includes("Выполнено")) {
+            dotClass = "dot-complete";
+            actionBadge = "Выполнено";
+            badgeColor = "#15803d";
+            badgeBg = "#dcfce7";
+        } else if (details.includes("Перенесено") || details.includes("Перенос")) {
+            dotClass = "dot-reschedule";
+            actionBadge = "Перенос срока";
+            badgeColor = "#0369a1";
+            badgeBg = "#e0f2fe";
+        } else if (details.includes("Отменено")) {
+            dotClass = "dot-cancel";
+            actionBadge = "Отмена задачи";
+            badgeColor = "#b91c1c";
+            badgeBg = "#fee2e2";
+        } else if (details.includes("В работе")) {
+            dotClass = "dot-update";
+            actionBadge = "Взято в работу";
+            badgeColor = "#b45309";
+            badgeBg = "#fef3c7";
+        }
+
+        return `
+            <div class="timeline-item">
+                <div class="timeline-dot ${dotClass}"></div>
+                <div class="timeline-card">
+                    <div class="timeline-header">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: ${badgeBg}; color: ${badgeColor};">${actionBadge}</span>
+                            <span class="timeline-user">${escapeHtml(item.user_name || 'Пользователь')}</span>
+                        </div>
+                        <span class="timeline-date">${item.timestamp || ''}</span>
+                    </div>
+                    <div class="timeline-body">${escapeHtml(item.details || '')}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function closeTaskHistoryModal() {
+    const modal = document.getElementById("task-history-modal");
+    if (modal) modal.style.display = "none";
 }

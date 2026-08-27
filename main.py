@@ -7638,6 +7638,46 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "created_at": task.created_at.strftime("%d.%m.%Y %H:%M") if task.created_at else ""
     }
 
+@app.get("/api/tasks/{task_id}/history")
+def get_task_history(task_id: int, db: Session = Depends(get_db)):
+    """Возвращает хронологическую историю изменений задачи из AuditLog."""
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    logs = db.query(models.AuditLog).filter(
+        models.AuditLog.target_table == "tasks",
+        models.AuditLog.target_id == task_id
+    ).order_by(models.AuditLog.timestamp.asc(), models.AuditLog.id.asc()).all()
+
+    history = []
+    for log in logs:
+        history.append({
+            "id": log.id,
+            "timestamp": log.timestamp.strftime("%d.%m.%Y %H:%M") if log.timestamp else "",
+            "user_name": log.user_name or "Система",
+            "action": log.action,
+            "details": log.details or ""
+        })
+
+    # Если в AuditLog пока нет записей (например создано до логирования), формируем базовую запись создания
+    if not history and task.created_at:
+        history.append({
+            "id": 0,
+            "timestamp": task.created_at.strftime("%d.%m.%Y %H:%M"),
+            "user_name": task.author_name or "Автор",
+            "action": "CREATE",
+            "details": f"Создана задача [{task.code or f'TSK-{task.id}'}] «{task.title}». Исполнитель: {task.assignee_name or '—'}"
+        })
+
+    return {
+        "task_id": task.id,
+        "code": task.code or f"TSK-{task.id:02d}",
+        "title": task.title,
+        "status": task.status,
+        "history": history
+    }
+
 @app.post("/api/tasks")
 def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Создает новую задачу и отправляет уведомление исполнителю."""
@@ -7807,21 +7847,41 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
         # 2. Уведомления при смене статуса
         if task_data.status and task_data.status != old_status:
-            # Если задача завершена -> автору
+            # 2.1. Если задача завершена -> автору
             if task.status == "🟢 Выполнено" and task.author_name:
                 author_email = get_task_person_email(db, task.author_name)
                 if author_email:
                     subject = f"🟢 Задача выполнена [{task.zone}]: {task.title}"
                     background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача выполнена", task_dict)
 
-            # Если задача перенесена -> автору
-            elif task.status == "🔵 Перенесено" and task.author_name:
-                author_email = get_task_person_email(db, task.author_name)
-                if author_email:
-                    subject = f"🔵 Задача перенесена [{task.zone}]: {task.title}"
-                    background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача перенесена", task_dict)
+            # 2.2. Если задача перенесена -> автору (и исполнителю, если есть)
+            elif task.status == "🔵 Перенесено":
+                due_info = f" на {task.due_date_str}" if task.due_date_str else ""
+                subject = f"🔵 Срок задачи перенесен{due_info} [{task.zone}]: {task.title}"
+                if task.author_name:
+                    author_email = get_task_person_email(db, task.author_name)
+                    if author_email:
+                        background_tasks.add_task(send_task_email_notification, author_email, subject, "Срок задачи перенесен", task_dict)
+                if task.assignee_name and task.assignee_name != task.author_name:
+                    assignee_email = get_task_person_email(db, task.assignee_name)
+                    if assignee_email:
+                        background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Срок задачи перенесен", task_dict)
 
-            # Если задачу взяли в работу -> исполнителю (если статус изменился)
+            # 2.3. Если задача отменена -> исполнителю и автору
+            elif task.status == "🔴 Отменено":
+                subject = f"🔴 Задача отменена [{task.zone}]: {task.title}"
+                # Уведомляем исполнителя
+                if task.assignee_name:
+                    assignee_email = get_task_person_email(db, task.assignee_name)
+                    if assignee_email:
+                        background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Задача отменена", task_dict)
+                # Уведомляем автора, если отменил не он сам (или для подтверждения)
+                if task.author_name and task.author_name != task.assignee_name:
+                    author_email = get_task_person_email(db, task.author_name)
+                    if author_email:
+                        background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача отменена", task_dict)
+
+            # 2.4. Если задачу взяли в работу -> исполнителю (если статус изменился)
             elif task.status == "🟡 В работе" and task.assignee_name:
                 assignee_email = get_task_person_email(db, task.assignee_name)
                 if assignee_email:
