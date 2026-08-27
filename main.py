@@ -8340,7 +8340,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             
             def get_shift_sheets(s):
                 if s.lfm_reports:
-                    return sum(r.formed_sheets or 0 for r in s.lfm_reports)
+                    return sum(r.lfm_sheets or 0 for r in s.lfm_reports)
                 if s.batches:
                     return sum(b.stacked_stacks or 0 for b in s.batches)
                 return 0
@@ -8408,7 +8408,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             
             def get_shift_sheets(s):
                 if s.lfm_reports:
-                    return sum(r.formed_sheets or 0 for r in s.lfm_reports)
+                    return sum(r.lfm_sheets or 0 for r in s.lfm_reports)
                 if s.batches:
                     return sum(b.stacked_stacks or 0 for b in s.batches)
                 return 0
