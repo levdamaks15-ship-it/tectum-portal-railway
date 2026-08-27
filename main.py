@@ -8238,6 +8238,8 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         print(f"[Telegram Incoming] Event: {data}")
         
         import telegram_service
+        from sqlalchemy import cast, String
+        from sqlalchemy.orm import joinedload
         
         message = data.get("message") or data.get("channel_post")
         callback_query = data.get("callback_query")
