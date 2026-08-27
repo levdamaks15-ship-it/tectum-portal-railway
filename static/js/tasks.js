@@ -879,7 +879,7 @@ function renderTasksTable(tasks) {
     }
 
     tableBody.innerHTML = tasks.map((t, idx) => {
-        let statusClass = "status-queue";
+        let statusClass = "status-work";
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
         const isLocked = isCompleted || isCancelled;
@@ -918,10 +918,7 @@ function renderTasksTable(tasks) {
         const actionButtons = isLocked ? `
             <div class="row-actions">
                 <button class="btn-icon-cell" disabled title="Заблокировано">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-                <button class="btn-icon-cell" disabled title="Заблокировано">
-                    <i class="fa-solid fa-pen"></i>
+                    <i class="fa-solid fa-lock" style="font-size: 0.75rem;"></i>
                 </button>
             </div>
         ` : `
@@ -959,7 +956,6 @@ function renderTasksTable(tasks) {
                 <td style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</td>
                 <td style="text-align: center; white-space: nowrap; min-width: 140px;">
                     <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
-                        <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
                         <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                         <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
                         <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
@@ -993,7 +989,7 @@ function renderTasksCards(tasks) {
     }
 
     cardsContainer.innerHTML = tasks.map((t, idx) => {
-        let statusClass = "status-queue";
+        let statusClass = "status-work";
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
         const isLocked = isCompleted || isCancelled;
@@ -1010,7 +1006,7 @@ function renderTasksCards(tasks) {
         ` : '';
 
         const photoBtn = t.photo_link ? `
-            <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer; padding: 0.3rem 0.6rem; font-size: 0.78rem;" title="Просмотреть фото">
+            <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-action" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; cursor: pointer; padding: 0.35rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600;" title="Просмотреть прикрепленное фото">
                 <i class="fa-solid fa-image"></i> Фото
             </button>
         ` : '';
@@ -1030,8 +1026,9 @@ function renderTasksCards(tasks) {
                     <div style="flex: 1;">${t.comment}</div>
                 </div>
             ` : `
-                <div style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; padding: 2px 0;" onclick="inlineEditComment(${t.id}, '')">
-                    <i class="fa-solid fa-plus" style="font-size: 0.7rem;"></i> Добавить факт/комментарий...
+                <div class="card-add-comment-btn" onclick="inlineEditComment(${t.id}, '')">
+                    <i class="fa-solid fa-plus" style="font-size: 0.75rem; color: #2563eb;"></i>
+                    <span>Добавить факт / комментарий...</span>
                 </div>
             `;
         }
@@ -1043,11 +1040,8 @@ function renderTasksCards(tasks) {
 
         const cardFooter = isLocked ? `
             <div class="card-actions-footer">
-                <button class="btn-card-action" disabled title="Заблокировано">
-                    <i class="fa-solid fa-arrow-right"></i> Перенести
-                </button>
-                <button class="btn-card-action" disabled title="Заблокировано">
-                    <i class="fa-solid fa-pen"></i> Редактировать
+                <button class="btn-card-action" disabled title="Заблокировано для изменений">
+                    <i class="fa-solid fa-lock" style="font-size: 0.8rem;"></i> Завершено (заблокировано)
                 </button>
             </div>
         ` : `
@@ -1055,7 +1049,7 @@ function renderTasksCards(tasks) {
                 <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
                     <i class="fa-solid fa-arrow-right"></i> Перенести
                 </button>
-                <button class="btn-card-action" onclick="openEditTaskModal(${t.id})" title="Редактировать задачу">
+                <button class="btn-card-action btn-card-action-primary" onclick="openEditTaskModal(${t.id})" title="Редактировать задачу">
                     <i class="fa-solid fa-pen"></i> Редактировать
                 </button>
             </div>
@@ -1070,8 +1064,7 @@ function renderTasksCards(tasks) {
                         ${backlogBadge}
                     </div>
                     <div>
-                        <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">
-                            <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
+                        <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.88rem; min-height: 38px; padding: 0.4rem 0.85rem; font-weight: 700;">
                             <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                             <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
                             <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
@@ -1099,7 +1092,7 @@ function renderTasksCards(tasks) {
                         <span title="${t.author_name || '—'}">${t.author_name || '—'}</span>
                     </div>
                     <div class="card-meta-item" style="justify-content: flex-end;">
-                        ${photoBtn || '<span style="color: #cbd5e1; font-size: 0.75rem;">Без фото</span>'}
+                        ${photoBtn}
                     </div>
                 </div>
 

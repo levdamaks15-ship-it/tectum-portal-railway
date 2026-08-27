@@ -643,7 +643,13 @@ async def lifespan(app: FastAPI):
                 for at in archived_tasks:
                     at.is_archived = False
                 db.commit()
-                print(f"[Tasks Migration] Un-archived {len(archived_tasks)} tasks to make them visible in their weeks.")
+            # Миграция статусов: исключение устаревшего статуса '⚪ В очереди' в пользу '🟡 В работе'
+            queue_tasks = db.query(models.Task).filter(models.Task.status.ilike("%В очереди%")).all()
+            if queue_tasks:
+                for qt in queue_tasks:
+                    qt.status = "🟡 В работе"
+                db.commit()
+                print(f"[Tasks Migration] Migrated {len(queue_tasks)} tasks from 'В очереди' to '🟡 В работе'.")
         except Exception as task_cl_err:
             print(f"Warning cleaning test tasks: {task_cl_err}")
             db.rollback()

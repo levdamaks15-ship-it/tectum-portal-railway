@@ -334,7 +334,7 @@ class Task(Base):
     author_name = Column(String, nullable=True) # Автор
     assignee_name = Column(String, nullable=True) # Исполнитель
     due_date_str = Column(String, nullable=True) # Срок (строка, напр. "28.08")
-    status = Column(String, default="⚪ В очереди") # ⚪ В очереди, 🟡 В работе, 🟢 Выполнено, 🔵 Перенесено
+    status = Column(String, default="🟡 В работе") # 🟡 В работе, 🟢 Выполнено, 🔵 Перенесено, 🔴 Отменено
     comment = Column(String, nullable=True) # Факт / Комментарий
     month_label = Column(String, nullable=True, index=True) # например, "Август 2026"
     week_label = Column(String, nullable=True, index=True) # например, "Неделя 4 (24.08 - 28.08)"

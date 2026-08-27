@@ -645,7 +645,7 @@ class TaskBase(ORMBaseModel):
     author_name: Optional[str] = ""
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
-    status: Optional[str] = "⚪ В очереди"
+    status: Optional[str] = "🟡 В работе"
     comment: Optional[str] = ""
     month_label: Optional[str] = ""
     week_label: Optional[str] = ""
