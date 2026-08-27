@@ -254,6 +254,12 @@
         .status-work { background: var(--status-work-bg); color: var(--status-work-color); border-color: #fde68a; }
         .status-done { background: var(--status-done-bg); color: var(--status-done-color); border-color: #a7f3d0; }
         .status-moved { background: var(--status-moved-bg); color: var(--status-moved-color); border-color: #bfdbfe; }
+        .status-cancelled { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+        .task-cancelled-text {
+            color: #94a3b8 !important;
+            text-decoration: line-through;
+        }
 
         .btn-photo-link {
             display: inline-flex;
@@ -334,14 +340,19 @@
         /* Modal dialogs */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.5);
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.65);
             backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 3000;
             padding: 1rem;
+            box-sizing: border-box;
         }
         .modal-box {
             background: #ffffff;
@@ -350,8 +361,11 @@
             width: 100%;
             max-width: 600px;
             padding: 1.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
             color: #0f172a;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-sizing: border-box;
         }
         .modal-header {
             display: flex;
@@ -590,16 +604,39 @@
 
         @media (max-width: 768px) {
             .planner-header {
-                padding: 0.6rem 0.85rem;
+                padding: 0.5rem 0.75rem;
+                gap: 0.5rem;
             }
             .header-brand h1 {
-                font-size: 1.02rem;
+                font-size: 0.92rem;
+                letter-spacing: 0;
             }
             .header-brand span {
-                font-size: 0.68rem;
+                font-size: 0.62rem;
             }
             .header-brand img {
-                height: 30px;
+                height: 26px;
+            }
+            .planner-header-actions {
+                display: flex;
+                align-items: center;
+                gap: 0.35rem;
+                flex-wrap: nowrap !important;
+            }
+            .btn-action-header {
+                padding: 0.35rem 0.55rem;
+                font-size: 0.8rem;
+            }
+            .user-session-badge {
+                padding: 3px 6px !important;
+                font-size: 0.75rem !important;
+                max-width: 110px;
+            }
+            .user-session-name {
+                max-width: 70px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
             .toolbar {
                 padding: 0.6rem 0.85rem;
@@ -756,18 +793,18 @@
             </div>
         </a>
 
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <div class="planner-header-actions" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: nowrap;">
             <!-- Planner User Session Badge -->
-            <div id="planner-user-badge" style="display: flex; align-items: center; gap: 6px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #1d4ed8;">
-                <i class="fa-solid fa-user-check"></i>
-                <span id="planner-user-name" onclick="promptChangePlannerUser()" style="cursor: pointer; text-decoration: underline;" title="Нажмите, чтобы сменить пользователя">Гость</span>
-                <button type="button" onclick="logoutPlannerUser()" style="background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.8rem;" title="Выйти / Сменить PIN">&times;</button>
+            <div id="planner-user-badge" class="user-session-badge" onclick="promptChangePlannerUser()" style="display: flex; align-items: center; gap: 5px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: #1d4ed8; cursor: pointer;" title="Нажмите, чтобы войти под своим именем">
+                <i class="fa-solid fa-user-lock" style="font-size: 0.75rem;"></i>
+                <span id="planner-user-name" class="user-session-name">Войти (PIN)</span>
+                <button type="button" id="btn-planner-logout" onclick="event.stopPropagation(); logoutPlannerUser();" style="display: none; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.85rem;" title="Выйти / Сменить пользователя">&times;</button>
             </div>
 
-            <a href="/static/docs.html" class="btn-action btn-secondary-action" title="База знаний">
+            <a href="/static/docs.html" class="btn-action btn-secondary-action btn-action-header" title="База знаний" style="white-space: nowrap;">
                 <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
-            <a href="/" class="btn-action btn-secondary-action" title="На главную">
+            <a href="/" class="btn-action btn-secondary-action btn-action-header" title="На главную" style="white-space: nowrap;">
                 <i class="fa-solid fa-house"></i>
             </a>
         </div>
@@ -844,6 +881,7 @@
                     <option value="🟡 В работе">🟡 В работе</option>
                     <option value="🟢 Выполнено">🟢 Выполнено</option>
                     <option value="🔵 Перенесено">🔵 Перенесено</option>
+                    <option value="🔴 Отменено">🔴 Отменено</option>
                 </select>
             </div>
             <div>
@@ -917,6 +955,7 @@
                             <option value="🟡 В работе">🟡 В работе</option>
                             <option value="🟢 Выполнено">🟢 Выполнено</option>
                             <option value="🔵 Перенесено">🔵 Перенесено</option>
+                            <option value="🔴 Отменено">🔴 Отменено</option>
                         </select>
                     </th>
                     <th>Факт / Комментарий</th>
@@ -1044,6 +1083,7 @@
                         <option value="🟡 В работе">🟡 В работе</option>
                         <option value="🟢 Выполнено">🟢 Выполнено</option>
                         <option value="🔵 Перенесено">🔵 Перенесено</option>
+                        <option value="🔴 Отменено">🔴 Отменено</option>
                     </select>
                 </div>
             </div>
@@ -1150,6 +1190,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260826_light_theme_v1"></script>
+    <script src="/static/js/tasks.js?v=20260827_auth_pin_v2"></script>
 </body>
 </html>

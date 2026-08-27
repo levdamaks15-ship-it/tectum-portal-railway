@@ -54,6 +54,7 @@ function initPlannerSession() {
 function updatePlannerUserBadge() {
     const nameEl = document.getElementById("planner-user-name");
     const badgeEl = document.getElementById("planner-user-badge");
+    const logoutBtn = document.getElementById("btn-planner-logout");
     if (!nameEl || !badgeEl) return;
 
     if (currentPlannerUser && currentPlannerUser.name) {
@@ -62,11 +63,16 @@ function updatePlannerUserBadge() {
         badgeEl.style.background = "#eff6ff";
         badgeEl.style.color = "#1d4ed8";
         badgeEl.style.borderColor = "#bfdbfe";
+        badgeEl.title = `Авторизован: ${currentPlannerUser.name}. Нажмите для смены`;
+        if (logoutBtn) logoutBtn.style.display = "inline-block";
     } else {
         nameEl.textContent = "Войти (PIN)";
+        badgeEl.style.display = "flex";
         badgeEl.style.background = "#f1f5f9";
         badgeEl.style.color = "#475569";
         badgeEl.style.borderColor = "#cbd5e1";
+        badgeEl.title = "Нажмите, чтобы авторизоваться через PIN-код";
+        if (logoutBtn) logoutBtn.style.display = "none";
     }
 }
 
@@ -107,9 +113,15 @@ function openPinModal(preselectedUser = null, onSuccess = null) {
 
     onPinUserSelectChanged();
 
-    if (modal) modal.style.display = "flex";
+    if (modal) {
+        modal.style.display = "flex";
+        modal.style.alignItems = "center";
+        modal.style.justifyContent = "center";
+    }
+    
     setTimeout(() => {
-        if (pinInput && document.getElementById("pin-input-group").style.display !== "none") {
+        const pinGrp = document.getElementById("pin-input-group");
+        if (pinInput && pinGrp && pinGrp.style.display !== "none") {
             pinInput.focus();
         }
     }, 150);
@@ -543,10 +555,13 @@ function renderTasksTable(tasks) {
     tableBody.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
         const isCompleted = t.status && t.status.includes("Выполнено");
+        const isCancelled = t.status && t.status.includes("Отменено");
+        const isLocked = isCompleted || isCancelled;
 
         if (t.status && t.status.includes("В работе")) statusClass = "status-work";
         else if (isCompleted) statusClass = "status-done";
         else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
+        else if (isCancelled) statusClass = "status-cancelled";
 
         const photoBtn = t.photo_link ? `
             <a href="${t.photo_link}" target="_blank" class="btn-photo-link" title="Открыть фото в новой вкладке">
@@ -562,8 +577,10 @@ function renderTasksTable(tasks) {
             </div>
         ` : '';
 
-        const commentCell = isCompleted ? `
-            <span class="comment-locked" title="Завершённая задача заблокирована для редактирования">
+        const titleClass = isCancelled ? 'task-cancelled-text' : '';
+
+        const commentCell = isLocked ? `
+            <span class="comment-locked" title="${isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована'}">
                 ${t.comment || '—'}
             </span>
         ` : `
@@ -572,12 +589,12 @@ function renderTasksTable(tasks) {
             </span>
         `;
 
-        const actionButtons = isCompleted ? `
+        const actionButtons = isLocked ? `
             <div class="row-actions">
-                <button class="btn-icon-cell" disabled title="Завершённую задачу нельзя перенести">
+                <button class="btn-icon-cell" disabled title="Заблокировано">
                     <i class="fa-solid fa-arrow-right"></i>
                 </button>
-                <button class="btn-icon-cell" disabled title="Завершённая задача заблокирована для редактирования">
+                <button class="btn-icon-cell" disabled title="Заблокировано">
                     <i class="fa-solid fa-pen"></i>
                 </button>
             </div>
@@ -599,8 +616,8 @@ function renderTasksTable(tasks) {
                     ${backlogBadge}
                 </td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
-                <td style="font-weight: 600; min-width: 170px; color: #0f172a;">${t.title || '—'}</td>
-                <td style="color: #64748b; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
+                <td class="${titleClass}" style="font-weight: 600; min-width: 170px; color: #0f172a;">${t.title || '—'}</td>
+                <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
                 
                 <!-- Pure Text Author -->
@@ -615,11 +632,12 @@ function renderTasksTable(tasks) {
 
                 <td style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</td>
                 <td style="text-align: center;">
-                    <select class="select-status ${statusClass}" ${isCompleted ? 'disabled title="Завершённую задачу может изменить только администратор"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
+                    <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
                         <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
                         <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                         <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
                         <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
+                        <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
                     </select>
                 </td>
                 <td style="font-size: 0.82rem; color: #334155; max-width: 180px;">
@@ -651,10 +669,13 @@ function renderTasksCards(tasks) {
     cardsContainer.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
         const isCompleted = t.status && t.status.includes("Выполнено");
+        const isCancelled = t.status && t.status.includes("Отменено");
+        const isLocked = isCompleted || isCancelled;
 
         if (t.status && t.status.includes("В работе")) statusClass = "status-work";
         else if (isCompleted) statusClass = "status-done";
         else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
+        else if (isCancelled) statusClass = "status-cancelled";
 
         const backlogBadge = t.is_backlog ? `
             <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
@@ -669,9 +690,9 @@ function renderTasksCards(tasks) {
         ` : '';
 
         let commentBlock = '';
-        if (isCompleted) {
+        if (isLocked) {
             commentBlock = t.comment ? `
-                <div class="card-comment-box" style="cursor: default;" title="Завершённая задача">
+                <div class="card-comment-box" style="cursor: default;" title="${isCancelled ? 'Отменённая задача' : 'Завершённая задача'}">
                     <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
                     <div style="flex: 1;">${t.comment}</div>
                 </div>
@@ -689,16 +710,17 @@ function renderTasksCards(tasks) {
             `;
         }
 
+        const titleClass = isCancelled ? 'task-cancelled-text' : '';
         const titleKzBlock = t.title_kz ? `
-            <div class="planner-card-title-kz">${t.title_kz}</div>
+            <div class="planner-card-title-kz ${titleClass}">${t.title_kz}</div>
         ` : '';
 
-        const cardFooter = isCompleted ? `
+        const cardFooter = isLocked ? `
             <div class="card-actions-footer">
-                <button class="btn-card-action" disabled title="Завершённую задачу нельзя перенести">
+                <button class="btn-card-action" disabled title="Заблокировано">
                     <i class="fa-solid fa-arrow-right"></i> Перенести
                 </button>
-                <button class="btn-card-action" disabled title="Завершённая задача заблокирована для редактирования">
+                <button class="btn-card-action" disabled title="Заблокировано">
                     <i class="fa-solid fa-pen"></i> Редактировать
                 </button>
             </div>
@@ -722,17 +744,18 @@ function renderTasksCards(tasks) {
                         ${backlogBadge}
                     </div>
                     <div>
-                        <select class="select-status ${statusClass}" ${isCompleted ? 'disabled title="Завершённую задачу может изменить только администратор"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">
+                        <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">
                             <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
                             <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                             <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
                             <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
+                            <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="planner-card-body">
-                    <div class="planner-card-title">${t.title || '—'}</div>
+                    <div class="planner-card-title ${titleClass}">${t.title || '—'}</div>
                     ${titleKzBlock}
                 </div>
 
@@ -856,6 +879,43 @@ async function quickUpdateStatus(taskId, newStatus) {
     // Если выбрали "Выполнено" — требуем весомого подтверждения через модальное окно
     if (newStatus === "🟢 Выполнено") {
         openCompleteTaskModal(taskId);
+        return;
+    }
+
+    // Если выбрали "Отменено" — отменять может только Автор задачи (или Админ) с указанием причины
+    if (newStatus === "🔴 Отменено") {
+        const authorUser = task ? task.author_name : null;
+        ensureUserAuthorized(authorUser, async (authSession) => {
+            const reason = prompt("Укажите причину отмены задачи (будет сохранена в комментарии):", task.comment || "");
+            if (reason === null) {
+                loadTasks();
+                return;
+            }
+
+            try {
+                const commentText = reason ? `[Отменено] ${reason}` : "[Отменено]";
+                const res = await fetch(`/api/tasks/${taskId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        status: "🔴 Отменено",
+                        comment: commentText,
+                        pin_code: authSession ? authSession.pin : ""
+                    })
+                });
+                if (res.ok) {
+                    showToast("Задача отменена 🔴");
+                    loadTasks();
+                } else {
+                    const err = await res.json();
+                    alert("Ошибка отмены задачи: " + (err.detail || "Доступ запрещен"));
+                    loadTasks();
+                }
+            } catch (e) {
+                console.error("Error cancelling task:", e);
+                loadTasks();
+            }
+        });
         return;
     }
 
