@@ -8328,20 +8328,30 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         # 2. Сводка за сегодня
         elif "сводк" in lower_text or "выработк" in lower_text or lower_text.startswith("/summary"):
             today_str = datetime.now().strftime("%Y-%m-%d")
-            shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
+            shifts = db.query(models.Shift).options(
+                joinedload(models.Shift.lfm_reports),
+                joinedload(models.Shift.batches)
+            ).filter(cast(models.Shift.date, String) == today_str).all()
             
             l1_shifts = [s for s in shifts if "1" in str(s.line)]
             l2_shifts = [s for s in shifts if "2" in str(s.line)]
             
-            l1_sheets = sum(s.lfm_sheets or 0 for s in l1_shifts)
-            l2_sheets = sum(s.lfm_sheets or 0 for s in l2_shifts)
+            def get_shift_sheets(s):
+                if s.lfm_reports:
+                    return sum(r.formed_sheets or 0 for r in s.lfm_reports)
+                if s.batches:
+                    return sum(b.stacked_stacks or 0 for b in s.batches)
+                return 0
+                
+            def get_shift_tons(s):
+                sheets = get_shift_sheets(s)
+                weight = get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6
+                return (sheets * (weight or 19.6)) / 1000.0
+                
+            l1_sheets = sum(get_shift_sheets(s) for s in l1_shifts)
+            l2_sheets = sum(get_shift_sheets(s) for s in l2_shifts)
             total_sheets = l1_sheets + l2_sheets
-            
-            # Подсчет тонн
-            total_tons = sum(
-                ((s.lfm_sheets or 0) * (get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
-                for s in shifts
-            )
+            total_tons = sum(get_shift_tons(s) for s in shifts)
             
             reply = (
                 f"📊 <b>Производственная сводка за сегодня:</b>\n"
@@ -8389,14 +8399,25 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             }
             month_title = f"{month_names_ru.get(now.month, '')} {now.year}"
             
-            # Считаем факт за текущий месяц с поддержкой PostgreSQL date
-            from sqlalchemy import cast, String
-            shifts = db.query(models.Shift).filter(cast(models.Shift.date, String).like(f"{current_month}%")).all()
-            fact_sheets = sum(s.lfm_sheets or 0 for s in shifts)
-            fact_tons = sum(
-                ((s.lfm_sheets or 0) * (get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
-                for s in shifts
-            )
+            shifts = db.query(models.Shift).options(
+                joinedload(models.Shift.lfm_reports),
+                joinedload(models.Shift.batches)
+            ).filter(cast(models.Shift.date, String).like(f"{current_month}%")).all()
+            
+            def get_shift_sheets(s):
+                if s.lfm_reports:
+                    return sum(r.formed_sheets or 0 for r in s.lfm_reports)
+                if s.batches:
+                    return sum(b.stacked_stacks or 0 for b in s.batches)
+                return 0
+                
+            def get_shift_tons(s):
+                sheets = get_shift_sheets(s)
+                weight = get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6
+                return (sheets * (weight or 19.6)) / 1000.0
+                
+            fact_sheets = sum(get_shift_sheets(s) for s in shifts)
+            fact_tons = sum(get_shift_tons(s) for s in shifts)
             
             # Нормативный план месяца
             plan_board = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.month == current_month).all()
