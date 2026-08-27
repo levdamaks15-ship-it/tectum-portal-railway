@@ -1073,13 +1073,13 @@
                 </div>
             </div>
 
-            <!-- Deadline with Date Picker & Status -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
-                <div>
+            <!-- Deadline & Status -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row" id="task-due-status-row">
+                <div id="task-due-container">
                     <label>Срок выполнения (Дата)</label>
                     <input type="date" class="form-input" id="task-due-input">
                 </div>
-                <div>
+                <div id="task-status-container">
                     <label>Статус</label>
                     <select class="form-select" id="task-status-input">
                         <option value="⚪ В очереди">⚪ В очереди</option>
@@ -1091,8 +1091,8 @@
                 </div>
             </div>
 
-            <!-- Comment -->
-            <div class="form-row">
+            <!-- Comment / Fact -->
+            <div class="form-row" id="task-comment-container">
                 <label>Факт / Комментарий</label>
                 <input type="text" class="form-input" id="task-comment-input" placeholder="Ход выполнения, замечания...">
             </div>

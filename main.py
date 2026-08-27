@@ -7615,7 +7615,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
             due_date_str=task_data.due_date_str or "",
-            status=task_data.status or "⚪ В очереди",
+            status=task_data.status or "🟡 В работе",
             comment=task_data.comment or "",
             month_label=task_data.month_label or "Август 2026",
             week_label=task_data.week_label or "Неделя 4 (24.08 - 28.08)",

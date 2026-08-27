@@ -1222,9 +1222,18 @@ function openAddTaskModal() {
     const dd = String(today.getDate()).padStart(2, '0');
     document.getElementById("task-due-input").value = `${yyyy}-${mm}-${dd}`;
     
+    // По умолчанию статус «В работе» и пустой факт
     document.getElementById("task-status-input").value = "🟡 В работе";
     document.getElementById("task-comment-input").value = "";
     onPhotoInputChanged('task-photo-input');
+
+    // Скрываем блок Статуса и блок Факта при создании задачи
+    const statusContainer = document.getElementById("task-status-container");
+    if (statusContainer) statusContainer.style.display = "none";
+    const dueStatusRow = document.getElementById("task-due-status-row");
+    if (dueStatusRow) dueStatusRow.style.gridTemplateColumns = "1fr";
+    const commentContainer = document.getElementById("task-comment-container");
+    if (commentContainer) commentContainer.style.display = "none";
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
@@ -1253,6 +1262,14 @@ function openEditTaskModal(taskId) {
     // Синхронизируем дату в календарь (input type="date")
     document.getElementById("task-due-input").value = parseDateToIso(task.due_date_str);
     
+    // Отображаем блоки Статуса и Факта при редактировании существующей задачи
+    const statusContainer = document.getElementById("task-status-container");
+    if (statusContainer) statusContainer.style.display = "block";
+    const dueStatusRow = document.getElementById("task-due-status-row");
+    if (dueStatusRow) dueStatusRow.style.gridTemplateColumns = "1fr 1fr";
+    const commentContainer = document.getElementById("task-comment-container");
+    if (commentContainer) commentContainer.style.display = "block";
+
     document.getElementById("task-status-input").value = task.status || "⚪ В очереди";
     document.getElementById("task-comment-input").value = task.comment || "";
     onPhotoInputChanged('task-photo-input');
