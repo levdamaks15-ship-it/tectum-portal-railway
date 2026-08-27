@@ -8421,9 +8421,12 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             fact_sheets = sum(get_shift_sheets(s) for s in shifts)
             fact_tons = sum(get_shift_tons(s) for s in shifts)
             
-            # Нормативный план месяца
-            plan_board = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.month == current_month).all()
-            plan_tons = sum(p.plan_tons or 0 for p in plan_board) if plan_board else 2500.0
+            # Нормативный план месяца из MonthlyPlanBoard (date)
+            plan_records = db.query(models.MonthlyPlanBoard).filter(
+                cast(models.MonthlyPlanBoard.date, String).like(f"{current_month}%")
+            ).all()
+            plan_sheets = sum(p.plan_sheets or 0 for p in plan_records)
+            plan_tons = (plan_sheets * 19.6) / 1000.0 if plan_sheets > 0 else 2500.0
             
             pct = (fact_tons / plan_tons * 100.0) if plan_tons > 0 else 0.0
             
@@ -8444,15 +8447,21 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         # 5. Простои линий
         elif "просто" in lower_text or lower_text.startswith("/downtimes"):
             today_str = datetime.now().strftime("%Y-%m-%d")
-            downtimes = db.query(models.Downtime).filter(models.Downtime.date == today_str).order_by(models.Downtime.id.desc()).limit(5).all()
+            downtimes = db.query(models.Downtime).options(
+                joinedload(models.Downtime.shift)
+            ).join(models.Shift).filter(
+                cast(models.Shift.date, String) == today_str
+            ).order_by(models.Downtime.id.desc()).limit(5).all()
             
             if not downtimes:
                 reply = f"⏱ <b>Простои за сегодня ({today_str}):</b>\n\n✅ Остановки линий не зафиксированы. Производство идет штатно!"
             else:
-                total_min = sum(d.duration_minutes or 0 for d in downtimes)
+                total_min = sum(d.duration or 0 for d in downtimes)
                 reply = f"⏱ <b>Простои за сегодня ({today_str}):</b>\nОбщее время: <b>{total_min} мин</b>\n\n"
                 for d in downtimes:
-                    reply += f"⚠️ <b>Линия {d.line}:</b> {d.duration_minutes} мин — <i>{d.reason or 'Причина не указана'}</i> ({d.time_start or ''} - {d.time_end or ''})\n"
+                    line_name = d.shift.line if d.shift else "—"
+                    reason_name = d.description or d.node or "Причина не указана"
+                    reply += f"⚠️ <b>Линия {line_name}:</b> {d.duration or 0} мин — <i>{reason_name}</i> ({d.start_time or ''} - {d.end_time or ''})\n"
                 reply += "\n🔗 <a href='https://tectum-portal-railway-production.up.railway.app'>Подробнее в портале</a>"
             telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
             
