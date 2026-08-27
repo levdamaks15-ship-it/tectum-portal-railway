@@ -956,7 +956,17 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
-    threading.Thread(target=bg_google_sync_init, daemon=True).start()
+    # Регистрация Telegram Webhook
+    def bg_setup_telegram_webhook():
+        try:
+            tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "8980370531:AAGGhgbRH04LT_KOMUHr02ms1X4wZ0b3LwY").strip()
+            webhook_url = "https://tectum-portal-railway-production.up.railway.app/api/telegram/webhook"
+            r = requests.post(f"https://api.telegram.org/bot{tg_token}/setWebhook", json={"url": webhook_url}, timeout=10)
+            print(f"[Telegram Startup] Webhook setup status: {r.json()}")
+        except Exception as tg_err:
+            print(f"[Telegram Startup] Error setting webhook: {tg_err}")
+
+    threading.Thread(target=bg_setup_telegram_webhook, daemon=True).start()
 
     yield
 
@@ -8171,6 +8181,151 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
     except Exception as e:
         print(f"[WhatsApp Webhook Error] {e}")
         return {"status": "error", "detail": str(e)}
+
+
+# ----------------------------------------------------
+# Telegram Bot Webhook Endpoints
+# ----------------------------------------------------
+@app.post("/api/telegram/webhook")
+async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
+    """
+    Прием входящих сообщений и команд от Telegram (личные сообщения и группы).
+    """
+    try:
+        data = await request.json()
+        print(f"[Telegram Incoming] Event: {data}")
+        
+        import telegram_service
+        
+        message = data.get("message") or data.get("channel_post")
+        callback_query = data.get("callback_query")
+        
+        if callback_query:
+            cq_id = callback_query.get("id")
+            cq_data = callback_query.get("data", "")
+            cq_chat_id = callback_query.get("message", {}).get("chat", {}).get("id")
+            
+            # Answer callback
+            token = os.getenv("TELEGRAM_BOT_TOKEN", telegram_service.TELEGRAM_BOT_TOKEN).strip()
+            requests.post(f"https://api.telegram.org/bot{token}/answerCallbackQuery", json={"callback_query_id": cq_id})
+            
+            if cq_data == "tg_cmd_summary":
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
+                total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+                reply = (
+                    f"📊 <b>Сводка за сегодня ({today_str}):</b>\n\n"
+                    f"📦 Внесено рапортов: <b>{len(shifts)}</b>\n"
+                    f"📈 Общая выработка: <b>{total_sheets:,} листов</b>\n\n"
+                    f"🔗 <a href='https://tectum-portal-railway-production.up.railway.app'>Открыть портал Tectum</a>"
+                )
+                telegram_service.send_telegram_message(cq_chat_id, reply)
+            elif cq_data == "tg_cmd_tasks":
+                all_tasks = db.query(models.Task).filter(
+                    models.Task.is_archived == False
+                ).order_by(models.Task.id.desc()).all()
+                
+                active_tasks = [
+                    t for t in all_tasks 
+                    if not ("заверш" in (t.status or "").lower() or "выполн" in (t.status or "").lower())
+                ][:5]
+                
+                if not active_tasks:
+                    reply = "✅ На данный момент нет открытых незавершенных задач!"
+                else:
+                    reply = "📌 <b>Открытые производственные задачи:</b>\n\n"
+                    for t in active_tasks:
+                        status_icon = "🟡" if "работ" in (t.status or "").lower() else "⚪"
+                        reply += f"{status_icon} <b>{t.code or ''}</b> {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
+                    reply += "🔗 <a href='https://tectum-portal-railway-production.up.railway.app/tasks'>Открыть Планнер</a>"
+                telegram_service.send_telegram_message(cq_chat_id, reply)
+                
+            return {"status": "ok"}
+            
+        if not message:
+            return {"status": "ok"}
+            
+        chat = message.get("chat", {})
+        chat_id = chat.get("id")
+        text = message.get("text", "").strip()
+        lower_text = text.lower()
+        
+        # Если бота только что добавили в группу
+        new_members = message.get("new_chat_members", [])
+        for member in new_members:
+            if member.get("is_bot") and member.get("username") == "tectum_factory_bot":
+                welcome = (
+                    "🏭 <b>Привет, команда Tectum!</b>\n\n"
+                    "Я официальный бот завода. Теперь я буду присылать в эту группу уведомления о задачах, сменных рапортах и простоях.\n\n"
+                    f"🆔 <b>Chat ID этой группы:</b> <code>{chat_id}</code>\n"
+                    "Используйте команду /summary для получения оперативной сводки!"
+                )
+                telegram_service.send_telegram_message(chat_id, welcome)
+                return {"status": "ok"}
+
+        if not text:
+            return {"status": "ok"}
+            
+        # Команды
+        if lower_text.startswith("/start") or lower_text.startswith("/menu") or "привет" in lower_text:
+            reply = (
+                "🏭 <b>Tectum Enterprise Bot</b>\n\n"
+                "Я мобильный помощник производственного портала Tectum.\n\n"
+                "📌 <b>Быстрые команды:</b>\n"
+                "• <code>/summary</code> или <b>Сводка</b> — выработка за сегодня\n"
+                "• <code>/tasks</code> или <b>Задачи</b> — список открытых задач\n"
+                "• <code>/plan</code> — план-факт за месяц\n"
+            )
+            keyboard = {
+                "inline_keyboard": [
+                    [
+                        {"text": "📊 Сводка", "callback_data": "tg_cmd_summary"},
+                        {"text": "📌 Задачи", "callback_data": "tg_cmd_tasks"}
+                    ],
+                    [
+                        {"text": "🌐 Открыть портал", "url": "https://tectum-portal-railway-production.up.railway.app"}
+                    ]
+                ]
+            }
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=keyboard)
+            
+        elif lower_text.startswith("/summary") or "сводк" in lower_text or "выработк" in lower_text:
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
+            total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+            reply = (
+                f"📊 <b>Сводка за сегодня ({today_str}):</b>\n\n"
+                f"📦 Рапортов внесено: <b>{len(shifts)}</b>\n"
+                f"📈 Общая выработка: <b>{total_sheets:,} листов</b>\n\n"
+                f"🔗 <a href='https://tectum-portal-railway-production.up.railway.app'>Открыть портал Tectum</a>"
+            )
+            telegram_service.send_telegram_message(chat_id, reply)
+            
+        elif lower_text.startswith("/tasks") or "задач" in lower_text:
+            all_tasks = db.query(models.Task).filter(
+                models.Task.is_archived == False
+            ).order_by(models.Task.id.desc()).all()
+            
+            active_tasks = [
+                t for t in all_tasks 
+                if not ("заверш" in (t.status or "").lower() or "выполн" in (t.status or "").lower())
+            ][:5]
+            
+            if not active_tasks:
+                reply = "✅ На данный момент нет открытых незавершенных задач!"
+            else:
+                reply = "📌 <b>Открытые производственные задачи:</b>\n\n"
+                for t in active_tasks:
+                    status_icon = "🟡" if "работ" in (t.status or "").lower() else "⚪"
+                    reply += f"{status_icon} <b>{t.code or ''}</b> {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
+                reply += "🔗 <a href='https://tectum-portal-railway-production.up.railway.app/tasks'>Открыть Планнер</a>"
+            telegram_service.send_telegram_message(chat_id, reply)
+            
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"[Telegram Webhook Error] {e}")
+        return {"status": "error", "detail": str(e)}
+
 
 
 
