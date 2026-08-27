@@ -7394,20 +7394,22 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
             is_kz = False
             detected_lang = "ru"
         else:
-            # Автоопределение через Google Translate
+            # Автоопределение через надежный Google Clients API
             import urllib.parse
             import urllib.request
             import json
             try:
-                url_detect = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ru&dt=t&q=" + urllib.parse.quote(clean_text)
-                req = urllib.request.Request(url_detect, headers={'User-Agent': 'Mozilla/5.0'})
+                url_detect = "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=ru&q=" + urllib.parse.quote(clean_text)
+                req = urllib.request.Request(url_detect, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
                 with urllib.request.urlopen(req, timeout=3) as response:
                     res_json = json.loads(response.read().decode('utf-8'))
-                    if len(res_json) > 2 and isinstance(res_json[2], str):
-                        lang_code = res_json[2].lower()
-                        if lang_code in ["kk", "kaz", "ky"]:
-                            is_kz = True
-                            detected_lang = "kk"
+                    if isinstance(res_json, list) and len(res_json) > 0:
+                        item = res_json[0]
+                        if isinstance(item, list) and len(item) > 1 and isinstance(item[1], str):
+                            lang_code = item[1].lower()
+                            if lang_code in ["kk", "kaz", "ky"]:
+                                is_kz = True
+                                detected_lang = "kk"
             except Exception:
                 pass
 
