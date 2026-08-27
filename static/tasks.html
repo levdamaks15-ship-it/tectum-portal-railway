@@ -362,7 +362,7 @@
             border: 1px solid var(--tbl-border);
             border-radius: 12px;
             width: 100%;
-            max-width: 600px;
+            max-width: 680px;
             padding: 1.5rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
             color: #0f172a;
@@ -992,25 +992,27 @@
             
             <input type="hidden" id="task-id-input" value="">
 
-            <!-- Task text: Smart Bilateral Input (RU <-> KZ) -->
-            <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;">Суть задачи (RU) <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Русский)</span> *</label>
-                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="swapTaskLanguages()" title="Поменять местами русский и казахский текст">
-                        <i class="fa-solid fa-right-left"></i> <span>Поменять (RU ⇄ KZ)</span>
-                    </button>
-                </div>
-                <textarea class="form-textarea" id="task-ru-input" rows="2" placeholder="Введите суть задачи на русском или казахском..." oninput="onTaskInputChanged('ru')" required></textarea>
-            </div>
-
-            <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;">Суть задачи (KZ) <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Қазақша)</span></label>
-                    <div id="translate-status-badge" style="display: none; font-size: 0.75rem; color: #2563eb; align-items: center; gap: 4px;">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Автоперевод</span>
+            <!-- Task text & Auto-Translation (2 Columns) -->
+            <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; align-items: start;">
+                <!-- Column 1: Task (Any language) -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label id="task-primary-label" style="margin-bottom: 0;">Задача *</label>
+                        <span id="detected-lang-badge" style="display: none; font-size: 0.72rem; color: #64748b; font-weight: 500;"></span>
                     </div>
+                    <textarea class="form-textarea" id="task-ru-input" rows="3" placeholder="Введите задачу на любом языке (русский или казахский)..." oninput="onTaskInputChanged('primary')" required style="resize: vertical; min-height: 78px;"></textarea>
                 </div>
-                <input type="text" class="form-input" id="task-kz-input" placeholder="Автоматический перевод на казахский (или введите здесь на казахском)..." oninput="onTaskInputChanged('kz')">
+
+                <!-- Column 2: Translation (Auto) -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label id="task-trans-label" style="margin-bottom: 0;">Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span></label>
+                        <div id="translate-status-badge" style="display: none; font-size: 0.75rem; color: #2563eb; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Перевод...</span>
+                        </div>
+                    </div>
+                    <textarea class="form-textarea" id="task-kz-input" rows="3" placeholder="Автоматический перевод..." oninput="onTaskInputChanged('secondary')" style="resize: vertical; min-height: 78px; background: #f8fafc; color: #334155;"></textarea>
+                </div>
             </div>
 
             <!-- Zone -->

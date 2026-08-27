@@ -7356,6 +7356,7 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
     Интеллектуальный анализатор языка и двусторонний переводчик (RU <-> KZ).
     Определяет язык ввода:
     - По характерным символам казахского алфавита (ә, і, ң, ғ, ү, ұ, қ, ө, һ, Ә, І, Ң, Ғ, Ү, Ұ, Қ, Ө, Һ)
+    - По характерным казахским словам/окончаниям (сәлем, рахмет, жұмыс, керек, болды, лар, лер, дар, дер, тар, тер, ның, нің, ға, ге, қа, ке, да, де, та, те, мен, пен, бен)
     - По автоматическому определению Google Translate (sl=auto)
     Возвращает структуру: {"status": "ok", "detected_lang": "ru"|"kk", "text_ru": "...", "text_kz": "..."}
     """
@@ -7367,10 +7368,19 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
         kz_chars = set("әіңғүұқөһӘІҢҒҮҰҚӨҺ")
         has_kz_chars = any(c in kz_chars for c in clean_text)
 
+        # Проверка частых казахских слов и суффиксов
+        lower_words = set(re.findall(r'[a-zA-Zа-яА-ЯёЁәіңғүұқөһӘІҢҒҮҰҚӨҺ]+', clean_text.lower()))
+        common_kz_words = {
+            "сәлем", "салем", "рахмет", "жұмыс", "жумыс", "керек", "болды", "болады", 
+            "жасау", "жасалды", "ауыстыру", "тексеру", "жөндеу", "жондеу", "орнату", 
+            "тазалау", "бояу", "қарау", "карау", "қою", "кою", "алу", "беру", "бар", "жоқ", "жок"
+        }
+        has_kz_words = bool(lower_words & common_kz_words)
+
         is_kz = False
         detected_lang = "ru"
 
-        if forced_source == "kk" or has_kz_chars:
+        if forced_source == "kk" or has_kz_chars or has_kz_words:
             is_kz = True
             detected_lang = "kk"
         elif forced_source == "ru":

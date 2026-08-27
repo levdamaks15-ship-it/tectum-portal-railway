@@ -1066,23 +1066,34 @@ async function inlineEditComment(taskId, currentComment) {
 let translateDebounceTimer = null;
 let isTranslating = false;
 
-function onTaskInputChanged(sourceField) {
+function onTaskInputChanged(source) {
     clearTimeout(translateDebounceTimer);
     
-    const ruInput = document.getElementById("task-ru-input");
-    const kzInput = document.getElementById("task-kz-input");
+    const primaryInput = document.getElementById("task-ru-input"); // Колонка 1: Задача
+    const transInput = document.getElementById("task-kz-input");  // Колонка 2: Перевод
     const badge = document.getElementById("translate-status-badge");
-    if (!ruInput || !kzInput) return;
+    const langBadge = document.getElementById("detected-lang-badge");
+    const transLabel = document.getElementById("task-trans-label");
 
-    const sourceText = (sourceField === 'ru' ? ruInput.value : kzInput.value).trim();
+    if (!primaryInput || !transInput) return;
+
+    // source: 'primary' (первая колонка) или 'secondary' (вторая колонка)
+    const isPrimary = (source === 'primary' || source === 'ru');
+    const sourceText = (isPrimary ? primaryInput.value : transInput.value).trim();
+
     if (!sourceText) {
         if (badge) badge.style.display = "none";
+        if (langBadge) langBadge.style.display = "none";
+        if (isPrimary && transInput) {
+            transInput.value = "";
+            if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
+        }
         return;
     }
 
     if (badge) {
         badge.style.display = "inline-flex";
-        badge.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> <span>Анализ языка...</span>`;
+        badge.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> <span>Перевод...</span>`;
     }
 
     translateDebounceTimer = setTimeout(async () => {
@@ -1093,37 +1104,47 @@ function onTaskInputChanged(sourceField) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     text: sourceText,
-                    source_lang: sourceField === 'kz' ? 'kk' : 'auto'
+                    source_lang: isPrimary ? "auto" : "auto"
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
                 
-                if (sourceField === 'ru') {
+                if (isPrimary) {
                     if (data.detected_lang === 'kk') {
-                        // Пользователь ввел казахский текст в RU поле -> раскладываем по местам
-                        kzInput.value = data.text_kz || sourceText;
-                        if (data.text_ru) {
-                            ruInput.value = data.text_ru;
+                        // Пользователь ввел казахский текст в первую колонку
+                        transInput.value = data.text_ru || "";
+                        if (transLabel) {
+                            transLabel.innerHTML = `Перевод на русский <span style="color: #2563eb; font-weight: 600; font-size: 0.75rem;">(RU)</span>`;
+                        }
+                        if (langBadge) {
+                            langBadge.style.display = "inline-block";
+                            langBadge.innerHTML = `<span style="background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px;">🇰🇿 Қазақша</span>`;
                         }
                         if (badge) {
-                            badge.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles" style="color: #38bdf8;"></i> <span style="color: #38bdf8;">Распознан <b>казахский</b> ➔ переведено на русский</span>`;
+                            badge.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> <span style="color: #10b981;">Русский</span>`;
                             badge.style.display = "inline-flex";
                         }
                     } else {
-                        // Обычный русский ввод
-                        kzInput.value = data.text_kz || "";
+                        // Обычный ввод на русском
+                        transInput.value = data.text_kz || "";
+                        if (transLabel) {
+                            transLabel.innerHTML = `Перевод на казахский <span style="color: #2563eb; font-weight: 600; font-size: 0.75rem;">(KZ)</span>`;
+                        }
+                        if (langBadge) {
+                            langBadge.style.display = "inline-block";
+                            langBadge.innerHTML = `<span style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px;">🇷🇺 Русский</span>`;
+                        }
                         if (badge) {
-                            badge.innerHTML = `<i class="fa-solid fa-check" style="color: #34d399;"></i> <span style="color: #94a3b8;">Переведено на <b>казахский</b></span>`;
+                            badge.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> <span style="color: #10b981;">Қазақша</span>`;
                             badge.style.display = "inline-flex";
                         }
                     }
-                } else if (sourceField === 'kz') {
-                    // Пользователь ввел казахский текст в KZ поле
-                    ruInput.value = data.text_ru || "";
+                } else {
+                    // Ручная правка во второй колонке
                     if (badge) {
-                        badge.innerHTML = `<i class="fa-solid fa-check" style="color: #34d399;"></i> <span style="color: #94a3b8;">Переведено на <b>русский</b></span>`;
+                        badge.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> <span style="color: #64748b;">Отредактировано</span>`;
                         badge.style.display = "inline-flex";
                     }
                 }
@@ -1131,7 +1152,7 @@ function onTaskInputChanged(sourceField) {
         } catch (e) {
             console.error("Auto-translate error:", e);
             if (badge) {
-                badge.innerHTML = `<span style="color: #ef4444;">Ошибка анализа</span>`;
+                badge.innerHTML = `<span style="color: #ef4444;">Ошибка перевода</span>`;
             }
         } finally {
             isTranslating = false;
@@ -1140,23 +1161,7 @@ function onTaskInputChanged(sourceField) {
 }
 
 function debounceAutoTranslateModal() {
-    onTaskInputChanged('ru');
-}
-
-function swapTaskLanguages() {
-    const ruInput = document.getElementById("task-ru-input");
-    const kzInput = document.getElementById("task-kz-input");
-    const badge = document.getElementById("translate-status-badge");
-    if (!ruInput || !kzInput) return;
-
-    const temp = ruInput.value;
-    ruInput.value = kzInput.value;
-    kzInput.value = temp;
-
-    if (badge) {
-        badge.innerHTML = `<i class="fa-solid fa-right-left" style="color: #fbbf24;"></i> <span style="color: #fbbf24;">Тексты поменяны местами</span>`;
-        badge.style.display = "inline-flex";
-    }
+    onTaskInputChanged('primary');
 }
 
 /* ==========================================================
@@ -1223,6 +1228,10 @@ function openAddTaskModal() {
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
+    const langBadge = document.getElementById("detected-lang-badge");
+    if (langBadge) langBadge.style.display = "none";
+    const transLabel = document.getElementById("task-trans-label");
+    if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
 
     document.getElementById("task-modal").style.display = "flex";
 }
@@ -1250,10 +1259,14 @@ function openEditTaskModal(taskId) {
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
+    const langBadge = document.getElementById("detected-lang-badge");
+    if (langBadge) langBadge.style.display = "none";
+    const transLabel = document.getElementById("task-trans-label");
+    if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
 
     // Если нет KZ перевода - запускаем фоновый перевод
     if (!task.title_kz && task.title) {
-        onTaskInputChanged('ru');
+        onTaskInputChanged('primary');
     }
 
     document.getElementById("task-modal").style.display = "flex";
