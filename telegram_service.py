@@ -5,6 +5,30 @@ from typing import Optional, Dict, Any, List
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8980370531:AAGGhgbRH04LT_KOMUHr02ms1X4wZ0b3LwY").strip()
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
+def get_main_reply_keyboard() -> Dict[str, Any]:
+    """
+    Постоянная клавиатура внизу экрана (Reply Keyboard).
+    """
+    return {
+        "keyboard": [
+            [
+                {"text": "📊 Сводка за сегодня"},
+                {"text": "📌 Активные задачи"}
+            ],
+            [
+                {"text": "🎯 План-факт (Месяц)"},
+                {"text": "⏱ Простои линий"}
+            ],
+            [
+                {"text": "📦 Остатки сырья"},
+                {"text": "🌐 Портал завода"}
+            ]
+        ],
+        "resize_keyboard": True,
+        "is_persistent": True
+    }
+
+
 def send_telegram_message(
     chat_id: str | int, 
     text: str, 
@@ -23,7 +47,7 @@ def send_telegram_message(
         "parse_mode": parse_mode,
         "disable_web_page_preview": False
     }
-    if reply_markup:
+    if reply_markup is not None:
         payload["reply_markup"] = reply_markup
         
     try:

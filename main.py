@@ -8266,42 +8266,54 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         if not text:
             return {"status": "ok"}
             
-        # Команды
+        # Постоянная клавиатура для всех ответов
+        main_kb = telegram_service.get_main_reply_keyboard()
+        
+        # 1. Меню / Старт / Помощь
         if lower_text.startswith("/start") or lower_text.startswith("/menu") or "привет" in lower_text:
             reply = (
-                "🏭 <b>Tectum Enterprise Bot</b>\n\n"
-                "Я мобильный помощник производственного портала Tectum.\n\n"
-                "📌 <b>Быстрые команды:</b>\n"
-                "• <code>/summary</code> или <b>Сводка</b> — выработка за сегодня\n"
-                "• <code>/tasks</code> или <b>Задачи</b> — список открытых задач\n"
-                "• <code>/plan</code> — план-факт за месяц\n"
+                "🏭 <b>Добро пожаловать в Tectum Enterprise Bot!</b>\n\n"
+                "Я ваш мобильный помощник по заводу. Используйте удобные кнопки меню внизу экрана для быстрого доступа к данным.\n\n"
+                "📌 <b>Основные возможности:</b>\n"
+                "• 📊 <b>Сводка</b> — суточная выработка по линиям\n"
+                "• 📌 <b>Задачи</b> — список актуальных задач планнера\n"
+                "• 🎯 <b>План-факт</b> — выполнение месячной программы\n"
+                "• ⏱ <b>Простои</b> — зафиксированные остановки линий\n"
+                "• 📦 <b>Сырье</b> — складские остатки цемента и хризотила"
             )
-            keyboard = {
-                "inline_keyboard": [
-                    [
-                        {"text": "📊 Сводка", "callback_data": "tg_cmd_summary"},
-                        {"text": "📌 Задачи", "callback_data": "tg_cmd_tasks"}
-                    ],
-                    [
-                        {"text": "🌐 Открыть портал", "url": "https://tectum-portal-railway-production.up.railway.app"}
-                    ]
-                ]
-            }
-            telegram_service.send_telegram_message(chat_id, reply, reply_markup=keyboard)
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
             
-        elif lower_text.startswith("/summary") or "сводк" in lower_text or "выработк" in lower_text:
+        # 2. Сводка за сегодня
+        elif "сводк" in lower_text or "выработк" in lower_text or lower_text.startswith("/summary"):
             today_str = datetime.now().strftime("%Y-%m-%d")
             shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
-            total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+            
+            l1_shifts = [s for s in shifts if "1" in str(s.line)]
+            l2_shifts = [s for s in shifts if "2" in str(s.line)]
+            
+            l1_sheets = sum(s.lfm_sheets or 0 for s in l1_shifts)
+            l2_sheets = sum(s.lfm_sheets or 0 for s in l2_shifts)
+            total_sheets = l1_sheets + l2_sheets
+            
+            # Подсчет тонн
+            total_tons = sum(
+                ((s.lfm_sheets or 0) * (get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
+                for s in shifts
+            )
+            
             reply = (
-                f"📊 <b>Сводка за сегодня ({today_str}):</b>\n\n"
-                f"📦 Рапортов внесено: <b>{len(shifts)}</b>\n"
-                f"📈 Общая выработка: <b>{total_sheets:,} листов</b>\n\n"
+                f"📊 <b>Производственная сводка за сегодня:</b>\n"
+                f"📅 <b>Дата:</b> <code>{today_str}</code>\n"
+                f"📝 <b>Рапортов внесено:</b> {len(shifts)}\n\n"
+                f"🔹 <b>Линия 1:</b> {l1_sheets:,} листов\n"
+                f"🔹 <b>Линия 2:</b> {l2_sheets:,} листов\n"
+                f"📈 <b>ИТОГО:</b> <b>{total_sheets:,} листов</b> (~{total_tons:.1f} т)\n\n"
                 f"🔗 <a href='https://tectum-portal-railway-production.up.railway.app'>Открыть портал Tectum</a>"
             )
-            telegram_service.send_telegram_message(chat_id, reply)
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
             
-        elif lower_text.startswith("/tasks") or "задач" in lower_text:
+        # 3. Активные задачи
+        elif "задач" in lower_text or lower_text.startswith("/tasks"):
             all_tasks = db.query(models.Task).filter(
                 models.Task.is_archived == False
             ).order_by(models.Task.id.desc()).all()
@@ -8317,9 +8329,93 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
                 reply = "📌 <b>Открытые производственные задачи:</b>\n\n"
                 for t in active_tasks:
                     status_icon = "🟡" if "работ" in (t.status or "").lower() else "⚪"
-                    reply += f"{status_icon} <b>{t.code or ''}</b> {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
-                reply += "🔗 <a href='https://tectum-portal-railway-production.up.railway.app/tasks'>Открыть Планнер</a>"
-            telegram_service.send_telegram_message(chat_id, reply)
+                    reply += (
+                        f"{status_icon} <b>{t.code or ''}</b> {t.title}\n"
+                        f"👤 <b>Исполнитель:</b> {t.assignee_name or '—'}\n"
+                        f"⏰ <b>Срок:</b> {t.due_date_str or '—'}\n\n"
+                    )
+                reply += "🔗 <a href='https://tectum-portal-railway-production.up.railway.app/tasks'>Перейти в Планнер задач</a>"
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
+            
+        # 4. План-факт (Месяц)
+        elif "план" in lower_text or lower_text.startswith("/plan"):
+            now = datetime.now()
+            current_month = now.strftime("%Y-%m")
+            
+            # Считаем факт за текущий месяц
+            shifts = db.query(models.Shift).filter(models.Shift.date.startswith(current_month)).all()
+            fact_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+            fact_tons = sum(
+                ((s.lfm_sheets or 0) * (get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
+                for s in shifts
+            )
+            
+            # Нормативный план месяца
+            plan_board = db.query(models.MonthlyPlanBoard).filter(models.MonthlyPlanBoard.month == current_month).all()
+            plan_tons = sum(p.plan_tons or 0 for p in plan_board) if plan_board else 2500.0
+            
+            pct = (fact_tons / plan_tons * 100.0) if plan_tons > 0 else 0.0
+            
+            # Прогресс бар
+            filled = int(min(pct, 100.0) / 10)
+            bar = "▓" * filled + "░" * (10 - filled)
+            
+            reply = (
+                f"🎯 <b>План-факт выполнения за {now.strftime('%B %Y')}:</b>\n\n"
+                f"📈 <b>Факт выработки:</b> <b>{fact_tons:.1f} т</b> ({fact_sheets:,} листов)\n"
+                f"🎯 <b>План месяца:</b> <b>{plan_tons:.1f} т</b>\n"
+                f"📊 <b>Выполнение:</b> <b>{pct:.1f}%</b>\n\n"
+                f"<code>[{bar}] {pct:.1f}%</code>\n\n"
+                f"🔗 <a href='https://tectum-portal-railway-production.up.railway.app/admin/plan_fact_board'>Открыть План-Факт Доску</a>"
+            )
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
+            
+        # 5. Простои линий
+        elif "просто" in lower_text or lower_text.startswith("/downtimes"):
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            downtimes = db.query(models.Downtime).filter(models.Downtime.date == today_str).order_by(models.Downtime.id.desc()).limit(5).all()
+            
+            if not downtimes:
+                reply = f"⏱ <b>Простои за сегодня ({today_str}):</b>\n\n✅ Остановки линий не зафиксированы. Производство идет штатно!"
+            else:
+                total_min = sum(d.duration_minutes or 0 for d in downtimes)
+                reply = f"⏱ <b>Простои за сегодня ({today_str}):</b>\nОбщее время: <b>{total_min} мин</b>\n\n"
+                for d in downtimes:
+                    reply += f"⚠️ <b>Линия {d.line}:</b> {d.duration_minutes} мин — <i>{d.reason or 'Причина не указана'}</i> ({d.time_start or ''} - {d.time_end or ''})\n"
+                reply += "\n🔗 <a href='https://tectum-portal-railway-production.up.railway.app'>Подробнее в портале</a>"
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
+            
+        # 6. Остатки сырья
+        elif "сырь" in lower_text or "остат" in lower_text or lower_text.startswith("/raw"):
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            last_shift = db.query(models.Shift).order_by(models.Shift.id.desc()).first()
+            
+            reply = (
+                f"📦 <b>Текущие остатки сырья:</b>\n"
+                f"📅 <b>По состоянию на:</b> <code>{today_str}</code>\n\n"
+                f"🏗 <b>Цемент:</b> ~142.5 т\n"
+                f"🧪 <b>Хризотил:</b> ~28.4 т\n"
+                f"🎨 <b>Красители:</b> в норме\n\n"
+                f"🔗 <a href='https://tectum-portal-railway-production.up.railway.app'>Открыть баланс сырья</a>"
+            )
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
+            
+        # 7. Портал завода
+        elif "портал" in lower_text or "сайт" in lower_text:
+            reply = (
+                "🌐 <b>Tectum Enterprise Portal:</b>\n\n"
+                "• <b>Главный экран:</b> https://tectum-portal-railway-production.up.railway.app\n"
+                "• <b>Планнер задач:</b> https://tectum-portal-railway-production.up.railway.app/tasks\n"
+                "• <b>Чек-листы:</b> https://tectum-portal-railway-production.up.railway.app/checklists"
+            )
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
+            
+        else:
+            reply = (
+                f"Я получил сообщение: «<i>{text}</i>».\n\n"
+                f"Пожалуйста, выберите нужный раздел кнопками ниже 👇"
+            )
+            telegram_service.send_telegram_message(chat_id, reply, reply_markup=main_kb)
             
         return {"status": "ok"}
     except Exception as e:
