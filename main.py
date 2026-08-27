@@ -8113,10 +8113,9 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
                                 {"id": "cmd_summary", "title": "📊 Сводка"},
                                 {"id": "cmd_tasks", "title": "📌 Задачи"}
                             ]
-                            bg_tasks.add_task(whatsapp_service.send_whatsapp_buttons, from_phone, reply, buttons)
+                            whatsapp_service.send_whatsapp_buttons(from_phone, reply, buttons)
                             
                         elif "сводк" in lower_text or "выработк" in lower_text:
-                            # Краткая производственная статистика за сегодня
                             today_str = datetime.now().strftime("%Y-%m-%d")
                             shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
                             total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
@@ -8126,10 +8125,9 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
                                 f"📈 Общая выработка: *{total_sheets:,} листов*\n\n"
                                 f"🔗 Подробнее в портале: https://tectum-portal-railway-production.up.railway.app"
                             )
-                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            whatsapp_service.send_whatsapp_text(from_phone, reply)
                             
                         elif "задач" in lower_text:
-                            # 3 последние открытые задачи
                             active_tasks = db.query(models.Task).filter(
                                 models.Task.status.in_(["Новая", "В работе"]),
                                 models.Task.is_archived == False
@@ -8137,18 +8135,18 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
                             
                             if not active_tasks:
                                 reply = "✅ На данный момент нет активных незавершенных задач!"
-                                bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                                whatsapp_service.send_whatsapp_text(from_phone, reply)
                             else:
                                 msg_tasks = "📌 *Активные задачи Tectum:*\n\n"
                                 for t in active_tasks:
                                     msg_tasks += f"• *{t.code or ''}*: {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
-                                bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, msg_tasks)
+                                whatsapp_service.send_whatsapp_text(from_phone, msg_tasks)
                         else:
                             reply = (
                                 f"Я получил ваше сообщение: «_{user_text}_».\n\n"
                                 f"Напишите *Меню* или *Сводка*, чтобы запросить данные с завода."
                             )
-                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            whatsapp_service.send_whatsapp_text(from_phone, reply)
                             
                     # 2. Нажатие на интерактивную кнопку
                     elif msg_type == "interactive":
@@ -8169,7 +8167,7 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
                                 f"📦 Рапортов внесено: {len(shifts)}\n"
                                 f"📈 Общая выработка: *{total_sheets:,} листов*"
                             )
-                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            whatsapp_service.send_whatsapp_text(from_phone, reply)
                         elif btn_id == "cmd_tasks":
                             active_tasks = db.query(models.Task).filter(
                                 models.Task.status.in_(["Новая", "В работе"]),
@@ -8178,10 +8176,10 @@ async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks,
                             msg_tasks = "📌 *Активные задачи:*\n\n"
                             for t in active_tasks:
                                 msg_tasks += f"• {t.title} ({t.assignee_name or '—'})\n"
-                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, msg_tasks)
+                            whatsapp_service.send_whatsapp_text(from_phone, msg_tasks)
                         elif btn_id in ("btn_accept", "btn_done"):
                             reply = f"👍 Отлично! Статус действия зафиксирован: *{btn_title}*."
-                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            whatsapp_service.send_whatsapp_text(from_phone, reply)
                             
         return {"status": "ok"}
     except Exception as e:
