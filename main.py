@@ -8044,3 +8044,147 @@ def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ----------------------------------------------------
+# WhatsApp Cloud API Webhook Endpoints
+# ----------------------------------------------------
+@app.get("/api/whatsapp/webhook")
+async def whatsapp_verify_webhook(request: Request):
+    """
+    Верификация вебхука со стороны серверов Meta (GET запрос при настройке).
+    """
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+
+    verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "tectum_wa_verify_token_2026")
+
+    if mode and token:
+        if mode == "subscribe" and token == verify_token:
+            print("[WhatsApp Webhook] Успешная верификация вебхука от Meta!")
+            return PlainTextResponse(content=challenge, status_code=200)
+        else:
+            print(f"[WhatsApp Webhook] Ошибка токена: получено '{token}', ожидалось '{verify_token}'")
+            raise HTTPException(status_code=403, detail="Verification token mismatch")
+    
+    return PlainTextResponse(content="Tectum WhatsApp Webhook Active", status_code=200)
+
+
+@app.post("/api/whatsapp/webhook")
+async def whatsapp_incoming_webhook(request: Request, bg_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """
+    Прием входящих сообщений и нажатий кнопок от пользователей WhatsApp.
+    """
+    try:
+        body = await request.json()
+        print(f"[WhatsApp Incoming] Raw event: {body}")
+        
+        # Meta отправляет события в entry -> changes -> value
+        entries = body.get("entry", [])
+        for entry in entries:
+            changes = entry.get("changes", [])
+            for change in changes:
+                value = change.get("value", {})
+                messages = value.get("messages", [])
+                
+                for msg in messages:
+                    from_phone = msg.get("from") # Номер отправителя
+                    msg_type = msg.get("type")
+                    
+                    # 1. Текстовое сообщение
+                    if msg_type == "text":
+                        user_text = msg.get("text", {}).get("body", "").strip()
+                        print(f"[WhatsApp Chat] Сообщение от {from_phone}: '{user_text}'")
+                        
+                        import whatsapp_service
+                        lower_text = user_text.lower()
+                        
+                        if any(w in lower_text for w in ["привет", "старт", "start", "меню", "помощь", "help"]):
+                            reply = (
+                                "🏭 *Tectum Enterprise Bot*\n\n"
+                                "Я ваш мобильный помощник по заводу.\n\n"
+                                "📌 *Доступные команды:*\n"
+                                "• *Сводка* — текущая выработка за сегодня\n"
+                                "• *Задачи* — список открытых задач планнера\n"
+                                "• *План* — выполнение месячного плана\n"
+                            )
+                            buttons = [
+                                {"id": "cmd_summary", "title": "📊 Сводка"},
+                                {"id": "cmd_tasks", "title": "📌 Задачи"}
+                            ]
+                            bg_tasks.add_task(whatsapp_service.send_whatsapp_buttons, from_phone, reply, buttons)
+                            
+                        elif "сводк" in lower_text or "выработк" in lower_text:
+                            # Краткая производственная статистика за сегодня
+                            today_str = datetime.now().strftime("%Y-%m-%d")
+                            shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
+                            total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+                            reply = (
+                                f"📊 *Сводка за сегодня ({today_str}):*\n\n"
+                                f"📦 Рапортов внесено: {len(shifts)}\n"
+                                f"📈 Общая выработка: *{total_sheets:,} листов*\n\n"
+                                f"🔗 Подробнее в портале: https://tectum-portal-railway-production.up.railway.app"
+                            )
+                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            
+                        elif "задач" in lower_text:
+                            # 3 последние открытые задачи
+                            active_tasks = db.query(models.Task).filter(
+                                models.Task.status.in_(["Новая", "В работе"]),
+                                models.Task.is_archived == False
+                            ).order_by(models.Task.id.desc()).limit(3).all()
+                            
+                            if not active_tasks:
+                                reply = "✅ На данный момент нет активных незавершенных задач!"
+                                bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            else:
+                                msg_tasks = "📌 *Активные задачи Tectum:*\n\n"
+                                for t in active_tasks:
+                                    msg_tasks += f"• *{t.code or ''}*: {t.title}\n👤 Исполнитель: {t.assignee_name or '—'}\n⏰ Срок: {t.due_date_str or '—'}\n\n"
+                                bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, msg_tasks)
+                        else:
+                            reply = (
+                                f"Я получил ваше сообщение: «_{user_text}_».\n\n"
+                                f"Напишите *Меню* или *Сводка*, чтобы запросить данные с завода."
+                            )
+                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            
+                    # 2. Нажатие на интерактивную кнопку
+                    elif msg_type == "interactive":
+                        interactive = msg.get("interactive", {})
+                        btn_reply = interactive.get("button_reply", {})
+                        btn_id = btn_reply.get("id")
+                        btn_title = btn_reply.get("title")
+                        
+                        print(f"[WhatsApp Button] Нажата кнопка {btn_id} ({btn_title}) от {from_phone}")
+                        import whatsapp_service
+                        
+                        if btn_id == "cmd_summary":
+                            today_str = datetime.now().strftime("%Y-%m-%d")
+                            shifts = db.query(models.Shift).filter(models.Shift.date == today_str).all()
+                            total_sheets = sum(s.lfm_sheets or 0 for s in shifts)
+                            reply = (
+                                f"📊 *Сводка за сегодня ({today_str}):*\n\n"
+                                f"📦 Рапортов внесено: {len(shifts)}\n"
+                                f"📈 Общая выработка: *{total_sheets:,} листов*"
+                            )
+                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                        elif btn_id == "cmd_tasks":
+                            active_tasks = db.query(models.Task).filter(
+                                models.Task.status.in_(["Новая", "В работе"]),
+                                models.Task.is_archived == False
+                            ).limit(3).all()
+                            msg_tasks = "📌 *Активные задачи:*\n\n"
+                            for t in active_tasks:
+                                msg_tasks += f"• {t.title} ({t.assignee_name or '—'})\n"
+                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, msg_tasks)
+                        elif btn_id in ("btn_accept", "btn_done"):
+                            reply = f"👍 Отлично! Статус действия зафиксирован: *{btn_title}*."
+                            bg_tasks.add_task(whatsapp_service.send_whatsapp_text, from_phone, reply)
+                            
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"[WhatsApp Webhook Error] {e}")
+        return {"status": "error", "detail": str(e)}
+
+
+
