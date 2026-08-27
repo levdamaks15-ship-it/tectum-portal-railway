@@ -1030,27 +1030,25 @@
                 </select>
             </div>
 
-            <!-- Photo Link with Google Photos integration -->
+            <!-- Photo Link with direct Camera / Gallery upload -->
             <div class="form-row">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;">Фото задачи <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Google Фото / Google Диск)</span></label>
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото задачи</label>
                     <div style="display: flex; gap: 4px;">
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openGooglePhotosPicker('task-photo-input')" title="Открыть Google Фото для выбора фотографии">
-                            <i class="fa-solid fa-image" style="color: #ea4335;"></i> <span>Google Фото</span>
-                        </button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="pastePhotoLinkFromClipboard('task-photo-input')" title="Вставить скопированную ссылку">
-                            <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить ссылку</span>
+                        <input type="file" id="task-photo-file" accept="image/*" style="display: none;" onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn')">
+                        <button type="button" class="btn-action btn-primary-action" style="font-size: 0.75rem; padding: 3px 9px;" onclick="document.getElementById('task-photo-file').click()" title="Сделать снимок на камеру или выбрать из галереи">
+                            <i class="fa-solid fa-camera"></i> <span>Сделать фото / Галерея</span>
                         </button>
                     </div>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="url" class="form-input" id="task-photo-input" placeholder="https://photos.app.goo.gl/... или https://drive.google.com/..." oninput="onPhotoInputChanged('task-photo-input')" style="padding-right: 85px;">
+                    <input type="url" class="form-input" id="task-photo-input" placeholder="Ссылка на фото или загрузите через кнопку выше..." oninput="onPhotoInputChanged('task-photo-input')" style="padding-right: 85px;">
                     <button type="button" id="task-photo-preview-btn" class="btn-action btn-secondary-action" style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;" onclick="testOpenPhotoLink('task-photo-input')">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i> Просмотр
                     </button>
                 </div>
                 <div id="task-photo-preview-hint" style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-circle-check"></i> <span>Ссылка на фото прикреплена</span>
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
                 </div>
             </div>
 
@@ -1126,24 +1124,22 @@
 
             <div class="form-row">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;">Ссылка на подтверждающее фото <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-camera" style="color: #10b981;"></i> Подтверждающее фото <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
                     <div style="display: flex; gap: 4px;">
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openGooglePhotosPicker('complete-task-photo')" title="Открыть Google Фото для выбора фотографии">
-                            <i class="fa-solid fa-image" style="color: #ea4335;"></i> <span>Google Фото</span>
-                        </button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="pastePhotoLinkFromClipboard('complete-task-photo')" title="Вставить скопированную ссылку">
-                            <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить ссылку</span>
+                        <input type="file" id="complete-photo-file" accept="image/*" style="display: none;" onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn')">
+                        <button type="button" class="btn-action" style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 3px 9px;" onclick="document.getElementById('complete-photo-file').click()" title="Сделать снимок на камеру или выбрать из галереи">
+                            <i class="fa-solid fa-camera"></i> <span>Сделать фото / Галерея</span>
                         </button>
                     </div>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="url" class="form-input" id="complete-task-photo" placeholder="https://photos.app.goo.gl/... или https://drive.google.com/..." oninput="onPhotoInputChanged('complete-task-photo')" style="padding-right: 85px;">
+                    <input type="url" class="form-input" id="complete-task-photo" placeholder="Ссылка на фото или загрузите через кнопку выше..." oninput="onPhotoInputChanged('complete-task-photo')" style="padding-right: 85px;">
                     <button type="button" id="complete-photo-preview-btn" class="btn-action btn-secondary-action" style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;" onclick="testOpenPhotoLink('complete-task-photo')">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i> Просмотр
                     </button>
                 </div>
                 <div id="complete-photo-preview-hint" style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-circle-check"></i> <span>Ссылка на фото прикреплена</span>
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
                 </div>
             </div>
 
@@ -1190,6 +1186,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260827_auth_pin_v3"></script>
+    <script src="/static/js/tasks.js?v=20260827_photo_webp_v4"></script>
 </body>
 </html>

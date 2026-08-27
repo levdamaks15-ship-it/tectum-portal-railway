@@ -1553,47 +1553,99 @@ function preparePrintMetaHeader() {
 }
 
 /* ==========================================================
-   GOOGLE PHOTOS & LINK PICKER HELPERS
+   PHOTO UPLOAD & CLIENT-SIDE WEBP COMPRESSOR
    ========================================================== */
-function openGooglePhotosPicker(targetInputId) {
-    const photosUrl = "https://photos.google.com";
-    window.open(photosUrl, "_blank");
-    showToast("В Google Фото выберите фото и нажмите «Поделиться» ➔ «Создать ссылку»");
-}
+async function handlePhotoFileUpload(fileInput, targetInputId, hintId, previewBtnId) {
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) return;
+    const file = fileInput.files[0];
+    const targetInput = document.getElementById(targetInputId);
+    const hintEl = document.getElementById(hintId);
+    const previewBtn = document.getElementById(previewBtnId);
 
-async function pastePhotoLinkFromClipboard(targetInputId) {
-    const inputEl = document.getElementById(targetInputId);
-    if (!inputEl) return;
+    showToast("Сжатие и загрузка фото... ⏳");
 
     try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-            const text = await navigator.clipboard.readText();
-            if (text && (text.startsWith("http://") || text.startsWith("https://"))) {
-                inputEl.value = text.trim();
-                onPhotoInputChanged(targetInputId);
-                showToast("Ссылка на фото вставлена! 📷");
-            } else if (text) {
-                inputEl.value = text.trim();
-                onPhotoInputChanged(targetInputId);
-                showToast("Текст из буфера вставлен");
-            } else {
-                promptFallbackPaste(inputEl);
+        // 1. Сжимаем фото на клиенте в WebP (макс 1600px, 82% качество)
+        const compressedBlob = await compressImageToWebp(file, 1600, 0.82);
+        
+        // 2. Отправляем на сервер
+        const formData = new FormData();
+        formData.append("file", compressedBlob, "task_photo.webp");
+
+        const res = await fetch("/api/tasks/upload_photo", {
+            method: "POST",
+            body: formData
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (targetInput) {
+                targetInput.value = data.url;
             }
+            if (hintEl) {
+                const origKb = Math.round(file.size / 1024);
+                const compKb = Math.round(compressedBlob.size / 1024);
+                hintEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Фото сжато (${origKb} Кб ➔ ${compKb} Кб) и прикреплено</span>`;
+                hintEl.style.display = "inline-flex";
+            }
+            if (previewBtn) previewBtn.style.display = "inline-flex";
+            showToast("Фото успешно загружено! 📸");
         } else {
-            promptFallbackPaste(inputEl);
+            const err = await res.json();
+            alert("Ошибка загрузки фото: " + (err.detail || "Не удалось сохранить фото"));
         }
-    } catch (err) {
-        promptFallbackPaste(inputEl);
+    } catch (e) {
+        console.error("Photo upload error:", e);
+        alert("Ошибка при обработке фото: " + e.message);
+    } finally {
+        fileInput.value = "";
     }
 }
 
-function promptFallbackPaste(inputEl) {
-    const manualLink = prompt("Вставьте скопированную ссылку на Google Фото / Диск:", inputEl.value || "");
-    if (manualLink !== null) {
-        inputEl.value = manualLink.trim();
-        onPhotoInputChanged(inputEl.id);
-        if (inputEl.value) showToast("Ссылка на фото сохранена");
-    }
+function compressImageToWebp(file, maxDimension = 1600, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Пытаемся сохранить в webp, если браузер поддерживает, иначе jpeg
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            resolve(blob);
+                        } else {
+                            reject(new Error("Не удалось сжать изображение"));
+                        }
+                    },
+                    "image/webp",
+                    quality
+                );
+            };
+            img.onerror = (e) => reject(new Error("Не удалось прочитать изображение"));
+            img.src = event.target.result;
+        };
+        reader.onerror = (e) => reject(new Error("Ошибка чтения файла"));
+        reader.readAsDataURL(file);
+    });
 }
 
 function onPhotoInputChanged(inputId) {
@@ -1605,7 +1657,7 @@ function onPhotoInputChanged(inputId) {
     const previewBtn = document.getElementById(isModal1 ? 'task-photo-preview-btn' : 'complete-photo-preview-btn');
     const hintEl = document.getElementById(isModal1 ? 'task-photo-preview-hint' : 'complete-photo-preview-hint');
 
-    if (val && (val.startsWith("http://") || val.startsWith("https://"))) {
+    if (val && (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/static/"))) {
         if (previewBtn) previewBtn.style.display = "inline-flex";
         if (hintEl) hintEl.style.display = "inline-flex";
     } else {
@@ -1618,7 +1670,7 @@ function testOpenPhotoLink(inputId) {
     const inputEl = document.getElementById(inputId);
     if (!inputEl) return;
     const url = inputEl.value.trim();
-    if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+    if (url && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/static/"))) {
         window.open(url, "_blank");
     } else {
         alert("Пожалуйста, укажите корректную ссылку на фото");

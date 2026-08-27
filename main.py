@@ -7499,6 +7499,29 @@ def get_tasks(
         print(f"Error fetching tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/tasks/upload_photo")
+async def upload_task_photo(file: UploadFile = File(...)):
+    """Принимает сжатое webp/jpg фото задачи и сохраняет в static/uploads/tasks/."""
+    try:
+        upload_dir = os.path.join("static", "uploads", "tasks")
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Генерируем уникальное имя файла
+        import uuid
+        ext = os.path.splitext(file.filename)[1].lower() or ".webp"
+        unique_name = f"task_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
+        file_path = os.path.join(upload_dir, unique_name)
+
+        contents = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        public_url = f"/static/uploads/tasks/{unique_name}"
+        return {"status": "ok", "url": public_url, "filename": unique_name}
+    except Exception as e:
+        print(f"Error uploading task photo: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/tasks/{task_id}")
 def get_single_task(task_id: int, db: Session = Depends(get_db)):
     """Возвращает информацию по конкретной задаче для deep-linking."""
