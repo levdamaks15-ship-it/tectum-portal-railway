@@ -9,10 +9,13 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "tectum_wa_verify_tok
 
 META_GRAPH_URL = f"https://graph.facebook.com/v22.0/{WHATSAPP_PHONE_ID}/messages"
 
+def _normalize_phone(to_phone: str) -> str:
+    clean = "".join(filter(str.isdigit, str(to_phone)))
+    return clean
+
 def send_whatsapp_text(to_phone: str, text: str) -> (bool, Optional[str]):
     """
     Отправляет текстовое сообщение в WhatsApp через официальный Cloud API.
-    to_phone: номер телефона в международном формате без плюса, например '77472722804'
     """
     token = os.getenv("WHATSAPP_TOKEN", WHATSAPP_TOKEN).strip()
     phone_id = os.getenv("WHATSAPP_PHONE_ID", WHATSAPP_PHONE_ID).strip()
@@ -22,46 +25,50 @@ def send_whatsapp_text(to_phone: str, text: str) -> (bool, Optional[str]):
         print(f"[WhatsApp Service Error] {err}")
         return False, err
         
-    # Очищаем номер от плюсов, пробелов и скобок
-    clean_phone = "".join(filter(str.isdigit, str(to_phone)))
-    
+    clean_phone = _normalize_phone(to_phone)
+    phones_to_try = [clean_phone]
+    if clean_phone.startswith("77") and len(clean_phone) == 11:
+        phones_to_try.append("78" + clean_phone[1:]) # 787472722804 для тестового режима Meta
+    elif clean_phone.startswith("787") and len(clean_phone) == 12:
+        phones_to_try.append("7" + clean_phone[2:])
+        
     url = f"https://graph.facebook.com/v22.0/{phone_id}/messages"
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
     
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": clean_phone,
-        "type": "text",
-        "text": {
-            "preview_url": True,
-            "body": text
+    last_err = None
+    for p in phones_to_try:
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": p,
+            "type": "text",
+            "text": {
+                "preview_url": True,
+                "body": text
+            }
         }
-    }
-    
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=20)
-        res_data = resp.json()
-        if resp.status_code in (200, 201):
-            print(f"[WhatsApp Service] Сообщение успешно отправлено на {clean_phone}: {res_data}")
-            return True, None
-        else:
-            err = f"Ошибка Meta API ({resp.status_code}): {res_data}"
-            print(f"[WhatsApp Service Error] {err}")
-            return False, err
-    except Exception as e:
-        err = f"Исключение при отправке WhatsApp: {str(e)}"
-        print(f"[WhatsApp Service Exception] {err}")
-        return False, err
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=20)
+            res_data = resp.json()
+            if resp.status_code in (200, 201):
+                print(f"[WhatsApp Service] Сообщение успешно доставлено на {p}: {res_data}")
+                return True, None
+            else:
+                last_err = f"Ошибка Meta API ({resp.status_code}): {res_data}"
+                print(f"[WhatsApp Service Attempt Error on {p}] {last_err}")
+        except Exception as e:
+            last_err = str(e)
+            print(f"[WhatsApp Service Exception on {p}] {last_err}")
+            
+    return False, last_err
 
 
 def send_whatsapp_buttons(to_phone: str, body_text: str, buttons: List[Dict[str, str]], header_text: Optional[str] = None, footer_text: Optional[str] = "Tectum Portal") -> (bool, Optional[str]):
     """
     Отправляет интерактивное сообщение с кнопками (до 3 кнопок).
-    buttons: [{'id': 'btn_done_12', 'title': '✅ Выполнено'}, {'id': 'btn_help', 'title': 'Помощь'}]
     """
     token = os.getenv("WHATSAPP_TOKEN", WHATSAPP_TOKEN).strip()
     phone_id = os.getenv("WHATSAPP_PHONE_ID", WHATSAPP_PHONE_ID).strip()
@@ -69,7 +76,13 @@ def send_whatsapp_buttons(to_phone: str, body_text: str, buttons: List[Dict[str,
     if not token:
         return False, "WHATSAPP_TOKEN не задан"
         
-    clean_phone = "".join(filter(str.isdigit, str(to_phone)))
+    clean_phone = _normalize_phone(to_phone)
+    phones_to_try = [clean_phone]
+    if clean_phone.startswith("77") and len(clean_phone) == 11:
+        phones_to_try.append("78" + clean_phone[1:])
+    elif clean_phone.startswith("787") and len(clean_phone) == 12:
+        phones_to_try.append("7" + clean_phone[2:])
+
     url = f"https://graph.facebook.com/v22.0/{phone_id}/messages"
     headers = {
         "Authorization": f"Bearer {token}",
@@ -77,12 +90,12 @@ def send_whatsapp_buttons(to_phone: str, body_text: str, buttons: List[Dict[str,
     }
     
     formatted_buttons = []
-    for b in buttons[:3]: # Meta разрешает максимум 3 кнопки в одном сообщении
+    for b in buttons[:3]:
         formatted_buttons.append({
             "type": "reply",
             "reply": {
                 "id": str(b.get("id")),
-                "title": str(b.get("title"))[:20] # Максимум 20 символов на название кнопки
+                "title": str(b.get("title"))[:20]
             }
         })
         
@@ -97,22 +110,26 @@ def send_whatsapp_buttons(to_phone: str, body_text: str, buttons: List[Dict[str,
     if footer_text:
         interactive_obj["footer"] = {"text": footer_text[:60]}
         
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": clean_phone,
-        "type": "interactive",
-        "interactive": interactive_obj
-    }
-    
-    try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=20)
-        res_data = resp.json()
-        if resp.status_code in (200, 201):
-            return True, None
-        else:
-            err = f"Ошибка кнопок Meta API ({resp.status_code}): {res_data}"
-            print(f"[WhatsApp Service Error] {err}")
-            return False, err
-    except Exception as e:
-        return False, str(e)
+    last_err = None
+    for p in phones_to_try:
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": p,
+            "type": "interactive",
+            "interactive": interactive_obj
+        }
+        try:
+            resp = requests.post(url, headers=headers, json=payload, timeout=20)
+            res_data = resp.json()
+            if resp.status_code in (200, 201):
+                print(f"[WhatsApp Service] Кнопки успешно доставлены на {p}: {res_data}")
+                return True, None
+            else:
+                last_err = f"Ошибка кнопок Meta API ({resp.status_code}): {res_data}"
+                print(f"[WhatsApp Service Button Error on {p}] {last_err}")
+        except Exception as e:
+            last_err = str(e)
+            
+    return False, last_err
+
