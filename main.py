@@ -8047,6 +8047,8 @@ def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
 # ----------------------------------------------------
 # WhatsApp Cloud API Webhook Endpoints
 # ----------------------------------------------------
+from fastapi.responses import PlainTextResponse
+
 @app.get("/api/whatsapp/webhook")
 async def whatsapp_verify_webhook(request: Request):
     """
@@ -8061,7 +8063,7 @@ async def whatsapp_verify_webhook(request: Request):
     if mode and token:
         if mode == "subscribe" and token == verify_token:
             print("[WhatsApp Webhook] Успешная верификация вебхука от Meta!")
-            return PlainTextResponse(content=challenge, status_code=200)
+            return PlainTextResponse(content=str(challenge or ""), status_code=200)
         else:
             print(f"[WhatsApp Webhook] Ошибка токена: получено '{token}', ожидалось '{verify_token}'")
             raise HTTPException(status_code=403, detail="Verification token mismatch")
