@@ -177,12 +177,16 @@
             align-items: center;
             justify-content: space-between;
             gap: 0.5rem;
-            padding: 0.45rem 1.5rem 0.55rem 1.5rem;
+            padding: 0.45rem 1.25rem 0.5rem 1.25rem;
             background: #ffffff;
             border-bottom: 1px solid var(--tbl-border);
             overflow-x: auto;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        .quick-filters-bar::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Edge */
         }
         .quick-chips-group {
             display: flex;
@@ -898,6 +902,7 @@
         <div class="toolbar-group">
             <!-- Month Selector -->
             <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff;">
+                <option value="all">🌐 За всё время</option>
                 <option value="Январь 2026">Январь 2026</option>
                 <option value="Февраль 2026">Февраль 2026</option>
                 <option value="Март 2026">Март 2026</option>
@@ -1314,6 +1319,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260827_chips_clean_v13"></script>
+    <script src="/static/js/tasks.js?v=20260827_alltime_mobile_v14"></script>
 </body>
 </html>

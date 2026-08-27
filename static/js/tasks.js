@@ -632,10 +632,11 @@ async function loadCalendarStructure() {
             const data = await res.json();
             allWeeksStructure = data.structure || {};
             
-            // Populate Month selector with all 12 months
+            // Populate Month selector with all 12 months + "all"
             const monthSelect = document.getElementById("filter-month");
             if (monthSelect && data.months) {
-                monthSelect.innerHTML = data.months.map(m => `<option value="${m}">${m}</option>`).join('');
+                monthSelect.innerHTML = `<option value="all">🌐 За всё время</option>` + 
+                    data.months.map(m => `<option value="${m}">${m}</option>`).join('');
                 if (data.default_month) {
                     monthSelect.value = data.default_month;
                     currentMonth = data.default_month;
@@ -696,6 +697,15 @@ function onMonthChange(forcedWeek = null) {
     if (!monthSelect || !weekSelect) return;
 
     currentMonth = monthSelect.value;
+
+    if (currentMonth === "all") {
+        weekSelect.innerHTML = `<option value="all" selected>🌐 Все недели (за всё время)</option>`;
+        weekSelect.value = "all";
+        currentWeek = "all";
+        loadTasks();
+        return;
+    }
+
     let weeks = allWeeksStructure[currentMonth] || [];
 
     if (weeks.length === 0) {
@@ -703,13 +713,17 @@ function onMonthChange(forcedWeek = null) {
         weeks = generateClientFallbackWeeks(currentMonth);
     }
     
-    weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
-    if (forcedWeek && weeks.includes(forcedWeek)) {
+    // В начало списка добавляем «Весь месяц»
+    let optionsHtml = `<option value="all">📅 Весь месяц (все недели)</option>` + 
+        weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+
+    weekSelect.innerHTML = optionsHtml;
+    if (forcedWeek && (forcedWeek === "all" || weeks.includes(forcedWeek))) {
         weekSelect.value = forcedWeek;
         currentWeek = forcedWeek;
     } else {
-        weekSelect.value = weeks[0] || "";
-        currentWeek = weeks[0] || "";
+        weekSelect.value = weeks[0] || "all";
+        currentWeek = weeks[0] || "all";
     }
     loadTasks();
 }
