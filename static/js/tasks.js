@@ -379,24 +379,27 @@ function toggleMobileFilters() {
 function toggleMyTasksFilter() {
     if (!currentPlannerUser || !currentPlannerUser.name) {
         openPinModal(null, (user) => {
+            currentPlannerUser = user;
             myTasksFilterActive = true;
+            setFilterValueDirect('assignee', 'all');
+            setFilterValueDirect('author', 'all');
+            updatePlannerUserBadge();
             updateChipsVisualState();
             updateFilterBadge();
             updateUrlParams();
             loadTasks();
-            showToast(`Фильтр по задачам: ${user.name}`);
+            showToast(`Фильтр: ${user.name}`);
         });
         return;
     }
 
     myTasksFilterActive = !myTasksFilterActive;
     if (myTasksFilterActive) {
-        // Reset single assignee/author to avoid conflicting filters
         setFilterValueDirect('assignee', 'all');
         setFilterValueDirect('author', 'all');
         showToast(`Показаны задачи: ${currentPlannerUser.name}`);
     } else {
-        showToast("Режим «Все задачи» включен");
+        showToast("Показаны все задачи");
     }
 
     updateChipsVisualState();
@@ -413,7 +416,10 @@ function applyPresetFilter(presetType) {
         });
         showBacklog = false;
         const btnBacklog = document.getElementById("btn-toggle-backlog");
-        if (btnBacklog) btnBacklog.classList.remove("btn-backlog-active");
+        if (btnBacklog) {
+            btnBacklog.classList.remove("btn-backlog-active");
+            btnBacklog.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых недель</span><span class="mobile-only">Долги</span>`;
+        }
 
         updateChipsVisualState();
         updateFilterBadge();
