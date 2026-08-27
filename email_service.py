@@ -108,6 +108,9 @@ def _build_plain_text(event_type: str, d: Dict[str, Any]) -> str:
     week = d.get("week_label", "")
     month = d.get("month_label", "")
 
+    task_id = d.get("id")
+    task_url = f"{PORTAL_URL}?task_id={task_id}" if task_id else PORTAL_URL
+
     lines = [
         f"TECTUM ENGINEERING — ПЛАННЕР ЗАДАЧ",
         f"Событие: {event_type}",
@@ -130,7 +133,7 @@ def _build_plain_text(event_type: str, d: Dict[str, Any]) -> str:
         lines.append(f"Фото: {photo}")
     lines.extend([
         f"--------------------------------------------------",
-        f"Открыть Планнер: {PORTAL_URL}"
+        f"Открыть задачу в Планнере: {task_url}"
     ])
     return "\n".join(lines)
 
@@ -170,6 +173,8 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
     photo = d.get("photo_link", "")
     week = d.get("week_label", "")
     month = d.get("month_label", "")
+    task_id = d.get("id")
+    task_url = f"{PORTAL_URL}?task_id={task_id}" if task_id else PORTAL_URL
 
     # Цветовой акцент события
     if "выполнено" in event_type.lower():
@@ -269,8 +274,8 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px; margin-bottom:10px;">
                 <tr>
                   <td align="center">
-                    <a href="{PORTAL_URL}" target="_blank" style="display:inline-block; background-color:#2563eb; color:#ffffff; text-decoration:none; padding:12px 28px; border-radius:8px; font-size:14px; font-weight:700; box-shadow:0 2px 6px rgba(37,99,235,0.35);">
-                      Открыть Планнер Задач ➔
+                    <a href="{task_url}" target="_blank" style="display:inline-block; background-color:#2563eb; color:#ffffff; text-decoration:none; padding:12px 28px; border-radius:8px; font-size:14px; font-weight:700; box-shadow:0 2px 6px rgba(37,99,235,0.35);">
+                      Открыть задачу в Планнере ➔
                     </a>
                   </td>
                 </tr>

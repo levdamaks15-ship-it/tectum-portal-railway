@@ -285,6 +285,30 @@ async def lifespan(app: FastAPI):
         if 'db' in locals() and db:
             db.close()
 
+    # PlannerEmployee pin_code column migration
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            try:
+                db.execute(text("ALTER TABLE planner_employees ADD COLUMN IF NOT EXISTS pin_code VARCHAR(10);"))
+                db.commit()
+            except Exception:
+                db.rollback()
+        elif driver == 'sqlite':
+            conn = sqlite3.connect("tectum.db")
+            try:
+                conn.execute("ALTER TABLE planner_employees ADD COLUMN pin_code VARCHAR(10)")
+                conn.commit()
+            except Exception: pass
+            conn.close()
+    except Exception as e:
+        print(f"Planner pin_code migration note: {e}")
+    finally:
+        if 'db' in locals() and db:
+            db.close()
+
     # Automatic deduplication of duplicate document folders on startup
     try:
         db = SessionLocal()
@@ -7030,6 +7054,8 @@ def get_planner_employees(db: Session = Depends(get_db)):
                 "id": e.id,
                 "name": e.name,
                 "email": e.email or "",
+                "pin_code": e.pin_code or "",
+                "has_pin": bool(e.pin_code and e.pin_code.strip()),
                 "is_active": bool(e.is_active),
                 "sort_order": e.sort_order or 0
             }
@@ -7039,6 +7065,26 @@ def get_planner_employees(db: Session = Depends(get_db)):
         print(f"Error getting planner employees: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/planner/employees/verify_pin")
+def verify_planner_pin(data: dict, db: Session = Depends(get_db)):
+    """Проверяет соответствие PIN-кода сотрудника."""
+    name = (data.get("name") or "").strip()
+    pin = (data.get("pin_code") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Не указано имя сотрудника")
+    
+    emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == name).first()
+    if not emp:
+        # Если сотрудника нет в справочнике — разрешаем базовый вход
+        return {"status": "ok", "name": name, "verified": True}
+    
+    # Если у сотрудника установлен PIN — сверяем
+    if emp.pin_code and emp.pin_code.strip():
+        if emp.pin_code.strip() != pin:
+            raise HTTPException(status_code=401, detail="Неверный PIN-код сотрудника")
+    
+    return {"status": "ok", "name": emp.name, "verified": True}
+
 @app.post("/api/planner/employees")
 def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = Depends(get_db)):
     """Добавляет сотрудника в настройки планнера."""
@@ -7046,13 +7092,14 @@ def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = D
         new_emp = models.PlannerEmployee(
             name=data.name.strip(),
             email=data.email.strip() if data.email else "",
+            pin_code=data.pin_code.strip() if data.pin_code else "",
             is_active=data.is_active if data.is_active is not None else True,
             sort_order=data.sort_order or 0
         )
         db.add(new_emp)
         db.commit()
         db.refresh(new_emp)
-        return {"status": "ok", "id": new_emp.id, "name": new_emp.name, "email": new_emp.email}
+        return {"status": "ok", "id": new_emp.id, "name": new_emp.name, "email": new_emp.email, "pin_code": new_emp.pin_code}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -7068,13 +7115,15 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
             emp.name = data.name.strip()
         if data.email is not None:
             emp.email = data.email.strip()
+        if data.pin_code is not None:
+            emp.pin_code = data.pin_code.strip()
         if data.is_active is not None:
             emp.is_active = data.is_active
         if data.sort_order is not None:
             emp.sort_order = data.sort_order
         db.commit()
         db.refresh(emp)
-        return {"status": "ok", "id": emp.id, "name": emp.name, "email": emp.email}
+        return {"status": "ok", "id": emp.id, "name": emp.name, "email": emp.email, "pin_code": emp.pin_code}
     except HTTPException:
         raise
     except Exception as e:
@@ -7450,10 +7499,44 @@ def get_tasks(
         print(f"Error fetching tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/tasks/{task_id}")
+def get_single_task(task_id: int, db: Session = Depends(get_db)):
+    """Возвращает информацию по конкретной задаче для deep-linking."""
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    return {
+        "id": task.id,
+        "code": task.code or f"TSK-{task.id:02d}",
+        "zone": task.zone or "Бережливое производство",
+        "title": task.title,
+        "title_kz": task.title_kz or "",
+        "photo_link": task.photo_link or "",
+        "author_name": task.author_name or "",
+        "assignee_name": task.assignee_name or "",
+        "due_date_str": task.due_date_str or "",
+        "status": task.status or "⚪ В очереди",
+        "comment": task.comment or "",
+        "month_label": task.month_label or "",
+        "week_label": task.week_label or "",
+        "is_archived": False,
+        "created_at": task.created_at.strftime("%d.%m.%Y %H:%M") if task.created_at else ""
+    }
+
 @app.post("/api/tasks")
 def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Создает новую задачу и отправляет уведомление исполнителю."""
     try:
+        author_name = (task_data.author_name or "").strip()
+        pin = (task_data.pin_code or "").strip()
+
+        # Проверка PIN-кода автора, если PIN задан в БД
+        if author_name:
+            emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
+            if emp and emp.pin_code and emp.pin_code.strip():
+                if emp.pin_code.strip() != pin:
+                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
+
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         next_num = (last_task.id + 1) if last_task else 1
         code_str = task_data.code or f"TSK-{next_num:02d}"
@@ -7524,6 +7607,8 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
                 background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Вам назначена новая задача", task_dict)
 
         return {"status": "ok", "task_id": new_task.id, "code": new_task.code}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         print(f"Error creating task: {e}")
@@ -7537,11 +7622,29 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
+        pin = (task_data.pin_code or "").strip()
+        # Валидация прав: разрешено автору, исполнителю или админу
+        # Если передан pin_code, проверяем автора или исполнителя
+        if pin:
+            author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
+            assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
+            
+            valid = False
+            if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
+                valid = True
+            if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
+                valid = True
+            
+            # Если у них вообще не задан PIN — валидно
+            if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
+                valid = True
+
         old_status = task.status
         old_assignee = task.assignee_name
 
         # Фиксируем изменения для AuditLog
         update_dict = task_data.dict(exclude_unset=True)
+        update_dict.pop("pin_code", None)
         changes = []
         for key, val in update_dict.items():
             if hasattr(task, key) and val is not None:

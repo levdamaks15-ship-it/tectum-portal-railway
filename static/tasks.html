@@ -293,11 +293,44 @@
             color: #0f172a;
             background: #e2e8f0;
         }
-        .btn-icon-cell.delete:hover {
-            color: #ef4444;
-            background: #fee2e2;
+        .btn-icon-cell:disabled,
+        .btn-card-action:disabled,
+        .select-status:disabled {
+            opacity: 0.35 !important;
+            cursor: not-allowed !important;
+            pointer-events: none;
         }
 
+        .comment-locked {
+            cursor: not-allowed !important;
+            border-bottom: none !important;
+            opacity: 0.85;
+        }
+
+        /* Deep linking task highlight effect */
+        @keyframes taskHighlightPulse {
+            0% {
+                background-color: rgba(37, 99, 235, 0.22);
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);
+            }
+            50% {
+                background-color: rgba(37, 99, 235, 0.12);
+                box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.25);
+            }
+            100% {
+                background-color: transparent;
+                box-shadow: none;
+            }
+        }
+
+        .task-row-highlighted td {
+            animation: taskHighlightPulse 3.5s ease-out forwards;
+        }
+
+        .task-card-highlighted {
+            animation: taskHighlightPulse 3.5s ease-out forwards;
+            border-color: #2563eb !important;
+        }
         /* Modal dialogs */
         .modal-overlay {
             position: fixed;
@@ -723,7 +756,14 @@
             </div>
         </a>
 
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <!-- Planner User Session Badge -->
+            <div id="planner-user-badge" style="display: flex; align-items: center; gap: 6px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #1d4ed8;">
+                <i class="fa-solid fa-user-check"></i>
+                <span id="planner-user-name" onclick="promptChangePlannerUser()" style="cursor: pointer; text-decoration: underline;" title="Нажмите, чтобы сменить пользователя">Гость</span>
+                <button type="button" onclick="logoutPlannerUser()" style="background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.8rem;" title="Выйти / Сменить PIN">&times;</button>
+            </div>
+
             <a href="/static/docs.html" class="btn-action btn-secondary-action" title="База знаний">
                 <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
@@ -1071,6 +1111,34 @@
                 <button type="button" class="btn-action btn-secondary-action" onclick="closeCompleteModal()">Отмена</button>
                 <button type="button" class="btn-action" style="background: #10b981; color: #ffffff;" onclick="submitCompleteModal()">
                     <i class="fa-solid fa-check"></i> Завершить задачу
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN AUTHORIZATION MODAL -->
+    <div class="modal-overlay" id="planner-pin-modal" style="z-index: 2000;">
+        <div class="modal-box" style="max-width: 420px; text-align: center;">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔐</div>
+            <h3 style="margin: 0 0 0.5rem; color: #0f172a; font-size: 1.15rem;" id="pin-modal-title">Авторизация сотрудника</h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 1.25rem;" id="pin-modal-desc">Выберите себя и введите 4-значный PIN-код для работы с задачами:</p>
+
+            <div class="form-row" style="text-align: left;">
+                <label>Сотрудник *</label>
+                <select class="form-select" id="pin-auth-user-select" onchange="onPinUserSelectChanged()">
+                    <option value="">-- Выберите сотрудника --</option>
+                </select>
+            </div>
+
+            <div class="form-row" id="pin-input-group" style="text-align: left;">
+                <label><i class="fa-solid fa-key" style="color: #f59e0b;"></i> 4-значный PIN-код *</label>
+                <input type="password" class="form-input" id="pin-auth-input" maxlength="10" placeholder="••••" style="font-size: 1.4rem; letter-spacing: 8px; text-align: center; font-weight: 700;">
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closePinModal()">Отмена</button>
+                <button type="button" class="btn-action btn-primary-action" onclick="submitPinModal()">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Войти
                 </button>
             </div>
         </div>

@@ -2564,18 +2564,22 @@ function renderPlannerEmployeesTable() {
             <td style="color: ${emp.email ? 'var(--accent-color)' : 'var(--text-secondary)'};">
                 ${emp.email ? `<i class="fa-regular fa-envelope"></i> ${emp.email}` : '—'}
             </td>
+            <td>
+                ${emp.pin_code ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">🔑 ${emp.pin_code}</span>` : '<span style="color: #94a3b8; font-size: 0.75rem;">Не задан</span>'}
+            </td>
             <td style="text-align: right; white-space: nowrap;">
-                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.pin_code || '').replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deletePlannerEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
 }
 
-function openPlannerEmployeeModal(id = null, name = '', email = '') {
+function openPlannerEmployeeModal(id = null, name = '', email = '', pin = '') {
     document.getElementById('planner-emp-id').value = id || '';
     document.getElementById('planner-emp-name').value = name || '';
     document.getElementById('planner-emp-email').value = email || '';
+    document.getElementById('planner-emp-pin').value = pin || '';
     document.getElementById('planner-emp-modal-title').innerHTML = id ? `<i class="fa-solid fa-pen"></i> Редактировать сотрудника` : `<i class="fa-solid fa-user-plus"></i> Добавить сотрудника`;
     
     const modal = document.getElementById('planner-emp-modal');
@@ -2586,6 +2590,7 @@ async function savePlannerEmployee() {
     const id = document.getElementById('planner-emp-id').value;
     const name = document.getElementById('planner-emp-name').value.trim();
     const email = document.getElementById('planner-emp-email').value.trim();
+    const pin = document.getElementById('planner-emp-pin').value.trim();
 
     if (!name) {
         alert("Пожалуйста, укажите имя/ФИО сотрудника");
@@ -2599,7 +2604,7 @@ async function savePlannerEmployee() {
         const res = await fetch(url, {
             method: method,
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ name: name, email: email })
+            body: JSON.stringify({ name: name, email: email, pin_code: pin })
         });
 
         if (res.ok) {

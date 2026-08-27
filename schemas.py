@@ -650,6 +650,7 @@ class TaskBase(ORMBaseModel):
     month_label: Optional[str] = ""
     week_label: Optional[str] = ""
     is_archived: Optional[bool] = False
+    pin_code: Optional[str] = None
     
     # Legacy / Compatibility fields
     description: Optional[str] = ""
@@ -679,6 +680,7 @@ class TaskUpdate(ORMBaseModel):
     month_label: Optional[str] = None
     week_label: Optional[str] = None
     is_archived: Optional[bool] = None
+    pin_code: Optional[str] = None
     
     # Legacy
     description: Optional[str] = None
@@ -708,6 +710,7 @@ class TaskResponse(TaskBase):
 class PlannerEmployeeBase(ORMBaseModel):
     name: str
     email: Optional[str] = ""
+    pin_code: Optional[str] = ""
     is_active: Optional[bool] = True
     sort_order: Optional[int] = 0
 
@@ -717,6 +720,7 @@ class PlannerEmployeeCreate(PlannerEmployeeBase):
 class PlannerEmployeeUpdate(ORMBaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
+    pin_code: Optional[str] = None
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
 

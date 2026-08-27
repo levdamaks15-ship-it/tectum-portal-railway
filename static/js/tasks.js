@@ -29,11 +29,202 @@ const CORE_NAMES = [
     "ОГМ"
 ];
 
+let targetHighlightTaskId = null;
+let currentPlannerUser = null; // { name: string, pin: string }
+let pendingAuthCallback = null;
+
 document.addEventListener("DOMContentLoaded", async () => {
+    initPlannerSession();
     await loadCalendarStructure();
     await loadPlannerDropdownData();
+    await handleUrlDeepLinking();
     await loadTasks();
 });
+
+function initPlannerSession() {
+    try {
+        const saved = sessionStorage.getItem("planner_user_session");
+        if (saved) {
+            currentPlannerUser = JSON.parse(saved);
+        }
+    } catch (e) {}
+    updatePlannerUserBadge();
+}
+
+function updatePlannerUserBadge() {
+    const nameEl = document.getElementById("planner-user-name");
+    const badgeEl = document.getElementById("planner-user-badge");
+    if (!nameEl || !badgeEl) return;
+
+    if (currentPlannerUser && currentPlannerUser.name) {
+        nameEl.textContent = currentPlannerUser.name;
+        badgeEl.style.display = "flex";
+        badgeEl.style.background = "#eff6ff";
+        badgeEl.style.color = "#1d4ed8";
+        badgeEl.style.borderColor = "#bfdbfe";
+    } else {
+        nameEl.textContent = "Войти (PIN)";
+        badgeEl.style.background = "#f1f5f9";
+        badgeEl.style.color = "#475569";
+        badgeEl.style.borderColor = "#cbd5e1";
+    }
+}
+
+function promptChangePlannerUser() {
+    openPinModal(null, (user) => {
+        showToast(`Вы вошли как ${user.name}`);
+    });
+}
+
+function logoutPlannerUser() {
+    currentPlannerUser = null;
+    sessionStorage.removeItem("planner_user_session");
+    updatePlannerUserBadge();
+    showToast("Вы вышли из сессии");
+}
+
+function openPinModal(preselectedUser = null, onSuccess = null) {
+    pendingAuthCallback = onSuccess;
+    const modal = document.getElementById("planner-pin-modal");
+    const select = document.getElementById("pin-auth-user-select");
+    const pinInput = document.getElementById("pin-auth-input");
+
+    if (select) {
+        const persons = getUniquePersons();
+        select.innerHTML = `<option value="">-- Выберите сотрудника --</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
+        
+        if (preselectedUser && persons.includes(preselectedUser)) {
+            select.value = preselectedUser;
+        } else if (currentPlannerUser && currentPlannerUser.name) {
+            select.value = currentPlannerUser.name;
+        }
+    }
+
+    if (pinInput) {
+        pinInput.value = "";
+    }
+
+    onPinUserSelectChanged();
+
+    if (modal) modal.style.display = "flex";
+    setTimeout(() => {
+        if (pinInput && document.getElementById("pin-input-group").style.display !== "none") {
+            pinInput.focus();
+        }
+    }, 150);
+}
+
+function closePinModal() {
+    const modal = document.getElementById("planner-pin-modal");
+    if (modal) modal.style.display = "none";
+    pendingAuthCallback = null;
+}
+
+function onPinUserSelectChanged() {
+    const select = document.getElementById("pin-auth-user-select");
+    const pinGroup = document.getElementById("pin-input-group");
+    if (!select || !pinGroup) return;
+
+    const emp = allPlannerEmployees.find(e => e.name === select.value);
+    // Если у сотрудника в БД нет PIN-кода, можно не требовать PIN
+    if (emp && emp.has_pin === false) {
+        pinGroup.style.display = "none";
+    } else {
+        pinGroup.style.display = "block";
+    }
+}
+
+async function submitPinModal() {
+    const select = document.getElementById("pin-auth-user-select");
+    const pinInput = document.getElementById("pin-auth-input");
+    const name = select ? select.value.trim() : "";
+    const pin = pinInput ? pinInput.value.trim() : "";
+
+    if (!name) {
+        alert("Пожалуйста, выберите сотрудника!");
+        return;
+    }
+
+    const pinGroup = document.getElementById("pin-input-group");
+    if (pinGroup && pinGroup.style.display !== "none" && !pin) {
+        alert("Пожалуйста, введите 4-значный PIN-код!");
+        if (pinInput) pinInput.focus();
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/planner/employees/verify_pin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name, pin_code: pin })
+        });
+
+        if (res.ok) {
+            currentPlannerUser = { name: name, pin: pin };
+            sessionStorage.setItem("planner_user_session", JSON.stringify(currentPlannerUser));
+            updatePlannerUserBadge();
+
+            const cb = pendingAuthCallback;
+            closePinModal();
+
+            if (cb && typeof cb === "function") {
+                cb(currentPlannerUser);
+            }
+        } else {
+            const err = await res.json();
+            alert("Ошибка авторизации: " + (err.detail || "Неверный PIN-код"));
+            if (pinInput) {
+                pinInput.value = "";
+                pinInput.focus();
+            }
+        }
+    } catch (e) {
+        console.error("PIN verification error:", e);
+        alert("Ошибка сети при проверке PIN-кода");
+    }
+}
+
+function ensureUserAuthorized(requiredUser = null, onSuccess) {
+    // Если уже есть сессия и она совпадает с требуемым пользователем (или пользователь не указан)
+    if (currentPlannerUser && (!requiredUser || currentPlannerUser.name === requiredUser)) {
+        onSuccess(currentPlannerUser);
+        return;
+    }
+
+    // Если нужна авторизация — открываем модалку ввода PIN
+    openPinModal(requiredUser, onSuccess);
+}
+
+async function handleUrlDeepLinking() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskIdParam = urlParams.get("task_id");
+    if (!taskIdParam) return;
+
+    const tId = parseInt(taskIdParam, 10);
+    if (!tId) return;
+
+    targetHighlightTaskId = tId;
+
+    // Fetch the task info to automatically navigate to the right month and week
+    try {
+        const res = await fetch(`/api/tasks/${tId}`);
+        if (res.ok) {
+            const task = await res.json();
+            if (task.month_label) {
+                currentMonth = task.month_label;
+                const monthSelect = document.getElementById("filter-month");
+                if (monthSelect) monthSelect.value = task.month_label;
+            }
+            if (task.week_label) {
+                currentWeek = task.week_label;
+                onMonthChange(task.week_label);
+            }
+        }
+    } catch (e) {
+        console.error("Deep link task fetch error:", e);
+    }
+}
 
 async function loadCalendarStructure() {
     try {
@@ -325,6 +516,7 @@ async function loadTasks() {
             allTasks = await res.json();
             renderTasksTable(allTasks);
             renderTasksCards(allTasks);
+            scrollToTargetTaskAfterRender();
         }
     } catch (e) {
         console.error("Error loading tasks:", e);
@@ -350,8 +542,10 @@ function renderTasksTable(tasks) {
 
     tableBody.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
+        const isCompleted = t.status && t.status.includes("Выполнено");
+
         if (t.status && t.status.includes("В работе")) statusClass = "status-work";
-        else if (t.status && t.status.includes("Выполнено")) statusClass = "status-done";
+        else if (isCompleted) statusClass = "status-done";
         else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
 
         const photoBtn = t.photo_link ? `
@@ -367,6 +561,36 @@ function renderTasksTable(tasks) {
                 </span>
             </div>
         ` : '';
+
+        const commentCell = isCompleted ? `
+            <span class="comment-locked" title="Завершённая задача заблокирована для редактирования">
+                ${t.comment || '—'}
+            </span>
+        ` : `
+            <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
+                ${t.comment || '—'}
+            </span>
+        `;
+
+        const actionButtons = isCompleted ? `
+            <div class="row-actions">
+                <button class="btn-icon-cell" disabled title="Завершённую задачу нельзя перенести">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button class="btn-icon-cell" disabled title="Завершённая задача заблокирована для редактирования">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+            </div>
+        ` : `
+            <div class="row-actions">
+                <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+            </div>
+        `;
 
         return `
             <tr id="task-row-${t.id}">
@@ -391,7 +615,7 @@ function renderTasksTable(tasks) {
 
                 <td style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</td>
                 <td style="text-align: center;">
-                    <select class="select-status ${statusClass}" onchange="quickUpdateStatus(${t.id}, this.value)">
+                    <select class="select-status ${statusClass}" ${isCompleted ? 'disabled title="Завершённую задачу может изменить только администратор"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
                         <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
                         <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                         <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
@@ -399,19 +623,10 @@ function renderTasksTable(tasks) {
                     </select>
                 </td>
                 <td style="font-size: 0.82rem; color: #334155; max-width: 180px;">
-                    <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
-                        ${t.comment || '—'}
-                    </span>
+                    ${commentCell}
                 </td>
                 <td style="text-align: center;">
-                    <div class="row-actions">
-                        <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                        <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                    </div>
+                    ${actionButtons}
                 </td>
             </tr>
         `;
@@ -435,8 +650,10 @@ function renderTasksCards(tasks) {
 
     cardsContainer.innerHTML = tasks.map((t, idx) => {
         let statusClass = "status-queue";
+        const isCompleted = t.status && t.status.includes("Выполнено");
+
         if (t.status && t.status.includes("В работе")) statusClass = "status-work";
-        else if (t.status && t.status.includes("Выполнено")) statusClass = "status-done";
+        else if (isCompleted) statusClass = "status-done";
         else if (t.status && t.status.includes("Перенесено")) statusClass = "status-moved";
 
         const backlogBadge = t.is_backlog ? `
@@ -451,20 +668,50 @@ function renderTasksCards(tasks) {
             </a>
         ` : '';
 
-        const commentBlock = t.comment ? `
-            <div class="card-comment-box" onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" title="Нажмите для редактирования">
-                <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
-                <div style="flex: 1;">${t.comment}</div>
-            </div>
-        ` : `
-            <div style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; padding: 2px 0;" onclick="inlineEditComment(${t.id}, '')">
-                <i class="fa-solid fa-plus" style="font-size: 0.7rem;"></i> Добавить факт/комментарий...
-            </div>
-        `;
+        let commentBlock = '';
+        if (isCompleted) {
+            commentBlock = t.comment ? `
+                <div class="card-comment-box" style="cursor: default;" title="Завершённая задача">
+                    <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
+                    <div style="flex: 1;">${t.comment}</div>
+                </div>
+            ` : '';
+        } else {
+            commentBlock = t.comment ? `
+                <div class="card-comment-box" onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" title="Нажмите для редактирования">
+                    <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
+                    <div style="flex: 1;">${t.comment}</div>
+                </div>
+            ` : `
+                <div style="font-size: 0.78rem; color: #94a3b8; cursor: pointer; padding: 2px 0;" onclick="inlineEditComment(${t.id}, '')">
+                    <i class="fa-solid fa-plus" style="font-size: 0.7rem;"></i> Добавить факт/комментарий...
+                </div>
+            `;
+        }
 
         const titleKzBlock = t.title_kz ? `
             <div class="planner-card-title-kz">${t.title_kz}</div>
         ` : '';
+
+        const cardFooter = isCompleted ? `
+            <div class="card-actions-footer">
+                <button class="btn-card-action" disabled title="Завершённую задачу нельзя перенести">
+                    <i class="fa-solid fa-arrow-right"></i> Перенести
+                </button>
+                <button class="btn-card-action" disabled title="Завершённая задача заблокирована для редактирования">
+                    <i class="fa-solid fa-pen"></i> Редактировать
+                </button>
+            </div>
+        ` : `
+            <div class="card-actions-footer">
+                <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
+                    <i class="fa-solid fa-arrow-right"></i> Перенести
+                </button>
+                <button class="btn-card-action" onclick="openEditTaskModal(${t.id})" title="Редактировать задачу">
+                    <i class="fa-solid fa-pen"></i> Редактировать
+                </button>
+            </div>
+        `;
 
         return `
             <div class="planner-card" id="task-card-${t.id}">
@@ -475,7 +722,7 @@ function renderTasksCards(tasks) {
                         ${backlogBadge}
                     </div>
                     <div>
-                        <select class="select-status ${statusClass}" onchange="quickUpdateStatus(${t.id}, this.value)" style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">
+                        <select class="select-status ${statusClass}" ${isCompleted ? 'disabled title="Завершённую задачу может изменить только администратор"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">
                             <option value="⚪ В очереди" ${t.status === '⚪ В очереди' ? 'selected' : ''}>⚪ В очереди</option>
                             <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                             <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
@@ -508,18 +755,45 @@ function renderTasksCards(tasks) {
                 </div>
 
                 ${commentBlock}
-
-                <div class="card-actions-footer">
-                    <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                        <i class="fa-solid fa-arrow-right"></i> Перенести
-                    </button>
-                    <button class="btn-card-action" onclick="openEditTaskModal(${t.id})" title="Редактировать задачу">
-                        <i class="fa-solid fa-pen"></i> Редактировать
-                    </button>
-                </div>
+                ${cardFooter}
             </div>
         `;
     }).join('');
+}
+
+function scrollToTargetTaskAfterRender() {
+    if (!targetHighlightTaskId) return;
+
+    const tId = targetHighlightTaskId;
+    // Don't repeat on subsequent manual filter changes
+    targetHighlightTaskId = null;
+
+    setTimeout(() => {
+        const rowEl = document.getElementById(`task-row-${tId}`);
+        const cardEl = document.getElementById(`task-card-${tId}`);
+
+        let targetEl = null;
+        if (window.innerWidth <= 768 && cardEl) {
+            targetEl = cardEl;
+        } else if (rowEl) {
+            targetEl = rowEl;
+        } else if (cardEl) {
+            targetEl = cardEl;
+        }
+
+        if (targetEl) {
+            targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            if (rowEl) {
+                rowEl.classList.add("task-row-highlighted");
+                setTimeout(() => rowEl.classList.remove("task-row-highlighted"), 4000);
+            }
+            if (cardEl) {
+                cardEl.classList.add("task-card-highlighted");
+                setTimeout(() => cardEl.classList.remove("task-card-highlighted"), 4000);
+            }
+        }
+    }, 250);
 }
 
 async function quickUpdateField(taskId, fieldName, fieldValue) {
@@ -585,21 +859,31 @@ async function quickUpdateStatus(taskId, newStatus) {
         return;
     }
 
-    if (task) task.status = newStatus;
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        if (task) task.status = newStatus;
 
-    try {
-        const res = await fetch(`/api/tasks/${taskId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: newStatus })
-        });
-        if (res.ok) {
-            showToast(`Статус: ${newStatus}`);
-            loadTasks();
+        try {
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    status: newStatus,
+                    pin_code: authSession ? authSession.pin : ""
+                })
+            });
+            if (res.ok) {
+                showToast(`Статус: ${newStatus}`);
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка изменения статуса: " + (err.detail || "Доступ запрещен"));
+                loadTasks();
+            }
+        } catch (e) {
+            console.error("Error updating status:", e);
         }
-    } catch (e) {
-        console.error("Error updating status:", e);
-    }
+    });
 }
 
 function openCompleteTaskModal(taskId) {
@@ -644,6 +928,7 @@ async function submitCompleteModal() {
     const taskId = document.getElementById("complete-task-id").value;
     const factText = document.getElementById("complete-task-fact").value.trim();
     const photoLink = document.getElementById("complete-task-photo").value.trim();
+    const task = allTasks.find(t => t.id == taskId);
 
     if (!factText) {
         alert("Пожалуйста, обязательно укажите факт выполнения (что сделано)!");
@@ -652,52 +937,67 @@ async function submitCompleteModal() {
         return;
     }
 
-    try {
-        const payload = {
-            status: "🟢 Выполнено",
-            comment: factText,
-            photo_link: photoLink
-        };
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        try {
+            const payload = {
+                status: "🟢 Выполнено",
+                comment: factText,
+                photo_link: photoLink,
+                pin_code: authSession ? authSession.pin : ""
+            };
 
-        const res = await fetch(`/api/tasks/${taskId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-        if (res.ok) {
-            closeCompleteModal();
-            showToast("Задача успешно выполнена ✅");
-            loadTasks();
-        } else {
-            alert("Ошибка при сохранении статуса задачи");
+            if (res.ok) {
+                closeCompleteModal();
+                showToast("Задача успешно выполнена ✅");
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить статус"));
+            }
+        } catch (e) {
+            console.error("Error completing task:", e);
+            alert("Произошла ошибка при сохранении");
         }
-    } catch (e) {
-        console.error("Error completing task:", e);
-        alert("Произошла ошибка при сохранении");
-    }
+    });
 }
 
 async function inlineEditComment(taskId, currentComment) {
-    const newComment = prompt("Введите факт / комментарий к задаче:", currentComment);
-    if (newComment === null) return;
-
     const task = allTasks.find(t => t.id === taskId);
-    if (task) task.comment = newComment;
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
-    try {
-        const res = await fetch(`/api/tasks/${taskId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ comment: newComment })
-        });
-        if (res.ok) {
-            showToast("Комментарий сохранен");
-            loadTasks();
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        const newComment = prompt("Введите факт / комментарий к задаче:", currentComment);
+        if (newComment === null) return;
+
+        if (task) task.comment = newComment;
+
+        try {
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    comment: newComment,
+                    pin_code: authSession ? authSession.pin : ""
+                })
+            });
+            if (res.ok) {
+                showToast("Комментарий сохранен");
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка: " + (err.detail || "Не удалось сохранить комментарий"));
+            }
+        } catch (e) {
+            console.error("Error updating comment:", e);
         }
-    } catch (e) {
-        console.error("Error updating comment:", e);
-    }
+    });
 }
 
 /* ==========================================================
@@ -837,7 +1137,17 @@ function openAddTaskModal() {
     document.getElementById("task-ru-input").value = "";
     document.getElementById("task-kz-input").value = "";
     document.getElementById("task-photo-input").value = "";
-    document.getElementById("task-author-input").value = "";
+    
+    // Автоподстановка авторизованного пользователя
+    const authorSelect = document.getElementById("task-author-input");
+    if (authorSelect) {
+        if (currentPlannerUser && currentPlannerUser.name) {
+            authorSelect.value = currentPlannerUser.name;
+        } else {
+            authorSelect.value = "";
+        }
+    }
+
     document.getElementById("task-assignee-input").value = "";
     
     // По умолчанию ставим сегодняшнюю дату в календарь
@@ -913,86 +1223,96 @@ async function saveTaskModal() {
         return;
     }
 
-    // Если статус Выполнено — факт обязателен
-    if (status === "🟢 Выполнено" && !comment) {
-        alert("При установке статуса «Выполнено» обязательно укажите факт / результат выполнения в поле «Факт / Комментарий»!");
-        const commInput = document.getElementById("task-comment-input");
-        if (commInput) commInput.focus();
+    if (!author) {
+        alert("Пожалуйста, укажите автора задачи!");
         return;
     }
 
-    // Если одно из полей не заполнено — получаем перевод синхронно
-    if (!titleRu && titleKz) {
+    // Если автор не авторизован по PIN — запрашиваем PIN
+    ensureUserAuthorized(author, async (authSession) => {
+        // Если статус Выполнено — факт обязателен
+        if (status === "🟢 Выполнено" && !comment) {
+            alert("При установке статуса «Выполнено» обязательно укажите факт / результат выполнения в поле «Факт / Комментарий»!");
+            const commInput = document.getElementById("task-comment-input");
+            if (commInput) commInput.focus();
+            return;
+        }
+
+        // Если одно из полей не заполнено — получаем перевод синхронно
+        if (!titleRu && titleKz) {
+            try {
+                const transRes = await fetch("/api/tasks/translate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: titleKz, source_lang: "kk" })
+                });
+                if (transRes.ok) {
+                    const transData = await transRes.json();
+                    titleRu = transData.text_ru || titleKz;
+                }
+            } catch (e) {
+                titleRu = titleKz;
+            }
+        } else if (titleRu && !titleKz) {
+            try {
+                const transRes = await fetch("/api/tasks/translate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: titleRu })
+                });
+                if (transRes.ok) {
+                    const transData = await transRes.json();
+                    titleKz = transData.text_kz || "";
+                    if (transData.detected_lang === 'kk' && transData.text_ru) {
+                        titleRu = transData.text_ru;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        const payload = {
+            title: titleRu,
+            title_kz: titleKz,
+            zone: zone,
+            photo_link: photoLink,
+            author_name: author,
+            assignee_name: assignee,
+            due_date_str: due,
+            status: status,
+            comment: comment,
+            month_label: currentMonth,
+            week_label: currentWeek,
+            pin_code: authSession ? authSession.pin : ""
+        };
+
         try {
-            const transRes = await fetch("/api/tasks/translate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: titleKz, source_lang: "kk" })
-            });
-            if (transRes.ok) {
-                const transData = await transRes.json();
-                titleRu = transData.text_ru || titleKz;
+            let res;
+            if (taskId) {
+                res = await fetch(`/api/tasks/${taskId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+            } else {
+                res = await fetch("/api/tasks", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+            }
+
+            if (res.ok) {
+                closeTaskModal();
+                showToast(taskId ? "Задача обновлена" : "Задача добавлена в план");
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить задачу"));
             }
         } catch (e) {
-            titleRu = titleKz;
+            console.error("Save task error:", e);
         }
-    } else if (titleRu && !titleKz) {
-        try {
-            const transRes = await fetch("/api/tasks/translate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: titleRu })
-            });
-            if (transRes.ok) {
-                const transData = await transRes.json();
-                titleKz = transData.text_kz || "";
-                if (transData.detected_lang === 'kk' && transData.text_ru) {
-                    titleRu = transData.text_ru;
-                }
-            }
-        } catch (e) {}
-    }
-
-    const payload = {
-        title: titleRu,
-        title_kz: titleKz,
-        zone: zone,
-        photo_link: photoLink,
-        author_name: author,
-        assignee_name: assignee,
-        due_date_str: due,
-        status: status,
-        comment: comment,
-        month_label: currentMonth,
-        week_label: currentWeek
-    };
-
-    try {
-        let res;
-        if (taskId) {
-            res = await fetch(`/api/tasks/${taskId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-        } else {
-            res = await fetch("/api/tasks", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-        }
-
-        if (res.ok) {
-            closeTaskModal();
-            showToast(taskId ? "Задача обновлена" : "Задача добавлена в план");
-            loadTasks();
-        } else {
-            alert("Ошибка сохранения задачи на сервере");
-        }
-    } catch (e) {
-        console.error("Save task error:", e);
-    }
+    });
 }
 
 /* ==========================================================
@@ -1021,33 +1341,40 @@ function getNextCalendarWeek() {
 }
 
 async function moveTaskToNextWeekModal(taskId) {
-    const next = getNextCalendarWeek();
-    const confirmMove = confirm(`Перенести задачу на «${next.week}» (${next.month}) со статусом «🔵 Перенесено»?`);
-    if (!confirmMove) return;
+    const task = allTasks.find(t => t.id === taskId);
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
-    try {
-        const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}&next_month=${encodeURIComponent(next.month)}`, {
-            method: "POST"
-        });
-        if (res.ok) {
-            showToast(`Задача перенесена на ${next.week}`);
-            
-            // Если перешли в другой месяц - переключаем фильтр месяца
-            if (next.month !== currentMonth) {
-                const monthSelect = document.getElementById("filter-month");
-                if (monthSelect) monthSelect.value = next.month;
-                currentMonth = next.month;
-                onMonthChange(next.week);
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        const next = getNextCalendarWeek();
+        const confirmMove = confirm(`Перенести задачу на «${next.week}» (${next.month}) со статусом «🔵 Перенесено»?`);
+        if (!confirmMove) return;
+
+        try {
+            const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}&next_month=${encodeURIComponent(next.month)}`, {
+                method: "POST"
+            });
+            if (res.ok) {
+                showToast(`Задача перенесена на ${next.week}`);
+                
+                // Если перешли в другой месяц - переключаем фильтр месяца
+                if (next.month !== currentMonth) {
+                    const monthSelect = document.getElementById("filter-month");
+                    if (monthSelect) monthSelect.value = next.month;
+                    currentMonth = next.month;
+                    onMonthChange(next.week);
+                } else {
+                    const weekSelect = document.getElementById("filter-week");
+                    if (weekSelect) weekSelect.value = next.week;
+                    currentWeek = next.week;
+                    loadTasks();
+                }
             } else {
-                const weekSelect = document.getElementById("filter-week");
-                if (weekSelect) weekSelect.value = next.week;
-                currentWeek = next.week;
-                loadTasks();
+                alert("Ошибка переноса задачи");
             }
+        } catch (e) {
+            console.error("Move task error:", e);
         }
-    } catch (e) {
-        console.error("Move task error:", e);
-    }
+    });
 }
 
 /* ==========================================================
