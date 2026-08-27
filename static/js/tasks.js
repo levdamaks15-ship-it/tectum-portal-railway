@@ -396,7 +396,7 @@ function toggleMyTasksFilter() {
         setFilterValueDirect('author', 'all');
         showToast(`Показаны задачи: ${currentPlannerUser.name}`);
     } else {
-        showToast("Режим «Мои задачи» выключен");
+        showToast("Режим «Все задачи» включен");
     }
 
     updateChipsVisualState();
@@ -407,7 +407,19 @@ function toggleMyTasksFilter() {
 
 function applyPresetFilter(presetType) {
     if (presetType === 'all') {
-        resetAllFilters();
+        myTasksFilterActive = false;
+        ['zone', 'author', 'assignee', 'status'].forEach(type => {
+            setFilterValueDirect(type, 'all');
+        });
+        showBacklog = false;
+        const btnBacklog = document.getElementById("btn-toggle-backlog");
+        if (btnBacklog) btnBacklog.classList.remove("btn-backlog-active");
+
+        updateChipsVisualState();
+        updateFilterBadge();
+        updateUrlParams();
+        loadTasks();
+        showToast("Показаны все задачи");
         return;
     }
 
