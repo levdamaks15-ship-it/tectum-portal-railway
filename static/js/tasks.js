@@ -1311,36 +1311,25 @@ async function saveTaskModal() {
             return;
         }
 
-        // Если одно из полей не заполнено — получаем перевод синхронно
-        if (!titleRu && titleKz) {
-            try {
-                const transRes = await fetch("/api/tasks/translate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: titleKz, source_lang: "kk" })
-                });
-                if (transRes.ok) {
-                    const transData = await transRes.json();
-                    titleRu = transData.text_ru || titleKz;
+        // Синхронизируем и определяем языки при сохранении
+        try {
+            const transRes = await fetch("/api/tasks/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: titleRu || titleKz })
+            });
+            if (transRes.ok) {
+                const transData = await transRes.json();
+                if (transData.detected_lang === 'kk') {
+                    titleKz = transData.text_kz || titleRu || titleKz;
+                    titleRu = transData.text_ru || titleRu || titleKz;
+                } else {
+                    titleRu = transData.text_ru || titleRu || titleKz;
+                    titleKz = transData.text_kz || titleKz || titleRu;
                 }
-            } catch (e) {
-                titleRu = titleKz;
             }
-        } else if (titleRu && !titleKz) {
-            try {
-                const transRes = await fetch("/api/tasks/translate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ text: titleRu })
-                });
-                if (transRes.ok) {
-                    const transData = await transRes.json();
-                    titleKz = transData.text_kz || "";
-                    if (transData.detected_lang === 'kk' && transData.text_ru) {
-                        titleRu = transData.text_ru;
-                    }
-                }
-            } catch (e) {}
+        } catch (e) {
+            console.error("Save modal translate error:", e);
         }
 
         const payload = {

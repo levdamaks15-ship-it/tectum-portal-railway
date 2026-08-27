@@ -7318,29 +7318,36 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
         return {"months": ["Август 2026"], "structure": {"Август 2026": ["Неделя 4 (24.08 - 28.08)"]}, "default_month": "Август 2026", "default_week": "Неделя 4 (24.08 - 28.08)"}
 
 def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
-    """Внутренний надежный переводчик (Google Translate + MyMemory fallback)."""
+    """Внутренний надежный переводчик (Google Clients API + MyMemory fallback)."""
     import urllib.parse
     import urllib.request
     import json
     
-    # 1. Попытка через Google Translate API
+    clean_text = (text or "").strip()
+    if not clean_text:
+        return ""
+
+    # 1. Google Clients Translate API (очень быстрый и без 429 блокировок)
     try:
-        url_gt = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={sl}&tl={tl}&dt=t&q=" + urllib.parse.quote(text)
-        req_gt = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        url_gt = f"https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl={sl}&tl={tl}&q=" + urllib.parse.quote(clean_text)
+        req_gt = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
         with urllib.request.urlopen(req_gt, timeout=3) as resp:
             res_json = json.loads(resp.read().decode('utf-8'))
-            if res_json and len(res_json) > 0 and res_json[0]:
-                trans = "".join([part[0] for part in res_json[0] if part and part[0]])
-                if trans:
-                    return trans
+            if isinstance(res_json, list) and len(res_json) > 0:
+                if isinstance(res_json[0], str) and res_json[0]:
+                    return res_json[0]
+                elif isinstance(res_json[0], list) and len(res_json[0]) > 0 and res_json[0][0]:
+                    return "".join([p[0] for p in res_json[0] if isinstance(p, list) and len(p) > 0 and p[0]])
+            elif isinstance(res_json, str) and res_json:
+                return res_json
     except Exception:
         pass
 
-    # 2. Фоллбэк через MyMemory API (высокая точность и доступность)
+    # 2. Фоллбэк через MyMemory API
     try:
         langpair = f"{sl}|{tl}" if sl != "auto" else (f"kk|{tl}" if tl == "ru" else f"ru|{tl}")
-        url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(text)}&langpair={langpair}"
-        req_mm = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0'})
+        url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(clean_text)}&langpair={langpair}"
+        req_mm = urllib.request.Request(url_mm, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
         with urllib.request.urlopen(req_mm, timeout=4) as resp:
             data_mm = json.loads(resp.read().decode('utf-8'))
             trans = data_mm.get("responseData", {}).get("translatedText")
