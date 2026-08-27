@@ -1079,6 +1079,12 @@ def sync_tasks_to_google_bg():
 def get_system_env():
     return {"is_sandbox": os.environ.get("IS_SANDBOX", "false").lower() == "true"}
 
+if not os.path.exists("uploads"):
+    os.makedirs("uploads", exist_ok=True)
+if not os.path.exists(os.path.join("uploads", "tasks")):
+    os.makedirs(os.path.join("uploads", "tasks"), exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -7502,11 +7508,11 @@ def get_tasks(
 @app.post("/api/tasks/upload_photo")
 async def upload_task_photo(file: UploadFile = File(...)):
     """
-    Принимает сжатое webp/jpg фото задачи, сохраняет локально и автоматически
-    загружает в Google Диск в папку 'Фото задач планнера' (вечное хранилище).
+    Принимает сжатое webp/jpg фото задачи и сохраняет в постоянный
+    диск Railway Volume (/uploads/tasks/), где файлы никогда не стираются при деплоях.
     """
     try:
-        upload_dir = os.path.join("static", "uploads", "tasks")
+        upload_dir = os.path.join("uploads", "tasks")
         os.makedirs(upload_dir, exist_ok=True)
 
         # Генерируем уникальное имя файла
@@ -7519,31 +7525,7 @@ async def upload_task_photo(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             f.write(contents)
 
-        public_url = f"/static/uploads/tasks/{unique_name}"
-
-        # Загрузка на Google Диск в указанную корневую папку Tectum
-        try:
-            import google_drive_integration
-            # Папка родитель: 1KFYUapKunSAzFaxml1NVgnnkEulrqHFW (Tectum-Engeneering-docs)
-            target_parent_folder = "1KFYUapKunSAzFaxml1NVgnnkEulrqHFW"
-            planner_folder_id = google_drive_integration.get_or_create_drive_folder("Фото задач планнера", parent_id=target_parent_folder)
-            
-            drive_res = google_drive_integration.upload_file_to_drive(
-                file_path=file_path,
-                title=unique_name,
-                parent_drive_id=planner_folder_id
-            )
-            if drive_res and drive_res.get("url"):
-                # Для прямого отображения картинок используем прямую ссылку Google Drive
-                drive_file_id = drive_res.get("id")
-                if drive_file_id:
-                    public_url = f"https://drive.google.com/uc?export=view&id={drive_file_id}"
-                else:
-                    public_url = drive_res.get("url")
-                print(f"[Google Drive] Task photo uploaded: {public_url}")
-        except Exception as drive_err:
-            print(f"[Google Drive Note] Could not upload to Drive, fallback to local URL: {drive_err}")
-
+        public_url = f"/uploads/tasks/{unique_name}"
         return {"status": "ok", "url": public_url, "filename": unique_name}
     except Exception as e:
         print(f"Error uploading task photo: {e}")

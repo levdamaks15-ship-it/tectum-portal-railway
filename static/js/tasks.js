@@ -1657,7 +1657,7 @@ function onPhotoInputChanged(inputId) {
     const previewBtn = document.getElementById(isModal1 ? 'task-photo-preview-btn' : 'complete-photo-preview-btn');
     const hintEl = document.getElementById(isModal1 ? 'task-photo-preview-hint' : 'complete-photo-preview-hint');
 
-    if (val && (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/static/"))) {
+    if (val && (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/static/") || val.startsWith("/uploads/"))) {
         if (previewBtn) previewBtn.style.display = "inline-flex";
         if (hintEl) hintEl.style.display = "inline-flex";
     } else {
