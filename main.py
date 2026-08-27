@@ -2204,6 +2204,48 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             ))
     db.commit()
 
+    # Проверка рапорта и отправка Telegram алерта в группу/руководству
+    try:
+        tg_chat_id = os.getenv("TELEGRAM_ALERT_CHAT_ID", "").strip()
+        if tg_chat_id:
+            import telegram_service
+            warnings = []
+            
+            if not data.batch_number:
+                warnings.append("Не заполнен номер партии")
+            if not data.product_name:
+                warnings.append("Не указано наименование продукции")
+            if (data.lfm_sheets or 0) <= 0:
+                warnings.append("Не указана выработка ЛФМ (0 листов)")
+            if (shift.zo_cement or 0) <= 0:
+                warnings.append("Не заполнен расход цемента (0 т)")
+            if (shift.zo_chrysotile_4_20 or 0) + (shift.zo_chrysotile_5_65 or 0) + (shift.zo_chrysotile_6_40 or 0) <= 0:
+                warnings.append("Не заполнен расход хризотила (все группы 0 т)")
+                
+            # Проверка аномального брака дестакера (> 4%)
+            if data.lfm_sheets and data.lfm_sheets > 0:
+                defect_pct = (ds_defect_sum / data.lfm_sheets) * 100.0
+                if defect_pct > 4.0:
+                    warnings.append(f"Высокий процент брака Дестакера: {defect_pct:.1f}% ({ds_defect_sum} листов)")
+                    
+            master_name = shift.master.name if shift.master else user_name
+            tons = ((data.lfm_sheets or 0) * (get_product_finished_weight_kg(db, data.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
+            
+            shift_info = {
+                "date": str(shift.date),
+                "shift_name": shift.shift_name,
+                "line": shift.line,
+                "master_name": master_name,
+                "sheets": data.lfm_sheets or 0,
+                "tons": tons
+            }
+            
+            # Отправляем алерт только если есть замечания (или отчет закрыт)
+            if warnings:
+                telegram_service.send_shift_quality_alert(tg_chat_id, shift_info, warnings, is_success=False)
+    except Exception as tg_alert_err:
+        print(f"Error sending Telegram shift report alert: {tg_alert_err}")
+
 
 import google_sheets_integration
 
@@ -8341,9 +8383,15 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
         elif "план" in lower_text or lower_text.startswith("/plan"):
             now = datetime.now()
             current_month = now.strftime("%Y-%m")
+            month_names_ru = {
+                1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель", 5: "Май", 6: "Июнь",
+                7: "Июль", 8: "Август", 9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
+            }
+            month_title = f"{month_names_ru.get(now.month, '')} {now.year}"
             
-            # Считаем факт за текущий месяц
-            shifts = db.query(models.Shift).filter(models.Shift.date.startswith(current_month)).all()
+            # Считаем факт за текущий месяц с поддержкой PostgreSQL date
+            from sqlalchemy import cast, String
+            shifts = db.query(models.Shift).filter(cast(models.Shift.date, String).like(f"{current_month}%")).all()
             fact_sheets = sum(s.lfm_sheets or 0 for s in shifts)
             fact_tons = sum(
                 ((s.lfm_sheets or 0) * (get_product_finished_weight_kg(db, s.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
@@ -8361,7 +8409,7 @@ async def telegram_webhook(request: Request, db: Session = Depends(get_db)):
             bar = "▓" * filled + "░" * (10 - filled)
             
             reply = (
-                f"🎯 <b>План-факт выполнения за {now.strftime('%B %Y')}:</b>\n\n"
+                f"🎯 <b>План-факт выполнения за {month_title}:</b>\n\n"
                 f"📈 <b>Факт выработки:</b> <b>{fact_tons:.1f} т</b> ({fact_sheets:,} листов)\n"
                 f"🎯 <b>План месяца:</b> <b>{plan_tons:.1f} т</b>\n"
                 f"📊 <b>Выполнение:</b> <b>{pct:.1f}%</b>\n\n"
