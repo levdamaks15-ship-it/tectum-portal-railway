@@ -5948,21 +5948,25 @@ def get_all_documents_flat(db: Session = Depends(get_db)):
     """Возвращает плоский список всех документов с именами папок для модалки выбора."""
     try:
         categories = {c.id: c.name for c in db.query(models.DocumentCategory).all()}
-        docs = db.query(models.Document).order_by(models.Document.title.asc()).all()
+        docs = db.query(models.Document).all()
         
         result = []
         for d in docs:
             file_link = d.external_url if d.external_url else f"/api/documents/download/{d.id}"
+            cat_name = categories.get(d.category_id, "Главная директория")
             result.append({
                 "id": d.id,
-                "title": d.title,
+                "title": d.title or "Документ",
                 "category_id": d.category_id,
-                "category_name": categories.get(d.category_id, "База Знаний"),
+                "category_name": cat_name,
                 "mime_type": d.mime_type or "application/octet-stream",
                 "doc_type": d.doc_type or "other",
                 "link": file_link,
                 "uploaded_at": d.uploaded_at.strftime("%d.%m.%Y %H:%M") if d.uploaded_at else ""
             })
+        
+        # Сортировка по имени
+        result.sort(key=lambda x: (x["category_name"], x["title"].lower()))
         return result
     except Exception as e:
         print(f"Error fetching all documents flat: {e}")

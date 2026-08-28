@@ -2528,17 +2528,42 @@ async function openDocPickerModal() {
     modal.style.display = "flex";
 
     try {
+        let docs = [];
         const res = await fetch("/api/documents/all");
         if (res.ok) {
-            allKnowledgeBaseDocs = await res.json();
-            renderDocPickerList(allKnowledgeBaseDocs);
-        } else {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: #ef4444;">
-                    Не удалось загрузить список документов
-                </div>
-            `;
+            docs = await res.json();
         }
+        
+        // Фоллбэк: если /all вернул пусто, читаем дерево /api/documents/tree
+        if (!docs || docs.length === 0) {
+            const treeRes = await fetch("/api/documents/tree");
+            if (treeRes.ok) {
+                const treeData = await treeRes.json();
+                const files = (treeData.data && treeData.data.files) ? treeData.data.files : [];
+                const foldersMap = {};
+                if (treeData.data && treeData.data.folders) {
+                    treeData.data.folders.forEach(f => {
+                        foldersMap[f.id] = f.name;
+                    });
+                }
+                docs = files.map(f => {
+                    let rawId = f.id;
+                    if (typeof rawId === 'string' && rawId.startsWith('file_')) {
+                        rawId = parseInt(rawId.replace('file_', ''), 10);
+                    }
+                    return {
+                        id: rawId,
+                        title: f.name,
+                        category_name: foldersMap[f.parent_id] || "Главная директория",
+                        mime_type: f.mimeType,
+                        link: f.webViewLink || f.external_url || `/api/documents/download/${rawId}`
+                    };
+                });
+            }
+        }
+
+        allKnowledgeBaseDocs = docs;
+        renderDocPickerList(allKnowledgeBaseDocs);
     } catch (e) {
         console.error("Error loading knowledge docs:", e);
         container.innerHTML = `
