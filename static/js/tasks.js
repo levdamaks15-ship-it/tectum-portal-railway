@@ -299,6 +299,31 @@ async function handleUrlDeepLinking() {
     if (myParam === "true" || myParam === "1") {
         myTasksFilterActive = true;
     }
+
+    // 4. Quick Create Task from Knowledge Base Document Deep Link
+    const createDocId = urlParams.get("create_doc_id");
+    const createDocTitle = urlParams.get("create_doc_title");
+    if (createDocTitle || createDocId) {
+        setTimeout(() => {
+            openAddTaskModal();
+            const cleanTitle = decodeURIComponent(createDocTitle || 'Документ').trim();
+            const ruInput = document.getElementById("task-ru-input");
+            if (ruInput) {
+                ruInput.value = `Ознакомиться и внедрить: ${cleanTitle}`;
+                onTaskInputChanged('primary');
+            }
+            const zoneInput = document.getElementById("task-zone-input");
+            if (zoneInput) {
+                zoneInput.value = "Документация";
+            }
+            if (createDocId) {
+                const parsedId = parseInt(createDocId, 10);
+                if (parsedId) {
+                    setSelectedDocAttachment(parsedId, cleanTitle);
+                }
+            }
+        }, 400);
+    }
 }
 
 function setFilterValueDirect(type, value) {

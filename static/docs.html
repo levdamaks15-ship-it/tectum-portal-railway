@@ -2627,6 +2627,9 @@
                     <div class="context-menu-item" onclick="openFileLink('${viewUrl}', ${item.is_protected}, event)">
                         <i class="fas fa-arrow-up-right-from-square" style="color:#3b82f6;"></i> Открыть онлайн
                     </div>
+                    <div class="context-menu-item" onclick="createTaskFromDocItem(currentTargetItem)">
+                        <i class="fa-solid fa-list-check" style="color:#2563eb;"></i> Поставить задачу по документу
+                    </div>
                     <div class="context-menu-item" onclick="copyItemLink('${viewUrl}', ${item.is_protected})">
                         <i class="fas fa-link" style="color:#a855f7;"></i> Копировать ссылку
                     </div>
@@ -3033,6 +3036,9 @@
                             <span class="date-cell">${dateDisplay}</span>
                         </div>
                         <div class="row-actions">
+                            <button class="btn-icon" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}')" title="Создать задачу по документу в Планнере" style="color: #2563eb; background: #eff6ff; border-radius: 6px;">
+                                <i class="fa-solid fa-list-check"></i>
+                            </button>
                             ${newVersionBtn}
                             <a href="${escapeHtml(viewUrl)}" target="_blank" download class="btn-icon" title="Скачать на диск" style="color: #3b82f6;">
                                 <i class="fas fa-download"></i>
@@ -3050,6 +3056,30 @@
 
             html += `</div>`;
             container.innerHTML = html;
+        }
+
+        function createTaskFromDoc(docId, docTitle) {
+            if (!docId && docId !== 0) {
+                // Если docId не число, пробуем извлечь
+                docId = '';
+            }
+            const cleanTitle = (docTitle || 'Документ').trim();
+            const targetUrl = `/static/tasks.html?create_doc_id=${encodeURIComponent(docId)}&create_doc_title=${encodeURIComponent(cleanTitle)}`;
+            window.open(targetUrl, '_blank');
+        }
+
+        function createTaskFromDocItem(item) {
+            hideContextMenu();
+            if (!item) return;
+            let rawDocId = null;
+            if (item.id) {
+                if (typeof item.id === 'string' && item.id.startsWith('file_')) {
+                    rawDocId = parseInt(item.id.replace('file_', ''));
+                } else if (!isNaN(parseInt(item.id))) {
+                    rawDocId = parseInt(item.id);
+                }
+            }
+            createTaskFromDoc(rawDocId, item.name || item.title);
         }
 
         function goUp() {
