@@ -1464,6 +1464,24 @@
                 </div>
             </div>
 
+            <!-- Document from Knowledge Base (Attachment) -->
+            <div class="form-row">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-file-lines" style="color: #2563eb;"></i> Регламент / Документ из Базы Знаний</label>
+                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 4px 10px;" onclick="openDocPickerModal()" title="Выбрать файл или регламент из Базы Знаний">
+                        <i class="fa-solid fa-folder-open"></i> <span>Выбрать из Базы Знаний</span>
+                    </button>
+                </div>
+                <input type="hidden" id="task-doc-id-input" value="">
+                <div id="task-doc-selected-box" style="display: none; align-items: center; justify-content: space-between; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.5rem 0.75rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
+                        <i class="fa-solid fa-paperclip" style="color: #2563eb;"></i>
+                        <span id="task-doc-name-display" style="font-weight: 600; font-size: 0.85rem; color: #1d4ed8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                    </div>
+                    <button type="button" onclick="clearSelectedDocAttachment()" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.9rem;" title="Открепить документ">&times;</button>
+                </div>
+            </div>
+
             <!-- Author & Assignee -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
                 <div>
@@ -1699,6 +1717,33 @@
                 <a id="photo-viewer-direct-link" href="#" target="_blank" class="btn-action btn-secondary-action" style="font-size: 0.8rem; background: rgba(255,255,255,0.9);">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть оригинал
                 </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENT PICKER MODAL (From Knowledge Base) -->
+    <div class="modal-overlay" id="doc-picker-modal" style="z-index: 5500;">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <i class="fa-solid fa-folder-tree" style="color: #2563eb; font-size: 1.2rem;"></i>
+                    <h3 style="margin: 0; font-size: 1.05rem;">Выбрать документ из Базы Знаний</h3>
+                </div>
+                <button class="modal-close" onclick="closeDocPickerModal()">&times;</button>
+            </div>
+            
+            <div style="margin-bottom: 0.85rem;">
+                <input type="text" id="doc-picker-search" class="form-input" placeholder="🔍 Быстрый поиск регламента или инструкции..." oninput="filterDocPickerList(this.value)">
+            </div>
+
+            <div style="max-height: 48vh; overflow-y: auto; border: 1px solid var(--tbl-border); border-radius: 8px; background: #ffffff;" id="doc-picker-list-container">
+                <div style="text-align: center; padding: 2rem; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка документов...
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closeDocPickerModal()">Отмена</button>
             </div>
         </div>
     </div>

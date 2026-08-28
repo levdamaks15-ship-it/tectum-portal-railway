@@ -991,6 +991,15 @@ function renderTasksTable(tasks) {
             </div>
         `;
 
+        const docBadge = t.attached_doc ? `
+            <div style="margin-top: 4px;">
+                <a href="${t.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: #1d4ed8; text-decoration: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Открыть документ из Базы Знаний: ${escapeHtml(t.attached_doc.title)}">
+                    <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.attached_doc.title)}</span>
+                </a>
+            </div>
+        ` : '';
+
         return `
             <tr id="task-row-${t.id}" class="${rowExtraClass}">
                 <td>
@@ -998,7 +1007,10 @@ function renderTasksTable(tasks) {
                     ${backlogBadge}
                 </td>
                 <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
-                <td class="${titleClass}" style="font-weight: 600; min-width: 170px; color: #0f172a;">${t.title || '—'}</td>
+                <td class="${titleClass}" style="font-weight: 600; min-width: 170px; color: #0f172a;">
+                    <div>${t.title || '—'}</div>
+                    ${docBadge}
+                </td>
                 <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
                 
@@ -1103,6 +1115,15 @@ function renderTasksCards(tasks) {
         const titleClass = isCancelled ? 'task-cancelled-text' : '';
         const titleKzBlock = t.title_kz ? `
             <div class="planner-card-title-kz ${titleClass}">${t.title_kz}</div>
+        ` : '';
+
+        const docBadge = t.attached_doc ? `
+            <div style="margin-top: 6px;">
+                <a href="${t.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.78rem; font-weight: 600; color: #1d4ed8; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Открыть документ: ${escapeHtml(t.attached_doc.title)}">
+                    <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.attached_doc.title)}</span>
+                </a>
+            </div>
         ` : '';
 
         const cardFooter = isLocked ? `
@@ -1841,6 +1862,9 @@ function openAddTaskModal() {
     const transLabel = document.getElementById("task-trans-label");
     if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
 
+    // Сброс прикрепленного документа
+    clearSelectedDocAttachment();
+
     document.getElementById("task-modal").style.display = "flex";
 }
 
@@ -1872,6 +1896,13 @@ function openEditTaskModal(taskId) {
     document.getElementById("task-status-input").value = task.status || "⚪ В очереди";
     document.getElementById("task-comment-input").value = task.comment || "";
     onPhotoInputChanged('task-photo-input');
+
+    // Прикрепленный документ
+    if (task.attached_doc) {
+        setSelectedDocAttachment(task.attached_doc.id, task.attached_doc.title);
+    } else {
+        clearSelectedDocAttachment();
+    }
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
@@ -1948,6 +1979,8 @@ async function saveTaskModal() {
             console.error("Save modal translate error:", e);
         }
 
+        const docIdVal = document.getElementById("task-doc-id-input") ? parseInt(document.getElementById("task-doc-id-input").value, 10) : null;
+
         const payload = {
             title: titleRu,
             title_kz: titleKz,
@@ -1960,6 +1993,7 @@ async function saveTaskModal() {
             comment: comment,
             month_label: currentMonth,
             week_label: currentWeek,
+            attached_document_id: docIdVal || null,
             pin_code: authSession ? authSession.pin : ""
         };
 
@@ -2446,4 +2480,134 @@ function renderTimelineHistory(historyItems) {
 function closeTaskHistoryModal() {
     const modal = document.getElementById("task-history-modal");
     if (modal) modal.style.display = "none";
+}
+
+/* ==========================================================
+   DOCUMENT PICKER (From Knowledge Base)
+   ========================================================== */
+let allKnowledgeBaseDocs = [];
+
+async function openDocPickerModal() {
+    const modal = document.getElementById("doc-picker-modal");
+    const container = document.getElementById("doc-picker-list-container");
+    const searchInput = document.getElementById("doc-picker-search");
+    if (!modal || !container) return;
+
+    if (searchInput) searchInput.value = "";
+    container.innerHTML = `
+        <div style="text-align: center; padding: 2rem; color: #64748b;">
+            <i class="fa-solid fa-spinner fa-spin"></i> Загрузка документов...
+        </div>
+    `;
+
+    modal.style.display = "flex";
+
+    try {
+        const res = await fetch("/api/documents/all");
+        if (res.ok) {
+            allKnowledgeBaseDocs = await res.json();
+            renderDocPickerList(allKnowledgeBaseDocs);
+        } else {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                    Не удалось загрузить список документов
+                </div>
+            `;
+        }
+    } catch (e) {
+        console.error("Error loading knowledge docs:", e);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #ef4444;">
+                Ошибка подключения к Базе Знаний
+            </div>
+        `;
+    }
+}
+
+function closeDocPickerModal() {
+    const modal = document.getElementById("doc-picker-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function filterDocPickerList(query) {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) {
+        renderDocPickerList(allKnowledgeBaseDocs);
+        return;
+    }
+    const filtered = allKnowledgeBaseDocs.filter(d => 
+        (d.title && d.title.toLowerCase().includes(q)) ||
+        (d.category_name && d.category_name.toLowerCase().includes(q))
+    );
+    renderDocPickerList(filtered);
+}
+
+function renderDocPickerList(docs) {
+    const container = document.getElementById("doc-picker-list-container");
+    if (!container) return;
+
+    if (!docs || docs.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #94a3b8;">
+                Документы не найдены
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = docs.map(d => {
+        let iconClass = "fa-file-lines";
+        let iconColor = "#2563eb";
+        if (d.doc_type === 'excel' || (d.title && d.title.match(/\.(xlsx|xls)$/i))) {
+            iconClass = "fa-file-excel";
+            iconColor = "#10b981";
+        } else if (d.doc_type === 'word' || (d.title && d.title.match(/\.(docx|doc)$/i))) {
+            iconClass = "fa-file-word";
+            iconColor = "#2563eb";
+        } else if (d.doc_type === 'pdf' || (d.title && d.title.match(/\.pdf$/i))) {
+            iconClass = "fa-file-pdf";
+            iconColor = "#ef4444";
+        } else if (d.doc_type === 'google') {
+            iconClass = "fa-brands fa-google";
+            iconColor = "#1a73e8";
+        } else if (d.doc_type === 'microsoft') {
+            iconClass = "fa-brands fa-microsoft";
+            iconColor = "#0078d4";
+        }
+
+        return `
+            <div onclick="selectDocAttachment(${d.id}, '${escapeHtml(d.title)}')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--tbl-border-subtle); cursor: pointer; transition: background 0.15s ease;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#ffffff'">
+                <div style="display: flex; align-items: center; gap: 0.65rem; overflow: hidden; flex: 1;">
+                    <i class="${d.doc_type && d.doc_type.startsWith('fa-') ? d.doc_type : 'fa-solid ' + iconClass}" style="color: ${iconColor}; font-size: 1.1rem; width: 20px; text-align: center;"></i>
+                    <div style="overflow: hidden;">
+                        <div style="font-weight: 600; font-size: 0.88rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(d.title)}</div>
+                        <div style="font-size: 0.75rem; color: #64748b;">${escapeHtml(d.category_name || 'База Знаний')} • ${d.uploaded_at ? d.uploaded_at.split(' ')[0] : ''}</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-action" style="padding: 3px 8px; font-size: 0.75rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;">
+                    Выбрать
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectDocAttachment(docId, docTitle) {
+    setSelectedDocAttachment(docId, docTitle);
+    closeDocPickerModal();
+    showToast("Документ прикреплен 📎");
+}
+
+function setSelectedDocAttachment(docId, docTitle) {
+    const idInput = document.getElementById("task-doc-id-input");
+    const nameDisplay = document.getElementById("task-doc-name-display");
+    const box = document.getElementById("task-doc-selected-box");
+
+    if (idInput) idInput.value = docId || "";
+    if (nameDisplay) nameDisplay.textContent = docTitle || "";
+    if (box) box.style.display = docId ? "flex" : "none";
+}
+
+function clearSelectedDocAttachment() {
+    setSelectedDocAttachment(null, "");
 }

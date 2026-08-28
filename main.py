@@ -547,7 +547,9 @@ async def lifespan(app: FastAPI):
             ("tasks", "due_date_str", "VARCHAR(100)"),
             ("tasks", "comment", "TEXT"),
             ("tasks", "month_label", "VARCHAR(100)"),
-            ("tasks", "is_archived", "BOOLEAN DEFAULT FALSE")
+            ("tasks", "is_archived", "BOOLEAN DEFAULT FALSE"),
+            ("tasks", "attached_document_id", "INTEGER"),
+            ("tasks", "google_doc_url", "VARCHAR(500)")
         ]
         try:
             with engine.connect() as conn:
@@ -7978,12 +7980,28 @@ def get_tasks(
 
         tasks = query.order_by(models.Task.id.desc()).all()
 
+        # Предзагрузка прикрепленных документов для быстродействия
+        doc_ids = [t.attached_document_id for t in tasks if t.attached_document_id]
+        doc_map = {}
+        if doc_ids:
+            docs = db.query(models.Document).filter(models.Document.id.in_(doc_ids)).all()
+            for d in docs:
+                file_link = d.external_url if d.external_url else f"/api/documents/download/{d.id}"
+                doc_map[d.id] = {
+                    "id": d.id,
+                    "title": d.title,
+                    "mime_type": d.mime_type,
+                    "link": file_link
+                }
+
         results = []
         for t in tasks:
             is_backlog = False
             if week and week != "all":
                 if t.week_label != week or (month and month != "all" and t.month_label != month):
                     is_backlog = True
+
+            doc_info = doc_map.get(t.attached_document_id) if t.attached_document_id else None
 
             results.append({
                 "id": t.id,
@@ -7999,6 +8017,8 @@ def get_tasks(
                 "comment": t.comment or "",
                 "month_label": t.month_label or "",
                 "week_label": t.week_label or "",
+                "attached_document_id": t.attached_document_id,
+                "attached_doc": doc_info,
                 "is_archived": False,
                 "is_backlog": is_backlog,
                 "created_at": t.created_at.strftime("%d.%m.%Y %H:%M") if t.created_at else ""
@@ -8040,6 +8060,18 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    doc_info = None
+    if task.attached_document_id:
+        d = db.query(models.Document).filter(models.Document.id == task.attached_document_id).first()
+        if d:
+            doc_info = {
+                "id": d.id,
+                "title": d.title,
+                "mime_type": d.mime_type,
+                "link": d.external_url if d.external_url else f"/api/documents/download/{d.id}"
+            }
+
     return {
         "id": task.id,
         "code": task.code or f"TSK-{task.id:02d}",
@@ -8054,6 +8086,8 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "comment": task.comment or "",
         "month_label": task.month_label or "",
         "week_label": task.week_label or "",
+        "attached_document_id": task.attached_document_id,
+        "attached_doc": doc_info,
         "is_archived": False,
         "created_at": task.created_at.strftime("%d.%m.%Y %H:%M") if task.created_at else ""
     }
@@ -8142,6 +8176,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             comment=task_data.comment or "",
             month_label=task_data.month_label or "Август 2026",
             week_label=task_data.week_label or "Неделя 4 (24.08 - 28.08)",
+            attached_document_id=task_data.attached_document_id,
             is_archived=False
         )
         db.add(new_task)
