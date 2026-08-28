@@ -2149,6 +2149,11 @@ function toggleRangeControls() {
     if (!rangeTypeSelect) return;
     const rangeType = rangeTypeSelect.value;
     
+    const titleEl = document.getElementById('daily-report-title');
+    if (titleEl) {
+        titleEl.innerText = rangeType === 'week' ? 'Недельная сводка выработки' : 'Месячная сводка выработки';
+    }
+
     const monthEl = document.getElementById('daily-report-month');
     if (monthEl) {
         monthEl.style.display = (rangeType === 'month' || rangeType === 'week') ? 'inline-block' : 'none';
@@ -2158,7 +2163,12 @@ function toggleRangeControls() {
     }
     
     const weekEl = document.getElementById('daily-report-week-select');
-    if (weekEl) weekEl.style.display = rangeType === 'week' ? 'inline-block' : 'none';
+    const weekWrapper = document.getElementById('daily-report-week-wrapper');
+    if (weekWrapper) {
+        weekWrapper.style.display = rangeType === 'week' ? 'block' : 'none';
+    } else if (weekEl) {
+        weekEl.style.display = rangeType === 'week' ? 'inline-block' : 'none';
+    }
 }
 
 async function loadDailyReport() {
@@ -2539,10 +2549,8 @@ function renderDailyReportCharts(days) {
 }
 
 function exportDailyReportPDF() {
-    const { jsPDF } = window.jspdf;
-    
-    // Get values from page
-    const titleText = document.getElementById('daily-report-title')?.innerText || "Месячная сводка выработки";
+    const rangeType = document.getElementById('daily-report-range-type')?.value || 'month';
+    const titleText = rangeType === 'week' ? "Недельная сводка выработки" : "Месячная сводка выработки";
     const monthVal = document.getElementById('daily-report-month')?.value || "";
 
     // Get line readable label
@@ -2552,7 +2560,6 @@ function exportDailyReportPDF() {
     else if (lineLabel.includes('ЛФМ-2')) lineLabel = 'ЛФМ-2';
 
     // Format readable period range
-    const rangeType = document.getElementById('daily-report-range-type')?.value || 'month';
     const weekSelect = document.getElementById('daily-report-week-select');
     let periodLabel = monthVal;
 
@@ -2560,7 +2567,6 @@ function exportDailyReportPDF() {
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     if (rangeType === 'week' && weekSelect && weekSelect.selectedIndex >= 0) {
-        // Option text is usually like "Неделя 1 (01.08 - 07.08)"
         const optText = weekSelect.options[weekSelect.selectedIndex]?.text || '';
         const match = optText.match(/\((.*?)\)/);
         if (match) {
@@ -2576,11 +2582,9 @@ function exportDailyReportPDF() {
             const moStr = String(mo).padStart(2, '0');
 
             if (monthVal === currentYearMonth) {
-                // Current ongoing month -> from 01 to today
                 const todayDay = String(now.getDate()).padStart(2, '0');
                 periodLabel = `с 01.${moStr} по ${todayDay}.${moStr}.${yr}`;
             } else {
-                // Past or future month -> full calendar range
                 const lastDay = new Date(yr, mo, 0).getDate();
                 const lastDayStr = String(lastDay).padStart(2, '0');
                 periodLabel = `с 01.${moStr} по ${lastDayStr}.${moStr}.${yr}`;
@@ -2614,7 +2618,7 @@ function exportDailyReportPDF() {
 
     // Prepare a high-resolution canvas for print quality
     const cw = 1600;
-    const ch = 1131; // 1600 / 1.414 (A4 aspect ratio) to prevent stretching
+    const ch = 1131; // 1600 / 1.414 (A4 landscape ratio)
     const canvas = document.createElement('canvas');
     canvas.width = cw;
     canvas.height = ch;
@@ -2677,15 +2681,15 @@ function exportDailyReportPDF() {
         ctx.fillText(k.val, x + todayW / 2, y + 70);
         
         if (k.subtext) {
-            ctx.fillStyle = '#334155';
-            ctx.font = 'bold 15px Arial';
-            ctx.fillText(k.subtext, x + todayW / 2, y + 95);
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText(k.subtext, x + todayW / 2, y + 96);
         }
     });
 
-    // Row 2: Total Month KPIs (7 cards)
+    // Row 2: Month / Period Total KPIs
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#334155';
+    ctx.fillStyle = '#2563eb';
     ctx.font = 'bold 20px Arial';
     ctx.fillText("ИТОГОВЫЕ ПРОГНОЗНЫЕ ПОКАЗАТЕЛИ ЗА ВЕСЬ ПЕРИОД", 80, 335);
 
@@ -2756,11 +2760,51 @@ function exportDailyReportPDF() {
     ctx.font = '14px Arial';
     ctx.fillText(`Сгенерировано автоматически порталом Tectum. Дата экспорта: ${new Date().toLocaleString()}`, cw / 2, ch - 50);
     
-    // Convert to PDF
-    const pdfData = canvas.toDataURL('image/jpeg', 0.95);
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    doc.addImage(pdfData, 'JPEG', 0, 0, 297, 210);
-    doc.save(`Tectum_Daily_Report_${monthVal}.pdf`);
+    // Open standard Print / Microsoft PDF dialog
+    const imgDataUrl = canvas.toDataURL('image/png');
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${titleText} - ${lineLabel} - ${periodLabel}</title>
+                <style>
+                    @page {
+                        size: A4 landscape;
+                        margin: 0;
+                    }
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        background: #ffffff;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        width: 100%;
+                        height: 100vh;
+                        overflow: hidden;
+                    }
+                    img {
+                        width: 100vw;
+                        height: 100vh;
+                        object-fit: contain;
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="${imgDataUrl}" onload="window.print(); window.onafterprint = function(){ window.close(); };" />
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    } else {
+        // Fallback to jsPDF direct download if popup blocker is active
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        doc.addImage(imgDataUrl, 'PNG', 0, 0, 297, 210);
+        doc.save(`Tectum_Report_${monthVal}.pdf`);
+    }
 }
 
 async function syncNormsFromGoogle() {
