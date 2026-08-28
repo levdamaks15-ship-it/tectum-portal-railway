@@ -389,11 +389,6 @@ async function loadMasters() {
                 dtMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
             }
-            const brigadeSelect = document.getElementById('daily-report-brigade');
-            if (brigadeSelect) {
-                brigadeSelect.innerHTML = '<option value="">Все мастера</option>' + 
-                    mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">Смена мастера ${m.name}</option>`).join('');
-            }
         }
     } catch(e) {
         console.error("Error loading masters:", e);
@@ -2169,20 +2164,17 @@ function toggleRangeControls() {
 async function loadDailyReport() {
     const lineEl = document.getElementById('daily-report-line');
     const rangeTypeEl = document.getElementById('daily-report-range-type');
-    const brigadeEl = document.getElementById('daily-report-brigade');
     const monthEl = document.getElementById('daily-report-month');
     const weekEl = document.getElementById('daily-report-week-select');
     
     const line = lineEl ? lineEl.value : 'lfm1';
     const rangeType = rangeTypeEl ? rangeTypeEl.value : 'month';
-    const brigade = brigadeEl ? brigadeEl.value : '';
     const month = monthEl ? monthEl.value : '';
     const week = weekEl ? weekEl.value : '';
 
     let url = `/api/dashboard/daily_report?line=${line}&range_type=${rangeType}`;
     if (month) url += `&month=${month}`;
     if (week) url += `&week=${week}`;
-    if (brigade) url += `&master_id=${brigade}`;
 
     try {
         const res = await fetch(url);
