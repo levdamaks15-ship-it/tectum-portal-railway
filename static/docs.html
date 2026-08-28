@@ -1267,75 +1267,55 @@
             }
 
             .top-bar {
-                gap: 0.75rem;
-                margin-bottom: 1.2rem;
+                flex-direction: column;
+                gap: 0.65rem;
+                padding: 0.75rem 0.85rem;
             }
 
             .search-box {
-                max-width: 100%;
-                min-width: 100%;
-                order: 1;
+                width: 100%;
             }
 
             .search-box input {
                 font-size: 16px;
-                padding: 0.75rem 1rem 0.75rem 2.6rem;
+                padding: 0.7rem 1rem 0.7rem 2.4rem;
             }
 
             .action-buttons {
-                width: 100%;
-                order: 2;
-                display: flex;
-                justify-content: flex-start;
-                gap: 0.5rem;
-                overflow: visible; /* NO scrollbar overflow */
-            }
-
-            .btn-upload-folder-standalone,
-            .btn-upload-file-standalone {
-                display: none !important; /* Replaced by dropdown on mobile */
-            }
-
-            .action-buttons {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                gap: 0.6rem;
-            }
-
-            .create-sync-group {
-                width: 100%;
-                display: flex;
-                align-items: center;
-                gap: 0.6rem;
-            }
-
-            .create-sync-group > .dropdown-menu-create {
-                flex: 0 0 auto;
-            }
-
-            .create-sync-group > .dropdown-menu-create .btn-action {
-                justify-content: center;
-                white-space: nowrap;
-            }
-
-            #btn-sync-titles {
-                flex: 1;
-                justify-content: center;
-                white-space: nowrap;
-            }
-
-            .cloud-quick-buttons {
                 width: 100%;
                 display: grid !important;
-                grid-template-columns: 1fr 1fr;
-                gap: 0.6rem;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 0.5rem;
             }
 
-            .cloud-quick-buttons .btn-action {
+            .dropdown-menu-create {
+                width: 100%;
+            }
+
+            .dropdown-menu-create .btn-action,
+            .btn-upload-pc,
+            .btn-nav-planner {
+                width: 100%;
                 justify-content: center;
-                padding: 0.65rem 0.5rem;
-                font-size: 0.85rem;
+                padding: 0.6rem 0.4rem;
+                font-size: 0.82rem;
+                white-space: nowrap;
+            }
+
+            .btn-sync-cloud {
+                display: none !important; /* On mobile hidden to save space */
+            }
+
+            .user-session-wrapper {
+                grid-column: span 3;
+                width: 100%;
+            }
+
+            .btn-user-badge {
+                width: 100%;
+                justify-content: center;
+                padding: 0.55rem 0.75rem;
+                font-size: 0.88rem;
             }
 
             .dropdown-content-create {
@@ -1534,55 +1514,50 @@
                 <i class="fas fa-search"></i>
                 <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)" autocomplete="off">
             </div>
+            
             <div class="action-buttons">
-                <!-- Группа Создать + Обновить названия -->
-                <div class="create-sync-group">
-                    <!-- Dropdown Создать -->
-                    <div class="dropdown-menu-create">
-                        <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, #2563eb, #3b82f6); box-shadow: 0 4px 12px rgba(37,99,235,0.3);">
-                            <i class="fas fa-plus"></i> <span>Создать</span> <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
-                        </button>
-                        <div id="create-dropdown" class="dropdown-content-create">
-                            <div class="dropdown-item" onclick="showFolderModal()">
-                                <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
-                            </div>
-                            <div class="context-menu-separator"></div>
-                            <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
-                                <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i> Ссылка Google (Docs / Sheets)
-                            </div>
-                            <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
-                                <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i> Ссылка Microsoft (OneDrive / Excel)
-                            </div>
+                <!-- Dropdown Создать -->
+                <div class="dropdown-menu-create">
+                    <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.25);">
+                        <i class="fas fa-plus"></i> <span>Создать</span> <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
+                    </button>
+                    <div id="create-dropdown" class="dropdown-content-create">
+                        <div class="dropdown-item" onclick="showFolderModal()">
+                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
+                        </div>
+                        <div class="context-menu-separator"></div>
+                        <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
+                            <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i> Ссылка Google (Docs / Sheets)
+                        </div>
+                        <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
+                            <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i> Ссылка Microsoft (OneDrive / Excel)
                         </div>
                     </div>
-
-                    <!-- Кнопка Обновить названия рядом с Создать -->
-                    <button class="btn-action" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
-                        <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
-                    </button>
                 </div>
 
-                <!-- Standalone buttons on desktop -->
-                <button class="btn-action" onclick="triggerLocalFileUpload()" style="background: #10b981; color: #fff;" title="Загрузить Word, Excel или PDF файл с компьютера">
+                <!-- Быстрая загрузка с ПК -->
+                <button class="btn-action btn-upload-pc" onclick="triggerLocalFileUpload()" style="background: #10b981; color: #fff;" title="Загрузить Word, Excel или PDF файл с компьютера">
                     <i class="fas fa-file-arrow-up"></i> <span>Загрузить с ПК</span>
                 </button>
                 <input type="file" id="local-file-input" style="display: none;" onchange="handleLocalFileSelected(event)">
 
-                <button class="btn-action btn-create-folder btn-upload-file-standalone" onclick="showFolderModal()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
-                    <i class="fas fa-folder-plus" style="color: #f59e0b;"></i> Новая папка
+                <!-- Синхронизация облачных названий -->
+                <button class="btn-action btn-sync-cloud" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
+                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
                 </button>
 
-                <div class="cloud-quick-buttons" style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-                    <a href="/static/tasks.html" class="btn-action" style="background: #f8fafc; color: #1d4ed8; border: 1px solid #bfdbfe; text-decoration: none;" title="Перейти в Планнер задач">
-                        <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> Планнер
-                    </a>
+                <!-- Кнопка перехода в Планнер -->
+                <a href="/static/tasks.html" class="btn-action btn-nav-planner" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; text-decoration: none;" title="Перейти в Планнер задач">
+                    <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
+                </a>
 
-                    <button class="btn-action" style="background: #1a73e8; color: #fff;" onclick="openAddLinkModal('', 'google')" title="Прикрепить ссылку на Google Таблицу или Документ">
-                        <i class="fab fa-google"></i> Google Документ
+                <!-- Сквозной профиль сотрудника (User Session Badge) -->
+                <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
+                    <button class="btn-action btn-user-badge" id="docs-user-badge" onclick="promptDocsUserAuth()" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; padding: 0.55rem 0.85rem;" title="Нажмите для входа или смены профиля">
+                        <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="docs-user-name">Войти (PIN)</span>
                     </button>
-
-                    <button class="btn-action" style="background: #0078d4; color: #fff;" onclick="openAddLinkModal('', 'microsoft')" title="Прикрепить ссылку на OneDrive или Excel Online">
-                        <i class="fab fa-microsoft"></i> OneDrive / Excel
+                    <button id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля" style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px;">
+                        <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
             </div>
@@ -1844,6 +1819,38 @@
                         <i class="fas fa-download"></i> Скачать файл
                     </a>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно сквозной PIN-авторизации сотрудника -->
+    <div id="docs-pin-modal" class="modal" style="z-index: 10050;">
+        <div class="modal-content" style="max-width: 400px; padding: 1.5rem; text-align: center;">
+            <div style="width: 52px; height: 52px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.8rem;">
+                <i class="fa-solid fa-id-card-clip"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.25rem;">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.2rem;">
+                Выберите своё имя и введите 4-значный PIN-код для работы с Базой Знаний и Планнером
+            </p>
+
+            <div class="form-group" style="text-align: left; margin-bottom: 1rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">Сотрудник</label>
+                <select id="docs-pin-user-select" onchange="onDocsPinUserSelectChanged()" style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem; background: #fff;">
+                    <option value="">-- Выберите сотрудника --</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="docs-pin-input-group" style="text-align: left; margin-bottom: 1.4rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">4-значный PIN-код</label>
+                <input type="password" id="docs-pin-input" maxlength="4" placeholder="••••" style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1.2rem; letter-spacing: 0.35rem; text-align: center; background: #fff;" onkeydown="if(event.key==='Enter') submitDocsPinAuth()">
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button class="btn-cancel" onclick="closeDocsPinModal()" style="flex: 1; min-height: 42px;">Отмена</button>
+                <button class="btn-action" onclick="submitDocsPinAuth()" style="flex: 1.2; min-height: 42px; background: #2563eb; color: #fff; justify-content: center;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Войти
+                </button>
             </div>
         </div>
     </div>
@@ -3743,6 +3750,175 @@
             }
         }
 
+        /* ==========================================================
+           DOCS USER SESSION & AUTH LOGIC (Shared with Planner)
+           ========================================================== */
+        let currentDocsUser = null;
+        let pendingDocsAuthCallback = null;
+
+        function initDocsUserSession() {
+            try {
+                const saved = localStorage.getItem("tectum_portal_user");
+                if (saved) {
+                    currentDocsUser = JSON.parse(saved);
+                } else {
+                    const fallbackName = localStorage.getItem("tectum_current_user_name");
+                    if (fallbackName) {
+                        currentDocsUser = { name: fallbackName, pin: "" };
+                    }
+                }
+            } catch (e) {}
+            updateDocsUserBadge();
+        }
+
+        function updateDocsUserBadge() {
+            const nameEl = document.getElementById("docs-user-name");
+            const badgeEl = document.getElementById("docs-user-badge");
+            const logoutBtn = document.getElementById("btn-docs-logout");
+            if (!nameEl || !badgeEl) return;
+
+            if (currentDocsUser && currentDocsUser.name) {
+                nameEl.textContent = currentDocsUser.name;
+                badgeEl.style.background = "#eff6ff";
+                badgeEl.style.color = "#1d4ed8";
+                badgeEl.style.borderColor = "#bfdbfe";
+                badgeEl.title = `Авторизован: ${currentDocsUser.name}. Нажмите для смены`;
+                if (logoutBtn) logoutBtn.style.display = "inline-block";
+            } else {
+                nameEl.textContent = "Войти (PIN)";
+                badgeEl.style.background = "#f8fafc";
+                badgeEl.style.color = "#334155";
+                badgeEl.style.borderColor = "#cbd5e1";
+                badgeEl.title = "Нажмите, чтобы войти под своим именем";
+                if (logoutBtn) logoutBtn.style.display = "none";
+            }
+        }
+
+        async function promptDocsUserAuth() {
+            await loadPlannerEmployeesOnce();
+            openDocsPinModal(null, (user) => {
+                showToast(`Вы вошли как ${user.name}`);
+            });
+        }
+
+        function logoutDocsUser(event) {
+            if (event) event.stopPropagation();
+            currentDocsUser = null;
+            localStorage.removeItem("tectum_portal_user");
+            localStorage.removeItem("tectum_current_user_name");
+            sessionStorage.removeItem("planner_user_session");
+            updateDocsUserBadge();
+            showToast("Вы вышли из профиля");
+        }
+
+        async function openDocsPinModal(preselectedUser = null, onSuccess = null) {
+            pendingDocsAuthCallback = onSuccess;
+            await loadPlannerEmployeesOnce();
+
+            const modal = document.getElementById("docs-pin-modal");
+            const select = document.getElementById("docs-pin-user-select");
+            const pinInput = document.getElementById("docs-pin-input");
+
+            if (select) {
+                select.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
+                plannerEmployeesList.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp.name;
+                    opt.textContent = emp.name + (emp.position ? ` (${emp.position})` : '');
+                    if ((preselectedUser && emp.name === preselectedUser) || (currentDocsUser && emp.name === currentDocsUser.name)) {
+                        opt.selected = true;
+                    }
+                    select.appendChild(opt);
+                });
+            }
+
+            if (pinInput) pinInput.value = "";
+            onDocsPinUserSelectChanged();
+
+            if (modal) {
+                modal.style.display = "flex";
+                modal.style.alignItems = "center";
+                modal.style.justifyContent = "center";
+            }
+
+            setTimeout(() => {
+                if (pinInput && pinInput.style.display !== "none") pinInput.focus();
+            }, 100);
+        }
+
+        function closeDocsPinModal() {
+            const modal = document.getElementById("docs-pin-modal");
+            if (modal) modal.style.display = "none";
+            pendingDocsAuthCallback = null;
+        }
+
+        function onDocsPinUserSelectChanged() {
+            const select = document.getElementById("docs-pin-user-select");
+            const pinGroup = document.getElementById("docs-pin-input-group");
+            const pinInput = document.getElementById("docs-pin-input");
+            const name = select ? select.value.trim() : "";
+            if (!name) return;
+
+            const emp = plannerEmployeesList.find(e => e.name === name);
+            if (emp && emp.has_pin === false) {
+                if (pinGroup) pinGroup.style.display = "none";
+            } else {
+                if (pinGroup) pinGroup.style.display = "block";
+                if (pinInput) pinInput.focus();
+            }
+        }
+
+        async function submitDocsPinAuth() {
+            const select = document.getElementById("docs-pin-user-select");
+            const pinInput = document.getElementById("docs-pin-input");
+            const name = select ? select.value.trim() : "";
+            const pin = pinInput ? pinInput.value.trim() : "";
+
+            if (!name) {
+                alert("Пожалуйста, выберите сотрудника!");
+                return;
+            }
+
+            const pinGroup = document.getElementById("docs-pin-input-group");
+            if (pinGroup && pinGroup.style.display !== "none" && !pin) {
+                alert("Пожалуйста, введите 4-значный PIN-код!");
+                if (pinInput) pinInput.focus();
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/planner/employees/verify_pin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: name, pin_code: pin })
+                });
+
+                if (res.ok) {
+                    currentDocsUser = { name: name, pin: pin };
+                    localStorage.setItem("tectum_portal_user", JSON.stringify(currentDocsUser));
+                    localStorage.setItem("tectum_current_user_name", name);
+                    updateDocsUserBadge();
+
+                    const cb = pendingDocsAuthCallback;
+                    closeDocsPinModal();
+
+                    if (cb && typeof cb === "function") {
+                        cb(currentDocsUser);
+                    }
+                } else {
+                    const err = await res.json();
+                    alert("Ошибка авторизации: " + (err.detail || "Неверный PIN-код"));
+                    if (pinInput) {
+                        pinInput.value = "";
+                        pinInput.focus();
+                    }
+                }
+            } catch (e) {
+                console.error("PIN verification error:", e);
+                alert("Ошибка сети при проверке PIN-кода");
+            }
+        }
+
         /* --- Local File Upload --- */
         function triggerLocalFileUpload() {
             const input = document.getElementById('local-file-input');
@@ -3761,7 +3937,7 @@
         async function uploadFileDirectly(file) {
             if (currentFolderProtected && !await ensurePassword(true)) return;
 
-            const savedAuthor = localStorage.getItem('tectum_current_user_name') || 'Сотрудник';
+            const savedAuthor = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || 'Сотрудник');
             const formData = new FormData();
             formData.append('file', file);
             formData.append('author_name', savedAuthor);
@@ -4153,6 +4329,7 @@
 
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
+            initDocsUserSession();
             
             // Восстановление позиции папки при обновлении страницы (F5)
             const hash = window.location.hash ? window.location.hash.substring(1) : null;

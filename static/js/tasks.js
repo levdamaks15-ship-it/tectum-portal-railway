@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function initPlannerSession() {
     try {
-        const saved = sessionStorage.getItem("planner_user_session");
+        const saved = localStorage.getItem("tectum_portal_user") || sessionStorage.getItem("planner_user_session");
         if (saved) {
             currentPlannerUser = JSON.parse(saved);
         }
@@ -97,6 +97,8 @@ function promptChangePlannerUser() {
 
 function logoutPlannerUser() {
     currentPlannerUser = null;
+    localStorage.removeItem("tectum_portal_user");
+    localStorage.removeItem("tectum_current_user_name");
     sessionStorage.removeItem("planner_user_session");
     if (myTasksFilterActive) {
         myTasksFilterActive = false;
@@ -191,7 +193,8 @@ async function submitPinModal() {
 
         if (res.ok) {
             currentPlannerUser = { name: name, pin: pin };
-            sessionStorage.setItem("planner_user_session", JSON.stringify(currentPlannerUser));
+            localStorage.setItem("tectum_portal_user", JSON.stringify(currentPlannerUser));
+            localStorage.setItem("tectum_current_user_name", name);
             updatePlannerUserBadge();
 
             const cb = pendingAuthCallback;
