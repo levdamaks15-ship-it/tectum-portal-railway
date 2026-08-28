@@ -8,6 +8,7 @@ import models, schemas
 import os
 import re
 import asyncio
+import threading
 import json
 import hashlib
 import html
@@ -608,12 +609,28 @@ async def lifespan(app: FastAPI):
             db.add(models.Master(name="Главный механик", pin="8888", role="mechanic"))
             db.commit()
 
-        # Автоматическое распределение участков для всех сотрудников в БД
+        # Создание индексов для ускорения Базы Знаний
         try:
-            import google_sheets_integration
-            google_sheets_integration.sync_employees_from_google_sheets(db)
-        except Exception as sync_e:
-            print(f"Startup checklist employees sync warning: {sync_e}")
+            from sqlalchemy import text
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_category_id ON documents(category_id);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_uploaded_at ON documents(uploaded_at);"))
+            db.execute(text("CREATE INDEX IF NOT EXISTS idx_document_versions_doc_id ON document_versions(document_id);"))
+            db.commit()
+        except Exception as idx_e:
+            db.rollback()
+            print(f"Index creation note: {idx_e}")
+
+        # Автоматическое распределение участков для всех сотрудников в БД (в фоне)
+        def bg_sync_checklist_employees():
+            db_sync = SessionLocal()
+            try:
+                import google_sheets_integration
+                google_sheets_integration.sync_employees_from_google_sheets(db_sync)
+            except Exception as sync_e:
+                print(f"Startup checklist employees sync warning: {sync_e}")
+            finally:
+                db_sync.close()
+        threading.Thread(target=bg_sync_checklist_employees, daemon=True).start()
 
         if not db.query(models.Master).filter(models.Master.role == "director").first():
             db.add(models.Master(name="Технический директор", pin="7777", role="director"))
@@ -728,7 +745,6 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
     
-    import threading
     threading.Thread(target=bg_sharepoint_init, daemon=True).start()
 
 
@@ -5899,6 +5915,32 @@ def list_documents(
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/api/documents/recent")
+def get_recent_documents(db: Session = Depends(get_db)):
+    """Возвращает 6 последних добавленных/обновленных документов для панели быстрого доступа"""
+    try:
+        prot_map = build_category_protection_map(db)
+        docs = db.query(models.Document).order_by(models.Document.uploaded_at.desc(), models.Document.id.desc()).limit(6).all()
+        recent_docs = []
+        for d in docs:
+            file_link = d.external_url if d.external_url else f"/api/documents/download/{d.id}"
+            recent_docs.append({
+                "id": f"file_{d.id}",
+                "doc_id": d.id,
+                "name": d.title,
+                "mimeType": d.mime_type or "application/octet-stream",
+                "webViewLink": file_link,
+                "external_url": d.external_url,
+                "uploaded_at": d.uploaded_at.strftime("%d.%m.%Y %H:%M") if d.uploaded_at else "",
+                "is_protected": prot_map.get(d.category_id, False) if d.category_id else False,
+                "version_number": d.version_number or 1,
+                "locked_by_user": d.locked_by_user,
+                "last_modified_by": d.last_modified_by or "Сотрудник"
+            })
+        return {"status": "success", "data": recent_docs}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/documents/tree")
 def get_documents_tree(db: Session = Depends(get_db)):
     try:
@@ -6674,6 +6716,384 @@ def delete_document(
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# ==========================================
+# API БАЗЫ ЗНАНИЙ: ЛОКАЛЬНЫЕ ФАЙЛЫ, MS OFFICE & ВЕРСИОНИРОВАНИЕ
+# ==========================================
+
+DOCS_STORAGE_DIR = os.path.join(os.getcwd(), "uploads", "kb_docs")
+os.makedirs(DOCS_STORAGE_DIR, exist_ok=True)
+
+@app.get("/api/documents/download/{doc_id}")
+def download_local_document(doc_id: int, db: Session = Depends(get_db)):
+    """Отдает локальный файл документа для скачивания или открытия в MS Office"""
+    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    
+    if not doc.file_path or not os.path.exists(doc.file_path):
+        # Если привязана только внешняя ссылка
+        if doc.external_url:
+            return RedirectResponse(doc.external_url)
+        raise HTTPException(status_code=404, detail="Файл документа отсутствует на диске")
+    
+    filename = doc.title or os.path.basename(doc.file_path)
+    encoded_filename = quote(filename.encode('utf-8'))
+    media_type = doc.mime_type or "application/octet-stream"
+    
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+        "Access-Control-Expose-Headers": "Content-Disposition",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+    }
+    return FileResponse(doc.file_path, media_type=media_type, headers=headers)
+
+@app.post("/api/documents/upload_local")
+async def upload_local_document(
+    file: UploadFile = File(...),
+    parent_id: Optional[str] = Form(None),
+    author_name: Optional[str] = Form("Сотрудник"),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Загрузка нового файла в локальную Базу Знаний с сохранением в uploads/kb_docs"""
+    try:
+        cat_id = None
+        if parent_id and parent_id.startswith("folder_"):
+            cat_id = int(parent_id.split("_")[1])
+            
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+        
+        orig_filename = os.path.basename(file.filename)
+        safe_ext = os.path.splitext(orig_filename)[1].lower()
+        unique_name = f"doc_{uuid.uuid4().hex[:10]}_{int(datetime.utcnow().timestamp())}{safe_ext}"
+        save_path = os.path.join(DOCS_STORAGE_DIR, unique_name)
+        
+        content = await file.read()
+        file_size = len(content)
+        with open(save_path, "wb") as f_out:
+            f_out.write(content)
+            
+        new_doc = models.Document(
+            title=orig_filename,
+            category_id=cat_id,
+            file_path=save_path,
+            mime_type=file.content_type or "application/octet-stream",
+            version_number=1,
+            last_modified_by=author_name or "Сотрудник",
+            uploaded_at=datetime.utcnow()
+        )
+        db.add(new_doc)
+        db.commit()
+        db.refresh(new_doc)
+        
+        # Создаем начальную версию v1 в архиве
+        initial_version = models.DocumentVersion(
+            document_id=new_doc.id,
+            version_number=1,
+            file_path=save_path,
+            file_size=file_size,
+            mime_type=new_doc.mime_type,
+            author_name=author_name or "Сотрудник",
+            comment="Исходная загрузка документа",
+            created_at=datetime.utcnow()
+        )
+        db.add(initial_version)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Файл успешно загружен в Базу Знаний",
+            "file": {
+                "id": f"file_{new_doc.id}",
+                "name": new_doc.title,
+                "mimeType": new_doc.mime_type,
+                "version_number": new_doc.version_number,
+                "last_modified_by": new_doc.last_modified_by,
+                "webViewLink": f"/api/documents/download/{new_doc.id}"
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/documents/{doc_id}/save_version")
+async def save_document_version(
+    doc_id: int,
+    file: UploadFile = File(...),
+    author_name: str = Form(...),
+    comment: Optional[str] = Form(""),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Загружает новую версию документа, архивирует старую и увеличивает счетчик версий"""
+    try:
+        doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Документ не найден")
+            
+        if doc.category_id:
+            protected_folder = get_protected_ancestor(db, doc.category_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+                    
+        orig_filename = os.path.basename(file.filename)
+        safe_ext = os.path.splitext(orig_filename)[1].lower()
+        new_version_num = (doc.version_number or 1) + 1
+        
+        unique_name = f"doc_{doc.id}_v{new_version_num}_{uuid.uuid4().hex[:6]}{safe_ext}"
+        save_path = os.path.join(DOCS_STORAGE_DIR, unique_name)
+        
+        content = await file.read()
+        file_size = len(content)
+        with open(save_path, "wb") as f_out:
+            f_out.write(content)
+            
+        # Обновляем сам документ
+        doc.file_path = save_path
+        doc.mime_type = file.content_type or doc.mime_type
+        doc.version_number = new_version_num
+        doc.last_modified_by = author_name
+        doc.locked_by_user = None
+        doc.locked_at = None
+        doc.uploaded_at = datetime.utcnow()
+        
+        # Добавляем запись в архив версий
+        new_version_rec = models.DocumentVersion(
+            document_id=doc.id,
+            version_number=new_version_num,
+            file_path=save_path,
+            file_size=file_size,
+            mime_type=doc.mime_type,
+            author_name=author_name,
+            comment=comment or f"Обновление до v{new_version_num}",
+            created_at=datetime.utcnow()
+        )
+        db.add(new_version_rec)
+        db.commit()
+        db.refresh(doc)
+        
+        return {
+            "status": "success",
+            "message": f"Версия v{new_version_num} успешно сохранена",
+            "version_number": new_version_num,
+            "last_modified_by": doc.last_modified_by
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/documents/{doc_id}/versions")
+def get_document_versions(doc_id: int, db: Session = Depends(get_db)):
+    """Возвращает историю всех версий документа"""
+    try:
+        doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Документ не найден")
+            
+        versions = db.query(models.DocumentVersion).filter(
+            models.DocumentVersion.document_id == doc_id
+        ).order_by(models.DocumentVersion.version_number.desc()).all()
+        
+        data = []
+        for v in versions:
+            data.append({
+                "id": v.id,
+                "version_number": v.version_number,
+                "author_name": v.author_name,
+                "comment": v.comment or "",
+                "file_size": v.file_size or 0,
+                "created_at": v.created_at.strftime("%d.%m.%Y %H:%M") if v.created_at else "",
+                "is_current": v.version_number == doc.version_number,
+                "download_url": f"/api/documents/versions/{v.id}/download"
+            })
+            
+        return {"status": "success", "data": data, "document_title": doc.title, "current_version": doc.version_number}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/documents/versions/{version_id}/download")
+def download_document_version(version_id: int, db: Session = Depends(get_db)):
+    """Скачивание конкретной архивной версии документа"""
+    ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.id == version_id).first()
+    if not ver or not ver.file_path or not os.path.exists(ver.file_path):
+        raise HTTPException(status_code=404, detail="Архивная версия файла не найдена")
+        
+    doc = db.query(models.Document).filter(models.Document.id == ver.document_id).first()
+    doc_title = doc.title if doc else "document"
+    name_parts = os.path.splitext(doc_title)
+    archive_filename = f"{name_parts[0]}_v{ver.version_number}{name_parts[1]}"
+    encoded_filename = quote(archive_filename.encode('utf-8'))
+    
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+        "Access-Control-Expose-Headers": "Content-Disposition"
+    }
+    return FileResponse(ver.file_path, media_type=ver.mime_type or "application/octet-stream", headers=headers)
+
+@app.post("/api/documents/{doc_id}/versions/{version_id}/restore")
+def restore_document_version(
+    doc_id: int, 
+    version_id: int,
+    user_name: str = Body(..., embed=True),
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Откат документа к выбранной архивной версии с созданием нового шага в истории"""
+    try:
+        doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Документ не найден")
+            
+        if doc.category_id:
+            protected_folder = get_protected_ancestor(db, doc.category_id)
+            if protected_folder:
+                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                    raise HTTPException(status_code=403, detail="Access Denied")
+                    
+        ver = db.query(models.DocumentVersion).filter(
+            models.DocumentVersion.id == version_id,
+            models.DocumentVersion.document_id == doc_id
+        ).first()
+        if not ver or not ver.file_path or not os.path.exists(ver.file_path):
+            raise HTTPException(status_code=404, detail="Архивная версия не найдена на диске")
+            
+        # Создаем копию файла архивной версии как новую актуальную версию
+        new_version_num = (doc.version_number or 1) + 1
+        safe_ext = os.path.splitext(ver.file_path)[1].lower()
+        new_unique_name = f"doc_{doc.id}_v{new_version_num}_restored_{uuid.uuid4().hex[:6]}{safe_ext}"
+        new_save_path = os.path.join(DOCS_STORAGE_DIR, new_unique_name)
+        shutil.copy2(ver.file_path, new_save_path)
+        
+        file_size = os.path.getsize(new_save_path)
+        
+        doc.file_path = new_save_path
+        doc.version_number = new_version_num
+        doc.last_modified_by = user_name or "Сотрудник"
+        doc.locked_by_user = None
+        doc.locked_at = None
+        doc.uploaded_at = datetime.utcnow()
+        
+        new_ver_rec = models.DocumentVersion(
+            document_id=doc.id,
+            version_number=new_version_num,
+            file_path=new_save_path,
+            file_size=file_size,
+            mime_type=ver.mime_type or doc.mime_type,
+            author_name=user_name or "Сотрудник",
+            comment=f"Откат к версии v{ver.version_number}",
+            created_at=datetime.utcnow()
+        )
+        db.add(new_ver_rec)
+        db.commit()
+        db.refresh(doc)
+        
+        return {
+            "status": "success",
+            "message": f"Документ успешно откачен к версии v{ver.version_number} (создана версия v{new_version_num})",
+            "version_number": new_version_num,
+            "last_modified_by": doc.last_modified_by
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+class LockDocumentRequest(BaseModel):
+    user_name: str
+
+@app.post("/api/documents/{doc_id}/lock")
+def lock_document(
+    doc_id: int,
+    req: LockDocumentRequest,
+    db: Session = Depends(get_db)
+):
+    """Блокирует документ сотрудником при взятии в работу в MS Office"""
+    try:
+        doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Документ не найден")
+            
+        if doc.locked_by_user and doc.locked_by_user != req.user_name:
+            # Проверяем не устарела ли блокировка (более 4 часов)
+            if doc.locked_at and (datetime.utcnow() - doc.locked_at).total_seconds() < 14400:
+                return {
+                    "status": "locked",
+                    "locked_by": doc.locked_by_user,
+                    "locked_at": doc.locked_at.strftime("%d.%m %H:%M"),
+                    "message": f"Документ уже редактирует {doc.locked_by_user}"
+                }
+                
+        doc.locked_by_user = req.user_name
+        doc.locked_at = datetime.utcnow()
+        db.commit()
+        
+        return {
+            "status": "success",
+            "locked_by": doc.locked_by_user,
+            "locked_at": doc.locked_at.strftime("%d.%m %H:%M")
+        }
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/documents/{doc_id}/unlock")
+def unlock_document(
+    doc_id: int,
+    user_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Снимает блокировку с документа"""
+    try:
+        doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Документ не найден")
+            
+        doc.locked_by_user = None
+        doc.locked_at = None
+        db.commit()
+        return {"status": "success", "message": "Блокировка снята"}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+@app.get("/api/documents/{doc_id}/office_uri")
+def get_office_uri(doc_id: int, request: Request, db: Session = Depends(get_db)):
+    """Формирует нативную URI ссылку для запуска MS Office (ms-word, ms-excel, ms-powerpoint)"""
+    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+        
+    base_url = str(request.base_url).rstrip("/")
+    download_url = f"{base_url}/api/documents/download/{doc.id}"
+    
+    fname = (doc.title or "").lower()
+    scheme = "ms-word"
+    if fname.endswith(".xlsx") or fname.endswith(".xls") or fname.endswith(".xlsm") or fname.endswith(".csv"):
+        scheme = "ms-excel"
+    elif fname.endswith(".pptx") or fname.endswith(".ppt"):
+        scheme = "ms-powerpoint"
+        
+    uri = f"{scheme}:ofe|u|{download_url}"
+    return {
+        "status": "success",
+        "uri": uri,
+        "download_url": download_url,
+        "file_path": doc.file_path,
+        "filename": doc.title,
+        "scheme": scheme,
+        "locked_by": doc.locked_by_user
+    }
 
 
 

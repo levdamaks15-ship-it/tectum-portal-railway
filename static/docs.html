@@ -482,37 +482,111 @@
             flex: 1;
         }
 
-        /* Table / List View */
+        /* Quick Access Bar */
+        .quick-access-section {
+            margin-bottom: 1.5rem;
+        }
+        .quick-access-title {
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--docs-text-muted);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .quick-access-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.85rem;
+        }
+        .quick-card {
+            background: var(--docs-panel-bg);
+            border: 1px solid var(--docs-panel-border);
+            border-radius: 12px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            text-decoration: none;
+            overflow: hidden;
+        }
+        .quick-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            border-color: #93c5fd;
+        }
+        .quick-card-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        .quick-card-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+            flex: 1;
+        }
+        .quick-card-name {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--docs-text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .quick-card-meta {
+            font-size: 0.75rem;
+            color: var(--docs-text-muted);
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Modern 5-Column Table / List View */
         .docs-table {
             display: flex;
             flex-direction: column;
             background: var(--docs-panel-bg);
-            border-radius: 12px;
+            border-radius: 14px;
             border: 1px solid var(--docs-panel-border);
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         }
 
         .docs-table-header {
             display: grid;
-            grid-template-columns: 2fr 1fr 110px;
+            grid-template-columns: minmax(240px, 3fr) 100px 140px 140px 140px;
             padding: 0.85rem 1.25rem;
             background: var(--docs-table-header-bg);
             color: var(--docs-text-muted);
-            font-size: 0.8rem;
-            font-weight: 600;
+            font-size: 0.78rem;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             border-bottom: 1px solid var(--docs-panel-border);
+            align-items: center;
         }
 
         .docs-table-row {
             display: grid;
-            grid-template-columns: 2fr 1fr 110px;
-            padding: 0.85rem 1.25rem;
+            grid-template-columns: minmax(240px, 3fr) 100px 140px 140px 140px;
+            padding: 0.75rem 1.25rem;
             align-items: center;
             border-bottom: 1px solid var(--docs-panel-border);
-            transition: background 0.15s;
+            transition: all 0.15s ease;
             cursor: default;
         }
 
@@ -554,9 +628,9 @@
         }
 
         .icon-badge {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
             background: var(--docs-item-badge-bg);
             display: flex;
             align-items: center;
@@ -574,16 +648,16 @@
 
         .item-title {
             color: var(--docs-text-primary);
-            font-weight: 500;
+            font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
         }
 
         .item-mobile-meta {
             display: none;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--docs-text-muted);
             margin-top: 2px;
         }
@@ -597,6 +671,130 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .author-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #f8fafc;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 130px;
+        }
+
+        .date-cell {
+            font-size: 0.8rem;
+            color: var(--docs-text-muted);
+            white-space: nowrap;
+        }
+
+        /* MS Office & Versioning Badges */
+        .version-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .version-badge:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+        }
+
+        .lock-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .btn-office-action {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 0.35rem 0.65rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .btn-office-action:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+        }
+
+        .btn-version-action {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 0.35rem 0.65rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-version-action:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        /* Drag and Drop Overlay */
+        .drag-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(37, 99, 235, 0.12);
+            border: 3px dashed #2563eb;
+            z-index: 10000;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #1d4ed8;
+            font-size: 1.5rem;
+            font-weight: 700;
+            gap: 1rem;
+        }
+        .drag-overlay.active {
+            display: flex;
         }
 
         .file-link:hover {
@@ -1362,6 +1560,11 @@
                 </div>
 
                 <!-- Standalone buttons on desktop -->
+                <button class="btn-action" onclick="triggerLocalFileUpload()" style="background: #10b981; color: #fff;" title="Загрузить Word, Excel или PDF файл с компьютера">
+                    <i class="fas fa-file-arrow-up"></i> <span>Загрузить с ПК</span>
+                </button>
+                <input type="file" id="local-file-input" style="display: none;" onchange="handleLocalFileSelected(event)">
+
                 <button class="btn-action btn-create-folder btn-upload-file-standalone" onclick="showFolderModal()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);">
                     <i class="fas fa-folder-plus" style="color: #f59e0b;"></i> Новая папка
                 </button>
@@ -1375,6 +1578,16 @@
                         <i class="fab fa-microsoft"></i> OneDrive / Excel
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Quick Access Recent Documents -->
+        <div id="quick-access-container" class="quick-access-section" style="display: none;">
+            <div class="quick-access-title">
+                <i class="fas fa-bolt" style="color: #f59e0b;"></i> Быстрый доступ (Недавние документы)
+            </div>
+            <div class="quick-access-grid" id="quick-access-grid">
+                <!-- Карточки недавних документов загрузятся через JS -->
             </div>
         </div>
 
@@ -1522,6 +1735,116 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Модальное окно: История версий и архив документа -->
+    <div id="versions-modal" class="modal">
+        <div class="modal-content" style="max-width: 680px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                    <i class="fas fa-clock-rotate-left" style="color: #2563eb;"></i> <span>История версий и архив</span>
+                </h3>
+                <button onclick="closeVersionsModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Документ: <strong style="color: var(--docs-text-primary);" id="versions-modal-doc-title"></strong>
+            </p>
+
+            <div id="versions-list-container" style="max-height: 380px; overflow-y: auto; border: 1px solid var(--docs-panel-border); border-radius: 8px; margin-bottom: 1rem;">
+                <!-- Список версий загружается динамически -->
+            </div>
+
+            <div class="modal-actions" style="justify-content: space-between;">
+                <button class="btn-action" onclick="openSaveVersionModalFromHistory()" style="background: #10b981; color: #fff;">
+                    <i class="fas fa-file-arrow-up"></i> Загрузить новую версию
+                </button>
+                <button class="btn-cancel" onclick="closeVersionsModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Загрузка новой версии документа -->
+    <div id="save-version-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                    <i class="fas fa-file-arrow-up" style="color: #10b981;"></i> <span>Загрузить новую версию</span>
+                </h3>
+                <button onclick="closeSaveVersionModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <p style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                Обновление: <strong style="color: var(--docs-text-primary);" id="save-version-doc-title"></strong>
+            </p>
+
+            <div class="form-group">
+                <label>Выберите обновленный файл (Word / Excel / PDF)</label>
+                <input type="file" id="version-file-input" style="padding: 0.4rem; border: 1px dashed var(--docs-input-border); border-radius: 8px; width: 100%;">
+            </div>
+
+            <div class="form-group">
+                <label>Кто вносит изменения (Сотрудник из Планнера)</label>
+                <select id="version-employee-select" style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--docs-input-border); background: var(--docs-input-bg); color: var(--docs-input-color); font-family: inherit;">
+                    <option value="">-- Выберите сотрудника --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Комментарий к правкам (что изменилось?)</label>
+                <input type="text" id="version-comment-input" placeholder="Например: Обновлены нормативы расхода цемента">
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeSaveVersionModal()">Отмена</button>
+                <button class="btn-action" id="btn-submit-save-version" onclick="submitSaveNewVersion()" style="background: #10b981; color: #fff;">
+                    <i class="fas fa-check"></i> Сохранить версию
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Быстрый онлайн просмотр документа -->
+    <div id="doc-preview-modal" class="modal" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 960px; width: 95vw; height: 90vh; display: flex; flex-direction: column; padding: 1.2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.8rem; border-bottom: 1px solid var(--docs-panel-border);">
+                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%;">
+                    <i class="fas fa-file-lines" id="preview-modal-icon" style="color: #3b82f6; font-size: 1.2rem;"></i>
+                    <h3 style="margin: 0; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="preview-modal-title">Просмотр документа</h3>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <button id="preview-modal-download-btn" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Скачать для редактирования на ПК">
+                        <i class="fas fa-download"></i> <span>Скачать на ПК</span>
+                    </button>
+                    <button onclick="closeDocPreviewModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.3rem; padding: 0 4px;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div style="flex: 1; position: relative; margin-top: 0.8rem; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--docs-panel-border);">
+                <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+                <div id="preview-modal-fallback" style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem;">
+                    <i class="fas fa-file-word" id="preview-fallback-icon" style="font-size: 4rem; color: #2563eb; margin-bottom: 1.2rem;"></i>
+                    <h4 id="preview-fallback-filename" style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл документа</h4>
+                    <p style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem;">
+                        Для просмотра и редактирования скачайте файл на свой компьютер. Вы сможете сохранить обновленную версию обратно в Базу Знаний в 1 клик.
+                    </p>
+                    <a id="preview-fallback-download-link" href="#" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.7rem 1.4rem; font-size: 0.95rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-download"></i> Скачать файл
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag & Drop экран -->
+    <div id="drag-overlay" class="drag-overlay">
+        <i class="fas fa-cloud-arrow-up" style="font-size: 3.5rem;"></i>
+        <span>Перетащите файлы сюда для загрузки в Базу Знаний</span>
     </div>
 
 
@@ -1784,15 +2107,22 @@
         }
 
         function getWebViewLink(file) {
+            if (!file) return '#';
             if (file.external_url) {
                 return file.external_url;
             }
-            const rawId = (file.id || '').replace('file_', '');
-            const name = (file.name || '').toLowerCase();
-            if (isViewableOnline(name)) {
-                return `/editor?id=file_${rawId}`;
+            let rawId = null;
+            if (file.id) {
+                if (typeof file.id === 'string' && file.id.startsWith('file_')) {
+                    rawId = parseInt(file.id.replace('file_', ''));
+                } else if (!isNaN(parseInt(file.id))) {
+                    rawId = parseInt(file.id);
+                }
             }
-            return `/api/documents/download/${rawId}`;
+            if (rawId !== null && !isNaN(rawId)) {
+                return `/api/documents/download/${rawId}`;
+            }
+            return file.webViewLink || '#';
         }
 
         function isViewableOnline(fileName) {
@@ -1983,6 +2313,7 @@
                     currentFoldersData = data.data.folders;
                     currentFilesData = data.data.files;
                     applySort();
+                    loadQuickAccessBar();
                     
                 } else {
                     container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message}</div>`;
@@ -2500,6 +2831,50 @@
             }
         }
 
+        async function loadQuickAccessBar() {
+            const container = document.getElementById('quick-access-container');
+            const grid = document.getElementById('quick-access-grid');
+            if (!container || !grid) return;
+            
+            // Показываем блок быстрого доступа только в корневой директории
+            if (currentFolderId) {
+                container.style.display = 'none';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/documents/recent');
+                const result = await res.json();
+                if (result.status === 'success' && Array.isArray(result.data) && result.data.length > 0) {
+                    container.style.display = 'block';
+                    grid.innerHTML = result.data.map(doc => {
+                        const iconInfo = getFileIcon(doc.mimeType, doc.name, doc.external_url || doc.webViewLink);
+                        const isLocal = !doc.external_url;
+                        const docJson = escapeHtml(JSON.stringify(doc));
+                        return `
+                            <div class="quick-card" onclick="openPreviewModal(${docJson}, event)">
+                                <div class="quick-card-icon" style="background: var(--docs-item-badge-bg);">
+                                    <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
+                                </div>
+                                <div class="quick-card-info">
+                                    <div class="quick-card-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</div>
+                                    <div class="quick-card-meta">
+                                        ${isLocal ? `<span class="version-badge" style="font-size:0.7rem; padding:1px 5px;">v${doc.version_number || 1}</span>` : ''}
+                                        <span>${escapeHtml(doc.last_modified_by || 'Сотрудник')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.style.display = 'none';
+                }
+            } catch (e) {
+                console.log('Error loading quick access docs:', e);
+                container.style.display = 'none';
+            }
+        }
+
         function renderItems(folders, files) {
             const container = document.getElementById('files-container');
             if (folders.length === 0 && files.length === 0) {
@@ -2507,7 +2882,7 @@
                     <div class="empty-state">
                         <i class="fas fa-folder-open"></i>
                         <p>В этой директории пока нет документов или папок</p>
-                        <p style="font-size:0.88rem; color: var(--docs-text-muted);">Нажмите кнопку «Google Документ», «OneDrive / Excel» или «Новая папка», чтобы добавить элемент</p>
+                        <p style="font-size:0.88rem; color: var(--docs-text-muted);">Нажмите кнопку «Google Документ», «OneDrive / Excel» или «Загрузить с ПК», чтобы добавить элемент</p>
                     </div>
                 `;
                 return;
@@ -2518,6 +2893,8 @@
                     <div class="docs-table-header">
                         <div>Название</div>
                         <div>Тип</div>
+                        <div>Автор</div>
+                        <div>Изменено</div>
                         <div style="text-align: right;">Действия</div>
                     </div>
             `;
@@ -2540,7 +2917,9 @@
                                 <span class="item-mobile-meta">Папка</span>
                             </div>
                         </div>
-                        <div class="row-meta">Папка</div>
+                        <div class="row-meta"><span style="color: var(--docs-text-muted); font-size:0.82rem;">Папка</span></div>
+                        <div class="row-meta"><span class="author-badge"><i class="fa-solid fa-folder-tree" style="color: #64748b; font-size:0.75rem;"></i> Каталог</span></div>
+                        <div class="row-meta"><span class="date-cell">—</span></div>
                         <div class="row-actions">
                             <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку" style="color: #0284c7;">
                                 <i class="fas fa-folder-tree"></i>
@@ -2553,33 +2932,103 @@
                 `;
             });
 
-            // Вывод файлов/ссылок (убраны иконки редактирования и три точки, оставлено открытие и удаление)
+            // Вывод файлов/ссылок с поддержкой MS Office и версий
             files.forEach(file => {
                 const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
                 const typeName = getFileTypeName(file.name, file.mimeType, file.external_url || file.webViewLink);
-                const viewUrl = getWebViewLink(file);
                 const fileJson = escapeHtml(JSON.stringify(file));
+                
+                // Надежное извлечение числового ID документа из file.id ('file_495' или 495)
+                let rawDocId = null;
+                if (file.id) {
+                    if (typeof file.id === 'string' && file.id.startsWith('file_')) {
+                        rawDocId = parseInt(file.id.replace('file_', ''));
+                    } else if (!isNaN(parseInt(file.id))) {
+                        rawDocId = parseInt(file.id);
+                    }
+                }
+                const isLocalFile = !file.external_url && rawDocId !== null;
+                const isOfficeDoc = isLocalFile && isOfficeDocument(file.name);
+                
+                // URL для просмотра/скачивания
+                let viewUrl = file.external_url;
+                if (!viewUrl && rawDocId !== null) {
+                    viewUrl = `/api/documents/download/${rawDocId}`;
+                } else if (!viewUrl) {
+                    viewUrl = file.webViewLink || '#';
+                }
+
+                // Бейдж версии
+                let versionBadgeHtml = '';
+                if (isLocalFile && file.version_number) {
+                    versionBadgeHtml = `<span class="version-badge" onclick="openVersionsModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}', event)" title="Посмотреть историю версий">v${file.version_number}</span>`;
+                }
+
+                // Индикатор блокировки
+                let lockBadgeHtml = '';
+                if (file.locked_by_user) {
+                    lockBadgeHtml = `<span class="lock-indicator" title="Взят на редактирование ${escapeHtml(file.locked_by_user)}"><i class="fas fa-lock"></i> ${escapeHtml(file.locked_by_user)}</span>`;
+                }
+
+                // Автор
+                const authorDisplay = file.last_modified_by || (isLocalFile ? 'Сотрудник' : 'Облако');
+                
+                // Дата изменения
+                let dateDisplay = '—';
+                if (file.uploaded_at) {
+                    try {
+                        const d = new Date(file.uploaded_at);
+                        if (!isNaN(d.getTime())) {
+                            dateDisplay = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                        } else {
+                            dateDisplay = file.uploaded_at;
+                        }
+                    } catch(e) {
+                        dateDisplay = file.uploaded_at;
+                    }
+                }
+
+                // Кнопка загрузки новой версии
+                let newVersionBtn = '';
+                if (isLocalFile) {
+                    newVersionBtn = `
+                        <button class="btn-icon" onclick="openSaveVersionModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}', event)" title="Загрузить новую версию файла" style="color: #10b981;">
+                            <i class="fas fa-file-arrow-up"></i>
+                        </button>
+                    `;
+                }
 
                 html += `
                     <div class="docs-table-row" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
                         <div class="row-name">
-                            <div class="icon-badge">
+                            <div class="icon-badge" style="cursor: pointer;" onclick="openPreviewModal(${fileJson}, event)">
                                 <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
                             </div>
                             <div class="item-info">
-                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px;">
-                                    <a href="${escapeHtml(viewUrl)}" target="_blank" rel="noopener noreferrer" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="file-link" title="${escapeHtml(file.name)}">
+                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                                    <a href="javascript:void(0)" onclick="openPreviewModal(${fileJson}, event)" class="file-link" title="Нажмите для быстрого онлайн просмотра: ${escapeHtml(file.name)}">
                                         <span class="item-title">${escapeHtml(file.name)}</span>
                                         ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : ''}
                                     </a>
+                                    ${versionBadgeHtml}
+                                    ${lockBadgeHtml}
                                 </div>
-                                <span class="item-mobile-meta">${typeName}</span>
+                                <span class="item-mobile-meta">${typeName} • ${escapeHtml(authorDisplay)}</span>
                             </div>
                         </div>
-                        <div class="row-meta">${typeName}</div>
+                        <div class="row-meta">
+                            <span style="font-size: 0.82rem; color: var(--docs-text-muted);">${typeName}</span>
+                        </div>
+                        <div class="row-meta">
+                            <span class="author-badge" title="${escapeHtml(authorDisplay)}"><i class="fa-solid fa-user-pen" style="color: #64748b; font-size:0.75rem;"></i> ${escapeHtml(authorDisplay)}</span>
+                        </div>
+                        <div class="row-meta">
+                            <span class="date-cell">${dateDisplay}</span>
+                        </div>
                         <div class="row-actions">
-                            <a href="${escapeHtml(viewUrl)}" target="_blank" rel="noopener noreferrer" onclick="openFileLink('${viewUrl}', ${file.is_protected}, event)" class="btn-icon" title="Открыть в новой вкладке" style="color: #3b82f6;">
-                                <i class="fas fa-arrow-up-right-from-square"></i>
+                            ${newVersionBtn}
+                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="btn-icon" title="Скачать на диск" style="color: #3b82f6;">
+                                <i class="fas fa-download"></i>
                             </a>
                             <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${file.id}', '${escapeHtml(file.name).replace(/'/g, "\\'")}', false, '${file.category_id || ''}', ${file.is_protected})" title="Переместить файл" style="color: #0284c7;">
                                 <i class="fas fa-folder-tree"></i>
@@ -3172,6 +3621,482 @@
                 alert('Ошибка соединения с сервером');
             }
         }
+
+        /* ==========================================================
+           MS OFFICE & LOCAL FILES & VERSIONING JAVASCRIPT HANDLERS
+           ========================================================== */
+
+        let plannerEmployeesList = [];
+        let currentEditingDocId = null;
+        let currentEditingDocName = '';
+        let currentVersionsDocId = null;
+
+        function isOfficeDocument(fileName) {
+            const n = (fileName || '').toLowerCase();
+            return n.endsWith('.docx') || n.endsWith('.doc') || n.endsWith('.xlsx') || n.endsWith('.xls') || n.endsWith('.pptx') || n.endsWith('.ppt') || n.endsWith('.xlsm') || n.endsWith('.csv');
+        }
+
+        async function loadPlannerEmployeesOnce() {
+            if (plannerEmployeesList.length > 0) return plannerEmployeesList;
+            try {
+                const res = await fetch('/api/planner/employees');
+                const data = await res.json();
+                let rawList = [];
+                if (Array.isArray(data)) {
+                    rawList = data;
+                } else if (data.employees && Array.isArray(data.employees)) {
+                    rawList = data.employees;
+                }
+                
+                // Фильтрация системных отделов, служб и обобщенных мастеров
+                const stopWords = ['офис', 'мастер', 'огэ', 'огм', 'служба', 'цех', 'отдел', 'участок', 'скк', 'директор', 'технолог'];
+                plannerEmployeesList = rawList.filter(emp => {
+                    const name = (emp.name || '').trim().toLowerCase();
+                    if (!name) return false;
+                    return !stopWords.some(w => name.includes(w));
+                });
+
+                // Если список пуст, даем персонализированный список по умолчанию
+                if (plannerEmployeesList.length === 0) {
+                    plannerEmployeesList = [
+                        { id: 1, name: "Левда М." },
+                        { id: 2, name: "Булеханов К." },
+                        { id: 3, name: "Курилова С." },
+                        { id: 4, name: "Сазонов С." },
+                        { id: 5, name: "Носиков Е." },
+                        { id: 6, name: "Хохлов К." },
+                        { id: 7, name: "Батырбекова Г." },
+                        { id: 8, name: "Герлинг С." },
+                        { id: 9, name: "Косумов Р." },
+                        { id: 10, name: "Туматов Д." }
+                    ];
+                }
+            } catch (e) {
+                console.log("Could not load planner employees:", e);
+                plannerEmployeesList = [
+                    { id: 1, name: "Левда М." },
+                    { id: 2, name: "Булеханов К." },
+                    { id: 3, name: "Курилова С." },
+                    { id: 4, name: "Сазонов С." },
+                    { id: 5, name: "Носиков Е." },
+                    { id: 6, name: "Хохлов К." },
+                    { id: 7, name: "Батырбекова Г." },
+                    { id: 8, name: "Герлинг С." },
+                    { id: 9, name: "Косумов Р." },
+                    { id: 10, name: "Туматов Д." }
+                ];
+            }
+            return plannerEmployeesList;
+        }
+
+        function populateEmployeeSelect(selectId, selectedName = '') {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
+            plannerEmployeesList.forEach(emp => {
+                const opt = document.createElement('option');
+                opt.value = emp.name;
+                opt.textContent = emp.name + (emp.position ? ` (${emp.position})` : '');
+                if (selectedName && emp.name === selectedName) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            if (!selectedName) {
+                const savedEmp = localStorage.getItem('tectum_current_user_name');
+                if (savedEmp) sel.value = savedEmp;
+            }
+        }
+
+        /* --- Local File Upload --- */
+        function triggerLocalFileUpload() {
+            const input = document.getElementById('local-file-input');
+            if (input) {
+                input.value = '';
+                input.click();
+            }
+        }
+
+        async function handleLocalFileSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            await uploadFileDirectly(file);
+        }
+
+        async function uploadFileDirectly(file) {
+            if (currentFolderProtected && !await ensurePassword(true)) return;
+
+            const savedAuthor = localStorage.getItem('tectum_current_user_name') || 'Сотрудник';
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('author_name', savedAuthor);
+            if (currentFolderId) {
+                formData.append('parent_id', currentFolderId);
+            }
+
+            showToast(`Загрузка файла "${file.name}"...`);
+
+            try {
+                const res = await fetch('/api/documents/upload_local', {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader(),
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('Файл успешно загружен в Базу Знаний!');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                } else {
+                    alert('Ошибка загрузки файла: ' + data.message);
+                }
+            } catch (e) {
+                alert('Ошибка соединения с сервером при загрузке');
+            }
+        }
+
+        /* --- Document Online Preview & Downloader Modal --- */
+        function openPreviewModal(file, event) {
+            if (event) event.stopPropagation();
+            if (!file) return;
+
+            // Если это внешняя ссылка (Google Docs, Google Sheets, OneDrive)
+            if (file.external_url) {
+                window.open(file.external_url, '_blank');
+                return;
+            }
+
+            let rawDocId = null;
+            if (file.id) {
+                if (typeof file.id === 'string' && file.id.startsWith('file_')) {
+                    rawDocId = parseInt(file.id.replace('file_', ''));
+                } else if (!isNaN(parseInt(file.id))) {
+                    rawDocId = parseInt(file.id);
+                }
+            }
+
+            const modal = document.getElementById('doc-preview-modal');
+            const titleEl = document.getElementById('preview-modal-title');
+            const iconEl = document.getElementById('preview-modal-icon');
+            const iframe = document.getElementById('preview-modal-iframe');
+            const fallback = document.getElementById('preview-modal-fallback');
+            const downloadBtn = document.getElementById('preview-modal-download-btn');
+            const fallbackFilename = document.getElementById('preview-fallback-filename');
+            const fallbackLink = document.getElementById('preview-fallback-download-link');
+
+            const downloadUrl = `/api/documents/download/${rawDocId}`;
+            const fileName = file.name || 'Документ';
+            const nameLower = fileName.toLowerCase();
+
+            if (titleEl) titleEl.innerText = fileName;
+            if (fallbackFilename) fallbackFilename.innerText = fileName;
+
+            if (downloadBtn) {
+                downloadBtn.onclick = () => {
+                    window.open(downloadUrl, '_blank');
+                };
+            }
+            if (fallbackLink) {
+                fallbackLink.href = downloadUrl;
+            }
+
+            const iconInfo = getFileIcon(file.mimeType, fileName, downloadUrl);
+            if (iconEl) {
+                iconEl.className = iconInfo.icon;
+                iconEl.style.color = iconInfo.color;
+            }
+
+            // Определение источника предпросмотра
+            if (nameLower.endsWith('.pdf') || nameLower.endsWith('.txt')) {
+                // Прямой просмотр PDF и текста через встроенный браузерный просмотрщик
+                if (iframe) {
+                    iframe.style.display = 'block';
+                    iframe.src = downloadUrl;
+                }
+                if (fallback) fallback.style.display = 'none';
+            } else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc') || nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.pptx')) {
+                // Если мы на продакшене (Railway с публичным URL), используем Office Online Viewer или Google Viewer
+                const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+                if (!isLocalhost) {
+                    const fullDocUrl = window.location.origin + downloadUrl;
+                    const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fullDocUrl)}`;
+                    if (iframe) {
+                        iframe.style.display = 'block';
+                        iframe.src = officeViewerUrl;
+                    }
+                    if (fallback) fallback.style.display = 'none';
+                } else {
+                    // В локальном режиме (localhost) внешние онлайн вьюеры не могут достучаться до 127.0.0.1, показываем удобную карточку быстрого скачивания
+                    if (iframe) iframe.style.display = 'none';
+                    if (fallback) fallback.style.display = 'flex';
+                }
+            } else {
+                if (iframe) iframe.style.display = 'none';
+                if (fallback) fallback.style.display = 'flex';
+            }
+
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeDocPreviewModal() {
+            const modal = document.getElementById('doc-preview-modal');
+            if (modal) modal.style.display = 'none';
+            const iframe = document.getElementById('preview-modal-iframe');
+            if (iframe) iframe.src = '';
+        }
+
+        /* --- Version History & Archive --- */
+        async function openVersionsModal(docId, docTitle, event) {
+            if (event) event.stopPropagation();
+            if (currentFolderProtected && !await ensurePassword(true)) return;
+
+            currentVersionsDocId = docId;
+            currentEditingDocName = docTitle;
+
+            const titleEl = document.getElementById('versions-modal-doc-title');
+            if (titleEl) titleEl.innerText = docTitle;
+
+            const listContainer = document.getElementById('versions-list-container');
+            if (listContainer) {
+                listContainer.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--docs-text-muted);"><i class="fas fa-spinner fa-spin"></i> Загрузка истории версий...</div>';
+            }
+
+            const modal = document.getElementById('versions-modal');
+            if (modal) modal.style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/documents/${docId}/versions`);
+                const data = await res.json();
+
+                if (data.status === 'success' && Array.isArray(data.data)) {
+                    renderVersionsList(data.data, docId);
+                } else {
+                    if (listContainer) listContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: #ef4444;">Ошибка загрузки версий</div>';
+                }
+            } catch (e) {
+                if (listContainer) listContainer.innerHTML = '<div style="padding: 1rem; text-align: center; color: #ef4444;">Ошибка соединения</div>';
+            }
+        }
+
+        function closeVersionsModal() {
+            const modal = document.getElementById('versions-modal');
+            if (modal) modal.style.display = 'none';
+            currentVersionsDocId = null;
+        }
+
+        function formatBytes(bytes, decimals = 1) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        function renderVersionsList(versions, docId) {
+            const container = document.getElementById('versions-list-container');
+            if (!container) return;
+
+            if (versions.length === 0) {
+                container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--docs-text-muted);">История версий пуста</div>';
+                return;
+            }
+
+            let html = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left;">
+                    <thead>
+                        <tr style="background: var(--docs-table-header-bg); border-bottom: 1px solid var(--docs-panel-border); color: var(--docs-text-muted); font-size: 0.78rem; text-transform: uppercase;">
+                            <th style="padding: 0.6rem 0.8rem;">Версия</th>
+                            <th style="padding: 0.6rem 0.8rem;">Дата</th>
+                            <th style="padding: 0.6rem 0.8rem;">Автор</th>
+                            <th style="padding: 0.6rem 0.8rem;">Комментарий</th>
+                            <th style="padding: 0.6rem 0.8rem;">Размер</th>
+                            <th style="padding: 0.6rem 0.8rem; text-align: right;">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            versions.forEach(v => {
+                const currentBadge = v.is_current ? ' <span style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; border-radius:4px; padding:1px 5px; font-size:0.7rem; font-weight:600;">Текущая</span>' : '';
+                const restoreBtn = !v.is_current ? `
+                    <button class="btn-version-action" onclick="restoreVersion(${docId}, ${v.id}, ${v.version_number})" title="Откатить документ к этой версии" style="color: #0284c7; padding: 2px 6px; font-size: 0.78rem;">
+                        <i class="fas fa-rotate-left"></i> Откат
+                    </button>
+                ` : '';
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--docs-panel-border); ${v.is_current ? 'background: rgba(37,99,235,0.03);' : ''}">
+                        <td style="padding: 0.65rem 0.8rem; font-weight: 600; color: #2563eb;">v${v.version_number}${currentBadge}</td>
+                        <td style="padding: 0.65rem 0.8rem; color: var(--docs-text-secondary); white-space: nowrap;">${escapeHtml(v.created_at)}</td>
+                        <td style="padding: 0.65rem 0.8rem; font-weight: 500;">${escapeHtml(v.author_name)}</td>
+                        <td style="padding: 0.65rem 0.8rem; color: var(--docs-text-muted); font-size: 0.82rem;">${escapeHtml(v.comment || '—')}</td>
+                        <td style="padding: 0.65rem 0.8rem; color: var(--docs-text-secondary); font-size: 0.8rem;">${formatBytes(v.file_size)}</td>
+                        <td style="padding: 0.65rem 0.8rem; text-align: right; white-space: nowrap;">
+                            <a href="${v.download_url}" class="btn-version-action" style="padding: 2px 6px; font-size: 0.78rem; color: #3b82f6;" title="Скачать архивную копию">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            ${restoreBtn}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        async function restoreVersion(docId, versionId, versionNumber) {
+            if (!confirm(`Вы действительно хотите откатить документ к версии v${versionNumber}?`)) return;
+
+            const savedAuthor = localStorage.getItem('tectum_current_user_name') || 'Сотрудник';
+            try {
+                const res = await fetch(`/api/documents/${docId}/versions/${versionId}/restore`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getFolderPasswordHeader()
+                    },
+                    body: JSON.stringify({ user_name: savedAuthor })
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast(data.message || 'Версия успешно восстановлена');
+                    closeVersionsModal();
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка отката версии: ' + data.message);
+                }
+            } catch (e) {
+                alert('Ошибка соединения при откате версии');
+            }
+        }
+
+        /* --- Save New Version Modal --- */
+        async function openSaveVersionModal(docId, docTitle, event) {
+            if (event) event.stopPropagation();
+            if (currentFolderProtected && !await ensurePassword(true)) return;
+
+            currentEditingDocId = docId;
+            currentEditingDocName = docTitle;
+
+            const titleEl = document.getElementById('save-version-doc-title');
+            if (titleEl) titleEl.innerText = docTitle;
+
+            const fileInput = document.getElementById('version-file-input');
+            if (fileInput) fileInput.value = '';
+
+            const commentInput = document.getElementById('version-comment-input');
+            if (commentInput) commentInput.value = '';
+
+            await loadPlannerEmployeesOnce();
+            populateEmployeeSelect('version-employee-select');
+
+            const modal = document.getElementById('save-version-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function openSaveVersionModalFromHistory() {
+            if (!currentVersionsDocId) return;
+            const docId = currentVersionsDocId;
+            const title = currentEditingDocName;
+            closeVersionsModal();
+            openSaveVersionModal(docId, title);
+        }
+
+        function closeSaveVersionModal() {
+            const modal = document.getElementById('save-version-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function submitSaveNewVersion() {
+            const fileInput = document.getElementById('version-file-input');
+            const file = fileInput ? fileInput.files[0] : null;
+            if (!file) {
+                alert('Пожалуйста, выберите обновленный файл');
+                return;
+            }
+
+            const empSelect = document.getElementById('version-employee-select');
+            const author = empSelect ? empSelect.value.trim() : '';
+            if (!author) {
+                alert('Пожалуйста, укажите сотрудника, вносящего правки');
+                return;
+            }
+
+            localStorage.setItem('tectum_current_user_name', author);
+            const comment = document.getElementById('version-comment-input').value.trim();
+
+            const btn = document.getElementById('btn-submit-save-version');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('author_name', author);
+            formData.append('comment', comment);
+
+            try {
+                const res = await fetch(`/api/documents/${currentEditingDocId}/save_version`, {
+                    method: 'POST',
+                    headers: getFolderPasswordHeader(),
+                    body: formData
+                });
+                const data = await res.json();
+                btn.innerHTML = origText;
+                btn.disabled = false;
+
+                if (data.status === 'success') {
+                    showToast(data.message || 'Новая версия документа сохранена!');
+                    closeSaveVersionModal();
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                } else {
+                    alert('Ошибка сохранения версии: ' + data.message);
+                }
+            } catch (e) {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+                alert('Ошибка соединения с сервером');
+            }
+        }
+
+        /* --- Drag and Drop File Uploading to Current Folder --- */
+        let dragCounter = 0;
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            const overlay = document.getElementById('drag-overlay');
+            if (overlay) overlay.classList.add('active');
+        });
+
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                const overlay = document.getElementById('drag-overlay');
+                if (overlay) overlay.classList.remove('active');
+            }
+        });
+
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        window.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            const overlay = document.getElementById('drag-overlay');
+            if (overlay) overlay.classList.remove('active');
+
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                    await uploadFileDirectly(e.dataTransfer.files[i]);
+                }
+            }
+        });
 
         /* ==========================================================
            THEME MANAGEMENT (LIGHT ONLY)
