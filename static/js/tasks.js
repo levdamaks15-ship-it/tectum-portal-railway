@@ -643,6 +643,11 @@ function startTasksLiveSync() {
             return;
         }
 
+        if (currentHorizon === "roadmaps") {
+            await loadRoadmaps();
+            return;
+        }
+
         try {
             const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : "";
             const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : "";
@@ -652,6 +657,25 @@ function startTasksLiveSync() {
             const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
 
             let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
+            
+            // Учет горизонта и служб
+            if (currentHorizon === "weekly") {
+                url += `&task_type=weekly`;
+            } else if (currentHorizon === "services") {
+                url += `&task_type=service_plan`;
+                if (currentDepartmentService !== "all") {
+                    url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
+                }
+                if (filterHasDocOnly) {
+                    url += `&has_doc=true`;
+                }
+            }
+
+            // Хэштег
+            if (currentTagFilter && currentTagFilter !== "all") {
+                url += `&tag=${encodeURIComponent(currentTagFilter)}`;
+            }
+
             if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
                 url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
             } else {
@@ -1008,6 +1032,10 @@ function filterByTag(tag) {
 }
 
 function applyDepartmentFilter(dept) {
+    if (currentHorizon !== "services") {
+        switchHorizon("services");
+    }
+    
     currentDepartmentService = (currentDepartmentService === dept) ? "all" : dept;
     document.querySelectorAll("#quick-chips-group .filter-chip").forEach(c => c.classList.remove("active"));
     
@@ -1397,11 +1425,14 @@ function renderTasksTable(tasks) {
             </div>
         ` : '';
 
-        const deptBadge = t.department_service ? `
-            <div style="margin-top: 2px;">
-                <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${t.department_service}</span>
-            </div>
-        ` : '';
+        let zoneAndDeptHtml = `<span class="badge-zone">${escapeHtml(t.zone || 'Бережливое производство')}</span>`;
+        if (t.department_service && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+            zoneAndDeptHtml += `
+                <div style="margin-top: 2px;">
+                    <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>
+                </div>
+            `;
+        }
 
         return `
             <tr id="task-row-${t.id}" class="${rowExtraClass}">
@@ -1410,8 +1441,7 @@ function renderTasksTable(tasks) {
                     ${backlogBadge}
                 </td>
                 <td>
-                    <span class="badge-zone">${t.zone || 'Бережливое производство'}</span>
-                    ${deptBadge}
+                    ${zoneAndDeptHtml}
                 </td>
                 <td class="${titleClass}" style="font-weight: 600; min-width: 170px; color: #0f172a;">
                     <div>${t.title || '—'}</div>
@@ -1557,12 +1587,17 @@ function renderTasksCards(tasks) {
             </div>
         `;
 
+        let cardZoneHtml = `<span class="badge-zone">${escapeHtml(t.zone || 'Бережливое производство')}</span>`;
+        if (t.department_service && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+            cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
+        }
+
         return `
             <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}">
                 <div class="planner-card-header">
                     <div class="card-header-tags">
                         <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
-                        <span class="badge-zone">${t.zone || 'Бережливое производство'}</span>
+                        ${cardZoneHtml}
                         ${backlogBadge}
                     </div>
                     <div>

@@ -8198,15 +8198,16 @@ def get_tasks(
         query = db.query(models.Task)
 
         # 1. Фильтрация по типу задачи / горизонту
-        if task_type and task_type != "all":
+        if task_type == "weekly":
+            query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
+        elif task_type == "service_plan":
+            query = query.filter((models.Task.task_type == "service_plan") | (models.Task.department_service.isnot(None)))
+        elif task_type and task_type != "all":
             query = query.filter(models.Task.task_type == task_type)
-        elif not task_type:
-            # По умолчанию для стандартного недельного вида возвращаем только weekly или без типа
-            pass
 
         # 2. Фильтрация по службам ОГМ/ОГЭ/Технологи
         if department_service and department_service != "all":
-            query = query.filter(models.Task.department_service == department_service)
+            query = query.filter((models.Task.department_service == department_service) | (models.Task.zone == department_service))
 
         # 3. Фильтрация по хэштегам
         if tag and tag != "all":
