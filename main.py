@@ -8175,6 +8175,47 @@ def get_document_tasks(doc_id: int, db: Session = Depends(get_db)):
         print(f"Error fetching document tasks: {e}")
         return []
 
+def parse_date_dm_or_full(d_str: Optional[str], default_year: int = 2026):
+    """Парсит строку даты вида '24.08', '24.08.2026', '30.09 (Ср)', '2026-08-24' в datetime.date."""
+    if not d_str:
+        return None
+    import re, datetime
+    d_clean = str(d_str).strip()
+    
+    try:
+        return datetime.date.fromisoformat(d_clean[:10])
+    except Exception:
+        pass
+    
+    m_full = re.search(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", d_clean)
+    if m_full:
+        day, month, yr = int(m_full.group(1)), int(m_full.group(2)), int(m_full.group(3))
+        try:
+            return datetime.date(yr, month, day)
+        except Exception:
+            pass
+            
+    m_dm = re.search(r"(\d{1,2})\.(\d{1,2})", d_clean)
+    if m_dm:
+        day, month = int(m_dm.group(1)), int(m_dm.group(2))
+        try:
+            return datetime.date(default_year, month, day)
+        except Exception:
+            pass
+    return None
+
+def parse_week_label_range(week_label: Optional[str], month_label: Optional[str] = None, default_year: int = 2026):
+    """Извлекает даты начала и конца рабочей недели (Пн, Пт) из строки 'Неделя 4 (24.08 - 28.08)'."""
+    if not week_label or week_label == "all":
+        return None, None
+    import re
+    m = re.search(r"\((\d{1,2}\.\d{1,2})\s*-\s*(\d{1,2}\.\d{1,2})\)", str(week_label))
+    if not m:
+        return None, None
+    s_date = parse_date_dm_or_full(m.group(1), default_year)
+    e_date = parse_date_dm_or_full(m.group(2), default_year)
+    return s_date, e_date
+
 @app.get("/api/tasks")
 def get_tasks(
     month: Optional[str] = None,
@@ -8193,9 +8234,9 @@ def get_tasks(
     is_archived: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Возвращает список задач с фильтрацией по 3 горизонтам, службам, хэштегам, месяцу, неделе, исполнителю, автору и регламентам."""
+    """Возвращает список задач с поддержкой 3 горизонтов, сквозных долгосрочных задач (cross-week), служб, хэштегов и регламентов."""
     try:
-        query = db.query(models.Task)
+        query = db.query(models.Task).filter(models.Task.is_archived == False)
 
         # 1. Фильтрация по типу задачи / горизонту
         if task_type == "weekly":
@@ -8226,28 +8267,7 @@ def get_tasks(
         if parent_id is not None:
             query = query.filter(models.Task.parent_id == parent_id)
 
-        # 6. Фильтрация по неделе / месяцу с учетом долгов
-        if include_backlog and week and week != "all":
-            if month and month != "all":
-                week_match = and_(models.Task.month_label == month, models.Task.week_label == week)
-                backlog_match = and_(
-                    models.Task.status != "🟢 Выполнено",
-                    or_(models.Task.month_label != month, models.Task.week_label != week)
-                )
-                query = query.filter(or_(week_match, backlog_match))
-            else:
-                week_match = (models.Task.week_label == week)
-                backlog_match = and_(
-                    models.Task.status != "🟢 Выполнено",
-                    models.Task.week_label != week
-                )
-                query = query.filter(or_(week_match, backlog_match))
-        else:
-            if month and month != "all":
-                query = query.filter(models.Task.month_label == month)
-            if week and week != "all":
-                query = query.filter(models.Task.week_label == week)
-
+        # 6. Фильтрация по персоналу, зоне, статусу
         if my_person and my_person != "all":
             query = query.filter(or_(models.Task.assignee_name == my_person, models.Task.author_name == my_person))
         else:
@@ -8261,7 +8281,74 @@ def get_tasks(
         if status and status != "all":
             query = query.filter(models.Task.status == status)
 
-        tasks = query.order_by(models.Task.id.desc()).all()
+        # Парсим границы выбранной недели
+        sel_week_start, sel_week_end = parse_week_label_range(week, month)
+
+        # Если выбрана конкретная неделя: запрашиваем родные задачи + активные кандидаты на сквозные задачи
+        if week and week != "all":
+            if include_backlog:
+                # Включая долги прошлых периодов
+                if month and month != "all":
+                    week_match = and_(models.Task.month_label == month, models.Task.week_label == week)
+                    backlog_match = and_(
+                        models.Task.status != "🟢 Выполнено",
+                        models.Task.status != "🔴 Отменено"
+                    )
+                    query = query.filter(or_(week_match, backlog_match))
+                else:
+                    week_match = (models.Task.week_label == week)
+                    backlog_match = and_(
+                        models.Task.status != "🟢 Выполнено",
+                        models.Task.status != "🔴 Отменено"
+                    )
+                    query = query.filter(or_(week_match, backlog_match))
+            else:
+                # Выбираем задачи родной недели ИЛИ активные задачи с дедлайном для сквозного отображения
+                week_match = and_(models.Task.month_label == month, models.Task.week_label == week) if (month and month != "all") else (models.Task.week_label == week)
+                cross_candidate_match = and_(
+                    models.Task.status != "🔴 Отменено",
+                    models.Task.due_date_str.isnot(None),
+                    models.Task.due_date_str != ""
+                )
+                query = query.filter(or_(week_match, cross_candidate_match))
+        else:
+            if month and month != "all":
+                query = query.filter(models.Task.month_label == month)
+
+        raw_tasks = query.order_by(models.Task.id.desc()).all()
+
+        # Фильтрация сквозных задач по временному диапазону
+        filtered_tasks = []
+        for t in raw_tasks:
+            # 1. Родная задача текущей недели
+            is_native_week = (week and week != "all" and t.week_label == week and (not month or month == "all" or t.month_label == month))
+            
+            if not week or week == "all" or is_native_week:
+                filtered_tasks.append(t)
+                continue
+
+            # 2. Если включен бэклог долгов
+            if include_backlog and t.status != "🟢 Выполнено" and t.status != "🔴 Отменено":
+                filtered_tasks.append(t)
+                continue
+
+            # 3. Проверка сквозной активности по диапазону [start, due_date]
+            if sel_week_start and sel_week_end:
+                t_due = parse_date_dm_or_full(t.due_date_str)
+                # Начало задачи: из created_at или начала родной недели задачи
+                t_orig_start, _ = parse_week_label_range(t.week_label, t.month_label)
+                if not t_orig_start and t.created_at:
+                    t_orig_start = t.created_at.date()
+
+                if t_due and t_orig_start:
+                    # Задача активна на текущей неделе, если старт <= конец недели И дедлайн >= начало недели
+                    if t_orig_start <= sel_week_end and t_due >= sel_week_start:
+                        # Если задача уже завершена, показываем ее только если она была завершена на этой неделе или дедлайн на этой неделе
+                        if t.status == "🟢 Выполнено" and t.completed_at and t.completed_at.date() < sel_week_start:
+                            continue
+                        filtered_tasks.append(t)
+
+        tasks = filtered_tasks
 
         # Предзагрузка прикрепленных документов
         doc_ids = [t.attached_document_id for t in tasks if t.attached_document_id]
@@ -8313,10 +8400,23 @@ def get_tasks(
 
         results = []
         for t in tasks:
-            is_backlog = False
+            is_cross_week = False
+            is_deadline_week = False
+            origin_created_date = ""
+            
             if week and week != "all":
                 if t.week_label != week or (month and month != "all" and t.month_label != month):
-                    is_backlog = True
+                    is_cross_week = True
+                    t_orig_start, _ = parse_week_label_range(t.week_label, t.month_label)
+                    if t_orig_start:
+                        origin_created_date = t_orig_start.strftime("%d.%m")
+                    elif t.created_at:
+                        origin_created_date = t.created_at.strftime("%d.%m")
+
+                if sel_week_start and sel_week_end:
+                    t_due = parse_date_dm_or_full(t.due_date_str)
+                    if t_due and (sel_week_start <= t_due <= sel_week_end):
+                        is_deadline_week = True
 
             doc_info = doc_map.get(t.attached_document_id) if t.attached_document_id else None
             parent_info = ref_map.get(t.parent_id) if t.parent_id else None
@@ -8354,7 +8454,12 @@ def get_tasks(
                 "attached_document_id": t.attached_document_id,
                 "attached_doc": doc_info,
                 "is_archived": False,
-                "is_backlog": is_backlog,
+                "is_backlog": is_cross_week and include_backlog,
+                "is_cross_week": is_cross_week,
+                "origin_week_label": t.week_label or "",
+                "origin_month_label": t.month_label or "",
+                "origin_created_date": origin_created_date,
+                "is_deadline_week": is_deadline_week,
                 "created_at": t.created_at.strftime("%d.%m.%Y %H:%M") if t.created_at else ""
             })
         return results

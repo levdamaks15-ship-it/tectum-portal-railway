@@ -726,6 +726,11 @@ class TaskResponse(TaskBase):
     subtasks_count: Optional[int] = 0
     subtasks_done_count: Optional[int] = 0
     calculated_progress: Optional[int] = 0
+    is_cross_week: Optional[bool] = False
+    origin_week_label: Optional[str] = ""
+    origin_month_label: Optional[str] = ""
+    origin_created_date: Optional[str] = ""
+    is_deadline_week: Optional[bool] = False
 
     class Config:
         from_attributes = True

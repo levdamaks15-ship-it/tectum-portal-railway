@@ -1368,6 +1368,14 @@ function renderTasksTable(tasks) {
             </div>
         ` : '';
 
+        const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
+            <div style="margin-top: 4px;">
+                <span class="badge-cross-week" title="Сквозная долгосрочная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
+                    <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная${t.origin_created_date ? ' (' + t.origin_created_date + ')' : ''}
+                </span>
+            </div>
+        ` : '';
+
         const titleClass = isCancelled ? 'task-cancelled-text' : '';
 
         const commentCell = isLocked ? `
@@ -1434,11 +1442,20 @@ function renderTasksTable(tasks) {
             `;
         }
 
+        const dueDateCell = t.is_deadline_week ? `
+            <div>
+                <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str || ''}">
+                    <i class="fa-solid fa-bullseye"></i> ${t.due_date_str || 'Дедлайн'}
+                </span>
+            </div>
+        ` : `<span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>`;
+
         return `
             <tr id="task-row-${t.id}" class="${rowExtraClass}">
                 <td>
                     <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
                     ${backlogBadge}
+                    ${crossWeekBadge}
                 </td>
                 <td>
                     ${zoneAndDeptHtml}
@@ -1462,7 +1479,7 @@ function renderTasksTable(tasks) {
                     ${t.assignee_name || '—'}
                 </td>
 
-                <td style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</td>
+                <td>${dueDateCell}</td>
                 <td style="text-align: center; white-space: nowrap; min-width: 140px;">
                     <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
                         <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
@@ -1519,6 +1536,12 @@ function renderTasksCards(tasks) {
         const backlogBadge = t.is_backlog ? `
             <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
                 <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Долг'}
+            </span>
+        ` : '';
+
+        const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
+            <span class="badge-cross-week" title="Сквозная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
+                <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная${t.origin_created_date ? ' (' + t.origin_created_date + ')' : ''}
             </span>
         ` : '';
 
@@ -1592,6 +1615,19 @@ function renderTasksCards(tasks) {
             cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
         }
 
+        const cardDueDateItem = t.is_deadline_week ? `
+            <div class="card-meta-item">
+                <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str}">
+                    <i class="fa-solid fa-bullseye"></i> ${t.due_date_str}
+                </span>
+            </div>
+        ` : `
+            <div class="card-meta-item">
+                <i class="fa-regular fa-calendar" style="color: #64748b;"></i>
+                <span>${t.due_date_str || 'В теч. недели'}</span>
+            </div>
+        `;
+
         return `
             <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}">
                 <div class="planner-card-header">
@@ -1599,6 +1635,7 @@ function renderTasksCards(tasks) {
                         <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
                         ${cardZoneHtml}
                         ${backlogBadge}
+                        ${crossWeekBadge}
                     </div>
                     <div>
                         <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.88rem; min-height: 38px; padding: 0.4rem 0.85rem; font-weight: 700;">
@@ -1620,10 +1657,7 @@ function renderTasksCards(tasks) {
                         <i class="fa-solid fa-user-check"></i>
                         <span title="${t.assignee_name || 'Не назначен'}">${t.assignee_name || 'Не назначен'}</span>
                     </div>
-                    <div class="card-meta-item">
-                        <i class="fa-regular fa-calendar" style="color: #64748b;"></i>
-                        <span>${t.due_date_str || 'В теч. недели'}</span>
-                    </div>
+                    ${cardDueDateItem}
                     <div class="card-meta-item">
                         <i class="fa-solid fa-pen-nib" style="color: #94a3b8; font-size: 0.75rem;"></i>
                         <span title="${t.author_name || '—'}">${t.author_name || '—'}</span>
