@@ -1,14 +1,23 @@
 /**
  * Tectum Tasks Planner — Client Logic (Clean & Simple)
- * Full parity with Google Sheets structure
+ * 3-Level Planning, Hierarchies, Dependencies, Roadmaps & Hashtags
  */
 
 let allTasks = [];
+let allRoadmaps = [];
+let allTagsList = [];
 let allWeeksStructure = {};
 let allMasters = [];
 let showBacklog = false; // toggle to include unfinished tasks from other weeks
 let currentMonth = "Август 2026";
 let currentWeek = "Неделя 4 (24.08 - 28.08)";
+let currentQuarter = "Q3 2026";
+
+// 3 Horizons & Filters State
+let currentHorizon = "weekly"; // "weekly" | "services" | "roadmaps"
+let currentDepartmentService = "all"; // "all" | "ОГМ" | "ОГЭ" | "Технологи" | "ОТК"
+let currentTagFilter = "all";
+let filterHasDocOnly = false;
 
 let allPlannerEmployees = [];
 let allPlannerZones = [];
@@ -43,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     initPlannerSession();
     await loadCalendarStructure();
     await loadPlannerDropdownData();
+    await loadTaskTags();
     await handleUrlDeepLinking();
     await loadTasks();
     startTasksLiveSync();
@@ -670,6 +680,11 @@ function startTasksLiveSync() {
 }
 
 async function loadTasks() {
+    if (currentHorizon === "roadmaps") {
+        await loadRoadmaps();
+        return;
+    }
+
     const tableBody = document.getElementById("tasks-table-body");
     const cardsContainer = document.getElementById("tasks-cards-container");
     if (!tableBody && !cardsContainer) return;
@@ -690,6 +705,25 @@ async function loadTasks() {
     updateUrlParams();
     
     let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
+    
+    // Горизонт планирования
+    if (currentHorizon === "weekly") {
+        url += `&task_type=weekly`;
+    } else if (currentHorizon === "services") {
+        url += `&task_type=service_plan`;
+        if (currentDepartmentService !== "all") {
+            url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
+        }
+        if (filterHasDocOnly) {
+            url += `&has_doc=true`;
+        }
+    }
+
+    // Хэштег
+    if (currentTagFilter && currentTagFilter !== "all") {
+        url += `&tag=${encodeURIComponent(currentTagFilter)}`;
+    }
+
     if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
         url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
     } else {
@@ -713,6 +747,328 @@ async function loadTasks() {
         console.error("Error loading tasks:", e);
         if (tableBody) tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
         if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</div>`;
+    }
+}
+
+function switchHorizon(horizon) {
+    currentHorizon = horizon;
+    
+    // Переключение кнопок горизонтов
+    document.querySelectorAll(".horizon-tab-btn").forEach(btn => btn.classList.remove("active"));
+    const activeBtn = document.getElementById(`tab-horizon-${horizon}`);
+    if (activeBtn) activeBtn.classList.add("active");
+
+    const tableWrapper = document.getElementById("planner-table-wrapper");
+    const roadmapsContainer = document.getElementById("roadmaps-view-container");
+    const filterWeek = document.getElementById("filter-week");
+    const filterMonth = document.getElementById("filter-month");
+    const filterQuarter = document.getElementById("filter-quarter");
+    const btnBacklog = document.getElementById("btn-toggle-backlog");
+    const btnFilterHasDoc = document.getElementById("btn-filter-hasdoc");
+    const quickChips = document.getElementById("quick-chips-group");
+    const printSubtitle = document.getElementById("print-header-subtitle");
+
+    if (horizon === "roadmaps") {
+        if (tableWrapper) tableWrapper.style.display = "none";
+        if (roadmapsContainer) roadmapsContainer.style.display = "block";
+        if (filterWeek) filterWeek.style.display = "none";
+        if (filterMonth) filterMonth.style.display = "none";
+        if (filterQuarter) filterQuarter.style.display = "inline-block";
+        if (btnBacklog) btnBacklog.style.display = "none";
+        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
+        if (printSubtitle) printSubtitle.textContent = "СТРАТЕГИЧЕСКИЕ ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
+        loadRoadmaps();
+    } else if (horizon === "services") {
+        if (tableWrapper) tableWrapper.style.display = "block";
+        if (roadmapsContainer) roadmapsContainer.style.display = "none";
+        if (filterWeek) filterWeek.style.display = "inline-block";
+        if (filterMonth) filterMonth.style.display = "inline-block";
+        if (filterQuarter) filterQuarter.style.display = "none";
+        if (btnBacklog) btnBacklog.style.display = "inline-flex";
+        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "inline-flex";
+        if (printSubtitle) printSubtitle.textContent = "ПЛАНЫ СЛУЖБ ОГМ И ОГЭ (ППР И РЕВИЗИИ ОБОРУДОВАНИЯ)";
+        loadTasks();
+    } else {
+        // weekly
+        if (tableWrapper) tableWrapper.style.display = "block";
+        if (roadmapsContainer) roadmapsContainer.style.display = "none";
+        if (filterWeek) filterWeek.style.display = "inline-block";
+        if (filterMonth) filterMonth.style.display = "inline-block";
+        if (filterQuarter) filterQuarter.style.display = "none";
+        if (btnBacklog) btnBacklog.style.display = "inline-flex";
+        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
+        if (printSubtitle) printSubtitle.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО";
+        loadTasks();
+    }
+}
+
+async function loadRoadmaps() {
+    const grid = document.getElementById("roadmaps-cards-grid");
+    if (!grid) return;
+
+    const quarterSelect = document.getElementById("filter-quarter");
+    const qVal = quarterSelect ? quarterSelect.value : "all";
+
+    grid.innerHTML = `<div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...</div>`;
+
+    try {
+        const res = await fetch(`/api/tasks/roadmaps?quarter=${encodeURIComponent(qVal)}`);
+        if (res.ok) {
+            allRoadmaps = await res.json();
+            renderRoadmaps(allRoadmaps);
+        } else {
+            grid.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem; grid-column: 1 / -1;">Ошибка загрузки проектов</div>`;
+        }
+    } catch (e) {
+        console.error("Error loading roadmaps:", e);
+        grid.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem; grid-column: 1 / -1;">Ошибка соединения</div>`;
+    }
+}
+
+function renderRoadmaps(projects) {
+    const grid = document.getElementById("roadmaps-cards-grid");
+    if (!grid) return;
+
+    if (!projects || projects.length === 0) {
+        grid.innerHTML = `
+            <div style="text-align: center; padding: 3rem; background: #ffffff; border-radius: 12px; border: 1px solid var(--tbl-border); grid-column: 1 / -1;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🗺️</div>
+                <h3 style="color: #0f172a; margin-bottom: 0.5rem;">Нет проектов дорожной карты на этот период</h3>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.25rem;">Создайте первый стратегический проект или выберите другой квартал.</p>
+                <button class="btn-action btn-primary-action" onclick="openAddTaskModal('roadmap')">
+                    <i class="fa-solid fa-plus"></i> Создать проект Дорожной карты
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = projects.map(p => {
+        const prog = p.calculated_progress || p.progress || 0;
+        const totalElems = p.total_elements || 0;
+        const doneElems = p.done_elements || 0;
+
+        const milestonesHtml = (p.milestones || []).map(m => {
+            const mProg = m.calculated_progress || m.progress || 0;
+            const subtasksHtml = (m.subtasks || []).map(st => {
+                const isStDone = st.status === '🟢 Выполнено';
+                const depHtml = st.depends_on ? `<span class="dep-blocker-badge" title="Зависит от ${st.depends_on.code}"><i class="fa-solid fa-lock"></i> ${st.depends_on.code}</span>` : '';
+                return `
+                    <div class="roadmap-subtask-item">
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                            <span style="font-size: 0.85rem;">${isStDone ? '🟢' : '🟡'}</span>
+                            <span style="font-weight: 500; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(st.title)}</span>
+                            ${depHtml}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                            <span style="font-size: 0.75rem; color: #64748b;">${st.assignee_name || '—'}</span>
+                            <button class="btn-icon-cell" onclick="openEditTaskModal(${st.id})" title="Редактировать" style="font-size: 0.7rem; padding: 2px 4px;">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const mDepHtml = m.depends_on ? `<span class="dep-blocker-badge" title="Зависит от ${m.depends_on.code}"><i class="fa-solid fa-lock"></i> ${m.depends_on.code}</span>` : '';
+
+            return `
+                <div class="roadmap-milestone-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #1e293b; display: flex; align-items: center; gap: 5px;">
+                            <span>📍 ${escapeHtml(m.title)}</span>
+                            ${mDepHtml}
+                        </div>
+                        <span style="font-size: 0.78rem; font-weight: 700; color: #2563eb;">${mProg}%</span>
+                    </div>
+                    <div class="roadmap-progress-wrap" style="height: 5px; margin-bottom: 6px;">
+                        <div class="roadmap-progress-bar" style="width: ${mProg}%;"></div>
+                    </div>
+                    <div>
+                        ${subtasksHtml}
+                    </div>
+                    <div style="margin-top: 6px; text-align: right;">
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openAddTaskModal('milestone', ${m.id})">
+                            <i class="fa-solid fa-plus"></i> Подзадача
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const docBadge = p.attached_doc ? `
+            <a href="${p.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: #1d4ed8; text-decoration: none;" title="Регламент / Спецификация">
+                <i class="fa-solid fa-file-lines"></i> <span>${escapeHtml(p.attached_doc.title)}</span>
+            </a>
+        ` : '';
+
+        const tagsHtml = (p.tags || '').split(',').filter(t => t.trim()).map(t => {
+            const cleanT = t.trim();
+            return `<span class="tag-pill" onclick="filterByTag('${cleanT}')">${cleanT}</span>`;
+        }).join('');
+
+        return `
+            <div class="roadmap-card">
+                <div class="roadmap-header">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                            <span class="badge-code">${p.code || ('TSK-' + p.id)}</span>
+                            <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">${p.target_quarter || 'Q3 2026'}</span>
+                            ${p.department_service ? `<span class="badge-zone">${p.department_service}</span>` : ''}
+                        </div>
+                        <div class="roadmap-title">${escapeHtml(p.title)}</div>
+                    </div>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn-icon-cell" onclick="openEditTaskModal(${p.id})" title="Редактировать проект">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
+                        <span>Прогресс: ${doneElems}/${totalElems} этапов</span>
+                        <span style="color: #2563eb;">${prog}%</span>
+                    </div>
+                    <div class="roadmap-progress-wrap">
+                        <div class="roadmap-progress-bar" style="width: ${prog}%;"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b;">
+                    <div>👤 Ответственный: <strong style="color: #0f172a;">${p.assignee_name || 'Не назначен'}</strong></div>
+                    <div>${docBadge}</div>
+                </div>
+
+                ${tagsHtml ? `<div>${tagsHtml}</div>` : ''}
+
+                <!-- Milestones & Steps -->
+                <div style="margin-top: 0.25rem;">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">Ключевые этапы:</div>
+                    ${milestonesHtml || '<div style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 0.5rem 0;">Этапы проекта пока не добавлены</div>'}
+                </div>
+
+                <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 6px;">
+                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.78rem; padding: 3px 9px;" onclick="openAddTaskModal('milestone', ${p.id})">
+                        <i class="fa-solid fa-plus"></i> Добавить этап
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadTaskTags() {
+    try {
+        const res = await fetch("/api/tasks/tags");
+        if (res.ok) {
+            allTagsList = await res.json();
+            renderTagsCloud(allTagsList);
+            const badge = document.getElementById("tags-count-badge");
+            if (badge) badge.textContent = allTagsList.length;
+        }
+    } catch (e) {
+        console.error("Error loading task tags:", e);
+    }
+}
+
+function renderTagsCloud(tags) {
+    const container = document.getElementById("tags-cloud-items");
+    if (!container) return;
+
+    if (!tags || tags.length === 0) {
+        container.innerHTML = `<span style="font-size: 0.8rem; color: #94a3b8;">Нет активных тегов</span>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <button type="button" class="filter-chip ${currentTagFilter === 'all' ? 'active' : ''}" onclick="filterByTag('all')">
+            Все теги
+        </button>
+    ` + tags.map(t => {
+        const isActive = currentTagFilter === t.tag;
+        return `
+            <button type="button" class="filter-chip ${isActive ? 'active' : ''}" onclick="filterByTag('${t.tag}')" style="font-family: monospace;">
+                ${t.tag} <span style="background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 8px; font-size: 0.7rem;">${t.count}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function toggleTagsCloudBar() {
+    const bar = document.getElementById("tags-cloud-bar");
+    if (!bar) return;
+    bar.style.display = (bar.style.display === "none" || bar.style.display === "") ? "flex" : "none";
+}
+
+function filterByTag(tag) {
+    currentTagFilter = tag;
+    renderTagsCloud(allTagsList);
+    loadTasks();
+}
+
+function applyDepartmentFilter(dept) {
+    currentDepartmentService = (currentDepartmentService === dept) ? "all" : dept;
+    document.querySelectorAll("#quick-chips-group .filter-chip").forEach(c => c.classList.remove("active"));
+    
+    if (currentDepartmentService !== "all") {
+        const btnIdMap = { "ОГМ": "chip-zone-ogm", "ОГЭ": "chip-zone-oge", "Технологи": "chip-zone-tech", "ОТК": "chip-zone-qcd" };
+        const activeBtn = document.getElementById(btnIdMap[currentDepartmentService]);
+        if (activeBtn) activeBtn.classList.add("active");
+    } else {
+        const allBtn = document.getElementById("chip-all");
+        if (allBtn) allBtn.classList.add("active");
+    }
+    loadTasks();
+}
+
+function toggleDocFilter() {
+    filterHasDocOnly = !filterHasDocOnly;
+    const btn = document.getElementById("btn-filter-hasdoc");
+    if (btn) {
+        if (filterHasDocOnly) {
+            btn.classList.add("btn-backlog-active");
+            btn.innerHTML = `<i class="fa-solid fa-file-lines" style="color: #1d4ed8;"></i> <span>Только с регламентами (Вкл)</span>`;
+        } else {
+            btn.classList.remove("btn-backlog-active");
+            btn.innerHTML = `<i class="fa-solid fa-file-lines" style="color: #2563eb;"></i> <span>С регламентами</span>`;
+        }
+    }
+    loadTasks();
+}
+
+function onTaskTypeChange(taskType) {
+    const deptInput = document.getElementById("task-department-input");
+    const roadmapRow = document.getElementById("task-roadmap-fields-row");
+    const hierarchyRow = document.getElementById("task-hierarchy-row");
+
+    if (taskType === "roadmap") {
+        if (roadmapRow) roadmapRow.style.display = "grid";
+        if (deptInput) deptInput.style.display = "block";
+    } else if (taskType === "service_plan") {
+        if (roadmapRow) roadmapRow.style.display = "none";
+        if (deptInput) deptInput.style.display = "block";
+    } else if (taskType === "milestone") {
+        if (roadmapRow) roadmapRow.style.display = "none";
+        if (deptInput) deptInput.style.display = "block";
+    } else {
+        // weekly
+        if (roadmapRow) roadmapRow.style.display = "none";
+    }
+}
+
+function addTagToModalInput(tag) {
+    const input = document.getElementById("task-tags-input");
+    if (!input) return;
+    let curr = input.value.trim();
+    if (!curr) {
+        input.value = tag;
+    } else {
+        const tags = curr.split(',').map(t => t.trim());
+        if (!tags.includes(tag)) {
+            tags.push(tag);
+            input.value = tags.join(', ');
+        }
     }
 }
 
@@ -1028,16 +1384,40 @@ function renderTasksTable(tasks) {
             </div>
         ` : '';
 
+        const tagsHtml = (t.tags || '').split(',').filter(x => x.trim()).map(tagStr => {
+            const cleanT = tagStr.trim();
+            return `<span class="tag-pill" onclick="filterByTag('${cleanT}')">${cleanT}</span>`;
+        }).join('');
+
+        const depBadge = t.depends_on ? `
+            <div style="margin-top: 3px;">
+                <span class="dep-blocker-badge" title="Заблокировано задачей ${t.depends_on.code}: ${escapeHtml(t.depends_on.title)}">
+                    <i class="fa-solid fa-lock"></i> Блокер: ${t.depends_on.code}
+                </span>
+            </div>
+        ` : '';
+
+        const deptBadge = t.department_service ? `
+            <div style="margin-top: 2px;">
+                <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${t.department_service}</span>
+            </div>
+        ` : '';
+
         return `
             <tr id="task-row-${t.id}" class="${rowExtraClass}">
                 <td>
                     <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
                     ${backlogBadge}
                 </td>
-                <td><span class="badge-zone">${t.zone || 'Бережливое производство'}</span></td>
+                <td>
+                    <span class="badge-zone">${t.zone || 'Бережливое производство'}</span>
+                    ${deptBadge}
+                </td>
                 <td class="${titleClass}" style="font-weight: 600; min-width: 170px; color: #0f172a;">
                     <div>${t.title || '—'}</div>
                     ${docBadge}
+                    ${depBadge}
+                    ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
                 </td>
                 <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
@@ -1843,14 +2223,72 @@ function formatIsoToDisplayDate(isoStr) {
 /* ==========================================================
    MODAL CREATE & EDIT
    ========================================================== */
-function openAddTaskModal() {
+/* ==========================================================
+   MODAL CREATE & EDIT (3 HORIZONS, ROADMAPS, SERVICES)
+   ========================================================== */
+async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId = null, defaultDependsId = null) {
+    const parentSelect = document.getElementById("task-parent-input");
+    const dependsSelect = document.getElementById("task-depends-input");
+
+    try {
+        const res = await fetch("/api/tasks?task_type=all&month=all");
+        if (res.ok) {
+            const allT = await res.json();
+            
+            // 1. Родительские проекты (Дорожные карты и этапы)
+            if (parentSelect) {
+                const roadmapsAndMilestones = allT.filter(t => (t.task_type === 'roadmap' || t.task_type === 'milestone') && t.id !== currentTaskId);
+                parentSelect.innerHTML = `<option value="">-- Без родительского проекта --</option>` +
+                    roadmapsAndMilestones.map(p => `<option value="${p.id}">${p.task_type === 'roadmap' ? '🗺️' : '📍'} [${p.code || ('TSK-' + p.id)}] ${escapeHtml(p.title)}</option>`).join('');
+                if (defaultParentId) parentSelect.value = defaultParentId;
+            }
+
+            // 2. Блокирующие задачи
+            if (dependsSelect) {
+                const otherTasks = allT.filter(t => t.id !== currentTaskId);
+                dependsSelect.innerHTML = `<option value="">-- Нет блокирующих задач --</option>` +
+                    otherTasks.map(d => `<option value="${d.id}">🔒 [${d.code || ('TSK-' + d.id)}] ${escapeHtml(d.title)} (${d.status})</option>`).join('');
+                if (defaultDependsId) dependsSelect.value = defaultDependsId;
+            }
+        }
+    } catch (e) {
+        console.error("Error populating hierarchy dropdowns:", e);
+    }
+}
+
+async function openAddTaskModal(forcedType = null, parentId = null) {
     populateDropdowns();
+    await populateHierarchyDropdowns(null, parentId, null);
+
     document.getElementById("modal-title").textContent = "Новая задача";
     document.getElementById("task-id-input").value = "";
     document.getElementById("task-ru-input").value = "";
     document.getElementById("task-kz-input").value = "";
+    document.getElementById("task-tags-input").value = "";
     document.getElementById("task-photo-input").value = "";
     
+    // Тип задачи / Горизонт
+    const typeSelect = document.getElementById("task-type-input");
+    const initType = forcedType || (currentHorizon === 'roadmaps' ? 'roadmap' : (currentHorizon === 'services' ? 'service_plan' : 'weekly'));
+    if (typeSelect) {
+        typeSelect.value = initType;
+        onTaskTypeChange(initType);
+    }
+
+    // Служба по умолчанию
+    const deptSelect = document.getElementById("task-department-input");
+    if (deptSelect) {
+        deptSelect.value = (currentDepartmentService !== 'all') ? currentDepartmentService : '';
+    }
+
+    // Квартал и прогресс
+    const quarterSelect = document.getElementById("task-quarter-input");
+    if (quarterSelect) quarterSelect.value = currentQuarter;
+    const progInput = document.getElementById("task-progress-input");
+    if (progInput) progInput.value = 0;
+    const progDisp = document.getElementById("task-progress-display");
+    if (progDisp) progDisp.textContent = "0%";
+
     // Автоподстановка авторизованного пользователя
     const authorSelect = document.getElementById("task-author-input");
     if (authorSelect) {
@@ -1875,13 +2313,13 @@ function openAddTaskModal() {
     document.getElementById("task-comment-input").value = "";
     onPhotoInputChanged('task-photo-input');
 
-    // Скрываем блок Статуса и блок Факта при создании задачи
+    // Скрываем блок Статуса и блок Факта при создании обычной задачи (но показываем для дорожных карт)
     const statusContainer = document.getElementById("task-status-container");
-    if (statusContainer) statusContainer.style.display = "none";
+    if (statusContainer) statusContainer.style.display = (initType === 'roadmap') ? 'block' : 'none';
     const dueStatusRow = document.getElementById("task-due-status-row");
-    if (dueStatusRow) dueStatusRow.style.gridTemplateColumns = "1fr";
+    if (dueStatusRow) dueStatusRow.style.gridTemplateColumns = (initType === 'roadmap') ? '1fr 1fr' : '1fr';
     const commentContainer = document.getElementById("task-comment-container");
-    if (commentContainer) commentContainer.style.display = "none";
+    if (commentContainer) commentContainer.style.display = 'none';
 
     const badge = document.getElementById("translate-status-badge");
     if (badge) badge.style.display = "none";
@@ -1896,20 +2334,49 @@ function openAddTaskModal() {
     document.getElementById("task-modal").style.display = "flex";
 }
 
-function openEditTaskModal(taskId) {
+async function openEditTaskModal(taskId) {
     populateDropdowns();
-    const task = allTasks.find(t => t.id === taskId);
+    
+    let task = allTasks.find(t => t.id === taskId);
+    if (!task) {
+        try {
+            const res = await fetch(`/api/tasks/${taskId}`);
+            if (res.ok) task = await res.json();
+        } catch (e) {}
+    }
     if (!task) return;
+
+    await populateHierarchyDropdowns(task.id, task.parent_id, task.depends_on_id);
 
     document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code || ('TSK-' + task.id)}]`;
     document.getElementById("task-id-input").value = task.id;
     document.getElementById("task-ru-input").value = task.title || "";
     document.getElementById("task-kz-input").value = task.title_kz || "";
+    document.getElementById("task-tags-input").value = task.tags || "";
     document.getElementById("task-zone-input").value = task.zone || "Бережливое производство";
     document.getElementById("task-photo-input").value = task.photo_link || "";
     document.getElementById("task-author-input").value = task.author_name || "";
     document.getElementById("task-assignee-input").value = task.assignee_name || "";
     
+    // Тип задачи, служба, квартал и прогресс
+    const taskType = task.task_type || "weekly";
+    const typeSelect = document.getElementById("task-type-input");
+    if (typeSelect) {
+        typeSelect.value = taskType;
+        onTaskTypeChange(taskType);
+    }
+
+    const deptSelect = document.getElementById("task-department-input");
+    if (deptSelect) deptSelect.value = task.department_service || "";
+
+    const quarterSelect = document.getElementById("task-quarter-input");
+    if (quarterSelect) quarterSelect.value = task.target_quarter || currentQuarter;
+
+    const progInput = document.getElementById("task-progress-input");
+    if (progInput) progInput.value = task.progress || 0;
+    const progDisp = document.getElementById("task-progress-display");
+    if (progDisp) progDisp.textContent = `${task.progress || 0}%`;
+
     // Синхронизируем дату в календарь (input type="date")
     document.getElementById("task-due-input").value = parseDateToIso(task.due_date_str);
     
@@ -1928,6 +2395,8 @@ function openEditTaskModal(taskId) {
     // Прикрепленный документ
     if (task.attached_doc) {
         setSelectedDocAttachment(task.attached_doc.id, task.attached_doc.title);
+    } else if (task.attached_document_id) {
+        setSelectedDocAttachment(task.attached_document_id, task.attached_document_title || "Документ");
     } else {
         clearSelectedDocAttachment();
     }
@@ -1955,6 +2424,14 @@ async function saveTaskModal() {
     const taskId = document.getElementById("task-id-input").value;
     let titleRu = document.getElementById("task-ru-input").value.trim();
     let titleKz = document.getElementById("task-kz-input").value.trim();
+    const taskType = document.getElementById("task-type-input") ? document.getElementById("task-type-input").value : "weekly";
+    const deptService = document.getElementById("task-department-input") ? document.getElementById("task-department-input").value : "";
+    const parentIdVal = document.getElementById("task-parent-input") && document.getElementById("task-parent-input").value ? parseInt(document.getElementById("task-parent-input").value, 10) : null;
+    const dependsIdVal = document.getElementById("task-depends-input") && document.getElementById("task-depends-input").value ? parseInt(document.getElementById("task-depends-input").value, 10) : null;
+    const tagsVal = document.getElementById("task-tags-input") ? document.getElementById("task-tags-input").value.trim() : "";
+    const quarterVal = document.getElementById("task-quarter-input") ? document.getElementById("task-quarter-input").value : "";
+    const progressVal = document.getElementById("task-progress-input") ? parseInt(document.getElementById("task-progress-input").value, 10) : 0;
+
     const zone = document.getElementById("task-zone-input").value;
     const photoLink = document.getElementById("task-photo-input").value.trim();
     const author = document.getElementById("task-author-input").value;
@@ -2013,6 +2490,13 @@ async function saveTaskModal() {
             title: titleRu,
             title_kz: titleKz,
             zone: zone,
+            task_type: taskType,
+            department_service: deptService,
+            parent_id: parentIdVal,
+            depends_on_id: dependsIdVal,
+            tags: tagsVal,
+            target_quarter: quarterVal,
+            progress: progressVal,
             photo_link: photoLink,
             author_name: author,
             assignee_name: assignee,
@@ -2044,7 +2528,12 @@ async function saveTaskModal() {
             if (res.ok) {
                 closeTaskModal();
                 showToast(taskId ? "Задача обновлена" : "Задача добавлена в план");
-                loadTasks();
+                loadTaskTags();
+                if (currentHorizon === "roadmaps") {
+                    loadRoadmaps();
+                } else {
+                    loadTasks();
+                }
             } else {
                 const err = await res.json();
                 alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить задачу"));

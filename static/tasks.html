@@ -220,6 +220,122 @@
             border-color: #93c5fd;
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
         }
+        .horizon-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.4rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .horizon-tab-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+        }
+        .horizon-tab-btn.active {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Roadmap Cards & Hierarchy Tree Styles */
+        .roadmap-card {
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .roadmap-card:hover {
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+            border-color: #cbd5e1;
+        }
+        .roadmap-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .roadmap-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.35;
+        }
+        .roadmap-progress-wrap {
+            background: #f1f5f9;
+            border-radius: 999px;
+            height: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        .roadmap-progress-bar {
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.4s ease;
+        }
+        .roadmap-milestone-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .roadmap-subtask-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.35rem 0.5rem;
+            border-bottom: 1px dashed #e2e8f0;
+            font-size: 0.82rem;
+        }
+        .roadmap-subtask-item:last-child {
+            border-bottom: none;
+        }
+        .dep-blocker-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #ffedd5;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .tag-pill {
+            display: inline-block;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #dbeafe;
+            padding: 1px 6px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 1px 2px;
+            transition: all 0.15s ease;
+        }
+        .tag-pill:hover {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
         .filter-chip.active-warning {
             background: #fffbeb;
             color: #b45309;
@@ -1152,8 +1268,38 @@
         </div>
     </header>
 
+    <!-- Horizon Tabs Bar (3 Levels of Planning) -->
+    <div class="horizon-nav-bar" style="background: #ffffff; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="horizon-tab-btn active" id="tab-horizon-weekly" onclick="switchHorizon('weekly')">
+                <i class="fa-solid fa-bolt" style="color: #2563eb;"></i> <span>⚡ Недельный спринт</span>
+            </button>
+            <button type="button" class="horizon-tab-btn" id="tab-horizon-services" onclick="switchHorizon('services')">
+                <i class="fa-solid fa-wrench" style="color: #059669;"></i> <span>🔧 Службы ОГМ / ОГЭ</span>
+            </button>
+            <button type="button" class="horizon-tab-btn" id="tab-horizon-roadmaps" onclick="switchHorizon('roadmaps')">
+                <i class="fa-solid fa-map-location-dot" style="color: #7c3aed;"></i> <span>🗺️ Дорожные карты и проекты</span>
+            </button>
+        </div>
+
+        <!-- Tags Cloud Toggle -->
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <button type="button" class="filter-chip" id="btn-toggle-tags-bar" onclick="toggleTagsCloudBar()" title="Показать / скрыть облако хэштегов">
+                <i class="fa-solid fa-hashtag" style="color: #2563eb;"></i> <span>Теги</span> <span id="tags-count-badge" style="background: #eff6ff; color: #1d4ed8; padding: 1px 5px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;">0</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tags Cloud Bar (Expandable / Collapsible) -->
+    <div id="tags-cloud-bar" style="display: none; background: #f8fafc; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Хэштеги:</span>
+        <div id="tags-cloud-items" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
+
     <!-- Toolbar: Month/Week Selector & Action Buttons -->
-    <div class="toolbar">
+    <div class="toolbar" id="main-toolbar">
         <div class="toolbar-group toolbar-group-dates">
             <!-- Month Selector -->
             <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff;">
@@ -1176,12 +1322,26 @@
             <select class="select-filter" id="filter-week" onchange="loadTasks()" style="font-weight: 600; color: #b45309; border-color: #fde68a; background: #fffbeb;">
                 <!-- Populated dynamically -->
             </select>
+
+            <!-- Quarter Selector for Roadmaps (Hidden by default) -->
+            <select class="select-filter" id="filter-quarter" onchange="loadRoadmaps()" style="display: none; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">
+                <option value="all">📅 Все кварталы</option>
+                <option value="Q1 2026">Q1 2026</option>
+                <option value="Q2 2026">Q2 2026</option>
+                <option value="Q3 2026" selected>Q3 2026</option>
+                <option value="Q4 2026">Q4 2026</option>
+            </select>
         </div>
 
         <div class="toolbar-group toolbar-group-actions">
             <!-- Backlog Toggle -->
             <button class="btn-action btn-secondary-action" id="btn-toggle-backlog" onclick="toggleBacklog()" title="Показать незавершённые задачи с прошлых недель">
                 <i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых недель</span><span class="mobile-only">Долги</span>
+            </button>
+
+            <!-- Docs Control Filter for Services -->
+            <button class="btn-action btn-secondary-action" id="btn-filter-hasdoc" onclick="toggleDocFilter()" style="display: none;" title="Показать только задачи с прикрепленными регламентами">
+                <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i> <span>С регламентами</span>
             </button>
 
             <!-- Mobile Filters Toggle Button -->
@@ -1191,8 +1351,8 @@
             </button>
 
             <!-- Add Task Button -->
-            <button class="btn-action btn-primary-action" onclick="openAddTaskModal()">
-                <i class="fa-solid fa-plus"></i> <span>Задача</span>
+            <button class="btn-action btn-primary-action" id="btn-add-task-main" onclick="openAddTaskModal()">
+                <i class="fa-solid fa-plus"></i> <span id="btn-add-task-text">Задача</span>
             </button>
 
             <!-- Print Button (for Info Stand - Desktop only) -->
@@ -1248,8 +1408,8 @@
 
     <!-- Quick Presets & Service Chips Bar -->
     <div class="quick-filters-bar" id="quick-filters-bar">
-        <div class="quick-chips-group">
-            <button type="button" class="filter-chip active" id="chip-all" onclick="applyPresetFilter('all')" title="Показать все задачи недели">
+        <div class="quick-chips-group" id="quick-chips-group">
+            <button type="button" class="filter-chip active" id="chip-all" onclick="applyPresetFilter('all')" title="Показать все задачи">
                 <i class="fa-solid fa-layer-group"></i> <span>Все задачи</span>
             </button>
             <button type="button" class="filter-chip" id="chip-my" onclick="toggleMyTasksFilter()" title="Показать только мои задачи (автор или исполнитель)">
@@ -1263,10 +1423,10 @@
             <span style="color: #cbd5e1; font-weight: 300; margin: 0 2px;">|</span>
 
             <!-- Service Zone Chips -->
-            <button type="button" class="filter-chip" id="chip-zone-oge" onclick="applyZoneChip('ОГЭ')">ОГЭ</button>
-            <button type="button" class="filter-chip" id="chip-zone-ogm" onclick="applyZoneChip('ОГМ')">ОГМ</button>
-            <button type="button" class="filter-chip" id="chip-zone-qcd" onclick="applyZoneChip('СКК')">СКК</button>
-            <button type="button" class="filter-chip" id="chip-zone-lean" onclick="applyZoneChip('Бережливое производство')">Бережливое пр-во</button>
+            <button type="button" class="filter-chip" id="chip-zone-ogm" onclick="applyDepartmentFilter('ОГМ')">🔧 ОГМ Механики</button>
+            <button type="button" class="filter-chip" id="chip-zone-oge" onclick="applyDepartmentFilter('ОГЭ')">⚡ ОГЭ Электрики</button>
+            <button type="button" class="filter-chip" id="chip-zone-tech" onclick="applyDepartmentFilter('Технологи')">🔬 Технологи</button>
+            <button type="button" class="filter-chip" id="chip-zone-qcd" onclick="applyDepartmentFilter('ОТК')">📋 ОТК / СКК</button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.4rem;">
@@ -1321,7 +1481,7 @@
             <img src="/static/img/Logo.png" alt="Tectum Logo">
             <div class="print-header-title">
                 <h2>TECTUM ENGINEERING — ПЛАННЕР ЗАДАЧ</h2>
-                <span>ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО</span>
+                <span id="print-header-subtitle">ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО</span>
             </div>
         </div>
         <div class="print-meta-info" id="print-meta-info">
@@ -1329,69 +1489,80 @@
         </div>
     </div>
 
-    <!-- Main Container: Table (Desktop/Print) + Cards (Mobile) -->
+    <!-- Main Container: Table (Weekly / Services) + Cards + Roadmaps Tree -->
     <main class="table-container">
-        <!-- Desktop Table -->
-        <table class="planner-table">
-            <thead>
-                <tr>
-                    <th style="width: 70px;">ID</th>
-                    <th style="width: 150px;">
-                        <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
-                        <select class="select-filter" id="table-filter-zone" onchange="syncDesktopFilter('zone', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                            <option value="all">📁 Все зоны</option>
-                        </select>
-                    </th>
-                    <th>Суть задачи (RU)</th>
-                    <th>Суть задачи (KZ)</th>
-                    <th style="width: 60px; text-align: center;">Фото</th>
-                    <th style="width: 130px;">
-                        <div class="th-title" style="margin-bottom: 4px;">Автор</div>
-                        <select class="select-filter" id="table-filter-author" onchange="syncDesktopFilter('author', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                            <option value="all">✍️ Все авторы</option>
-                        </select>
-                    </th>
-                    <th style="width: 140px;">
-                        <div class="th-title" style="margin-bottom: 4px;">Исполнитель</div>
-                        <select class="select-filter" id="table-filter-assignee" onchange="syncDesktopFilter('assignee', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                            <option value="all">👤 Все исполн.</option>
-                        </select>
-                    </th>
-                    <th style="width: 80px; white-space: nowrap;">Срок</th>
-                    <th style="width: 140px; min-width: 140px; text-align: center; white-space: nowrap;">
-                        <div class="th-title" style="margin-bottom: 4px;">Статус</div>
-                        <select class="select-filter" id="table-filter-status" onchange="syncDesktopFilter('status', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                            <option value="all">⚡ Все статусы</option>
-                            <option value="🟡 В работе">🟡 В работе</option>
-                            <option value="🟢 Выполнено">🟢 Выполнено</option>
-                            <option value="🔵 Перенесено">🔵 Перенесено</option>
-                            <option value="🔴 Отменено">🔴 Отменено</option>
-                        </select>
-                    </th>
-                    <th>Факт / Комментарий</th>
-                    <th style="width: 70px; text-align: center;">Действия</th>
-                </tr>
-            </thead>
-            <tbody id="tasks-table-body">
-                <tr>
-                    <td colspan="11" style="text-align: center; padding: 2rem; color: #64748b;">
-                        <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <!-- 1. Weekly & Services Table (Desktop/Print) -->
+        <div id="planner-table-wrapper">
+            <table class="planner-table">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">ID</th>
+                        <th style="width: 150px;">
+                            <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
+                            <select class="select-filter" id="table-filter-zone" onchange="syncDesktopFilter('zone', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                                <option value="all">📁 Все зоны</option>
+                            </select>
+                        </th>
+                        <th>Суть задачи (RU)</th>
+                        <th>Суть задачи (KZ)</th>
+                        <th style="width: 60px; text-align: center;">Фото</th>
+                        <th style="width: 130px;">
+                            <div class="th-title" style="margin-bottom: 4px;">Автор</div>
+                            <select class="select-filter" id="table-filter-author" onchange="syncDesktopFilter('author', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                                <option value="all">✍️ Все авторы</option>
+                            </select>
+                        </th>
+                        <th style="width: 140px;">
+                            <div class="th-title" style="margin-bottom: 4px;">Исполнитель</div>
+                            <select class="select-filter" id="table-filter-assignee" onchange="syncDesktopFilter('assignee', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                                <option value="all">👤 Все исполн.</option>
+                            </select>
+                        </th>
+                        <th style="width: 80px; white-space: nowrap;">Срок</th>
+                        <th style="width: 140px; min-width: 140px; text-align: center; white-space: nowrap;">
+                            <div class="th-title" style="margin-bottom: 4px;">Статус</div>
+                            <select class="select-filter" id="table-filter-status" onchange="syncDesktopFilter('status', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                                <option value="all">⚡ Все статусы</option>
+                                <option value="🟡 В работе">🟡 В работе</option>
+                                <option value="🟢 Выполнено">🟢 Выполнено</option>
+                                <option value="🔵 Перенесено">🔵 Перенесено</option>
+                                <option value="🔴 Отменено">🔴 Отменено</option>
+                            </select>
+                        </th>
+                        <th>Факт / Комментарий</th>
+                        <th style="width: 70px; text-align: center;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tasks-table-body">
+                    <tr>
+                        <td colspan="11" style="text-align: center; padding: 2rem; color: #64748b;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
 
-        <!-- Mobile Cards List -->
-        <div id="tasks-cards-container" class="planner-cards-container">
-            <div style="text-align: center; padding: 2rem; color: #64748b;">
-                <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+            <!-- Mobile Cards List -->
+            <div id="tasks-cards-container" class="planner-cards-container">
+                <div style="text-align: center; padding: 2rem; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Roadmaps & Strategic Projects Container (Grid View) -->
+        <div id="roadmaps-view-container" style="display: none;">
+            <div id="roadmaps-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem;">
+                <div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...
+                </div>
             </div>
         </div>
     </main>
 
     <!-- CREATE / EDIT TASK MODAL -->
     <div class="modal-overlay" id="task-modal">
-        <div class="modal-box">
+        <div class="modal-box" style="max-width: 680px;">
             <div class="modal-header">
                 <h3 id="modal-title">Новая задача</h3>
                 <button class="modal-close" onclick="closeTaskModal()">&times;</button>
@@ -1399,15 +1570,69 @@
             
             <input type="hidden" id="task-id-input" value="">
 
+            <!-- Planning Horizon Selector (3 Levels) -->
+            <div class="form-row" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <label style="margin-bottom: 0.35rem; font-weight: 700; color: #0f172a;"><i class="fa-solid fa-layer-group" style="color: #2563eb;"></i> Горизонт планирования</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem;">
+                    <select class="form-select" id="task-type-input" onchange="onTaskTypeChange(this.value)" style="font-weight: 600;">
+                        <option value="weekly">⚡ Недельный спринт</option>
+                        <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
+                        <option value="roadmap">🗺️ Дорожная карта (Проект)</option>
+                        <option value="milestone">📍 Этап / Подзадача проекта</option>
+                    </select>
+                    <select class="form-select" id="task-department-input" style="font-weight: 600;">
+                        <option value="">-- Выберите службу --</option>
+                        <option value="ОГМ">🔧 ОГМ (Механики)</option>
+                        <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
+                        <option value="Технологи">🔬 Технологи</option>
+                        <option value="ОТК">📋 ОТК / СКК</option>
+                        <option value="Общий">🌐 Общий</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Hierarchy & Dependencies (Parent Project & Blocker) -->
+            <div class="form-row" id="task-hierarchy-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <label id="task-parent-label">Родительский проект / Этап</label>
+                    <select class="form-select" id="task-parent-input">
+                        <option value="">-- Без родительского проекта --</option>
+                    </select>
+                </div>
+                <div>
+                    <label><i class="fa-solid fa-link" style="color: #f59e0b;"></i> Зависит от задачи (Блокер)</label>
+                    <select class="form-select" id="task-depends-input">
+                        <option value="">-- Нет блокирующих задач --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Roadmap Specific Fields (Quarter & Progress) -->
+            <div class="form-row" id="task-roadmap-fields-row" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <div>
+                    <label style="color: #6d28d9; font-weight: 600;">Целевой квартал</label>
+                    <select class="form-select" id="task-quarter-input">
+                        <option value="Q1 2026">Q1 2026</option>
+                        <option value="Q2 2026">Q2 2026</option>
+                        <option value="Q3 2026" selected>Q3 2026</option>
+                        <option value="Q4 2026">Q4 2026</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="color: #6d28d9; font-weight: 600;">Прогресс выполнения: <span id="task-progress-display" style="font-weight: 700; color: #7c3aed;">0%</span></label>
+                    <input type="range" min="0" max="100" step="5" value="0" id="task-progress-input" oninput="document.getElementById('task-progress-display').textContent = this.value + '%'" style="width: 100%; accent-color: #7c3aed; margin-top: 6px;">
+                </div>
+            </div>
+
             <!-- Task text & Auto-Translation (2 Columns) -->
             <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; align-items: start;">
                 <!-- Column 1: Task (Any language) -->
                 <div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                        <label id="task-primary-label" style="margin-bottom: 0;">Задача *</label>
+                        <label id="task-primary-label" style="margin-bottom: 0;">Суть задачи *</label>
                         <span id="detected-lang-badge" style="display: none; font-size: 0.72rem; color: #64748b; font-weight: 500;"></span>
                     </div>
-                    <textarea class="form-textarea" id="task-ru-input" rows="3" placeholder="Введите задачу на любом языке (русский или казахский)..." oninput="onTaskInputChanged('primary')" required style="resize: vertical; min-height: 78px;"></textarea>
+                    <textarea class="form-textarea" id="task-ru-input" rows="3" placeholder="Формулировка задачи... Используйте #хэштеги (#ОГМ #ППР #Срочно)" oninput="onTaskInputChanged('primary')" required style="resize: vertical; min-height: 78px;"></textarea>
                 </div>
 
                 <!-- Column 2: Translation (Auto) -->
@@ -1422,9 +1647,27 @@
                 </div>
             </div>
 
+            <!-- Tags Field & Quick Chips -->
+            <div class="form-row">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-tags" style="color: #2563eb;"></i> Хэштеги задачи</label>
+                    <span style="font-size: 0.72rem; color: #64748b;">(через запятую или кликните чип)</span>
+                </div>
+                <input type="text" class="form-input" id="task-tags-input" placeholder="#ОГМ, #ППР, #ЛФМ, #Закупки...">
+                <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px;">
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ОГМ')">#ОГМ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ОГЭ')">#ОГЭ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ППР')">#ППР</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ЛФМ')">#ЛФМ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#Дестакер')">#Дестакер</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#Закупки')">#Закупки</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#Срочно')">#Срочно</span>
+                </div>
+            </div>
+
             <!-- Zone -->
             <div class="form-row">
-                <label>Зона / Служба</label>
+                <label>Зона / Участок</label>
                 <select class="form-select" id="task-zone-input">
                     <option value="Ремонт и зоны">Ремонт и зоны</option>
                     <option value="Инфостенды">Инфостенды</option>

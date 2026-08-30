@@ -652,6 +652,15 @@ class TaskBase(ORMBaseModel):
     is_archived: Optional[bool] = False
     pin_code: Optional[str] = None
     
+    # 3-level Planner & Hierarchy fields
+    task_type: Optional[str] = "weekly" # "weekly", "service_plan", "roadmap", "milestone"
+    department_service: Optional[str] = "" # "ОГМ", "ОГЭ", "Технологи", "ОТК", "Общий"
+    parent_id: Optional[int] = None
+    depends_on_id: Optional[int] = None
+    tags: Optional[str] = ""
+    target_quarter: Optional[str] = ""
+    progress: Optional[int] = 0
+    
     # Legacy / Compatibility fields
     description: Optional[str] = ""
     category: Optional[str] = ""
@@ -682,6 +691,15 @@ class TaskUpdate(ORMBaseModel):
     is_archived: Optional[bool] = None
     pin_code: Optional[str] = None
     
+    # 3-level Planner & Hierarchy fields
+    task_type: Optional[str] = None
+    department_service: Optional[str] = None
+    parent_id: Optional[int] = None
+    depends_on_id: Optional[int] = None
+    tags: Optional[str] = None
+    target_quarter: Optional[str] = None
+    progress: Optional[int] = None
+    
     # Legacy
     description: Optional[str] = None
     category: Optional[str] = None
@@ -701,6 +719,13 @@ class TaskResponse(TaskBase):
     updated_at: Optional[datetime] = None
     assigned_master_name: Optional[str] = ""
     attached_document_title: Optional[str] = ""
+    attached_document_url: Optional[str] = ""
+    parent_title: Optional[str] = ""
+    depends_on_title: Optional[str] = ""
+    depends_on_status: Optional[str] = ""
+    subtasks_count: Optional[int] = 0
+    subtasks_done_count: Optional[int] = 0
+    calculated_progress: Optional[int] = 0
 
     class Config:
         from_attributes = True

@@ -1790,15 +1790,18 @@
         </div>
     </div>
 
-    <!-- Модальное окно: Быстрый онлайн просмотр документа -->
+    <!-- Модальное окно: Быстрый онлайн просмотр документа + Задачи Планнера -->
     <div id="doc-preview-modal" class="modal" style="z-index: 10000;">
-        <div class="modal-content" style="max-width: 960px; width: 95vw; height: 90vh; display: flex; flex-direction: column; padding: 1.2rem;">
+        <div class="modal-content" style="max-width: 1050px; width: 95vw; height: 92vh; display: flex; flex-direction: column; padding: 1.2rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.8rem; border-bottom: 1px solid var(--docs-panel-border);">
-                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
                     <i class="fas fa-file-lines" id="preview-modal-icon" style="color: #3b82f6; font-size: 1.2rem;"></i>
                     <h3 style="margin: 0; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="preview-modal-title">Просмотр документа</h3>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <button id="preview-modal-create-task-btn" class="btn-action" style="background: #10b981; color: #fff; padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Создать задачу по этому документу в Планнере">
+                        <i class="fa-solid fa-plus"></i> <span>Создать задачу</span>
+                    </button>
                     <button id="preview-modal-download-btn" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Скачать для редактирования на ПК">
                         <i class="fas fa-download"></i> <span>Скачать на ПК</span>
                     </button>
@@ -1807,17 +1810,36 @@
                     </button>
                 </div>
             </div>
-            <div style="flex: 1; position: relative; margin-top: 0.8rem; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--docs-panel-border);">
-                <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
-                <div id="preview-modal-fallback" style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem;">
-                    <i class="fas fa-file-word" id="preview-fallback-icon" style="font-size: 4rem; color: #2563eb; margin-bottom: 1.2rem;"></i>
-                    <h4 id="preview-fallback-filename" style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл документа</h4>
-                    <p style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem;">
-                        Для просмотра и редактирования скачайте файл на свой компьютер. Вы сможете сохранить обновленную версию обратно в Базу Знаний в 1 клик.
-                    </p>
-                    <a id="preview-fallback-download-link" href="#" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.7rem 1.4rem; font-size: 0.95rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-download"></i> Скачать файл
-                    </a>
+            
+            <div style="display: flex; flex: 1; gap: 1rem; margin-top: 0.8rem; min-height: 0; overflow: hidden;">
+                <!-- Main Preview Frame -->
+                <div style="flex: 1; position: relative; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--docs-panel-border); min-height: 0;">
+                    <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <div id="preview-modal-fallback" style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem;">
+                        <i class="fas fa-file-word" id="preview-fallback-icon" style="font-size: 4rem; color: #2563eb; margin-bottom: 1.2rem;"></i>
+                        <h4 id="preview-fallback-filename" style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл документа</h4>
+                        <p style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem;">
+                            Для просмотра и редактирования скачайте файл на свой компьютер. Вы сможете сохранить обновленную версию обратно в Базу Знаний в 1 клик.
+                        </p>
+                        <a id="preview-fallback-download-link" href="#" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.7rem 1.4rem; font-size: 0.95rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-download"></i> Скачать файл
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar: Linked Planner Tasks Widget -->
+                <div id="preview-modal-tasks-sidebar" style="width: 320px; display: flex; flex-direction: column; background: #ffffff; border: 1px solid var(--docs-panel-border); border-radius: 8px; padding: 0.85rem; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--docs-panel-border);">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
+                            <span>Задачи по документу</span>
+                        </div>
+                        <span id="preview-modal-tasks-badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 0.75rem; padding: 1px 6px; border-radius: 10px;">0</span>
+                    </div>
+
+                    <div id="preview-modal-tasks-list" style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+                        <!-- Tasks dynamically populated -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -4047,7 +4069,96 @@
                 if (fallback) fallback.style.display = 'flex';
             }
 
+            const createTaskBtn = document.getElementById('preview-modal-create-task-btn');
+            if (createTaskBtn) {
+                createTaskBtn.onclick = () => {
+                    createTaskFromDoc(rawDocId, fileName);
+                };
+            }
+
             if (modal) modal.style.display = 'flex';
+
+            // Загрузка связанных задач Планнера по этому регламенту
+            loadDocumentTasks(rawDocId, fileName);
+        }
+
+        async function loadDocumentTasks(docId, docTitle) {
+            const listEl = document.getElementById('preview-modal-tasks-list');
+            const badgeEl = document.getElementById('preview-modal-tasks-badge');
+            if (!listEl) return;
+
+            if (!docId && docId !== 0) {
+                listEl.innerHTML = `
+                    <div style="text-align: center; padding: 1.5rem 0.5rem; color: #94a3b8; font-size: 0.82rem;">
+                        Внешняя ссылка (задачи не привязаны)
+                    </div>
+                `;
+                if (badgeEl) badgeEl.textContent = "0";
+                return;
+            }
+
+            listEl.innerHTML = `<div style="text-align: center; padding: 1rem; color: #64748b; font-size: 0.82rem;"><i class="fas fa-spinner fa-spin"></i> Загрузка задач...</div>`;
+
+            try {
+                const res = await fetch(`/api/documents/${docId}/tasks`);
+                if (res.ok) {
+                    const tasks = await res.json();
+                    if (badgeEl) badgeEl.textContent = tasks.length;
+
+                    if (!tasks || tasks.length === 0) {
+                        listEl.innerHTML = `
+                            <div style="text-align: center; padding: 1.5rem 0.5rem; color: #94a3b8; font-size: 0.82rem;">
+                                <i class="fa-solid fa-list-check" style="font-size: 1.5rem; margin-bottom: 0.4rem; display: block; color: #cbd5e1;"></i>
+                                Нет привязанных задач
+                                <div style="margin-top: 0.6rem;">
+                                    <button class="btn-action" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem; padding: 3px 8px;" onclick="createTaskFromDoc(${docId}, '${escapeHtml(docTitle).replace(/'/g, "\\'")}')">
+                                        + Создать задачу
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    listEl.innerHTML = tasks.map(t => {
+                        const isDone = t.status && t.status.includes('Выполнено');
+                        const statusColor = isDone ? '#10b981' : '#f59e0b';
+                        const statusBg = isDone ? '#ecfdf5' : '#fffbeb';
+                        const statusBorder = isDone ? '#a7f3d0' : '#fde68a';
+
+                        const tagsHtml = (t.tags || '').split(',').filter(x => x.trim()).map(tagStr => {
+                            return `<span style="display: inline-block; background: #eff6ff; color: #2563eb; padding: 1px 5px; border-radius: 4px; font-size: 0.68rem; margin-right: 3px;">${escapeHtml(tagStr.trim())}</span>`;
+                        }).join('');
+
+                        return `
+                            <div style="background: #f8fafc; border: 1px solid var(--docs-panel-border); border-radius: 6px; padding: 0.5rem 0.6rem; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                                    <span style="font-weight: 700; color: #2563eb; font-size: 0.75rem;">${t.code || ('TSK-' + t.id)}</span>
+                                    <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder}; padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; white-space: nowrap;">
+                                        ${t.status || 'В работе'}
+                                    </span>
+                                </div>
+                                <div style="font-weight: 600; color: #0f172a; line-height: 1.25;">
+                                    ${escapeHtml(t.title)}
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.73rem; color: #64748b; margin-top: 2px;">
+                                    <span>👤 ${escapeHtml(t.assignee_name || 'Не назначен')}</span>
+                                    <span>📅 ${escapeHtml(t.due_date_str || '—')}</span>
+                                </div>
+                                ${tagsHtml ? `<div style="margin-top: 2px;">${tagsHtml}</div>` : ''}
+                                <div style="margin-top: 4px; text-align: right;">
+                                    <a href="/static/tasks.html?task_id=${t.id}" target="_blank" style="font-size: 0.72rem; color: #2563eb; text-decoration: none; font-weight: 600;">
+                                        Открыть в Планнере →
+                                    </a>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.error("Error loading doc tasks:", e);
+                listEl.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 1rem; font-size: 0.8rem;">Ошибка загрузки</div>`;
+            }
         }
 
         function closeDocPreviewModal() {

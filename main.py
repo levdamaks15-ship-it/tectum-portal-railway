@@ -549,7 +549,14 @@ async def lifespan(app: FastAPI):
             ("tasks", "month_label", "VARCHAR(100)"),
             ("tasks", "is_archived", "BOOLEAN DEFAULT FALSE"),
             ("tasks", "attached_document_id", "INTEGER"),
-            ("tasks", "google_doc_url", "VARCHAR(500)")
+            ("tasks", "google_doc_url", "VARCHAR(500)"),
+            ("tasks", "task_type", "VARCHAR(50) DEFAULT 'weekly'"),
+            ("tasks", "department_service", "VARCHAR(100)"),
+            ("tasks", "parent_id", "INTEGER"),
+            ("tasks", "depends_on_id", "INTEGER"),
+            ("tasks", "tags", "TEXT"),
+            ("tasks", "target_quarter", "VARCHAR(50)"),
+            ("tasks", "progress", "INTEGER DEFAULT 0")
         ]
         try:
             with engine.connect() as conn:
@@ -582,7 +589,16 @@ async def lifespan(app: FastAPI):
             ("due_date_str", "VARCHAR(100)"),
             ("comment", "TEXT"),
             ("month_label", "VARCHAR(100)"),
-            ("is_archived", "BOOLEAN DEFAULT 0")
+            ("is_archived", "BOOLEAN DEFAULT 0"),
+            ("attached_document_id", "INTEGER"),
+            ("google_doc_url", "VARCHAR(500)"),
+            ("task_type", "VARCHAR(50) DEFAULT 'weekly'"),
+            ("department_service", "VARCHAR(100)"),
+            ("parent_id", "INTEGER"),
+            ("depends_on_id", "INTEGER"),
+            ("tags", "TEXT"),
+            ("target_quarter", "VARCHAR(50)"),
+            ("progress", "INTEGER DEFAULT 0")
         ]
         for col, col_def in sqlite_task_cols:
             try:
@@ -7955,10 +7971,219 @@ def auto_translate_text_internal(text: str) -> str:
     res = detect_and_translate_task_text(text)
     return res.get("text_kz", "")
 
+def extract_hashtags_from_title(title: str, existing_tags: Optional[str] = None) -> str:
+    """Извлекает #хэштеги из текста заголовка и объединяет с существующими тегами."""
+    import re
+    tags_found = re.findall(r"#[A-Za-zА-Яа-я0-9_\-]+", title or "")
+    existing = [t.strip() for t in (existing_tags or "").split(",") if t.strip()]
+    for t in tags_found:
+        if t not in existing:
+            existing.append(t)
+    return ", ".join(existing)
+
+def recalculate_parent_task_progress(db: Session, parent_id: Optional[int]):
+    """Автоматически пересчитывает процент выполнения родительской задачи на основе статуса подзадач."""
+    if not parent_id:
+        return
+    try:
+        parent = db.query(models.Task).filter(models.Task.id == parent_id).first()
+        if not parent:
+            return
+        subtasks = db.query(models.Task).filter(models.Task.parent_id == parent_id, models.Task.is_archived == False).all()
+        if not subtasks:
+            return
+        done_count = sum(1 for st in subtasks if st.status == "🟢 Выполнено")
+        total_count = len(subtasks)
+        calc_prog = int((done_count / total_count) * 100) if total_count > 0 else 0
+        parent.progress = calc_prog
+        if calc_prog == 100 and parent.status != "🟢 Выполнено":
+            parent.status = "🟢 Выполнено"
+        elif calc_prog < 100 and parent.status == "🟢 Выполнено":
+            parent.status = "🟡 В работе"
+        db.commit()
+        if parent.parent_id:
+            recalculate_parent_task_progress(db, parent.parent_id)
+    except Exception as e:
+        print(f"Error recalculating parent task progress: {e}")
+
+@app.get("/api/tasks/tags")
+def get_task_tags(db: Session = Depends(get_db)):
+    """Возвращает список всех уникальных хэштегов с количеством активных задач."""
+    try:
+        tasks = db.query(models.Task.tags).filter(models.Task.is_archived == False, models.Task.tags.isnot(None)).all()
+        tag_counts = {}
+        for (tag_str,) in tasks:
+            if tag_str:
+                for t in tag_str.split(","):
+                    clean_t = t.strip()
+                    if clean_t:
+                        if not clean_t.startswith("#"):
+                            clean_t = "#" + clean_t
+                        tag_counts[clean_t] = tag_counts.get(clean_t, 0) + 1
+        result = [{"tag": k, "count": v} for k, v in sorted(tag_counts.items(), key=lambda x: -x[1])]
+        return result
+    except Exception as e:
+        print(f"Error fetching task tags: {e}")
+        return []
+
+@app.get("/api/tasks/roadmaps")
+def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_db)):
+    """Возвращает иерархическое дерево Дорожных карт: Проекты -> Этапы -> Подзадачи."""
+    try:
+        query = db.query(models.Task).filter(
+            models.Task.task_type == "roadmap",
+            models.Task.is_archived == False
+        )
+        if quarter and quarter != "all":
+            query = query.filter(models.Task.target_quarter == quarter)
+        
+        projects = query.order_by(models.Task.id.desc()).all()
+        
+        # Собираем все ID проектов
+        project_ids = [p.id for p in projects]
+        if not project_ids:
+            return []
+
+        # Загружаем дочерние этапы и задачи
+        children = db.query(models.Task).filter(
+            models.Task.parent_id.in_(project_ids),
+            models.Task.is_archived == False
+        ).order_by(models.Task.id.asc()).all()
+
+        child_ids = [c.id for c in children]
+        sub_children = []
+        if child_ids:
+            sub_children = db.query(models.Task).filter(
+                models.Task.parent_id.in_(child_ids),
+                models.Task.is_archived == False
+            ).order_by(models.Task.id.asc()).all()
+
+        # Предзагрузка документов
+        all_tasks_for_docs = projects + children + sub_children
+        doc_ids = [t.attached_document_id for t in all_tasks_for_docs if t.attached_document_id]
+        doc_map = {}
+        if doc_ids:
+            docs = db.query(models.Document).filter(models.Document.id.in_(doc_ids)).all()
+            for d in docs:
+                file_link = d.external_url if d.external_url else f"/api/documents/download/{d.id}"
+                doc_map[d.id] = {
+                    "id": d.id,
+                    "title": d.title,
+                    "mime_type": d.mime_type,
+                    "link": file_link
+                }
+
+        # Карта зависимостей
+        depends_ids = [t.depends_on_id for t in all_tasks_for_docs if t.depends_on_id]
+        dep_map = {}
+        if depends_ids:
+            dep_tasks = db.query(models.Task).filter(models.Task.id.in_(depends_ids)).all()
+            for dt in dep_tasks:
+                dep_map[dt.id] = {
+                    "id": dt.id,
+                    "code": dt.code or f"TSK-{dt.id}",
+                    "title": dt.title,
+                    "status": dt.status
+                }
+
+        def serialize_item(item):
+            doc_info = doc_map.get(item.attached_document_id) if item.attached_document_id else None
+            dep_info = dep_map.get(item.depends_on_id) if item.depends_on_id else None
+            return {
+                "id": item.id,
+                "code": item.code or f"TSK-{item.id:02d}",
+                "zone": item.zone or "Проект",
+                "title": item.title,
+                "title_kz": item.title_kz or "",
+                "task_type": item.task_type or "roadmap",
+                "department_service": item.department_service or "",
+                "target_quarter": item.target_quarter or "",
+                "progress": item.progress or 0,
+                "status": item.status or "🟡 В работе",
+                "assignee_name": item.assignee_name or "",
+                "author_name": item.author_name or "",
+                "due_date_str": item.due_date_str or "",
+                "tags": item.tags or "",
+                "comment": item.comment or "",
+                "attached_doc": doc_info,
+                "depends_on": dep_info,
+                "created_at": item.created_at.strftime("%d.%m.%Y %H:%M") if item.created_at else ""
+            }
+
+        tree = []
+        for p in projects:
+            p_dict = serialize_item(p)
+            p_children = [c for c in children if c.parent_id == p.id]
+            
+            # Подсчет прогресса проекта по этапам/подзадачам
+            total_items = 0
+            done_items = 0
+            milestones_list = []
+            
+            for m in p_children:
+                m_dict = serialize_item(m)
+                m_subs = [s for s in sub_children if s.parent_id == m.id]
+                m_dict["subtasks"] = [serialize_item(s) for s in m_subs]
+                
+                # Подсчет прогресса вехи
+                m_total = len(m_subs)
+                m_done = sum(1 for s in m_subs if s.status == "🟢 Выполнено")
+                m_prog = int((m_done / m_total) * 100) if m_total > 0 else (100 if m.status == "🟢 Выполнено" else m.progress or 0)
+                m_dict["calculated_progress"] = m_prog
+                m_dict["subtasks_count"] = m_total
+                m_dict["subtasks_done_count"] = m_done
+                
+                total_items += 1 + m_total
+                done_items += (1 if m.status == "🟢 Выполнено" else 0) + m_done
+                milestones_list.append(m_dict)
+
+            p_dict["milestones"] = milestones_list
+            p_calc_prog = int((done_items / total_items) * 100) if total_items > 0 else (p.progress or 0)
+            p_dict["calculated_progress"] = p_calc_prog
+            p_dict["total_elements"] = total_items
+            p_dict["done_elements"] = done_items
+            tree.append(p_dict)
+
+        return tree
+    except Exception as e:
+        print(f"Error fetching roadmaps tree: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/documents/{doc_id}/tasks")
+def get_document_tasks(doc_id: int, db: Session = Depends(get_db)):
+    """Возвращает список всех активных задач, привязанных к конкретному регламенту/инструкции из Базы Знаний."""
+    try:
+        tasks = db.query(models.Task).filter(
+            models.Task.attached_document_id == doc_id,
+            models.Task.is_archived == False
+        ).order_by(models.Task.id.desc()).all()
+
+        return [{
+            "id": t.id,
+            "code": t.code or f"TSK-{t.id:02d}",
+            "title": t.title,
+            "task_type": t.task_type or "weekly",
+            "department_service": t.department_service or "",
+            "zone": t.zone or "",
+            "assignee_name": t.assignee_name or "",
+            "due_date_str": t.due_date_str or "",
+            "status": t.status or "🟡 В работе",
+            "month_label": t.month_label or "",
+            "week_label": t.week_label or ""
+        } for t in tasks]
+    except Exception as e:
+        print(f"Error fetching document tasks: {e}")
+        return []
+
 @app.get("/api/tasks")
 def get_tasks(
     month: Optional[str] = None,
     week: Optional[str] = None,
+    task_type: Optional[str] = None, # "weekly", "service_plan", "roadmap", "milestone", "all"
+    department_service: Optional[str] = None, # "ОГМ", "ОГЭ", "Технологи", "ОТК", "all"
+    tag: Optional[str] = None,
+    has_doc: Optional[bool] = None,
+    parent_id: Optional[int] = None,
     assignee: Optional[str] = None,
     author: Optional[str] = None,
     zone: Optional[str] = None,
@@ -7968,11 +8193,39 @@ def get_tasks(
     is_archived: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Возвращает список задач с фильтрацией по месяцу, неделе, исполнителю, автору, службе и опциональным включением долгов прошлых недель."""
+    """Возвращает список задач с фильтрацией по 3 горизонтам, службам, хэштегам, месяцу, неделе, исполнителю, автору и регламентам."""
     try:
         query = db.query(models.Task)
 
-        # Фильтрация по неделе / месяцу с учетом долгов
+        # 1. Фильтрация по типу задачи / горизонту
+        if task_type and task_type != "all":
+            query = query.filter(models.Task.task_type == task_type)
+        elif not task_type:
+            # По умолчанию для стандартного недельного вида возвращаем только weekly или без типа
+            pass
+
+        # 2. Фильтрация по службам ОГМ/ОГЭ/Технологи
+        if department_service and department_service != "all":
+            query = query.filter(models.Task.department_service == department_service)
+
+        # 3. Фильтрация по хэштегам
+        if tag and tag != "all":
+            clean_tag = tag.strip()
+            if not clean_tag.startswith("#"):
+                clean_tag = "#" + clean_tag
+            query = query.filter(models.Task.tags.ilike(f"%{clean_tag}%"))
+
+        # 4. Фильтрация по наличию прикрепленного регламента
+        if has_doc is True:
+            query = query.filter(models.Task.attached_document_id.isnot(None))
+        elif has_doc is False:
+            query = query.filter(models.Task.attached_document_id.is_(None))
+
+        # 5. Фильтрация по родителю
+        if parent_id is not None:
+            query = query.filter(models.Task.parent_id == parent_id)
+
+        # 6. Фильтрация по неделе / месяцу с учетом долгов
         if include_backlog and week and week != "all":
             if month and month != "all":
                 week_match = and_(models.Task.month_label == month, models.Task.week_label == week)
@@ -8009,7 +8262,7 @@ def get_tasks(
 
         tasks = query.order_by(models.Task.id.desc()).all()
 
-        # Предзагрузка прикрепленных документов для быстродействия
+        # Предзагрузка прикрепленных документов
         doc_ids = [t.attached_document_id for t in tasks if t.attached_document_id]
         doc_map = {}
         if doc_ids:
@@ -8023,6 +8276,40 @@ def get_tasks(
                     "link": file_link
                 }
 
+        # Предзагрузка родителей и зависимостей
+        ref_ids = set()
+        for t in tasks:
+            if t.parent_id:
+                ref_ids.add(t.parent_id)
+            if t.depends_on_id:
+                ref_ids.add(t.depends_on_id)
+
+        ref_map = {}
+        if ref_ids:
+            ref_tasks = db.query(models.Task).filter(models.Task.id.in_(list(ref_ids))).all()
+            for rt in ref_tasks:
+                ref_map[rt.id] = {
+                    "id": rt.id,
+                    "code": rt.code or f"TSK-{rt.id}",
+                    "title": rt.title,
+                    "status": rt.status
+                }
+
+        # Предзагрузка подсчета подзадач
+        task_ids = [t.id for t in tasks]
+        subtask_counts = {}
+        if task_ids:
+            all_subs = db.query(models.Task.parent_id, models.Task.status).filter(
+                models.Task.parent_id.in_(task_ids),
+                models.Task.is_archived == False
+            ).all()
+            for pid, st_status in all_subs:
+                if pid not in subtask_counts:
+                    subtask_counts[pid] = {"total": 0, "done": 0}
+                subtask_counts[pid]["total"] += 1
+                if st_status == "🟢 Выполнено":
+                    subtask_counts[pid]["done"] += 1
+
         results = []
         for t in tasks:
             is_backlog = False
@@ -8031,6 +8318,11 @@ def get_tasks(
                     is_backlog = True
 
             doc_info = doc_map.get(t.attached_document_id) if t.attached_document_id else None
+            parent_info = ref_map.get(t.parent_id) if t.parent_id else None
+            dep_info = ref_map.get(t.depends_on_id) if t.depends_on_id else None
+
+            subs_data = subtask_counts.get(t.id, {"total": 0, "done": 0})
+            calc_prog = int((subs_data["done"] / subs_data["total"]) * 100) if subs_data["total"] > 0 else (t.progress or 0)
 
             results.append({
                 "id": t.id,
@@ -8038,6 +8330,18 @@ def get_tasks(
                 "zone": t.zone or "Бережливое производство",
                 "title": t.title,
                 "title_kz": t.title_kz or "",
+                "task_type": t.task_type or "weekly",
+                "department_service": t.department_service or "",
+                "parent_id": t.parent_id,
+                "parent_title": parent_info["title"] if parent_info else "",
+                "depends_on_id": t.depends_on_id,
+                "depends_on": dep_info,
+                "tags": t.tags or "",
+                "target_quarter": t.target_quarter or "",
+                "progress": t.progress or 0,
+                "calculated_progress": calc_prog,
+                "subtasks_count": subs_data["total"],
+                "subtasks_done_count": subs_data["done"],
                 "photo_link": t.photo_link or "",
                 "author_name": t.author_name or "",
                 "assignee_name": t.assignee_name or "",
@@ -8085,7 +8389,7 @@ async def upload_task_photo(file: UploadFile = File(...)):
 
 @app.get("/api/tasks/{task_id}")
 def get_single_task(task_id: int, db: Session = Depends(get_db)):
-    """Возвращает информацию по конкретной задаче для deep-linking."""
+    """Возвращает полную информацию по конкретной задаче с подзадачами, связями и документом."""
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
@@ -8101,12 +8405,54 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
                 "link": d.external_url if d.external_url else f"/api/documents/download/{d.id}"
             }
 
+    parent_info = None
+    if task.parent_id:
+        p = db.query(models.Task).filter(models.Task.id == task.parent_id).first()
+        if p:
+            parent_info = {"id": p.id, "code": p.code or f"TSK-{p.id}", "title": p.title}
+
+    dep_info = None
+    if task.depends_on_id:
+        dep = db.query(models.Task).filter(models.Task.id == task.depends_on_id).first()
+        if dep:
+            dep_info = {"id": dep.id, "code": dep.code or f"TSK-{dep.id}", "title": dep.title, "status": dep.status}
+
+    # Подзадачи
+    subtasks = db.query(models.Task).filter(
+        models.Task.parent_id == task.id,
+        models.Task.is_archived == False
+    ).order_by(models.Task.id.asc()).all()
+
+    subtasks_list = [{
+        "id": st.id,
+        "code": st.code or f"TSK-{st.id:02d}",
+        "title": st.title,
+        "status": st.status,
+        "assignee_name": st.assignee_name or "",
+        "due_date_str": st.due_date_str or "",
+        "progress": st.progress or 0
+    } for st in subtasks]
+
+    done_cnt = sum(1 for s in subtasks if s.status == "🟢 Выполнено")
+    calc_prog = int((done_cnt / len(subtasks)) * 100) if subtasks else (task.progress or 0)
+
     return {
         "id": task.id,
         "code": task.code or f"TSK-{task.id:02d}",
         "zone": task.zone or "Бережливое производство",
         "title": task.title,
         "title_kz": task.title_kz or "",
+        "task_type": task.task_type or "weekly",
+        "department_service": task.department_service or "",
+        "parent_id": task.parent_id,
+        "parent": parent_info,
+        "depends_on_id": task.depends_on_id,
+        "depends_on": dep_info,
+        "tags": task.tags or "",
+        "target_quarter": task.target_quarter or "",
+        "progress": task.progress or 0,
+        "calculated_progress": calc_prog,
+        "subtasks": subtasks_list,
         "photo_link": task.photo_link or "",
         "author_name": task.author_name or "",
         "assignee_name": task.assignee_name or "",
@@ -8143,7 +8489,7 @@ def get_task_history(task_id: int, db: Session = Depends(get_db)):
             "details": log.details or ""
         })
 
-    # Если в AuditLog пока нет записей (например создано до логирования), формируем базовую запись создания
+    # Если в AuditLog пока нет записей, формируем базовую запись создания
     if not history and task.created_at:
         history.append({
             "id": 0,
@@ -8163,12 +8509,12 @@ def get_task_history(task_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/tasks")
 def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """Создает новую задачу и отправляет уведомление исполнителю."""
+    """Создает новую задачу с поддержкой горизонтов, тегов и связей."""
     try:
         author_name = (task_data.author_name or "").strip()
         pin = (task_data.pin_code or "").strip()
 
-        # Проверка PIN-кода автора, если PIN задан в БД
+        # Проверка PIN-кода автора
         if author_name:
             emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
             if emp and emp.pin_code and emp.pin_code.strip():
@@ -8181,6 +8527,9 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
 
         title_ru = (task_data.title or "").strip()
         title_kz = (task_data.title_kz or "").strip()
+
+        # Парсинг хэштегов из заголовка
+        combined_tags = extract_hashtags_from_title(title_ru, task_data.tags)
 
         # Интеллектуальное выравнивание языков
         if title_ru and not title_kz:
@@ -8197,6 +8546,13 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             zone=task_data.zone or "Бережливое производство",
             title=title_ru,
             title_kz=title_kz,
+            task_type=task_data.task_type or "weekly",
+            department_service=task_data.department_service or "",
+            parent_id=task_data.parent_id,
+            depends_on_id=task_data.depends_on_id,
+            tags=combined_tags,
+            target_quarter=task_data.target_quarter or "",
+            progress=task_data.progress or 0,
             photo_link=task_data.photo_link or "",
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
@@ -8211,13 +8567,17 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         db.add(new_task)
         db.flush()
 
+        # Пересчитываем родительскую задачу при необходимости
+        if new_task.parent_id:
+            recalculate_parent_task_progress(db, new_task.parent_id)
+
         # AuditLog
         db.add(models.AuditLog(
             user_name=new_task.author_name or "Планнер",
             action="CREATE",
             target_table="tasks",
             target_id=new_task.id,
-            details=f"Создана задача [{new_task.code}] «{new_task.title}». Зона: {new_task.zone}, Исполнитель: {new_task.assignee_name or '—'}, Период: {new_task.month_label} / {new_task.week_label}"
+            details=f"Создана задача [{new_task.code}] «{new_task.title}». Тип: {new_task.task_type}, Служба: {new_task.department_service or '—'}, Исполнитель: {new_task.assignee_name or '—'}"
         ))
 
         db.commit()
@@ -8255,15 +8615,13 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
 
 @app.put("/api/tasks/{task_id}")
 def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """Обновляет задачу и отправляет уведомления при смене статуса."""
+    """Обновляет задачу, пересчитывает связи и отправляет уведомления."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
         pin = (task_data.pin_code or "").strip()
-        # Валидация прав: разрешено автору, исполнителю или админу
-        # Если передан pin_code, проверяем автора или исполнителя
         if pin:
             author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
             assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
@@ -8273,17 +8631,21 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
                 valid = True
             if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
                 valid = True
-            
-            # Если у них вообще не задан PIN — валидно
             if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
                 valid = True
 
         old_status = task.status
         old_assignee = task.assignee_name
+        old_parent_id = task.parent_id
 
-        # Фиксируем изменения для AuditLog
+        # Автоматическое извлечение хэштегов из заголовка при обновлении
         update_dict = task_data.dict(exclude_unset=True)
         update_dict.pop("pin_code", None)
+
+        if "title" in update_dict:
+            curr_tags = update_dict.get("tags") if "tags" in update_dict else task.tags
+            update_dict["tags"] = extract_hashtags_from_title(update_dict["title"], curr_tags)
+
         changes = []
         for key, val in update_dict.items():
             if hasattr(task, key) and val is not None:
@@ -8305,6 +8667,12 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
         db.commit()
         db.refresh(task)
+
+        # Пересчет прогресса родителя
+        if task.parent_id:
+            recalculate_parent_task_progress(db, task.parent_id)
+        if old_parent_id and old_parent_id != task.parent_id:
+            recalculate_parent_task_progress(db, old_parent_id)
 
         task_dict = {
             "id": task.id,
@@ -8338,7 +8706,7 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
                     subject = f"🟢 Задача выполнена [{task.zone}]: {task.title}"
                     background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача выполнена", task_dict)
 
-            # 2.2. Если задача перенесена -> автору (и исполнителю, если есть)
+            # 2.2. Если задача перенесена -> автору и исполнителю
             elif task.status == "🔵 Перенесено":
                 due_info = f" на {task.due_date_str}" if task.due_date_str else ""
                 subject = f"🔵 Срок задачи перенесен{due_info} [{task.zone}]: {task.title}"
@@ -8354,18 +8722,16 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
             # 2.3. Если задача отменена -> исполнителю и автору
             elif task.status == "🔴 Отменено":
                 subject = f"🔴 Задача отменена [{task.zone}]: {task.title}"
-                # Уведомляем исполнителя
                 if task.assignee_name:
                     assignee_email = get_task_person_email(db, task.assignee_name)
                     if assignee_email:
                         background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Задача отменена", task_dict)
-                # Уведомляем автора, если отменил не он сам (или для подтверждения)
                 if task.author_name and task.author_name != task.assignee_name:
                     author_email = get_task_person_email(db, task.author_name)
                     if author_email:
                         background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача отменена", task_dict)
 
-            # 2.4. Если задачу взяли в работу -> исполнителю (если статус изменился)
+            # 2.4. Если задачу взяли в работу
             elif task.status == "🟡 В работе" and task.assignee_name:
                 assignee_email = get_task_person_email(db, task.assignee_name)
                 if assignee_email:

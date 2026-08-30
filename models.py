@@ -340,6 +340,15 @@ class Task(Base):
     week_label = Column(String, nullable=True, index=True) # например, "Неделя 4 (24.08 - 28.08)"
     is_archived = Column(Boolean, default=False, index=True)
     
+    # 3-level Planner & Hierarchy fields
+    task_type = Column(String, default="weekly", index=True) # "weekly", "service_plan", "roadmap", "milestone"
+    department_service = Column(String, nullable=True, index=True) # "ОГМ", "ОГЭ", "Технологи", "ОТК", "Общий"
+    parent_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
+    depends_on_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    tags = Column(String, nullable=True, index=True) # "#ОГМ, #ППР, #ЛФМ"
+    target_quarter = Column(String, nullable=True, index=True) # "Q3 2026", "Q4 2026"
+    progress = Column(Integer, default=0) # 0-100%
+    
     # Legacy / Compatibility fields
     description = Column(String, nullable=True)
     category = Column(String, nullable=True)
@@ -349,7 +358,7 @@ class Task(Base):
     creator_name = Column(String, nullable=True)
     due_date = Column(Date, nullable=True)
     completed_at = Column(DateTime, nullable=True)
-    attached_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
+    attached_document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
     google_doc_url = Column(String, nullable=True)
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -357,6 +366,8 @@ class Task(Base):
 
     assigned_master = relationship("Master", foreign_keys=[assigned_master_id])
     attached_document = relationship("Document", foreign_keys=[attached_document_id])
+    parent = relationship("Task", remote_side=[id], backref="subtasks", foreign_keys=[parent_id])
+    depends_on = relationship("Task", foreign_keys=[depends_on_id])
 
 class ChecklistEmployee(Base):
     __tablename__ = "checklist_employees"
