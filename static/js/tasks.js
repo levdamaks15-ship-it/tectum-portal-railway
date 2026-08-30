@@ -1434,7 +1434,7 @@ function renderTasksTable(tasks) {
         ` : '';
 
         let zoneAndDeptHtml = `<span class="badge-zone">${escapeHtml(t.zone || 'Бережливое производство')}</span>`;
-        if (t.department_service && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+        if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
             zoneAndDeptHtml += `
                 <div style="margin-top: 2px;">
                     <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>
@@ -1611,7 +1611,7 @@ function renderTasksCards(tasks) {
         `;
 
         let cardZoneHtml = `<span class="badge-zone">${escapeHtml(t.zone || 'Бережливое производство')}</span>`;
-        if (t.department_service && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+        if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
             cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
         }
 
@@ -2560,7 +2560,7 @@ async function saveTaskModal() {
             title_kz: titleKz,
             zone: zone,
             task_type: taskType,
-            department_service: deptService,
+            department_service: (deptService && deptService !== 'Общий' && taskType !== 'weekly') ? deptService : null,
             parent_id: parentIdVal,
             depends_on_id: dependsIdVal,
             tags: tagsVal,

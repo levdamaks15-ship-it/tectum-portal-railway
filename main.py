@@ -572,6 +572,12 @@ async def lifespan(app: FastAPI):
                             print(f"Added column '{col}' to table '{table}' in PostgreSQL.")
                         except Exception:
                             pass
+                
+                # Очистка некорректно проставленного department_service = 'Общий'
+                try:
+                    conn.execute(text("UPDATE tasks SET department_service = NULL WHERE department_service = 'Общий' OR (task_type = 'weekly' AND zone = 'Бережливое производство' AND department_service = 'Общий');"))
+                except Exception:
+                    pass
                 conn.commit()
         except Exception as pg_err:
             print(f"Error checking PG columns: {pg_err}")
@@ -8241,8 +8247,20 @@ def get_tasks(
         # 1. Фильтрация по типу задачи / горизонту
         if task_type == "weekly":
             query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
+            query = query.filter(models.Task.task_type != "service_plan", models.Task.task_type != "roadmap", models.Task.task_type != "milestone")
         elif task_type == "service_plan":
-            query = query.filter((models.Task.task_type == "service_plan") | (models.Task.department_service.isnot(None)))
+            query = query.filter(
+                (models.Task.task_type == "service_plan") |
+                (models.Task.department_service.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"])) |
+                (models.Task.zone.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"]))
+            )
+            query = query.filter(
+                ~and_(
+                    models.Task.task_type == "weekly",
+                    models.Task.zone == "Бережливое производство",
+                    or_(models.Task.department_service.is_(None), models.Task.department_service.in_(["", "Общий"]))
+                )
+            )
         elif task_type and task_type != "all":
             query = query.filter(models.Task.task_type == task_type)
 
