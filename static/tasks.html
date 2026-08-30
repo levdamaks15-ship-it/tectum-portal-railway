@@ -1156,6 +1156,9 @@
                 size: A4 landscape;
                 margin: 6mm 6mm 6mm 6mm;
             }
+            *, *:before, *:after {
+                box-sizing: border-box !important;
+            }
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
@@ -1163,14 +1166,20 @@
                 padding: 0 !important;
                 margin: 0 !important;
             }
-            /* Скрываем все экранные шапки, навигацию, вкладки горизонтов, теги, фильтры, KPI и мобильные элементы */
+            /* Скрываем ВСЕ интерактивные панели интерфейса */
+            header,
+            nav,
             .planner-header, 
             .horizon-nav-bar, 
             #tags-cloud-bar, 
             .toolbar, 
             #main-toolbar, 
-            .kpi-summary-cards, 
-            .quick-filter-chips-wrap, 
+            .kpi-summary-bar, 
+            #kpi-summary-bar,
+            .quick-filters-bar,
+            #quick-filters-bar,
+            .quick-chips-group,
+            .kpi-card-chip,
             .row-actions, 
             .modal-overlay, 
             .toast, 
@@ -1181,6 +1190,7 @@
             .btn-photo-link,
             .btn-action,
             .select-filter,
+            .filter-chip,
             #planner-user-badge {
                 display: none !important;
             }
@@ -1188,6 +1198,7 @@
                 padding: 0 !important;
                 margin: 0 !important;
                 overflow: visible !important;
+                display: block !important;
             }
             .print-only-header {
                 display: flex !important;
@@ -1229,7 +1240,7 @@
                 border-collapse: collapse !important;
                 border: 1.5px solid #000000 !important;
                 box-shadow: none !important;
-                table-layout: fixed !important;
+                table-layout: auto !important;
             }
             .planner-table tr {
                 page-break-inside: avoid;
@@ -1244,6 +1255,7 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
                 text-align: left;
+                white-space: nowrap;
             }
             .planner-table th select {
                 display: none !important;
@@ -1256,9 +1268,11 @@
                 color: #000000 !important;
                 padding: 4px 3px !important;
                 font-size: 7.5pt !important;
+                line-height: 1.25 !important;
                 vertical-align: top !important;
-                word-wrap: break-word !important;
+                white-space: normal !important;
                 overflow-wrap: break-word !important;
+                word-break: normal !important;
             }
             /* Скрываем столбец Фото (5-й) и Действия (последний) */
             .planner-table th:nth-child(5),
@@ -1267,25 +1281,31 @@
             .planner-table td:last-child {
                 display: none !important;
             }
-            /* Распределение колонок для идеального заполнения листа А4 Landscape */
-            .planner-table th:nth-child(1), .planner-table td:nth-child(1) { width: 55px !important; }
-            .planner-table th:nth-child(2), .planner-table td:nth-child(2) { width: 100px !important; }
+            /* Пропорциональные ширины столбцов под А4 Landscape */
+            .planner-table th:nth-child(1), .planner-table td:nth-child(1) { width: 50px !important; white-space: nowrap !important; }
+            .planner-table th:nth-child(2), .planner-table td:nth-child(2) { width: 110px !important; }
             .planner-table th:nth-child(3), .planner-table td:nth-child(3) { width: 28% !important; }
-            .planner-table th:nth-child(4), .planner-table td:nth-child(4) { width: 22% !important; }
-            .planner-table th:nth-child(6), .planner-table td:nth-child(6) { width: 85px !important; }
-            .planner-table th:nth-child(7), .planner-table td:nth-child(7) { width: 90px !important; }
-            .planner-table th:nth-child(8), .planner-table td:nth-child(8) { width: 75px !important; }
-            .planner-table th:nth-child(9), .planner-table td:nth-child(9) { width: 85px !important; }
+            .planner-table th:nth-child(4), .planner-table td:nth-child(4) { width: 20% !important; }
+            .planner-table th:nth-child(6), .planner-table td:nth-child(6) { width: 110px !important; }
+            .planner-table th:nth-child(7), .planner-table td:nth-child(7) { width: 95px !important; }
+            .planner-table th:nth-child(8), .planner-table td:nth-child(8) { width: 70px !important; white-space: nowrap !important; }
+            .planner-table th:nth-child(9), .planner-table td:nth-child(9) { width: 90px !important; white-space: nowrap !important; text-align: center !important; }
             .planner-table th:nth-child(10), .planner-table td:nth-child(10) { width: auto !important; }
 
             .select-status {
-                border: 1px solid #64748b !important;
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                -moz-appearance: none !important;
+                border: none !important;
+                background: transparent !important;
                 font-size: 7pt !important;
-                padding: 1px 3px !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                font-weight: 700 !important;
+                padding: 0 !important;
+                text-align: center !important;
+                pointer-events: none !important;
             }
             .badge-zone {
+                display: inline-block !important;
                 border: 1px solid #94a3b8 !important;
                 font-size: 7pt !important;
                 padding: 1px 3px !important;
@@ -1293,16 +1313,29 @@
                 print-color-adjust: exact;
             }
             .badge-code {
+                display: inline-block !important;
                 font-size: 7pt !important;
                 border: 1px solid #94a3b8 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
             .badge-cross-week, .badge-deadline-week {
+                display: inline-block !important;
                 font-size: 7pt !important;
                 padding: 1px 3px !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+            .tag-pill {
+                display: inline-block !important;
+                font-size: 6.5pt !important;
+                padding: 0 3px !important;
+                border: 1px solid #cbd5e1 !important;
+            }
+            .dep-blocker-badge {
+                display: inline-block !important;
+                font-size: 6.5pt !important;
+                padding: 0 3px !important;
             }
         }
     </style>
@@ -2092,6 +2125,6 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/tasks.js?v=20260827_stage3_history_kpi_v19"></script>
+    <script src="/static/js/tasks.js?v=20260830_print_fix_v3"></script>
 </body>
 </html>
