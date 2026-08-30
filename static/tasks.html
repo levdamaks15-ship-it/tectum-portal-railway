@@ -1154,62 +1154,82 @@
         @media print {
             @page {
                 size: A4 landscape;
-                margin: 8mm 8mm 8mm 8mm;
+                margin: 6mm 6mm 6mm 6mm;
             }
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
-                font-size: 9pt !important;
+                font-size: 8pt !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
-            .planner-header, .toolbar, .row-actions, .modal-overlay, .toast, .hide-print, .mobile-filters-panel, .planner-cards-container {
+            /* Скрываем все экранные шапки, навигацию, вкладки горизонтов, теги, фильтры, KPI и мобильные элементы */
+            .planner-header, 
+            .horizon-nav-bar, 
+            #tags-cloud-bar, 
+            .toolbar, 
+            #main-toolbar, 
+            .kpi-summary-cards, 
+            .quick-filter-chips-wrap, 
+            .row-actions, 
+            .modal-overlay, 
+            .toast, 
+            .hide-print, 
+            .mobile-filters-panel, 
+            .planner-cards-container, 
+            #roadmaps-view-container, 
+            .btn-photo-link,
+            .btn-action,
+            .select-filter,
+            #planner-user-badge {
                 display: none !important;
             }
-            .planner-table {
-                display: table !important;
+            .table-container {
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
             }
             .print-only-header {
                 display: flex !important;
                 justify-content: space-between;
                 align-items: center;
                 border-bottom: 2px solid #0f172a;
-                padding-bottom: 8px;
-                margin-bottom: 12px;
+                padding-bottom: 6px;
+                margin-bottom: 8px;
             }
             .print-header-brand {
                 display: flex;
                 align-items: center;
-                gap: 12px;
+                gap: 10px;
             }
             .print-header-brand img {
-                height: 34px;
+                height: 32px;
             }
             .print-header-title h2 {
                 margin: 0;
-                font-size: 13pt;
+                font-size: 12pt;
                 font-weight: 800;
                 color: #000000;
                 letter-spacing: 0.5px;
             }
             .print-header-title span {
-                font-size: 8.5pt;
+                font-size: 8pt;
                 color: #333333;
                 font-weight: 600;
             }
             .print-meta-info {
                 text-align: right;
-                font-size: 8pt;
+                font-size: 7.5pt;
                 color: #333333;
-                line-height: 1.35;
-            }
-            .table-container {
-                padding: 0 !important;
-                overflow: visible !important;
+                line-height: 1.3;
             }
             .planner-table {
+                display: table !important;
                 width: 100% !important;
-                border: 1px solid #000000 !important;
+                border-collapse: collapse !important;
+                border: 1.5px solid #000000 !important;
                 box-shadow: none !important;
-                page-break-inside: auto;
+                table-layout: fixed !important;
             }
             .planner-table tr {
                 page-break-inside: avoid;
@@ -1217,12 +1237,13 @@
             .planner-table th {
                 background: #f1f5f9 !important;
                 color: #000000 !important;
-                border: 1px solid #64748b !important;
-                padding: 5px 4px !important;
-                font-size: 8pt !important;
-                font-weight: 700 !important;
+                border: 1px solid #475569 !important;
+                padding: 4px 3px !important;
+                font-size: 7.5pt !important;
+                font-weight: 800 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                text-align: left;
             }
             .planner-table th select {
                 display: none !important;
@@ -1231,37 +1252,57 @@
                 display: block !important;
             }
             .planner-table td {
-                border: 1px solid #cbd5e1 !important;
+                border: 1px solid #94a3b8 !important;
                 color: #000000 !important;
-                padding: 5px 4px !important;
-                font-size: 8pt !important;
+                padding: 4px 3px !important;
+                font-size: 7.5pt !important;
+                vertical-align: top !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
             }
+            /* Скрываем столбец Фото (5-й) и Действия (последний) */
+            .planner-table th:nth-child(5),
+            .planner-table td:nth-child(5),
             .planner-table th:last-child,
             .planner-table td:last-child {
-                display: none !important; /* Скрываем колонку действий при печати */
+                display: none !important;
             }
+            /* Распределение колонок для идеального заполнения листа А4 Landscape */
+            .planner-table th:nth-child(1), .planner-table td:nth-child(1) { width: 55px !important; }
+            .planner-table th:nth-child(2), .planner-table td:nth-child(2) { width: 100px !important; }
+            .planner-table th:nth-child(3), .planner-table td:nth-child(3) { width: 28% !important; }
+            .planner-table th:nth-child(4), .planner-table td:nth-child(4) { width: 22% !important; }
+            .planner-table th:nth-child(6), .planner-table td:nth-child(6) { width: 85px !important; }
+            .planner-table th:nth-child(7), .planner-table td:nth-child(7) { width: 90px !important; }
+            .planner-table th:nth-child(8), .planner-table td:nth-child(8) { width: 75px !important; }
+            .planner-table th:nth-child(9), .planner-table td:nth-child(9) { width: 85px !important; }
+            .planner-table th:nth-child(10), .planner-table td:nth-child(10) { width: auto !important; }
+
             .select-status {
                 border: 1px solid #64748b !important;
-                font-size: 7.5pt !important;
+                font-size: 7pt !important;
                 padding: 1px 3px !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
             .badge-zone {
                 border: 1px solid #94a3b8 !important;
-                font-size: 7.5pt !important;
+                font-size: 7pt !important;
                 padding: 1px 3px !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
             .badge-code {
-                font-size: 7.5pt !important;
+                font-size: 7pt !important;
                 border: 1px solid #94a3b8 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            .btn-photo-link {
-                display: none !important;
+            .badge-cross-week, .badge-deadline-week {
+                font-size: 7pt !important;
+                padding: 1px 3px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
             }
         }
     </style>

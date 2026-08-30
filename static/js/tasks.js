@@ -2762,6 +2762,16 @@ function exportTasksToPdf() {
 
 function preparePrintMetaHeader() {
     const metaContainer = document.getElementById("print-meta-info");
+    const subtitleEl = document.getElementById("print-header-subtitle");
+    if (subtitleEl) {
+        if (currentHorizon === 'services') {
+            subtitleEl.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / ПЛАН СЛУЖБ (ОГМ / ОГЭ / ТЕХНОЛОГИ / ОТК)";
+        } else if (currentHorizon === 'roadmaps') {
+            subtitleEl.textContent = "СТРАТЕГИЧЕСКИЙ ПЛАН / ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
+        } else {
+            subtitleEl.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО";
+        }
+    }
     if (!metaContainer) return;
 
     const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : currentMonth;
@@ -2773,6 +2783,11 @@ function preparePrintMetaHeader() {
     const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
 
     const filterDetails = [];
+    if (currentHorizon === 'services') {
+        filterDetails.push(currentDepartmentService !== 'all' ? `Служба: ${currentDepartmentService}` : "Все службы (ОГМ / ОГЭ / Технологи / ОТК)");
+    } else if (currentHorizon === 'weekly') {
+        filterDetails.push("Бережливое производство");
+    }
     if (showBacklog) filterDetails.push("⚡ Включая долги прошлых недель");
     if (zone !== "all") filterDetails.push(`Зона: ${zone}`);
     if (author !== "all") filterDetails.push(`Автор: ${author}`);
@@ -2784,9 +2799,9 @@ function preparePrintMetaHeader() {
     const nowStr = now.toLocaleDateString("ru-RU") + " " + now.toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' });
 
     metaContainer.innerHTML = `
-        <div style="font-weight: 700; font-size: 9pt; color: #0f172a;">${month} / ${week}</div>
-        <div style="font-size: 8pt; color: #334155; margin: 2px 0;">Фильтр: ${filterText}</div>
-        <div style="font-size: 7.5pt; color: #64748b;">Всего задач: ${allTasks.length} | Сформировано: ${nowStr}</div>
+        <div style="font-weight: 700; font-size: 8.5pt; color: #0f172a;">${month} / ${week}</div>
+        <div style="font-size: 7.5pt; color: #334155; margin: 1px 0;">${filterText}</div>
+        <div style="font-size: 7pt; color: #64748b;">Всего задач: ${allTasks.length} | Сформировано: ${nowStr}</div>
     `;
 }
 
