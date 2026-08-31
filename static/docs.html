@@ -2324,7 +2324,7 @@
                 const res = await fetch(url);
                 const data = await res.json();
                 
-                if (data.status === 'success') {
+                if (data.status === 'success' && data.data) {
                     if (addToHistory && currentFolderId !== folderId && !searchQuery) {
                         if (currentFolderId) {
                             parentFolderIdHistory.push(currentFolderId);
@@ -2332,11 +2332,14 @@
                         }
                     }
                     
+                    const foldersList = Array.isArray(data.data.folders) ? data.data.folders : [];
+                    const filesList = Array.isArray(data.data.files) ? data.data.files : [];
+
                     if (!searchQuery) {
                         currentFolderId = folderId;
                         docsCache.set(cacheKey, {
-                            folders: data.data.folders,
-                            files: data.data.files,
+                            folders: foldersList,
+                            files: filesList,
                             timestamp: Date.now()
                         });
                     }
@@ -2349,16 +2352,17 @@
                         btnBack.style.display = 'none';
                     }
 
-                    currentFoldersData = data.data.folders;
-                    currentFilesData = data.data.files;
+                    currentFoldersData = foldersList;
+                    currentFilesData = filesList;
                     applySort();
                     loadQuickAccessBar();
                     
                 } else {
-                    container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message}</div>`;
+                    container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message || data.detail || 'Не удалось получить данные'}</div>`;
                 }
             } catch (error) {
-                container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка загрузки данных</div>`;
+                console.error("Error loading documents:", error);
+                container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка загрузки данных: ${error.message || error}</div>`;
             }
         }
 
@@ -2951,6 +2955,7 @@
                 const iconColor = getFolderColor(folder.name);
                 const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
                 const folderAuthor = folder.created_by || 'Каталог';
+                const folderJson = escapeHtml(JSON.stringify(folder));
                 html += `
                     <div class="docs-table-row folder-row" 
                          onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})"
@@ -3218,9 +3223,10 @@
         /* ==========================================================
            EXTERNAL LINK HANDLERS (GOOGLE & MICROSOFT UX)
            ========================================================== */
-        function openAddLinkModal(prefilledUrl = '', cloudType = 'all') {
+        function openAddLinkModal(prefilledUrl = '', serviceType = 'all') {
             hideContextMenu();
             const urlInput = document.getElementById('add-link-url');
+            const titleInput = document.getElementById('add-link-title');
             const modalHeader = document.getElementById('add-link-modal-title');
             const hint = document.getElementById('add-link-hint');
 
@@ -3238,6 +3244,7 @@
                 if (hint) hint.innerHTML = 'Вставьте любую внешнюю ссылку на документ в облаке';
             }
 
+            const modal = document.getElementById('add-link-modal');
             if (modal) modal.style.display = 'flex';
             setTimeout(() => {
                 if (urlInput && !prefilledUrl) urlInput.focus();
