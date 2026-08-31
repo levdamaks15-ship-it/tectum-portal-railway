@@ -874,14 +874,17 @@ function renderRoadmaps(projects) {
 
         const milestonesHtml = (p.milestones || []).map(m => {
             const mProg = m.calculated_progress || m.progress || 0;
+            const isMDone = (m.status && m.status.includes('Выполнено')) || mProg === 100;
             const subtasksHtml = (m.subtasks || []).map(st => {
                 const isStDone = st.status === '🟢 Выполнено';
                 const depHtml = st.depends_on ? `<span class="dep-blocker-badge" title="Зависит от ${st.depends_on.code}"><i class="fa-solid fa-lock"></i> ${st.depends_on.code}</span>` : '';
                 return `
-                    <div class="roadmap-subtask-item">
-                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-                            <span style="font-size: 0.85rem;">${isStDone ? '🟢' : '🟡'}</span>
-                            <span style="font-weight: 500; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(st.title)}</span>
+                    <div class="roadmap-subtask-item" id="roadmap-subtask-${st.id}">
+                        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1;">
+                            <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" onclick="quickToggleRoadmapSubtask(${st.id}, '${st.status || ''}', event)" title="${isStDone ? 'Отметить как «В работе»' : 'Отметить как «Выполнено»'}">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                            <span style="font-weight: 500; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" onclick="openEditTaskModal(${st.id})" title="Нажмите для редактирования">${escapeHtml(st.title)}</span>
                             ${depHtml}
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
@@ -897,23 +900,44 @@ function renderRoadmaps(projects) {
             const mDepHtml = m.depends_on ? `<span class="dep-blocker-badge" title="Зависит от ${m.depends_on.code}"><i class="fa-solid fa-lock"></i> ${m.depends_on.code}</span>` : '';
 
             return `
-                <div class="roadmap-milestone-box">
+                <div class="roadmap-milestone-box" id="roadmap-milestone-${m.id}">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <div style="font-weight: 700; font-size: 0.88rem; color: #1e293b; display: flex; align-items: center; gap: 5px;">
-                            <span>📍 ${escapeHtml(m.title)}</span>
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #1e293b; display: flex; align-items: center; gap: 7px; overflow: hidden;">
+                            <button type="button" class="roadmap-check-btn ${isMDone ? 'checked' : ''}" onclick="quickToggleRoadmapMilestone(${m.id}, '${m.status || ''}', ${mProg}, event)" title="${isMDone ? 'Снять отметку выполнения этапа' : 'Завершить этап (100%)'}" style="width: 18px; height: 18px; font-size: 0.6rem;">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                            <span style="cursor: pointer; text-decoration: ${isMDone ? 'line-through' : 'none'}; opacity: ${isMDone ? '0.7' : '1'};" onclick="openEditTaskModal(${m.id})" title="Нажмите для редактирования">${escapeHtml(m.title)}</span>
                             ${mDepHtml}
                         </div>
-                        <span style="font-size: 0.78rem; font-weight: 700; color: #2563eb;">${mProg}%</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: ${mProg === 100 ? '#10b981' : '#2563eb'};">${mProg}%</span>
+                            <button class="btn-icon-cell" onclick="openEditTaskModal(${m.id})" title="Редактировать этап" style="font-size: 0.7rem; padding: 2px 4px;">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="roadmap-progress-wrap" style="height: 5px; margin-bottom: 6px;">
-                        <div class="roadmap-progress-bar" style="width: ${mProg}%;"></div>
+                        <div class="roadmap-progress-bar" style="width: ${mProg}%; ${mProg === 100 ? 'background: #10b981;' : ''}"></div>
                     </div>
                     <div>
                         ${subtasksHtml}
                     </div>
-                    <div style="margin-top: 6px; text-align: right;">
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openAddTaskModal('milestone', ${m.id})">
-                            <i class="fa-solid fa-plus"></i> Подзадача
+
+                    <!-- Quick Add Subtask Input Inline -->
+                    <div class="roadmap-quick-add-wrap" id="quick-add-box-${m.id}">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <input type="text" class="roadmap-quick-add-input" id="quick-add-input-${m.id}" placeholder="Суть подзадачи (нажмите Enter для сохранения)..." onkeydown="handleQuickAddKeydown(event, ${m.id}, ${p.id})">
+                            <button type="button" class="btn-action btn-primary-action" style="padding: 2px 8px; font-size: 0.75rem;" onclick="submitQuickAddSubtask(${m.id}, ${p.id})">OK</button>
+                            <button type="button" class="btn-action btn-secondary-action" style="padding: 2px 6px; font-size: 0.75rem;" onclick="hideQuickAddSubtask(${m.id})">&times;</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 6px; display: flex; justify-content: flex-end; gap: 4px;" id="quick-add-btn-wrap-${m.id}">
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="showQuickAddSubtask(${m.id})">
+                            <i class="fa-solid fa-plus"></i> Быстрая подзадача
+                        </button>
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openAddTaskModal('milestone', ${m.id})" title="Подробная форма">
+                            <i class="fa-solid fa-sliders"></i>
                         </button>
                     </div>
                 </div>
@@ -980,6 +1004,156 @@ function renderRoadmaps(projects) {
             </div>
         `;
     }).join('');
+}
+
+/* ==========================================================
+   INTERACTIVE ROADMAP ACTIONS (1-CLICK TOGGLE & QUICK ADD)
+   ========================================================== */
+
+function showQuickAddSubtask(milestoneId) {
+    const box = document.getElementById(`quick-add-box-${milestoneId}`);
+    const btnWrap = document.getElementById(`quick-add-btn-wrap-${milestoneId}`);
+    const input = document.getElementById(`quick-add-input-${milestoneId}`);
+    if (box) box.style.display = "block";
+    if (btnWrap) btnWrap.style.display = "none";
+    if (input) {
+        input.value = "";
+        input.focus();
+    }
+}
+
+function hideQuickAddSubtask(milestoneId) {
+    const box = document.getElementById(`quick-add-box-${milestoneId}`);
+    const btnWrap = document.getElementById(`quick-add-btn-wrap-${milestoneId}`);
+    if (box) box.style.display = "none";
+    if (btnWrap) btnWrap.style.display = "flex";
+}
+
+function handleQuickAddKeydown(event, milestoneId, projectId) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        submitQuickAddSubtask(milestoneId, projectId);
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        hideQuickAddSubtask(milestoneId);
+    }
+}
+
+async function submitQuickAddSubtask(milestoneId, projectId) {
+    const input = document.getElementById(`quick-add-input-${milestoneId}`);
+    const text = input ? input.value.trim() : "";
+    if (!text) {
+        hideQuickAddSubtask(milestoneId);
+        return;
+    }
+
+    // Определяем автора/ответственного (текущий авторизованный пользователь или ответственный по проекту)
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Офис бережливого производства");
+
+    const payload = {
+        title: text,
+        title_kz: text,
+        zone: "Бережливое производство",
+        task_type: "weekly",
+        parent_id: milestoneId,
+        author_name: authorName,
+        assignee_name: authorName,
+        status: "🟡 В работе",
+        month_label: currentMonth,
+        week_label: currentWeek,
+        pin_code: (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : ""
+    };
+
+    try {
+        const res = await fetch("/api/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            showToast("Подзадача создана!");
+            hideQuickAddSubtask(milestoneId);
+            loadRoadmaps();
+        } else {
+            const err = await res.json();
+            alert("Ошибка создания: " + (err.detail || "Не удалось сохранить подзадачу"));
+        }
+    } catch (e) {
+        console.error("Quick add subtask error:", e);
+        alert("Ошибка сети при создании подзадачи");
+    }
+}
+
+async function quickToggleRoadmapSubtask(taskId, currentStatus, event) {
+    if (event) event.stopPropagation();
+    const isDone = currentStatus === "🟢 Выполнено";
+    const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
+    const defaultComment = isDone ? "" : "Выполнено через дорожную карту";
+
+    // Оптимистичный UI: находим кнопку чекбокса
+    const rowEl = document.getElementById(`roadmap-subtask-${taskId}`);
+    if (rowEl) {
+        const btn = rowEl.querySelector('.roadmap-check-btn');
+        if (btn) btn.classList.toggle('checked');
+    }
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: nextStatus,
+                comment: defaultComment,
+                pin_code: (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : ""
+            })
+        });
+
+        if (res.ok) {
+            showToast(isDone ? "Статус: В работе" : "Задача выполнена! 🎯");
+            loadRoadmaps();
+        } else {
+            const err = await res.json();
+            alert("Ошибка изменения статуса: " + (err.detail || "Не удалось изменить статус"));
+            loadRoadmaps();
+        }
+    } catch (e) {
+        console.error("Quick toggle error:", e);
+        loadRoadmaps();
+    }
+}
+
+async function quickToggleRoadmapMilestone(milestoneId, currentStatus, currentProgress, event) {
+    if (event) event.stopPropagation();
+    const isDone = (currentStatus && currentStatus.includes("Выполнено")) || currentProgress === 100;
+    const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
+    const nextProgress = isDone ? 0 : 100;
+    const defaultComment = isDone ? "" : "Этап завершён";
+
+    try {
+        const res = await fetch(`/api/tasks/${milestoneId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: nextStatus,
+                progress: nextProgress,
+                comment: defaultComment,
+                pin_code: (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : ""
+            })
+        });
+
+        if (res.ok) {
+            showToast(isDone ? "Этап возвращен в работу" : "Ключевой этап завершен! 🎉");
+            loadRoadmaps();
+        } else {
+            const err = await res.json();
+            alert("Ошибка: " + (err.detail || "Не удалось обновить статус этапа"));
+            loadRoadmaps();
+        }
+    } catch (e) {
+        console.error("Quick milestone toggle error:", e);
+        loadRoadmaps();
+    }
 }
 
 async function loadTaskTags() {
