@@ -1344,6 +1344,22 @@ function populateDropdowns() {
     if (modalZone) {
         modalZone.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
     }
+
+    // 4. Bulk Modal Dropdowns
+    const bulkAuthor = document.getElementById("bulk-author-input");
+    if (bulkAuthor) {
+        const curVal = bulkAuthor.value;
+        bulkAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + 
+            persons.map(n => `<option value="${n}">${n}</option>`).join('');
+        if (curVal && persons.includes(curVal)) bulkAuthor.value = curVal;
+    }
+
+    const bulkZone = document.getElementById("bulk-zone-input");
+    if (bulkZone) {
+        const curVal = bulkZone.value;
+        bulkZone.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
+        if (curVal && zones.includes(curVal)) bulkZone.value = curVal;
+    }
 }
 
 
