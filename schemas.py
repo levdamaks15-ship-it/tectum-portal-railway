@@ -675,6 +675,27 @@ class TaskBase(ORMBaseModel):
 class TaskCreate(TaskBase):
     pass
 
+class BulkTaskItem(ORMBaseModel):
+    title: str
+    assignee_name: Optional[str] = ""
+    due_date_str: Optional[str] = ""
+    zone: Optional[str] = None
+    tags: Optional[str] = ""
+    photo_link: Optional[str] = ""
+    attached_document_id: Optional[int] = None
+
+class BulkTasksCreate(ORMBaseModel):
+    tasks: List[BulkTaskItem]
+    author_name: str
+    pin_code: Optional[str] = None
+    task_type: Optional[str] = "weekly"
+    department_service: Optional[str] = ""
+    zone: Optional[str] = "Бережливое производство"
+    month_label: Optional[str] = "Август 2026"
+    week_label: Optional[str] = "Неделя 4 (24.08 - 28.08)"
+    target_quarter: Optional[str] = ""
+    default_due_date_str: Optional[str] = ""
+
 class TaskUpdate(ORMBaseModel):
     code: Optional[str] = None
     zone: Optional[str] = None

@@ -2641,6 +2641,336 @@ async function saveTaskModal() {
 }
 
 /* ==========================================================
+   BULK TASKS MODAL (MASS TASK CREATION)
+   ========================================================== */
+let bulkRowCounter = 0;
+
+function openBulkTasksModal() {
+    populateDropdowns();
+    bulkRowCounter = 0;
+
+    // Подстановка типа задачи и службы в зависимости от активного горизонта
+    const typeSelect = document.getElementById("bulk-type-input");
+    const deptSelect = document.getElementById("bulk-department-input");
+    
+    if (typeSelect) {
+        if (currentHorizon === "services") {
+            typeSelect.value = "service_plan";
+        } else if (currentHorizon === "roadmaps") {
+            typeSelect.value = "roadmap";
+        } else {
+            typeSelect.value = "weekly";
+        }
+        onBulkTypeChange(typeSelect.value);
+    }
+
+    if (deptSelect) {
+        if (currentDepartmentService && currentDepartmentService !== "all") {
+            deptSelect.value = currentDepartmentService;
+        } else {
+            deptSelect.value = "";
+        }
+    }
+
+    // Подстановка автора
+    const authorSelect = document.getElementById("bulk-author-input");
+    if (authorSelect) {
+        if (currentPlannerUser && currentPlannerUser.name) {
+            authorSelect.value = currentPlannerUser.name;
+        } else {
+            authorSelect.value = "";
+        }
+    }
+
+    // Подстановка даты по умолчанию (сегодня)
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defDueInput = document.getElementById("bulk-default-due-input");
+    if (defDueInput) {
+        defDueInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Сброс поля быстрой вставки текста
+    const pasteBox = document.getElementById("bulk-quick-paste-box");
+    if (pasteBox) pasteBox.style.display = "none";
+    const pasteArea = document.getElementById("bulk-paste-textarea");
+    if (pasteArea) pasteArea.value = "";
+
+    // Очищаем и создаем первые 3 пустые строки
+    const container = document.getElementById("bulk-tasks-rows-container");
+    if (container) container.innerHTML = "";
+
+    addBulkTaskRow();
+    addBulkTaskRow();
+    addBulkTaskRow();
+
+    updateBulkTasksCountBadge();
+
+    const modal = document.getElementById("bulk-tasks-modal");
+    if (modal) modal.style.display = "flex";
+}
+
+function closeBulkTasksModal() {
+    const modal = document.getElementById("bulk-tasks-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function onBulkTypeChange(typeVal) {
+    const deptSelect = document.getElementById("bulk-department-input");
+    if (!deptSelect) return;
+    if (typeVal === "service_plan") {
+        if (!deptSelect.value) deptSelect.value = "ОГМ";
+    }
+}
+
+function onBulkDefaultDueChanged(newIsoDate) {
+    // Обновляем даты в строках, если они пустые или совпадали со старой
+    const rows = document.querySelectorAll(".bulk-task-row");
+    rows.forEach(row => {
+        const dueInput = row.querySelector(".bulk-row-due");
+        if (dueInput && !dueInput.value) {
+            dueInput.value = newIsoDate;
+        }
+    });
+}
+
+function toggleBulkQuickPaste() {
+    const pasteBox = document.getElementById("bulk-quick-paste-box");
+    if (!pasteBox) return;
+    if (pasteBox.style.display === "none" || !pasteBox.style.display) {
+        pasteBox.style.display = "block";
+        const pasteArea = document.getElementById("bulk-paste-textarea");
+        if (pasteArea) pasteArea.focus();
+    } else {
+        pasteBox.style.display = "none";
+    }
+}
+
+function parseBulkTasksFromTextarea() {
+    const pasteArea = document.getElementById("bulk-paste-textarea");
+    if (!pasteArea) return;
+    const text = pasteArea.value.trim();
+    if (!text) {
+        alert("Пожалуйста, вставьте текст со списком задач!");
+        return;
+    }
+
+    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return;
+
+    // Очищаем существующие пустые строки, если в них ничего не введено
+    const container = document.getElementById("bulk-tasks-rows-container");
+    if (container) {
+        const existingRows = container.querySelectorAll(".bulk-task-row");
+        existingRows.forEach(r => {
+            const titleInp = r.querySelector(".bulk-row-title");
+            if (titleInp && !titleInp.value.trim()) {
+                r.remove();
+            }
+        });
+    }
+
+    // Добавляем каждую строку как задачу, очищая нумерацию вида "1. ", "- ", "* "
+    lines.forEach(line => {
+        let cleanTitle = line.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
+        if (cleanTitle) {
+            addBulkTaskRow(cleanTitle);
+        }
+    });
+
+    pasteArea.value = "";
+    toggleBulkQuickPaste();
+    updateBulkTasksCountBadge();
+    showToast(`Добавлено строк: ${lines.length}`);
+}
+
+function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
+    const container = document.getElementById("bulk-tasks-rows-container");
+    if (!container) return;
+
+    bulkRowCounter++;
+    const rowId = `bulk-row-${bulkRowCounter}`;
+
+    const defDue = initDue || (document.getElementById("bulk-default-due-input") ? document.getElementById("bulk-default-due-input").value : "");
+    const persons = getUniquePersons();
+
+    const rowDiv = document.createElement("div");
+    rowDiv.className = "bulk-task-row";
+    rowDiv.id = rowId;
+    rowDiv.style.display = "grid";
+    rowDiv.style.gridTemplateColumns = "32px 1fr 160px 130px 36px";
+    rowDiv.style.gap = "0.5rem";
+    rowDiv.style.alignItems = "center";
+    rowDiv.style.background = "#f8fafc";
+    rowDiv.style.border = "1px solid #e2e8f0";
+    rowDiv.style.borderRadius = "6px";
+    rowDiv.style.padding = "0.35rem 0.5rem";
+
+    rowDiv.innerHTML = `
+        <span class="bulk-row-num" style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-align: center;"></span>
+        <input type="text" class="form-input bulk-row-title" placeholder="Суть задачи... (#ОГМ, #ППР, #Срочно)" value="${escapeHtml(initTitle)}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;" onkeydown="handleBulkRowKeydown(event, '${rowId}')">
+        <select class="form-select bulk-row-assignee" style="font-size: 0.8rem; padding: 0.35rem 0.4rem;">
+            <option value="">-- Исполнитель --</option>
+            ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === initAssignee ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+        </select>
+        <input type="date" class="form-input bulk-row-due" value="${defDue}" style="font-size: 0.8rem; padding: 0.35rem 0.4rem;">
+        <button type="button" class="btn-icon-cell" onclick="removeBulkTaskRow('${rowId}')" title="Удалить строку" style="color: #ef4444; border-color: #fecaca; background: #fff;">
+            <i class="fa-solid fa-trash-can" style="font-size: 0.8rem;"></i>
+        </button>
+    `;
+
+    container.appendChild(rowDiv);
+    renumberBulkRows();
+    updateBulkTasksCountBadge();
+
+    // Фокусируемся на добавленной строке
+    const titleInput = rowDiv.querySelector(".bulk-row-title");
+    if (titleInput && !initTitle) {
+        titleInput.focus();
+    }
+}
+
+function removeBulkTaskRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.remove();
+        renumberBulkRows();
+        updateBulkTasksCountBadge();
+    }
+}
+
+function renumberBulkRows() {
+    const rows = document.querySelectorAll(".bulk-task-row");
+    rows.forEach((r, idx) => {
+        const numSpan = r.querySelector(".bulk-row-num");
+        if (numSpan) numSpan.textContent = idx + 1;
+    });
+}
+
+function updateBulkTasksCountBadge() {
+    const rows = document.querySelectorAll(".bulk-task-row");
+    const countBadge = document.getElementById("bulk-tasks-count-badge");
+    const btnSaveText = document.getElementById("btn-save-bulk-text");
+    
+    let filledCount = 0;
+    rows.forEach(r => {
+        const t = r.querySelector(".bulk-row-title");
+        if (t && t.value.trim()) filledCount++;
+    });
+
+    const totalCount = rows.length;
+    if (countBadge) countBadge.textContent = `Строк: ${totalCount} (готово: ${filledCount})`;
+    if (btnSaveText) btnSaveText.textContent = `Сохранить задачи (${filledCount || totalCount})`;
+}
+
+function handleBulkRowKeydown(event, currentRowId) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        addBulkTaskRow();
+    }
+}
+
+async function saveBulkTasksModal() {
+    const author = document.getElementById("bulk-author-input") ? document.getElementById("bulk-author-input").value : "";
+    const taskType = document.getElementById("bulk-type-input") ? document.getElementById("bulk-type-input").value : "weekly";
+    const deptService = document.getElementById("bulk-department-input") ? document.getElementById("bulk-department-input").value : "";
+    const zoneVal = document.getElementById("bulk-zone-input") ? document.getElementById("bulk-zone-input").value : "Бережливое производство";
+    const defDueRaw = document.getElementById("bulk-default-due-input") ? document.getElementById("bulk-default-due-input").value : "";
+    const defDueFormatted = formatIsoToDisplayDate(defDueRaw);
+
+    if (!author) {
+        alert("Пожалуйста, укажите автора задач!");
+        const authSelect = document.getElementById("bulk-author-input");
+        if (authSelect) authSelect.focus();
+        return;
+    }
+
+    // Собираем строки
+    const rows = document.querySelectorAll(".bulk-task-row");
+    const tasksItems = [];
+
+    rows.forEach(r => {
+        const titleInput = r.querySelector(".bulk-row-title");
+        const assigneeSelect = r.querySelector(".bulk-row-assignee");
+        const dueInput = r.querySelector(".bulk-row-due");
+
+        const title = titleInput ? titleInput.value.trim() : "";
+        const assignee = assigneeSelect ? assigneeSelect.value.trim() : "";
+        const dueRaw = dueInput ? dueInput.value.trim() : "";
+        const due = formatIsoToDisplayDate(dueRaw) || defDueFormatted;
+
+        if (title) {
+            tasksItems.push({
+                title: title,
+                assignee_name: assignee,
+                due_date_str: due,
+                zone: zoneVal
+            });
+        }
+    });
+
+    if (tasksItems.length === 0) {
+        alert("Пожалуйста, заполните хотя бы одну задачу (поле «Суть задачи»)");
+        return;
+    }
+
+    // Запрос PIN-кода автора, если требуется
+    ensureUserAuthorized(author, async (authSession) => {
+        const saveBtn = document.getElementById("btn-save-bulk-tasks");
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение (${tasksItems.length})...`;
+        }
+
+        const payload = {
+            tasks: tasksItems,
+            author_name: author,
+            pin_code: authSession ? authSession.pin : "",
+            task_type: taskType,
+            department_service: (deptService && deptService !== 'Общий' && taskType !== 'weekly') ? deptService : "",
+            zone: zoneVal,
+            month_label: currentMonth,
+            week_label: currentWeek,
+            target_quarter: currentQuarter,
+            default_due_date_str: defDueFormatted
+        };
+
+        try {
+            const res = await fetch("/api/tasks/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                closeBulkTasksModal();
+                showToast(`Успешно создано задач: ${data.count} шт. 🚀`);
+                loadTaskTags();
+                if (currentHorizon === "roadmaps") {
+                    loadRoadmaps();
+                } else {
+                    loadTasks();
+                }
+            } else {
+                const err = await res.json();
+                alert("Ошибка массового сохранения: " + (err.detail || "Не удалось сохранить"));
+            }
+        } catch (e) {
+            console.error("Bulk save error:", e);
+            alert("Произошла ошибка сети при массовом создании задач");
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> <span id="btn-save-bulk-text">Сохранить задачи (${tasksItems.length})</span>`;
+            }
+        }
+    });
+}
+
+/* ==========================================================
    MOVE TO NEXT WEEK & ARCHIVE (1-CLICK NO PROMPTS)
    ========================================================== */
 function getNextCalendarWeek() {

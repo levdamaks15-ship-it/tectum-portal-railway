@@ -8879,6 +8879,134 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         print(f"Error creating task: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/tasks/bulk")
+def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Массовое создание задач в единой транзакции БД."""
+    try:
+        author_name = (bulk_data.author_name or "").strip()
+        pin = (bulk_data.pin_code or "").strip()
+
+        if not bulk_data.tasks or len(bulk_data.tasks) == 0:
+            raise HTTPException(status_code=400, detail="Список задач пуст")
+
+        # Проверка PIN-кода автора
+        if author_name:
+            emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
+            if emp and emp.pin_code and emp.pin_code.strip():
+                if emp.pin_code.strip() != pin:
+                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
+
+        last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
+        current_max_id = last_task.id if last_task else 0
+
+        created_tasks = []
+        task_dicts_for_email = []
+
+        for idx, item in enumerate(bulk_data.tasks):
+            title_raw = (item.title or "").strip()
+            if not title_raw:
+                continue
+
+            current_max_id += 1
+            code_str = f"TSK-{current_max_id:02d}"
+
+            # Парсинг хэштегов из названия
+            combined_tags = extract_hashtags_from_title(title_raw, item.tags)
+
+            # Перевод названия
+            trans_info = detect_and_translate_task_text(title_raw)
+            title_ru = trans_info.get("text_ru", title_raw)
+            title_kz = trans_info.get("text_kz", "")
+
+            # Определение срока задачи
+            due_date = item.due_date_str or bulk_data.default_due_date_str or ""
+
+            # Определение зоны
+            zone_val = item.zone or bulk_data.zone or "Бережливое производство"
+
+            new_task = models.Task(
+                code=code_str,
+                zone=zone_val,
+                title=title_ru,
+                title_kz=title_kz,
+                task_type=bulk_data.task_type or "weekly",
+                department_service=bulk_data.department_service or "",
+                tags=combined_tags,
+                target_quarter=bulk_data.target_quarter or "",
+                progress=0,
+                photo_link=item.photo_link or "",
+                author_name=author_name,
+                assignee_name=(item.assignee_name or "").strip(),
+                due_date_str=due_date,
+                status="🟡 В работе",
+                comment="",
+                month_label=bulk_data.month_label or "Август 2026",
+                week_label=bulk_data.week_label or "Неделя 4 (24.08 - 28.08)",
+                attached_document_id=item.attached_document_id,
+                is_archived=False
+            )
+            db.add(new_task)
+            db.flush()
+
+            created_tasks.append({
+                "id": new_task.id,
+                "code": new_task.code,
+                "title": new_task.title,
+                "assignee_name": new_task.assignee_name
+            })
+
+            # Подготовка email исполнителю
+            if new_task.assignee_name:
+                assignee_email = get_task_person_email(db, new_task.assignee_name)
+                if assignee_email:
+                    task_dicts_for_email.append((assignee_email, {
+                        "id": new_task.id,
+                        "code": new_task.code,
+                        "title": new_task.title,
+                        "title_kz": new_task.title_kz,
+                        "zone": new_task.zone,
+                        "due_date_str": new_task.due_date_str,
+                        "author_name": new_task.author_name,
+                        "assignee_name": new_task.assignee_name,
+                        "status": new_task.status,
+                        "comment": new_task.comment,
+                        "photo_link": new_task.photo_link,
+                        "month_label": new_task.month_label,
+                        "week_label": new_task.week_label
+                    }))
+
+        if not created_tasks:
+            raise HTTPException(status_code=400, detail="Не удалось создать задачи (все строки пусты)")
+
+        # AuditLog
+        dept_str = f", Служба: {bulk_data.department_service}" if bulk_data.department_service else ""
+        db.add(models.AuditLog(
+            user_name=author_name or "Планнер",
+            action="CREATE",
+            target_table="tasks",
+            target_id=created_tasks[0]["id"],
+            details=f"Массово создано задач: {len(created_tasks)} шт. Автор: {author_name}{dept_str}. Коды: {created_tasks[0]['code']}–{created_tasks[-1]['code']}"
+        ))
+
+        db.commit()
+
+        # Фоновая отправка email
+        for a_email, t_dict in task_dicts_for_email:
+            subject = f"📌 Новая задача [{t_dict.get('zone', 'План')}]: {t_dict.get('title', '')}"
+            background_tasks.add_task(send_task_email_notification, a_email, subject, "Вам назначена новая задача", t_dict)
+
+        return {
+            "status": "ok",
+            "count": len(created_tasks),
+            "created_tasks": created_tasks
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error bulk creating tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.put("/api/tasks/{task_id}")
 def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Обновляет задачу, пересчитывает связи и отправляет уведомления."""
