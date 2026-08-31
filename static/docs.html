@@ -1798,12 +1798,15 @@
                     <i class="fas fa-file-lines" id="preview-modal-icon" style="color: #3b82f6; font-size: 1.2rem;"></i>
                     <h3 style="margin: 0; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="preview-modal-title">Просмотр документа</h3>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.6rem;">
-                    <button id="preview-modal-create-task-btn" class="btn-action" style="background: #10b981; color: #fff; padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Создать задачу по этому документу в Планнере">
-                        <i class="fa-solid fa-plus"></i> <span>Создать задачу</span>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button id="preview-modal-newtab-btn" class="btn-action" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Открыть во весь экран в новой вкладке">
+                        <i class="fas fa-arrow-up-right-from-square"></i> <span class="hide-on-mobile">В новой вкладке</span>
                     </button>
-                    <button id="preview-modal-download-btn" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.4rem 0.8rem; font-size: 0.85rem;" title="Скачать для редактирования на ПК">
-                        <i class="fas fa-download"></i> <span>Скачать на ПК</span>
+                    <button id="preview-modal-create-task-btn" class="btn-action" style="background: #10b981; color: #fff; padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Создать задачу по этому документу в Планнере">
+                        <i class="fa-solid fa-plus"></i> <span class="hide-on-mobile">Создать задачу</span>
+                    </button>
+                    <button id="preview-modal-download-btn" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Скачать для редактирования на ПК">
+                        <i class="fas fa-download"></i> <span class="hide-on-mobile">Скачать</span>
                     </button>
                     <button onclick="closeDocPreviewModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.3rem; padding: 0 4px;">
                         <i class="fas fa-times"></i>
@@ -2846,8 +2849,13 @@
             const newName = document.getElementById('rename-input').value.trim();
             if (!newName) return;
 
+            const curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || '');
+            const curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+
             const formData = new FormData();
             formData.append('new_name', newName);
+            if (curUser) formData.append('user_name', curUser);
+            if (curPin) formData.append('user_pin', curPin);
 
             try {
                 const res = await fetch(`/api/documents/${renameTargetId}/rename`, {
@@ -2863,7 +2871,7 @@
                     loadSidebarTree();
                     showToast('Успешно переименовано');
                 } else {
-                    alert('Ошибка: ' + data.message);
+                    alert('Ошибка: ' + (data.detail || data.message));
                 }
             } catch (err) {
                 alert('Ошибка соединения');
@@ -2942,7 +2950,7 @@
             folders.forEach(folder => {
                 const iconColor = getFolderColor(folder.name);
                 const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
-                const folderJson = escapeHtml(JSON.stringify(folder));
+                const folderAuthor = folder.created_by || 'Каталог';
                 html += `
                     <div class="docs-table-row folder-row" 
                          onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})"
@@ -2953,11 +2961,11 @@
                             </div>
                             <div class="item-info">
                                 <span class="item-title">${escapeHtml(folder.name)}${lockIcon}</span>
-                                <span class="item-mobile-meta">Папка</span>
+                                <span class="item-mobile-meta">Папка • ${escapeHtml(folderAuthor)}</span>
                             </div>
                         </div>
                         <div class="row-meta"><span style="color: var(--docs-text-muted); font-size:0.82rem;">Папка</span></div>
-                        <div class="row-meta"><span class="author-badge"><i class="fa-solid fa-folder-tree" style="color: #64748b; font-size:0.75rem;"></i> Каталог</span></div>
+                        <div class="row-meta"><span class="author-badge" title="Создатель: ${escapeHtml(folderAuthor)}"><i class="fa-solid fa-folder-tree" style="color: #64748b; font-size:0.75rem;"></i> ${escapeHtml(folderAuthor)}</span></div>
                         <div class="row-meta"><span class="date-cell">—</span></div>
                         <div class="row-actions">
                             <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку" style="color: #0284c7;">
@@ -3009,8 +3017,8 @@
                     lockBadgeHtml = `<span class="lock-indicator" title="Взят на редактирование ${escapeHtml(file.locked_by_user)}"><i class="fas fa-lock"></i> ${escapeHtml(file.locked_by_user)}</span>`;
                 }
 
-                // Автор
-                const authorDisplay = file.last_modified_by || (isLocalFile ? 'Сотрудник' : 'Облако');
+                // Автор / Создатель
+                const authorDisplay = file.created_by || file.last_modified_by || (isLocalFile ? 'Сотрудник' : 'Облако');
                 
                 // Дата изменения
                 let dateDisplay = '—';
@@ -3128,8 +3136,17 @@
             }
             if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
+            const curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || '');
+            const curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+
+            let delUrl = `/api/documents/${itemId}`;
+            const params = new URLSearchParams();
+            if (curUser) params.append('user_name', curUser);
+            if (curPin) params.append('user_pin', curPin);
+            if (params.toString()) delUrl += '?' + params.toString();
+
             try {
-                const res = await fetch(`/api/documents/${itemId}`, { 
+                const res = await fetch(delUrl, { 
                     method: 'DELETE',
                     headers: getFolderPasswordHeader()
                 });
@@ -3140,7 +3157,7 @@
                     loadSidebarTree();
                     showToast('Элемент успешно удален');
                 } else {
-                    alert('Ошибка при удалении: ' + data.message);
+                    alert('Ошибка при удалении: ' + (data.detail || data.message));
                 }
             } catch (error) {
                 alert('Ошибка соединения при удалении');
@@ -3167,8 +3184,10 @@
             const name = document.getElementById('new-folder-name').value.trim();
             if (!name) return;
 
+            const author = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || 'Сотрудник');
             const formData = new FormData();
             formData.append('folder_name', name);
+            formData.append('author_name', author);
             if (currentFolderId) formData.append('parent_id', currentFolderId);
 
             try {
@@ -3189,7 +3208,7 @@
                     loadSidebarTree();
                     showToast('Папка создана');
                 } else {
-                    alert('Ошибка: ' + data.message);
+                    alert('Ошибка: ' + (data.detail || data.message));
                 }
             } catch (error) {
                 alert('Ошибка соединения');
@@ -3202,47 +3221,95 @@
         function openAddLinkModal(prefilledUrl = '', cloudType = 'all') {
             hideContextMenu();
             const urlInput = document.getElementById('add-link-url');
-            const titleInput = document.getElementById('add-link-title');
-            const modalTitle = document.getElementById('add-link-modal-title');
-            const btnSubmit = document.getElementById('btn-submit-add-link');
-            
-            if (urlInput) urlInput.value = prefilledUrl;
-            if (titleInput) titleInput.value = '';
+            const modalHeader = document.getElementById('add-link-modal-title');
+            const hint = document.getElementById('add-link-hint');
 
-            if (modalTitle && urlInput && btnSubmit) {
-                if (cloudType === 'google') {
-                    modalTitle.innerHTML = '<i class="fab fa-google" style="color: #4285f4;"></i> Прикрепить Google Документ / Таблицу';
-                    urlInput.placeholder = 'Вставьте ссылку (https://docs.google.com/...)';
-                    btnSubmit.style.background = '#1a73e8';
-                } else if (cloudType === 'microsoft') {
-                    modalTitle.innerHTML = '<i class="fab fa-microsoft" style="color: #0078d4;"></i> Прикрепить OneDrive / Excel Онлайн';
-                    urlInput.placeholder = 'Вставьте ссылку (https://1drv.ms/... или SharePoint)';
-                    btnSubmit.style.background = '#0078d4';
-                } else {
-                    modalTitle.innerHTML = '<i class="fas fa-link" style="color: #3b82f6;"></i> Прикрепить онлайн-документ';
-                    urlInput.placeholder = 'Вставьте ссылку (Google Docs, Sheets, OneDrive, Excel)';
-                    btnSubmit.style.background = '#2563eb';
-                }
+            if (titleInput) titleInput.value = '';
+            if (urlInput) urlInput.value = prefilledUrl;
+
+            if (serviceType === 'google') {
+                if (modalHeader) modalHeader.innerHTML = '<i class="fab fa-google" style="color: #4285f4; margin-right: 6px;"></i> Прикрепить ссылку Google Документ/Таблицу';
+                if (hint) hint.innerHTML = 'Вставьте ссылку на Google Docs, Google Sheets или папку на Google Диске';
+            } else if (serviceType === 'microsoft') {
+                if (modalHeader) modalHeader.innerHTML = '<i class="fab fa-microsoft" style="color: #0078d4; margin-right: 6px;"></i> Прикрепить ссылку Microsoft OneDrive / SharePoint';
+                if (hint) hint.innerHTML = 'Вставьте ссылку "Поделиться" из OneDrive, Excel Online или Word Online';
+            } else {
+                if (modalHeader) modalHeader.innerHTML = '<i class="fas fa-link" style="color: #3b82f6; margin-right: 6px;"></i> Прикрепить облачную ссылку';
+                if (hint) hint.innerHTML = 'Вставьте любую внешнюю ссылку на документ в облаке';
             }
-            
-            if (prefilledUrl) {
-                onLinkUrlInput(prefilledUrl);
-            }
-            
-            const modal = document.getElementById('add-link-modal');
+
             if (modal) modal.style.display = 'flex';
             setTimeout(() => {
-                if (prefilledUrl && titleInput) {
-                    titleInput.focus();
-                } else if (urlInput) {
-                    urlInput.focus();
-                }
-            }, 60);
+                if (urlInput && !prefilledUrl) urlInput.focus();
+                else if (titleInput) titleInput.focus();
+            }, 50);
         }
 
         function closeAddLinkModal() {
             const modal = document.getElementById('add-link-modal');
             if (modal) modal.style.display = 'none';
+        }
+
+        async function submitAddLink() {
+            if (currentFolderProtected && !await ensurePassword(true)) return;
+
+            let title = document.getElementById('add-link-title').value.trim();
+            let url = document.getElementById('add-link-url').value.trim();
+
+            if (!url) {
+                alert('Вставьте ссылку на файл!');
+                return;
+            }
+            if (!title) {
+                if (url.includes('google')) title = 'Документ Google';
+                else if (url.includes('onedrive') || url.includes('1drv.ms')) title = 'Документ OneDrive';
+                else title = 'Внешний документ';
+            }
+
+            // Автоматическое добавление русской локали для OneDrive
+            if ((url.includes('onedrive.live.com') || url.includes('1drv.ms') || url.includes('sharepoint.com')) && !url.includes('locale=') && !url.includes('ui=')) {
+                const separator = url.includes('?') ? '&' : '?';
+                url = `${url}${separator}locale=ru-RU`;
+            }
+
+            const author = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || 'Сотрудник');
+            const btn = document.getElementById('btn-submit-add-link');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/documents/add_link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...getFolderPasswordHeader()
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        external_url: url,
+                        parent_id: currentFolderId,
+                        author_name: author
+                    })
+                });
+                const data = await res.json();
+                btn.innerHTML = orig;
+                btn.disabled = false;
+
+                if (data.status === 'success') {
+                    closeAddLinkModal();
+                    showToast(data.message || 'Ссылка успешно прикреплена!');
+                    docsCache.clear();
+                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+                    loadSidebarTree();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            } catch (e) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+                alert('Ошибка соединения с сервером');
+            }
         }
 
         let fetchTitleTimer = null;
@@ -3659,8 +3726,13 @@
             btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Перемещение...';
             btnSubmit.disabled = true;
 
+            const curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || '');
+            const curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+
             const formData = new FormData();
             formData.append('target_folder_id', moveSelectedFolderId === 'root' ? '' : moveSelectedFolderId);
+            if (curUser) formData.append('user_name', curUser);
+            if (curPin) formData.append('user_pin', curPin);
 
             try {
                 const res = await fetch(`/api/documents/${moveTargetItemId}/move`, {
@@ -3679,7 +3751,7 @@
                     loadSidebarTree();
                     showToast(moveTargetIsFolder ? 'Папка успешно перемещена' : 'Файл успешно перемещен');
                 } else {
-                    alert('Ошибка перемещения: ' + data.message);
+                    alert('Ошибка перемещения: ' + (data.detail || data.message));
                 }
             } catch (err) {
                 btnSubmit.innerHTML = originalText;
@@ -4067,6 +4139,13 @@
             } else {
                 if (iframe) iframe.style.display = 'none';
                 if (fallback) fallback.style.display = 'flex';
+            }
+
+            const newTabBtn = document.getElementById('preview-modal-newtab-btn');
+            if (newTabBtn) {
+                newTabBtn.onclick = () => {
+                    window.open(downloadUrl, '_blank');
+                };
             }
 
             const createTaskBtn = document.getElementById('preview-modal-create-task-btn');

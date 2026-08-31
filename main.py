@@ -238,13 +238,19 @@ async def lifespan(app: FastAPI):
                 ("version_number", "INTEGER DEFAULT 1"),
                 ("locked_by_user", "VARCHAR(255)"),
                 ("locked_at", "TIMESTAMP"),
-                ("last_modified_by", "VARCHAR(255)")
+                ("last_modified_by", "VARCHAR(255)"),
+                ("created_by", "VARCHAR(255)")
             ]:
                 try:
                     db.execute(text(f"ALTER TABLE documents ADD COLUMN IF NOT EXISTS {col} {col_type};"))
                     db.commit()
                 except Exception:
                     db.rollback()
+            try:
+                db.execute(text("ALTER TABLE document_categories ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);"))
+                db.commit()
+            except Exception:
+                db.rollback()
             try:
                 models.DocumentVersion.__table__.create(bind=engine, checkfirst=True)
             except Exception: pass
@@ -263,7 +269,8 @@ async def lifespan(app: FastAPI):
                 ("version_number", "INTEGER DEFAULT 1"),
                 ("locked_by_user", "VARCHAR(255)"),
                 ("locked_at", "TIMESTAMP"),
-                ("last_modified_by", "VARCHAR(255)")
+                ("last_modified_by", "VARCHAR(255)"),
+                ("created_by", "VARCHAR(255)")
             ]:
                 try:
                     conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
@@ -272,6 +279,10 @@ async def lifespan(app: FastAPI):
                     pass
             try:
                 conn.execute("ALTER TABLE document_categories ADD COLUMN google_drive_folder_id VARCHAR(255)")
+                conn.commit()
+            except Exception: pass
+            try:
+                conn.execute("ALTER TABLE document_categories ADD COLUMN created_by VARCHAR(255)")
                 conn.commit()
             except Exception: pass
             
@@ -5915,6 +5926,7 @@ def list_documents(
                 "name": f.name,
                 "mimeType": "application/vnd.google-apps.folder",
                 "created_at": f.id,
+                "created_by": f.created_by or "",
                 "is_protected": prot_map.get(f.id, False)
             })
             
@@ -5932,7 +5944,8 @@ def list_documents(
                 "version_number": f.version_number or 1,
                 "locked_by_user": f.locked_by_user,
                 "locked_at": f.locked_at.strftime("%d.%m %H:%M") if f.locked_at else None,
-                "last_modified_by": f.last_modified_by or ""
+                "last_modified_by": f.last_modified_by or "",
+                "created_by": f.created_by or f.last_modified_by or ""
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -5959,7 +5972,8 @@ def get_recent_documents(db: Session = Depends(get_db)):
                 "is_protected": prot_map.get(d.category_id, False) if d.category_id else False,
                 "version_number": d.version_number or 1,
                 "locked_by_user": d.locked_by_user,
-                "last_modified_by": d.last_modified_by or "Сотрудник"
+                "last_modified_by": d.last_modified_by or "Сотрудник",
+                "created_by": d.created_by or d.last_modified_by or "Сотрудник"
             })
         return {"status": "success", "data": recent_docs}
     except Exception as e:
@@ -5984,7 +5998,8 @@ def get_all_documents_flat(db: Session = Depends(get_db)):
                 "mime_type": d.mime_type or "application/octet-stream",
                 "doc_type": d.doc_type or "other",
                 "link": file_link,
-                "uploaded_at": d.uploaded_at.strftime("%d.%m.%Y %H:%M") if d.uploaded_at else ""
+                "uploaded_at": d.uploaded_at.strftime("%d.%m.%Y %H:%M") if d.uploaded_at else "",
+                "created_by": d.created_by or d.last_modified_by or ""
             })
         
         # Сортировка по имени
@@ -6006,6 +6021,7 @@ def get_documents_tree(db: Session = Depends(get_db)):
                 "id": f"folder_{f.id}",
                 "name": f.name,
                 "parent_id": f"folder_{f.parent_id}" if f.parent_id else None,
+                "created_by": f.created_by or "",
                 "is_protected": prot_map.get(f.id, False)
             })
             
@@ -6024,7 +6040,8 @@ def get_documents_tree(db: Session = Depends(get_db)):
                 "version_number": d.version_number or 1,
                 "locked_by_user": d.locked_by_user,
                 "locked_at": d.locked_at.strftime("%d.%m %H:%M") if d.locked_at else None,
-                "last_modified_by": d.last_modified_by or ""
+                "last_modified_by": d.last_modified_by or "",
+                "created_by": d.created_by or d.last_modified_by or ""
             })
             
         return {"status": "success", "data": {"folders": folder_data, "files": file_data}}
@@ -6314,6 +6331,7 @@ class AddExternalLinkRequest(BaseModel):
     title: str
     external_url: str
     parent_id: Optional[str] = None
+    author_name: Optional[str] = "Сотрудник"
 
 @app.post("/api/documents/add_link")
 def add_external_document_link(
@@ -6361,6 +6379,8 @@ def add_external_document_link(
             category_id=cat_id,
             external_url=clean_url,
             mime_type=mime_type,
+            created_by=req.author_name or "Сотрудник",
+            last_modified_by=req.author_name or "Сотрудник",
             uploaded_at=datetime.utcnow()
         )
         db.add(new_doc)
@@ -6506,6 +6526,7 @@ def sync_external_documents_titles(
 def create_document_folder(
     folder_name: str = Form(...),
     parent_id: Optional[str] = Form(None),
+    author_name: Optional[str] = Form("Сотрудник"),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -6537,7 +6558,8 @@ def create_document_folder(
 
         new_folder = models.DocumentCategory(
             name=clean_name,
-            parent_id=cat_id
+            parent_id=cat_id,
+            created_by=author_name or "Сотрудник"
         )
         db.add(new_folder)
         db.commit()
@@ -6582,10 +6604,62 @@ def clean_duplicate_folders(request: Request, db: Session = Depends(get_db)):
         db.rollback()
         return {"status": "error", "message": str(e)}
 
+def check_document_action_permission(
+    db: Session,
+    creator_name: Optional[str],
+    user_name: Optional[str],
+    user_pin: Optional[str],
+    is_protected_folder_action: bool = False
+):
+    """
+    Проверяет права доступа на действие с документом/папкой:
+    - Разрешено, если автор совпадает и PIN-код валиден.
+    - Разрешено администраторам (PIN 6282 или мастер-пароль).
+    - Если у объекта еще не был указан создатель (старые файлы) и пользователь авторизован — действие разрешено.
+    - Иначе — отказ 403 с пояснением.
+    """
+    clean_user = (user_name or "").strip()
+    clean_pin = (user_pin or "").strip()
+    clean_creator = (creator_name or "").strip()
+    
+    # 1. Проверка на суперпользователя / мастер-пароль
+    if clean_pin == "6282":
+        return True
+        
+    # 2. Если у объекта не указан создатель и пользователь авторизован
+    if not clean_creator:
+        if clean_user:
+            return True
+        # Если создатель неизвестен и пользователь не указан
+        return True
+
+    if not clean_user:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Действие заблокировано. Объект создан сотрудником «{clean_creator}». Пожалуйста, авторизуйтесь под своим именем."
+        )
+
+    # 3. Проверка соответствия имени автора
+    if clean_user.lower() != clean_creator.lower():
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Действие заблокировано: объект создан сотрудником «{clean_creator}». Удалять и изменять его может только автор или Администратор."
+        )
+
+    # 4. Проверка PIN-кода автора (если он задан в справочнике сотрудников)
+    emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_user).first()
+    if emp and emp.pin_code and emp.pin_code.strip():
+        if emp.pin_code.strip() != clean_pin:
+            raise HTTPException(status_code=401, detail="Неверный PIN-код для подтверждения действия")
+
+    return True
+
 @app.put("/api/documents/{item_id}/rename")
 def rename_document(
     item_id: str,
     new_name: str = Form(...),
+    user_name: Optional[str] = Form(None),
+    user_pin: Optional[str] = Form(None),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -6605,6 +6679,7 @@ def rename_document(
                 if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
                     raise HTTPException(status_code=403, detail="Access Denied")
                     
+            check_document_action_permission(db, folder.created_by, user_name, user_pin or x_folder_password)
             folder.name = new_clean_name
             db.commit()
             return {"status": "success"}
@@ -6621,18 +6696,24 @@ def rename_document(
                     if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
                         raise HTTPException(status_code=403, detail="Access Denied")
                         
+            check_document_action_permission(db, doc.created_by or doc.last_modified_by, user_name, user_pin or x_folder_password)
             doc.title = new_clean_name
             db.commit()
             return {"status": "success"}
             
         return {"status": "error", "message": "Неизвестный тип объекта"}
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
         return {"status": "error", "message": str(e)}
 
 @app.put("/api/documents/{item_id}/move")
 def move_document(
     item_id: str,
     target_folder_id: Optional[str] = Form(None),
+    user_name: Optional[str] = Form(None),
+    user_pin: Optional[str] = Form(None),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -6666,6 +6747,8 @@ def move_document(
                 if not x_folder_password or src_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
                     raise HTTPException(status_code=403, detail="Access Denied")
 
+            check_document_action_permission(db, folder.created_by, user_name, user_pin or x_folder_password)
+
             if target_cat_id == folder.id:
                 return {"status": "error", "message": "Нельзя переместить папку саму в себя"}
 
@@ -6693,6 +6776,8 @@ def move_document(
                     if not x_folder_password or src_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
                         raise HTTPException(status_code=403, detail="Access Denied")
 
+            check_document_action_permission(db, doc.created_by or doc.last_modified_by, user_name, user_pin or x_folder_password)
+
             doc.category_id = target_cat_id
             db.commit()
             return {"status": "success", "message": "Файл успешно перемещен"}
@@ -6707,6 +6792,8 @@ def move_document(
 @app.delete("/api/documents/{item_id}")
 def delete_document(
     item_id: str, 
+    user_name: Optional[str] = Query(None),
+    user_pin: Optional[str] = Query(None),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -6730,6 +6817,8 @@ def delete_document(
             cat_id = int(item_id.split("_")[1])
             folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
             if folder:
+                check_document_action_permission(db, folder.created_by, user_name, user_pin or x_folder_password)
+
                 # Proper post-order traversal (children before parents)
                 def get_all_descendant_ids_post_order(f_id: int) -> list[int]:
                     result = []
@@ -6763,11 +6852,15 @@ def delete_document(
             file_id = int(item_id.split("_")[1])
             doc = db.query(models.Document).filter(models.Document.id == file_id).first()
             if doc:
+                check_document_action_permission(db, doc.created_by or doc.last_modified_by, user_name, user_pin or x_folder_password)
                 db.delete(doc)
                 db.commit()
                 
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
+        db.rollback()
         return {"status": "error", "message": str(e)}
 
 # ==========================================
@@ -6794,10 +6887,19 @@ def download_local_document(doc_id: int, db: Session = Depends(get_db)):
     encoded_filename = quote(filename.encode('utf-8'))
     media_type = doc.mime_type or "application/octet-stream"
     
+    # PDF, изображения и текст отдаем inline для комфортного онлайн-просмотра на смартфонах и ПК
+    is_inline = False
+    lower_name = filename.lower()
+    if lower_name.endswith(('.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt', '.svg')) or (media_type and ("pdf" in media_type or "image" in media_type or "text" in media_type)):
+        is_inline = True
+        
+    disposition = "inline" if is_inline else "attachment"
+    
     headers = {
-        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{encoded_filename}",
         "Access-Control-Expose-Headers": "Content-Disposition",
-        "Cache-Control": "no-cache, no-store, must-revalidate"
+        "Cache-Control": "public, max-age=3600" if is_inline else "no-cache, no-store, must-revalidate",
+        "Accept-Ranges": "bytes"
     }
     return FileResponse(doc.file_path, media_type=media_type, headers=headers)
 
@@ -6838,6 +6940,7 @@ async def upload_local_document(
             mime_type=file.content_type or "application/octet-stream",
             version_number=1,
             last_modified_by=author_name or "Сотрудник",
+            created_by=author_name or "Сотрудник",
             uploaded_at=datetime.utcnow()
         )
         db.add(new_doc)

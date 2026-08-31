@@ -282,6 +282,7 @@ class DocumentCategory(Base):
     parent_id = Column(Integer, ForeignKey("document_categories.id"), nullable=True)
     password_hash = Column(String, nullable=True)
     google_drive_folder_id = Column(String, nullable=True)
+    created_by = Column(String, nullable=True) # Имя сотрудника-создателя папки
 
 class Document(Base):
     __tablename__ = "documents"
@@ -291,6 +292,7 @@ class Document(Base):
     file_path = Column(String, nullable=True)
     mime_type = Column(String, nullable=True)
     uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_by = Column(String, nullable=True) # Имя сотрудника-автора документа
     google_drive_id = Column(String, nullable=True)
     google_drive_url = Column(String, nullable=True)
     r2_key = Column(String, nullable=True) # Key in Cloudflare R2 bucket
