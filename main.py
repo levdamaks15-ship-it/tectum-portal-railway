@@ -7829,15 +7829,54 @@ def generate_calendar_structure_mon_fri(year: int = 2026):
 
 @app.get("/api/tasks/weeks")
 def get_tasks_calendar_structure(db: Session = Depends(get_db)):
-    """Генерирует строго чистую календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам 2026 года."""
+    """Генерирует строго чистую календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам года с динамическим автовыбором текущей недели."""
+    import datetime
     try:
-        structure = generate_calendar_structure_mon_fri(2026)
+        today = datetime.date.today()
+        year = today.year
+        structure = generate_calendar_structure_mon_fri(year)
 
-        default_month = "Август 2026"
-        default_week = "Неделя 4 (24.08 - 28.08)"
+        months_ru = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ]
+        current_m_name = f"{months_ru[today.month - 1]} {year}"
+        default_month = current_m_name if current_m_name in structure else list(structure.keys())[0]
+
+        default_week = None
         if default_month in structure and structure[default_month]:
-            if default_week not in structure[default_month]:
-                default_week = structure[default_month][0]
+            month_weeks = structure[default_month]
+            # Определяем понедельник текущей недели
+            current_monday = today - datetime.timedelta(days=today.weekday())
+            s_str = current_monday.strftime('%d.%m')
+            
+            # Ищем неделю, где начальная дата совпадает с понедельником текущей недели
+            for w in month_weeks:
+                if f"({s_str}" in w:
+                    default_week = w
+                    break
+            
+            # Если сегодня выходные или переход месяца и точного совпадения нет,
+            # ищем неделю, охватывающую диапазон дат (Пн..Вс)
+            if not default_week:
+                for w in month_weeks:
+                    try:
+                        # формат: "Неделя X (DD.MM - DD.MM)"
+                        dates_part = w.split('(')[1].split(')')[0]
+                        start_part, end_part = dates_part.split(' - ')
+                        sd, sm = map(int, start_part.strip().split('.'))
+                        ed, em = map(int, end_part.strip().split('.'))
+                        w_start = datetime.date(year, sm, sd)
+                        # До конца недели (воскресенье = +6 дней от понедельника)
+                        w_end = w_start + datetime.timedelta(days=6)
+                        if w_start <= today <= w_end:
+                            default_week = w
+                            break
+                    except Exception:
+                        pass
+
+            if not default_week:
+                default_week = month_weeks[0]
 
         return {
             "months": list(structure.keys()),
@@ -7847,7 +7886,7 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
         }
     except Exception as e:
         print(f"Error getting calendar structure: {e}")
-        return {"months": ["Август 2026"], "structure": {"Август 2026": ["Неделя 4 (24.08 - 28.08)"]}, "default_month": "Август 2026", "default_week": "Неделя 4 (24.08 - 28.08)"}
+        return {"months": ["Август 2026"], "structure": {"Август 2026": ["Неделя 5 (31.08 - 04.09)"]}, "default_month": "Август 2026", "default_week": "Неделя 5 (31.08 - 04.09)"}
 
 def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
     """Внутренний надежный переводчик (Google Clients API + MyMemory fallback)."""

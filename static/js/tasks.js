@@ -1197,8 +1197,35 @@ function onMonthChange(forcedWeek = null) {
         weekSelect.value = forcedWeek;
         currentWeek = forcedWeek;
     } else {
-        weekSelect.value = weeks[0] || "all";
-        currentWeek = weeks[0] || "all";
+        // Пытаемся найти неделю, соответствующую сегодняшнему дню
+        let detectedWeek = null;
+        try {
+            const today = new Date();
+            const year = today.getFullYear();
+            for (const w of weeks) {
+                const datesPart = w.split('(')[1]?.split(')')[0];
+                if (datesPart) {
+                    const [sStr, eStr] = datesPart.split(' - ');
+                    const [sd, sm] = sStr.trim().split('.').map(Number);
+                    const [ed, em] = eStr.trim().split('.').map(Number);
+                    const wStart = new Date(year, sm - 1, sd);
+                    const wEnd = new Date(year, em - 1, ed, 23, 59, 59);
+                    // Расширяем до конца воскресенья (еще +2 дня от пятницы)
+                    const wSun = new Date(wEnd);
+                    wSun.setDate(wSun.getDate() + 2);
+                    if (today >= wStart && today <= wSun) {
+                        detectedWeek = w;
+                        break;
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn("Could not auto-detect current week:", err);
+        }
+
+        const chosenWeek = detectedWeek || weeks[0] || "all";
+        weekSelect.value = chosenWeek;
+        currentWeek = chosenWeek;
     }
     loadTasks();
 }
