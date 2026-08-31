@@ -1458,6 +1458,36 @@
                 flex: 1;
                 justify-content: center;
             }
+
+            .hide-on-mobile {
+                display: none !important;
+            }
+
+            /* Document Online Preview Modal on Mobile */
+            #doc-preview-modal {
+                padding: 0 !important;
+            }
+
+            #doc-preview-modal .modal-content {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-width: 100vw !important;
+                max-height: 100vh !important;
+                border-radius: 0 !important;
+                padding: 0.6rem !important;
+                margin: 0 !important;
+                border: none !important;
+            }
+
+            #doc-preview-modal .preview-modal-body {
+                flex-direction: column !important;
+                gap: 0 !important;
+                margin-top: 0.4rem !important;
+            }
+
+            #preview-modal-tasks-sidebar {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -1814,7 +1844,7 @@
                 </div>
             </div>
             
-            <div style="display: flex; flex: 1; gap: 1rem; margin-top: 0.8rem; min-height: 0; overflow: hidden;">
+            <div class="preview-modal-body" style="display: flex; flex: 1; gap: 1rem; margin-top: 0.8rem; min-height: 0; overflow: hidden;">
                 <!-- Main Preview Frame -->
                 <div style="flex: 1; position: relative; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--docs-panel-border); min-height: 0;">
                     <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
