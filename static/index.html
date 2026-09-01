@@ -248,11 +248,10 @@
             <!-- Tabs Navigation -->
             <div id="tabs-menu" class="tabs-container" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
                 <button class="tab-btn active" id="tab-btn-production" onclick="switchTab('production')">📝 Рапорт мастера</button>
+                <button class="tab-btn" id="tab-btn-crew-plans" onclick="switchTab('crew-plans')">🏆 Выполнение плана бригадами</button>
                 <button class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary')">📊 Сводка</button>
                 <button class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes')">⏱ Журнал Простоев</button>
-                <button class="tab-btn" id="tab-btn-analytics" onclick="switchTab('analytics')">📈 Аналитика простоев</button>
                 <button class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report')">📈 Месячная сводка выработки</button>
-                <button class="tab-btn" id="tab-btn-materials" onclick="switchTab('materials')">🧪 Сводка по сырью</button>
                 <a href="/static/tasks.html" target="_blank" class="tab-btn" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--accent-color); color: var(--accent-color);">
                     🎯 Планнер задач
                 </a>
@@ -1075,114 +1074,88 @@
                 </div>
             </div>
 
-            <!-- 4. ANALYTICS TAB (📈 Аналитика простоев) -->
-            <div id="analytics-tab" class="glass-panel card" style="display: none;">
-                <h3>📈 Аналитика Простоев Оборудования</h3>
-                
-                <!-- Filters -->
-                <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+            <!-- 4. CREW PLANS TAB (🏆 Выполнение плана бригадами) -->
+            <div id="crew-plans-tab" class="glass-panel card" style="display: none;">
+                <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
-                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата начала</label>
-                        <input type="date" id="analytics-start-date" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                        <h3 style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 8px;">
+                            <span>🏆</span> Выполнение сменного плана бригадами
+                        </h3>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
+                            Сводка выполнения нормы формовки ЛФМ по утвержденному графику сменности (☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.)
+                        </p>
                     </div>
-                    <div>
-                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Дата окончания</label>
-                        <input type="date" id="analytics-end-date" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                    <button onclick="window.print()" class="btn-secondary" style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🖨️</span> Печать / PDF
+                    </button>
+                </div>
+
+                <!-- Filters Toolbar -->
+                <div style="background: #ffffff; border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Отчетный месяц</label>
+                        <input type="month" id="crew-plans-month" onchange="loadCrewPlansFulfillment()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                     </div>
-                    <div>
-                        <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
-                        <select id="analytics-dept" style="padding: 0.4rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
-                            <option value="">-- Все участки --</option>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Фильтр по бригаде</label>
+                        <select id="crew-plans-filter-crew" onchange="renderCrewPlansTable()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                            <option value="">Все смены (1..4)</option>
+                            <option value="1">Смена №1</option>
+                            <option value="2">Смена №2</option>
+                            <option value="3">Смена №3</option>
+                            <option value="4">Смена №4</option>
                         </select>
                     </div>
-                    <button onclick="loadAnalyticsData()" style="width: auto; padding: 0.5rem 1.5rem; background: var(--primary-color);">Применить фильтры</button>
+                    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
+                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Статус плана</label>
+                        <select id="crew-plans-filter-status" onchange="renderCrewPlansTable()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                            <option value="">Все результаты</option>
+                            <option value="met">✅ Только выполненные</option>
+                            <option value="unmet">❌ Только невыполненные</option>
+                        </select>
+                    </div>
+                    <button onclick="loadCrewPlansFulfillment()" class="btn-primary" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px;">
+                        <span>🔄</span> Обновить
+                    </button>
                 </div>
 
-                <!-- KPI карточки -->
-                <div class="grid-analytics-kpis">
-                    <div style="background: rgba(220, 53, 69, 0.15); border: 1px solid rgba(220, 53, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
-                        <h4 style="color: #ff6b6b; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                            🛑 С остановкой оборудования
-                        </h4>
-                        <div class="grid-kpi-two-col">
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Время простоев</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-min">0 мин</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Кол-во случаев</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-stop-count">0</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: #ff6b6b;" id="analytics-kpi-stop-tons">0.0 т</div>
-                            </div>
-                        </div>
+                <!-- KPI Cards by Crews -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;" id="crew-kpi-cards-grid">
+                    <!-- Cards injected by JS -->
+                </div>
+
+                <!-- Factory Summary Banner -->
+                <div id="crew-plans-factory-banner" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0.8rem 1.2rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
+                    <div>
+                        <span style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">ИТОГО ПО ЗАВОДУ:</span>
+                        <span id="factory-total-met-badge" style="margin-left: 8px; font-weight: bold; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px;">0 выполнений</span>
                     </div>
-                    
-                    <div style="background: rgba(40, 167, 69, 0.15); border: 1px solid rgba(40, 167, 69, 0.3); padding: 1.5rem; border-radius: 8px; text-align: left;">
-                        <h4 style="color: #28a745; margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                            ⚡ Без остановки оборудования
-                        </h4>
-                        <div class="grid-kpi-two-col">
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Время ремонта</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-min">0 мин</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Кол-во случаев</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: white;" id="analytics-kpi-nonstop-count">0</div>
-                            </div>
-                            <div>
-                                <div style="font-size: 0.8rem; color: var(--text-secondary);">Потери массы</div>
-                                <div style="font-size: 1.4rem; font-weight: bold; color: #28a745;" id="analytics-kpi-nonstop-tons">0.0 т</div>
-                            </div>
-                        </div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);" id="factory-total-stats-text">
+                        Всего отработано смен: 0 | Суммарно отформовано: 0 листов
                     </div>
                 </div>
 
-                <!-- Графики -->
-                <div class="grid-trend-analytics">
-                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
-                        <h4 style="text-align: center; margin-bottom: 1rem;">Динамика простоев по дням (минут)</h4>
-                        <canvas id="chart-analytics-trend" style="max-height: 300px;"></canvas>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; min-height: 350px;">
-                        <h4 style="text-align: center; margin-bottom: 1rem;">Структура простоев по категориям</h4>
-                        <canvas id="chart-analytics-categories" style="max-height: 300px;"></canvas>
-                    </div>
-                </div>
-
-                <!-- Узкие места -->
-                <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; min-height: 350px; margin-top: 1.5rem;">
-                    <h4 style="text-align: center; margin-bottom: 1rem; color: var(--accent-color);">Узкие места: Топ-10 узлов оборудования по времени остановки (минут)</h4>
-                    <canvas id="chart-analytics-bottlenecks" style="max-height: 300px;"></canvas>
-                </div>
-                
-                <!-- Таблица сводки простоев -->
-                <div style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem;">
-                    <h4 style="margin-bottom: 1rem; color: var(--accent-color);">Сводная таблица простоев</h4>
-                    <div class="table-responsive-container" style="max-height: 480px; overflow: auto;">
-                        <table class="table-glass-summary">
-                            <thead>
-                                <tr>
-                                     <th>Дата</th>
-                                     <th>Смена</th>
-                                     <th>Линия</th>
-                                     <th>Участок</th>
-                                     <th>Узел / Оборудование</th>
-                                     <th>Категория</th>
-                                     <th>Остановка</th>
-                                     <th>Длительность (мин)</th>
-                                     <th>Потери (т)</th>
-                                     <th>Описание</th>
-                                </tr>
-                            </thead>
-                            <tbody id="analytics-table-body">
-                                <tr><td colspan="10" style="text-align:center;">Загрузка...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- Detail Table -->
+                <div class="table-responsive-container">
+                    <table class="table-glass-summary" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+                        <thead>
+                            <tr>
+                                <th style="width: 90px;">Дата</th>
+                                <th style="width: 60px;">День</th>
+                                <th style="width: 100px;">Смена</th>
+                                <th>Бригада по графику</th>
+                                <th style="text-align: right;">Факт формовки</th>
+                                <th style="text-align: right;">Сменный план</th>
+                                <th style="text-align: center; width: 130px;">Результат</th>
+                                <th style="text-align: right;">Разница</th>
+                                <th>Мастер смены</th>
+                                <th>Партия / Продукт</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crew-plans-table-body">
+                            <tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Загрузка сводки...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

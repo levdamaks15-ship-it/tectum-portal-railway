@@ -277,7 +277,7 @@ function recalcCemTotal() {
 function switchTab(tabId) {
     sessionStorage.setItem('active_tab', tabId);
     // Hide all tabs
-    const tabs = ['production', 'summary', 'downtimes', 'analytics', 'daily-report', 'materials'];
+    const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report', 'materials'];
     tabs.forEach(t => {
         const el = document.getElementById(`${t}-tab`);
         const btn = document.getElementById(`tab-btn-${t}`);
@@ -292,14 +292,12 @@ function switchTab(tabId) {
     if (activeBtn) activeBtn.classList.add('active');
 
     // Trigger tab-specific loads
-    if (tabId === 'summary') {
+    if (tabId === 'crew-plans') {
+        loadCrewPlansFulfillment();
+    } else if (tabId === 'summary') {
         loadReportSummary();
-    } else if (tabId === 'analytics') {
-        loadAnalyticsData();
     } else if (tabId === 'daily-report') {
         loadDailyReport();
-    } else if (tabId === 'materials') {
-        loadMaterialsTab();
     } else if (tabId === 'downtimes') {
         loadDowntimesByParams();
     }
@@ -460,19 +458,24 @@ async function logout() {
 function applyRoleVisibility() {
     const r = currentUser.role;
     
-    // Master, Admin, Director, Technologist see all reports and summary
+    // Master, Admin, Director, Technologist see all reports, summary and crew plans
     const canReport = ['master', 'admin'].includes(r);
     const canViewSummary = ['master', 'admin', 'director', 'technologist'].includes(r);
     const canViewMaterials = ['admin', 'director', 'technologist'].includes(r); // Hide from master, keep for admin/director/technologist
     const canDowntime = ['master', 'admin', 'mechanic', 'director', 'technologist'].includes(r);
     
+    const crewPlansBtn = document.getElementById('tab-btn-crew-plans');
+    if (crewPlansBtn) crewPlansBtn.style.display = canViewSummary ? 'inline-block' : 'none';
+
     document.getElementById('tab-btn-production').style.display = canReport ? 'inline-block' : 'none';
     document.getElementById('tab-btn-summary').style.display = canViewSummary ? 'inline-block' : 'none';
     document.getElementById('tab-btn-daily-report').style.display = canViewSummary ? 'inline-block' : 'none';
-    document.getElementById('tab-btn-materials').style.display = canViewMaterials ? 'inline-block' : 'none';
+    const materialsBtn = document.getElementById('tab-btn-materials');
+    if (materialsBtn) materialsBtn.style.display = 'none';
     
     document.getElementById('tab-btn-downtimes').style.display = canDowntime ? 'inline-block' : 'none';
-    document.getElementById('tab-btn-analytics').style.display = canDowntime ? 'inline-block' : 'none';
+    const analyticsBtn = document.getElementById('tab-btn-analytics');
+    if (analyticsBtn) analyticsBtn.style.display = 'none';
     
     // Показываем панель управления нормативами только для Технолога и Админа
     const normsPanel = document.getElementById('technologist-norms-panel');
@@ -500,10 +503,12 @@ function applyRoleVisibility() {
     
     // Switch to saved tab or first visible tab
     const savedTab = sessionStorage.getItem('active_tab');
-    const savedTabBtn = savedTab ? document.getElementById(`tab-btn-${savedTab}`) : null;
+    const savedTabBtn = (savedTab && savedTab !== 'analytics') ? document.getElementById(`tab-btn-${savedTab}`) : null;
     
     if (savedTab && savedTabBtn && savedTabBtn.style.display !== 'none') {
         switchTab(savedTab);
+    } else if (r === 'director') {
+        switchTab('crew-plans');
     } else if (canReport) {
         switchTab('production');
     } else if (canViewSummary) {
@@ -3569,3 +3574,172 @@ document.addEventListener('focusout', function(e) {
         }
     }
 });
+
+// ==========================================
+// CREW PLANS FULFILLMENT TAB LOGIC (🏆)
+// ==========================================
+let currentCrewPlansData = null;
+
+async function loadCrewPlansFulfillment() {
+    const monthInput = document.getElementById('crew-plans-month');
+    let month = monthInput ? monthInput.value : '';
+    
+    if (!month) {
+        const now = new Date();
+        month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        if (monthInput) monthInput.value = month;
+    }
+
+    const tbody = document.getElementById('crew-plans-table-body');
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-secondary);">⏳ Загрузка данных за ' + month + '...</td></tr>';
+    }
+
+    try {
+        const res = await fetch(`/api/shifts/crew_plan_fulfillment?month=${encodeURIComponent(month)}`);
+        if (!res.ok) throw new Error('Ошибка загрузки данных сводки');
+        
+        const data = await res.json();
+        currentCrewPlansData = data;
+        
+        renderCrewCards(data.crew_stats, data.factory_summary);
+        renderCrewPlansTable();
+    } catch (e) {
+        console.error("Error loading crew plans:", e);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--danger-color);">❌ Ошибка при загрузке: ${e.message}</td></tr>`;
+        }
+    }
+}
+
+function renderCrewCards(crewStats, factorySummary) {
+    const container = document.getElementById('crew-kpi-cards-grid');
+    if (!container || !crewStats) return;
+
+    const cardsHtml = [1, 2, 3, 4].map(idx => {
+        const st = crewStats[idx] || { name: `Смена №${idx}`, total_shifts: 0, met_count: 0, percent: 0, total_lfm: 0, day_shifts: 0, day_met: 0, night_shifts: 0, night_met: 0 };
+        const isLeader = st.met_count > 0;
+        
+        // Progress color
+        let badgeBg = '#f1f5f9';
+        let badgeColor = '#475569';
+        let badgeBorder = '#cbd5e1';
+        if (st.percent >= 70) {
+            badgeBg = '#ecfdf5';
+            badgeColor = '#047857';
+            badgeBorder = '#a7f3d0';
+        } else if (st.percent >= 40) {
+            badgeBg = '#eff6ff';
+            badgeColor = '#1d4ed8';
+            badgeBorder = '#bfdbfe';
+        } else if (st.total_shifts > 0) {
+            badgeBg = '#fff7ed';
+            badgeColor = '#c2410c';
+            badgeBorder = '#ffedd5';
+        }
+
+        return `
+            <div style="background: #ffffff; border: 1px solid var(--glass-border); border-radius: 12px; padding: 1.1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                        <h4 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">${st.name}</h4>
+                        <span style="font-size: 0.8rem; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder}; padding: 3px 8px; border-radius: 6px;">
+                            ${st.percent}%
+                        </span>
+                    </div>
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 0.5rem;">
+                        <span style="font-size: 1.7rem; font-weight: 800; color: #0f172a;">${st.met_count}</span>
+                        <span style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 600;">из ${st.total_shifts} смен</span>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.6rem;">
+                        ☀️ День: <strong style="color: #334155;">${st.day_met}/${st.day_shifts}</strong> &nbsp;|&nbsp; 
+                        🌙 Ночь: <strong style="color: #334155;">${st.night_met}/${st.night_shifts}</strong>
+                    </div>
+                </div>
+                <div style="border-top: 1px dashed #e2e8f0; padding-top: 0.6rem; font-size: 0.8rem; color: var(--text-secondary); display: flex; justify-content: space-between;">
+                    <span>Формовка за месяц:</span>
+                    <strong style="color: #0f172a;">${(st.total_lfm || 0).toLocaleString()} шт.</strong>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = cardsHtml;
+
+    // Update Factory summary banner
+    if (factorySummary) {
+        const badge = document.getElementById('factory-total-met-badge');
+        if (badge) {
+            badge.innerText = `${factorySummary.total_met} из ${factorySummary.total_shifts} выполнений (${factorySummary.percent}%)`;
+        }
+        const text = document.getElementById('factory-total-stats-text');
+        if (text) {
+            text.innerText = `Всего отработано смен: ${factorySummary.total_shifts} | Суммарно отформовано: ${(factorySummary.total_lfm || 0).toLocaleString()} шт.`;
+        }
+    }
+}
+
+function renderCrewPlansTable() {
+    const tbody = document.getElementById('crew-plans-table-body');
+    if (!tbody || !currentCrewPlansData || !currentCrewPlansData.days) return;
+
+    const filterCrew = document.getElementById('crew-plans-filter-crew')?.value || '';
+    const filterStatus = document.getElementById('crew-plans-filter-status')?.value || '';
+
+    let rows = currentCrewPlansData.days;
+
+    if (filterCrew) {
+        rows = rows.filter(r => String(r.crew_num) === String(filterCrew));
+    }
+
+    if (filterStatus === 'met') {
+        rows = rows.filter(r => r.is_met);
+    } else if (filterStatus === 'unmet') {
+        rows = rows.filter(r => !r.is_met);
+    }
+
+    if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-secondary);">По заданным фильтрам смены не найдены</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+        // Shift badge
+        const isDay = r.shift_name === 'День';
+        const shiftBadge = isDay 
+            ? `<span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;">☀️ День</span>`
+            : `<span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;">🌙 Ночь</span>`;
+
+        // Status badge
+        const statusBadge = r.is_met
+            ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`
+            : `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-block;">Не выполнен</span>`;
+
+        // Diff formatted
+        const diffColor = r.diff >= 0 ? '#047857' : '#b91c1c';
+        const diffPrefix = r.diff > 0 ? '+' : '';
+        const diffText = r.fact_lfm > 0 ? `${diffPrefix}${r.diff.toLocaleString()} шт.` : '-';
+
+        const crewBadge = r.crew_name 
+            ? `<strong style="color: #0f172a; font-size: 0.9rem;">${r.crew_name}</strong>` 
+            : `<span style="color: var(--text-secondary); font-style: italic;">Не назначена</span>`;
+
+        const rowBg = r.is_met ? 'rgba(236, 253, 245, 0.25)' : '#ffffff';
+
+        return `
+            <tr style="background: ${rowBg}; border-bottom: 1px solid var(--glass-border);">
+                <td style="font-weight: 600; color: #0f172a; white-space: nowrap;">${r.date_display}</td>
+                <td style="color: var(--text-secondary); font-size: 0.8rem;">${r.day_of_week || ''}</td>
+                <td>${shiftBadge}</td>
+                <td>${crewBadge}</td>
+                <td style="text-align: right; font-weight: 700; font-size: 0.95rem; color: #0f172a;">${(r.fact_lfm || 0).toLocaleString()}</td>
+                <td style="text-align: right; color: var(--text-secondary); font-size: 0.88rem;">${(r.plan || 0).toLocaleString()}</td>
+                <td style="text-align: center;">${statusBadge}</td>
+                <td style="text-align: right; font-weight: 600; font-size: 0.85rem; color: ${diffColor};">${diffText}</td>
+                <td style="color: #334155; font-size: 0.85rem;">${r.master || '<span style="color:#94a3b8;">-</span>'}</td>
+                <td style="color: #64748b; font-size: 0.8rem;">${r.batches ? 'Партия: ' + r.batches : ''} ${r.products ? '(' + r.products + ')' : ''}</td>
+            </tr>
+        `;
+    }).join('');
+}
+

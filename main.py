@@ -12,7 +12,10 @@ import threading
 import json
 import hashlib
 import html
-import m365_integration
+try:
+    import m365_integration
+except ImportError:
+    m365_integration = None
 import excel_exporter
 import import_aci_excel
 from datetime import datetime, date
@@ -28,9 +31,14 @@ from openpyxl.chart import BarChart, Reference
 import io
 from fastapi import Response
 from urllib.parse import quote
-import msal
-import requests
-from starlette.middleware.sessions import SessionMiddleware
+try:
+    import msal
+except ImportError:
+    msal = None
+try:
+    from starlette.middleware.sessions import SessionMiddleware
+except ImportError:
+    SessionMiddleware = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -7480,6 +7488,181 @@ def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(g
             "current_shift_group": "Смена 1",
             "prev_shift_group": "Смена 4"
         }
+
+@app.get("/api/shifts/crew_plan_fulfillment")
+def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Возвращает аналитическую сводку выполнения сменного плана бригадами (Смена 1..4)
+    за выбранный месяц (YYYY-MM).
+    Критерии плана по формовке ЛФМ:
+    - Дневная смена: >= 2700 листов
+    - Ночная смена: >= 3300 листов
+    """
+    try:
+        from collections import defaultdict
+        import calendar
+
+        # Определение года и месяца
+        if not month:
+            from datetime import timezone
+            tz_kz = timezone(timedelta(hours=5))
+            month = datetime.now(tz_kz).strftime("%Y-%m")
+            
+        y_str, m_str = month.split("-")
+        year = int(y_str)
+        month_num = int(m_str)
+        days_in_month = calendar.monthrange(year, month_num)[1]
+        
+        start_date = f"{year:04d}-{month_num:02d}-01"
+        end_date = f"{year:04d}-{month_num:02d}-{days_in_month:02d}"
+
+        # 1. Извлекаем рапорты за месяц
+        shifts = db.query(models.Shift).filter(
+            models.Shift.date >= start_date,
+            models.Shift.date <= end_date
+        ).order_by(models.Shift.date.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
+
+        # Суммируем выработку ЛФМ по слотам (date, shift_type)
+        # Учитываем переход продукции / несколько партий в смене
+        slot_lfm = defaultdict(int)
+        slot_masters = defaultdict(set)
+        slot_products = defaultdict(list)
+        slot_batches = defaultdict(list)
+
+        for s in shifts:
+            lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == s.id).all()
+            total_lfm = sum(r.lfm_sheets or 0 for r in lfm_reports)
+            
+            s_val = s.shift_name.strip() if s.shift_name else ""
+            b = s_val.encode('utf-8')
+            # Нормализация День / Ночь
+            if len(b) > 1 and b[1] == 148: # 'Д'
+                s_name = 'День'
+            elif 'д' in s_val.lower() or 'day' in s_val.lower():
+                s_name = 'День'
+            else:
+                s_name = 'Ночь'
+                
+            d_str = s.date.strftime("%Y-%m-%d") if hasattr(s.date, 'strftime') else str(s.date)
+            slot_lfm[(d_str, s_name)] += total_lfm
+            
+            if s.master_id:
+                m = db.query(models.Master).filter(models.Master.id == s.master_id).first()
+                if m:
+                    slot_masters[(d_str, s_name)].add(getattr(m, 'full_name', getattr(m, 'name', str(m.id))))
+            if s.product_name:
+                slot_products[(d_str, s_name)].append(s.product_name)
+            if s.batch_number:
+                slot_batches[(d_str, s_name)].append(s.batch_number)
+
+        # 2. Извлекаем утвержденный график сменности
+        entries = db.query(models.ShiftScheduleEntry).all()
+        entry_map = {e.date_str: e for e in entries}
+
+        days_data = []
+        crew_stats = {
+            1: {"name": "Смена №1", "total_shifts": 0, "met_count": 0, "day_shifts": 0, "day_met": 0, "night_shifts": 0, "night_met": 0, "total_lfm": 0},
+            2: {"name": "Смена №2", "total_shifts": 0, "met_count": 0, "day_shifts": 0, "day_met": 0, "night_shifts": 0, "night_met": 0, "total_lfm": 0},
+            3: {"name": "Смена №3", "total_shifts": 0, "met_count": 0, "day_shifts": 0, "day_met": 0, "night_shifts": 0, "night_met": 0, "total_lfm": 0},
+            4: {"name": "Смена №4", "total_shifts": 0, "met_count": 0, "day_shifts": 0, "day_met": 0, "night_shifts": 0, "night_met": 0, "total_lfm": 0}
+        }
+
+        total_met_factory = 0
+        total_shifts_factory = 0
+        total_lfm_factory = 0
+
+        for day in range(1, days_in_month + 1):
+            d_date_str = f"{year:04d}-{month_num:02d}-{day:02d}"
+            d_display_str = f"{day:02d}.{month_num:02d}.{year:04d}"
+            
+            entry = entry_map.get(d_display_str)
+            dow = entry.day_of_week if entry else ""
+
+            # Обрабатываем День и Ночь
+            for s_name in ['День', 'Ночь']:
+                plan = 2700 if s_name == 'День' else 3300
+                fact_lfm = slot_lfm.get((d_date_str, s_name), 0)
+                masters = ", ".join(sorted(slot_masters.get((d_date_str, s_name), [])))
+                products = ", ".join(list(dict.fromkeys(slot_products.get((d_date_str, s_name), []))))
+                batches = ", ".join(list(dict.fromkeys(slot_batches.get((d_date_str, s_name), []))))
+                
+                # Определение дежурной бригады по графику
+                duty_crew = ""
+                crew_num = None
+                if entry:
+                    if s_name == 'День':
+                        duty_crew = entry.day_shift_group or ""
+                    else:
+                        duty_crew = entry.night_shift_group or ""
+                
+                if duty_crew:
+                    for c_idx in [1, 2, 3, 4]:
+                        if str(c_idx) in duty_crew:
+                            crew_num = c_idx
+                            break
+
+                is_met = fact_lfm >= plan
+                diff = fact_lfm - plan
+
+                if crew_num:
+                    c_stat = crew_stats[crew_num]
+                    c_stat["total_shifts"] += 1
+                    c_stat["total_lfm"] += fact_lfm
+                    if s_name == 'День':
+                        c_stat["day_shifts"] += 1
+                        if is_met: c_stat["day_met"] += 1
+                    else:
+                        c_stat["night_shifts"] += 1
+                        if is_met: c_stat["night_met"] += 1
+
+                    if is_met:
+                        c_stat["met_count"] += 1
+
+                total_shifts_factory += 1
+                total_lfm_factory += fact_lfm
+                if is_met:
+                    total_met_factory += 1
+
+                days_data.append({
+                    "date": d_date_str,
+                    "date_display": d_display_str,
+                    "day": day,
+                    "day_of_week": dow,
+                    "shift_name": s_name,
+                    "crew_num": crew_num,
+                    "crew_name": f"Смена №{crew_num}" if crew_num else duty_crew,
+                    "fact_lfm": fact_lfm,
+                    "plan": plan,
+                    "diff": diff,
+                    "is_met": is_met,
+                    "master": masters,
+                    "products": products,
+                    "batches": batches
+                })
+
+        # Рассчитываем проценты выполнения
+        for c_idx, st in crew_stats.items():
+            tot = st["total_shifts"]
+            st["percent"] = round((st["met_count"] / tot * 100), 1) if tot > 0 else 0.0
+
+        factory_percent = round((total_met_factory / total_shifts_factory * 100), 1) if total_shifts_factory > 0 else 0.0
+
+        return {
+            "status": "ok",
+            "month": month,
+            "days_in_month": days_in_month,
+            "factory_summary": {
+                "total_shifts": total_shifts_factory,
+                "total_met": total_met_factory,
+                "percent": factory_percent,
+                "total_lfm": total_lfm_factory
+            },
+            "crew_stats": crew_stats,
+            "days": days_data
+        }
+    except Exception as e:
+        print(f"Error in get_crew_plan_fulfillment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/checklists/templates")
 def get_checklist_templates():
