@@ -253,6 +253,7 @@ async function deleteMaster(id) {
 async function loadNorms() {
     const res = await fetch('/api/norms/');
     const data = await res.json();
+    allNormsCached = Array.isArray(data) ? data : [];
     const tbody = document.getElementById('norms-table-body');
     tbody.innerHTML = '';
     
@@ -931,17 +932,22 @@ function exportAuditLogsToCsv() {
 
 let allMastersCached = [];
 let allShiftsCached = [];
+let allNormsCached = [];
 let currentShiftPeriod = 'week';
 let activeUnifiedDetails = null;
 
 async function loadShifts() {
     try {
-        const [shiftsRes, mastersRes] = await Promise.all([
+        const [shiftsRes, mastersRes, normsRes] = await Promise.all([
             fetch('/api/shifts/all'),
-            fetch('/api/masters/')
+            fetch('/api/masters/'),
+            fetch('/api/norms/')
         ]);
         allShiftsCached = await shiftsRes.json();
         allMastersCached = await mastersRes.json();
+        if (normsRes.ok) {
+            allNormsCached = await normsRes.json();
+        }
         
         // Populate master filter dropdown
         const masterSelect = document.getElementById('filter-master');
@@ -957,10 +963,10 @@ async function loadShifts() {
         const productSelect = document.getElementById('filter-product');
         if (productSelect) {
             const currentVal = productSelect.value;
-            const uniqueProducts = new Set([
-                'Шифер 8 волн рифленый', 'Шифер 8 волн цветной', 'Шифер 7 волн 3500*980',
-                'Трубы безнапорные', 'Плоский лист'
-            ]);
+            const uniqueProducts = new Set();
+            if (Array.isArray(allNormsCached)) {
+                allNormsCached.forEach(n => { if (n.product_name) uniqueProducts.add(n.product_name); });
+            }
             allShiftsCached.forEach(s => {
                 if (s.product_name) uniqueProducts.add(s.product_name);
                 if (s.lfm_reports) s.lfm_reports.forEach(r => { if (r.product_name) uniqueProducts.add(r.product_name); });
@@ -1225,15 +1231,19 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         const prodSelect = document.getElementById('uni-product');
         prodSelect.innerHTML = '';
         const currentProd = shift.product_name || (lfm[0]?.product_name) || (batches[0]?.product_name) || 'Шифер 8 волн рифленый';
-        const standardProds = [
-            'Шифер 8 волн рифленый', 'Шифер 8 волн цветной', 'Шифер 7 волн 3500*980',
-            'Шифер 7 волн 1750*980', 'Шифер 6 волн 1750*1130', 'Шифер плоский 8мм',
-            'Шифер плоский 10мм', 'Шифер 8 волн неокрашенный'
-        ];
-        if (!standardProds.includes(currentProd) && currentProd) {
-            standardProds.push(currentProd);
+        
+        let availableProds = allNormsCached.map(n => n.product_name).filter(Boolean);
+        if (availableProds.length === 0) {
+            availableProds = [
+                'Шифер 7 волн', 'Шифер 7 волн глад', 'Шифер 7 волн рифленый', 'Шифер 7 волн 3500*980',
+                'Шифер 8 волн', 'Шифер 8 волн глад', 'Шифер 8 волн рифленый',
+                'Шифер плоский 10 мм', 'Шифер плоский 8 мм', 'Шифер плоский 6 мм', 'Шифер РП 1750*930'
+            ];
         }
-        standardProds.forEach(p => {
+        if (currentProd && !availableProds.includes(currentProd)) {
+            availableProds.push(currentProd);
+        }
+        availableProds.forEach(p => {
             prodSelect.innerHTML += `<option value="${p}" ${p === currentProd ? 'selected' : ''}>${p}</option>`;
         });
 
