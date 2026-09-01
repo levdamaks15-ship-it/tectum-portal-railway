@@ -7939,47 +7939,48 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
         year = today.year
         structure = generate_calendar_structure_mon_fri(year)
 
-        months_ru = [
-            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-        ]
-        current_m_name = f"{months_ru[today.month - 1]} {year}"
-        default_month = current_m_name if current_m_name in structure else list(structure.keys())[0]
-
+        default_month = None
         default_week = None
-        if default_month in structure and structure[default_month]:
-            month_weeks = structure[default_month]
-            # Определяем понедельник текущей недели
-            current_monday = today - datetime.timedelta(days=today.weekday())
-            s_str = current_monday.strftime('%d.%m')
-            
-            # Ищем неделю, где начальная дата совпадает с понедельником текущей недели
-            for w in month_weeks:
-                if f"({s_str}" in w:
-                    default_week = w
-                    break
-            
-            # Если сегодня выходные или переход месяца и точного совпадения нет,
-            # ищем неделю, охватывающую диапазон дат (Пн..Вс)
-            if not default_week:
-                for w in month_weeks:
-                    try:
-                        # формат: "Неделя X (DD.MM - DD.MM)"
-                        dates_part = w.split('(')[1].split(')')[0]
-                        start_part, end_part = dates_part.split(' - ')
-                        sd, sm = map(int, start_part.strip().split('.'))
-                        ed, em = map(int, end_part.strip().split('.'))
-                        w_start = datetime.date(year, sm, sd)
-                        # До конца недели (воскресенье = +6 дней от понедельника)
-                        w_end = w_start + datetime.timedelta(days=6)
-                        if w_start <= today <= w_end:
-                            default_week = w
-                            break
-                    except Exception:
-                        pass
 
-            if not default_week:
-                default_week = month_weeks[0]
+        # Ищем неделю во всей структуре года, диапазон которой охватывает сегодняшний день (Пн..Вс)
+        for m_name, month_weeks in structure.items():
+            for w in month_weeks:
+                try:
+                    # формат: "Неделя X (DD.MM - DD.MM)"
+                    dates_part = w.split('(')[1].split(')')[0]
+                    start_part, end_part = dates_part.split(' - ')
+                    sd, sm = map(int, start_part.strip().split('.'))
+                    ed, em = map(int, end_part.strip().split('.'))
+                    
+                    # Учет перехода года (декабрь -> январь)
+                    start_year = year
+                    end_year = year
+                    if sm == 12 and em == 1:
+                        end_year = year + 1
+                    
+                    w_start = datetime.date(start_year, sm, sd)
+                    # Воскресенье недели = +6 дней от понедельника
+                    w_end = w_start + datetime.timedelta(days=6)
+                    
+                    if w_start <= today <= w_end:
+                        default_month = m_name
+                        default_week = w
+                        break
+                except Exception:
+                    pass
+            if default_month and default_week:
+                break
+
+        # Фоллбэк: если не нашли по точному диапазону дат, берем текущий календарный месяц
+        if not default_month:
+            months_ru = [
+                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+            ]
+            current_m_name = f"{months_ru[today.month - 1]} {year}"
+            default_month = current_m_name if current_m_name in structure else list(structure.keys())[0]
+            if default_month in structure and structure[default_month]:
+                default_week = structure[default_month][0]
 
         return {
             "months": list(structure.keys()),

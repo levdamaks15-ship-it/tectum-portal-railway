@@ -1383,7 +1383,9 @@ function onMonthChange(forcedWeek = null) {
                     const [sd, sm] = sStr.trim().split('.').map(Number);
                     const [ed, em] = eStr.trim().split('.').map(Number);
                     const wStart = new Date(year, sm - 1, sd);
-                    const wEnd = new Date(year, em - 1, ed, 23, 59, 59);
+                    let endYear = year;
+                    if (sm === 12 && em === 1) endYear = year + 1;
+                    const wEnd = new Date(endYear, em - 1, ed, 23, 59, 59);
                     // Расширяем до конца воскресенья (еще +2 дня от пятницы)
                     const wSun = new Date(wEnd);
                     wSun.setDate(wSun.getDate() + 2);
