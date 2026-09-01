@@ -1758,6 +1758,50 @@ function calcEditDowntimeDuration() {
     preview.textContent = `${formatDurationHM(mins)} (${mins} мин)`;
 }
 
+function updateDowntimeToggleUI() {
+    const chk = document.getElementById('journal-dt-is-equipment-stop');
+    const card = document.getElementById('journal-dt-toggle-card');
+    const icon = document.getElementById('journal-dt-toggle-icon');
+    const title = document.getElementById('journal-dt-toggle-title');
+    const sub = document.getElementById('journal-dt-toggle-subtitle');
+    const badge = document.getElementById('journal-dt-toggle-badge');
+    if (!chk || !card) return;
+
+    if (chk.checked) {
+        card.style.borderColor = '#fca5a5';
+        card.style.background = '#fef2f2';
+        if (icon) icon.textContent = '🛑';
+        if (title) { title.textContent = 'Остановка оборудования'; title.style.color = '#991b1b'; }
+        if (sub) { sub.textContent = 'Линия была полностью остановлена'; sub.style.color = '#b91c1c'; }
+        if (badge) {
+            badge.textContent = 'ДА';
+            badge.style.background = '#fee2e2';
+            badge.style.color = '#991b1b';
+            badge.style.borderColor = '#f87171';
+        }
+    } else {
+        card.style.borderColor = '#86efac';
+        card.style.background = '#f0fdf4';
+        if (icon) icon.textContent = '🟢';
+        if (title) { title.textContent = 'Ремонт на ходу (без остановки)'; title.style.color = '#166534'; }
+        if (sub) { sub.textContent = 'Оборудование продолжало работать'; sub.style.color = '#15803d'; }
+        if (badge) {
+            badge.textContent = 'НЕТ';
+            badge.style.background = '#dcfce7';
+            badge.style.color = '#166534';
+            badge.style.borderColor = '#4ade80';
+        }
+    }
+}
+
+function toggleEquipmentStopManual() {
+    const chk = document.getElementById('journal-dt-is-equipment-stop');
+    if (chk) {
+        chk.checked = !chk.checked;
+        updateDowntimeToggleUI();
+    }
+}
+
 function onDowntimeTextChange() {
     const desc = document.getElementById('journal-dt-desc')?.value || '';
     const chk = document.getElementById('journal-dt-is-equipment-stop');
@@ -1765,6 +1809,7 @@ function onDowntimeTextChange() {
     const lower = desc.toLowerCase();
     if (lower.includes('на ходу') || lower.includes('без остановки') || lower.includes('без простоя')) {
         chk.checked = false;
+        updateDowntimeToggleUI();
     }
 }
 
@@ -1897,14 +1942,14 @@ async function addJournalDowntime() {
         
         if (res.ok) {
             saveLastLineAndShift(line, shift_name);
-            showNotification('success', 'Отлично!', 'Простой успешно зафиксирован.');
+            showNotification('success', 'Отлично!', 'Простой успешно зафиксирован в журнале.');
             // Очищаем поля ввода
             document.getElementById('journal-dt-desc').value = '';
             document.getElementById('journal-dt-start').value = '';
             document.getElementById('journal-dt-end').value = '';
             document.getElementById('journal-dt-is-equipment-stop').checked = true;
+            updateDowntimeToggleUI();
             calcJournalDowntimeDuration();
-            refreshDowntimesTable();
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {

@@ -1083,115 +1083,105 @@
             </div>
 
             <!-- 3. DOWNTIMES TAB (⏱ Журнал Простоев) -->
-            <div id="downtimes-tab" class="glass-panel card" style="display: none;">
-                <div style="margin-bottom: 1.25rem;">
-                    <h3 style="margin-bottom: 0.2rem;">⏱ Журнал Простоев</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Быстрая фиксация простоев и ремонтов оборудования за смену</p>
-                </div>
-
-                <!-- 1. Параметры смены -->
-                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.25rem;">
-                    <input type="hidden" id="journal-dt-active-shift-id">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Дата</label>
-                            <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" onchange="loadDowntimesByParams()" style="padding: 0.55rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px;">
-                        </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Смена</label>
-                            <select id="journal-dt-shift-name" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px;">
-                                <option value="День">День</option>
-                                <option value="Ночь">Ночь</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Линия</label>
-                            <select id="journal-dt-line" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px;">
-                                <option value="Линия 1">Линия 1</option>
-                                <option value="Линия 2">Линия 2</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Мастер</label>
-                            <select id="journal-dt-master-select" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px;">
-                                <option value="">-- Выберите мастера --</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. Форма добавления простоя -->
-                <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.25rem;">
-                    <h4 style="margin-top: 0; margin-bottom: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
-                        <span>✍️</span> Ввод простоя
-                    </h4>
+            <div id="downtimes-tab" style="display: none; max-width: 680px; margin: 0 auto;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 1.5rem; color: #0f172a;">
                     
-                    <div style="margin-bottom: 1rem;">
-                        <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">
-                            Описание поломки / Что делали:
-                        </label>
-                        <textarea id="journal-dt-desc" rows="2" placeholder="Например: Замена ножей, чистка кармана и рекуператора" oninput="onDowntimeTextChange()" style="width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical; box-sizing: border-box;"></textarea>
+                    <!-- Header -->
+                    <div style="margin-bottom: 1.25rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1rem;">
+                        <h3 style="margin: 0 0 0.35rem 0; font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>⏱️</span> Фиксация простоя оборудования
+                        </h3>
+                        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Быстрая независимая запись инцидента в журнал</p>
                     </div>
 
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: flex-end;">
-                        <div style="flex: 1 1 120px; min-width: 110px;">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Время начала</label>
-                            <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem 0.6rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 0.95rem; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; text-align: center;">
-                        </div>
-                        <div style="flex: 1 1 120px; min-width: 110px;" id="wrapper-dt-end">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Время окончания</label>
-                            <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem 0.6rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 0.95rem; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; text-align: center;">
-                        </div>
-                        <div style="flex: 1 1 130px; min-width: 110px;">
-                            <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Длительность</label>
-                            <div id="journal-dt-duration-preview" style="padding: 0.5rem 0.6rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 0.95rem; font-weight: 700; color: #38bdf8; text-align: center; height: 38px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
-                                0:00
+                    <input type="hidden" id="journal-dt-active-shift-id">
+
+                    <!-- Section 1: Shift Parameters (2x2 Grid) -->
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
+                            1. Параметры смены
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅 Дата</label>
+                                <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" onchange="loadDowntimesByParams()" style="padding: 0.55rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">☀️/🌙 Смена</label>
+                                <select id="journal-dt-shift-name" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                    <option value="День">☀️ День</option>
+                                    <option value="Ночь">🌙 Ночь</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">🏭 Линия</label>
+                                <select id="journal-dt-line" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                    <option value="Линия 1">Линия 1</option>
+                                    <option value="Линия 2">Линия 2</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">👤 Мастер</label>
+                                <select id="journal-dt-master-select" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                    <option value="">-- Выберите мастера --</option>
+                                </select>
                             </div>
                         </div>
-                        <div style="flex: 2 1 220px; display: flex; align-items: center; height: 38px;">
-                            <label style="font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; margin: 0;">
-                                <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color); margin: 0;">
-                                <span>Остановка оборудования</span>
-                            </label>
-                        </div>
-                        <div style="flex: 1 1 100%; display: flex; justify-content: flex-end; margin-top: 0.5rem;">
-                            <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary" style="height: 42px; width: 100%; max-width: 280px; padding: 0 1.5rem; font-size: 0.95rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; margin-bottom: 0; border-radius: 8px;">
-                                <span>➕</span> Добавить простой
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. Список простоев за смену -->
-                <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
-                        <h4 style="margin: 0; color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
-                            <span>📋</span> Зафиксированные простои за смену
-                        </h4>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                            <span id="journal-dt-rows-count" class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-size: 0.8rem;">Всего записей: 0</span>
-                            <span id="journal-dt-total-time-badge" class="badge" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 0.8rem; font-weight: 700;">0:00 (0 мин)</span>
-                        </div>
                     </div>
 
-                    <div class="table-responsive-container">
-                        <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-secondary); font-size: 0.75rem;">
-                                    <th style="width: 40px; text-align: center; padding: 0.6rem 0.4rem;">#</th>
-                                    <th style="width: 75px; padding: 0.6rem 0.4rem;">Начало</th>
-                                    <th style="width: 75px; padding: 0.6rem 0.4rem;">Конец</th>
-                                    <th style="width: 80px; padding: 0.6rem 0.4rem;">Длит.</th>
-                                    <th style="padding: 0.6rem 0.4rem;">Простой / Описание</th>
-                                    <th style="width: 100px; text-align: center; padding: 0.6rem 0.4rem;">Остановка</th>
-                                    <th style="width: 80px; text-align: right; padding: 0.6rem 0.4rem;">Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody id="journal-downtimes-list">
-                                <tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Нет зафиксированных простоев за смену</td></tr>
-                            </tbody>
-                        </table>
+                    <!-- Section 2: Description -->
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.4rem;">
+                            2. Что произошло / Что делали *
+                        </label>
+                        <textarea id="journal-dt-desc" rows="3" placeholder="Например: Замена ножей, чистка кармана и рекуператора, устранение затора..." oninput="onDowntimeTextChange()" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
                     </div>
+
+                    <!-- Section 3: Time Interval & Duration -->
+                    <div style="margin-bottom: 1.25rem;">
+                        <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
+                            3. Время и длительность
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 0.75rem; align-items: end;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏰ Начало</label>
+                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="14:15" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
+                            </div>
+                            <div id="wrapper-dt-end">
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏰ Конец</label>
+                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="14:45" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏱️ Итого</label>
+                                <div id="journal-dt-duration-preview" style="padding: 0.5rem; border-radius: 10px; background: #f0f9ff; border: 1px solid #bae6fd; font-family: monospace; font-size: 1rem; font-weight: 700; color: #0369a1; text-align: center; height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                                    0:00
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Equipment Stop Toggle Card -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="display: none;" onchange="updateDowntimeToggleUI()">
+                        <div id="journal-dt-toggle-card" onclick="toggleEquipmentStopManual()" style="cursor: pointer; padding: 0.85rem 1rem; border-radius: 12px; border: 1.5px solid #fca5a5; background: #fef2f2; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease;">
+                            <div style="display: flex; align-items: center; gap: 0.65rem;">
+                                <span id="journal-dt-toggle-icon" style="font-size: 1.3rem;">🛑</span>
+                                <div>
+                                    <div id="journal-dt-toggle-title" style="font-weight: 700; font-size: 0.92rem; color: #991b1b;">Остановка оборудования</div>
+                                    <div id="journal-dt-toggle-subtitle" style="font-size: 0.75rem; color: #b91c1c;">Линия была полностью остановлена</div>
+                                </div>
+                            </div>
+                            <span id="journal-dt-toggle-badge" style="font-size: 0.8rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 20px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171;">ДА</span>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Submit Button -->
+                    <div>
+                        <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary" style="height: 48px; width: 100%; padding: 0 1.5rem; font-size: 1.05rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; margin-bottom: 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);">
+                            <span>🚀</span> Зафиксировать простой
+                        </button>
+                    </div>
+
                 </div>
             </div>
 
@@ -1506,6 +1496,6 @@
         </button>
     </div>
 
-    <script src="/static/js/app.js?v=20260901_downtimes_mobile_v1"></script>
+    <script src="/static/js/app.js?v=20260901_downtimes_card_v2"></script>
 </body>
 </html>
