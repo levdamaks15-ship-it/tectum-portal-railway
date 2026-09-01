@@ -201,8 +201,8 @@ async function updateShiftScheduleHints() {
 }
 
 function recalcTonsAndGrades() {
-    const sheets = parseFloat(document.getElementById('rep-sheets').value) || 0;
-    const prodName = document.getElementById('rep-product').value;
+    const sheets = parseFloat(document.getElementById('rep-sheets')?.value) || 0;
+    const prodName = document.getElementById('rep-product')?.value || '';
     
     // Strict exact matching to find correct product norm (fixes the 3500*980 bug)
     const norm = productNorms[prodName];
@@ -311,18 +311,20 @@ function recalcDefectTotal() {
 }
 
 function recalcChrTotal() {
-    const v1 = parseFloat(document.getElementById('zo-chr-4-20').value) || 0;
-    const v2 = parseFloat(document.getElementById('zo-chr-5-65').value) || 0;
-    const v3 = parseFloat(document.getElementById('zo-chr-6-40').value) || 0;
-    document.getElementById('zo-chr-total-readonly').value = (v1 + v2 + v3).toFixed(1);
+    const v1 = parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0;
+    const v2 = parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0;
+    const v3 = parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0;
+    const target = document.getElementById('zo-chr-total-readonly');
+    if (target) target.value = (v1 + v2 + v3).toFixed(1);
 }
 
 function recalcCemTotal() {
-    const v1 = parseFloat(document.getElementById('zo-cem-1').value) || 0;
-    const v2 = parseFloat(document.getElementById('zo-cem-2').value) || 0;
-    const v3 = parseFloat(document.getElementById('zo-cem-3').value) || 0;
-    const v4 = parseFloat(document.getElementById('zo-cem-4').value) || 0;
-    document.getElementById('zo-cem-total-readonly').value = (v1 + v2 + v3 + v4).toFixed(0);
+    const v1 = parseFloat(document.getElementById('zo-cem-1')?.value) || 0;
+    const v2 = parseFloat(document.getElementById('zo-cem-2')?.value) || 0;
+    const v3 = parseFloat(document.getElementById('zo-cem-3')?.value) || 0;
+    const v4 = parseFloat(document.getElementById('zo-cem-4')?.value) || 0;
+    const target = document.getElementById('zo-cem-total-readonly');
+    if (target) target.value = (v1 + v2 + v3 + v4).toFixed(0);
 }
 
 function switchTab(tabId, event) {
@@ -763,33 +765,33 @@ function prefillReportForm(shift) {
 
 async function submitShiftReport() {
     const data = {
-        date: document.getElementById('rep-date').value,
-        shift_name: document.getElementById('rep-shift').value,
-        line: document.getElementById('rep-line').value,
-        master_id: parseInt(document.getElementById('rep-master').value),
-        batch_number: document.getElementById('rep-batch').value,
-        product_name: document.getElementById('rep-product').value,
+        date: document.getElementById('rep-date')?.value || '',
+        shift_name: document.getElementById('rep-shift')?.value || '',
+        line: document.getElementById('rep-line')?.value || '',
+        master_id: parseInt(document.getElementById('rep-master')?.value) || 0,
+        batch_number: document.getElementById('rep-batch')?.value || '',
+        product_name: document.getElementById('rep-product')?.value || '',
         export_type: document.getElementById('rep-export-type')?.value || 'Эталон',
         
-        lfm_sheets: parseInt(document.getElementById('rep-sheets').value) || 0,
-        lfm_wind_resets: parseInt(document.getElementById('rep-resets').value) || 0,
-        zo_batches: parseInt(document.getElementById('rep-batches').value) || 0,
+        lfm_sheets: parseInt(document.getElementById('rep-sheets')?.value) || 0,
+        lfm_wind_resets: parseInt(document.getElementById('rep-resets')?.value) || 0,
+        zo_batches: parseInt(document.getElementById('rep-batches')?.value) || 0,
         
-        warehouse_gp: parseInt(document.getElementById('rep-warehouse-gp').value) || 0,
-        first_grade: parseInt(document.getElementById('rep-first-grade').value) || 0,
-        has_defect: document.getElementById('rep-has-defect').value,
+        warehouse_gp: parseInt(document.getElementById('rep-warehouse-gp')?.value) || 0,
+        first_grade: parseInt(document.getElementById('rep-first-grade')?.value) || 0,
+        has_defect: document.getElementById('rep-has-defect')?.value || 'no',
         
-        ds_defect_chip: parseInt(document.getElementById('def-chip').value) || 0,
-        ds_defect_scratch: parseInt(document.getElementById('def-scratch').value) || 0,
-        ds_defect_bad_cut: parseInt(document.getElementById('def-bad-cut').value) || 0,
-        ds_defect_stick_bottom: parseInt(document.getElementById('def-stick-bottom').value) || 0,
-        ds_defect_stick_top: parseInt(document.getElementById('def-stick-top').value) || 0,
-        ds_defect_broken: parseInt(document.getElementById('def-broken').value) || 0,
-        ds_defect_fell_box: parseInt(document.getElementById('def-fell').value) || 0,
-        ds_defect_dent: parseInt(document.getElementById('def-dent').value) || 0,
-        ds_defect_thickness: parseInt(document.getElementById('def-thickness').value) || 0,
-        ds_defect_delamination: parseInt(document.getElementById('def-delamination').value) || 0,
-        ds_defect_edge: parseInt(document.getElementById('def-edge').value) || 0,
+        ds_defect_chip: parseInt(document.getElementById('def-chip')?.value) || 0,
+        ds_defect_scratch: parseInt(document.getElementById('def-scratch')?.value) || 0,
+        ds_defect_bad_cut: parseInt(document.getElementById('def-bad-cut')?.value) || 0,
+        ds_defect_stick_bottom: parseInt(document.getElementById('def-stick-bottom')?.value) || 0,
+        ds_defect_stick_top: parseInt(document.getElementById('def-stick-top')?.value) || 0,
+        ds_defect_broken: parseInt(document.getElementById('def-broken')?.value) || 0,
+        ds_defect_fell_box: parseInt(document.getElementById('def-fell')?.value) || 0,
+        ds_defect_dent: parseInt(document.getElementById('def-dent')?.value) || 0,
+        ds_defect_thickness: parseInt(document.getElementById('def-thickness')?.value) || 0,
+        ds_defect_delamination: parseInt(document.getElementById('def-delamination')?.value) || 0,
+        ds_defect_edge: parseInt(document.getElementById('def-edge')?.value) || 0,
 
         // Предыдущая смена
         prev_first_grade: parseInt(document.getElementById('rep-prev-first-grade')?.value) || 0,
@@ -802,7 +804,7 @@ async function submitShiftReport() {
         prev_defect_thickness: parseInt(document.getElementById('prev-def-thickness')?.value) || 0,
         prev_defect_edge: parseInt(document.getElementById('prev-def-edge')?.value) || 0,
         
-        qcd_defect: parseInt(document.getElementById('rep-qcd-defect').value) || 0,
+        qcd_defect: parseInt(document.getElementById('rep-qcd-defect')?.value) || 0,
 
 
         zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0,
@@ -820,10 +822,10 @@ async function submitShiftReport() {
         zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0,
         zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0,
         
-        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1').value) || 0.0,
-        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2').value) || 0.0,
-        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3').value) || 0.0,
-        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4').value) || 0.0,
+        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
+        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
+        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
         
         zo_cellulose_silo1: parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0,
         zo_cellulose_silo2: parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0,
@@ -855,21 +857,21 @@ async function submitShiftReport() {
         zo_asbocarton_silo3: parseFloat(document.getElementById('zo-car-3')?.value) || 0.0,
         zo_asbocarton_silo4: parseFloat(document.getElementById('zo-car-4')?.value) || 0.0,
         
-        zo_chrysotile_4_20: parseFloat(document.getElementById('zo-chr-4-20').value) || 0.0,
-        zo_chrysotile_5_65: parseFloat(document.getElementById('zo-chr-5-65').value) || 0.0,
-        zo_chrysotile_6_40: parseFloat(document.getElementById('zo-chr-6-40').value) || 0.0,
-        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1').value) || 0.0,
-        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2').value) || 0.0,
-        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3').value) || 0.0,
-        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4').value) || 0.0,
-        zo_cellulose: parseFloat(document.getElementById('zo-cellulose').value) || 0.0,
-        zo_crushed_slate: parseFloat(document.getElementById('zo-crushed-slate').value) || 0.0,
-        zo_asbozurit: parseFloat(document.getElementById('zo-asbozurit').value) || 0.0,
-        zo_fiberglass: parseFloat(document.getElementById('zo-fiberglass').value) || 0.0,
-        zo_laprol: parseFloat(document.getElementById('zo-laprol').value) || 0.0,
-        zo_asbocarton: parseFloat(document.getElementById('zo-asbocarton').value) || 0.0,
-        zo_asb_drain: parseFloat(document.getElementById('zo-asb-drain').value) || 0.0,
-        zo_cem_drain: parseFloat(document.getElementById('zo-cem-drain').value) || 0.0
+        zo_chrysotile_4_20: parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0.0,
+        zo_chrysotile_5_65: parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0.0,
+        zo_chrysotile_6_40: parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0.0,
+        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
+        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
+        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
+        zo_cellulose: parseFloat(document.getElementById('zo-cellulose')?.value) || 0.0,
+        zo_crushed_slate: parseFloat(document.getElementById('zo-crushed-slate')?.value) || 0.0,
+        zo_asbozurit: parseFloat(document.getElementById('zo-asbozurit')?.value) || 0.0,
+        zo_fiberglass: parseFloat(document.getElementById('zo-fiberglass')?.value) || 0.0,
+        zo_laprol: parseFloat(document.getElementById('zo-laprol')?.value) || 0.0,
+        zo_asbocarton: parseFloat(document.getElementById('zo-asbocarton')?.value) || 0.0,
+        zo_asb_drain: parseFloat(document.getElementById('zo-asb-drain')?.value) || 0.0,
+        zo_cem_drain: parseFloat(document.getElementById('zo-cem-drain')?.value) || 0.0
     };
 
     if (!data.date || !data.shift_name || !data.line || isNaN(data.master_id) || !data.product_name) {
