@@ -306,6 +306,80 @@ async def lifespan(app: FastAPI):
         if 'db' in locals() and db:
             db.close()
 
+    # Shift silos columns migration for PostgreSQL and SQLite
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        shift_cols = [
+            ("zo_chrysotile_4_20_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_4_20_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_4_20_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_4_20_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_5_65_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_5_65_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_5_65_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_5_65_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_6_40_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_6_40_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_6_40_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_chrysotile_6_40_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cement_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cement_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cement_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cement_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cellulose_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cellulose_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cellulose_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cellulose_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_crushed_slate_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_crushed_slate_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_crushed_slate_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_crushed_slate_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbozurit_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbozurit_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbozurit_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbozurit_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_fiberglass_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_fiberglass_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_fiberglass_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_fiberglass_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_laprol_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_laprol_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_laprol_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_laprol_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbocarton_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbocarton_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbocarton_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asbocarton_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_asb_drain", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_cem_drain", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("lfm_asb_drain", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("lfm_cem_drain", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_submitted", "BOOLEAN DEFAULT FALSE")
+        ]
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            for col_name, col_type in shift_cols:
+                try:
+                    db.execute(text(f"ALTER TABLE shifts ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        elif driver == 'sqlite':
+            conn = sqlite3.connect("tectum.db")
+            for col_name, col_type in shift_cols:
+                try:
+                    conn.execute(f"ALTER TABLE shifts ADD COLUMN {col_name} {col_type}")
+                    conn.commit()
+                except Exception:
+                    pass
+            conn.close()
+    except Exception as e:
+        print(f"Shifts silos migration note: {e}")
+    finally:
+        if 'db' in locals() and db:
+            db.close()
+
     # Batch previous shift defect columns migration
     try:
         db = SessionLocal()
