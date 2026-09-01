@@ -1263,7 +1263,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     headers = [
         "№ партии", "Дата", "День нед.", "Время смены", "Мастер ЛФМ", "Продукт", "Формовка, шт",
         "Смена", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
-        "Прошлая смена", "1 сорт (прошлая), шт", "Брак (прошлая), шт", "Детализация брака (прошлая)",
+        "Прошлая смена", "Мастер (прошлая)", "1 сорт (прошлая), шт", "Брак (прошлая), шт", "Детализация брака (прошлая)",
         "Всего 1 сорт, шт", "Всего брак, шт"
     ]
     
@@ -1281,6 +1281,14 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     # Кэш записей графика сменности по датам
     all_schedules = {e.date_str: e for e in db.query(models.ShiftScheduleEntry).all()}
     
+    # Кэш всех смен в БД для поиска мастера сдавшей смены
+    all_shifts_list = db.query(models.Shift).all()
+    shifts_lookup = {}
+    for s in all_shifts_list:
+        if s.date:
+            key = (s.date.strftime("%Y-%m-%d"), s.shift_name, s.line)
+            shifts_lookup[key] = s
+    
     rows_data = [headers]
     
     # Отсортированный список дат для поиска сдавшей смены
@@ -1289,6 +1297,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     for b in batches:
         shift_date = b.shift.date if b.shift else None
         shift_name = b.shift.shift_name if b.shift else ""
+        shift_line = b.shift.line if b.shift else "Линия 1"
         product_name = b.product_name or "Неизвестный продукт"
         master_name = b.shift.master.name if (b.shift and b.shift.master) else ""
         
@@ -1299,15 +1308,27 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         is_day = (shift_name == "День")
         shift_group = (sched.day_shift_group if is_day else sched.night_shift_group) if sched else ""
         
-        # Определяем сдающую (предшествующую) бригаду из графика сменности
+        # Определяем сдающую (предшествующую) бригаду и мастера из БД/графика
         prev_shift_group = ""
+        prev_master_name = ""
         if is_day:
             if shift_date:
-                prev_date = (shift_date - timedelta(days=1)).strftime("%d.%m.%Y")
-                prev_sched = all_schedules.get(prev_date)
+                prev_d_obj = shift_date - timedelta(days=1)
+                prev_date_fmt = prev_d_obj.strftime("%d.%m.%Y")
+                prev_date_iso = prev_d_obj.strftime("%Y-%m-%d")
+                prev_sched = all_schedules.get(prev_date_fmt)
                 prev_shift_group = prev_sched.night_shift_group if prev_sched else ""
+                
+                prev_shift_obj = shifts_lookup.get((prev_date_iso, "Ночь", shift_line))
+                if prev_shift_obj and prev_shift_obj.master:
+                    prev_master_name = prev_shift_obj.master.name
         else:
             prev_shift_group = sched.day_shift_group if sched else ""
+            if shift_date:
+                curr_date_iso = shift_date.strftime("%Y-%m-%d")
+                prev_shift_obj = shifts_lookup.get((curr_date_iso, "День", shift_line))
+                if prev_shift_obj and prev_shift_obj.master:
+                    prev_master_name = prev_shift_obj.master.name
             
         ds_first = b.ds_first_grade or 0
         ds_def = b.ds_defect or 0
@@ -1363,6 +1384,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             pct_defect,
             note_defect,
             prev_shift_group or "",
+            prev_master_name or "",
             prev_f,
             prev_d,
             prev_note,
@@ -1473,7 +1495,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
             }
         },
-        # Стилизация шапки (Колонки 12-15: Сдавшая бригада - Песочно-оранжевый)
+        # Стилизация шапки (Колонки 12-16: Сдавшая бригада - Песочно-оранжевый)
         {
             "repeatCell": {
                 "range": {
@@ -1481,7 +1503,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "startRowIndex": 0,
                     "endRowIndex": 1,
                     "startColumnIndex": 12,
-                    "endColumnIndex": 16
+                    "endColumnIndex": 17
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1494,15 +1516,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
             }
         },
-        # Стилизация шапки (Колонки 16-17: Итого - Нежно-зеленый)
+        # Стилизация шапки (Колонки 17-18: Итого - Нежно-зеленый)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 0,
                     "endRowIndex": 1,
-                    "startColumnIndex": 16,
-                    "endColumnIndex": 18
+                    "startColumnIndex": 17,
+                    "endColumnIndex": 19
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1569,15 +1591,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.numberFormat"
             }
         },
-        # Формат чисел (1 сорт и Брак сдавшей бригады: колонки 13, 14)
+        # Формат чисел (1 сорт и Брак сдавшей бригады: колонки 14, 15)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 13,
-                    "endColumnIndex": 15
+                    "startColumnIndex": 14,
+                    "endColumnIndex": 16
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1587,15 +1609,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.numberFormat"
             }
         },
-        # Формат чисел (Итоги Всего 1 сорт и Всего брак: колонки 16, 17)
+        # Формат чисел (Итоги Всего 1 сорт и Всего брак: колонки 17, 18)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 16,
-                    "endColumnIndex": 18
+                    "startColumnIndex": 17,
+                    "endColumnIndex": 19
                 },
                 "cell": {
                     "userEnteredFormat": {
