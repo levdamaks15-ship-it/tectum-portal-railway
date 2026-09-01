@@ -151,6 +151,85 @@
             border-radius: 8px;
             transition: all 0.2s ease;
         }
+
+        /* Print Media Styles */
+        @media print {
+            @page {
+                size: landscape;
+                margin: 10mm 8mm;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-family: 'Inter', -apple-system, sans-serif !important;
+            }
+            .header-main,
+            #tabs-menu,
+            #active-shift-banner,
+            #crew-plans-tab .btn-secondary,
+            #crew-plans-tab .form-group,
+            #crew-plans-tab button,
+            #crew-kpi-cards-grid,
+            #crew-plans-factory-banner,
+            #crew-plans-filters-toolbar {
+                display: none !important;
+            }
+            #crew-plans-tab {
+                display: block !important;
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            #crew-plans-tab-header {
+                display: block !important;
+                margin-bottom: 12px !important;
+                border-bottom: 2px solid #0f172a !important;
+                padding-bottom: 8px !important;
+            }
+            #crew-plans-print-title {
+                font-size: 16pt !important;
+                font-weight: bold !important;
+                color: #0f172a !important;
+                margin: 0 0 4px 0 !important;
+            }
+            #crew-plans-print-subtitle {
+                font-size: 9.5pt !important;
+                color: #475569 !important;
+                margin: 0 !important;
+            }
+            .table-responsive-container {
+                overflow: visible !important;
+                max-height: none !important;
+            }
+            .table-glass-summary {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 8.5pt !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .table-glass-summary th,
+            .table-glass-summary td {
+                border: 1px solid #94a3b8 !important;
+                padding: 4px 6px !important;
+                color: #000000 !important;
+                background: #ffffff !important;
+            }
+            .table-glass-summary th {
+                background: #f1f5f9 !important;
+                font-weight: bold !important;
+                color: #0f172a !important;
+            }
+            .table-glass-summary span {
+                border: none !important;
+                padding: 0 !important;
+                background: transparent !important;
+                color: #000000 !important;
+                font-weight: 600 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1076,12 +1155,12 @@
 
             <!-- 4. CREW PLANS TAB (🏆 Выполнение плана бригадами) -->
             <div id="crew-plans-tab" class="glass-panel card" style="display: none;">
-                <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div id="crew-plans-tab-header" style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
-                        <h3 style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 8px;">
+                        <h3 id="crew-plans-print-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 8px;">
                             <span>🏆</span> Выполнение сменного плана бригадами
                         </h3>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
+                        <p id="crew-plans-print-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
                             Сводка выполнения нормы формовки ЛФМ по утвержденному графику сменности (☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.)
                         </p>
                     </div>
@@ -1091,7 +1170,7 @@
                 </div>
 
                 <!-- Filters Toolbar -->
-                <div style="background: #ffffff; border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                <div id="crew-plans-filters-toolbar" style="background: #ffffff; border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Отчетный месяц</label>
                         <input type="month" id="crew-plans-month" onchange="loadCrewPlansFulfillment()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
@@ -1385,6 +1464,6 @@
         </button>
     </div>
 
-    <script src="/static/js/app.js?v=20260901_crew_plans_1"></script>
+    <script src="/static/js/app.js?v=20260901_crew_plans_print_2"></script>
 </body>
 </html>

@@ -3685,6 +3685,14 @@ function renderCrewPlansTable() {
 
     const filterCrew = document.getElementById('crew-plans-filter-crew')?.value || '';
     const filterStatus = document.getElementById('crew-plans-filter-status')?.value || '';
+    const monthInput = document.getElementById('crew-plans-month')?.value || '';
+
+    // Update subtitle for printout
+    const subtitleEl = document.getElementById('crew-plans-print-subtitle');
+    if (subtitleEl) {
+        const crewText = filterCrew ? ` | Бригада: Смена №${filterCrew}` : ' | Все смены (1..4)';
+        subtitleEl.innerText = `Отчетный период: ${monthInput}${crewText} | Норма формовки: ☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.`;
+    }
 
     let rows = currentCrewPlansData.days;
 
