@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime, timedelta, date
 from collections import defaultdict
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -1277,13 +1278,10 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         .all()
     )
     
-    rows_data = [headers]
-    
-    if not batches:
-        return
-        
     # Кэш записей графика сменности по датам
     all_schedules = {e.date_str: e for e in db.query(models.ShiftScheduleEntry).all()}
+    
+    rows_data = [headers]
     
     # Отсортированный список дат для поиска сдавшей смены
     sorted_sched_dates = sorted(all_schedules.keys(), key=lambda d: datetime.strptime(d, "%d.%m.%Y"))
