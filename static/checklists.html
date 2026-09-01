@@ -412,9 +412,9 @@
 
     <!-- Navigation Tabs -->
     <div class="cl-nav-tabs">
-        <button class="cl-tab-btn active" onclick="switchClTab('fill')">✍️ Заполнить чек-лист</button>
-        <button class="cl-tab-btn" onclick="switchClTab('journal')">📋 Журнал сдачи</button>
-        <button class="cl-tab-btn" onclick="openGoogleSheet()">📊 Открыть Google Таблицу</button>
+        <a href="#fill" class="cl-tab-btn active" id="cl-tab-btn-fill" onclick="switchClTab('fill', event)">✍️ Заполнить чек-лист</a>
+        <a href="#journal" class="cl-tab-btn" id="cl-tab-btn-journal" onclick="switchClTab('journal', event)">📋 Журнал сдачи</a>
+        <button type="button" class="cl-tab-btn" onclick="openGoogleSheet()">📊 Открыть Google Таблицу</button>
     </div>
 
     <!-- TAB 1: Fill Form -->
@@ -597,14 +597,26 @@
         if (modal) modal.style.display = 'none';
     }
 
-    function switchClTab(tab) {
+    function switchClTab(tab, event) {
+        if (event) {
+            if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+                event.preventDefault();
+            } else {
+                return;
+            }
+        }
+        if (window.location.hash !== `#${tab}`) {
+            history.replaceState(null, '', `#${tab}`);
+        }
         document.querySelectorAll('.cl-tab-btn').forEach(btn => btn.classList.remove('active'));
         if (tab === 'fill') {
-            document.querySelectorAll('.cl-tab-btn')[0].classList.add('active');
+            const btn = document.getElementById('cl-tab-btn-fill') || document.querySelectorAll('.cl-tab-btn')[0];
+            if (btn) btn.classList.add('active');
             document.getElementById('tab-fill-content').style.display = 'block';
             document.getElementById('tab-journal-content').style.display = 'none';
         } else if (tab === 'journal') {
-            document.querySelectorAll('.cl-tab-btn')[1].classList.add('active');
+            const btn = document.getElementById('cl-tab-btn-journal') || document.querySelectorAll('.cl-tab-btn')[1];
+            if (btn) btn.classList.add('active');
             document.getElementById('tab-fill-content').style.display = 'none';
             document.getElementById('tab-journal-content').style.display = 'block';
             loadChecklistJournal();
@@ -669,6 +681,11 @@
         currentTemplates = FALLBACK_TEMPLATES;
         renderTemplateCards();
         selectTemplate(currentTemplates[0].code);
+
+        const initialHash = window.location.hash ? window.location.hash.replace('#', '') : '';
+        if (initialHash === 'journal' || initialHash === 'fill') {
+            switchClTab(initialHash);
+        }
 
         try {
             const [schedRes, empRes, tplRes] = await Promise.allSettled([

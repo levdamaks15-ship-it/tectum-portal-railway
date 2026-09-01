@@ -274,8 +274,22 @@ function recalcCemTotal() {
     document.getElementById('zo-cem-total-readonly').value = (v1 + v2 + v3 + v4).toFixed(0);
 }
 
-function switchTab(tabId) {
+function switchTab(tabId, event) {
+    if (event) {
+        // If it's a standard left click without modifier keys (not middle click, not Ctrl/Cmd/Shift), prevent default anchor navigation
+        if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+            event.preventDefault();
+        } else {
+            // Let the browser handle middle click or Ctrl+click naturally
+            return;
+        }
+    }
+    
     sessionStorage.setItem('active_tab', tabId);
+    if (window.location.hash !== `#${tabId}`) {
+        history.replaceState(null, '', `#${tabId}`);
+    }
+
     // Hide all tabs
     const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report', 'materials'];
     tabs.forEach(t => {
@@ -501,11 +515,19 @@ function applyRoleVisibility() {
         btnExportGoogleSheets.style.display = ['admin', 'director', 'technologist'].includes(r) ? 'inline-flex' : 'none';
     }
     
-    // Switch to saved tab or first visible tab
+    // Determine active tab from URL hash / param or saved tab or role default
+    const urlHash = window.location.hash ? window.location.hash.replace('#', '') : null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlTab = urlParams.get('tab');
+    const targetTab = urlHash || urlTab;
+    
+    const targetTabBtn = (targetTab && targetTab !== 'analytics') ? document.getElementById(`tab-btn-${targetTab}`) : null;
     const savedTab = sessionStorage.getItem('active_tab');
     const savedTabBtn = (savedTab && savedTab !== 'analytics') ? document.getElementById(`tab-btn-${savedTab}`) : null;
     
-    if (savedTab && savedTabBtn && savedTabBtn.style.display !== 'none') {
+    if (targetTab && targetTabBtn && targetTabBtn.style.display !== 'none') {
+        switchTab(targetTab);
+    } else if (savedTab && savedTabBtn && savedTabBtn.style.display !== 'none') {
         switchTab(savedTab);
     } else if (r === 'director') {
         switchTab('crew-plans');

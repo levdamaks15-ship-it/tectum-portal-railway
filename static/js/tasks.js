@@ -313,7 +313,16 @@ async function handleUrlDeepLinking() {
         myTasksFilterActive = true;
     }
 
-    // 4. Quick Create Task from Knowledge Base Document Deep Link
+    // 4. Horizon deep linking (hash or param)
+    const horizonHash = window.location.hash ? window.location.hash.replace('#', '') : '';
+    const horizonParam = urlParams.get("horizon");
+    const targetHorizon = ['weekly', 'services', 'roadmaps'].includes(horizonHash) ? horizonHash : 
+                          (['weekly', 'services', 'roadmaps'].includes(horizonParam) ? horizonParam : null);
+    if (targetHorizon) {
+        switchHorizon(targetHorizon);
+    }
+
+    // 5. Quick Create Task from Knowledge Base Document Deep Link
     const createDocId = urlParams.get("create_doc_id");
     const createDocTitle = urlParams.get("create_doc_title");
     if (createDocTitle || createDocId) {
@@ -774,8 +783,18 @@ async function loadTasks() {
     }
 }
 
-function switchHorizon(horizon) {
+function switchHorizon(horizon, event) {
+    if (event) {
+        if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+            event.preventDefault();
+        } else {
+            return;
+        }
+    }
     currentHorizon = horizon;
+    if (window.location.hash !== `#${horizon}`) {
+        history.replaceState(null, '', `#${horizon}`);
+    }
     
     // Переключение кнопок горизонтов
     document.querySelectorAll(".horizon-tab-btn").forEach(btn => btn.classList.remove("active"));

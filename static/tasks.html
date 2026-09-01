@@ -232,6 +232,7 @@
             background: #f8fafc;
             color: #334155;
             cursor: pointer;
+            text-decoration: none;
             transition: all 0.2s ease;
             font-family: inherit;
         }
@@ -1423,15 +1424,15 @@
     <!-- Horizon Tabs Bar (3 Levels of Planning) -->
     <div class="horizon-nav-bar" style="background: #ffffff; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <button type="button" class="horizon-tab-btn active" id="tab-horizon-weekly" onclick="switchHorizon('weekly')">
+            <a href="#weekly" class="horizon-tab-btn active" id="tab-horizon-weekly" onclick="switchHorizon('weekly', event)">
                 <i class="fa-solid fa-bolt" style="color: #2563eb;"></i> <span>⚡ Недельный спринт</span>
-            </button>
-            <button type="button" class="horizon-tab-btn" id="tab-horizon-services" onclick="switchHorizon('services')">
+            </a>
+            <a href="#services" class="horizon-tab-btn" id="tab-horizon-services" onclick="switchHorizon('services', event)">
                 <i class="fa-solid fa-wrench" style="color: #059669;"></i> <span>🔧 Службы ОГМ / ОГЭ</span>
-            </button>
-            <button type="button" class="horizon-tab-btn" id="tab-horizon-roadmaps" onclick="switchHorizon('roadmaps')">
+            </a>
+            <a href="#roadmaps" class="horizon-tab-btn" id="tab-horizon-roadmaps" onclick="switchHorizon('roadmaps', event)">
                 <i class="fa-solid fa-map-location-dot" style="color: #7c3aed;"></i> <span>🗺️ Дорожные карты и проекты</span>
-            </button>
+            </a>
         </div>
 
         <!-- Tags Cloud Toggle -->
