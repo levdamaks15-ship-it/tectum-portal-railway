@@ -2377,58 +2377,132 @@ def sync_employees_from_google_sheets(db: Session):
     db.commit()
     return {"status": "ok", "synced_count": count, "total_rows": len(rows)-1}
 
-def sync_schedule_from_google_sheets(db: Session):
-    """Импортирует или обновляет график сменности из Google Таблицы."""
-    import urllib.request, csv, io
+def sync_schedule_from_excel_or_google(db: Session):
+    """Импортирует или обновляет график сменности из локального файла Excel (или Google Таблицы при отсутствии)."""
+    import os, datetime
     
-    url = f"https://docs.google.com/spreadsheets/d/{SCHEDULE_SPREADSHEET_ID}/export?format=csv&gid=1540648819"
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    with urllib.request.urlopen(req) as resp:
-        content = resp.read().decode('utf-8')
-        reader = csv.reader(io.StringIO(content))
-        rows = list(reader)
-        
-    if not rows or len(rows) < 2:
-        return {"status": "error", "message": "Пустой ответ от Google Таблицы графика"}
-        
-    count = 0
-    # Header: ['Дата', 'День недели', 'Смена 1', 'Смена 2', 'Смена 3', 'Смена 4', 'Дневная смена (08:00 - 19:00)', 'Ночная смена (19:00 - 08:00)']
-    for r in rows[1:]:
-        if len(r) >= 8 and r[0].strip():
-            d_str = r[0].strip()
-            dow = r[1].strip()
-            s1 = r[2].strip()
-            s2 = r[3].strip()
-            s3 = r[4].strip()
-            s4 = r[5].strip()
-            day_g = r[6].strip()
-            night_g = r[7].strip()
+    # 1. Проверяем локальный эталонный Excel файл в 'График и табеля'
+    excel_path = os.path.join(os.getcwd(), "График и табеля", "График_сменности_2026_до_конца_года.xlsx")
+    if os.path.exists(excel_path):
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(excel_path, data_only=True)
+            ws = wb.worksheets[0]
             
-            entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == d_str).first()
-            if not entry:
-                entry = models.ShiftScheduleEntry(
-                    date_str=d_str,
-                    day_of_week=dow,
-                    shift1_status=s1,
-                    shift2_status=s2,
-                    shift3_status=s3,
-                    shift4_status=s4,
-                    day_shift_group=day_g,
-                    night_shift_group=night_g
-                )
-                db.add(entry)
-                count += 1
-            else:
-                entry.day_of_week = dow
-                entry.shift1_status = s1
-                entry.shift2_status = s2
-                entry.shift3_status = s3
-                entry.shift4_status = s4
-                entry.day_shift_group = day_g
-                entry.night_shift_group = night_g
+            month_configs = [
+                ('Июль', 9, 7, 31),
+                ('Август', 16, 8, 31),
+                ('Сентябрь', 23, 9, 30),
+                ('Октябрь', 30, 10, 31),
+                ('Ноябрь', 37, 11, 30),
+                ('Декабрь', 44, 12, 31)
+            ]
+            dow_ru = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+            
+            existing = {e.date_str: e for e in db.query(models.ShiftScheduleEntry).all()}
+            count = 0
+            
+            for m_name, start_r, m_num, days_in_m in month_configs:
+                for d in range(1, days_in_m + 1):
+                    dt = datetime.date(2026, m_num, d)
+                    d_str = dt.strftime('%d.%m.%Y')
+                    dow = dow_ru[dt.weekday()]
+                    
+                    s1 = str(ws.cell(start_r + 2, 1 + d).value or '').strip()
+                    s2 = str(ws.cell(start_r + 3, 1 + d).value or '').strip()
+                    s3 = str(ws.cell(start_r + 4, 1 + d).value or '').strip()
+                    s4 = str(ws.cell(start_r + 5, 1 + d).value or '').strip()
+                    
+                    day_g = ''
+                    night_g = ''
+                    for c_idx, s_val in [(1, s1), (2, s2), (3, s3), (4, s4)]:
+                        if 'Д' in s_val: day_g = f'Смена {c_idx}'
+                        if 'Н' in s_val: night_g = f'Смена {c_idx}'
+                        
+                    entry = existing.get(d_str)
+                    if not entry:
+                        entry = models.ShiftScheduleEntry(
+                            date_str=d_str,
+                            day_of_week=dow,
+                            shift1_status=s1,
+                            shift2_status=s2,
+                            shift3_status=s3,
+                            shift4_status=s4,
+                            day_shift_group=day_g,
+                            night_shift_group=night_g
+                        )
+                        db.add(entry)
+                        count += 1
+                    else:
+                        entry.day_of_week = dow
+                        entry.shift1_status = s1
+                        entry.shift2_status = s2
+                        entry.shift3_status = s3
+                        entry.shift4_status = s4
+                        entry.day_shift_group = day_g
+                        entry.night_shift_group = night_g
+                        count += 1
+            db.commit()
+            return {"status": "ok", "source": "excel", "synced_count": count}
+        except Exception as e:
+            db.rollback()
+            print(f"[ScheduleSync] Ошибка загрузки из Excel: {e}")
+            
+    # 2. Fallback: Google Sheets CSV
+    import urllib.request, csv, io
+    url = f"https://docs.google.com/spreadsheets/d/{SCHEDULE_SPREADSHEET_ID}/export?format=csv&gid=1540648819"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            content = resp.read().decode('utf-8')
+            reader = csv.reader(io.StringIO(content))
+            rows = list(reader)
+            
+        if not rows or len(rows) < 2:
+            return {"status": "error", "message": "Пустой ответ от Google Таблицы графика"}
+            
+        count = 0
+        for r in rows[1:]:
+            if len(r) >= 8 and r[0].strip():
+                d_str = r[0].strip()
+                dow = r[1].strip()
+                s1 = r[2].strip()
+                s2 = r[3].strip()
+                s3 = r[4].strip()
+                s4 = r[5].strip()
+                day_g = r[6].strip()
+                night_g = r[7].strip()
                 
-    db.commit()
-    return {"status": "ok", "synced_count": count, "total_rows": len(rows)-1}
+                entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == d_str).first()
+                if not entry:
+                    entry = models.ShiftScheduleEntry(
+                        date_str=d_str,
+                        day_of_week=dow,
+                        shift1_status=s1,
+                        shift2_status=s2,
+                        shift3_status=s3,
+                        shift4_status=s4,
+                        day_shift_group=day_g,
+                        night_shift_group=night_g
+                    )
+                    db.add(entry)
+                    count += 1
+                else:
+                    entry.day_of_week = dow
+                    entry.shift1_status = s1
+                    entry.shift2_status = s2
+                    entry.shift3_status = s3
+                    entry.shift4_status = s4
+                    entry.day_shift_group = day_g
+                    entry.night_shift_group = night_g
+        db.commit()
+        return {"status": "ok", "source": "google_sheets", "synced_count": count}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+
+# Backward compatibility alias
+sync_schedule_from_google_sheets = sync_schedule_from_excel_or_google
 
 def get_or_create_sheet(service, spreadsheet_id: str, sheet_title: str):
     """Возвращает sheet_id существующего листа или создает новый лист с таким названием."""
