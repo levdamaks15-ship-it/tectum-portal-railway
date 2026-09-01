@@ -1104,7 +1104,10 @@
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                             <div>
                                 <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅 Дата</label>
-                                <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" onchange="loadDowntimesByParams()" style="padding: 0.55rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <div style="position: relative;">
+                                    <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" onchange="loadDowntimesByParams()" style="padding: 0.45rem 2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
+                                    <i class="fa-solid fa-chevron-down" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #64748b; pointer-events: none;"></i>
+                                </div>
                             </div>
                             <div>
                                 <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">☀️/🌙 Смена</label>
@@ -1496,6 +1499,6 @@
         </button>
     </div>
 
-    <script src="/static/js/app.js?v=20260901_downtimes_card_v2"></script>
+    <script src="/static/js/app.js?v=20260901_downtimes_date_fix"></script>
 </body>
 </html>
