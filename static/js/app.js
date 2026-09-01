@@ -440,6 +440,12 @@ async function login() {
         if (!res.ok) throw new Error("Неверный ПИН-код");
         
         currentUser = await res.json();
+        try {
+            localStorage.setItem('tectum_auth_user', JSON.stringify(currentUser));
+            localStorage.setItem('tectum_portal_user', JSON.stringify({ name: currentUser.name, pin: pin }));
+            localStorage.setItem('tectum_current_user_name', currentUser.name);
+        } catch(e) {}
+
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
         document.getElementById('user-info-container').style.display = 'flex';
@@ -461,6 +467,13 @@ async function logout() {
         console.error(e);
     }
     currentUser = null;
+    try {
+        localStorage.removeItem('tectum_auth_user');
+        localStorage.removeItem('tectum_portal_user');
+        localStorage.removeItem('tectum_current_user_name');
+        sessionStorage.removeItem('planner_user_session');
+    } catch(e) {}
+
     document.getElementById('user-info-container').style.display = 'none';
     document.getElementById('main-app').style.display = 'none';
     document.getElementById('login-screen').style.display = 'block';
@@ -3082,13 +3095,35 @@ async function init() {
     document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
     
-    // Check session me
+    // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
+    let cachedUser = window.__cachedUser;
+    if (!cachedUser) {
+        try {
+            const raw = localStorage.getItem('tectum_auth_user');
+            if (raw) cachedUser = JSON.parse(raw);
+        } catch(e) {}
+    }
+
+    if (cachedUser && cachedUser.name && cachedUser.role) {
+        currentUser = cachedUser;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+        document.getElementById('user-info-container').style.display = 'flex';
+        document.getElementById('user-greeting-name').innerText = currentUser.name;
+        document.getElementById('user-greeting-role').innerText = currentUser.role;
+        applyRoleVisibility();
+    }
+
+    // 2. Validate session with server in background
     try {
         const res = await fetch('/api/me/');
         if (res.ok) {
             const data = await res.json();
             if (data.authenticated) {
                 currentUser = data.user;
+                try {
+                    localStorage.setItem('tectum_auth_user', JSON.stringify(currentUser));
+                } catch(e) {}
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
                 document.getElementById('user-info-container').style.display = 'flex';
@@ -3101,9 +3136,27 @@ async function init() {
             }
         }
         
+        // If server says not authenticated and we had cached user, reset
+        if (cachedUser) {
+            try {
+                localStorage.removeItem('tectum_auth_user');
+                localStorage.removeItem('tectum_portal_user');
+            } catch(e) {}
+            currentUser = null;
+            document.getElementById('user-info-container').style.display = 'none';
+            document.getElementById('main-app').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'block';
+        }
+        
         await loadUserGrid();
     } catch(e) {
         console.error("Init error:", e);
+        if (currentUser) {
+            // Offline/transient error: allow cached session to work
+            await loadData();
+        } else {
+            await loadUserGrid();
+        }
     }
 }
 

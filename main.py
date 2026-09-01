@@ -1044,7 +1044,9 @@ async def global_exception_handler(request, exc: Exception):
 app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SESSION_SECRET_KEY", "super-secret-key-for-tectum-portal"),
-    max_age=86400 * 30  # 30 days
+    max_age=86400 * 30,  # 30 days
+    same_site="lax",
+    https_only=False
 )
 
 @app.middleware("http")

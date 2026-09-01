@@ -234,6 +234,16 @@
 </head>
 <body>
     <script>
+        // Instant Fast Auth Check: Prevent login screen flickering if user is cached in localStorage
+        (function() {
+            try {
+                const cachedUserStr = localStorage.getItem('tectum_auth_user');
+                if (cachedUserStr) {
+                    window.__cachedUser = JSON.parse(cachedUserStr);
+                }
+            } catch(e) {}
+        })();
+        
         fetch('/api/system/env').then(res => res.json()).then(data => {
             if (data.is_sandbox) {
                 const banner = document.createElement('div');
