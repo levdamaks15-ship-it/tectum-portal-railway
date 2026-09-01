@@ -1260,51 +1260,36 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
     headers = [
-        "№ партии", "Дата", "День нед.", "Смена", "Бригада (ЛФМ)", "Мастер ЛФМ", "Продукт", "Формовка, шт", 
-        "1 сорт своя, шт", "Брак своя, шт", "% брака своя", "Детализация брака (своя смена)",
-        "1 сорт прошл, шт", "Брак прошл, шт", "Детализация брака (прошлая смена)",
-        "Всего брак (своя+прошл), шт"
+        "№ партии", "Дата", "День нед.", "Смена", "Мастер ЛФМ", "Продукт", "Формовка, шт",
+        "Бригада", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
+        "Бригада (сдатчик)", "1 сорт сдатчика, шт", "Брак сдатчика, шт", "Детализация брака сдатчика",
+        "Всего 1 сорт, шт", "Всего брак, шт"
     ]
     
-    batches = db.query(models.Batch).join(models.Shift).order_by(models.Shift.date.asc(), models.Batch.batch_number.asc()).all()
+    from datetime import date
+    # Фильтруем записи с 1 сентября 2026 года (начало нового формата ведения)
+    start_filter_date = date(2026, 9, 1)
+    batches = (
+        db.query(models.Batch)
+        .join(models.Shift)
+        .filter(models.Shift.date >= start_filter_date)
+        .order_by(models.Shift.date.asc(), models.Batch.batch_number.asc())
+        .all()
+    )
     
     rows_data = [headers]
-    summary_bold_rows = []
     
     if not batches:
         return
         
-    current_week = None
-    week_stats = {}  # {product_name: {"total": 0, "first": 0, "defect": 0, "prev_first": 0, "prev_defect": 0}}
-    
     # Кэш записей графика сменности по датам
     all_schedules = {e.date_str: e for e in db.query(models.ShiftScheduleEntry).all()}
-
-    def append_week_summaries(stats_dict):
-        rows_data.append(["" for _ in range(len(headers))])
-        for prod, stats in stats_dict.items():
-            tot = stats["total"]
-            f = stats["first"]
-            d = stats["defect"]
-            pf_val = stats["prev_first"]
-            pd_val = stats["prev_defect"]
-            pd = (d / tot) if tot > 0 else 0
-            rows_data.append([
-                "", "", "", "", "", "", f"{prod}:", tot, f, d, pd, "", pf_val, pd_val, "", (d + pd_val)
-            ])
-            summary_bold_rows.append(len(rows_data) - 1)
-        rows_data.append(["" for _ in range(len(headers))])
+    
+    # Отсортированный список дат для поиска сдавшей смены
+    sorted_sched_dates = sorted(all_schedules.keys(), key=lambda d: datetime.strptime(d, "%d.%m.%Y"))
 
     for b in batches:
         shift_date = b.shift.date if b.shift else None
-        week_key = get_iso_week_key(shift_date)
-        
-        if current_week is not None and current_week != week_key:
-            append_week_summaries(week_stats)
-            week_stats = {}
-            
-        current_week = week_key
-        
         shift_name = b.shift.shift_name if b.shift else ""
         product_name = b.product_name or "Неизвестный продукт"
         master_name = b.shift.master.name if (b.shift and b.shift.master) else ""
@@ -1316,8 +1301,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         is_day = (shift_name == "День")
         shift_group = (sched.day_shift_group if is_day else sched.night_shift_group) if sched else ""
         
-        if product_name not in week_stats:
-            week_stats[product_name] = {"total": 0, "first": 0, "defect": 0, "prev_first": 0, "prev_defect": 0}
+        # Определяем сдающую (предшествующую) бригаду из графика сменности
+        prev_shift_group = ""
+        if is_day:
+            if shift_date:
+                prev_date = (shift_date - timedelta(days=1)).strftime("%d.%m.%Y")
+                prev_sched = all_schedules.get(prev_date)
+                prev_shift_group = prev_sched.night_shift_group if prev_sched else ""
+        else:
+            prev_shift_group = sched.day_shift_group if sched else ""
             
         ds_first = b.ds_first_grade or 0
         ds_def = b.ds_defect or 0
@@ -1332,16 +1324,9 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             lfm_sheets = b.stacked_stacks
             
         total_sheets = lfm_sheets
-        
-        week_stats[product_name]["total"] += total_sheets
-        week_stats[product_name]["first"] += ds_first
-        week_stats[product_name]["defect"] += ds_def
-        week_stats[product_name]["prev_first"] += prev_f
-        week_stats[product_name]["prev_defect"] += prev_d
-        
         pct_defect = (ds_def / total_sheets) if total_sheets > 0 else 0
         
-        # 7 видов брака своей смены
+        # 7 видов брака текущей смены
         def_parts = []
         if b.ds_defect_scratch: def_parts.append(f"Сдир ({b.ds_defect_scratch})")
         if b.ds_defect_bad_cut: def_parts.append(f"Плохой рез ({b.ds_defect_bad_cut})")
@@ -1352,7 +1337,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         if b.ds_defect_edge: def_parts.append(f"Кромка ({b.ds_defect_edge})")
         note_defect = ", ".join(def_parts)
 
-        # 7 видов брака прошлой смены
+        # 7 видов брака сдавшей смены
         prev_parts = []
         if b.prev_defect_scratch: prev_parts.append(f"Сдир ({b.prev_defect_scratch})")
         if b.prev_defect_bad_cut: prev_parts.append(f"Плохой рез ({b.prev_defect_bad_cut})")
@@ -1363,31 +1348,33 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         if b.prev_defect_edge: prev_parts.append(f"Кромка ({b.prev_defect_edge})")
         prev_note = ", ".join(prev_parts)
         
+        total_first_all = ds_first + prev_f
+        total_def_all = ds_def + prev_d
+        
         rows_data.append([
             b.batch_number or "",
             date_str_fmt,
             day_of_week or "",
             shift_name,
-            shift_group or "",
             master_name,
             product_name,
             total_sheets,
+            shift_group or "",
             ds_first,
             ds_def,
             pct_defect,
             note_defect,
+            prev_shift_group or "",
             prev_f,
             prev_d,
             prev_note,
-            (ds_def + prev_d)
+            total_first_all,
+            total_def_all
         ])
-        
-    if week_stats:
-        append_week_summaries(week_stats)
         
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:Z2000"
+        range=f"'{sheet_name}'!A1:Z3000"
     ).execute()
     
     if len(rows_data) > 0:
@@ -1398,7 +1385,11 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             body={"values": rows_data}
         ).execute()
         
+    total_rows = max(len(rows_data), 2)
+    total_cols = len(headers)
+    
     requests = [
+        # Фиксация строки заголовка
         {
             "updateSheetProperties": {
                 "properties": {
@@ -1410,19 +1401,39 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "gridProperties.frozenRowCount"
             }
         },
+        # Включение единого автофильтра
         {
             "setBasicFilter": {
                 "filter": {
                     "range": {
                         "sheetId": sheet_id,
                         "startRowIndex": 0,
-                        "endRowIndex": max(len(rows_data), 2),
+                        "endRowIndex": total_rows,
                         "startColumnIndex": 0,
-                        "endColumnIndex": len(headers)
+                        "endColumnIndex": total_cols
                     }
                 }
             }
         },
+        # Общие границы таблицы
+        {
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": total_cols
+                },
+                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
+                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
+                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
+                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
+                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}},
+                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}}
+            }
+        },
+        # Стилизация шапки (Колонки 0-6: Общая инфо - Нейтральный серый)
         {
             "repeatCell": {
                 "range": {
@@ -1430,18 +1441,12 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "startRowIndex": 0,
                     "endRowIndex": 1,
                     "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
+                    "endColumnIndex": 7
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "backgroundColor": {
-                            "red": 180/255.0,
-                            "green": 198/255.0,
-                            "blue": 231/255.0
-                        },
-                        "textFormat": {
-                            "bold": True
-                        },
+                        "backgroundColor": {"red": 241/255.0, "green": 245/255.0, "blue": 249/255.0},
+                        "textFormat": {"bold": True, "foregroundColor": {"red": 30/255.0, "green": 41/255.0, "blue": 59/255.0}},
                         "horizontalAlignment": "CENTER",
                         "verticalAlignment": "MIDDLE"
                     }
@@ -1449,98 +1454,154 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
             }
         },
+        # Стилизация шапки (Колонки 7-11: Текущая бригада - Нежно-голубой)
         {
-            "updateBorders": {
+            "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 0,
-                    "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
-                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
-                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
-                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
-                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}},
-                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.5, "green": 0.5, "blue": 0.5}}
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 3, 
-                    "endColumnIndex": 5
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "NUMBER",
-                            "pattern": "0"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(len(rows_data), 2),
+                    "endRowIndex": 1,
                     "startColumnIndex": 7,
-                    "endColumnIndex": 8
+                    "endColumnIndex": 12
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "NUMBER",
-                            "pattern": "0"
-                        }
+                        "backgroundColor": {"red": 219/255.0, "green": 234/255.0, "blue": 254/255.0},
+                        "textFormat": {"bold": True, "foregroundColor": {"red": 30/255.0, "green": 58/255.0, "blue": 138/255.0}},
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
                     }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
             }
         },
+        # Стилизация шапки (Колонки 12-15: Сдавшая бригада - Песочно-оранжевый)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 12,
+                    "endColumnIndex": 16
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {"red": 254/255.0, "green": 243/255.0, "blue": 199/255.0},
+                        "textFormat": {"bold": True, "foregroundColor": {"red": 146/255.0, "green": 64/255.0, "blue": 14/255.0}},
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        # Стилизация шапки (Колонки 16-17: Итого - Нежно-зеленый)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 16,
+                    "endColumnIndex": 18
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {"red": 220/255.0, "green": 252/255.0, "blue": 231/255.0},
+                        "textFormat": {"bold": True, "foregroundColor": {"red": 22/255.0, "green": 101/255.0, "blue": 52/255.0}},
+                        "horizontalAlignment": "CENTER",
+                        "verticalAlignment": "MIDDLE"
+                    }
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            }
+        },
+        # Формат чисел (Формовка: колонка 6)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
-                    "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 5, # % 1 сорта
-                    "endColumnIndex": 6
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 6,
+                    "endColumnIndex": 7
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "0.00%"
-                        }
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
                     }
                 },
                 "fields": "userEnteredFormat.numberFormat"
             }
         },
+        # Формат чисел (1 сорт и Брак текущей бригады: колонки 8, 9)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
-                    "endRowIndex": max(len(rows_data), 2),
-                    "startColumnIndex": 8, # % брака
-                    "endColumnIndex": 9
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 8,
+                    "endColumnIndex": 10
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "0.00%"
-                        }
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        # Формат процентов (% брака: колонка 10)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 10,
+                    "endColumnIndex": 11
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {"type": "PERCENT", "pattern": "0.00%"}
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        # Формат чисел (1 сорт и Брак сдавшей бригады: колонки 13, 14)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 13,
+                    "endColumnIndex": 15
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        },
+        # Формат чисел (Итоги Всего 1 сорт и Всего брак: колонки 16, 17)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 16,
+                    "endColumnIndex": 18
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
                     }
                 },
                 "fields": "userEnteredFormat.numberFormat"
@@ -1548,29 +1609,8 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         }
     ]
     
-    for r_idx in summary_bold_rows:
-        requests.append({
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": r_idx,
-                    "endRowIndex": r_idx + 1,
-                    "startColumnIndex": 2,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "bold": True
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.textFormat.bold"
-            }
-        })
-        
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    print("Отчет СКК с итогами успешно экспортирован.")
+    print("Отчет СКК (чистая непрерывная таблица с бригадами) успешно экспортирован.")
 
 
 def sync_downtime_weekly_summary(db: Session):
