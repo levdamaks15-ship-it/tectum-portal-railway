@@ -5338,7 +5338,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
         
     # Trigger background Google Sheets sync
-    background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_sharepoint_report_bg)
     
     return {"status": "ok", "shift_id": shift_id}
 
@@ -5366,11 +5366,11 @@ def admin_delete_shift(shift_id: int, request: Request, background_tasks: Backgr
     
     # Sync to clear phantom facts from plan board
     sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
-    background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_sharepoint_report_bg)
     return {"status": "ok"}
 
 @app.put("/api/admin/lfm/{report_id}")
-def admin_update_lfm(report_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+def admin_update_lfm(report_id: int, data: dict, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     report = db.query(models.LFMReport).get(report_id)
     if not report: raise HTTPException(404, "Отчет ЛФМ не найден")
@@ -5400,10 +5400,11 @@ def admin_update_lfm(report_id: int, data: dict, request: Request, db: Session =
             sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     else:
         db.commit()
+    background_tasks.add_task(sync_sharepoint_report_bg)
     return {"status": "ok"}
 
 @app.delete("/api/admin/lfm/{report_id}")
-def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get_db)):
+def admin_delete_lfm(report_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     report = db.query(models.LFMReport).get(report_id)
     if not report: raise HTTPException(404, "Отчет ЛФМ не найден")
@@ -5425,10 +5426,11 @@ def admin_delete_lfm(report_id: int, request: Request, db: Session = Depends(get
     # Sync with plan board
     if shift:
         sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
+    background_tasks.add_task(sync_sharepoint_report_bg)
     return {"status": "ok"}
 
 @app.put("/api/admin/batches/{batch_id}")
-def admin_update_batch(batch_id: int, data: dict, request: Request, db: Session = Depends(get_db)):
+def admin_update_batch(batch_id: int, data: dict, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     batch = db.query(models.Batch).get(batch_id)
     if not batch: raise HTTPException(404, "Партия не найдена")
@@ -5454,10 +5456,11 @@ def admin_update_batch(batch_id: int, data: dict, request: Request, db: Session 
         db.commit()
     else:
         db.commit()
+    background_tasks.add_task(sync_sharepoint_report_bg)
     return {"status": "ok"}
 
 @app.delete("/api/admin/batches/{batch_id}")
-def admin_delete_batch(batch_id: int, request: Request, db: Session = Depends(get_db)):
+def admin_delete_batch(batch_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     admin = check_admin_session(request, db)
     batch = db.query(models.Batch).get(batch_id)
     if not batch: raise HTTPException(404, "Партия не найдена")
@@ -5471,6 +5474,7 @@ def admin_delete_batch(batch_id: int, request: Request, db: Session = Depends(ge
     db.add(log_entry)
     db.delete(batch)
     db.commit()
+    background_tasks.add_task(sync_sharepoint_report_bg)
     return {"status": "ok"}
 
 @app.get("/api/admin/downtimes/all")
