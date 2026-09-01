@@ -1233,7 +1233,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         return
         
     service = get_sheets_service()
-    sheet_name = "Отчет СКК"
+    sheet_name = "Переборка"
     
     # 1. Проверяем существование листа
     spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
@@ -1610,7 +1610,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     ]
     
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    print("Отчет СКК (чистая непрерывная таблица с бригадами) успешно экспортирован.")
+    print("Лист 'Переборка' (чистая непрерывная таблица с бригадами) успешно экспортирован.")
 
 
 def sync_downtime_weekly_summary(db: Session):
