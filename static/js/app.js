@@ -1791,9 +1791,8 @@ function renderDowntimesTable(shift) {
         const mins = d.duration || 0;
         totalMinutes += mins;
         const durationStr = mins > 0 ? formatDurationHM(mins) : (d.end_time ? '0:00' : 'В процессе');
-        const isEquipment = d.is_equipment_downtime ? '<span style="color: #ff6b6b; font-weight: 600;">🛑 Да</span>' : '<span style="color: #4ade80; font-weight: 600;">🟢 На ходу</span>';
+        const isEquipment = d.is_equipment_downtime ? '<span style="color: #ef4444; font-weight: 600;">🛑 Да</span>' : '<span style="color: #10b981; font-weight: 600;">🟢 На ходу</span>';
         
-        const cat = d.category || 'Механические';
         const desc = d.description || d.comment || '-';
         
         const canEdit = (d.can_edit !== undefined) ? d.can_edit : true;
@@ -1803,14 +1802,13 @@ function renderDowntimesTable(shift) {
 
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s ease;">
-                <td style="text-align: center; color: var(--text-secondary); padding: 0.75rem 0.5rem;">${idx + 1}</td>
-                <td style="font-family: monospace; font-weight: 600; padding: 0.75rem 0.5rem;">${d.start_time || '-'}</td>
-                <td style="font-family: monospace; font-weight: 600; padding: 0.75rem 0.5rem;">${d.end_time || '-'}</td>
-                <td style="font-family: monospace; font-weight: 700; color: #38bdf8; padding: 0.75rem 0.5rem;">${durationStr}</td>
-                <td style="padding: 0.75rem 0.5rem; word-break: break-word;">${desc}</td>
-                <td style="padding: 0.75rem 0.5rem;"><span class="badge badge-secondary" style="background: rgba(255,255,255,0.08); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${cat}</span></td>
-                <td style="text-align: center; padding: 0.75rem 0.5rem;">${isEquipment}</td>
-                <td style="padding: 0.75rem 0.5rem;">${actionHtml}</td>
+                <td style="text-align: center; color: var(--text-secondary); padding: 0.6rem 0.4rem;">${idx + 1}</td>
+                <td style="font-family: monospace; font-weight: 600; padding: 0.6rem 0.4rem;">${d.start_time || '-'}</td>
+                <td style="font-family: monospace; font-weight: 600; padding: 0.6rem 0.4rem;">${d.end_time || '-'}</td>
+                <td style="font-family: monospace; font-weight: 700; color: #0284c7; padding: 0.6rem 0.4rem;">${durationStr}</td>
+                <td style="padding: 0.6rem 0.4rem; word-break: break-word; font-weight: 500;">${desc}</td>
+                <td style="text-align: center; padding: 0.6rem 0.4rem;">${isEquipment}</td>
+                <td style="padding: 0.6rem 0.4rem;">${actionHtml}</td>
             </tr>
         `;
     });

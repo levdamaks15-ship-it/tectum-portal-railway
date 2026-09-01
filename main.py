@@ -1091,28 +1091,10 @@ def sync_downtimes_bg():
     db = SessionLocal()
     try:
         google_sheets_integration.export_downtimes_to_google_sheets(db)
-        from google_sheets_integration import sync_downtime_weekly_summary, get_sheets_service
-        try:
-            sync_downtime_weekly_summary(db)
-        except Exception as e:
-            import traceback, os
-            err_msg = f"Crash in sync_downtime_weekly_summary: {str(e)}\n{traceback.format_exc()}"
-            print(err_msg)
-            try:
-                sheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
-                if sheet_id:
-                    service = get_sheets_service()
-                    service.spreadsheets().values().update(
-                        spreadsheetId=sheet_id,
-                        range="'Свод неделя'!A1",
-                        valueInputOption="USER_ENTERED",
-                        body={"values": [[err_msg]]}
-                    ).execute()
-            except:
-                pass
     except Exception as e:
         print(f"Error syncing downtimes to Google Sheets: {e}")
     finally:
+        db.close()
         db.close()
 
 def sync_google_sheets_bg():
@@ -4599,25 +4581,6 @@ def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
         
     try:
         google_sheets_integration.export_downtimes_to_google_sheets(db)
-        from google_sheets_integration import sync_downtime_weekly_summary, get_sheets_service
-        try:
-            sync_downtime_weekly_summary(db)
-        except Exception as e:
-            import traceback, os
-            err_msg = f"Crash in sync_downtime_weekly_summary: {str(e)}\n{traceback.format_exc()}"
-            print(err_msg)
-            try:
-                sheet_id = os.getenv("GOOGLE_SPREADSHEET_ID")
-                if sheet_id:
-                    service = get_sheets_service()
-                    service.spreadsheets().values().update(
-                        spreadsheetId=sheet_id,
-                        range="'Свод неделя'!A1",
-                        valueInputOption="USER_ENTERED",
-                        body={"values": [[err_msg]]}
-                    ).execute()
-            except:
-                pass
         
         db.add(models.AuditLog(
             user_name=request.session.get("user_email") or f"user_{user_id}",

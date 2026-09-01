@@ -1130,35 +1130,67 @@
                         <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">
                             Описание поломки / Что делали:
                         </label>
-                        <textarea id="journal-dt-desc" rows="2" placeholder="Например: Остановили машину: меняли все ножи, чистили карман и желоб рекуператора, чистили между машины" oninput="onDowntimeTextChange()" style="width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical; box-sizing: border-box;"></textarea>
+                        <textarea id="journal-dt-desc" rows="2" placeholder="Например: Замена ножей, чистка кармана и рекуператора" oninput="onDowntimeTextChange()" style="width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical; box-sizing: border-box;"></textarea>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 140px 140px 150px 1fr auto; gap: 1rem; align-items: end;">
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Время начала</label>
-                            <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 0.95rem; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: flex-end;">
+                        <div style="flex: 1 1 120px; min-width: 110px;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Время начала</label>
+                            <input type="text" class="time-picker" id="journal-dt-start" placeholder="ЧЧ:ММ" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem 0.6rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 0.95rem; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; text-align: center;">
                         </div>
-                        <div id="wrapper-dt-end">
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Время окончания</label>
-                            <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 0.95rem; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px;">
+                        <div style="flex: 1 1 120px; min-width: 110px;" id="wrapper-dt-end">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Время окончания</label>
+                            <input type="text" class="time-picker" id="journal-dt-end" placeholder="ЧЧ:ММ" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem 0.6rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 0.95rem; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; text-align: center;">
                         </div>
-                        <div>
-                            <label style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Длительность</label>
-                            <div id="journal-dt-duration-preview" style="padding: 0.5rem 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 0.95rem; font-weight: 700; color: #38bdf8; text-align: center; height: 38px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                        <div style="flex: 1 1 130px; min-width: 110px;">
+                            <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Длительность</label>
+                            <div id="journal-dt-duration-preview" style="padding: 0.5rem 0.6rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 0.95rem; font-weight: 700; color: #38bdf8; text-align: center; height: 38px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
                                 0:00
                             </div>
                         </div>
-                        <div style="display: flex; align-items: center; height: 38px;">
+                        <div style="flex: 2 1 220px; display: flex; align-items: center; height: 38px;">
                             <label style="font-size: 0.85rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; margin: 0;">
                                 <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color); margin: 0;">
-                                <span>Ремонт с остановкой оборудования</span>
+                                <span>Остановка оборудования</span>
                             </label>
                         </div>
-                        <div>
-                            <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary" style="height: 38px; padding: 0 1.5rem; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-bottom: 0;">
-                                <span>➕</span> Добавить простой в рапорт
+                        <div style="flex: 1 1 100%; display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+                            <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary" style="height: 42px; width: 100%; max-width: 280px; padding: 0 1.5rem; font-size: 0.95rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; margin-bottom: 0; border-radius: 8px;">
+                                <span>➕</span> Добавить простой
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 3. Список простоев за смену -->
+                <div style="background: rgba(0,0,0,0.15); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <h4 style="margin: 0; color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>📋</span> Зафиксированные простои за смену
+                        </h4>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <span id="journal-dt-rows-count" class="badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; font-size: 0.8rem;">Всего записей: 0</span>
+                            <span id="journal-dt-total-time-badge" class="badge" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 0.8rem; font-weight: 700;">0:00 (0 мин)</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive-container">
+                        <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--glass-border); color: var(--text-secondary); font-size: 0.75rem;">
+                                    <th style="width: 40px; text-align: center; padding: 0.6rem 0.4rem;">#</th>
+                                    <th style="width: 75px; padding: 0.6rem 0.4rem;">Начало</th>
+                                    <th style="width: 75px; padding: 0.6rem 0.4rem;">Конец</th>
+                                    <th style="width: 80px; padding: 0.6rem 0.4rem;">Длит.</th>
+                                    <th style="padding: 0.6rem 0.4rem;">Простой / Описание</th>
+                                    <th style="width: 100px; text-align: center; padding: 0.6rem 0.4rem;">Остановка</th>
+                                    <th style="width: 80px; text-align: right; padding: 0.6rem 0.4rem;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journal-downtimes-list">
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Нет зафиксированных простоев за смену</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1474,6 +1506,6 @@
         </button>
     </div>
 
-    <script src="/static/js/app.js?v=20260901_crew_plans_print_2"></script>
+    <script src="/static/js/app.js?v=20260901_downtimes_mobile_v1"></script>
 </body>
 </html>
