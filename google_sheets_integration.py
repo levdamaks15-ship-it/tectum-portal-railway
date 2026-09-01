@@ -1260,9 +1260,10 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
     headers = [
-        "№ партии", "Смены", "Продукт", "Формовка, шт", 
-        "первый сорт (шт)", "% ", "примечание", 
-        "брак (шт)", "%  ", "примечание "
+        "№ партии", "Дата", "День нед.", "Смена", "Бригада (ЛФМ)", "Мастер ЛФМ", "Продукт", "Формовка, шт", 
+        "1 сорт своя, шт", "Брак своя, шт", "% брака своя", "Детализация брака (своя смена)",
+        "1 сорт прошл, шт", "Брак прошл, шт", "Детализация брака (прошлая смена)",
+        "Всего брак (своя+прошл), шт"
     ]
     
     batches = db.query(models.Batch).join(models.Shift).order_by(models.Shift.date.asc(), models.Batch.batch_number.asc()).all()
@@ -1274,21 +1275,25 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         return
         
     current_week = None
-    week_stats = {}  # {product_name: {"total": 0, "first": 0, "defect": 0}}
+    week_stats = {}  # {product_name: {"total": 0, "first": 0, "defect": 0, "prev_first": 0, "prev_defect": 0}}
     
+    # Кэш записей графика сменности по датам
+    all_schedules = {e.date_str: e for e in db.query(models.ShiftScheduleEntry).all()}
+
     def append_week_summaries(stats_dict):
-        rows_data.append(["" for _ in range(10)])
+        rows_data.append(["" for _ in range(len(headers))])
         for prod, stats in stats_dict.items():
             tot = stats["total"]
             f = stats["first"]
             d = stats["defect"]
-            pf = (f / tot) if tot > 0 else 0
+            pf_val = stats["prev_first"]
+            pd_val = stats["prev_defect"]
             pd = (d / tot) if tot > 0 else 0
             rows_data.append([
-                "", "", f"{prod}:", tot, f, pf, "", d, pd, ""
+                "", "", "", "", "", "", f"{prod}:", tot, f, d, pd, "", pf_val, pd_val, "", (d + pd_val)
             ])
             summary_bold_rows.append(len(rows_data) - 1)
-        rows_data.append(["" for _ in range(10)])
+        rows_data.append(["" for _ in range(len(headers))])
 
     for b in batches:
         shift_date = b.shift.date if b.shift else None
@@ -1302,53 +1307,79 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         
         shift_name = b.shift.shift_name if b.shift else ""
         product_name = b.product_name or "Неизвестный продукт"
+        master_name = b.shift.master.name if (b.shift and b.shift.master) else ""
+        
+        date_str_fmt = shift_date.strftime("%d.%m.%Y") if shift_date else ""
+        sched = all_schedules.get(date_str_fmt)
+        day_of_week = sched.day_of_week if sched else (shift_date.strftime("%a") if shift_date else "")
+        
+        is_day = (shift_name == "День")
+        shift_group = (sched.day_shift_group if is_day else sched.night_shift_group) if sched else ""
         
         if product_name not in week_stats:
-            week_stats[product_name] = {"total": 0, "first": 0, "defect": 0}
+            week_stats[product_name] = {"total": 0, "first": 0, "defect": 0, "prev_first": 0, "prev_defect": 0}
             
-        ds_cond = b.ds_condition or 0
         ds_first = b.ds_first_grade or 0
         ds_def = b.ds_defect or 0
+        
+        prev_f = b.prev_first_grade or 0
+        prev_d = b.prev_defect or 0
         
         lfm_sheets = 0
         if b.shift and b.shift.lfm_reports:
             lfm_sheets = sum(r.lfm_sheets for r in b.shift.lfm_reports)
+        elif b.stacked_stacks:
+            lfm_sheets = b.stacked_stacks
             
         total_sheets = lfm_sheets
         
         week_stats[product_name]["total"] += total_sheets
         week_stats[product_name]["first"] += ds_first
         week_stats[product_name]["defect"] += ds_def
+        week_stats[product_name]["prev_first"] += prev_f
+        week_stats[product_name]["prev_defect"] += prev_d
         
-        pct_first = (ds_first / total_sheets) if total_sheets > 0 else 0
         pct_defect = (ds_def / total_sheets) if total_sheets > 0 else 0
-        note_first = ""
         
+        # 7 видов брака своей смены
         def_parts = []
-        if b.ds_defect_chip: def_parts.append(f"Скол ({b.ds_defect_chip})")
         if b.ds_defect_scratch: def_parts.append(f"Сдир ({b.ds_defect_scratch})")
         if b.ds_defect_bad_cut: def_parts.append(f"Плохой рез ({b.ds_defect_bad_cut})")
-        if b.ds_defect_stick_bottom: def_parts.append(f"Налип снизу ({b.ds_defect_stick_bottom})")
         if b.ds_defect_stick_top: def_parts.append(f"Налип сверху ({b.ds_defect_stick_top})")
         if b.ds_defect_broken: def_parts.append(f"Сломан ({b.ds_defect_broken})")
         if b.ds_defect_fell_box: def_parts.append(f"Упал коробки ({b.ds_defect_fell_box})")
-        if b.ds_defect_dent: def_parts.append(f"Вмятина ({b.ds_defect_dent})")
         if b.ds_defect_thickness: def_parts.append(f"Не соотв. толщины ({b.ds_defect_thickness})")
-        if b.ds_defect_delamination: def_parts.append(f"Расслоение ({b.ds_defect_delamination})")
         if b.ds_defect_edge: def_parts.append(f"Кромка ({b.ds_defect_edge})")
         note_defect = ", ".join(def_parts)
+
+        # 7 видов брака прошлой смены
+        prev_parts = []
+        if b.prev_defect_scratch: prev_parts.append(f"Сдир ({b.prev_defect_scratch})")
+        if b.prev_defect_bad_cut: prev_parts.append(f"Плохой рез ({b.prev_defect_bad_cut})")
+        if b.prev_defect_stick_top: prev_parts.append(f"Налип сверху ({b.prev_defect_stick_top})")
+        if b.prev_defect_broken: prev_parts.append(f"Сломан ({b.prev_defect_broken})")
+        if b.prev_defect_fell_box: prev_parts.append(f"Упал коробки ({b.prev_defect_fell_box})")
+        if b.prev_defect_thickness: prev_parts.append(f"Не соотв. толщины ({b.prev_defect_thickness})")
+        if b.prev_defect_edge: prev_parts.append(f"Кромка ({b.prev_defect_edge})")
+        prev_note = ", ".join(prev_parts)
         
         rows_data.append([
             b.batch_number or "",
+            date_str_fmt,
+            day_of_week or "",
             shift_name,
+            shift_group or "",
+            master_name,
             product_name,
             total_sheets,
             ds_first,
-            pct_first,
-            note_first,
             ds_def,
             pct_defect,
-            note_defect
+            note_defect,
+            prev_f,
+            prev_d,
+            prev_note,
+            (ds_def + prev_d)
         ])
         
     if week_stats:

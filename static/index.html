@@ -386,11 +386,11 @@
                             <div class="form-grid-three">
                                 <div class="form-group">
                                     <label>Дата рапорта</label>
-                                    <input type="date" id="rep-date">
+                                    <input type="date" id="rep-date" onchange="updateShiftScheduleHints()">
                                 </div>
                                 <div class="form-group">
                                     <label>Смена</label>
-                                    <select id="rep-shift">
+                                    <select id="rep-shift" onchange="updateShiftScheduleHints()">
                                         <option value="День">День</option>
                                         <option value="Ночь">Ночь</option>
                                     </select>
@@ -484,46 +484,92 @@
                             <span class="acc-toggle">▼</span>
                         </div>
                         <div id="sec-defect" class="accordion-content">
-                            <div class="form-grid-three" style="margin-bottom: 1rem;">
-                                <div class="form-group">
-                                    <label>На склад ГП (кондиция, листов)</label>
-                                    <input type="number" id="rep-warehouse-gp" placeholder="0">
+                            <!-- Общий приход на склад ГП -->
+                            <div class="form-group" style="margin-bottom: 1.2rem; max-width: 350px;">
+                                <label style="font-weight: 700; color: #047857;">На склад ГП (кондиция, листов)</label>
+                                <input type="number" id="rep-warehouse-gp" placeholder="0">
+                            </div>
+
+                            <!-- БЛОК 1: СВОЯ СМЕНА -->
+                            <div style="background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 1.5rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h4 style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700;">🔹 Своя смена</h4>
+                                    <span id="badge-curr-shift-hint" style="font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Текущая смена</span>
                                 </div>
-                                <div class="form-group">
-                                    <label>1 Сорт (листов)</label>
-                                    <input type="number" id="rep-first-grade" placeholder="0">
+                                
+                                <div class="form-grid-two" style="margin-bottom: 1rem;">
+                                    <div class="form-group">
+                                        <label>1 Сорт своей смены (листов)</label>
+                                        <input type="number" id="rep-first-grade" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Есть ли брак своей смены?</label>
+                                        <select id="rep-has-defect" onchange="toggleDefectsGrid()">
+                                            <option value="no">Нет брака</option>
+                                            <option value="yes">Да, зарегистрировать брак</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Есть ли брак?</label>
-                                    <select id="rep-has-defect" onchange="toggleDefectsGrid()">
-                                        <option value="no">Нет брака</option>
-                                        <option value="yes">Да, зарегистрировать брак</option>
-                                    </select>
+
+                                <!-- 7 видов дефектов своей смены -->
+                                <div id="defects-detail-grid" style="display: none; background: #ffffff; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 0.8rem;">
+                                    <h5 style="margin: 0 0 0.8rem 0; color: #dc2626; font-size: 0.85rem; font-weight: 600;">Детализация дефектов Дестакера (своя смена)</h5>
+                                    <div class="form-grid-four">
+                                        <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Плохой рез</label><input type="number" id="def-bad-cut" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Налип сверху</label><input type="number" id="def-stick-top" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Сломан</label><input type="number" id="def-broken" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Упал коробки</label><input type="number" id="def-fell" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="def-thickness" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Кромка</label><input type="number" id="def-edge" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                    </div>
+                                    <div class="form-group" style="margin-top: 0.8rem; max-width: 260px;">
+                                        <label style="font-size: 0.8rem;">Итого брака своей смены (авто)</label>
+                                        <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: #f1f5f9; font-weight: bold; color: #dc2626;">
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Defects block: 11 видов дефектов -->
-                            <div id="defects-detail-grid" style="display: none; background: rgba(0,0,0,0.1); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border); margin-bottom: 1.2rem;">
-                                <h4 style="margin-bottom: 0.8rem; color: var(--accent-color); font-size: 0.95rem;">Детализация брака Дестакера (листов)</h4>
-                                <div class="form-grid-four">
-                                    <div class="form-group" style="display: none;"><label>Скол</label><input type="number" id="def-chip" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Плохой рез</label><input type="number" id="def-bad-cut" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group" style="display: none;"><label>Налип снизу</label><input type="number" id="def-stick-bottom" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Налип сверху</label><input type="number" id="def-stick-top" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Сломан</label><input type="number" id="def-broken" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Упал коробки</label><input type="number" id="def-fell" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group" style="display: none;"><label>Вмятина</label><input type="number" id="def-dent" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="def-thickness" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group" style="display: none;"><label>Расслоение</label><input type="number" id="def-delamination" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                    <div class="form-group"><label>Кромка</label><input type="number" id="def-edge" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                            <!-- БЛОК 2: ПРЕДЫДУЩАЯ СМЕНА -->
+                            <div style="background: #fffbeb; padding: 1.2rem; border-radius: 8px; border: 1px solid #fef3c7; margin-bottom: 1.2rem;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h4 style="margin: 0; color: #b45309; font-size: 1rem; font-weight: 700;">🔸 Предыдущая смена (из камеры твердения)</h4>
+                                    <span id="badge-prev-shift-hint" style="font-size: 0.8rem; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Предыдущая смена</span>
                                 </div>
-                                <div class="form-group" style="margin-top: 1rem; max-width: 300px;">
-                                    <label>Итого брака Дестакера (авто)</label>
-                                    <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: rgba(255,255,255,0.05); font-weight: bold;">
+
+                                <div class="form-grid-two" style="margin-bottom: 1rem;">
+                                    <div class="form-group">
+                                        <label>1 Сорт прошлой смены (листов)</label>
+                                        <input type="number" id="rep-prev-first-grade" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Есть ли брак прошлой смены?</label>
+                                        <select id="rep-prev-has-defect" onchange="togglePrevDefectsGrid()">
+                                            <option value="no">Нет брака прошлой смены</option>
+                                            <option value="yes">Да, зарегистрировать брак прошлой смены</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                <input type="hidden" id="rep-qcd-defect" value="0">
+
+                                <!-- 7 видов дефектов прошлой смены -->
+                                <div id="prev-defects-detail-grid" style="display: none; background: #ffffff; padding: 1rem; border-radius: 6px; border: 1px solid #fed7aa; margin-top: 0.8rem;">
+                                    <h5 style="margin: 0 0 0.8rem 0; color: #ea580c; font-size: 0.85rem; font-weight: 600;">Детализация дефектов Дестакера (прошлая смена)</h5>
+                                    <div class="form-grid-four">
+                                        <div class="form-group"><label>Сдир</label><input type="number" id="prev-def-scratch" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Плохой рез</label><input type="number" id="prev-def-bad-cut" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Налип сверху</label><input type="number" id="prev-def-stick-top" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Сломан</label><input type="number" id="prev-def-broken" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Упал коробки</label><input type="number" id="prev-def-fell" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="prev-def-thickness" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Кромка</label><input type="number" id="prev-def-edge" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                    </div>
+                                    <div class="form-group" style="margin-top: 0.8rem; max-width: 260px;">
+                                        <label style="font-size: 0.8rem;">Итого брака прошлой смены (авто)</label>
+                                        <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0" style="background: #f1f5f9; font-weight: bold; color: #ea580c;">
+                                    </div>
+                                </div>
                             </div>
+                            <input type="hidden" id="rep-qcd-defect" value="0">
                         </div>
                     </div>
 

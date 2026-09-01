@@ -306,6 +306,44 @@ async def lifespan(app: FastAPI):
         if 'db' in locals() and db:
             db.close()
 
+    # Batch previous shift defect columns migration
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        cols = [
+            ("prev_first_grade", "INTEGER DEFAULT 0"),
+            ("prev_defect", "INTEGER DEFAULT 0"),
+            ("prev_defect_scratch", "INTEGER DEFAULT 0"),
+            ("prev_defect_bad_cut", "INTEGER DEFAULT 0"),
+            ("prev_defect_stick_top", "INTEGER DEFAULT 0"),
+            ("prev_defect_broken", "INTEGER DEFAULT 0"),
+            ("prev_defect_fell_box", "INTEGER DEFAULT 0"),
+            ("prev_defect_thickness", "INTEGER DEFAULT 0"),
+            ("prev_defect_edge", "INTEGER DEFAULT 0")
+        ]
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            for col_name, col_type in cols:
+                try:
+                    db.execute(text(f"ALTER TABLE batches ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        elif driver == 'sqlite':
+            conn = sqlite3.connect("tectum.db")
+            for col_name, col_type in cols:
+                try:
+                    conn.execute(f"ALTER TABLE batches ADD COLUMN {col_name} {col_type}")
+                    conn.commit()
+                except Exception:
+                    pass
+            conn.close()
+    except Exception as e:
+        print(f"Batch prev defect migration note: {e}")
+    finally:
+        if 'db' in locals() and db:
+            db.close()
+
     # PlannerEmployee pin_code column migration
     try:
         db = SessionLocal()
@@ -2350,6 +2388,23 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     batch.ds_defect_delamination = data.ds_defect_delamination
     batch.ds_defect_edge = data.ds_defect_edge
 
+    # Previous shift defects
+    prev_defect_sum = (
+        (data.prev_defect_scratch or 0) + (data.prev_defect_bad_cut or 0) +
+        (data.prev_defect_stick_top or 0) + (data.prev_defect_broken or 0) +
+        (data.prev_defect_fell_box or 0) + (data.prev_defect_thickness or 0) +
+        (data.prev_defect_edge or 0)
+    )
+    batch.prev_first_grade = data.prev_first_grade or 0
+    batch.prev_defect = prev_defect_sum
+    batch.prev_defect_scratch = data.prev_defect_scratch or 0
+    batch.prev_defect_bad_cut = data.prev_defect_bad_cut or 0
+    batch.prev_defect_stick_top = data.prev_defect_stick_top or 0
+    batch.prev_defect_broken = data.prev_defect_broken or 0
+    batch.prev_defect_fell_box = data.prev_defect_fell_box or 0
+    batch.prev_defect_thickness = data.prev_defect_thickness or 0
+    batch.prev_defect_edge = data.prev_defect_edge or 0
+
     batch.qcd_condition = data.warehouse_gp
     batch.qcd_first_grade = data.first_grade
     batch.qcd_defect = ds_defect_sum
@@ -2866,6 +2921,18 @@ def get_report_summary(
             }
 
         
+            prev_first_grade = sum((b.prev_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
+            prev_defect = sum((b.prev_defect or 0) for b in batches) if (batches and not is_other_master) else 0
+            prev_defects = {
+                "prev_defect_scratch": sum((b.prev_defect_scratch or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_bad_cut": sum((b.prev_defect_bad_cut or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_stick_top": sum((b.prev_defect_stick_top or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_broken": sum((b.prev_defect_broken or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_fell_box": sum((b.prev_defect_fell_box or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_thickness": sum((b.prev_defect_thickness or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_edge": sum((b.prev_defect_edge or 0) for b in batches) if (batches and not is_other_master) else 0,
+            }
+
             product_name = shift.product_name if not is_other_master else "Скрыто"
             batch_number = shift.batch_number if not is_other_master else "Скрыто"
             export_type_val = shift.export_type if not is_other_master else "Скрыто"
@@ -2914,6 +2981,9 @@ def get_report_summary(
                 "first_grade": first_grade,
                 "defect": qcd_defect,
                 "ds_defects": ds_defects,
+                "prev_first_grade": prev_first_grade,
+                "prev_defect": prev_defect,
+                "prev_defects": prev_defects,
             
                 "receipts": {
                     "chrysotile_4_20": (sum((r.chrysotile_4_20 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,

@@ -149,6 +149,57 @@ function toggleDefectsGrid() {
     }
 }
 
+function togglePrevDefectsGrid() {
+    const hasDefect = document.getElementById('rep-prev-has-defect').value;
+    const grid = document.getElementById('prev-defects-detail-grid');
+    if (hasDefect === 'yes') {
+        grid.style.display = 'block';
+    } else {
+        grid.style.display = 'none';
+        // Zero all prev defect inputs
+        document.querySelectorAll('.prev-defect-input').forEach(i => i.value = '0');
+        recalcPrevDefectTotal();
+    }
+}
+
+function recalcPrevDefectTotal() {
+    let total = 0;
+    document.querySelectorAll('.prev-defect-input').forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    const totalEl = document.getElementById('rep-prev-defect-total-readonly');
+    if (totalEl) totalEl.value = total;
+}
+
+async function updateShiftScheduleHints() {
+    const dateVal = document.getElementById('rep-date')?.value;
+    const shiftVal = document.getElementById('rep-shift')?.value;
+    if (!dateVal) return;
+    
+    // dateVal: YYYY-MM-DD -> DD.MM.YYYY
+    const parts = dateVal.split('-');
+    if (parts.length !== 3) return;
+    const dateStr = `${parts[2]}.${parts[1]}.${parts[0]}`;
+    
+    try {
+        const res = await fetch(`/api/checklists/schedule/today?date=${encodeURIComponent(dateStr)}`);
+        if (res.ok) {
+            const data = await res.json();
+            const currEl = document.getElementById('badge-curr-shift-hint');
+            const prevEl = document.getElementById('badge-prev-shift-hint');
+            
+            const isDay = (shiftVal === 'День');
+            let currGroup = isDay ? (data.schedule_entry?.day_shift_group || 'Смена') : (data.schedule_entry?.night_shift_group || 'Смена');
+            let prevGroup = isDay ? (data.prev_shift_group || 'Смена') : (data.schedule_entry?.day_shift_group || 'Смена');
+            
+            if (currEl) currEl.textContent = `Текущая: ${currGroup}`;
+            if (prevEl) prevEl.textContent = `Предыдущая: ${prevGroup}`;
+        }
+    } catch(e) {
+        console.log('Schedule hint note:', e);
+    }
+}
+
 function recalcTonsAndGrades() {
     const sheets = parseFloat(document.getElementById('rep-sheets').value) || 0;
     const prodName = document.getElementById('rep-product').value;
@@ -663,7 +714,7 @@ function prefillReportForm(shift) {
                 document.getElementById('rep-first-grade').value = row.first_grade || '0';
                 document.getElementById('rep-qcd-defect').value = row.defect || '0';
                 
-                // Defects breakdown
+                // Current shift defects breakdown
                 const d = row.ds_defects || {};
                 document.getElementById('def-chip').value = d.ds_defect_chip || '0';
                 document.getElementById('def-scratch').value = d.ds_defect_scratch || '0';
@@ -680,9 +731,30 @@ function prefillReportForm(shift) {
                 const hasDefects = Object.values(d).some(v => v > 0);
                 document.getElementById('rep-has-defect').value = hasDefects ? 'yes' : 'no';
                 toggleDefectsGrid();
+
+                // Previous shift defects breakdown
+                const pd = row.prev_defects || {};
+                const prevFirstGradeEl = document.getElementById('rep-prev-first-grade');
+                if (prevFirstGradeEl) prevFirstGradeEl.value = row.prev_first_grade || '0';
+                
+                const prevScratchEl = document.getElementById('prev-def-scratch'); if (prevScratchEl) prevScratchEl.value = pd.prev_defect_scratch || '0';
+                const prevBadCutEl = document.getElementById('prev-def-bad-cut'); if (prevBadCutEl) prevBadCutEl.value = pd.prev_defect_bad_cut || '0';
+                const prevStickTopEl = document.getElementById('prev-def-stick-top'); if (prevStickTopEl) prevStickTopEl.value = pd.prev_defect_stick_top || '0';
+                const prevBrokenEl = document.getElementById('prev-def-broken'); if (prevBrokenEl) prevBrokenEl.value = pd.prev_defect_broken || '0';
+                const prevFellEl = document.getElementById('prev-def-fell'); if (prevFellEl) prevFellEl.value = pd.prev_defect_fell_box || '0';
+                const prevThicknessEl = document.getElementById('prev-def-thickness'); if (prevThicknessEl) prevThicknessEl.value = pd.prev_defect_thickness || '0';
+                const prevEdgeEl = document.getElementById('prev-def-edge'); if (prevEdgeEl) prevEdgeEl.value = pd.prev_defect_edge || '0';
+
+                const hasPrevDefects = Object.values(pd).some(v => v > 0);
+                const prevHasDefectEl = document.getElementById('rep-prev-has-defect');
+                if (prevHasDefectEl) {
+                    prevHasDefectEl.value = hasPrevDefects ? 'yes' : 'no';
+                    togglePrevDefectsGrid();
+                }
                 
                 recalcTonsAndGrades();
                 recalcDefectTotal();
+                recalcPrevDefectTotal();
                 recalcChrTotal();
                 recalcCemTotal();
             }
@@ -718,6 +790,17 @@ async function submitShiftReport() {
         ds_defect_thickness: parseInt(document.getElementById('def-thickness').value) || 0,
         ds_defect_delamination: parseInt(document.getElementById('def-delamination').value) || 0,
         ds_defect_edge: parseInt(document.getElementById('def-edge').value) || 0,
+
+        // Предыдущая смена
+        prev_first_grade: parseInt(document.getElementById('rep-prev-first-grade')?.value) || 0,
+        prev_has_defect: document.getElementById('rep-prev-has-defect')?.value || 'no',
+        prev_defect_scratch: parseInt(document.getElementById('prev-def-scratch')?.value) || 0,
+        prev_defect_bad_cut: parseInt(document.getElementById('prev-def-bad-cut')?.value) || 0,
+        prev_defect_stick_top: parseInt(document.getElementById('prev-def-stick-top')?.value) || 0,
+        prev_defect_broken: parseInt(document.getElementById('prev-def-broken')?.value) || 0,
+        prev_defect_fell_box: parseInt(document.getElementById('prev-def-fell')?.value) || 0,
+        prev_defect_thickness: parseInt(document.getElementById('prev-def-thickness')?.value) || 0,
+        prev_defect_edge: parseInt(document.getElementById('prev-def-edge')?.value) || 0,
         
         qcd_defect: parseInt(document.getElementById('rep-qcd-defect').value) || 0,
 
@@ -848,6 +931,9 @@ function resetReportForm() {
         'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade', 'rep-qcd-defect',
         'def-chip', 'def-scratch', 'def-bad-cut', 'def-stick-bottom', 'def-stick-top', 'def-broken', 'def-fell', 
         'def-dent', 'def-thickness', 'def-delamination', 'def-edge',
+        'rep-prev-first-grade',
+        'prev-def-scratch', 'prev-def-bad-cut', 'prev-def-stick-top', 'prev-def-broken', 'prev-def-fell', 
+        'prev-def-thickness', 'prev-def-edge',
         'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4', 
         'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton', 
         'zo-asb-drain', 'zo-cem-drain',
@@ -876,12 +962,16 @@ function resetReportForm() {
     const hasDefectEl = document.getElementById('rep-has-defect');
     if (hasDefectEl) {
         hasDefectEl.value = 'no';
-        const container = document.getElementById('rep-defect-container');
-        if (container) container.style.display = 'none';
+        toggleDefectsGrid();
+    }
+    const prevHasDefectEl = document.getElementById('rep-prev-has-defect');
+    if (prevHasDefectEl) {
+        prevHasDefectEl.value = 'no';
+        togglePrevDefectsGrid();
     }
     
     const readOnlyIds = [
-        'rep-defect-total-readonly', 'zo-chr-total-readonly', 'zo-cem-total-readonly',
+        'rep-defect-total-readonly', 'rep-prev-defect-total-readonly', 'zo-chr-total-readonly', 'zo-cem-total-readonly',
         'rep-weight-kg-readonly', 'rep-weight-t-readonly'
     ];
     readOnlyIds.forEach(id => {

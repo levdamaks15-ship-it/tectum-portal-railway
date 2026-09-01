@@ -70,6 +70,17 @@ class BatchBase(ORMBaseModel):
     ds_defect_delamination: int = 0
     ds_defect_edge: int = 0
     
+    # Предыдущая смена
+    prev_first_grade: int = 0
+    prev_defect: int = 0
+    prev_defect_scratch: int = 0
+    prev_defect_bad_cut: int = 0
+    prev_defect_stick_top: int = 0
+    prev_defect_broken: int = 0
+    prev_defect_fell_box: int = 0
+    prev_defect_thickness: int = 0
+    prev_defect_edge: int = 0
+    
     qcd_condition: int = 0
     qcd_sorted_packs: int = 0
     qcd_first_grade: int = 0
@@ -468,6 +479,17 @@ class ShiftReportCreate(ORMBaseModel):
     ds_defect_delamination: int = 0
     ds_defect_edge: int = 0
     
+    # Предыдущая смена
+    prev_first_grade: int = 0
+    prev_has_defect: str = "no"
+    prev_defect_scratch: int = 0
+    prev_defect_bad_cut: int = 0
+    prev_defect_stick_top: int = 0
+    prev_defect_broken: int = 0
+    prev_defect_fell_box: int = 0
+    prev_defect_thickness: int = 0
+    prev_defect_edge: int = 0
+    
     # Итоговый брак СКК
     qcd_defect: int = 0
 
@@ -567,6 +589,17 @@ class AdminShiftReportUpdate(ORMBaseModel):
     ds_defect_thickness: Optional[int] = None
     ds_defect_delamination: Optional[int] = None
     ds_defect_edge: Optional[int] = None
+    
+    # Предыдущая смена
+    prev_first_grade: Optional[int] = None
+    prev_has_defect: Optional[str] = None
+    prev_defect_scratch: Optional[int] = None
+    prev_defect_bad_cut: Optional[int] = None
+    prev_defect_stick_top: Optional[int] = None
+    prev_defect_broken: Optional[int] = None
+    prev_defect_fell_box: Optional[int] = None
+    prev_defect_thickness: Optional[int] = None
+    prev_defect_edge: Optional[int] = None
     
     # Итоговый брак СКК
     qcd_defect: Optional[int] = None

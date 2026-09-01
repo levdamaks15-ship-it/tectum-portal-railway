@@ -190,7 +190,7 @@ class Batch(Base):
     ds_first_grade = Column(Integer, default=0) # 1 сорт
     ds_defect = Column(Integer, default=0) # Итого брак Разборщика (сумма 11 полей ниже)
     
-    # Детализация брака (Дестакер)
+    # Детализация брака (Дестакер) - Своя смена
     ds_defect_chip = Column(Integer, default=0) # Скол
     ds_defect_scratch = Column(Integer, default=0) # Сдир
     ds_defect_bad_cut = Column(Integer, default=0) # Плохой рез
@@ -202,7 +202,18 @@ class Batch(Base):
     ds_defect_thickness = Column(Integer, default=0) # Не соотв. толщины
     ds_defect_delamination = Column(Integer, default=0) # Расслоение
     ds_defect_edge = Column(Integer, default=0) # Кромка не соотв.
-    
+
+    # --- Дестакер: Предыдущая смена (Брак и 1 сорт прошлой смены) ---
+    prev_first_grade = Column(Integer, default=0) # 1 сорт прошлой смены
+    prev_defect = Column(Integer, default=0)      # Итого брак прошлой смены
+    prev_defect_scratch = Column(Integer, default=0) # Сдир
+    prev_defect_bad_cut = Column(Integer, default=0) # Плохой рез
+    prev_defect_stick_top = Column(Integer, default=0) # Налип сверху
+    prev_defect_broken = Column(Integer, default=0) # Сломан
+    prev_defect_fell_box = Column(Integer, default=0) # Упал коробки
+    prev_defect_thickness = Column(Integer, default=0) # Не соотв. толщины
+    prev_defect_edge = Column(Integer, default=0) # Кромка
+
     # --- 6. СКК (ОТК) ---
     qcd_condition = Column(Integer, default=0) 
     qcd_sorted_packs = Column(Integer, default=0)
