@@ -242,27 +242,27 @@ async function onProductChange(event) {
                 window.currentLoadedShiftId = shift.id;
                 prefillReportForm(shift);
             } else if (res.status === 404) {
-                // Not found, so we are creating a new product report.
-                // Clear the form but keep the selected date/shift/line/product/master/batch/export_type
-                const masterId = document.getElementById('rep-master')?.value;
-                const batchNum = document.getElementById('rep-batch')?.value;
-                
-                // Determine what triggered the change. If it's a product, batch or export_type change, 
-                // we strictly clear per AGENTS.md rule. Otherwise, only clear if we are 
-                // transitioning AWAY from a previously loaded shift (to avoid wiping a new draft).
-                const isProductOrBatchChange = event && event.target && (event.target.id === 'rep-product' || event.target.id === 'rep-batch' || event.target.id === 'rep-export-type');
-                if (window.currentLoadedShiftId || isProductOrBatchChange) {
+                // Not found.
+                // If we were viewing an already saved shift from the DB (currentLoadedShiftId != null),
+                // reset the form to create a clean new record for the other batch/product.
+                // But if user is just filling out a new draft (!window.currentLoadedShiftId),
+                // KEEP their entered numbers (sheets, ZOs, calculators) and just update calculation.
+                if (window.currentLoadedShiftId) {
+                    const masterId = document.getElementById('rep-master')?.value;
+                    const batchNum = document.getElementById('rep-batch')?.value;
+                    
                     resetReportForm();
+                    
+                    if (document.getElementById('rep-date')) document.getElementById('rep-date').value = date;
+                    if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
+                    if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
+                    if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
+                    if (document.getElementById('rep-product')) document.getElementById('rep-product').value = productName;
+                    if (document.getElementById('rep-export-type')) document.getElementById('rep-export-type').value = exportType;
+                    if (document.getElementById('rep-master')) document.getElementById('rep-master').value = masterId || '';
+                    if (document.getElementById('rep-batch')) document.getElementById('rep-batch').value = batchNum || '';
                 }
-                
-                if (document.getElementById('rep-date')) document.getElementById('rep-date').value = date;
-                if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
-                if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
-                if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
-                if (document.getElementById('rep-product')) document.getElementById('rep-product').value = productName;
-                if (document.getElementById('rep-export-type')) document.getElementById('rep-export-type').value = exportType;
-                if (document.getElementById('rep-master')) document.getElementById('rep-master').value = masterId || '';
-                if (document.getElementById('rep-batch')) document.getElementById('rep-batch').value = batchNum || '';
+                recalcTonsAndGrades();
             }
         } catch(e) {
             console.error(e);
