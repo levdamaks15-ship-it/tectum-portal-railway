@@ -2122,7 +2122,7 @@ def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: S
     return {"status": "ok"}
 
 @app.post("/api/shifts/{shift_id}/zo")
-def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, db: Session = Depends(get_db)):
+def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -2162,10 +2162,11 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, db: Sessio
     shift.zo_submitted = data.submitted
     
     db.commit()
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"message": "ZO updated"}
 
 @app.post("/api/shifts/{shift_id}/lfm_drains")
-def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, db: Session = Depends(get_db)):
+def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -2184,10 +2185,11 @@ def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, db
     shift.lfm_asb_drain = data.asb_drain
     shift.lfm_cem_drain = data.cem_drain
     db.commit()
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"message": "LFM drains updated"}
 
 @app.post("/api/shifts/{shift_id}/raw_materials_bulk")
-def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdate, request: Request, db: Session = Depends(get_db)):
+def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     if not user_id:
@@ -2203,9 +2205,6 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
     if False and user_role == "master" and shift.master_id != user_id:
         raise HTTPException(status_code=403, detail="Вы не можете редактировать смену другого мастера")
         
-    # Записываем приход
-
-    
     # Записываем расход ЗО
     shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20
     shift.zo_chrysotile_5_65 = data.zo_chrysotile_5_65
@@ -2230,6 +2229,7 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
     shift.zo_submitted = True
     
     db.commit()
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "success"}
 
 
@@ -2673,8 +2673,9 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
 
     save_report_internal(db, shift, data, user_name, is_new)
     
-    # Trigger background SharePoint sync
+    # Trigger background SharePoint & Google Sheets sync
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     
     return {"status": "success", "shift_id": shift.id}
 
@@ -2701,8 +2702,9 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
         
     save_report_internal(db, shift, data, user_name, False)
     
-    # Trigger background SharePoint sync
+    # Trigger background SharePoint & Google Sheets sync
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     
     return {"status": "success", "shift_id": shift.id}
 
@@ -3243,7 +3245,7 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
 
 # --- ЛФМ ---
 @app.post("/api/shifts/{shift_id}/lfm")
-def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, db: Session = Depends(get_db)):
+def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     shift = db.query(models.Shift).get(shift_id)
     if not shift: raise HTTPException(404)
     db_report = models.LFMReport(**data.model_dump(), shift_id=shift_id)
@@ -3252,6 +3254,7 @@ def create_lfm_report(shift_id: int, data: schemas.LFMReportCreate, db: Session 
     
     # Sync LFM sheets to plan board fact
     sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 @app.get("/api/downtimes/directory/departments")
@@ -3502,11 +3505,12 @@ def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTa
 
 # --- ПАРТИИ (Стакер) ---
 @app.post("/api/batches/")
-def create_batch(shift_id: int, data: schemas.BatchCreate, db: Session = Depends(get_db)):
+def create_batch(shift_id: int, data: schemas.BatchCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_batch = models.Batch(**data.model_dump(exclude={"status"}), shift_id=shift_id, status="stacked")
     db.add(db_batch)
     db.commit()
     db.refresh(db_batch)
+    background_tasks.add_task(sync_google_sheets_bg)
     return db_batch
 
 # --- Дестакер и СКК ---
@@ -3538,7 +3542,7 @@ class DestackerUpdate(BaseModel):
     ds_defect_edge: int = 0
 
 @app.post("/api/batches/{batch_id}/destacker")
-def update_destacker(batch_id: int, data: DestackerUpdate, db: Session = Depends(get_db)):
+def update_destacker(batch_id: int, data: DestackerUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     batch = db.query(models.Batch).get(batch_id)
     if not batch: raise HTTPException(404)
     batch.ds_condition = data.ds_condition
@@ -3564,6 +3568,7 @@ def update_destacker(batch_id: int, data: DestackerUpdate, db: Session = Depends
     )
     batch.status = "destacked"
     db.commit()
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 class QCDUpdate(BaseModel):
