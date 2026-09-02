@@ -115,6 +115,9 @@ web: uvicorn main:app --host 0.0.0.0 --port $PORT
 - Имеют права на полное редактирование (UPDATE) и удаление (DELETE) смен, отчётов ЛФМ, партий и простоев (даже если смена закрыта в БД).
 - Все изменения логируются в `AuditLog` со сравнением старых и новых значений.
 
+**Обязательная сквозная синхронизация Google Таблиц (Zero-Lag Sync):**
+- Любые эндпоинты создания, редактирования или удаления производственных сущностей (`Shift`, `LFMReport`, `Batch`, `Downtime`, `RawMaterialReceipt`) — как при заполнении мастером, так и при операциях администратора (`admin_delete_shift`, `admin_update_lfm`, `admin_delete_lfm`, `admin_update_batch`, `admin_delete_batch`, `admin_delete_downtime`, `admin_delete_receipt`) — **обязаны немедленно вызывать фоновую синхронизацию Google Таблиц** (`background_tasks.add_task(sync_google_sheets_bg)`, `sync_downtimes_bg`, `sync_receipts_bg`). Недопустимо полагаться только на перезапуск сервера.
+
 **Безопасность DOM на фронтенде (Zero DOM Crashes):**
 - При изменении стилей/классов/атрибутов всегда проверять существование элемента: `const el = document.getElementById(id); if (el) { ... }`
 - Категорически запрещено вызывать `.style` или `.classList` напрямую от `document.getElementById`.

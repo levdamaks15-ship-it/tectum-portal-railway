@@ -5337,6 +5337,8 @@ def admin_delete_shift(shift_id: int, request: Request, background_tasks: Backgr
     # Sync to clear phantom facts from plan board
     sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
 
 @app.put("/api/admin/lfm/{report_id}")
@@ -5371,6 +5373,7 @@ def admin_update_lfm(report_id: int, data: dict, request: Request, background_ta
     else:
         db.commit()
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 @app.delete("/api/admin/lfm/{report_id}")
@@ -5397,6 +5400,7 @@ def admin_delete_lfm(report_id: int, request: Request, background_tasks: Backgro
     if shift:
         sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 @app.put("/api/admin/batches/{batch_id}")
@@ -5427,6 +5431,7 @@ def admin_update_batch(batch_id: int, data: dict, request: Request, background_t
     else:
         db.commit()
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 @app.delete("/api/admin/batches/{batch_id}")
@@ -5445,6 +5450,7 @@ def admin_delete_batch(batch_id: int, request: Request, background_tasks: Backgr
     db.delete(batch)
     db.commit()
     background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
 @app.get("/api/admin/downtimes/all")
