@@ -976,41 +976,7 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
-        # Reclassify historical generic downtimes (Rule 5.8)
-        db = SessionLocal()
-        try:
-            from downtime_classifier import classify_downtime_text, VALID_CATEGORIES
-            dts = db.query(models.Downtime).all()
-            updated_dt_count = 0
-            for d in dts:
-                text = d.description or d.comment or ""
-                if not text:
-                    continue
-                if (not d.department or d.department in ["Формовочное отделение", "Общее", "Основное оборудование"] or 
-                    d.node in ["Основное оборудование", "Разное", "Общее", None, ""] or 
-                    (d.department == "Заготовительное отделение (ЗО)" and d.node == "Ковшевая мешалка") or
-                    d.category not in VALID_CATEGORIES):
-                    dept, node, cat, is_equip = classify_downtime_text(text, d.is_equipment_downtime, db=db)
-                    d.department = dept
-                    d.node = node
-                    d.category = cat
-                    if d.is_equipment_downtime is None:
-                        d.is_equipment_downtime = is_equip
-                    updated_dt_count += 1
-            if updated_dt_count > 0:
-                db.commit()
-                print(f"Auto-reclassified {updated_dt_count} historical downtimes.")
-                import google_sheets_integration
-                try:
-                    google_sheets_integration.export_downtimes_to_google_sheets(db)
-                    print("Exported reclassified downtimes to Google Sheets.")
-                except Exception as gs_err:
-                    print(f"Warning: could not sync updated downtimes to Google Sheets: {gs_err}")
-        except Exception as e:
-            print(f"Error auto-reclassifying downtimes: {e}")
-            db.rollback()
-        finally:
-            db.close()
+
 
         # Background auto-sync of folder structure and missing Google Drive URLs for existing documents
         try:
@@ -3423,17 +3389,10 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     
     desc_text = (data.description or data.comment or "").strip()
     
-    from downtime_classifier import classify_downtime_text
-    auto_dept, auto_node, auto_cat, auto_is_equip = classify_downtime_text(
-        desc_text, 
-        is_equipment_param=data.is_equipment_downtime if data.is_equipment_downtime is not None else True,
-        db=db
-    )
-    
-    category_val = data.category or auto_cat
-    node_val = data.node if (data.node and data.node != "Основное оборудование" and data.node != "Разное") else auto_node
-    dept_val = data.department if (data.department and data.department != "Формовочное отделение" and data.department != "Общее") else auto_dept
-    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else auto_is_equip
+    category_val = data.category or ""
+    node_val = data.node or ""
+    dept_val = data.department or ""
+    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else True
     
     dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime"})
     dt_data["description"] = desc_text
@@ -3494,17 +3453,10 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     
     desc_text = (data.description or data.comment or "").strip()
     
-    from downtime_classifier import classify_downtime_text
-    auto_dept, auto_node, auto_cat, auto_is_equip = classify_downtime_text(
-        desc_text,
-        is_equipment_param=data.is_equipment_downtime if data.is_equipment_downtime is not None else True,
-        db=db
-    )
-    
-    category_val = data.category or auto_cat
-    node_val = data.node if (data.node and data.node != "Основное оборудование" and data.node != "Разное") else auto_node
-    dept_val = data.department if (data.department and data.department != "Формовочное отделение" and data.department != "Общее") else auto_dept
-    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else auto_is_equip
+    category_val = data.category or dt.category or ""
+    node_val = data.node or dt.node or ""
+    dept_val = data.department or dt.department or ""
+    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else dt.is_equipment_downtime
     
     dt.start_time = data.start_time
     dt.end_time = data.end_time

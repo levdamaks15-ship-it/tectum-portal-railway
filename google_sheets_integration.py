@@ -1064,7 +1064,7 @@ def export_downtimes_to_google_sheets(db: Session):
     # 2. Формируем заголовки
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
-        "Узел / Оборудование", "Категория", "Простой / Описание",
+        "Простой / Описание",
         "Время начала", "Время окончания",
         "Длительность (мин)", "Остановка оборудования"
     ]
@@ -1083,8 +1083,6 @@ def export_downtimes_to_google_sheets(db: Session):
         shift_name_val = shift.shift_name if shift else ""
         line_val = shift.line if shift else ""
         master_val = shift.master.name if (shift and shift.master) else ""
-        node_val = (d.node or "").strip()
-        category_val = (d.category or "").strip()
         desc_text = (d.description or d.comment or "").strip()
 
         row = [
@@ -1092,8 +1090,6 @@ def export_downtimes_to_google_sheets(db: Session):
             shift_name_val,
             line_val,
             master_val,
-            node_val,
-            category_val,
             desc_text,
             d.start_time or "",
             d.end_time or "",
@@ -1224,7 +1220,7 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Выравнивание колонок 3-6 (Мастер, Узел, Категория, Описание) по левому краю
+    # Выравнивание колонок 3-4 (Мастер, Простой / Описание) по левому краю
     requests.append({
         "repeatCell": {
             "range": {
@@ -1232,7 +1228,7 @@ def export_downtimes_to_google_sheets(db: Session):
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
                 "startColumnIndex": 3,
-                "endColumnIndex": 7
+                "endColumnIndex": 5
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1243,15 +1239,15 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Выравнивание колонок 7-8 (Время начала, Время окончания) по центру
+    # Выравнивание колонок 5-6 (Время начала, Время окончания) по центру
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 7,
-                "endColumnIndex": 9
+                "startColumnIndex": 5,
+                "endColumnIndex": 7
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1262,15 +1258,15 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Форматирование колонки 9 (Длительность) как ЧИСЛО (#,##0, RIGHT)
+    # Форматирование колонки 7 (Длительность) как ЧИСЛО (#,##0, RIGHT)
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 9,
-                "endColumnIndex": 10
+                "startColumnIndex": 7,
+                "endColumnIndex": 8
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1285,15 +1281,15 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Выравнивание колонки 10 (Остановка оборудования) по центру
+    # Выравнивание колонки 8 (Остановка оборудования) по центру
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 10,
-                "endColumnIndex": 11
+                "startColumnIndex": 8,
+                "endColumnIndex": 9
             },
             "cell": {
                 "userEnteredFormat": {
