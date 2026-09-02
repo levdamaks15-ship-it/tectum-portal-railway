@@ -1119,8 +1119,10 @@ async def lifespan(app: FastAPI):
             if os.getenv("GOOGLE_SPREADSHEET_ID") and not os.getenv("GOOGLE_SPREADSHEET_ID").startswith("1_mock"):
                 google_sheets_integration.sync_report_to_google_sheets(db)
                 google_sheets_integration.export_receipt_to_google_sheets(db)
+                google_sheets_integration.export_downtimes_to_google_sheets(db)
                 google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
-                print("Initial Google Sheets sync completed on startup.")
+                google_sheets_integration.export_norms_to_google_sheets(db)
+                print("Initial Google Sheets full sync (all 5 sheets) completed on startup.")
         except Exception as e:
             print(f"Error running initial Google Sheets sync on startup: {e}")
         finally:

@@ -58,6 +58,29 @@ def get_pct_deviation(fact_val: float, theo_val: float) -> float:
         return 100.0
     return ((fact_val - theo_val) / theo_val) * 100.0
 
+# Единый стандарт оформления таблиц (как на листе «Сводный отчет»)
+PASTEL_GREEN_HEADER = {
+    "backgroundColor": {"red": 217 / 255.0, "green": 234 / 255.0, "blue": 211 / 255.0},  # #d9ead3 пастельно-зеленый
+    "textFormat": {
+        "bold": True,
+        "foregroundColor": {"red": 0.0, "green": 0.0, "blue": 0.0},
+        "fontFamily": "Arial",
+        "fontSize": 10
+    },
+    "horizontalAlignment": "CENTER",
+    "verticalAlignment": "MIDDLE",
+    "wrapStrategy": "WRAP"
+}
+
+STANDARD_BORDER_STYLE = {
+    "top": {"style": "SOLID", "width": 1, "color": {"red": 0.8, "green": 0.8, "blue": 0.8}},
+    "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.8, "green": 0.8, "blue": 0.8}},
+    "left": {"style": "SOLID", "width": 1, "color": {"red": 0.8, "green": 0.8, "blue": 0.8}},
+    "right": {"style": "SOLID", "width": 1, "color": {"red": 0.8, "green": 0.8, "blue": 0.8}},
+    "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}},
+    "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}}
+}
+
 def sync_report_to_google_sheets(db: Session):
     """
     Генерирует сводную таблицу рапортов смен аналогично Excel-отчету
@@ -271,12 +294,56 @@ def sync_report_to_google_sheets(db: Session):
         body={"values": rows_data}
     ).execute()
     
-    # 3. Обновляем автофильтр на весь актуальный диапазон строк
+    # 3. Обновляем форматирование, автофильтр и закрепление шапки
     sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     has_basic_filter = "basicFilter" in sheet_meta
 
     total_rows = len(rows_data)
     requests = []
+
+    # Закрепление верхней строки заголовка
+    requests.append({
+        "updateSheetProperties": {
+            "properties": {
+                "sheetId": sheet_id,
+                "gridProperties": {
+                    "frozenRowCount": 1
+                }
+            },
+            "fields": "gridProperties.frozenRowCount"
+        }
+    })
+
+    # Стилизация шапки (пастельно-зеленый фон, жирный текст)
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": 1,
+                "startColumnIndex": 0,
+                "endColumnIndex": len(headers)
+            },
+            "cell": {
+                "userEnteredFormat": PASTEL_GREEN_HEADER
+            },
+            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+        }
+    })
+
+    # Границы для всей таблицы
+    requests.append({
+        "updateBorders": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": max(total_rows, 2),
+                "startColumnIndex": 0,
+                "endColumnIndex": len(headers)
+            },
+            **STANDARD_BORDER_STYLE
+        }
+    })
 
     if has_basic_filter:
         requests.append({
@@ -323,7 +390,7 @@ def sync_report_to_google_sheets(db: Session):
         }
     })
 
-    # Сброс числового формата для колонок данных (1-30: обычные числа/текст, пропуская дату)
+    # Выравнивание колонок 1-6 (Смена, Линия, Партия, Мастер, Продукт, Назначение)
     requests.append({
         "repeatCell": {
             "range": {
@@ -331,6 +398,25 @@ def sync_report_to_google_sheets(db: Session):
                 "startRowIndex": 1,
                 "endRowIndex": total_rows,
                 "startColumnIndex": 1,
+                "endColumnIndex": 4
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "CENTER"
+                }
+            },
+            "fields": "userEnteredFormat.horizontalAlignment"
+        }
+    })
+
+    # Числовой формат для колонок данных (4-30: обычные числа)
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": total_rows,
+                "startColumnIndex": 4,
                 "endColumnIndex": 31
             },
             "cell": {
@@ -338,10 +424,11 @@ def sync_report_to_google_sheets(db: Session):
                     "numberFormat": {
                         "type": "NUMBER",
                         "pattern": "#,##0"
-                    }
+                    },
+                    "horizontalAlignment": "RIGHT"
                 }
             },
-            "fields": "userEnteredFormat.numberFormat"
+            "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
         }
     })
 
@@ -360,10 +447,23 @@ def sync_report_to_google_sheets(db: Session):
                     "numberFormat": {
                         "type": "PERCENT",
                         "pattern": "+0.00%;-0.00%;0.00%"
-                    }
+                    },
+                    "horizontalAlignment": "RIGHT"
                 }
             },
-            "fields": "userEnteredFormat.numberFormat"
+            "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+        }
+    })
+
+    # Автоподбор ширины столбцов
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": len(headers)
+            }
         }
     })
     
@@ -443,8 +543,24 @@ def export_norms_to_google_sheets(db: Session):
         body={"values": rows_data}
     ).execute()
     
-    # Форматирование шапки
+    total_rows = len(rows_data)
+    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    has_basic_filter = "basicFilter" in sheet_meta
+
     requests = [
+        # Закрепление шапки
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 1
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount"
+            }
+        },
+        # Стилизация шапки (пастельно-зеленый фон)
         {
             "repeatCell": {
                 "range": {
@@ -455,55 +571,97 @@ def export_norms_to_google_sheets(db: Session):
                     "endColumnIndex": len(headers)
                 },
                 "cell": {
-                    "userEnteredFormat": {
-                        "backgroundColor": {
-                            "red": 31/255.0,
-                            "green": 78/255.0,
-                            "blue": 120/255.0
-                        },
-                        "textFormat": {
-                            "bold": True,
-                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
-                        },
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
-                    }
+                    "userEnteredFormat": PASTEL_GREEN_HEADER
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
             }
         },
-        # Границы и шрифты
+        # Границы для всей таблицы
+        {
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                **STANDARD_BORDER_STYLE
+            }
+        },
+        # Выравнивание названия продукта (колонка 0)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": len(rows_data),
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
                     "startColumnIndex": 0,
+                    "endColumnIndex": 1
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Форматирование веса и норм (колонки 1-9) как числа
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 1,
                     "endColumnIndex": len(headers)
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "textFormat": {
-                            "fontFamily": "Calibri",
-                            "fontSize": 11
-                        }
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "#,##0.00"
+                        },
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.textFormat"
-            }
-        },
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": len(headers)
-                }
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         }
     ]
+
+    if has_basic_filter:
+        requests.append({
+            "clearBasicFilter": {
+                "sheetId": sheet_id
+            }
+        })
+
+    requests.append({
+        "setBasicFilter": {
+            "filter": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                }
+            }
+        }
+    })
+
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": len(headers)
+            }
+        }
+    })
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
     print("Нормативы успешно экспортированы в Google Таблицу.")
 
@@ -683,10 +841,41 @@ def export_receipt_to_google_sheets(db: Session):
         ).execute()
 
     # 5. Форматирование
+    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    has_basic_filter = "basicFilter" in sheet_meta
+
     requests = [
-        # Шрифт Calibri 11pt для всех ячеек
+        # Фиксация строки заголовка
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 1
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount"
+            }
+        },
+        # Стилизация шапки (пастельно-зеленый фон)
         {
             "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": PASTEL_GREEN_HEADER
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+            }
+        },
+        # Границы для всей таблицы
+        {
+            "updateBorders": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 0,
@@ -694,54 +883,40 @@ def export_receipt_to_google_sheets(db: Session):
                     "startColumnIndex": 0,
                     "endColumnIndex": len(headers)
                 },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "fontFamily": "Calibri",
-                            "fontSize": 11
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
+                **STANDARD_BORDER_STYLE
             }
         },
-        # Стилизация заголовка: navy-blue фон, белый жирный текст, выравнивание по центру
+        # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy, CENTER)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
                     "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
+                    "endColumnIndex": 1
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "backgroundColor": {
-                            "red": 31/255.0,
-                            "green": 78/255.0,
-                            "blue": 120/255.0
+                        "numberFormat": {
+                            "type": "DATE",
+                            "pattern": "dd.MM.yyyy"
                         },
-                        "textFormat": {
-                            "bold": True,
-                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
-                        },
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
+                        "horizontalAlignment": "CENTER"
                     }
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
-        # Выравнивание текста: левое для первых 4 колонок (текстовые), правое для числовых
+        # Выравнивание колонок 1-2 (Смена, Линия) по центру
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 4
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 1,
+                    "endColumnIndex": 3
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -751,13 +926,14 @@ def export_receipt_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
+        # Выравнивание колонки 3 (Мастер) по левому краю
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 0,
+                    "startColumnIndex": 3,
                     "endColumnIndex": 4
                 },
                 "cell": {
@@ -768,6 +944,7 @@ def export_receipt_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
+        # Форматирование числовых колонок (4-17) как целые числа (#,##0, RIGHT)
         {
             "repeatCell": {
                 "range": {
@@ -779,42 +956,49 @@ def export_receipt_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "#,##0"
+                        },
                         "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Сетка границ
-        {
-            "updateBorders": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}}
-            }
-        },
-        # Авто-размер ширины колонок
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": len(headers)
-                }
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         }
     ]
+
+    if has_basic_filter:
+        requests.append({
+            "clearBasicFilter": {
+                "sheetId": sheet_id
+            }
+        })
+
+    requests.append({
+        "setBasicFilter": {
+            "filter": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                }
+            }
+        }
+    })
+
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": len(headers)
+            }
+        }
+    })
 
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
     print(f"Экспорт прихода сырья в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} смен.")
@@ -956,29 +1140,7 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Шрифт Calibri 11pt для всех ячеек
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 0,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 0,
-                "endColumnIndex": len(headers)
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "textFormat": {
-                        "fontFamily": "Calibri",
-                        "fontSize": 11
-                    }
-                }
-            },
-            "fields": "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize"
-        }
-    })
-
-    # Стилизация заголовка: navy-blue фон, белый жирный текст, выравнивание по центру
+    # Стилизация заголовка (пастельно-зеленый фон, жирный текст)
     requests.append({
         "repeatCell": {
             "range": {
@@ -989,21 +1151,23 @@ def export_downtimes_to_google_sheets(db: Session):
                 "endColumnIndex": len(headers)
             },
             "cell": {
-                "userEnteredFormat": {
-                    "backgroundColor": {
-                        "red": 31/255.0,
-                        "green": 78/255.0,
-                        "blue": 120/255.0
-                    },
-                    "textFormat": {
-                        "bold": True,
-                        "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
-                    },
-                    "horizontalAlignment": "CENTER",
-                    "verticalAlignment": "MIDDLE"
-                }
+                "userEnteredFormat": PASTEL_GREEN_HEADER
             },
-            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+        }
+    })
+
+    # Сетка границ для всех строк
+    requests.append({
+        "updateBorders": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 0,
+                "endRowIndex": max(total_rows, 2),
+                "startColumnIndex": 0,
+                "endColumnIndex": len(headers)
+            },
+            **STANDARD_BORDER_STYLE
         }
     })
 
@@ -1126,25 +1290,6 @@ def export_downtimes_to_google_sheets(db: Session):
                 }
             },
             "fields": "userEnteredFormat.horizontalAlignment"
-        }
-    })
-
-    # Сетка границ для всех строк
-    requests.append({
-        "updateBorders": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 0,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 0,
-                "endColumnIndex": len(headers)
-            },
-            "top": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-            "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-            "left": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-            "right": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-            "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}},
-            "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.75, "green": 0.75, "blue": 0.75}}
         }
     })
 
@@ -1353,6 +1498,9 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     total_rows = max(len(rows_data), 2)
     total_cols = len(headers)
     
+    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+    has_basic_filter = "basicFilter" in sheet_meta
+
     requests = [
         # Фиксация строки заголовка
         {
@@ -1366,18 +1514,20 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "gridProperties.frozenRowCount"
             }
         },
-        # Включение единого автофильтра
+        # Стилизация шапки (пастельно-зеленый фон)
         {
-            "setBasicFilter": {
-                "filter": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 0,
-                        "endColumnIndex": total_cols
-                    }
-                }
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": total_cols
+                },
+                "cell": {
+                    "userEnteredFormat": PASTEL_GREEN_HEADER
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
             }
         },
         # Общие границы таблицы
@@ -1390,96 +1540,82 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "startColumnIndex": 0,
                     "endColumnIndex": total_cols
                 },
-                "top": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
-                "bottom": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
-                "left": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
-                "right": {"style": "SOLID", "width": 1, "color": {"red": 0.7, "green": 0.7, "blue": 0.7}},
-                "innerHorizontal": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}},
-                "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}}
+                **STANDARD_BORDER_STYLE
             }
         },
-        # Стилизация шапки (Колонки 0-6: Общая инфо - Нейтральный серый)
+        # Форматирование колонки 1 (Дата) как ДАТА (dd.MM.yyyy, CENTER)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 1,
+                    "endColumnIndex": 2
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "DATE",
+                            "pattern": "dd.MM.yyyy"
+                        },
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Выравнивание текстовых колонок (Партия, День недели, Смена, Бригада) по центру
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
                     "startColumnIndex": 0,
-                    "endColumnIndex": 7
+                    "endColumnIndex": 1
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "backgroundColor": {"red": 241/255.0, "green": 245/255.0, "blue": 249/255.0},
-                        "textFormat": {"bold": True, "foregroundColor": {"red": 30/255.0, "green": 41/255.0, "blue": 59/255.0}},
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
+                        "horizontalAlignment": "CENTER"
                     }
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
-        # Стилизация шапки (Колонки 7-11: Текущая бригада - Нежно-голубой)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 7,
-                    "endColumnIndex": 12
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 2,
+                    "endColumnIndex": 4
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "backgroundColor": {"red": 219/255.0, "green": 234/255.0, "blue": 254/255.0},
-                        "textFormat": {"bold": True, "foregroundColor": {"red": 30/255.0, "green": 58/255.0, "blue": 138/255.0}},
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
+                        "horizontalAlignment": "CENTER"
                     }
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
-        # Стилизация шапки (Колонки 12-16: Сдавшая бригада - Песочно-оранжевый)
+        # Выравнивание Мастера и Продукта (колонки 4, 5) по левому краю
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 12,
-                    "endColumnIndex": 17
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 4,
+                    "endColumnIndex": 6
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "backgroundColor": {"red": 254/255.0, "green": 243/255.0, "blue": 199/255.0},
-                        "textFormat": {"bold": True, "foregroundColor": {"red": 146/255.0, "green": 64/255.0, "blue": 14/255.0}},
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
+                        "horizontalAlignment": "LEFT"
                     }
                 },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
-            }
-        },
-        # Стилизация шапки (Колонки 17-18: Итого - Нежно-зеленый)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 17,
-                    "endColumnIndex": 19
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "backgroundColor": {"red": 220/255.0, "green": 252/255.0, "blue": 231/255.0},
-                        "textFormat": {"bold": True, "foregroundColor": {"red": 22/255.0, "green": 101/255.0, "blue": 52/255.0}},
-                        "horizontalAlignment": "CENTER",
-                        "verticalAlignment": "MIDDLE"
-                    }
-                },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
         # Формат чисел (Формовка: колонка 6)
@@ -1494,10 +1630,29 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"},
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Выравнивание Бригады (колонка 7) по центру
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 7,
+                    "endColumnIndex": 8
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
         # Формат чисел (1 сорт и Брак текущей бригады: колонки 8, 9)
@@ -1512,10 +1667,11 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"},
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
         # Формат процентов (% брака: колонка 10)
@@ -1530,10 +1686,64 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {"type": "PERCENT", "pattern": "0.00%"}
+                        "numberFormat": {"type": "PERCENT", "pattern": "0.00%"},
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Выравнивание примечания дефектов (колонка 11) по левому краю
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 11,
+                    "endColumnIndex": 12
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Выравнивание сдавшей бригады и мастера (колонки 12, 13)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 12,
+                    "endColumnIndex": 13
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 13,
+                    "endColumnIndex": 14
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
         # Формат чисел (1 сорт и Брак сдавшей бригады: колонки 14, 15)
@@ -1548,10 +1758,29 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"},
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Выравнивание примечания дефектов сдавшей бригады (колонка 16)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 16,
+                    "endColumnIndex": 17
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
         # Формат чисел (Итоги Всего 1 сорт и Всего брак: колонки 17, 18)
@@ -1566,13 +1795,46 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"}
+                        "numberFormat": {"type": "NUMBER", "pattern": "#,##0"},
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         }
     ]
+
+    if has_basic_filter:
+        requests.append({
+            "clearBasicFilter": {
+                "sheetId": sheet_id
+            }
+        })
+
+    requests.append({
+        "setBasicFilter": {
+            "filter": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": total_cols
+                }
+            }
+        }
+    })
+
+    requests.append({
+        "autoResizeDimensions": {
+            "dimensions": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 0,
+                "endIndex": total_cols
+            }
+        }
+    })
     
     service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
     print("Лист 'Переборка' (чистая непрерывная таблица с бригадами) успешно экспортирован.")
