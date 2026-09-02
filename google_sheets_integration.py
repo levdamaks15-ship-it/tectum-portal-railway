@@ -69,7 +69,7 @@ PASTEL_GREEN_HEADER = {
     },
     "horizontalAlignment": "CENTER",
     "verticalAlignment": "MIDDLE",
-    "wrapStrategy": "WRAP"
+    "wrapStrategy": "CLIP"
 }
 
 STANDARD_BORDER_STYLE = {
@@ -311,6 +311,22 @@ def sync_report_to_google_sheets(db: Session):
                 }
             },
             "fields": "gridProperties.frozenRowCount"
+        }
+    })
+
+    # Фиксированная компактная высота шапки (28px)
+    requests.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": 0,
+                "endIndex": 1
+            },
+            "properties": {
+                "pixelSize": 28
+            },
+            "fields": "pixelSize"
         }
     })
 
@@ -558,6 +574,21 @@ def export_norms_to_google_sheets(db: Session):
                     }
                 },
                 "fields": "gridProperties.frozenRowCount"
+            }
+        },
+        # Фиксированная компактная высота шапки (28px)
+        {
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "ROWS",
+                    "startIndex": 0,
+                    "endIndex": 1
+                },
+                "properties": {
+                    "pixelSize": 28
+                },
+                "fields": "pixelSize"
             }
         },
         # Стилизация шапки (пастельно-зеленый фон)
@@ -857,6 +888,21 @@ def export_receipt_to_google_sheets(db: Session):
                 "fields": "gridProperties.frozenRowCount"
             }
         },
+        # Фиксированная компактная высота шапки (28px)
+        {
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "ROWS",
+                    "startIndex": 0,
+                    "endIndex": 1
+                },
+                "properties": {
+                    "pixelSize": 28
+                },
+                "fields": "pixelSize"
+            }
+        },
         # Стилизация шапки (пастельно-зеленый фон)
         {
             "repeatCell": {
@@ -1114,6 +1160,22 @@ def export_downtimes_to_google_sheets(db: Session):
                 }
             },
             "fields": "gridProperties.frozenRowCount"
+        }
+    })
+
+    # Фиксированная компактная высота шапки (28px)
+    requests.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": 0,
+                "endIndex": 1
+            },
+            "properties": {
+                "pixelSize": 28
+            },
+            "fields": "pixelSize"
         }
     })
 
@@ -1512,6 +1574,21 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     }
                 },
                 "fields": "gridProperties.frozenRowCount"
+            }
+        },
+        # Фиксированная компактная высота шапки (28px)
+        {
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "ROWS",
+                    "startIndex": 0,
+                    "endIndex": 1
+                },
+                "properties": {
+                    "pixelSize": 28
+                },
+                "fields": "pixelSize"
             }
         },
         # Стилизация шапки (пастельно-зеленый фон)
