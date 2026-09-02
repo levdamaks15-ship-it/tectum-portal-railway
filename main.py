@@ -1119,7 +1119,6 @@ async def lifespan(app: FastAPI):
             if os.getenv("GOOGLE_SPREADSHEET_ID") and not os.getenv("GOOGLE_SPREADSHEET_ID").startswith("1_mock"):
                 google_sheets_integration.sync_report_to_google_sheets(db)
                 google_sheets_integration.export_receipt_to_google_sheets(db)
-                google_sheets_integration.export_current_balance_to_google_sheets(db)
                 google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
                 print("Initial Google Sheets sync completed on startup.")
         except Exception as e:
@@ -1216,7 +1215,6 @@ def sync_google_sheets_bg():
     try:
         google_sheets_integration.sync_report_to_google_sheets(db)
         google_sheets_integration.export_receipt_to_google_sheets(db)
-        google_sheets_integration.export_current_balance_to_google_sheets(db)
         google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
     except Exception as e:
         print(f"Error syncing reports/receipts to Google Sheets: {e}")
@@ -1229,22 +1227,13 @@ def sync_receipts_bg():
     db = SessionLocal()
     try:
         google_sheets_integration.export_receipt_to_google_sheets(db)
-        google_sheets_integration.export_current_balance_to_google_sheets(db)
     except Exception as e:
         print(f"Error syncing receipts to Google Sheets: {e}")
     finally:
         db.close()
 
 def sync_tasks_to_google_bg():
-    from database import SessionLocal
-    import google_sheets_integration
-    db = SessionLocal()
-    try:
-        google_sheets_integration.export_tasks_to_google_sheets(db)
-    except Exception as e:
-        print(f"Error syncing tasks to Google Sheets: {e}")
-    finally:
-        db.close()
+    pass
 
 
 @app.get("/api/system/env")
@@ -2626,13 +2615,12 @@ def sync_sharepoint_report_bg():
             google_sheets_integration.sync_report_to_google_sheets(db)
             google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
             google_sheets_integration.export_receipt_to_google_sheets(db)
-            google_sheets_integration.export_current_balance_to_google_sheets(db)
             db.add(models.AuditLog(
                 user_name="System Background Sync",
                 action="UPDATE",
                 target_table="shifts",
                 target_id=0,
-                details="Сводный отчет, остатки сырья и Отчет СКК успешно синхронизированы с Google Таблицами в фоновом режиме."
+                details="Сводный отчет, приход сырья и переборка успешно синхронизированы с Google Таблицами в фоновом режиме."
             ))
             db.commit()
         except Exception as gs_err:
@@ -2883,27 +2871,9 @@ def sync_norms_from_google_sheets_endpoint(request: Request, db: Session = Depen
 def sync_downtime_directory_from_google_sheets_endpoint(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Unknown")
-    
     if not user_id or not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
-        
-    if user_role not in ["admin", "mechanic", "technologist"]:
-        raise HTTPException(status_code=403, detail="Доступ разрешен только Механику, Технологу или Администратору")
-        
-    try:
-        google_sheets_integration.sync_downtime_directory_from_google_sheets(db)
-        # Записываем действие в AuditLog
-        db.add(models.AuditLog(
-            user_name=user_name,
-            action="IMPORT",
-            target_table="downtime_directory",
-            details="Синхронизация справочника простоев из Google Sheets"
-        ))
-        db.commit()
-        return {"status": "success", "message": "Справочник простоев успешно обновлен из Google Sheets"}
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
+    return {"status": "success", "message": "Справочник простоев ведется и управляется напрямую в панели администратора"}
 
 
 @app.get("/api/report/summary")
