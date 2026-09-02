@@ -81,6 +81,39 @@ STANDARD_BORDER_STYLE = {
     "innerVertical": {"style": "SOLID", "width": 1, "color": {"red": 0.85, "green": 0.85, "blue": 0.85}}
 }
 
+def safe_set_basic_filter(service, spreadsheet_id: str, sheet_id: int, start_row: int, end_row: int, start_col: int, end_col: int):
+    """
+    Безопасно сбрасывает старый фильтр отдельным запросом и устанавливает новый,
+    предотвращая ошибку Google Sheets API 400 'A basic filter already exists'.
+    """
+    try:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={"requests": [{"clearBasicFilter": {"sheetId": sheet_id}}]}
+        ).execute()
+    except Exception:
+        pass
+    
+    try:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={"requests": [{
+                "setBasicFilter": {
+                    "filter": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": start_row,
+                            "endRowIndex": end_row,
+                            "startColumnIndex": start_col,
+                            "endColumnIndex": end_col
+                        }
+                    }
+                }
+            }]}
+        ).execute()
+    except Exception as e:
+        print(f"Warning setting basic filter on sheet {sheet_id}: {e}")
+
 def sync_report_to_google_sheets(db: Session):
     """
     Генерирует сводную таблицу рапортов смен аналогично Excel-отчету
@@ -259,13 +292,6 @@ def sync_report_to_google_sheets(db: Session):
         
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
-    # 1. Получаем текущие данные на листе, чтобы узнать, какие строки уже есть
-    result = service.spreadsheets().values().get(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:AO1000"
-    ).execute()
-    existing_rows = result.get("values", [])
-    
     # Полная очистка диапазона перед записью новых данных, чтобы избежать наложения и сдвига колонок
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
@@ -295,9 +321,6 @@ def sync_report_to_google_sheets(db: Session):
     ).execute()
     
     # 3. Обновляем форматирование, автофильтр и закрепление шапки
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    has_basic_filter = "basicFilter" in sheet_meta
-
     total_rows = len(rows_data)
     requests = []
 
@@ -358,28 +381,6 @@ def sync_report_to_google_sheets(db: Session):
                 "endColumnIndex": len(headers)
             },
             **STANDARD_BORDER_STYLE
-        }
-    })
-
-    if has_basic_filter:
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-
-    # Всегда устанавливаем автофильтр на точный размер актуальных данных
-    requests.append({
-        "setBasicFilter": {
-            "filter": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                }
-            }
         }
     })
 
@@ -484,8 +485,14 @@ def sync_report_to_google_sheets(db: Session):
     })
     
     if requests:
-        body = {"requests": requests}
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        try:
+            body = {"requests": requests}
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+        except Exception as e:
+            print(f"Warning executing batch styling on {sheet_name}: {e}")
+
+    # Устанавливаем автофильтр безопасным способом
+    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
     print("Синхронизация отчета с Google Таблицами выполнена успешно.")
 
 
@@ -548,7 +555,7 @@ def export_norms_to_google_sheets(db: Session):
     # Очищаем старые значения
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:K50"
+        range=f"'{sheet_name}'"
     ).execute()
     
     # Записываем новые значения
@@ -560,8 +567,6 @@ def export_norms_to_google_sheets(db: Session):
     ).execute()
     
     total_rows = len(rows_data)
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    has_basic_filter = "basicFilter" in sheet_meta
 
     requests = [
         # Закрепление шапки
@@ -659,41 +664,27 @@ def export_norms_to_google_sheets(db: Session):
                 },
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
-        }
-    ]
-
-    if has_basic_filter:
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-
-    requests.append({
-        "setBasicFilter": {
-            "filter": {
-                "range": {
+        },
+        # Автоподбор ширины столбцов
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
                 }
             }
         }
-    })
+    ]
 
-    requests.append({
-        "autoResizeDimensions": {
-            "dimensions": {
-                "sheetId": sheet_id,
-                "dimension": "COLUMNS",
-                "startIndex": 0,
-                "endIndex": len(headers)
-            }
-        }
-    })
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    try:
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    except Exception as e:
+        print(f"Warning executing batch styling on {sheet_name}: {e}")
+
+    # Устанавливаем автофильтр безопасным способом
+    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
     print("Нормативы успешно экспортированы в Google Таблицу.")
 
 
@@ -1011,42 +1002,27 @@ def export_receipt_to_google_sheets(db: Session):
                 },
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
-        }
-    ]
-
-    if has_basic_filter:
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-
-    requests.append({
-        "setBasicFilter": {
-            "filter": {
-                "range": {
+        },
+        # Автоподбор ширины столбцов
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": len(headers)
                 }
             }
         }
-    })
+    ]
 
-    requests.append({
-        "autoResizeDimensions": {
-            "dimensions": {
-                "sheetId": sheet_id,
-                "dimension": "COLUMNS",
-                "startIndex": 0,
-                "endIndex": len(headers)
-            }
-        }
-    })
+    try:
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    except Exception as e:
+        print(f"Warning executing batch styling on {sheet_name}: {e}")
 
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    # Устанавливаем автофильтр безопасным способом
+    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
     print(f"Экспорт прихода сырья в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} смен.")
 
 
@@ -1144,10 +1120,6 @@ def export_downtimes_to_google_sheets(db: Session):
             body={"values": rows_data}
         ).execute()
 
-    # 5. Проверяем наличие существующего автофильтра
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    has_basic_filter = "basicFilter" in sheet_meta
-
     requests = []
 
     # Закрепляем первую строку (шапку)
@@ -1176,29 +1148,6 @@ def export_downtimes_to_google_sheets(db: Session):
                 "pixelSize": 28
             },
             "fields": "pixelSize"
-        }
-    })
-
-    # Сбрасываем старый автофильтр, если был
-    if has_basic_filter:
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-
-    # Устанавливаем актуальный автофильтр на весь диапазон данных
-    requests.append({
-        "setBasicFilter": {
-            "filter": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": max(total_rows, 1),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                }
-            }
         }
     })
 
@@ -1367,7 +1316,13 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    try:
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    except Exception as e:
+        print(f"Warning executing batch styling on {sheet_name}: {e}")
+
+    # Устанавливаем автофильтр безопасным способом
+    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, max(total_rows, 1), 0, len(headers))
     print(f"Экспорт простоев в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} записей с автофильтрами.")
 
 
@@ -1546,7 +1501,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:Z3000"
+        range=f"'{sheet_name}'"
     ).execute()
     
     if len(rows_data) > 0:
@@ -1878,42 +1833,27 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
-        }
-    ]
-
-    if has_basic_filter:
-        requests.append({
-            "clearBasicFilter": {
-                "sheetId": sheet_id
-            }
-        })
-
-    requests.append({
-        "setBasicFilter": {
-            "filter": {
-                "range": {
+        },
+        # Автоподбор ширины столбцов
+        {
+            "autoResizeDimensions": {
+                "dimensions": {
                     "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": total_cols
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": total_cols
                 }
             }
         }
-    })
-
-    requests.append({
-        "autoResizeDimensions": {
-            "dimensions": {
-                "sheetId": sheet_id,
-                "dimension": "COLUMNS",
-                "startIndex": 0,
-                "endIndex": total_cols
-            }
-        }
-    })
+    ]
     
-    service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    try:
+        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+    except Exception as e:
+        print(f"Warning executing batch styling on {sheet_name}: {e}")
+
+    # Устанавливаем автофильтр безопасным способом
+    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, total_cols)
     print("Лист 'Переборка' (чистая непрерывная таблица с бригадами) успешно экспортирован.")
 
 

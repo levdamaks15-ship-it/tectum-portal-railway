@@ -1206,8 +1206,16 @@ def sync_downtimes_bg():
         google_sheets_integration.export_downtimes_to_google_sheets(db)
     except Exception as e:
         print(f"Error syncing downtimes to Google Sheets: {e}")
+        try:
+            db.add(models.AuditLog(
+                user_name="Google Sync Downtimes",
+                action="ERROR",
+                details=f"Ошибка экспорта простоев в Google Sheets: {str(e)}"
+            ))
+            db.commit()
+        except Exception:
+            pass
     finally:
-        db.close()
         db.close()
 
 def sync_google_sheets_bg():
@@ -1220,6 +1228,15 @@ def sync_google_sheets_bg():
         google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
     except Exception as e:
         print(f"Error syncing reports/receipts to Google Sheets: {e}")
+        try:
+            db.add(models.AuditLog(
+                user_name="Google Sync Reports",
+                action="ERROR",
+                details=f"Ошибка синхронизации отчетов в Google Sheets: {str(e)}"
+            ))
+            db.commit()
+        except Exception:
+            pass
     finally:
         db.close()
 
