@@ -16,6 +16,25 @@ document.addEventListener('wheel', function (e) {
 }, { passive: true });
 
 let currentAdmin = null;
+let allMastersCached = [];
+window.allMastersCached = allMastersCached;
+
+async function getOrFetchMasters() {
+    if (allMastersCached && allMastersCached.length > 0) {
+        return allMastersCached;
+    }
+    try {
+        const res = await fetch('/api/masters/');
+        if (res.ok) {
+            allMastersCached = await res.json();
+            window.allMastersCached = allMastersCached;
+            return allMastersCached;
+        }
+    } catch(e) {
+        console.error("Error fetching masters:", e);
+    }
+    return [];
+}
 
 function initAdminLogin() {
     const pinInput = document.getElementById('admin-pin');
@@ -165,6 +184,8 @@ function closeModals() {
 async function loadMasters() {
     const res = await fetch('/api/masters/');
     const data = await res.json();
+    allMastersCached = Array.isArray(data) ? data : [];
+    window.allMastersCached = allMastersCached;
     const tbody = document.getElementById('masters-table-body');
     tbody.innerHTML = '';
     
@@ -931,7 +952,6 @@ function exportAuditLogsToCsv() {
 
 // --- SHIFTS CRUD & UNIFIED MANAGEMENT ---
 
-let allMastersCached = [];
 let allShiftsCached = [];
 let allNormsCached = [];
 let currentShiftPeriod = 'week';
@@ -1625,7 +1645,9 @@ async function editDowntimeRow(d) {
     const masterSel = document.getElementById('edit-downtime-master');
     if (masterSel) {
         masterSel.innerHTML = '';
-        mastersList.forEach(m => {
+        const masters = await getOrFetchMasters();
+        const activeMasters = masters.filter(m => m.role === 'master');
+        (activeMasters.length > 0 ? activeMasters : masters).forEach(m => {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = m.name;
@@ -2106,7 +2128,7 @@ async function loadAdminReceipts() {
     }
 }
 
-function editReceiptRow(r) {
+async function editReceiptRow(r) {
     document.getElementById('edit-receipt-id').value = r.id;
     
     // Autonomous fields
@@ -2119,7 +2141,9 @@ function editReceiptRow(r) {
     const masterSel = document.getElementById('edit-receipt-master');
     if (masterSel) {
         masterSel.innerHTML = '';
-        mastersList.forEach(m => {
+        const masters = await getOrFetchMasters();
+        const activeMasters = masters.filter(m => m.role === 'master');
+        (activeMasters.length > 0 ? activeMasters : masters).forEach(m => {
             const opt = document.createElement('option');
             opt.value = m.id;
             opt.textContent = m.name;
