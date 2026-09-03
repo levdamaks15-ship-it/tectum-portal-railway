@@ -3322,44 +3322,54 @@ function renderItrGrid() {
     if (backBtn) backBtn.style.display = 'block';
 
     const filteredMasters = window.allMastersData.filter(m => 
-        ['admin', 'director', 'technologist', 'mechanic'].includes(m.role) || m.name.includes("Левда") || m.name.includes("Булеханов")
+        m.role !== 'master' && m.role !== 'inactive'
     );
     
+    // Exact position titles for specialists
+    const titleMap = {
+        "Герлинг С.": "Технический директор",
+        "Булеханов К.": "Начальник производства",
+        "Акжанбаев Ж.": "Специалист ТБ",
+        "Курилова С.": "Главный энергетик",
+        "Солонцов Ю.": "Главный механик",
+        "Сазонов С.": "Старший механик",
+        "Носиков Е.": "Главный инженер",
+        "Хохлов К.": "Ведущий киповец",
+        "Зарина": "Начальник лаборатории",
+        "Косумов Р.": "Главный технолог",
+        "Туматов Д.": "Директор",
+        "Левда М.": "Офис-менеджер БП"
+    };
+
     grid.innerHTML = filteredMasters.map(m => {
-        let roleDisplay = m.role;
+        let roleDisplay = titleMap[m.name] || m.role;
         let svgContent = '';
         
         if (m.name.includes("Левда")) {
-            roleDisplay = 'Администратор';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>`;
         } else if (m.name.includes("Булеханов") || m.name.includes("Булекпаев")) {
-            roleDisplay = 'Начальник производства';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>`;
         } else if (m.role === 'admin') {
-            roleDisplay = 'Администратор';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
             </svg>`;
         } else if (m.role === 'director') {
-            roleDisplay = 'Директор';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                 <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>`;
         } else if (m.role === 'technologist') {
-            roleDisplay = 'Технолог';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 2h4M12 2v8M18 16.6L13.5 9V4h-3v5L6 16.6C5.1 18.1 6.2 20 8 20h8c1.8 0 2.9-1.9 2-3.4z"></path>
             </svg>`;
         } else if (m.role === 'mechanic') {
-            roleDisplay = 'Механик';
             svgContent = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
             </svg>`;

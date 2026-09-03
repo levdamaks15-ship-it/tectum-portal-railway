@@ -1245,7 +1245,9 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
 
         const masterSelect = document.getElementById('uni-master');
         masterSelect.innerHTML = '';
-        allMastersCached.filter(m => m.role === 'master').forEach(m => {
+        const mastersList = await getOrFetchMasters();
+        const activeMasters = mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены');
+        (activeMasters.length > 0 ? activeMasters : mastersList).forEach(m => {
             masterSelect.innerHTML += `<option value="${m.id}" ${m.id === shift.master_id ? 'selected' : ''}>${m.name}</option>`;
         });
 
