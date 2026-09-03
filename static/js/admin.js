@@ -95,6 +95,7 @@ function switchAdminTab(tabId) {
     const tabShifts = document.getElementById('tab-shifts'); if (tabShifts) tabShifts.style.display = 'none';
     const tabReceipts = document.getElementById('tab-receipts'); if (tabReceipts) tabReceipts.style.display = 'none';
     const tabCleanup = document.getElementById('tab-cleanup'); if (tabCleanup) tabCleanup.style.display = 'none';
+    const tabBackup = document.getElementById('tab-backup'); if (tabBackup) tabBackup.style.display = 'none';
     const tabAuditLogs = document.getElementById('tab-audit-logs'); if (tabAuditLogs) tabAuditLogs.style.display = 'none';
     const tabDowntimes = document.getElementById('tab-downtimes-dir'); if (tabDowntimes) tabDowntimes.style.display = 'none';
     const tabDowntimesLog = document.getElementById('tab-downtimes-log'); if (tabDowntimesLog) tabDowntimesLog.style.display = 'none';
@@ -1318,18 +1319,31 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         document.getElementById('uni-lfm-asb-drain').value = shift.lfm_asb_drain || 0;
         document.getElementById('uni-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
 
-        // Tab 4: Destacker Defects
-        document.getElementById('uni-def-chip').value = batches.reduce((acc, b) => acc + (b.ds_defect_chip || 0), 0);
-        document.getElementById('uni-def-scratch').value = batches.reduce((acc, b) => acc + (b.ds_defect_scratch || 0), 0);
-        document.getElementById('uni-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.ds_defect_bad_cut || 0), 0);
-        document.getElementById('uni-def-stick-bottom').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_bottom || 0), 0);
-        document.getElementById('uni-def-stick-top').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_top || 0), 0);
-        document.getElementById('uni-def-broken').value = batches.reduce((acc, b) => acc + (b.ds_defect_broken || 0), 0);
-        document.getElementById('uni-def-fell-box').value = batches.reduce((acc, b) => acc + (b.ds_defect_fell_box || 0), 0);
-        document.getElementById('uni-def-dent').value = batches.reduce((acc, b) => acc + (b.ds_defect_dent || 0), 0);
-        document.getElementById('uni-def-thickness').value = batches.reduce((acc, b) => acc + (b.ds_defect_thickness || 0), 0);
-        document.getElementById('uni-def-delamination').value = batches.reduce((acc, b) => acc + (b.ds_defect_delamination || 0), 0);
-        document.getElementById('uni-def-edge').value = batches.reduce((acc, b) => acc + (b.ds_defect_edge || 0), 0);
+        // Tab 4: Destacker Defects (Own shift and Previous shift)
+        const firstGradeValOwn = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        document.getElementById('uni-first-grade').value = firstGradeValOwn || '';
+        
+        document.getElementById('uni-def-scratch').value = batches.reduce((acc, b) => acc + (b.ds_defect_scratch || 0), 0) || '';
+        document.getElementById('uni-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.ds_defect_bad_cut || 0), 0) || '';
+        document.getElementById('uni-def-stick-top').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_top || 0), 0) || '';
+        document.getElementById('uni-def-broken').value = batches.reduce((acc, b) => acc + (b.ds_defect_broken || 0), 0) || '';
+        document.getElementById('uni-def-fell-box').value = batches.reduce((acc, b) => acc + (b.ds_defect_fell_box || 0), 0) || '';
+        document.getElementById('uni-def-thickness').value = batches.reduce((acc, b) => acc + (b.ds_defect_thickness || 0), 0) || '';
+        document.getElementById('uni-def-edge').value = batches.reduce((acc, b) => acc + (b.ds_defect_edge || 0), 0) || '';
+
+        // Previous shift defects
+        const prevFirstGradeVal = batches.reduce((acc, b) => acc + (b.prev_first_grade || 0), 0);
+        document.getElementById('uni-prev-first-grade').value = prevFirstGradeVal || '';
+
+        document.getElementById('uni-prev-def-scratch').value = batches.reduce((acc, b) => acc + (b.prev_defect_scratch || 0), 0) || '';
+        document.getElementById('uni-prev-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.prev_defect_bad_cut || 0), 0) || '';
+        document.getElementById('uni-prev-def-stick-top').value = batches.reduce((acc, b) => acc + (b.prev_defect_stick_top || 0), 0) || '';
+        document.getElementById('uni-prev-def-broken').value = batches.reduce((acc, b) => acc + (b.prev_defect_broken || 0), 0) || '';
+        document.getElementById('uni-prev-def-fell-box').value = batches.reduce((acc, b) => acc + (b.prev_defect_fell_box || 0), 0) || '';
+        document.getElementById('uni-prev-def-thickness').value = batches.reduce((acc, b) => acc + (b.prev_defect_thickness || 0), 0) || '';
+        document.getElementById('uni-prev-def-edge').value = batches.reduce((acc, b) => acc + (b.prev_defect_edge || 0), 0) || '';
+
+        calcAdminDefects();
 
         // Tab 5: Downtimes
         const dtTbody = document.getElementById('uni-downtimes-body');
@@ -1368,6 +1382,60 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
     } catch (e) {
         console.error(e);
         alert("Ошибка при открытии рапорта: " + e.message);
+    }
+}
+
+function calcAdminDefects() {
+    const scratch = parseInt(document.getElementById('uni-def-scratch')?.value) || 0;
+    const badCut = parseInt(document.getElementById('uni-def-bad-cut')?.value) || 0;
+    const stickTop = parseInt(document.getElementById('uni-def-stick-top')?.value) || 0;
+    const broken = parseInt(document.getElementById('uni-def-broken')?.value) || 0;
+    const fellBox = parseInt(document.getElementById('uni-def-fell-box')?.value) || 0;
+    const thick = parseInt(document.getElementById('uni-def-thickness')?.value) || 0;
+    const edge = parseInt(document.getElementById('uni-def-edge')?.value) || 0;
+
+    const totalOwn = scratch + badCut + stickTop + broken + fellBox + thick + edge;
+    const ownTotEl = document.getElementById('uni-defect-total-readonly');
+    if (ownTotEl) ownTotEl.value = totalOwn > 0 ? totalOwn : '';
+
+    const pScratch = parseInt(document.getElementById('uni-prev-def-scratch')?.value) || 0;
+    const pBadCut = parseInt(document.getElementById('uni-prev-def-bad-cut')?.value) || 0;
+    const pStickTop = parseInt(document.getElementById('uni-prev-def-stick-top')?.value) || 0;
+    const pBroken = parseInt(document.getElementById('uni-prev-def-broken')?.value) || 0;
+    const pFellBox = parseInt(document.getElementById('uni-prev-def-fell-box')?.value) || 0;
+    const pThick = parseInt(document.getElementById('uni-prev-def-thickness')?.value) || 0;
+    const pEdge = parseInt(document.getElementById('uni-prev-def-edge')?.value) || 0;
+
+    const totalPrev = pScratch + pBadCut + pStickTop + pBroken + pFellBox + pThick + pEdge;
+    const prevTotEl = document.getElementById('uni-prev-defect-total-readonly');
+    if (prevTotEl) prevTotEl.value = totalPrev > 0 ? totalPrev : '';
+}
+
+async function rollbackCurrentUnifiedShift() {
+    const shiftId = document.getElementById('unified-shift-id').value;
+    if (!shiftId) return;
+    await rollbackShiftReport(shiftId);
+}
+
+async function rollbackShiftReport(shiftId) {
+    if (!confirm(`Вы действительно хотите откатить рапорт смены ID ${shiftId} к предыдущему сохраненному снимку?\nВсе последние правки будут отменены.`)) return;
+
+    try {
+        const res = await fetch(`/api/admin/shifts/${shiftId}/rollback`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Откат смены успешно выполнен!");
+            openUnifiedShiftModal(shiftId);
+            loadShifts();
+        } else {
+            alert("Ошибка при откате: " + (data.detail || res.statusText));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при выполнении отката");
     }
 }
 
@@ -1488,18 +1556,25 @@ async function saveUnifiedShiftReport() {
         zo_asb_drain: parseFloat(document.getElementById('uni-zo-asb-drain')?.value) || 0,
         zo_cem_drain: parseFloat(document.getElementById('uni-zo-cem-drain')?.value) || 0,
 
-        // Destacker defect breakdown
-        ds_defect_chip: parseInt(document.getElementById('uni-def-chip')?.value) || 0,
+        // Destacker defect breakdown (Own shift)
+        first_grade: parseInt(document.getElementById('uni-first-grade')?.value) || 0,
         ds_defect_scratch: parseInt(document.getElementById('uni-def-scratch')?.value) || 0,
         ds_defect_bad_cut: parseInt(document.getElementById('uni-def-bad-cut')?.value) || 0,
-        ds_defect_stick_bottom: parseInt(document.getElementById('uni-def-stick-bottom')?.value) || 0,
         ds_defect_stick_top: parseInt(document.getElementById('uni-def-stick-top')?.value) || 0,
         ds_defect_broken: parseInt(document.getElementById('uni-def-broken')?.value) || 0,
         ds_defect_fell_box: parseInt(document.getElementById('uni-def-fell-box')?.value) || 0,
-        ds_defect_dent: parseInt(document.getElementById('uni-def-dent')?.value) || 0,
         ds_defect_thickness: parseInt(document.getElementById('uni-def-thickness')?.value) || 0,
-        ds_defect_delamination: parseInt(document.getElementById('uni-def-delamination')?.value) || 0,
-        ds_defect_edge: parseInt(document.getElementById('uni-def-edge')?.value) || 0
+        ds_defect_edge: parseInt(document.getElementById('uni-def-edge')?.value) || 0,
+
+        // Destacker defect breakdown (Previous shift)
+        prev_first_grade: parseInt(document.getElementById('uni-prev-first-grade')?.value) || 0,
+        prev_defect_scratch: parseInt(document.getElementById('uni-prev-def-scratch')?.value) || 0,
+        prev_defect_bad_cut: parseInt(document.getElementById('uni-prev-def-bad-cut')?.value) || 0,
+        prev_defect_stick_top: parseInt(document.getElementById('uni-prev-def-stick-top')?.value) || 0,
+        prev_defect_broken: parseInt(document.getElementById('uni-prev-def-broken')?.value) || 0,
+        prev_defect_fell_box: parseInt(document.getElementById('uni-prev-def-fell-box')?.value) || 0,
+        prev_defect_thickness: parseInt(document.getElementById('uni-prev-def-thickness')?.value) || 0,
+        prev_defect_edge: parseInt(document.getElementById('uni-prev-def-edge')?.value) || 0
     };
 
     try {
@@ -1539,6 +1614,26 @@ async function deleteShift(id) {
 
 async function editDowntimeRow(d) {
     document.getElementById('edit-downtime-id').value = d.id;
+    
+    // Autonomous fields
+    document.getElementById('edit-downtime-date').value = d.shift_date || d.date || '';
+    document.getElementById('edit-downtime-shift').value = d.shift_name || 'День';
+    const lineNum = (d.line || d.shift_line || '1').replace(/\D/g, '') || '1';
+    document.getElementById('edit-downtime-line').value = lineNum;
+
+    // Populate masters select
+    const masterSel = document.getElementById('edit-downtime-master');
+    if (masterSel) {
+        masterSel.innerHTML = '';
+        mastersList.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            if (m.id === d.master_id || m.name === d.master_name) opt.selected = true;
+            masterSel.appendChild(opt);
+        });
+    }
+
     document.getElementById('edit-downtime-time').value = d.start_time || '';
     document.getElementById('edit-downtime-end-time').value = d.end_time || '';
     document.getElementById('edit-downtime-duration').value = d.duration || 0;
@@ -1596,7 +1691,14 @@ async function saveDowntimeEdit() {
         return;
     }
     
+    const lineVal = document.getElementById('edit-downtime-line').value;
+    const lineFormatted = lineVal.includes('Линия') ? lineVal : `Линия ${lineVal}`;
+
     const data = {
+        date: document.getElementById('edit-downtime-date').value || null,
+        shift_name: document.getElementById('edit-downtime-shift').value || 'День',
+        line: lineFormatted,
+        master_id: parseInt(document.getElementById('edit-downtime-master').value) || null,
         start_time: document.getElementById('edit-downtime-time').value || null,
         end_time: document.getElementById('edit-downtime-end-time').value || null,
         duration: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
@@ -2006,6 +2108,26 @@ async function loadAdminReceipts() {
 
 function editReceiptRow(r) {
     document.getElementById('edit-receipt-id').value = r.id;
+    
+    // Autonomous fields
+    document.getElementById('edit-receipt-date').value = r.shift_date || r.date || '';
+    document.getElementById('edit-receipt-shift').value = r.shift_name || 'День';
+    const lineNum = (r.line || r.shift_line || '1').replace(/\D/g, '') || '1';
+    document.getElementById('edit-receipt-line').value = lineNum;
+
+    // Populate masters select
+    const masterSel = document.getElementById('edit-receipt-master');
+    if (masterSel) {
+        masterSel.innerHTML = '';
+        mastersList.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.name;
+            if (m.id === r.master_id || m.name === r.master_name) opt.selected = true;
+            masterSel.appendChild(opt);
+        });
+    }
+
     document.getElementById('edit-receipt-cement1').value = r.cement_silo1;
     document.getElementById('edit-receipt-cement2').value = r.cement_silo2;
     document.getElementById('edit-receipt-cement3').value = r.cement_silo3;
@@ -2026,7 +2148,14 @@ function editReceiptRow(r) {
 
 async function saveReceiptEdit() {
     const id = document.getElementById('edit-receipt-id').value;
+    const lineVal = document.getElementById('edit-receipt-line').value;
+    const lineFormatted = lineVal.includes('Линия') ? lineVal : `Линия ${lineVal}`;
+
     const data = {
+        date: document.getElementById('edit-receipt-date').value || null,
+        shift_name: document.getElementById('edit-receipt-shift').value || 'День',
+        line: lineFormatted,
+        master_id: parseInt(document.getElementById('edit-receipt-master').value) || null,
         cement_silo1: parseFloat(document.getElementById('edit-receipt-cement1').value) || 0,
         cement_silo2: parseFloat(document.getElementById('edit-receipt-cement2').value) || 0,
         cement_silo3: parseFloat(document.getElementById('edit-receipt-cement3').value) || 0,
@@ -2869,6 +2998,91 @@ async function testSendPlannerEmailPrompt() {
         alert("Ошибка сети при проверке отправки");
     }
 }
+
+
+// ==========================================
+// BACKUP & RESTORE / GOOGLE SYNC FUNCTIONS
+// ==========================================
+
+function downloadFullBackupExcel() {
+    window.location.href = '/api/admin/backup/excel';
+}
+
+async function triggerFullGoogleSync() {
+    if (!confirm("Запустить принудительную фоновую синхронизацию всех 4 листов с Google Таблицами?")) return;
+
+    try {
+        const res = await fetch('/api/admin/backup/google_sync_all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Синхронизация всех листов запущена в фоновом режиме!");
+        } else {
+            alert("Ошибка синхронизации: " + (data.detail || res.statusText));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка сети при запуске синхронизации");
+    }
+}
+
+async function restoreFromBackupExcel() {
+    const fileInput = document.getElementById('backup-restore-file');
+    const statusMsg = document.getElementById('restore-status-msg');
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert("Пожалуйста, выберите файл Excel (.xlsx) для восстановления.");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    if (!confirm(`ВНИМАНИЕ! Восстановление из файла «${file.name}» проверит и обновит существующие записи приходов сырья, простоев и смен.\nПродолжить?`)) {
+        return;
+    }
+
+    if (statusMsg) {
+        statusMsg.style.color = '#3b82f6';
+        statusMsg.innerText = "Выполняется восстановление и проверка данных...";
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/api/admin/backup/restore', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+            let msg = `Успешно восстановлено! Приходов: ${data.receipts_created || 0} созд. / ${data.receipts_updated || 0} обн., Простоев: ${data.downtimes_created || 0} созд. / ${data.downtimes_updated || 0} обн.`;
+            if (statusMsg) {
+                statusMsg.style.color = '#10b981';
+                statusMsg.innerText = msg;
+            }
+            alert(msg);
+            loadAdminReceipts();
+            loadDowntimesLog();
+        } else {
+            const err = data.detail || res.statusText;
+            if (statusMsg) {
+                statusMsg.style.color = '#ef4444';
+                statusMsg.innerText = "Ошибка: " + err;
+            }
+            alert("Ошибка при восстановлении: " + err);
+        }
+    } catch(e) {
+        console.error(e);
+        if (statusMsg) {
+            statusMsg.style.color = '#ef4444';
+            statusMsg.innerText = "Ошибка сети при загрузке файла.";
+        }
+        alert("Ошибка сети при загрузке файла");
+    }
+}
+
 
 
 

@@ -322,10 +322,11 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     user_name = Column(String, nullable=True)
-    action = Column(String)  # "CREATE", "UPDATE", "DELETE", "IMPORT"
+    action = Column(String)  # "CREATE", "UPDATE", "DELETE", "IMPORT", "ROLLBACK"
     target_table = Column(String)
     target_id = Column(Integer, nullable=True)
     details = Column(String, nullable=True)
+    state_snapshot = Column(String, nullable=True)
 
 class DowntimeDirectory(Base):
     __tablename__ = "downtime_directory"

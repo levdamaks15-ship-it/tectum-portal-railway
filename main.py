@@ -133,6 +133,49 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
     
+    # Batches previous shift defects migration (SQLite)
+    for col in [
+        "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
+        "prev_defect_stick_top", "prev_defect_broken", "prev_defect_fell_box",
+        "prev_defect_thickness", "prev_defect_edge"
+    ]:
+        try:
+            conn = sqlite3.connect("tectum.db")
+            conn.execute(f"ALTER TABLE batches ADD COLUMN {col} INTEGER DEFAULT 0")
+            conn.commit()
+            conn.close()
+        except: pass
+
+    # AuditLog state_snapshot migration (SQLite)
+    try:
+        conn = sqlite3.connect("tectum.db")
+        conn.execute("ALTER TABLE audit_logs ADD COLUMN state_snapshot TEXT")
+        conn.commit()
+        conn.close()
+    except: pass
+    
+    # RawMaterialReceipt autonomous columns migration (SQLite)
+    for col_def in [
+        ("date", "DATE"), ("shift_name", "VARCHAR(50)"), ("line", "VARCHAR(50)")
+    ]:
+        try:
+            conn = sqlite3.connect("tectum.db")
+            conn.execute(f"ALTER TABLE raw_material_receipts ADD COLUMN {col_def[0]} {col_def[1]}")
+            conn.commit()
+            conn.close()
+        except: pass
+
+    # Downtimes autonomous columns migration (SQLite)
+    for col_def in [
+        ("date", "DATE"), ("shift_name", "VARCHAR(50)"), ("line", "VARCHAR(50)"), ("master_id", "INTEGER")
+    ]:
+        try:
+            conn = sqlite3.connect("tectum.db")
+            conn.execute(f"ALTER TABLE downtimes ADD COLUMN {col_def[0]} {col_def[1]}")
+            conn.commit()
+            conn.close()
+        except: pass
+    
     try:
         conn = sqlite3.connect("tectum.db")
         conn.execute("ALTER TABLE monthly_plan_board ADD COLUMN first_grade INTEGER DEFAULT 0")
@@ -217,6 +260,17 @@ async def lifespan(app: FastAPI):
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS line VARCHAR(50);"))
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS master_id INTEGER REFERENCES masters(id);"))
             db_pg.execute(text("ALTER TABLE downtimes ALTER COLUMN shift_id DROP NOT NULL;"))
+            
+            # Batches: prev defects
+            for b_col in [
+                "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
+                "prev_defect_stick_top", "prev_defect_broken", "prev_defect_fell_box",
+                "prev_defect_thickness", "prev_defect_edge"
+            ]:
+                db_pg.execute(text(f"ALTER TABLE batches ADD COLUMN IF NOT EXISTS {b_col} INTEGER DEFAULT 0;"))
+            
+            # AuditLog: state_snapshot TEXT for snapshot rollback
+            db_pg.execute(text("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS state_snapshot TEXT;"))
             db_pg.commit()
     except Exception as dt_pg_err:
         print(f"Warning: could not migrate PostgreSQL downtimes schema: {dt_pg_err}")
@@ -2360,6 +2414,112 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             "zo_cem_drain": shift.zo_cem_drain
         }
 
+    # Snapshot of state before update (for Rollback / Undo)
+    snapshot_before = None
+    if not is_new:
+        try:
+            b_prev = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+            l_prev = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
+            snapshot_dict = {
+                "shift": {
+                    "master_id": shift.master_id,
+                    "batch_number": shift.batch_number,
+                    "product_name": shift.product_name,
+                    "export_type": shift.export_type,
+                    "status": shift.status,
+                    "zo_batches": shift.zo_batches,
+                    "zo_chrysotile_4_20_silo1": shift.zo_chrysotile_4_20_silo1,
+                    "zo_chrysotile_4_20_silo2": shift.zo_chrysotile_4_20_silo2,
+                    "zo_chrysotile_4_20_silo3": shift.zo_chrysotile_4_20_silo3,
+                    "zo_chrysotile_4_20_silo4": shift.zo_chrysotile_4_20_silo4,
+                    "zo_chrysotile_5_65_silo1": shift.zo_chrysotile_5_65_silo1,
+                    "zo_chrysotile_5_65_silo2": shift.zo_chrysotile_5_65_silo2,
+                    "zo_chrysotile_5_65_silo3": shift.zo_chrysotile_5_65_silo3,
+                    "zo_chrysotile_5_65_silo4": shift.zo_chrysotile_5_65_silo4,
+                    "zo_chrysotile_6_40_silo1": shift.zo_chrysotile_6_40_silo1,
+                    "zo_chrysotile_6_40_silo2": shift.zo_chrysotile_6_40_silo2,
+                    "zo_chrysotile_6_40_silo3": shift.zo_chrysotile_6_40_silo3,
+                    "zo_chrysotile_6_40_silo4": shift.zo_chrysotile_6_40_silo4,
+                    "zo_cement_silo1": shift.zo_cement_silo1,
+                    "zo_cement_silo2": shift.zo_cement_silo2,
+                    "zo_cement_silo3": shift.zo_cement_silo3,
+                    "zo_cement_silo4": shift.zo_cement_silo4,
+                    "zo_cellulose_silo1": shift.zo_cellulose_silo1,
+                    "zo_cellulose_silo2": shift.zo_cellulose_silo2,
+                    "zo_cellulose_silo3": shift.zo_cellulose_silo3,
+                    "zo_cellulose_silo4": shift.zo_cellulose_silo4,
+                    "zo_crushed_slate_silo1": shift.zo_crushed_slate_silo1,
+                    "zo_crushed_slate_silo2": shift.zo_crushed_slate_silo2,
+                    "zo_crushed_slate_silo3": shift.zo_crushed_slate_silo3,
+                    "zo_crushed_slate_silo4": shift.zo_crushed_slate_silo4,
+                    "zo_asbozurit_silo1": shift.zo_asbozurit_silo1,
+                    "zo_asbozurit_silo2": shift.zo_asbozurit_silo2,
+                    "zo_asbozurit_silo3": shift.zo_asbozurit_silo3,
+                    "zo_asbozurit_silo4": shift.zo_asbozurit_silo4,
+                    "zo_fiberglass_silo1": shift.zo_fiberglass_silo1,
+                    "zo_fiberglass_silo2": shift.zo_fiberglass_silo2,
+                    "zo_fiberglass_silo3": shift.zo_fiberglass_silo3,
+                    "zo_fiberglass_silo4": shift.zo_fiberglass_silo4,
+                    "zo_laprol_silo1": shift.zo_laprol_silo1,
+                    "zo_laprol_silo2": shift.zo_laprol_silo2,
+                    "zo_laprol_silo3": shift.zo_laprol_silo3,
+                    "zo_laprol_silo4": shift.zo_laprol_silo4,
+                    "zo_asbocarton_silo1": shift.zo_asbocarton_silo1,
+                    "zo_asbocarton_silo2": shift.zo_asbocarton_silo2,
+                    "zo_asbocarton_silo3": shift.zo_asbocarton_silo3,
+                    "zo_asbocarton_silo4": shift.zo_asbocarton_silo4,
+                    "zo_asb_drain": shift.zo_asb_drain,
+                    "zo_cem_drain": shift.zo_cem_drain,
+                    "lfm_asb_drain": getattr(shift, 'lfm_asb_drain', 0.0),
+                    "lfm_cem_drain": getattr(shift, 'lfm_cem_drain', 0.0)
+                },
+                "lfm_report": {
+                    "product_name": l_prev.product_name if l_prev else "",
+                    "export_type": l_prev.export_type if l_prev else "Эталон",
+                    "lfm_sheets": l_prev.lfm_sheets if l_prev else 0,
+                    "lfm_wind_resets": l_prev.lfm_wind_resets if l_prev else 0,
+                    "formed_1st_grade": l_prev.formed_1st_grade if l_prev else 0,
+                    "formed_defect": l_prev.formed_defect if l_prev else 0,
+                    "transferred_to_warehouse": l_prev.transferred_to_warehouse if l_prev else 0
+                } if l_prev else None,
+                "batch": {
+                    "batch_number": b_prev.batch_number if b_prev else "",
+                    "product_name": b_prev.product_name if b_prev else "",
+                    "export_type": b_prev.export_type if b_prev else "Эталон",
+                    "stacked_stacks": b_prev.stacked_stacks if b_prev else 0,
+                    "ds_condition": b_prev.ds_condition if b_prev else 0,
+                    "ds_first_grade": b_prev.ds_first_grade if b_prev else 0,
+                    "ds_defect": b_prev.ds_defect if b_prev else 0,
+                    "ds_defect_chip": b_prev.ds_defect_chip if b_prev else 0,
+                    "ds_defect_scratch": b_prev.ds_defect_scratch if b_prev else 0,
+                    "ds_defect_bad_cut": b_prev.ds_defect_bad_cut if b_prev else 0,
+                    "ds_defect_stick_bottom": b_prev.ds_defect_stick_bottom if b_prev else 0,
+                    "ds_defect_stick_top": b_prev.ds_defect_stick_top if b_prev else 0,
+                    "ds_defect_broken": b_prev.ds_defect_broken if b_prev else 0,
+                    "ds_defect_fell_box": b_prev.ds_defect_fell_box if b_prev else 0,
+                    "ds_defect_dent": b_prev.ds_defect_dent if b_prev else 0,
+                    "ds_defect_thickness": b_prev.ds_defect_thickness if b_prev else 0,
+                    "ds_defect_delamination": b_prev.ds_defect_delamination if b_prev else 0,
+                    "ds_defect_edge": b_prev.ds_defect_edge if b_prev else 0,
+                    "prev_first_grade": b_prev.prev_first_grade if b_prev else 0,
+                    "prev_defect": b_prev.prev_defect if b_prev else 0,
+                    "prev_defect_scratch": b_prev.prev_defect_scratch if b_prev else 0,
+                    "prev_defect_bad_cut": b_prev.prev_defect_bad_cut if b_prev else 0,
+                    "prev_defect_stick_top": b_prev.prev_defect_stick_top if b_prev else 0,
+                    "prev_defect_broken": b_prev.prev_defect_broken if b_prev else 0,
+                    "prev_defect_fell_box": b_prev.prev_defect_fell_box if b_prev else 0,
+                    "prev_defect_thickness": b_prev.prev_defect_thickness if b_prev else 0,
+                    "prev_defect_edge": b_prev.prev_defect_edge if b_prev else 0,
+                    "qcd_condition": b_prev.qcd_condition if b_prev else 0,
+                    "qcd_first_grade": b_prev.qcd_first_grade if b_prev else 0,
+                    "qcd_defect": b_prev.qcd_defect if b_prev else 0
+                } if b_prev else None
+            }
+            import json
+            snapshot_before = json.dumps(snapshot_dict, ensure_ascii=False)
+        except Exception as snap_err:
+            print(f"Warning: could not capture snapshot_before: {snap_err}")
+
     # Update Shift fields
     shift.master_id = data.master_id
     shift.batch_number = data.batch_number
@@ -2559,13 +2719,14 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             new_v = new_values.get(k)
             if old_v != new_v:
                 changes.append(f"{k}: {old_v} -> {new_v}")
-        if changes:
+        if changes or snapshot_before:
             db.add(models.AuditLog(
                 user_name=user_name,
                 action="UPDATE",
                 target_table="shifts",
                 target_id=shift.id,
-                details=f"Обновлен рапорт мастера смены {shift.id}. Изменения: " + ", ".join(changes)
+                details=f"Обновлен рапорт мастера смены {shift.id}. Изменения: " + (", ".join(changes) if changes else "без критических числовых изменений"),
+                state_snapshot=snapshot_before
             ))
     db.commit()
 
@@ -5374,6 +5535,110 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     old_date, old_shift_name, old_line = shift.date, shift.shift_name, shift.line
     old_master_id = shift.master_id
     
+    # Snapshot of state before admin update (for Rollback / Undo)
+    snapshot_before = None
+    try:
+        b_prev = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
+        l_prev = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).first()
+        import json
+        snapshot_before = json.dumps({
+            "shift": {
+                "master_id": shift.master_id,
+                "batch_number": shift.batch_number,
+                "product_name": shift.product_name,
+                "export_type": shift.export_type,
+                "status": shift.status,
+                "zo_batches": shift.zo_batches,
+                "zo_chrysotile_4_20_silo1": shift.zo_chrysotile_4_20_silo1,
+                "zo_chrysotile_4_20_silo2": shift.zo_chrysotile_4_20_silo2,
+                "zo_chrysotile_4_20_silo3": shift.zo_chrysotile_4_20_silo3,
+                "zo_chrysotile_4_20_silo4": shift.zo_chrysotile_4_20_silo4,
+                "zo_chrysotile_5_65_silo1": shift.zo_chrysotile_5_65_silo1,
+                "zo_chrysotile_5_65_silo2": shift.zo_chrysotile_5_65_silo2,
+                "zo_chrysotile_5_65_silo3": shift.zo_chrysotile_5_65_silo3,
+                "zo_chrysotile_5_65_silo4": shift.zo_chrysotile_5_65_silo4,
+                "zo_chrysotile_6_40_silo1": shift.zo_chrysotile_6_40_silo1,
+                "zo_chrysotile_6_40_silo2": shift.zo_chrysotile_6_40_silo2,
+                "zo_chrysotile_6_40_silo3": shift.zo_chrysotile_6_40_silo3,
+                "zo_chrysotile_6_40_silo4": shift.zo_chrysotile_6_40_silo4,
+                "zo_cement_silo1": shift.zo_cement_silo1,
+                "zo_cement_silo2": shift.zo_cement_silo2,
+                "zo_cement_silo3": shift.zo_cement_silo3,
+                "zo_cement_silo4": shift.zo_cement_silo4,
+                "zo_cellulose_silo1": shift.zo_cellulose_silo1,
+                "zo_cellulose_silo2": shift.zo_cellulose_silo2,
+                "zo_cellulose_silo3": shift.zo_cellulose_silo3,
+                "zo_cellulose_silo4": shift.zo_cellulose_silo4,
+                "zo_crushed_slate_silo1": shift.zo_crushed_slate_silo1,
+                "zo_crushed_slate_silo2": shift.zo_crushed_slate_silo2,
+                "zo_crushed_slate_silo3": shift.zo_crushed_slate_silo3,
+                "zo_crushed_slate_silo4": shift.zo_crushed_slate_silo4,
+                "zo_asbozurit_silo1": shift.zo_asbozurit_silo1,
+                "zo_asbozurit_silo2": shift.zo_asbozurit_silo2,
+                "zo_asbozurit_silo3": shift.zo_asbozurit_silo3,
+                "zo_asbozurit_silo4": shift.zo_asbozurit_silo4,
+                "zo_fiberglass_silo1": shift.zo_fiberglass_silo1,
+                "zo_fiberglass_silo2": shift.zo_fiberglass_silo2,
+                "zo_fiberglass_silo3": shift.zo_fiberglass_silo3,
+                "zo_fiberglass_silo4": shift.zo_fiberglass_silo4,
+                "zo_laprol_silo1": shift.zo_laprol_silo1,
+                "zo_laprol_silo2": shift.zo_laprol_silo2,
+                "zo_laprol_silo3": shift.zo_laprol_silo3,
+                "zo_laprol_silo4": shift.zo_laprol_silo4,
+                "zo_asbocarton_silo1": shift.zo_asbocarton_silo1,
+                "zo_asbocarton_silo2": shift.zo_asbocarton_silo2,
+                "zo_asbocarton_silo3": shift.zo_asbocarton_silo3,
+                "zo_asbocarton_silo4": shift.zo_asbocarton_silo4,
+                "zo_asb_drain": shift.zo_asb_drain,
+                "zo_cem_drain": shift.zo_cem_drain,
+                "lfm_asb_drain": getattr(shift, 'lfm_asb_drain', 0.0),
+                "lfm_cem_drain": getattr(shift, 'lfm_cem_drain', 0.0)
+            },
+            "lfm_report": {
+                "product_name": l_prev.product_name if l_prev else "",
+                "export_type": l_prev.export_type if l_prev else "Эталон",
+                "lfm_sheets": l_prev.lfm_sheets if l_prev else 0,
+                "lfm_wind_resets": l_prev.lfm_wind_resets if l_prev else 0,
+                "formed_1st_grade": l_prev.formed_1st_grade if l_prev else 0,
+                "formed_defect": l_prev.formed_defect if l_prev else 0,
+                "transferred_to_warehouse": l_prev.transferred_to_warehouse if l_prev else 0
+            } if l_prev else None,
+            "batch": {
+                "batch_number": b_prev.batch_number if b_prev else "",
+                "product_name": b_prev.product_name if b_prev else "",
+                "export_type": b_prev.export_type if b_prev else "Эталон",
+                "stacked_stacks": b_prev.stacked_stacks if b_prev else 0,
+                "ds_condition": b_prev.ds_condition if b_prev else 0,
+                "ds_first_grade": b_prev.ds_first_grade if b_prev else 0,
+                "ds_defect": b_prev.ds_defect if b_prev else 0,
+                "ds_defect_chip": b_prev.ds_defect_chip if b_prev else 0,
+                "ds_defect_scratch": b_prev.ds_defect_scratch if b_prev else 0,
+                "ds_defect_bad_cut": b_prev.ds_defect_bad_cut if b_prev else 0,
+                "ds_defect_stick_bottom": b_prev.ds_defect_stick_bottom if b_prev else 0,
+                "ds_defect_stick_top": b_prev.ds_defect_stick_top if b_prev else 0,
+                "ds_defect_broken": b_prev.ds_defect_broken if b_prev else 0,
+                "ds_defect_fell_box": b_prev.ds_defect_fell_box if b_prev else 0,
+                "ds_defect_dent": b_prev.ds_defect_dent if b_prev else 0,
+                "ds_defect_thickness": b_prev.ds_defect_thickness if b_prev else 0,
+                "ds_defect_delamination": b_prev.ds_defect_delamination if b_prev else 0,
+                "ds_defect_edge": b_prev.ds_defect_edge if b_prev else 0,
+                "prev_first_grade": b_prev.prev_first_grade if b_prev else 0,
+                "prev_defect": b_prev.prev_defect if b_prev else 0,
+                "prev_defect_scratch": b_prev.prev_defect_scratch if b_prev else 0,
+                "prev_defect_bad_cut": b_prev.prev_defect_bad_cut if b_prev else 0,
+                "prev_defect_stick_top": b_prev.prev_defect_stick_top if b_prev else 0,
+                "prev_defect_broken": b_prev.prev_defect_broken if b_prev else 0,
+                "prev_defect_fell_box": b_prev.prev_defect_fell_box if b_prev else 0,
+                "prev_defect_thickness": b_prev.prev_defect_thickness if b_prev else 0,
+                "prev_defect_edge": b_prev.prev_defect_edge if b_prev else 0,
+                "qcd_condition": b_prev.qcd_condition if b_prev else 0,
+                "qcd_first_grade": b_prev.qcd_first_grade if b_prev else 0,
+                "qcd_defect": b_prev.qcd_defect if b_prev else 0
+            } if b_prev else None
+        }, ensure_ascii=False)
+    except Exception as snap_err:
+        print(f"Warning: could not capture admin snapshot_before: {snap_err}")
+    
     changes = []
     
     # 1. Update Shift metadata and raw materials
@@ -5506,12 +5771,35 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     batch.ds_defect = total_ds_defect
     batch.qcd_defect = total_ds_defect
     
-    if changes:
+    # Previous shift defects
+    prev_defect_fields = [
+        "prev_defect_scratch", "prev_defect_bad_cut", "prev_defect_stick_top",
+        "prev_defect_broken", "prev_defect_fell_box", "prev_defect_thickness", "prev_defect_edge"
+    ]
+    if data.prev_first_grade is not None:
+        batch.prev_first_grade = data.prev_first_grade
+    total_prev_defect = 0
+    for pf_name in prev_defect_fields:
+        pval = getattr(data, pf_name, None)
+        if pval is not None:
+            old_pval = getattr(batch, pf_name, 0)
+            if old_pval != pval:
+                changes.append(f"{pf_name}: {old_pval} -> {pval}")
+                setattr(batch, pf_name, pval)
+            total_prev_defect += pval
+        else:
+            total_prev_defect += getattr(batch, pf_name, 0) or 0
+    batch.prev_defect = total_prev_defect
+    
+    if changes or snapshot_before:
         log_entry = models.AuditLog(
             timestamp=datetime.utcnow(),
             user_name=admin.name,
             action=f"Комплексное редактирование смены ID {shift_id}",
-            details="Изменения: " + ", ".join(changes)
+            target_table="shifts",
+            target_id=shift_id,
+            details="Изменения: " + (", ".join(changes) if changes else "без числовых изменений"),
+            state_snapshot=snapshot_before
         )
         db.add(log_entry)
         
@@ -5860,6 +6148,153 @@ def admin_delete_receipt(receipt_id: int, request: Request, background_tasks: Ba
     db.commit()
     background_tasks.add_task(sync_receipts_bg)
     return {"status": "ok"}
+
+
+# ==========================================
+# API БЭКАПА, ВОССТАНОВЛЕНИЯ И ОТКАТА (ROLLBACK)
+# ==========================================
+
+@app.post("/api/admin/shifts/{shift_id}/rollback")
+def admin_rollback_shift(
+    shift_id: int, 
+    request: Request, 
+    audit_log_id: Optional[int] = None, 
+    background_tasks: BackgroundTasks = None, 
+    db: Session = Depends(get_db)
+):
+    admin = check_admin_session(request, db)
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(404, "Смена не найдена")
+
+    # Ищем подходящий снимок в AuditLog
+    query = db.query(models.AuditLog).filter(
+        models.AuditLog.target_table == "shifts",
+        models.AuditLog.target_id == shift_id,
+        models.AuditLog.state_snapshot.isnot(None)
+    )
+    if audit_log_id:
+        log_entry = query.filter(models.AuditLog.id == audit_log_id).first()
+    else:
+        log_entry = query.order_by(models.AuditLog.timestamp.desc(), models.AuditLog.id.desc()).first()
+
+    if not log_entry or not log_entry.state_snapshot:
+        raise HTTPException(404, "Снимок состояния для отката этой смены не найден")
+
+    import json
+    try:
+        snapshot = json.loads(log_entry.state_snapshot)
+    except Exception as e:
+        raise HTTPException(500, f"Ошибка парсинга снимка состояния: {e}")
+
+    # 1. Восстанавливаем поля Shift
+    s_data = snapshot.get("shift", {})
+    for k, v in s_data.items():
+        if hasattr(shift, k):
+            setattr(shift, k, v)
+
+    # 2. Восстанавливаем LFMReport
+    l_data = snapshot.get("lfm_report")
+    if l_data:
+        lfm_rep = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).first()
+        if not lfm_rep:
+            lfm_rep = models.LFMReport(shift_id=shift_id)
+            db.add(lfm_rep)
+        for k, v in l_data.items():
+            if hasattr(lfm_rep, k):
+                setattr(lfm_rep, k, v)
+
+    # 3. Восстанавливаем Batch
+    b_data = snapshot.get("batch")
+    if b_data:
+        batch = db.query(models.Batch).filter(models.Batch.shift_id == shift_id).first()
+        if not batch:
+            batch = models.Batch(shift_id=shift_id)
+            db.add(batch)
+        for k, v in b_data.items():
+            if hasattr(batch, k):
+                setattr(batch, k, v)
+
+    # Записываем действие отката в аудит
+    db.add(models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_name=admin.name,
+        action="ROLLBACK",
+        target_table="shifts",
+        target_id=shift_id,
+        details=f"Выполнен откат смены ID {shift_id} к снимку из лога #{log_entry.id} ({log_entry.timestamp})"
+    ))
+    db.commit()
+
+    # Синхронизация с планом и гугл таблицами
+    sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
+    if background_tasks:
+        background_tasks.add_task(sync_sharepoint_report_bg)
+
+    return {"status": "ok", "message": f"Смена успешно откачена к состоянию от {log_entry.timestamp}"}
+
+
+@app.get("/api/admin/backup/excel")
+def download_database_backup_excel(request: Request, db: Session = Depends(get_db)):
+    admin = check_admin_session(request, db)
+    excel_bytes = excel_exporter.generate_full_backup_excel(db)
+    from fastapi.responses import Response
+    today_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    filename = f"Tectum_Backup_{today_str}.xlsx"
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"}
+    )
+
+
+@app.post("/api/admin/backup/restore")
+async def restore_database_from_backup_excel(
+    request: Request, 
+    file: UploadFile = File(...), 
+    background_tasks: BackgroundTasks = None, 
+    db: Session = Depends(get_db)
+):
+    admin = check_admin_session(request, db)
+    if not file.filename.endswith(('.xlsx', '.xlsm')):
+        raise HTTPException(400, "Файл должен быть в формате Excel (.xlsx)")
+    
+    file_bytes = await file.read()
+    try:
+        res = excel_exporter.restore_from_backup_excel(file_bytes, db, user_name=admin.name)
+        if background_tasks:
+            background_tasks.add_task(sync_receipts_bg)
+            background_tasks.add_task(sync_downtimes_bg)
+            background_tasks.add_task(sync_sharepoint_report_bg)
+        return res
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Ошибка восстановления из файла: {str(e)}")
+
+
+@app.post("/api/admin/backup/google_sync_all")
+def trigger_full_google_sync_endpoint(
+    request: Request, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db)
+):
+    admin = check_admin_session(request, db)
+    background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_receipts_bg)
+    background_tasks.add_task(sync_downtimes_bg)
+    
+    # Audit log
+    db.add(models.AuditLog(
+        timestamp=datetime.utcnow(),
+        user_name=admin.name,
+        action="SYNC",
+        target_table="all_google_sheets",
+        target_id=0,
+        details="Запущена принудительная фоновая синхронизация всех листов с Google Таблицами"
+    ))
+    db.commit()
+    return {"status": "ok", "message": "Синхронизация всех листов Google Таблиц успешно запущена в фоновом режиме"}
+
 
 
 @app.post("/api/admin/norms/", response_model=schemas.ProductNorm)

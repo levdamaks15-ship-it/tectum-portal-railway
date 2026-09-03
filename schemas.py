@@ -275,6 +275,9 @@ class RawMaterialReceipt(RawMaterialReceiptBase):
         from_attributes = True
 
 class RawMaterialReceiptUpdate(ORMBaseModel):
+    date: Optional[dt_module.date] = None
+    shift_name: Optional[str] = None
+    line: Optional[str] = None
     master_id: Optional[int] = None
     chrysotile_4_20: Optional[float] = None
     chrysotile_5_65: Optional[float] = None
@@ -631,6 +634,7 @@ class AdminShiftReportUpdate(ORMBaseModel):
     zo_chrysotile_6_40_silo3: Optional[float] = None
     zo_chrysotile_6_40_silo4: Optional[float] = None
     
+    zo_cement: Optional[float] = None
     zo_cement_silo1: Optional[float] = None
     zo_cement_silo2: Optional[float] = None
     zo_cement_silo3: Optional[float] = None
@@ -674,6 +678,8 @@ class AdminShiftReportUpdate(ORMBaseModel):
     
     zo_asb_drain: Optional[float] = None
     zo_cem_drain: Optional[float] = None
+    lfm_asb_drain: Optional[float] = None
+    lfm_cem_drain: Optional[float] = None
 
 
 # --- TASK TRACKER SCHEMAS ---
