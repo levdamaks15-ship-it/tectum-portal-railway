@@ -811,16 +811,21 @@ def export_receipt_to_google_sheets(db: Session):
 
     # 3. Собираем данные из БД — все записи прихода сырья
     # Выгружаем каждую запись прихода как отдельную строку
-    receipts = db.query(models.RawMaterialReceipt).join(models.Shift).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.RawMaterialReceipt.id.asc()).all()
+    from sqlalchemy import func
+    receipts = db.query(models.RawMaterialReceipt).outerjoin(models.Shift).order_by(
+        func.coalesce(models.RawMaterialReceipt.date, models.Shift.date).asc(),
+        models.RawMaterialReceipt.id.asc()
+    ).all()
 
     rows_data = []
     rows_data.append(headers)
 
     for r in receipts:
-        date_str = r.shift.date.strftime("%d.%m.%Y") if r.shift and r.shift.date else ""
-        shift_name = r.shift.shift_name or ""
-        line = r.shift.line or ""
-        master_name = r.master.name if r.master else (r.shift.master.name if r.shift and r.shift.master else "")
+        r_date = r.date or (r.shift.date if r.shift else None)
+        date_str = r_date.strftime("%d.%m.%Y") if hasattr(r_date, 'strftime') else (str(r_date) if r_date else "")
+        shift_name = r.shift_name or (r.shift.shift_name if r.shift else "")
+        line = r.line or (r.shift.line if r.shift else "")
+        master_name = r.master.name if r.master else (r.shift.master.name if (r.shift and r.shift.master) else "")
         
         row = [
             date_str,
@@ -1070,19 +1075,22 @@ def export_downtimes_to_google_sheets(db: Session):
     ]
 
     # 3. Собираем данные из БД — все простои с информацией о смене
-    downtimes = db.query(models.Downtime).join(models.Shift).order_by(
-        models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Downtime.start_time.asc(), models.Downtime.id.asc()
+    from sqlalchemy import func
+    downtimes = db.query(models.Downtime).outerjoin(models.Shift).order_by(
+        func.coalesce(models.Downtime.date, models.Shift.date).asc(),
+        models.Downtime.start_time.asc(),
+        models.Downtime.id.asc()
     ).all()
 
     rows_data = []
     rows_data.append(headers)
 
     for d in downtimes:
-        shift = d.shift
-        date_str = shift.date.strftime("%d.%m.%Y") if (shift and shift.date) else ""
-        shift_name_val = shift.shift_name if shift else ""
-        line_val = shift.line if shift else ""
-        master_val = shift.master.name if (shift and shift.master) else ""
+        d_date = d.date or (d.shift.date if d.shift else None)
+        date_str = d_date.strftime("%d.%m.%Y") if hasattr(d_date, 'strftime') else (str(d_date) if d_date else "")
+        shift_name_val = d.shift_name or (d.shift.shift_name if d.shift else "")
+        line_val = d.line or (d.shift.line if d.shift else "")
+        master_val = d.master.name if d.master else (d.shift.master.name if (d.shift and d.shift.master) else "")
         desc_text = (d.description or d.comment or "").strip()
 
         row = [

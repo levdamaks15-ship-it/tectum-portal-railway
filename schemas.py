@@ -2,6 +2,7 @@ from pydantic import BaseModel, model_validator
 from pydantic_core import PydanticUndefined
 from typing import List, Optional
 from datetime import date, datetime
+import datetime as dt_module
 
 class ORMBaseModel(BaseModel):
     @model_validator(mode='before')
@@ -130,6 +131,10 @@ class LFMReport(LFMReportBase):
         from_attributes = True
 
 class DowntimeBase(ORMBaseModel):
+    date: Optional[dt_module.date] = None
+    shift_name: Optional[str] = None
+    line: Optional[str] = None
+    master_id: Optional[int] = None
     start_time: str
     end_time: Optional[str] = None
     category: Optional[str] = None
@@ -147,7 +152,7 @@ class DowntimeCreate(DowntimeBase):
 
 class Downtime(DowntimeBase):
     id: int
-    shift_id: Optional[int] = 0
+    shift_id: Optional[int] = None
     duration: Optional[int] = 0
     lost_tons: Optional[float] = 0.0
     lost_tenge: Optional[float] = 0.0
@@ -239,6 +244,9 @@ class ShiftBase(ORMBaseModel):
 
 
 class RawMaterialReceiptBase(ORMBaseModel):
+    date: Optional[dt_module.date] = None
+    shift_name: Optional[str] = None
+    line: Optional[str] = None
     master_id: Optional[int] = None
     chrysotile_4_20: float = 0.0
     chrysotile_5_65: float = 0.0
@@ -260,7 +268,7 @@ class RawMaterialReceiptCreate(RawMaterialReceiptBase):
 
 class RawMaterialReceipt(RawMaterialReceiptBase):
     id: int
-    shift_id: Optional[int] = 0
+    shift_id: Optional[int] = None
     timestamp: Optional[datetime] = None
 
     class Config:

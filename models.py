@@ -111,7 +111,10 @@ class Shift(Base):
 class RawMaterialReceipt(Base):
     __tablename__ = "raw_material_receipts"
     id = Column(Integer, primary_key=True, index=True)
-    shift_id = Column(Integer, ForeignKey("shifts.id"))
+    shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True)
+    date = Column(Date, nullable=True, index=True)
+    shift_name = Column(String(50), nullable=True)
+    line = Column(String(50), nullable=True)
     master_id = Column(Integer, ForeignKey("masters.id"), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
     
@@ -136,10 +139,32 @@ class RawMaterialReceipt(Base):
     
     shift = relationship("Shift", back_populates="receipts")
 
+    @property
+    def record_date(self):
+        if self.date:
+            return self.date
+        return self.shift.date if self.shift else None
+
+    @property
+    def record_shift_name(self):
+        if self.shift_name:
+            return self.shift_name
+        return self.shift.shift_name if self.shift else None
+
+    @property
+    def record_line(self):
+        if self.line:
+            return self.line
+        return self.shift.line if self.shift else None
+
 class Downtime(Base):
     __tablename__ = "downtimes"
     id = Column(Integer, primary_key=True, index=True)
-    shift_id = Column(Integer, ForeignKey("shifts.id"))
+    shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True)
+    date = Column(Date, nullable=True, index=True)
+    shift_name = Column(String(50), nullable=True)
+    line = Column(String(50), nullable=True)
+    master_id = Column(Integer, ForeignKey("masters.id"), nullable=True)
     start_time = Column(String)
     end_time = Column(String, nullable=True)
     duration = Column(Integer, default=0)
@@ -157,7 +182,32 @@ class Downtime(Base):
     breakdowns = Column(String, nullable=True) # JSON string of breakdown objects
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    master = relationship("Master")
     shift = relationship("Shift", back_populates="downtimes")
+
+    @property
+    def record_date(self):
+        if self.date:
+            return self.date
+        return self.shift.date if self.shift else None
+
+    @property
+    def record_shift_name(self):
+        if self.shift_name:
+            return self.shift_name
+        return self.shift.shift_name if self.shift else None
+
+    @property
+    def record_line(self):
+        if self.line:
+            return self.line
+        return self.shift.line if self.shift else None
+
+    @property
+    def record_master_id(self):
+        if self.master_id:
+            return self.master_id
+        return self.shift.master_id if self.shift else None
 
 class LFMReport(Base):
     __tablename__ = "lfm_reports"

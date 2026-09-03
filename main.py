@@ -205,6 +205,18 @@ async def lifespan(app: FastAPI):
             db_pg.execute(text("ALTER TABLE downtime_directory ADD COLUMN IF NOT EXISTS category VARCHAR(255);"))
             db_pg.execute(text("ALTER TABLE downtime_directory ADD COLUMN IF NOT EXISTS comment TEXT;"))
             db_pg.execute(text("ALTER TABLE downtime_directory ALTER COLUMN comment TYPE TEXT;"))
+            
+            # Autonomous journals: date, shift_name, line, master_id
+            db_pg.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN IF NOT EXISTS date DATE;"))
+            db_pg.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN IF NOT EXISTS shift_name VARCHAR(50);"))
+            db_pg.execute(text("ALTER TABLE raw_material_receipts ADD COLUMN IF NOT EXISTS line VARCHAR(50);"))
+            db_pg.execute(text("ALTER TABLE raw_material_receipts ALTER COLUMN shift_id DROP NOT NULL;"))
+            
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS date DATE;"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS shift_name VARCHAR(50);"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS line VARCHAR(50);"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS master_id INTEGER REFERENCES masters(id);"))
+            db_pg.execute(text("ALTER TABLE downtimes ALTER COLUMN shift_id DROP NOT NULL;"))
             db_pg.commit()
     except Exception as dt_pg_err:
         print(f"Warning: could not migrate PostgreSQL downtimes schema: {dt_pg_err}")
@@ -1165,13 +1177,15 @@ async def add_no_cache_headers(request: Request, call_next):
 TONS_PER_HOUR = 5.0
 PRICE_PER_TON = 100000.0
 
-def calculate_downtime_losses(duration_minutes: int, shift: models.Shift, db: Session) -> tuple[float, float]:
+def calculate_downtime_losses(duration_minutes: int, shift: Optional[models.Shift], db: Session) -> tuple[float, float]:
     if duration_minutes <= 0:
         return 0.0, 0.0
         
-    product_name = shift.product_name
-    if not product_name and shift.lfm_reports:
-        product_name = shift.lfm_reports[-1].product_name
+    product_name = None
+    if shift:
+        product_name = shift.product_name
+        if not product_name and shift.lfm_reports:
+            product_name = shift.lfm_reports[-1].product_name
         
     if not product_name:
         product_name = "Шифер 8 волн рифленый"
@@ -2739,6 +2753,95 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     return {"status": "success", "shift_id": shift.id}
 
 
+@app.post("/api/receipts")
+def create_autonomous_receipt(data: schemas.RawMaterialReceiptCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Склад")
+    if not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    shift_id = None
+    if data.date and data.shift_name and data.line:
+        existing_shift = db.query(models.Shift).filter(
+            models.Shift.date == data.date,
+            models.Shift.shift_name == data.shift_name,
+            models.Shift.line == data.line
+        ).first()
+        if existing_shift:
+            shift_id = existing_shift.id
+
+    receipt = models.RawMaterialReceipt(
+        shift_id=shift_id,
+        date=data.date,
+        shift_name=data.shift_name,
+        line=data.line,
+        master_id=data.master_id,
+        chrysotile_4_20=data.chrysotile_4_20,
+        chrysotile_5_65=data.chrysotile_5_65,
+        chrysotile_6_40=data.chrysotile_6_40,
+        cement_silo1=data.cement_silo1,
+        cement_silo2=data.cement_silo2,
+        cement_silo3=data.cement_silo3,
+        cement_silo4=data.cement_silo4,
+        cellulose=data.cellulose,
+        crushed_slate=data.crushed_slate,
+        asbozurit=data.asbozurit,
+        asbocarton=data.asbocarton,
+        pallets=data.pallets,
+        fiberglass=data.fiberglass,
+        laprol=data.laprol
+    )
+    db.add(receipt)
+    db.flush()
+    
+    db.add(models.AuditLog(
+        user_name=user_name,
+        action="CREATE",
+        target_table="raw_material_receipts",
+        target_id=receipt.id,
+        details=f"Добавлен автономный приход сырья: Дата {data.date}, Смена {data.shift_name}, Линия {data.line}"
+    ))
+    db.commit()
+    background_tasks.add_task(sync_receipts_bg)
+    return {"status": "success", "receipt_id": receipt.id}
+
+
+@app.get("/api/receipts/by_slot")
+def get_receipts_by_slot(date: str, shift_name: str, line: str, db: Session = Depends(get_db)):
+    try:
+        if hasattr(date, "strftime"):
+            parsed_date = date.date() if hasattr(date, "date") else date
+        else:
+            parsed_date = datetime.strptime(str(date), "%Y-%m-%d").date()
+    except Exception:
+        raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
+        
+    receipts = db.query(models.RawMaterialReceipt).outerjoin(models.Shift).filter(
+        or_(
+            models.RawMaterialReceipt.date == parsed_date,
+            and_(models.RawMaterialReceipt.date.is_(None), models.Shift.date == parsed_date)
+        ),
+        or_(
+            models.RawMaterialReceipt.shift_name == shift_name,
+            and_(models.RawMaterialReceipt.shift_name.is_(None), models.Shift.shift_name == shift_name)
+        ),
+        or_(
+            models.RawMaterialReceipt.line == line,
+            and_(models.RawMaterialReceipt.line.is_(None), models.Shift.line == line)
+        )
+    ).order_by(models.RawMaterialReceipt.id.desc()).all()
+    
+    result = []
+    for r in receipts:
+        r_dict = schemas.RawMaterialReceipt.model_validate(r).model_dump()
+        r_dict["record_date"] = str(r.record_date) if r.record_date else str(parsed_date)
+        r_dict["record_shift_name"] = r.record_shift_name or shift_name
+        r_dict["record_line"] = r.record_line or line
+        r_dict["master_name"] = r.master.name if r.master else (r.shift.master.name if r.shift and r.shift.master else "Н/Д")
+        result.append(r_dict)
+    return result
+
+
 @app.post("/api/shifts/{shift_id}/receipts")
 def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user_role = request.session.get("user_role")
@@ -2752,7 +2855,10 @@ def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCrea
 
     receipt = models.RawMaterialReceipt(
         shift_id=shift.id,
-        master_id=data.master_id,
+        date=data.date or shift.date,
+        shift_name=data.shift_name or shift.shift_name,
+        line=data.line or shift.line,
+        master_id=data.master_id or shift.master_id,
         chrysotile_4_20=data.chrysotile_4_20,
         chrysotile_5_65=data.chrysotile_5_65,
         chrysotile_6_40=data.chrysotile_6_40,
@@ -3399,6 +3505,105 @@ async def upload_media(file: UploadFile = File(...)):
         print(f"Upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/downtimes", response_model=schemas.Downtime)
+def create_autonomous_downtime(data: schemas.DowntimeCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    duration = 0
+    if data.end_time and data.start_time:
+        fmt = "%H:%M"
+        try:
+            t_start = datetime.strptime(data.start_time.strip(), fmt)
+            t_end = datetime.strptime(data.end_time.strip(), fmt)
+            if t_end < t_start:
+                duration = int((t_end.timestamp() + 24*3600 - t_start.timestamp()) / 60)
+            else:
+                duration = int((t_end - t_start).total_seconds() / 60)
+        except Exception:
+            duration = 0
+            
+    shift = None
+    shift_id = None
+    if data.date and data.shift_name and data.line:
+        shift = db.query(models.Shift).filter(
+            models.Shift.date == data.date,
+            models.Shift.shift_name == data.shift_name,
+            models.Shift.line == data.line
+        ).first()
+        if shift:
+            shift_id = shift.id
+            
+    lost_tons, lost_tenge = calculate_downtime_losses(duration, shift, db)
+    status = "resolved" if data.end_time else "pending"
+    
+    desc_text = (data.description or data.comment or "").strip()
+    category_val = data.category or ""
+    node_val = data.node or ""
+    dept_val = data.department or ""
+    is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else True
+    
+    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id"})
+    dt_data["description"] = desc_text
+    dt_data["comment"] = data.comment or desc_text
+    dt_data["category"] = category_val
+    dt_data["node"] = node_val
+    dt_data["department"] = dept_val
+    dt_data["is_equipment_downtime"] = is_equipment_val
+    
+    db_dt = models.Downtime(
+        **dt_data,
+        shift_id=shift_id,
+        date=data.date,
+        shift_name=data.shift_name,
+        line=data.line,
+        master_id=data.master_id,
+        duration=duration,
+        lost_tons=lost_tons,
+        lost_tenge=lost_tenge,
+        status=status,
+        created_at=datetime.utcnow()
+    )
+    db.add(db_dt)
+    db.commit()
+    db.refresh(db_dt)
+    background_tasks.add_task(sync_downtimes_bg)
+    return db_dt
+
+
+@app.get("/api/downtimes/by_slot")
+def get_downtimes_by_slot(date: str, shift_name: str, line: str, db: Session = Depends(get_db)):
+    try:
+        if hasattr(date, "strftime"):
+            parsed_date = date.date() if hasattr(date, "date") else date
+        else:
+            parsed_date = datetime.strptime(str(date), "%Y-%m-%d").date()
+    except Exception:
+        raise HTTPException(400, "Неверный формат даты. Ожидается YYYY-MM-DD")
+        
+    downtimes = db.query(models.Downtime).outerjoin(models.Shift).filter(
+        or_(
+            models.Downtime.date == parsed_date,
+            and_(models.Downtime.date.is_(None), models.Shift.date == parsed_date)
+        ),
+        or_(
+            models.Downtime.shift_name == shift_name,
+            and_(models.Downtime.shift_name.is_(None), models.Shift.shift_name == shift_name)
+        ),
+        or_(
+            models.Downtime.line == line,
+            and_(models.Downtime.line.is_(None), models.Shift.line == line)
+        )
+    ).order_by(models.Downtime.start_time.asc(), models.Downtime.id.asc()).all()
+    
+    result = []
+    for d in downtimes:
+        d_dict = schemas.Downtime.model_validate(d).model_dump()
+        d_dict["record_date"] = str(d.record_date) if d.record_date else str(parsed_date)
+        d_dict["record_shift_name"] = d.record_shift_name or shift_name
+        d_dict["record_line"] = d.record_line or line
+        d_dict["master_name"] = d.master.name if d.master else (d.shift.master.name if d.shift and d.shift.master else "Н/Д")
+        result.append(d_dict)
+    return result
+
+
 @app.post("/api/shifts/{shift_id}/downtimes", response_model=schemas.Downtime)
 def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     shift = db.query(models.Shift).get(shift_id)
@@ -3427,7 +3632,7 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     dept_val = data.department or ""
     is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else True
     
-    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime"})
+    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id"})
     dt_data["description"] = desc_text
     dt_data["comment"] = data.comment or desc_text
     dt_data["category"] = category_val
@@ -3438,6 +3643,10 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     db_dt = models.Downtime(
         **dt_data,
         shift_id=shift_id,
+        date=data.date or shift.date,
+        shift_name=data.shift_name or shift.shift_name,
+        line=data.line or shift.line,
+        master_id=data.master_id or shift.master_id,
         duration=duration,
         lost_tons=lost_tons,
         lost_tenge=lost_tenge,
@@ -5326,15 +5535,29 @@ def admin_delete_shift(shift_id: int, request: Request, background_tasks: Backgr
     
     shift_date, shift_name, shift_line, master_id = shift.date, shift.shift_name, shift.line, shift.master_id
     
+    # Decouple any linked downtimes and receipts so they are preserved autonomously
+    for dt in db.query(models.Downtime).filter(models.Downtime.shift_id == shift_id).all():
+        if not dt.date: dt.date = shift_date
+        if not dt.shift_name: dt.shift_name = shift_name
+        if not dt.line: dt.line = shift_line
+        if not dt.master_id: dt.master_id = master_id
+        dt.shift_id = None
+
+    for r in db.query(models.RawMaterialReceipt).filter(models.RawMaterialReceipt.shift_id == shift_id).all():
+        if not r.date: r.date = shift_date
+        if not r.shift_name: r.shift_name = shift_name
+        if not r.line: r.line = shift_line
+        if not r.master_id: r.master_id = master_id
+        r.shift_id = None
+
     db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).delete()
     db.query(models.Batch).filter(models.Batch.shift_id == shift_id).delete()
-    db.query(models.Downtime).filter(models.Downtime.shift_id == shift_id).delete()
     
     log_entry = models.AuditLog(
         timestamp=datetime.utcnow(),
         user_name=admin.name,
         action=f"Удаление смены ID {shift_id}",
-        details=f"Удалена смена за {shift_date} ({shift_name}, Линия {shift_line}) и все связанные с ней отчеты, партии и простои."
+        details=f"Удалена смена за {shift_date} ({shift_name}, Линия {shift_line}) и её производственные рапорты. Приходы сырья и простои сохранены автономно."
     )
     db.add(log_entry)
     db.delete(shift)
@@ -5467,7 +5690,10 @@ def get_all_admin_downtimes(
     db: Session = Depends(get_db)
 ):
     admin = check_admin_session(request, db)
-    downtimes = db.query(models.Downtime).join(models.Shift).order_by(models.Shift.date.desc(), models.Downtime.id.desc()).offset(offset).limit(limit).all()
+    downtimes = db.query(models.Downtime).outerjoin(models.Shift).order_by(
+        func.coalesce(models.Downtime.date, models.Shift.date).desc(),
+        models.Downtime.id.desc()
+    ).offset(offset).limit(limit).all()
     
     result = []
     for d in downtimes:
@@ -5484,12 +5710,17 @@ def get_all_admin_downtimes(
             "status": d.status,
             "is_equipment_downtime": d.is_equipment_downtime,
             "lost_tons": d.lost_tons,
-            "lost_tenge": d.lost_tenge
+            "lost_tenge": d.lost_tenge,
+            "shift_date": d.record_date,
+            "shift_line": d.record_line,
+            "shift_name": d.record_shift_name
         }
-        if d.shift:
-            d_dict["shift_date"] = d.shift.date
-            d_dict["shift_line"] = d.shift.line
-            d_dict["shift_name"] = d.shift.shift_name
+        if d.master:
+            d_dict["master_name"] = d.master.name
+        elif d.shift and d.shift.master:
+            d_dict["master_name"] = d.shift.master.name
+        else:
+            d_dict["master_name"] = "Н/Д"
         result.append(d_dict)
     return result
 
@@ -5549,24 +5780,28 @@ def get_all_admin_receipts(
     db: Session = Depends(get_db)
 ):
     admin = check_admin_session(request, db)
-    query = db.query(models.RawMaterialReceipt).join(models.Shift)
+    query = db.query(models.RawMaterialReceipt).outerjoin(models.Shift)
     
     if start_date:
-        query = query.filter(models.Shift.date >= start_date)
+        query = query.filter(or_(models.RawMaterialReceipt.date >= start_date, models.Shift.date >= start_date))
     if end_date:
-        query = query.filter(models.Shift.date <= end_date)
+        query = query.filter(or_(models.RawMaterialReceipt.date <= end_date, models.Shift.date <= end_date))
         
-    receipts = query.order_by(models.Shift.date.desc(), models.RawMaterialReceipt.id.desc()).all()
+    receipts = query.order_by(
+        func.coalesce(models.RawMaterialReceipt.date, models.Shift.date).desc(),
+        models.RawMaterialReceipt.id.desc()
+    ).all()
     
     result = []
     for r in receipts:
         r_dict = schemas.RawMaterialReceipt.model_validate(r).model_dump()
-        if r.shift:
-            r_dict["shift_date"] = r.shift.date
-            r_dict["shift_line"] = r.shift.line
-            r_dict["shift_name"] = r.shift.shift_name
+        r_dict["shift_date"] = r.record_date
+        r_dict["shift_line"] = r.record_line
+        r_dict["shift_name"] = r.record_shift_name
         if r.master:
             r_dict["master_name"] = r.master.name
+        elif r.shift and r.shift.master:
+            r_dict["master_name"] = r.shift.master.name
         else:
             r_dict["master_name"] = "Н/Д"
         result.append(r_dict)

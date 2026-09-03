@@ -1713,33 +1713,23 @@ async function loadDowntimesByParams() {
     const dateInput = document.getElementById('journal-dt-date');
     const shiftNameInput = document.getElementById('journal-dt-shift-name');
     const lineInput = document.getElementById('journal-dt-line');
-    const masterSelect = document.getElementById('journal-dt-master-select');
     
     if (!dateInput || !shiftNameInput || !lineInput) return;
     
     const date = dateInput.value;
     const shift_name = shiftNameInput.value;
     const line = lineInput.value;
-    const master_id = masterSelect ? masterSelect.value : '';
     
     if (!date) return;
     
     try {
-        let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`;
-        if (master_id) {
-            url += `&master_id=${master_id}`;
-        }
+        let url = `/api/downtimes/by_slot?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`;
         const res = await fetch(url);
         if (res.ok) {
-            const shift = await res.json();
-            document.getElementById('journal-dt-active-shift-id').value = shift.id;
-            if (shift.master_id && masterSelect && !master_id) {
-                masterSelect.value = shift.master_id;
-            }
-            renderDowntimesTable(shift);
+            const dtList = await res.json();
+            renderDowntimesTable(dtList);
         } else {
-            document.getElementById('journal-dt-active-shift-id').value = '';
-            renderDowntimesTable({ downtimes: [] });
+            renderDowntimesTable([]);
         }
     } catch(e) {
         console.error(e);
@@ -1747,17 +1737,7 @@ async function loadDowntimesByParams() {
 }
 
 async function refreshDowntimesTable() {
-    const shiftId = document.getElementById('journal-dt-active-shift-id').value;
-    if (!shiftId) return;
-    try {
-        const res = await fetch(`/api/shifts/${shiftId}`);
-        if (res.ok) {
-            const shift = await res.json();
-            renderDowntimesTable(shift);
-        }
-    } catch(e) {
-        console.error(e);
-    }
+    await loadDowntimesByParams();
 }
 
 async function loadDowntimeDepartments() {
@@ -1912,7 +1892,7 @@ function renderDowntimesTable(shift) {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    const downtimes = shift.downtimes || [];
+    const downtimes = Array.isArray(shift) ? shift : (shift && shift.downtimes ? shift.downtimes : []);
     let totalMinutes = 0;
     
     if (downtimes.length === 0) {
@@ -1990,43 +1970,22 @@ async function addJournalDowntime() {
     }
 
     setButtonLoading('btn-add-dt', true);
-    
-    if (!shiftId) {
-        try {
-            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}&create_if_not_exists=true`;
-            if (master_id) {
-                url += `&master_id=${master_id}`;
-            }
-            const createRes = await fetch(url);
-            if (createRes.ok) {
-                const createdShift = await createRes.json();
-                shiftId = createdShift.id;
-                document.getElementById('journal-dt-active-shift-id').value = shiftId;
-            } else {
-                showNotification('error', 'Ошибка', "Не удалось создать рапорт смены для добавления простоя!");
-                setButtonLoading('btn-add-dt', false);
-                return;
-            }
-        } catch(e) {
-            console.error(e);
-            showNotification('error', 'Ошибка сети', "Ошибка сети при создании рапорта смены!");
-            setButtonLoading('btn-add-dt', false);
-            return;
-        }
-    }
 
     const data = {
+        date: date,
+        shift_name: shift_name,
+        line: line,
+        master_id: master_id ? parseInt(master_id) : null,
         start_time: startTime,
         end_time: endTime || null,
         description: desc,
         comment: desc,
         is_equipment_downtime: isEquipmentStop,
-        media_urls: null,
-        master_id: master_id ? parseInt(master_id) : null
+        media_urls: null
     };
 
     try {
-        const res = await fetch(`/api/shifts/${shiftId}/downtimes`, {
+        const res = await fetch('/api/downtimes', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -3230,6 +3189,10 @@ async function init() {
     document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
     
+    document.getElementById('rec-date')?.addEventListener('change', () => loadReceipts());
+    document.getElementById('rec-shift')?.addEventListener('change', () => loadReceipts());
+    document.getElementById('rec-line')?.addEventListener('change', () => loadReceipts());
+    
     // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
     let cachedUser = window.__cachedUser;
     if (!cachedUser) {
@@ -3468,13 +3431,24 @@ async function exportDowntimesToGoogle() {
 
 
 // --- Raw Material Receipts Logic ---
-async function loadReceipts(shift) {
-    if (!shift || !shift.id) return;
+async function loadReceipts(date, shift_name, line) {
+    if (!date || !shift_name || !line) {
+        if (typeof date === 'object' && date !== null) {
+            shift_name = date.shift_name;
+            line = date.line;
+            date = date.date;
+        } else {
+            date = document.getElementById('rec-date')?.value || document.getElementById('rep-date')?.value;
+            shift_name = document.getElementById('rec-shift')?.value || document.getElementById('rep-shift')?.value;
+            line = document.getElementById('rec-line')?.value || document.getElementById('rep-line')?.value;
+        }
+    }
+    if (!date || !shift_name || !line) return;
     try {
-        const res = await fetch(`/api/shifts/${shift.id}`);
+        const res = await fetch(`/api/receipts/by_slot?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`);
         if (res.ok) {
-            const shiftData = await res.json();
-            renderPlanBoard();
+            const receipts = await res.json();
+            renderReceiptsTable(receipts, { date, shift_name, line });
         }
     } catch(e) {
         console.error('Error loading receipts:', e);
@@ -3491,11 +3465,11 @@ function renderReceiptsTable(receipts, shiftData) {
         return;
     }
 
-    const sDate = shiftData ? shiftData.date : '-';
-    const sName = shiftData ? shiftData.shift_name : '-';
-    const mName = shiftData && shiftData.master ? shiftData.master.name : '-';
-
     receipts.forEach(r => {
+        const sDate = r.record_date || (shiftData ? shiftData.date : '-');
+        const sName = r.record_shift_name || (shiftData ? shiftData.shift_name : '-');
+        const mName = r.master_name || (shiftData && shiftData.master ? shiftData.master.name : '-');
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${sDate}</td>
@@ -3520,7 +3494,12 @@ async function addReceipt() {
         return;
     }
     
+    setButtonLoading('btn-submit-receipt', true);
+    
     const data = {
+        date: date,
+        shift_name: shift_name,
+        line: line,
         master_id: parseInt(master_id) || null,
         chrysotile_4_20: (parseFloat(document.getElementById('rec-chr-4-20').value) || 0.0) * 50,
         chrysotile_5_65: (parseFloat(document.getElementById('rec-chr-5-65').value) || 0.0) * 50,
@@ -3539,14 +3518,7 @@ async function addReceipt() {
     };
     
     try {
-        // Find or create shift first
-        let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}&master_id=${master_id}&create_if_not_exists=true`;
-        const shiftRes = await fetch(url);
-        if (!shiftRes.ok) throw new Error("Не удалось определить или создать смену");
-        
-        const shift = await shiftRes.json();
-        
-        const res = await fetch(`/api/shifts/${shift.id}/receipts`, {
+        const res = await fetch('/api/receipts', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -3559,7 +3531,7 @@ async function addReceipt() {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            loadReceipts(shift);
+            loadReceipts(date, shift_name, line);
             showNotification('success', 'Отлично!', 'Приход сырья успешно сохранен в облако.');
         } else {
             const err = await res.json();
@@ -3581,16 +3553,7 @@ async function deleteReceipt(receiptId) {
         });
         
         if (res.ok) {
-            // Reload receipts for the currently selected shift
-            const date = document.getElementById('rep-date').value;
-            const shift_name = document.getElementById('rep-shift').value;
-            const line = document.getElementById('rep-line').value;
-            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`;
-            const shiftRes = await fetch(url);
-            if (shiftRes.ok) {
-                const shift = await shiftRes.json();
-                loadReceipts(shift);
-            }
+            loadReceipts();
         } else {
             const err = await res.json();
             alert("Ошибка при удалении: " + (err.detail || 'Неизвестная ошибка'));
