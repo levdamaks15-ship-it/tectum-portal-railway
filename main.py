@@ -177,7 +177,7 @@ async def lifespan(app: FastAPI):
 
     try:
         conn = sqlite3.connect("tectum.db")
-        conn.execute("ALTER TABLE downtimes ADD COLUMN comment VARCHAR(255)")
+        conn.execute("ALTER TABLE downtimes ADD COLUMN comment TEXT")
         conn.commit()
         conn.close()
     except: pass
@@ -188,6 +188,31 @@ async def lifespan(app: FastAPI):
         conn.commit()
         conn.close()
     except: pass
+
+    # PostgreSQL schema parity for downtimes & downtime_directory (TEXT unlimited lengths)
+    try:
+        db_pg = SessionLocal()
+        driver_pg = db_pg.bind.dialect.name if db_pg.bind else 'unknown'
+        if driver_pg == 'postgresql':
+            from sqlalchemy import text
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS department VARCHAR(255);"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS is_equipment_downtime BOOLEAN DEFAULT TRUE;"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS comment TEXT;"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS breakdowns TEXT;"))
+            db_pg.execute(text("ALTER TABLE downtimes ALTER COLUMN comment TYPE TEXT;"))
+            db_pg.execute(text("ALTER TABLE downtimes ALTER COLUMN description TYPE TEXT;"))
+            
+            db_pg.execute(text("ALTER TABLE downtime_directory ADD COLUMN IF NOT EXISTS category VARCHAR(255);"))
+            db_pg.execute(text("ALTER TABLE downtime_directory ADD COLUMN IF NOT EXISTS comment TEXT;"))
+            db_pg.execute(text("ALTER TABLE downtime_directory ALTER COLUMN comment TYPE TEXT;"))
+            db_pg.commit()
+    except Exception as dt_pg_err:
+        print(f"Warning: could not migrate PostgreSQL downtimes schema: {dt_pg_err}")
+        if 'db_pg' in locals() and db_pg:
+            db_pg.rollback()
+    finally:
+        if 'db_pg' in locals() and db_pg:
+            db_pg.close()
     
     # DocumentCategory password_hash migration
     try:
