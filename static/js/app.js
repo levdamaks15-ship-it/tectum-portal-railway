@@ -701,8 +701,7 @@ function prefillReportForm(shift) {
         if(zoTarget) zoTarget.value = val;
     });
     // Raw materials receipt 
-    // Data is loaded via dedicated endpoint
-    loadReceipts(shift);
+
 
     // Fetch shift reports to populate production/defect sheets
     fetch(`/api/report/summary?from_date=${shift.date}&to_date=${shift.date}&line=${encodeURIComponent(shift.line)}`)
@@ -3188,11 +3187,7 @@ async function init() {
     document.getElementById('rep-export-type')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
-    
-    document.getElementById('rec-date')?.addEventListener('change', () => loadReceipts());
-    document.getElementById('rec-shift')?.addEventListener('change', () => loadReceipts());
-    document.getElementById('rec-line')?.addEventListener('change', () => loadReceipts());
-    
+
     // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
     let cachedUser = window.__cachedUser;
     if (!cachedUser) {
@@ -3441,58 +3436,6 @@ async function exportDowntimesToGoogle() {
 
 
 // --- Raw Material Receipts Logic ---
-async function loadReceipts(date, shift_name, line) {
-    if (!date || !shift_name || !line) {
-        if (typeof date === 'object' && date !== null) {
-            shift_name = date.shift_name;
-            line = date.line;
-            date = date.date;
-        } else {
-            date = document.getElementById('rec-date')?.value || document.getElementById('rep-date')?.value;
-            shift_name = document.getElementById('rec-shift')?.value || document.getElementById('rep-shift')?.value;
-            line = document.getElementById('rec-line')?.value || document.getElementById('rep-line')?.value;
-        }
-    }
-    if (!date || !shift_name || !line) return;
-    try {
-        const res = await fetch(`/api/receipts/by_slot?date=${date}&shift_name=${encodeURIComponent(shift_name)}&line=${encodeURIComponent(line)}`);
-        if (res.ok) {
-            const receipts = await res.json();
-            renderReceiptsTable(receipts, { date, shift_name, line });
-        }
-    } catch(e) {
-        console.error('Error loading receipts:', e);
-    }
-}
-
-function renderReceiptsTable(receipts, shiftData) {
-    const tbody = document.getElementById('receipts-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-    
-    if (!receipts || receipts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">Нет добавленных приходов сырья</td></tr>';
-        return;
-    }
-
-    receipts.forEach(r => {
-        const sDate = r.record_date || (shiftData ? shiftData.date : '-');
-        const sName = r.record_shift_name || (shiftData ? shiftData.shift_name : '-');
-        const mName = r.master_name || (shiftData && shiftData.master ? shiftData.master.name : '-');
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${sDate}</td>
-            <td>${sName}</td>
-            <td>${mName}</td>
-            <td>
-                <button type="button" class="btn-danger btn-sm" onclick="deleteReceipt(${r.id})">❌</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
 async function addReceipt() {
     const date = document.getElementById('rec-date').value;
     const shift_name = document.getElementById('rec-shift').value;
@@ -3541,7 +3484,6 @@ async function addReceipt() {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            loadReceipts(date, shift_name, line);
             showNotification('success', 'Отлично!', 'Приход сырья успешно сохранен в облако.');
         } else {
             const err = await res.json();
@@ -3554,24 +3496,6 @@ async function addReceipt() {
     }
 }
 
-async function deleteReceipt(receiptId) {
-    if (!confirm("Вы уверены, что хотите удалить этот приход сырья?")) return;
-    
-    try {
-        const res = await fetch(`/api/receipts/${receiptId}`, {
-            method: 'DELETE'
-        });
-        
-        if (res.ok) {
-            loadReceipts();
-        } else {
-            const err = await res.json();
-            alert("Ошибка при удалении: " + (err.detail || 'Неизвестная ошибка'));
-        }
-    } catch(e) {
-        alert("Ошибка: " + e.message);
-    }
-}
 
 // ------------------------------------------------
 // DYNAMIC BREAKDOWNS LOGIC
