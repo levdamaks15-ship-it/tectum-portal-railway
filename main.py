@@ -1622,7 +1622,8 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
         # Суммируем выработку ЛФМ по слотам (date, shift_type)
         # Учитываем переход продукции / несколько партий в смене
         slot_lfm = defaultdict(int)
-        slot_masters = defaultdict(set)
+        slot_prod_masters = defaultdict(set)
+        slot_all_masters = defaultdict(set)
         slot_products = defaultdict(list)
         slot_batches = defaultdict(list)
 
@@ -1646,7 +1647,10 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
             if s.master_id:
                 m = db.query(models.Master).filter(models.Master.id == s.master_id).first()
                 if m:
-                    slot_masters[(d_str, s_name)].add(getattr(m, 'full_name', getattr(m, 'name', str(m.id))))
+                    m_name = getattr(m, 'full_name', getattr(m, 'name', str(m.id)))
+                    if total_lfm > 0:
+                        slot_prod_masters[(d_str, s_name)].add(m_name)
+                    slot_all_masters[(d_str, s_name)].add(m_name)
             if s.product_name:
                 slot_products[(d_str, s_name)].append(s.product_name)
             if s.batch_number:
@@ -1679,7 +1683,8 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
             for s_name in ['День', 'Ночь']:
                 plan = 2700 if s_name == 'День' else 3300
                 fact_lfm = slot_lfm.get((d_date_str, s_name), 0)
-                masters = ", ".join(sorted(slot_masters.get((d_date_str, s_name), [])))
+                active_masters = slot_prod_masters.get((d_date_str, s_name)) or slot_all_masters.get((d_date_str, s_name)) or set()
+                masters = ", ".join(sorted(list(active_masters)))
                 products = ", ".join(list(dict.fromkeys(slot_products.get((d_date_str, s_name), []))))
                 batches = ", ".join(list(dict.fromkeys(slot_batches.get((d_date_str, s_name), []))))
                 
