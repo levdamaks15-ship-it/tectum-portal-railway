@@ -74,3 +74,205 @@ def get_shift_plan(db: Session, shift: models.Shift) -> int:
     if getattr(shift, "date", None) and shift.date.weekday() == 0 and shift.shift_name == "День":
         return 0
     return 2700 if shift.shift_name == "День" else 3300
+
+from datetime import datetime
+from sqlalchemy import func
+import os
+from database import SessionLocal
+import excel_exporter
+import m365_integration
+import google_sheets_integration
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Session, master_id: int = None):
+    # Map shift line to plan board line
+    is_line_1 = "1" in shift_line
+    pb_line = "ЛФМ-1" if is_line_1 else "ЛФМ-2"
+    
+    # Find all shifts matching the date, name, and line
+    matching_shifts = db.query(models.Shift).filter(
+        models.Shift.date == shift_date,
+        models.Shift.shift_name == shift_name,
+        models.Shift.line.like("%1%" if is_line_1 else "%2%")
+    ).all()
+    
+    shift_ids = [s.id for s in matching_shifts]
+    
+    total_sheets = 0
+    total_1st = 0
+    total_defect = 0
+    
+    if shift_ids:
+        # Calculate sum of sheets from LFM reports, and 1st grade, defect from batches for these shifts
+        lfm_stats = db.query(
+            func.sum(models.LFMReport.lfm_sheets).label("total_sheets")
+        ).filter(models.LFMReport.shift_id.in_(shift_ids)).first()
+        
+        batch_stats = db.query(
+            func.sum(models.Batch.ds_first_grade).label("total_1st"),
+            func.sum(models.Batch.ds_defect).label("total_defect")
+        ).filter(models.Batch.shift_id.in_(shift_ids)).first()
+        
+        total_sheets = int(lfm_stats.total_sheets or 0) if lfm_stats else 0
+        total_1st = int(batch_stats.total_1st or 0) if batch_stats else 0
+        total_defect = int(batch_stats.total_defect or 0) if batch_stats else 0
+    
+    # Find corresponding MonthlyPlanBoard row
+    pb_row = db.query(models.MonthlyPlanBoard).filter(
+        models.MonthlyPlanBoard.date == shift_date,
+        models.MonthlyPlanBoard.shift_name == shift_name,
+        models.MonthlyPlanBoard.line == pb_line
+    ).first()
+    
+    if pb_row:
+        old_fact = pb_row.fact_sheets
+        pb_row.fact_sheets = total_sheets
+        pb_row.first_grade = total_1st
+        pb_row.defect = total_defect
+        
+        # Log to AuditLog (per rules, plan board changes must be logged to AuditLog)
+        log_entry = models.AuditLog(
+            timestamp=datetime.utcnow(),
+            user_name="System Sync (LFM)",
+            action="UPDATE",
+            target_table="monthly_plan_board",
+            target_id=pb_row.id,
+            details=f"Синхронизация {shift_line} {shift_date} {shift_name}. Факт обновлен: {old_fact} -> {total_sheets}. 1 сорт: {total_1st}, Брак: {total_defect}."
+        )
+        db.add(log_entry)
+    else:
+        # If there are no shifts and no fact, don't create a phantom row
+        if total_sheets == 0 and not shift_ids:
+            return
+            
+        final_master_id = master_id if master_id is not None else (matching_shifts[0].master_id if matching_shifts else None)
+        if isinstance(shift_date, str):
+            try:
+                dt_obj = datetime.strptime(shift_date, "%Y-%m-%d").date()
+                is_monday = dt_obj.weekday() == 0
+            except:
+                is_monday = False
+        else:
+            is_monday = shift_date.weekday() == 0
+            
+        default_plan_sheets = 0 if is_monday and shift_name == "День" else (2700 if shift_name == "День" else 3300)
+        
+        # Create a new plan board row if it doesn't exist
+        pb_row = models.MonthlyPlanBoard(
+            date=shift_date,
+            shift_name=shift_name,
+            line=pb_line,
+            master_id=final_master_id,
+            plan_sheets=default_plan_sheets,
+            fact_sheets=total_sheets,
+            first_grade=total_1st,
+            defect=total_defect
+        )
+        db.add(pb_row)
+        db.flush() # get the ID
+        
+        log_entry = models.AuditLog(
+            timestamp=datetime.utcnow(),
+            user_name="System Sync (LFM)",
+            action="CREATE",
+            target_table="monthly_plan_board",
+            target_id=pb_row.id,
+            details=f"Создана новая запись план-борда для {shift_line} {shift_date} {shift_name}. Факт: {total_sheets}. 1 сорт: {total_1st}, Брак: {total_defect}."
+        )
+        db.add(log_entry)
+        
+    db.commit()
+
+def sync_sharepoint_report_bg():
+    db = SessionLocal()
+    try:
+        file_bytes = excel_exporter.generate_flat_report(db)
+        filename = "Сводный_отчет_Tectum.xlsx"
+        local_path = os.path.join("static", filename)
+        try:
+            with open(local_path, "wb") as f:
+                f.write(file_bytes)
+        except Exception as local_err:
+            print(f"Error saving local excel: {local_err}")
+            
+        if os.getenv("M365_TENANT_ID"):
+            try:
+                m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
+            except Exception as sp_err:
+                db.add(models.AuditLog(
+                    user_name="System Background Sync",
+                    action="ERROR",
+                    target_table="shifts",
+                    target_id=0,
+                    details=f"Ошибка загрузки сводного отчета в SharePoint: {str(sp_err)}"
+                ))
+                db.commit()
+            
+        try:
+            # Запускаем синхронизацию с Google Таблицами
+            google_sheets_integration.sync_report_to_google_sheets(db)
+            google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+            google_sheets_integration.export_receipt_to_google_sheets(db)
+            db.add(models.AuditLog(
+                user_name="System Background Sync",
+                action="UPDATE",
+                target_table="shifts",
+                target_id=0,
+                details="Сводный отчет, приход сырья и переборка успешно синхронизированы с Google Таблицами в фоновом режиме."
+            ))
+            db.commit()
+        except Exception as gs_err:
+            db.add(models.AuditLog(
+                user_name="System Background Sync",
+                action="ERROR",
+                target_table="shifts",
+                target_id=0,
+                details=f"Ошибка синхронизации с Google Таблицами: {str(gs_err)}"
+            ))
+            db.commit()
+    except Exception as e:
+        print(f"Error in SharePoint/Google background sync: {e}")
+    finally:
+        db.close()
+
+def sync_google_sheets_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.sync_report_to_google_sheets(db)
+        google_sheets_integration.export_receipt_to_google_sheets(db)
+        google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing reports/receipts to Google Sheets: {e}")
+        try:
+            db.add(models.AuditLog(
+                user_name="Google Sync Reports",
+                action="ERROR",
+                details=f"Ошибка синхронизации отчетов в Google Sheets: {str(e)}"
+            ))
+            db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+def sync_receipts_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.export_receipt_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing receipts to Google Sheets: {e}")
+    finally:
+        db.close()
+
+
