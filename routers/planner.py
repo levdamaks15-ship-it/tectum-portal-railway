@@ -22,16 +22,15 @@ def get_db():
     finally:
         db.close()
 
-
 # ==========================================================
-# рџЋЇ TECTUM TASKS PLANNER API
+# 🎯 TECTUM TASKS PLANNER API
 # ==========================================================
 # EMAIL NOTIFICATIONS FOR TASKS PLANNER
 # ==========================================================
 from email_service import send_task_html_email
 
 def get_task_person_email(db: Session, person_name: str) -> Optional[str]:
-    """РќР°С…РѕРґРёС‚ email СЃРѕС‚СЂСѓРґРЅРёРєР° СЃРЅР°С‡Р°Р»Р° РІ PlannerEmployee, Р·Р°С‚РµРј РІ Master."""
+    """Находит email сотрудника сначала в PlannerEmployee, затем в Master."""
     if not person_name:
         return None
     pe = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == person_name).first()
@@ -43,7 +42,7 @@ def get_task_person_email(db: Session, person_name: str) -> Optional[str]:
     return None
 
 def send_task_email_notification(to_email: str, subject: str, event_type: str, task_dict: dict):
-    """Р¤РѕРЅРѕРІР°СЏ РѕС‚РїСЂР°РІРєР° email-СѓРІРµРґРѕРјР»РµРЅРёСЏ С‡РµСЂРµР· email_service."""
+    """Фоновая отправка email-уведомления через email_service."""
     if not to_email or "@" not in to_email:
         return
     try:
@@ -55,7 +54,7 @@ def send_task_email_notification(to_email: str, subject: str, event_type: str, t
 
 @router.get("/api/planner/employees")
 def get_planner_employees(db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ РїР»Р°РЅРЅРµСЂР°."""
+    """Возвращает список сотрудников планнера."""
     try:
         emps = db.query(models.PlannerEmployee).order_by(models.PlannerEmployee.sort_order.asc(), models.PlannerEmployee.id.asc()).all()
         return [
@@ -76,27 +75,27 @@ def get_planner_employees(db: Session = Depends(get_db)):
 
 @router.post("/api/planner/employees/verify_pin")
 def verify_planner_pin(data: dict, db: Session = Depends(get_db)):
-    """РџСЂРѕРІРµСЂСЏРµС‚ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ PIN-РєРѕРґР° СЃРѕС‚СЂСѓРґРЅРёРєР°."""
+    """Проверяет соответствие PIN-кода сотрудника."""
     name = (data.get("name") or "").strip()
     pin = (data.get("pin_code") or "").strip()
     if not name:
-        raise HTTPException(status_code=400, detail="РќРµ СѓРєР°Р·Р°РЅРѕ РёРјСЏ СЃРѕС‚СЂСѓРґРЅРёРєР°")
+        raise HTTPException(status_code=400, detail="Не указано имя сотрудника")
     
     emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == name).first()
     if not emp:
-        # Р•СЃР»Рё СЃРѕС‚СЂСѓРґРЅРёРєР° РЅРµС‚ РІ СЃРїСЂР°РІРѕС‡РЅРёРєРµ вЂ” СЂР°Р·СЂРµС€Р°РµРј Р±Р°Р·РѕРІС‹Р№ РІС…РѕРґ
+        # Если сотрудника нет в справочнике — разрешаем базовый вход
         return {"status": "ok", "name": name, "verified": True}
     
-    # Р•СЃР»Рё Сѓ СЃРѕС‚СЂСѓРґРЅРёРєР° СѓСЃС‚Р°РЅРѕРІР»РµРЅ PIN вЂ” СЃРІРµСЂСЏРµРј
+    # Если у сотрудника установлен PIN — сверяем
     if emp.pin_code and emp.pin_code.strip():
         if emp.pin_code.strip() != pin:
-            raise HTTPException(status_code=401, detail="РќРµРІРµСЂРЅС‹Р№ PIN-РєРѕРґ СЃРѕС‚СЂСѓРґРЅРёРєР°")
+            raise HTTPException(status_code=401, detail="Неверный PIN-код сотрудника")
     
     return {"status": "ok", "name": emp.name, "verified": True}
 
 @router.post("/api/planner/employees")
 def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = Depends(get_db)):
-    """Р”РѕР±Р°РІР»СЏРµС‚ СЃРѕС‚СЂСѓРґРЅРёРєР° РІ РЅР°СЃС‚СЂРѕР№РєРё РїР»Р°РЅРЅРµСЂР°."""
+    """Добавляет сотрудника в настройки планнера."""
     try:
         new_emp = models.PlannerEmployee(
             name=data.name.strip(),
@@ -115,11 +114,11 @@ def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = D
 
 @router.put("/api/planner/employees/{emp_id}")
 def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db: Session = Depends(get_db)):
-    """РћР±РЅРѕРІР»СЏРµС‚ СЃРѕС‚СЂСѓРґРЅРёРєР° РїР»Р°РЅРЅРµСЂР°."""
+    """Обновляет сотрудника планнера."""
     try:
         emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.id == emp_id).first()
         if not emp:
-            raise HTTPException(status_code=404, detail="РЎРѕС‚СЂСѓРґРЅРёРє РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Сотрудник не найден")
         if data.name is not None:
             emp.name = data.name.strip()
         if data.email is not None:
@@ -141,14 +140,14 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
 
 @router.delete("/api/planner/employees/{emp_id}")
 def delete_planner_employee(emp_id: int, db: Session = Depends(get_db)):
-    """РЈРґР°Р»СЏРµС‚ СЃРѕС‚СЂСѓРґРЅРёРєР° РёР· РЅР°СЃС‚СЂРѕРµРє РїР»Р°РЅРЅРµСЂР°."""
+    """Удаляет сотрудника из настроек планнера."""
     try:
         emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.id == emp_id).first()
         if not emp:
-            raise HTTPException(status_code=404, detail="РЎРѕС‚СЂСѓРґРЅРёРє РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Сотрудник не найден")
         db.delete(emp)
         db.commit()
-        return {"status": "ok", "message": "РЎРѕС‚СЂСѓРґРЅРёРє СѓРґР°Р»РµРЅ"}
+        return {"status": "ok", "message": "Сотрудник удален"}
     except HTTPException:
         raise
     except Exception as e:
@@ -158,7 +157,7 @@ def delete_planner_employee(emp_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/planner/zones")
 def get_planner_zones(db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє Р·РѕРЅ / РїРѕРґСЂР°Р·РґРµР»РµРЅРёР№ РїР»Р°РЅРЅРµСЂР°."""
+    """Возвращает список зон / подразделений планнера."""
     try:
         zones = db.query(models.PlannerZone).order_by(models.PlannerZone.sort_order.asc(), models.PlannerZone.id.asc()).all()
         return [
@@ -176,7 +175,7 @@ def get_planner_zones(db: Session = Depends(get_db)):
 
 @router.post("/api/planner/zones")
 def create_planner_zone(data: schemas.PlannerZoneCreate, db: Session = Depends(get_db)):
-    """Р”РѕР±Р°РІР»СЏРµС‚ Р·РѕРЅСѓ / РїРѕРґСЂР°Р·РґРµР»РµРЅРёРµ РІ РЅР°СЃС‚СЂРѕР№РєРё РїР»Р°РЅРЅРµСЂР°."""
+    """Добавляет зону / подразделение в настройки планнера."""
     try:
         new_zone = models.PlannerZone(
             name=data.name.strip(),
@@ -193,11 +192,11 @@ def create_planner_zone(data: schemas.PlannerZoneCreate, db: Session = Depends(g
 
 @router.put("/api/planner/zones/{zone_id}")
 def update_planner_zone(zone_id: int, data: schemas.PlannerZoneUpdate, db: Session = Depends(get_db)):
-    """РћР±РЅРѕРІР»СЏРµС‚ Р·РѕРЅСѓ / РїРѕРґСЂР°Р·РґРµР»РµРЅРёРµ РїР»Р°РЅРЅРµСЂР°."""
+    """Обновляет зону / подразделение планнера."""
     try:
         zone = db.query(models.PlannerZone).filter(models.PlannerZone.id == zone_id).first()
         if not zone:
-            raise HTTPException(status_code=404, detail="Р—РѕРЅР° РЅРµ РЅР°Р№РґРµРЅР°")
+            raise HTTPException(status_code=404, detail="Зона не найдена")
         if data.name is not None:
             zone.name = data.name.strip()
         if data.is_active is not None:
@@ -215,14 +214,14 @@ def update_planner_zone(zone_id: int, data: schemas.PlannerZoneUpdate, db: Sessi
 
 @router.delete("/api/planner/zones/{zone_id}")
 def delete_planner_zone(zone_id: int, db: Session = Depends(get_db)):
-    """РЈРґР°Р»СЏРµС‚ Р·РѕРЅСѓ РёР· РЅР°СЃС‚СЂРѕРµРє РїР»Р°РЅРЅРµСЂР°."""
+    """Удаляет зону из настроек планнера."""
     try:
         zone = db.query(models.PlannerZone).filter(models.PlannerZone.id == zone_id).first()
         if not zone:
-            raise HTTPException(status_code=404, detail="Р—РѕРЅР° РЅРµ РЅР°Р№РґРµРЅР°")
+            raise HTTPException(status_code=404, detail="Зона не найдена")
         db.delete(zone)
         db.commit()
-        return {"status": "ok", "message": "Р—РѕРЅР° СѓРґР°Р»РµРЅР°"}
+        return {"status": "ok", "message": "Зона удалена"}
     except HTTPException:
         raise
     except Exception as e:
@@ -235,46 +234,46 @@ def test_planner_email(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
-    """РћС‚РїСЂР°РІР»СЏРµС‚ С‚РµСЃС‚РѕРІРѕРµ Р±СЂРµРЅРґРёСЂРѕРІР°РЅРЅРѕРµ СѓРІРµРґРѕРјР»РµРЅРёРµ РЅР° СѓРєР°Р·Р°РЅРЅС‹Р№ email."""
+    """Отправляет тестовое брендированное уведомление на указанный email."""
     if not to_email or "@" not in to_email:
-        raise HTTPException(status_code=400, detail="РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ email Р°РґСЂРµСЃ")
+        raise HTTPException(status_code=400, detail="Укажите корректный email адрес")
 
     test_task = {
         "id": 999,
         "code": "TSK-TEST",
-        "title": "РўРµСЃС‚РѕРІР°СЏ РїСЂРѕРІРµСЂРєР° СЃРёСЃС‚РµРјС‹ СѓРІРµРґРѕРјР»РµРЅРёР№ Tectum",
-        "title_kz": "Tectum С…Р°Р±Р°СЂР»Р°РЅРґС‹СЂСѓ Р¶ТЇР№РµСЃС–РЅ СЃС‹РЅР°Т›С‚Р°РЅ У©С‚РєС–Р·Сѓ",
-        "zone": "Р¦РёС„СЂРѕРІРѕР№ РїРѕСЂС‚Р°Р»",
+        "title": "Тестовая проверка системы уведомлений Tectum",
+        "title_kz": "Tectum хабарландыру жүйесін сынақтан өткізу",
+        "zone": "Цифровой портал",
         "due_date_str": datetime.now().strftime("%d.%m.%Y"),
-        "author_name": "РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ",
-        "assignee_name": "РўРµСЃС‚РѕРІС‹Р№ РёСЃРїРѕР»РЅРёС‚РµР»СЊ",
-        "status": "рџџЎ Р’ СЂР°Р±РѕС‚Рµ",
-        "comment": "РџРѕС‡С‚РѕРІС‹Р№ С€Р»СЋР· СѓСЃРїРµС€РЅРѕ РЅР°СЃС‚СЂРѕРµРЅ Рё РіРѕС‚РѕРІ Рє РѕС‚РїСЂР°РІРєРµ СѓРІРµРґРѕРјР»РµРЅРёР№.",
+        "author_name": "Администратор",
+        "assignee_name": "Тестовый исполнитель",
+        "status": "🟡 В работе",
+        "comment": "Почтовый шлюз успешно настроен и готов к отправке уведомлений.",
         "photo_link": "",
-        "month_label": "РђРІРіСѓСЃС‚ 2026",
-        "week_label": "РќРµРґРµР»СЏ 4 (24.08 - 28.08)"
+        "month_label": "Август 2026",
+        "week_label": "Неделя 4 (24.08 - 28.08)"
     }
 
     success, err = send_task_html_email(
         to_email=to_email.strip(),
-        subject="рџљЂ РџСЂРѕРІРµСЂРєР° РїРѕС‡С‚РѕРІС‹С… СѓРІРµРґРѕРјР»РµРЅРёР№ Tectum РџР»Р°РЅРЅРµСЂ",
-        event_type="РўРµСЃС‚РѕРІРѕРµ СѓРІРµРґРѕРјР»РµРЅРёРµ",
+        subject="🚀 Проверка почтовых уведомлений Tectum Планнер",
+        event_type="Тестовое уведомление",
         task_data=test_task
     )
 
     if success:
-        return {"status": "ok", "message": f"РўРµСЃС‚РѕРІРѕРµ РїРёСЃСЊРјРѕ СѓСЃРїРµС€РЅРѕ РѕС‚РїСЂР°РІР»РµРЅРѕ РЅР° {to_email}!"}
+        return {"status": "ok", "message": f"Тестовое письмо успешно отправлено на {to_email}!"}
     else:
-        raise HTTPException(status_code=500, detail=f"РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ РїРёСЃСЊРјРѕ: {err or 'РќРµРёР·РІРµСЃС‚РЅР°СЏ РѕС€РёР±РєР°'}")
+        raise HTTPException(status_code=500, detail=f"Не удалось отправить письмо: {err or 'Неизвестная ошибка'}")
 
 
 
 def generate_calendar_structure_mon_fri(year: int = 2026):
-    """Р“РµРЅРµСЂРёСЂСѓРµС‚ СЃС‚СЂРѕРіСѓСЋ СЃРµС‚РєСѓ СЂР°Р±РѕС‡РёС… РЅРµРґРµР»СЊ (РџРЅ-РџС‚) РґР»СЏ РІСЃРµС… 12 РјРµСЃСЏС†РµРІ РіРѕРґР°."""
+    """Генерирует строгую сетку рабочих недель (Пн-Пт) для всех 12 месяцев года."""
     import datetime
     months_ru = [
-        "РЇРЅРІР°СЂСЊ", "Р¤РµРІСЂР°Р»СЊ", "РњР°СЂС‚", "РђРїСЂРµР»СЊ", "РњР°Р№", "РСЋРЅСЊ",
-        "РСЋР»СЊ", "РђРІРіСѓСЃС‚", "РЎРµРЅС‚СЏР±СЂСЊ", "РћРєС‚СЏР±СЂСЊ", "РќРѕСЏР±СЂСЊ", "Р”РµРєР°Р±СЂСЊ"
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
     ]
     structure = {}
     for m in range(1, 13):
@@ -283,7 +282,7 @@ def generate_calendar_structure_mon_fri(year: int = 2026):
         cur = datetime.date(year, m, 1)
         next_month = datetime.date(year + (1 if m == 12 else 0), 1 if m == 12 else m + 1, 1)
         
-        # РџРµСЂРІС‹Р№ РїРѕРЅРµРґРµР»СЊРЅРёРє РЅР°С‡РёРЅР°СЏ СЃ 1-РіРѕ С‡РёСЃР»Р° РјРµСЃСЏС†Р°:
+        # Первый понедельник начиная с 1-го числа месяца:
         cur_monday = cur + datetime.timedelta(days=(0 - cur.weekday()) % 7)
         
         w_idx = 1
@@ -291,7 +290,7 @@ def generate_calendar_structure_mon_fri(year: int = 2026):
             fri = cur_monday + datetime.timedelta(days=4)
             s_str = cur_monday.strftime('%d.%m')
             e_str = fri.strftime('%d.%m')
-            weeks_list.append(f"РќРµРґРµР»СЏ {w_idx} ({s_str} - {e_str})")
+            weeks_list.append(f"Неделя {w_idx} ({s_str} - {e_str})")
             w_idx += 1
             cur_monday += datetime.timedelta(days=7)
             
@@ -300,7 +299,7 @@ def generate_calendar_structure_mon_fri(year: int = 2026):
 
 @router.get("/api/tasks/weeks")
 def get_tasks_calendar_structure(db: Session = Depends(get_db)):
-    """Р“РµРЅРµСЂРёСЂСѓРµС‚ СЃС‚СЂРѕРіРѕ С‡РёСЃС‚СѓСЋ РєР°Р»РµРЅРґР°СЂРЅСѓСЋ СЃРµС‚РєСѓ СЂР°Р±РѕС‡РёС… РЅРµРґРµР»СЊ (РџРЅ-РџС‚) РїРѕ РІСЃРµРј 12 РјРµСЃСЏС†Р°Рј РіРѕРґР° СЃ РґРёРЅР°РјРёС‡РµСЃРєРёРј Р°РІС‚РѕРІС‹Р±РѕСЂРѕРј С‚РµРєСѓС‰РµР№ РЅРµРґРµР»Рё."""
+    """Генерирует строго чистую календарную сетку рабочих недель (Пн-Пт) по всем 12 месяцам года с динамическим автовыбором текущей недели."""
     import datetime
     try:
         today = datetime.date.today()
@@ -310,24 +309,24 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
         default_month = None
         default_week = None
 
-        # РС‰РµРј РЅРµРґРµР»СЋ РІРѕ РІСЃРµР№ СЃС‚СЂСѓРєС‚СѓСЂРµ РіРѕРґР°, РґРёР°РїР°Р·РѕРЅ РєРѕС‚РѕСЂРѕР№ РѕС…РІР°С‚С‹РІР°РµС‚ СЃРµРіРѕРґРЅСЏС€РЅРёР№ РґРµРЅСЊ (РџРЅ..Р’СЃ)
+        # Ищем неделю во всей структуре года, диапазон которой охватывает сегодняшний день (Пн..Вс)
         for m_name, month_weeks in structure.items():
             for w in month_weeks:
                 try:
-                    # С„РѕСЂРјР°С‚: "РќРµРґРµР»СЏ X (DD.MM - DD.MM)"
+                    # формат: "Неделя X (DD.MM - DD.MM)"
                     dates_part = w.split('(')[1].split(')')[0]
                     start_part, end_part = dates_part.split(' - ')
                     sd, sm = map(int, start_part.strip().split('.'))
                     ed, em = map(int, end_part.strip().split('.'))
                     
-                    # РЈС‡РµС‚ РїРµСЂРµС…РѕРґР° РіРѕРґР° (РґРµРєР°Р±СЂСЊ -> СЏРЅРІР°СЂСЊ)
+                    # Учет перехода года (декабрь -> январь)
                     start_year = year
                     end_year = year
                     if sm == 12 and em == 1:
                         end_year = year + 1
                     
                     w_start = datetime.date(start_year, sm, sd)
-                    # Р’РѕСЃРєСЂРµСЃРµРЅСЊРµ РЅРµРґРµР»Рё = +6 РґРЅРµР№ РѕС‚ РїРѕРЅРµРґРµР»СЊРЅРёРєР°
+                    # Воскресенье недели = +6 дней от понедельника
                     w_end = w_start + datetime.timedelta(days=6)
                     
                     if w_start <= today <= w_end:
@@ -339,11 +338,11 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
             if default_month and default_week:
                 break
 
-        # Р¤РѕР»Р»Р±СЌРє: РµСЃР»Рё РЅРµ РЅР°С€Р»Рё РїРѕ С‚РѕС‡РЅРѕРјСѓ РґРёР°РїР°Р·РѕРЅСѓ РґР°С‚, Р±РµСЂРµРј С‚РµРєСѓС‰РёР№ РєР°Р»РµРЅРґР°СЂРЅС‹Р№ РјРµСЃСЏС†
+        # Фоллбэк: если не нашли по точному диапазону дат, берем текущий календарный месяц
         if not default_month:
             months_ru = [
-                "РЇРЅРІР°СЂСЊ", "Р¤РµРІСЂР°Р»СЊ", "РњР°СЂС‚", "РђРїСЂРµР»СЊ", "РњР°Р№", "РСЋРЅСЊ",
-                "РСЋР»СЊ", "РђРІРіСѓСЃС‚", "РЎРµРЅС‚СЏР±СЂСЊ", "РћРєС‚СЏР±СЂСЊ", "РќРѕСЏР±СЂСЊ", "Р”РµРєР°Р±СЂСЊ"
+                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
             ]
             current_m_name = f"{months_ru[today.month - 1]} {year}"
             default_month = current_m_name if current_m_name in structure else list(structure.keys())[0]
@@ -358,10 +357,10 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
         }
     except Exception as e:
         print(f"Error getting calendar structure: {e}")
-        return {"months": ["РђРІРіСѓСЃС‚ 2026"], "structure": {"РђРІРіСѓСЃС‚ 2026": ["РќРµРґРµР»СЏ 5 (31.08 - 04.09)"]}, "default_month": "РђРІРіСѓСЃС‚ 2026", "default_week": "РќРµРґРµР»СЏ 5 (31.08 - 04.09)"}
+        return {"months": ["Август 2026"], "structure": {"Август 2026": ["Неделя 5 (31.08 - 04.09)"]}, "default_month": "Август 2026", "default_week": "Неделя 5 (31.08 - 04.09)"}
 
 def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
-    """Р’РЅСѓС‚СЂРµРЅРЅРёР№ РЅР°РґРµР¶РЅС‹Р№ РїРµСЂРµРІРѕРґС‡РёРє (Google Clients API + MyMemory fallback)."""
+    """Внутренний надежный переводчик (Google Clients API + MyMemory fallback)."""
     import urllib.parse
     import urllib.request
     import json
@@ -370,7 +369,7 @@ def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
     if not clean_text:
         return ""
 
-    # 1. Google Clients Translate API (РѕС‡РµРЅСЊ Р±С‹СЃС‚СЂС‹Р№ Рё Р±РµР· 429 Р±Р»РѕРєРёСЂРѕРІРѕРє)
+    # 1. Google Clients Translate API (очень быстрый и без 429 блокировок)
     try:
         url_gt = f"https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl={sl}&tl={tl}&q=" + urllib.parse.quote(clean_text)
         req_gt = urllib.request.Request(url_gt, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
@@ -386,7 +385,7 @@ def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
     except Exception:
         pass
 
-    # 2. Р¤РѕР»Р»Р±СЌРє С‡РµСЂРµР· MyMemory API
+    # 2. Фоллбэк через MyMemory API
     try:
         langpair = f"{sl}|{tl}" if sl != "auto" else (f"kk|{tl}" if tl == "ru" else f"ru|{tl}")
         url_mm = f"https://api.mymemory.translated.net/get?q={urllib.parse.quote(clean_text)}&langpair={langpair}"
@@ -403,27 +402,27 @@ def _fetch_translation_api(text: str, sl: str, tl: str) -> Optional[str]:
 
 def detect_and_translate_task_text(text: str, forced_source: Optional[str] = None) -> dict:
     """
-    РРЅС‚РµР»Р»РµРєС‚СѓР°Р»СЊРЅС‹Р№ Р°РЅР°Р»РёР·Р°С‚РѕСЂ СЏР·С‹РєР° Рё РґРІСѓСЃС‚РѕСЂРѕРЅРЅРёР№ РїРµСЂРµРІРѕРґС‡РёРє (RU <-> KZ).
-    РћРїСЂРµРґРµР»СЏРµС‚ СЏР·С‹Рє РІРІРѕРґР°:
-    - РџРѕ С…Р°СЂР°РєС‚РµСЂРЅС‹Рј СЃРёРјРІРѕР»Р°Рј РєР°Р·Р°С…СЃРєРѕРіРѕ Р°Р»С„Р°РІРёС‚Р° (У™, С–, ТЈ, Т“, ТЇ, Т±, Т›, У©, Т», У, Р†, Тў, Т’, Т®, Т°, Тљ, УЁ, Тє)
-    - РџРѕ С…Р°СЂР°РєС‚РµСЂРЅС‹Рј РєР°Р·Р°С…СЃРєРёРј СЃР»РѕРІР°Рј/РѕРєРѕРЅС‡Р°РЅРёСЏРј (СЃУ™Р»РµРј, СЂР°С…РјРµС‚, Р¶Т±РјС‹СЃ, РєРµСЂРµРє, Р±РѕР»РґС‹, Р»Р°СЂ, Р»РµСЂ, РґР°СЂ, РґРµСЂ, С‚Р°СЂ, С‚РµСЂ, РЅС‹ТЈ, РЅС–ТЈ, Т“Р°, РіРµ, Т›Р°, РєРµ, РґР°, РґРµ, С‚Р°, С‚Рµ, РјРµРЅ, РїРµРЅ, Р±РµРЅ)
-    - РџРѕ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРјСѓ РѕРїСЂРµРґРµР»РµРЅРёСЋ Google Translate (sl=auto)
-    Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃС‚СЂСѓРєС‚СѓСЂСѓ: {"status": "ok", "detected_lang": "ru"|"kk", "text_ru": "...", "text_kz": "..."}
+    Интеллектуальный анализатор языка и двусторонний переводчик (RU <-> KZ).
+    Определяет язык ввода:
+    - По характерным символам казахского алфавита (ә, і, ң, ғ, ү, ұ, қ, ө, һ, Ә, І, Ң, Ғ, Ү, Ұ, Қ, Ө, Һ)
+    - По характерным казахским словам/окончаниям (сәлем, рахмет, жұмыс, керек, болды, лар, лер, дар, дер, тар, тер, ның, нің, ға, ге, қа, ке, да, де, та, те, мен, пен, бен)
+    - По автоматическому определению Google Translate (sl=auto)
+    Возвращает структуру: {"status": "ok", "detected_lang": "ru"|"kk", "text_ru": "...", "text_kz": "..."}
     """
     clean_text = (text or "").strip()
     if not clean_text:
         return {"status": "ok", "detected_lang": "ru", "text_ru": "", "text_kz": ""}
 
     try:
-        kz_chars = set("У™С–ТЈТ“ТЇТ±Т›У©Т»УР†ТўТ’Т®Т°ТљУЁТє")
+        kz_chars = set("әіңғүұқөһӘІҢҒҮҰҚӨҺ")
         has_kz_chars = any(c in kz_chars for c in clean_text)
 
-        # РџСЂРѕРІРµСЂРєР° С‡Р°СЃС‚С‹С… РєР°Р·Р°С…СЃРєРёС… СЃР»РѕРІ Рё СЃСѓС„С„РёРєСЃРѕРІ
-        lower_words = set(re.findall(r'[a-zA-ZР°-СЏРђ-РЇС‘РЃУ™С–ТЈТ“ТЇТ±Т›У©Т»УР†ТўТ’Т®Т°ТљУЁТє]+', clean_text.lower()))
+        # Проверка частых казахских слов и суффиксов
+        lower_words = set(re.findall(r'[a-zA-Zа-яА-ЯёЁәіңғүұқөһӘІҢҒҮҰҚӨҺ]+', clean_text.lower()))
         common_kz_words = {
-            "СЃУ™Р»РµРј", "СЃР°Р»РµРј", "СЂР°С…РјРµС‚", "Р¶Т±РјС‹СЃ", "Р¶СѓРјС‹СЃ", "РєРµСЂРµРє", "Р±РѕР»РґС‹", "Р±РѕР»Р°РґС‹", 
-            "Р¶Р°СЃР°Сѓ", "Р¶Р°СЃР°Р»РґС‹", "Р°СѓС‹СЃС‚С‹СЂСѓ", "С‚РµРєСЃРµСЂСѓ", "Р¶У©РЅРґРµСѓ", "Р¶РѕРЅРґРµСѓ", "РѕСЂРЅР°С‚Сѓ", 
-            "С‚Р°Р·Р°Р»Р°Сѓ", "Р±РѕСЏСѓ", "Т›Р°СЂР°Сѓ", "РєР°СЂР°Сѓ", "Т›РѕСЋ", "РєРѕСЋ", "Р°Р»Сѓ", "Р±РµСЂСѓ", "Р±Р°СЂ", "Р¶РѕТ›", "Р¶РѕРє"
+            "сәлем", "салем", "рахмет", "жұмыс", "жумыс", "керек", "болды", "болады", 
+            "жасау", "жасалды", "ауыстыру", "тексеру", "жөндеу", "жондеу", "орнату", 
+            "тазалау", "бояу", "қарау", "карау", "қою", "кою", "алу", "беру", "бар", "жоқ", "жок"
         }
         has_kz_words = bool(lower_words & common_kz_words)
 
@@ -437,7 +436,7 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
             is_kz = False
             detected_lang = "ru"
         else:
-            # РђРІС‚РѕРѕРїСЂРµРґРµР»РµРЅРёРµ С‡РµСЂРµР· РЅР°РґРµР¶РЅС‹Р№ Google Clients API
+            # Автоопределение через надежный Google Clients API
             import urllib.parse
             import urllib.request
             import json
@@ -457,7 +456,7 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
                 pass
 
         if is_kz:
-            # РСЃС…РѕРґРЅС‹Р№ С‚РµРєСЃС‚ - РєР°Р·Р°С…СЃРєРёР№. РџРµСЂРµРІРѕРґРёРј РЅР° СЂСѓСЃСЃРєРёР№
+            # Исходный текст - казахский. Переводим на русский
             trans_ru = _fetch_translation_api(clean_text, "kk", "ru") or clean_text
             return {
                 "status": "ok",
@@ -466,7 +465,7 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
                 "text_kz": clean_text
             }
         else:
-            # РСЃС…РѕРґРЅС‹Р№ С‚РµРєСЃС‚ - СЂСѓСЃСЃРєРёР№. РџРµСЂРµРІРѕРґРёРј РЅР° РєР°Р·Р°С…СЃРєРёР№
+            # Исходный текст - русский. Переводим на казахский
             trans_kz = _fetch_translation_api(clean_text, "ru", "kk") or clean_text
             return {
                 "status": "ok",
@@ -484,14 +483,14 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
         }
 
 def auto_translate_text_internal(text: str) -> str:
-    """Р’РЅСѓС‚СЂРµРЅРЅРёР№ С…РµР»РїРµСЂ РґР»СЏ Р°РІС‚РѕРїРµСЂРµРІРѕРґР° RU -> KZ."""
+    """Внутренний хелпер для автоперевода RU -> KZ."""
     res = detect_and_translate_task_text(text)
     return res.get("text_kz", "")
 
 def extract_hashtags_from_title(title: str, existing_tags: Optional[str] = None) -> str:
-    """РР·РІР»РµРєР°РµС‚ #С…СЌС€С‚РµРіРё РёР· С‚РµРєСЃС‚Р° Р·Р°РіРѕР»РѕРІРєР° Рё РѕР±СЉРµРґРёРЅСЏРµС‚ СЃ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРјРё С‚РµРіР°РјРё."""
+    """Извлекает #хэштеги из текста заголовка и объединяет с существующими тегами."""
     import re
-    tags_found = re.findall(r"#[A-Za-zРђ-РЇР°-СЏ0-9_\-]+", title or "")
+    tags_found = re.findall(r"#[A-Za-zА-Яа-я0-9_\-]+", title or "")
     existing = [t.strip() for t in (existing_tags or "").split(",") if t.strip()]
     for t in tags_found:
         if t not in existing:
@@ -499,7 +498,7 @@ def extract_hashtags_from_title(title: str, existing_tags: Optional[str] = None)
     return ", ".join(existing)
 
 def recalculate_parent_task_progress(db: Session, parent_id: Optional[int]):
-    """РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїРµСЂРµСЃС‡РёС‚С‹РІР°РµС‚ РїСЂРѕС†РµРЅС‚ РІС‹РїРѕР»РЅРµРЅРёСЏ СЂРѕРґРёС‚РµР»СЊСЃРєРѕР№ Р·Р°РґР°С‡Рё РЅР° РѕСЃРЅРѕРІРµ СЃС‚Р°С‚СѓСЃР° РїРѕРґР·Р°РґР°С‡."""
+    """Автоматически пересчитывает процент выполнения родительской задачи на основе статуса подзадач."""
     if not parent_id:
         return
     try:
@@ -509,14 +508,14 @@ def recalculate_parent_task_progress(db: Session, parent_id: Optional[int]):
         subtasks = db.query(models.Task).filter(models.Task.parent_id == parent_id, models.Task.is_archived == False).all()
         if not subtasks:
             return
-        done_count = sum(1 for st in subtasks if st.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ")
+        done_count = sum(1 for st in subtasks if st.status == "🟢 Выполнено")
         total_count = len(subtasks)
         calc_prog = int((done_count / total_count) * 100) if total_count > 0 else 0
         parent.progress = calc_prog
-        if calc_prog == 100 and parent.status != "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ":
-            parent.status = "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ"
-        elif calc_prog < 100 and parent.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ":
-            parent.status = "рџџЎ Р’ СЂР°Р±РѕС‚Рµ"
+        if calc_prog == 100 and parent.status != "🟢 Выполнено":
+            parent.status = "🟢 Выполнено"
+        elif calc_prog < 100 and parent.status == "🟢 Выполнено":
+            parent.status = "🟡 В работе"
         db.commit()
         if parent.parent_id:
             recalculate_parent_task_progress(db, parent.parent_id)
@@ -525,7 +524,7 @@ def recalculate_parent_task_progress(db: Session, parent_id: Optional[int]):
 
 @router.get("/api/tasks/tags")
 def get_task_tags(db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РІСЃРµС… СѓРЅРёРєР°Р»СЊРЅС‹С… С…СЌС€С‚РµРіРѕРІ СЃ РєРѕР»РёС‡РµСЃС‚РІРѕРј Р°РєС‚РёРІРЅС‹С… Р·Р°РґР°С‡."""
+    """Возвращает список всех уникальных хэштегов с количеством активных задач."""
     try:
         tasks = db.query(models.Task.tags).filter(models.Task.is_archived == False, models.Task.tags.isnot(None)).all()
         tag_counts = {}
@@ -545,7 +544,7 @@ def get_task_tags(db: Session = Depends(get_db)):
 
 @router.get("/api/tasks/roadmaps")
 def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРµСЂР°СЂС…РёС‡РµСЃРєРѕРµ РґРµСЂРµРІРѕ Р”РѕСЂРѕР¶РЅС‹С… РєР°СЂС‚: РџСЂРѕРµРєС‚С‹ -> Р­С‚Р°РїС‹ -> РџРѕРґР·Р°РґР°С‡Рё."""
+    """Возвращает иерархическое дерево Дорожных карт: Проекты -> Этапы -> Подзадачи."""
     try:
         query = db.query(models.Task).filter(
             models.Task.task_type == "roadmap",
@@ -556,12 +555,12 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
         
         projects = query.order_by(models.Task.id.desc()).all()
         
-        # РЎРѕР±РёСЂР°РµРј РІСЃРµ ID РїСЂРѕРµРєС‚РѕРІ
+        # Собираем все ID проектов
         project_ids = [p.id for p in projects]
         if not project_ids:
             return []
 
-        # Р—Р°РіСЂСѓР¶Р°РµРј РґРѕС‡РµСЂРЅРёРµ СЌС‚Р°РїС‹ Рё Р·Р°РґР°С‡Рё
+        # Загружаем дочерние этапы и задачи
         children = db.query(models.Task).filter(
             models.Task.parent_id.in_(project_ids),
             models.Task.is_archived == False
@@ -575,7 +574,7 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
                 models.Task.is_archived == False
             ).order_by(models.Task.id.asc()).all()
 
-        # РџСЂРµРґР·Р°РіСЂСѓР·РєР° РґРѕРєСѓРјРµРЅС‚РѕРІ
+        # Предзагрузка документов
         all_tasks_for_docs = projects + children + sub_children
         doc_ids = [t.attached_document_id for t in all_tasks_for_docs if t.attached_document_id]
         doc_map = {}
@@ -590,7 +589,7 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
                     "link": file_link
                 }
 
-        # РљР°СЂС‚Р° Р·Р°РІРёСЃРёРјРѕСЃС‚РµР№
+        # Карта зависимостей
         depends_ids = [t.depends_on_id for t in all_tasks_for_docs if t.depends_on_id]
         dep_map = {}
         if depends_ids:
@@ -609,14 +608,14 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
             return {
                 "id": item.id,
                 "code": item.code or f"TSK-{item.id:02d}",
-                "zone": item.zone or "РџСЂРѕРµРєС‚",
+                "zone": item.zone or "Проект",
                 "title": item.title,
                 "title_kz": item.title_kz or "",
                 "task_type": item.task_type or "roadmap",
                 "department_service": item.department_service or "",
                 "target_quarter": item.target_quarter or "",
                 "progress": item.progress or 0,
-                "status": item.status or "рџџЎ Р’ СЂР°Р±РѕС‚Рµ",
+                "status": item.status or "🟡 В работе",
                 "assignee_name": item.assignee_name or "",
                 "author_name": item.author_name or "",
                 "due_date_str": item.due_date_str or "",
@@ -632,7 +631,7 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
             p_dict = serialize_item(p)
             p_children = [c for c in children if c.parent_id == p.id]
             
-            # РџРѕРґСЃС‡РµС‚ РїСЂРѕРіСЂРµСЃСЃР° РїСЂРѕРµРєС‚Р° РїРѕ СЌС‚Р°РїР°Рј/РїРѕРґР·Р°РґР°С‡Р°Рј
+            # Подсчет прогресса проекта по этапам/подзадачам
             total_items = 0
             done_items = 0
             milestones_list = []
@@ -642,16 +641,16 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
                 m_subs = [s for s in sub_children if s.parent_id == m.id]
                 m_dict["subtasks"] = [serialize_item(s) for s in m_subs]
                 
-                # РџРѕРґСЃС‡РµС‚ РїСЂРѕРіСЂРµСЃСЃР° РІРµС…Рё
+                # Подсчет прогресса вехи
                 m_total = len(m_subs)
-                m_done = sum(1 for s in m_subs if s.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ")
-                m_prog = int((m_done / m_total) * 100) if m_total > 0 else (100 if m.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ" else m.progress or 0)
+                m_done = sum(1 for s in m_subs if s.status == "🟢 Выполнено")
+                m_prog = int((m_done / m_total) * 100) if m_total > 0 else (100 if m.status == "🟢 Выполнено" else m.progress or 0)
                 m_dict["calculated_progress"] = m_prog
                 m_dict["subtasks_count"] = m_total
                 m_dict["subtasks_done_count"] = m_done
                 
                 total_items += 1 + m_total
-                done_items += (1 if m.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ" else 0) + m_done
+                done_items += (1 if m.status == "🟢 Выполнено" else 0) + m_done
                 milestones_list.append(m_dict)
 
             p_dict["milestones"] = milestones_list
@@ -668,7 +667,7 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
 
 @router.get("/api/documents/{doc_id}/tasks")
 def get_document_tasks(doc_id: int, db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє РІСЃРµС… Р°РєС‚РёРІРЅС‹С… Р·Р°РґР°С‡, РїСЂРёРІСЏР·Р°РЅРЅС‹С… Рє РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ СЂРµРіР»Р°РјРµРЅС‚Сѓ/РёРЅСЃС‚СЂСѓРєС†РёРё РёР· Р‘Р°Р·С‹ Р—РЅР°РЅРёР№."""
+    """Возвращает список всех активных задач, привязанных к конкретному регламенту/инструкции из Базы Знаний."""
     try:
         tasks = db.query(models.Task).filter(
             models.Task.attached_document_id == doc_id,
@@ -684,7 +683,7 @@ def get_document_tasks(doc_id: int, db: Session = Depends(get_db)):
             "zone": t.zone or "",
             "assignee_name": t.assignee_name or "",
             "due_date_str": t.due_date_str or "",
-            "status": t.status or "рџџЎ Р’ СЂР°Р±РѕС‚Рµ",
+            "status": t.status or "🟡 В работе",
             "month_label": t.month_label or "",
             "week_label": t.week_label or ""
         } for t in tasks]
@@ -693,7 +692,7 @@ def get_document_tasks(doc_id: int, db: Session = Depends(get_db)):
         return []
 
 def parse_date_dm_or_full(d_str: Optional[str], default_year: int = 2026):
-    """РџР°СЂСЃРёС‚ СЃС‚СЂРѕРєСѓ РґР°С‚С‹ РІРёРґР° '24.08', '24.08.2026', '30.09 (РЎСЂ)', '2026-08-24' РІ datetime.date."""
+    """Парсит строку даты вида '24.08', '24.08.2026', '30.09 (Ср)', '2026-08-24' в datetime.date."""
     if not d_str:
         return None
     import re, datetime
@@ -722,7 +721,7 @@ def parse_date_dm_or_full(d_str: Optional[str], default_year: int = 2026):
     return None
 
 def parse_week_label_range(week_label: Optional[str], month_label: Optional[str] = None, default_year: int = 2026):
-    """РР·РІР»РµРєР°РµС‚ РґР°С‚С‹ РЅР°С‡Р°Р»Р° Рё РєРѕРЅС†Р° СЂР°Р±РѕС‡РµР№ РЅРµРґРµР»Рё (РџРЅ, РџС‚) РёР· СЃС‚СЂРѕРєРё 'РќРµРґРµР»СЏ 4 (24.08 - 28.08)'."""
+    """Извлекает даты начала и конца рабочей недели (Пн, Пт) из строки 'Неделя 4 (24.08 - 28.08)'."""
     if not week_label or week_label == "all":
         return None, None
     import re
@@ -738,7 +737,7 @@ def get_tasks(
     month: Optional[str] = None,
     week: Optional[str] = None,
     task_type: Optional[str] = None, # "weekly", "service_plan", "roadmap", "milestone", "all"
-    department_service: Optional[str] = None, # "РћР“Рњ", "РћР“Р­", "РўРµС…РЅРѕР»РѕРіРё", "РћРўРљ", "all"
+    department_service: Optional[str] = None, # "ОГМ", "ОГЭ", "Технологи", "ОТК", "all"
     tag: Optional[str] = None,
     has_doc: Optional[bool] = None,
     parent_id: Optional[int] = None,
@@ -751,52 +750,52 @@ def get_tasks(
     is_archived: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРїРёСЃРѕРє Р·Р°РґР°С‡ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ 3 РіРѕСЂРёР·РѕРЅС‚РѕРІ, СЃРєРІРѕР·РЅС‹С… РґРѕР»РіРѕСЃСЂРѕС‡РЅС‹С… Р·Р°РґР°С‡ (cross-week), СЃР»СѓР¶Р±, С…СЌС€С‚РµРіРѕРІ Рё СЂРµРіР»Р°РјРµРЅС‚РѕРІ."""
+    """Возвращает список задач с поддержкой 3 горизонтов, сквозных долгосрочных задач (cross-week), служб, хэштегов и регламентов."""
     try:
         query = db.query(models.Task).filter(models.Task.is_archived == False)
 
-        # 1. Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ С‚РёРїСѓ Р·Р°РґР°С‡Рё / РіРѕСЂРёР·РѕРЅС‚Сѓ
+        # 1. Фильтрация по типу задачи / горизонту
         if task_type == "weekly":
             query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
             query = query.filter(models.Task.task_type != "service_plan", models.Task.task_type != "roadmap", models.Task.task_type != "milestone")
         elif task_type == "service_plan":
             query = query.filter(
                 (models.Task.task_type == "service_plan") |
-                (models.Task.department_service.in_(["РћР“Рњ", "РћР“Р­", "РўРµС…РЅРѕР»РѕРіРё", "РћРўРљ", "РЎРљРљ"])) |
-                (models.Task.zone.in_(["РћР“Рњ", "РћР“Р­", "РўРµС…РЅРѕР»РѕРіРё", "РћРўРљ", "РЎРљРљ"]))
+                (models.Task.department_service.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"])) |
+                (models.Task.zone.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"]))
             )
             query = query.filter(
                 ~and_(
                     models.Task.task_type == "weekly",
-                    models.Task.zone == "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ",
-                    or_(models.Task.department_service.is_(None), models.Task.department_service.in_(["", "РћР±С‰РёР№"]))
+                    models.Task.zone == "Бережливое производство",
+                    or_(models.Task.department_service.is_(None), models.Task.department_service.in_(["", "Общий"]))
                 )
             )
         elif task_type and task_type != "all":
             query = query.filter(models.Task.task_type == task_type)
 
-        # 2. Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ СЃР»СѓР¶Р±Р°Рј РћР“Рњ/РћР“Р­/РўРµС…РЅРѕР»РѕРіРё
+        # 2. Фильтрация по службам ОГМ/ОГЭ/Технологи
         if department_service and department_service != "all":
             query = query.filter((models.Task.department_service == department_service) | (models.Task.zone == department_service))
 
-        # 3. Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ С…СЌС€С‚РµРіР°Рј
+        # 3. Фильтрация по хэштегам
         if tag and tag != "all":
             clean_tag = tag.strip()
             if not clean_tag.startswith("#"):
                 clean_tag = "#" + clean_tag
             query = query.filter(models.Task.tags.ilike(f"%{clean_tag}%"))
 
-        # 4. Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ РЅР°Р»РёС‡РёСЋ РїСЂРёРєСЂРµРїР»РµРЅРЅРѕРіРѕ СЂРµРіР»Р°РјРµРЅС‚Р°
+        # 4. Фильтрация по наличию прикрепленного регламента
         if has_doc is True:
             query = query.filter(models.Task.attached_document_id.isnot(None))
         elif has_doc is False:
             query = query.filter(models.Task.attached_document_id.is_(None))
 
-        # 5. Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ СЂРѕРґРёС‚РµР»СЋ
+        # 5. Фильтрация по родителю
         if parent_id is not None:
             query = query.filter(models.Task.parent_id == parent_id)
 
-        # 6. Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ РїРµСЂСЃРѕРЅР°Р»Сѓ, Р·РѕРЅРµ, СЃС‚Р°С‚СѓСЃСѓ
+        # 6. Фильтрация по персоналу, зоне, статусу
         if my_person and my_person != "all":
             query = query.filter(or_(models.Task.assignee_name == my_person, models.Task.author_name == my_person))
         else:
@@ -810,32 +809,32 @@ def get_tasks(
         if status and status != "all":
             query = query.filter(models.Task.status == status)
 
-        # РџР°СЂСЃРёРј РіСЂР°РЅРёС†С‹ РІС‹Р±СЂР°РЅРЅРѕР№ РЅРµРґРµР»Рё
+        # Парсим границы выбранной недели
         sel_week_start, sel_week_end = parse_week_label_range(week, month)
 
-        # Р•СЃР»Рё РІС‹Р±СЂР°РЅР° РєРѕРЅРєСЂРµС‚РЅР°СЏ РЅРµРґРµР»СЏ: Р·Р°РїСЂР°С€РёРІР°РµРј СЂРѕРґРЅС‹Рµ Р·Р°РґР°С‡Рё + Р°РєС‚РёРІРЅС‹Рµ РєР°РЅРґРёРґР°С‚С‹ РЅР° СЃРєРІРѕР·РЅС‹Рµ Р·Р°РґР°С‡Рё
+        # Если выбрана конкретная неделя: запрашиваем родные задачи + активные кандидаты на сквозные задачи
         if week and week != "all":
             if include_backlog:
-                # Р’РєР»СЋС‡Р°СЏ РґРѕР»РіРё РїСЂРѕС€Р»С‹С… РїРµСЂРёРѕРґРѕРІ
+                # Включая долги прошлых периодов
                 if month and month != "all":
                     week_match = and_(models.Task.month_label == month, models.Task.week_label == week)
                     backlog_match = and_(
-                        models.Task.status != "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ",
-                        models.Task.status != "рџ”ґ РћС‚РјРµРЅРµРЅРѕ"
+                        models.Task.status != "🟢 Выполнено",
+                        models.Task.status != "🔴 Отменено"
                     )
                     query = query.filter(or_(week_match, backlog_match))
                 else:
                     week_match = (models.Task.week_label == week)
                     backlog_match = and_(
-                        models.Task.status != "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ",
-                        models.Task.status != "рџ”ґ РћС‚РјРµРЅРµРЅРѕ"
+                        models.Task.status != "🟢 Выполнено",
+                        models.Task.status != "🔴 Отменено"
                     )
                     query = query.filter(or_(week_match, backlog_match))
             else:
-                # Р’С‹Р±РёСЂР°РµРј Р·Р°РґР°С‡Рё СЂРѕРґРЅРѕР№ РЅРµРґРµР»Рё РР›Р Р°РєС‚РёРІРЅС‹Рµ Р·Р°РґР°С‡Рё СЃ РґРµРґР»Р°Р№РЅРѕРј РґР»СЏ СЃРєРІРѕР·РЅРѕРіРѕ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ
+                # Выбираем задачи родной недели ИЛИ активные задачи с дедлайном для сквозного отображения
                 week_match = and_(models.Task.month_label == month, models.Task.week_label == week) if (month and month != "all") else (models.Task.week_label == week)
                 cross_candidate_match = and_(
-                    models.Task.status != "рџ”ґ РћС‚РјРµРЅРµРЅРѕ",
+                    models.Task.status != "🔴 Отменено",
                     models.Task.due_date_str.isnot(None),
                     models.Task.due_date_str != ""
                 )
@@ -846,40 +845,40 @@ def get_tasks(
 
         raw_tasks = query.order_by(models.Task.id.desc()).all()
 
-        # Р¤РёР»СЊС‚СЂР°С†РёСЏ СЃРєРІРѕР·РЅС‹С… Р·Р°РґР°С‡ РїРѕ РІСЂРµРјРµРЅРЅРѕРјСѓ РґРёР°РїР°Р·РѕРЅСѓ
+        # Фильтрация сквозных задач по временному диапазону
         filtered_tasks = []
         for t in raw_tasks:
-            # 1. Р РѕРґРЅР°СЏ Р·Р°РґР°С‡Р° С‚РµРєСѓС‰РµР№ РЅРµРґРµР»Рё
+            # 1. Родная задача текущей недели
             is_native_week = (week and week != "all" and t.week_label == week and (not month or month == "all" or t.month_label == month))
             
             if not week or week == "all" or is_native_week:
                 filtered_tasks.append(t)
                 continue
 
-            # 2. Р•СЃР»Рё РІРєР»СЋС‡РµРЅ Р±СЌРєР»РѕРі РґРѕР»РіРѕРІ
-            if include_backlog and t.status != "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ" and t.status != "рџ”ґ РћС‚РјРµРЅРµРЅРѕ":
+            # 2. Если включен бэклог долгов
+            if include_backlog and t.status != "🟢 Выполнено" and t.status != "🔴 Отменено":
                 filtered_tasks.append(t)
                 continue
 
-            # 3. РџСЂРѕРІРµСЂРєР° СЃРєРІРѕР·РЅРѕР№ Р°РєС‚РёРІРЅРѕСЃС‚Рё РїРѕ РґРёР°РїР°Р·РѕРЅСѓ [start, due_date]
+            # 3. Проверка сквозной активности по диапазону [start, due_date]
             if sel_week_start and sel_week_end:
                 t_due = parse_date_dm_or_full(t.due_date_str)
-                # РќР°С‡Р°Р»Рѕ Р·Р°РґР°С‡Рё: РёР· created_at РёР»Рё РЅР°С‡Р°Р»Р° СЂРѕРґРЅРѕР№ РЅРµРґРµР»Рё Р·Р°РґР°С‡Рё
+                # Начало задачи: из created_at или начала родной недели задачи
                 t_orig_start, _ = parse_week_label_range(t.week_label, t.month_label)
                 if not t_orig_start and t.created_at:
                     t_orig_start = t.created_at.date()
 
                 if t_due and t_orig_start:
-                    # Р—Р°РґР°С‡Р° Р°РєС‚РёРІРЅР° РЅР° С‚РµРєСѓС‰РµР№ РЅРµРґРµР»Рµ, РµСЃР»Рё СЃС‚Р°СЂС‚ <= РєРѕРЅРµС† РЅРµРґРµР»Рё Р РґРµРґР»Р°Р№РЅ >= РЅР°С‡Р°Р»Рѕ РЅРµРґРµР»Рё
+                    # Задача активна на текущей неделе, если старт <= конец недели И дедлайн >= начало недели
                     if t_orig_start <= sel_week_end and t_due >= sel_week_start:
-                        # Р•СЃР»Рё Р·Р°РґР°С‡Р° СѓР¶Рµ Р·Р°РІРµСЂС€РµРЅР°, РїРѕРєР°Р·С‹РІР°РµРј РµРµ С‚РѕР»СЊРєРѕ РµСЃР»Рё РѕРЅР° Р±С‹Р»Р° Р·Р°РІРµСЂС€РµРЅР° РЅР° СЌС‚РѕР№ РЅРµРґРµР»Рµ РёР»Рё РґРµРґР»Р°Р№РЅ РЅР° СЌС‚РѕР№ РЅРµРґРµР»Рµ
-                        if t.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ" and t.completed_at and t.completed_at.date() < sel_week_start:
+                        # Если задача уже завершена, показываем ее только если она была завершена на этой неделе или дедлайн на этой неделе
+                        if t.status == "🟢 Выполнено" and t.completed_at and t.completed_at.date() < sel_week_start:
                             continue
                         filtered_tasks.append(t)
 
         tasks = filtered_tasks
 
-        # РџСЂРµРґР·Р°РіСЂСѓР·РєР° РїСЂРёРєСЂРµРїР»РµРЅРЅС‹С… РґРѕРєСѓРјРµРЅС‚РѕРІ
+        # Предзагрузка прикрепленных документов
         doc_ids = [t.attached_document_id for t in tasks if t.attached_document_id]
         doc_map = {}
         if doc_ids:
@@ -893,7 +892,7 @@ def get_tasks(
                     "link": file_link
                 }
 
-        # РџСЂРµРґР·Р°РіСЂСѓР·РєР° СЂРѕРґРёС‚РµР»РµР№ Рё Р·Р°РІРёСЃРёРјРѕСЃС‚РµР№
+        # Предзагрузка родителей и зависимостей
         ref_ids = set()
         for t in tasks:
             if t.parent_id:
@@ -912,7 +911,7 @@ def get_tasks(
                     "status": rt.status
                 }
 
-        # РџСЂРµРґР·Р°РіСЂСѓР·РєР° РїРѕРґСЃС‡РµС‚Р° РїРѕРґР·Р°РґР°С‡
+        # Предзагрузка подсчета подзадач
         task_ids = [t.id for t in tasks]
         subtask_counts = {}
         if task_ids:
@@ -924,7 +923,7 @@ def get_tasks(
                 if pid not in subtask_counts:
                     subtask_counts[pid] = {"total": 0, "done": 0}
                 subtask_counts[pid]["total"] += 1
-                if st_status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ":
+                if st_status == "🟢 Выполнено":
                     subtask_counts[pid]["done"] += 1
 
         results = []
@@ -957,7 +956,7 @@ def get_tasks(
             results.append({
                 "id": t.id,
                 "code": t.code or f"TSK-{t.id:02d}",
-                "zone": t.zone or "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ",
+                "zone": t.zone or "Бережливое производство",
                 "title": t.title,
                 "title_kz": t.title_kz or "",
                 "task_type": t.task_type or "weekly",
@@ -976,7 +975,7 @@ def get_tasks(
                 "author_name": t.author_name or "",
                 "assignee_name": t.assignee_name or "",
                 "due_date_str": t.due_date_str or "",
-                "status": t.status or "вљЄ Р’ РѕС‡РµСЂРµРґРё",
+                "status": t.status or "⚪ В очереди",
                 "comment": t.comment or "",
                 "month_label": t.month_label or "",
                 "week_label": t.week_label or "",
@@ -999,14 +998,14 @@ def get_tasks(
 @router.post("/api/tasks/upload_photo")
 async def upload_task_photo(file: UploadFile = File(...)):
     """
-    РџСЂРёРЅРёРјР°РµС‚ СЃР¶Р°С‚РѕРµ webp/jpg С„РѕС‚Рѕ Р·Р°РґР°С‡Рё Рё СЃРѕС…СЂР°РЅСЏРµС‚ РІ РїРѕСЃС‚РѕСЏРЅРЅС‹Р№
-    РґРёСЃРє Railway Volume (/uploads/tasks/), РіРґРµ С„Р°Р№Р»С‹ РЅРёРєРѕРіРґР° РЅРµ СЃС‚РёСЂР°СЋС‚СЃСЏ РїСЂРё РґРµРїР»РѕСЏС….
+    Принимает сжатое webp/jpg фото задачи и сохраняет в постоянный
+    диск Railway Volume (/uploads/tasks/), где файлы никогда не стираются при деплоях.
     """
     try:
         upload_dir = os.path.join("uploads", "tasks")
         os.makedirs(upload_dir, exist_ok=True)
 
-        # Р“РµРЅРµСЂРёСЂСѓРµРј СѓРЅРёРєР°Р»СЊРЅРѕРµ РёРјСЏ С„Р°Р№Р»Р°
+        # Генерируем уникальное имя файла
         import uuid
         ext = os.path.splitext(file.filename)[1].lower() or ".webp"
         unique_name = f"task_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
@@ -1024,10 +1023,10 @@ async def upload_task_photo(file: UploadFile = File(...)):
 
 @router.get("/api/tasks/{task_id}")
 def get_single_task(task_id: int, db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РїРѕР»РЅСѓСЋ РёРЅС„РѕСЂРјР°С†РёСЋ РїРѕ РєРѕРЅРєСЂРµС‚РЅРѕР№ Р·Р°РґР°С‡Рµ СЃ РїРѕРґР·Р°РґР°С‡Р°РјРё, СЃРІСЏР·СЏРјРё Рё РґРѕРєСѓРјРµРЅС‚РѕРј."""
+    """Возвращает полную информацию по конкретной задаче с подзадачами, связями и документом."""
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
-        raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°")
+        raise HTTPException(status_code=404, detail="Задача не найдена")
 
     doc_info = None
     if task.attached_document_id:
@@ -1052,7 +1051,7 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         if dep:
             dep_info = {"id": dep.id, "code": dep.code or f"TSK-{dep.id}", "title": dep.title, "status": dep.status}
 
-    # РџРѕРґР·Р°РґР°С‡Рё
+    # Подзадачи
     subtasks = db.query(models.Task).filter(
         models.Task.parent_id == task.id,
         models.Task.is_archived == False
@@ -1068,13 +1067,13 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "progress": st.progress or 0
     } for st in subtasks]
 
-    done_cnt = sum(1 for s in subtasks if s.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ")
+    done_cnt = sum(1 for s in subtasks if s.status == "🟢 Выполнено")
     calc_prog = int((done_cnt / len(subtasks)) * 100) if subtasks else (task.progress or 0)
 
     return {
         "id": task.id,
         "code": task.code or f"TSK-{task.id:02d}",
-        "zone": task.zone or "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ",
+        "zone": task.zone or "Бережливое производство",
         "title": task.title,
         "title_kz": task.title_kz or "",
         "task_type": task.task_type or "weekly",
@@ -1092,7 +1091,7 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "author_name": task.author_name or "",
         "assignee_name": task.assignee_name or "",
         "due_date_str": task.due_date_str or "",
-        "status": task.status or "вљЄ Р’ РѕС‡РµСЂРµРґРё",
+        "status": task.status or "⚪ В очереди",
         "comment": task.comment or "",
         "month_label": task.month_label or "",
         "week_label": task.week_label or "",
@@ -1104,10 +1103,10 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/tasks/{task_id}/history")
 def get_task_history(task_id: int, db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ С…СЂРѕРЅРѕР»РѕРіРёС‡РµСЃРєСѓСЋ РёСЃС‚РѕСЂРёСЋ РёР·РјРµРЅРµРЅРёР№ Р·Р°РґР°С‡Рё РёР· AuditLog."""
+    """Возвращает хронологическую историю изменений задачи из AuditLog."""
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
-        raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°")
+        raise HTTPException(status_code=404, detail="Задача не найдена")
 
     logs = db.query(models.AuditLog).filter(
         models.AuditLog.target_table == "tasks",
@@ -1119,19 +1118,19 @@ def get_task_history(task_id: int, db: Session = Depends(get_db)):
         history.append({
             "id": log.id,
             "timestamp": log.timestamp.strftime("%d.%m.%Y %H:%M") if log.timestamp else "",
-            "user_name": log.user_name or "РЎРёСЃС‚РµРјР°",
+            "user_name": log.user_name or "Система",
             "action": log.action,
             "details": log.details or ""
         })
 
-    # Р•СЃР»Рё РІ AuditLog РїРѕРєР° РЅРµС‚ Р·Р°РїРёСЃРµР№, С„РѕСЂРјРёСЂСѓРµРј Р±Р°Р·РѕРІСѓСЋ Р·Р°РїРёСЃСЊ СЃРѕР·РґР°РЅРёСЏ
+    # Если в AuditLog пока нет записей, формируем базовую запись создания
     if not history and task.created_at:
         history.append({
             "id": 0,
             "timestamp": task.created_at.strftime("%d.%m.%Y %H:%M"),
-            "user_name": task.author_name or "РђРІС‚РѕСЂ",
+            "user_name": task.author_name or "Автор",
             "action": "CREATE",
-            "details": f"РЎРѕР·РґР°РЅР° Р·Р°РґР°С‡Р° [{task.code or f'TSK-{task.id}'}] В«{task.title}В». РСЃРїРѕР»РЅРёС‚РµР»СЊ: {task.assignee_name or 'вЂ”'}"
+            "details": f"Создана задача [{task.code or f'TSK-{task.id}'}] «{task.title}». Исполнитель: {task.assignee_name or '—'}"
         })
 
     return {
@@ -1144,17 +1143,17 @@ def get_task_history(task_id: int, db: Session = Depends(get_db)):
 
 @router.post("/api/tasks")
 def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """РЎРѕР·РґР°РµС‚ РЅРѕРІСѓСЋ Р·Р°РґР°С‡Сѓ СЃ РїРѕРґРґРµСЂР¶РєРѕР№ РіРѕСЂРёР·РѕРЅС‚РѕРІ, С‚РµРіРѕРІ Рё СЃРІСЏР·РµР№."""
+    """Создает новую задачу с поддержкой горизонтов, тегов и связей."""
     try:
         author_name = (task_data.author_name or "").strip()
         pin = (task_data.pin_code or "").strip()
 
-        # РџСЂРѕРІРµСЂРєР° PIN-РєРѕРґР° Р°РІС‚РѕСЂР°
+        # Проверка PIN-кода автора
         if author_name:
             emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
             if emp and emp.pin_code and emp.pin_code.strip():
                 if emp.pin_code.strip() != pin:
-                    raise HTTPException(status_code=401, detail=f"РќРµРІРµСЂРЅС‹Р№ PIN-РєРѕРґ РґР»СЏ Р°РІС‚РѕСЂР° В«{author_name}В»")
+                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
 
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         next_num = (last_task.id + 1) if last_task else 1
@@ -1163,10 +1162,10 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         title_ru = (task_data.title or "").strip()
         title_kz = (task_data.title_kz or "").strip()
 
-        # РџР°СЂСЃРёРЅРі С…СЌС€С‚РµРіРѕРІ РёР· Р·Р°РіРѕР»РѕРІРєР°
+        # Парсинг хэштегов из заголовка
         combined_tags = extract_hashtags_from_title(title_ru, task_data.tags)
 
-        # РРЅС‚РµР»Р»РµРєС‚СѓР°Р»СЊРЅРѕРµ РІС‹СЂР°РІРЅРёРІР°РЅРёРµ СЏР·С‹РєРѕРІ
+        # Интеллектуальное выравнивание языков
         if title_ru and not title_kz:
             trans_info = detect_and_translate_task_text(title_ru)
             title_ru = trans_info.get("text_ru", title_ru)
@@ -1178,7 +1177,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
 
         new_task = models.Task(
             code=code_str,
-            zone=task_data.zone or "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ",
+            zone=task_data.zone or "Бережливое производство",
             title=title_ru,
             title_kz=title_kz,
             task_type=task_data.task_type or "weekly",
@@ -1192,37 +1191,36 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
             due_date_str=task_data.due_date_str or "",
-            status=task_data.status or "рџџЎ Р’ СЂР°Р±РѕС‚Рµ",
+            status=task_data.status or "🟡 В работе",
             comment=task_data.comment or "",
-            month_label=task_data.month_label or "РђРІРіСѓСЃС‚ 2026",
-            week_label=task_data.week_label or "РќРµРґРµР»СЏ 4 (24.08 - 28.08)",
+            month_label=task_data.month_label or "Август 2026",
+            week_label=task_data.week_label or "Неделя 4 (24.08 - 28.08)",
             attached_document_id=task_data.attached_document_id,
             is_archived=False
         )
         db.add(new_task)
         db.flush()
 
-        # РџРµСЂРµСЃС‡РёС‚С‹РІР°РµРј СЂРѕРґРёС‚РµР»СЊСЃРєСѓСЋ Р·Р°РґР°С‡Сѓ РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё
+        # Пересчитываем родительскую задачу при необходимости
         if new_task.parent_id:
             recalculate_parent_task_progress(db, new_task.parent_id)
 
         # AuditLog
         db.add(models.AuditLog(
-            user_name=new_task.author_name or "РџР»Р°РЅРЅРµСЂ",
+            user_name=new_task.author_name or "Планнер",
             action="CREATE",
             target_table="tasks",
             target_id=new_task.id,
-            details=f"РЎРѕР·РґР°РЅР° Р·Р°РґР°С‡Р° [{new_task.code}] В«{new_task.title}В». РўРёРї: {new_task.task_type}, РЎР»СѓР¶Р±Р°: {new_task.department_service or 'вЂ”'}, РСЃРїРѕР»РЅРёС‚РµР»СЊ: {new_task.assignee_name or 'вЂ”'}"
+            details=f"Создана задача [{new_task.code}] «{new_task.title}». Тип: {new_task.task_type}, Служба: {new_task.department_service or '—'}, Исполнитель: {new_task.assignee_name or '—'}"
         ))
-
         db.commit()
         db.refresh(new_task)
 
-        # РћС‚РїСЂР°РІРєР° email РёСЃРїРѕР»РЅРёС‚РµР»СЋ
+        # Отправка email исполнителю
         if new_task.assignee_name:
             assignee_email = get_task_person_email(db, new_task.assignee_name)
             if assignee_email:
-                subject = f"рџ“Њ РќРѕРІР°СЏ Р·Р°РґР°С‡Р° [{new_task.zone}]: {new_task.title}"
+                subject = f"📌 Новая задача [{new_task.zone}]: {new_task.title}"
                 task_dict = {
                     "id": new_task.id,
                     "code": new_task.code,
@@ -1238,7 +1236,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
                     "month_label": new_task.month_label,
                     "week_label": new_task.week_label
                 }
-                background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Р’Р°Рј РЅР°Р·РЅР°С‡РµРЅР° РЅРѕРІР°СЏ Р·Р°РґР°С‡Р°", task_dict)
+                background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Вам назначена новая задача", task_dict)
 
         return {"status": "ok", "task_id": new_task.id, "code": new_task.code}
     except HTTPException:
@@ -1250,20 +1248,20 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
 
 @router.post("/api/tasks/bulk")
 def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """РњР°СЃСЃРѕРІРѕРµ СЃРѕР·РґР°РЅРёРµ Р·Р°РґР°С‡ РІ РµРґРёРЅРѕР№ С‚СЂР°РЅР·Р°РєС†РёРё Р‘Р”."""
+    """Массовое создание задач в единой транзакции БД."""
     try:
         author_name = (bulk_data.author_name or "").strip()
         pin = (bulk_data.pin_code or "").strip()
 
         if not bulk_data.tasks or len(bulk_data.tasks) == 0:
-            raise HTTPException(status_code=400, detail="РЎРїРёСЃРѕРє Р·Р°РґР°С‡ РїСѓСЃС‚")
+            raise HTTPException(status_code=400, detail="Список задач пуст")
 
-        # РџСЂРѕРІРµСЂРєР° PIN-РєРѕРґР° Р°РІС‚РѕСЂР°
+        # Проверка PIN-кода автора
         if author_name:
             emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
             if emp and emp.pin_code and emp.pin_code.strip():
                 if emp.pin_code.strip() != pin:
-                    raise HTTPException(status_code=401, detail=f"РќРµРІРµСЂРЅС‹Р№ PIN-РєРѕРґ РґР»СЏ Р°РІС‚РѕСЂР° В«{author_name}В»")
+                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
 
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         current_max_id = last_task.id if last_task else 0
@@ -1279,19 +1277,19 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
             current_max_id += 1
             code_str = f"TSK-{current_max_id:02d}"
 
-            # РџР°СЂСЃРёРЅРі С…СЌС€С‚РµРіРѕРІ РёР· РЅР°Р·РІР°РЅРёСЏ
+            # Парсинг хэштегов из названия
             combined_tags = extract_hashtags_from_title(title_raw, item.tags)
 
-            # РџРµСЂРµРІРѕРґ РЅР°Р·РІР°РЅРёСЏ
+            # Перевод названия
             trans_info = detect_and_translate_task_text(title_raw)
             title_ru = trans_info.get("text_ru", title_raw)
             title_kz = trans_info.get("text_kz", "")
 
-            # РћРїСЂРµРґРµР»РµРЅРёРµ СЃСЂРѕРєР° Р·Р°РґР°С‡Рё
+            # Определение срока задачи
             due_date = item.due_date_str or bulk_data.default_due_date_str or ""
 
-            # РћРїСЂРµРґРµР»РµРЅРёРµ Р·РѕРЅС‹
-            zone_val = item.zone or bulk_data.zone or "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ"
+            # Определение зоны
+            zone_val = item.zone or bulk_data.zone or "Бережливое производство"
 
             new_task = models.Task(
                 code=code_str,
@@ -1307,10 +1305,10 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 author_name=author_name,
                 assignee_name=(item.assignee_name or "").strip(),
                 due_date_str=due_date,
-                status="рџџЎ Р’ СЂР°Р±РѕС‚Рµ",
+                status="🟡 В работе",
                 comment="",
-                month_label=bulk_data.month_label or "РђРІРіСѓСЃС‚ 2026",
-                week_label=bulk_data.week_label or "РќРµРґРµР»СЏ 4 (24.08 - 28.08)",
+                month_label=bulk_data.month_label or "Август 2026",
+                week_label=bulk_data.week_label or "Неделя 4 (24.08 - 28.08)",
                 attached_document_id=item.attached_document_id,
                 is_archived=False
             )
@@ -1324,7 +1322,7 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 "assignee_name": new_task.assignee_name
             })
 
-            # РџРѕРґРіРѕС‚РѕРІРєР° email РёСЃРїРѕР»РЅРёС‚РµР»СЋ
+            # Подготовка email исполнителю
             if new_task.assignee_name:
                 assignee_email = get_task_person_email(db, new_task.assignee_name)
                 if assignee_email:
@@ -1345,24 +1343,24 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                     }))
 
         if not created_tasks:
-            raise HTTPException(status_code=400, detail="РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ Р·Р°РґР°С‡Рё (РІСЃРµ СЃС‚СЂРѕРєРё РїСѓСЃС‚С‹)")
+            raise HTTPException(status_code=400, detail="Не удалось создать задачи (все строки пусты)")
 
         # AuditLog
-        dept_str = f", РЎР»СѓР¶Р±Р°: {bulk_data.department_service}" if bulk_data.department_service else ""
+        dept_str = f", Служба: {bulk_data.department_service}" if bulk_data.department_service else ""
         db.add(models.AuditLog(
-            user_name=author_name or "РџР»Р°РЅРЅРµСЂ",
+            user_name=author_name or "Планнер",
             action="CREATE",
             target_table="tasks",
             target_id=created_tasks[0]["id"],
-            details=f"РњР°СЃСЃРѕРІРѕ СЃРѕР·РґР°РЅРѕ Р·Р°РґР°С‡: {len(created_tasks)} С€С‚. РђРІС‚РѕСЂ: {author_name}{dept_str}. РљРѕРґС‹: {created_tasks[0]['code']}вЂ“{created_tasks[-1]['code']}"
+            details=f"Массово создано задач: {len(created_tasks)} шт. Автор: {author_name}{dept_str}. Коды: {created_tasks[0]['code']}–{created_tasks[-1]['code']}"
         ))
 
         db.commit()
 
-        # Р¤РѕРЅРѕРІР°СЏ РѕС‚РїСЂР°РІРєР° email
+        # Фоновая отправка email
         for a_email, t_dict in task_dicts_for_email:
-            subject = f"рџ“Њ РќРѕРІР°СЏ Р·Р°РґР°С‡Р° [{t_dict.get('zone', 'РџР»Р°РЅ')}]: {t_dict.get('title', '')}"
-            background_tasks.add_task(send_task_email_notification, a_email, subject, "Р’Р°Рј РЅР°Р·РЅР°С‡РµРЅР° РЅРѕРІР°СЏ Р·Р°РґР°С‡Р°", t_dict)
+            subject = f"📌 Новая задача [{t_dict.get('zone', 'План')}]: {t_dict.get('title', '')}"
+            background_tasks.add_task(send_task_email_notification, a_email, subject, "Вам назначена новая задача", t_dict)
 
         return {
             "status": "ok",
@@ -1378,15 +1376,15 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
 
 @router.post("/api/tasks/bulk_status")
 def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """РњР°СЃСЃРѕРІРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ СЃС‚Р°С‚СѓСЃРѕРІ РїР°С‡РєРё Р·Р°РґР°С‡ (РґР»СЏ СЃР»СѓР¶Р± РћР“Р­ / РћР“Рњ) РІ РѕРґРЅРѕР№ С‚СЂР°РЅР·Р°РєС†РёРё."""
+    """Массовое обновление статусов пачки задач (для служб ОГЭ / ОГМ) в одной транзакции."""
     try:
         task_ids = payload.task_ids or []
         if not task_ids:
-            raise HTTPException(status_code=400, detail="РЎРїРёСЃРѕРє Р·Р°РґР°С‡ РїСѓСЃС‚")
+            raise HTTPException(status_code=400, detail="Список задач пуст")
 
         tasks = db.query(models.Task).filter(models.Task.id.in_(task_ids)).all()
         if not tasks:
-            raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Рё РЅРµ РЅР°Р№РґРµРЅС‹")
+            raise HTTPException(status_code=404, detail="Задачи не найдены")
 
         new_status = payload.status
         comment_text = (payload.comment or "").strip()
@@ -1401,8 +1399,8 @@ def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_t
             task.status = new_status
             if comment_text:
                 task.comment = comment_text
-            elif new_status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ" and not task.comment:
-                task.comment = "Р’С‹РїРѕР»РЅРµРЅРѕ"
+            elif new_status == "🟢 Выполнено" and not task.comment:
+                task.comment = "Выполнено"
 
             if move_next and next_week:
                 task.week_label = next_week
@@ -1417,11 +1415,11 @@ def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_t
         for p_id in parent_ids_to_recalc:
             recalculate_parent_task_progress(db, p_id)
 
-        # Р•РґРёРЅР°СЏ Р·Р°РїРёСЃСЊ РІ AuditLog
-        user_label = tasks[0].assignee_name or tasks[0].author_name or "РџР»Р°РЅРЅРµСЂ"
-        action_desc = f"РњР°СЃСЃРѕРІРѕРµ РёР·РјРµРЅРµРЅРёРµ СЃС‚Р°С‚СѓСЃР° РЅР° В«{new_status}В» РґР»СЏ {len(tasks)} Р·Р°РґР°С‡ ({', '.join(updated_codes[:8])}{'...' if len(updated_codes) > 8 else ''})"
+        # Единая запись в AuditLog
+        user_label = tasks[0].assignee_name or tasks[0].author_name or "Планнер"
+        action_desc = f"Массовое изменение статуса на «{new_status}» для {len(tasks)} задач ({', '.join(updated_codes[:8])}{'...' if len(updated_codes) > 8 else ''})"
         if move_next and next_week:
-            action_desc += f", РїРµСЂРµРЅРµСЃРµРЅС‹ РЅР° {next_week}"
+            action_desc += f", перенесены на {next_week}"
 
         db.add(models.AuditLog(
             user_name=user_label,
@@ -1447,11 +1445,11 @@ def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_t
 
 @router.put("/api/tasks/{task_id}")
 def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """РћР±РЅРѕРІР»СЏРµС‚ Р·Р°РґР°С‡Сѓ, РїРµСЂРµСЃС‡РёС‚С‹РІР°РµС‚ СЃРІСЏР·Рё Рё РѕС‚РїСЂР°РІР»СЏРµС‚ СѓРІРµРґРѕРјР»РµРЅРёСЏ."""
+    """Обновляет задачу, пересчитывает связи и отправляет уведомления."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
-            raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°")
+            raise HTTPException(status_code=404, detail="Задача не найдена")
 
         pin = (task_data.pin_code or "").strip()
         if pin:
@@ -1470,7 +1468,7 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         old_assignee = task.assignee_name
         old_parent_id = task.parent_id
 
-        # РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ РёР·РІР»РµС‡РµРЅРёРµ С…СЌС€С‚РµРіРѕРІ РёР· Р·Р°РіРѕР»РѕРІРєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё
+        # Автоматическое извлечение хэштегов из заголовка при обновлении
         update_dict = task_data.dict(exclude_unset=True)
         update_dict.pop("pin_code", None)
 
@@ -1490,17 +1488,17 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
         if changes:
             db.add(models.AuditLog(
-                user_name=task.assignee_name or task.author_name or "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ",
+                user_name=task.assignee_name or task.author_name or "Пользователь",
                 action="UPDATE",
                 target_table="tasks",
                 target_id=task.id,
-                details=f"РР·РјРµРЅРµРЅР° Р·Р°РґР°С‡Р° [{task.code}] В«{task.title}В». РР·РјРµРЅРµРЅРёСЏ: {'; '.join(changes)}"
+                details=f"Изменена задача [{task.code}] «{task.title}». Изменения: {'; '.join(changes)}"
             ))
 
         db.commit()
         db.refresh(task)
 
-        # РџРµСЂРµСЃС‡РµС‚ РїСЂРѕРіСЂРµСЃСЃР° СЂРѕРґРёС‚РµР»СЏ
+        # Пересчет прогресса родителя
         if task.parent_id:
             recalculate_parent_task_progress(db, task.parent_id)
         if old_parent_id and old_parent_id != task.parent_id:
@@ -1522,53 +1520,53 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
             "week_label": task.week_label
         }
 
-        # 1. Р•СЃР»Рё СЃРјРµРЅРёР»СЃСЏ РёСЃРїРѕР»РЅРёС‚РµР»СЊ Рё РЅР°Р·РЅР°С‡РµРЅ РЅРѕРІС‹Р№ -> СѓРІРµРґРѕРјР»РµРЅРёРµ РЅРѕРІРѕРјСѓ РёСЃРїРѕР»РЅРёС‚РµР»СЋ
+        # 1. Если сменился исполнитель и назначен новый -> уведомление новому исполнителю
         if task.assignee_name and task.assignee_name != old_assignee:
             new_assignee_email = get_task_person_email(db, task.assignee_name)
             if new_assignee_email:
-                subject = f"рџ“Њ РќРѕРІР°СЏ Р·Р°РґР°С‡Р° [{task.zone}]: {task.title}"
-                background_tasks.add_task(send_task_email_notification, new_assignee_email, subject, "Р’Р°Рј РЅР°Р·РЅР°С‡РµРЅР° РЅРѕРІР°СЏ Р·Р°РґР°С‡Р°", task_dict)
+                subject = f"📌 Новая задача [{task.zone}]: {task.title}"
+                background_tasks.add_task(send_task_email_notification, new_assignee_email, subject, "Вам назначена новая задача", task_dict)
 
-        # 2. РЈРІРµРґРѕРјР»РµРЅРёСЏ РїСЂРё СЃРјРµРЅРµ СЃС‚Р°С‚СѓСЃР°
+        # 2. Уведомления при смене статуса
         if task_data.status and task_data.status != old_status:
-            # 2.1. Р•СЃР»Рё Р·Р°РґР°С‡Р° Р·Р°РІРµСЂС€РµРЅР° -> Р°РІС‚РѕСЂСѓ
-            if task.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ" and task.author_name:
+            # 2.1. Если задача завершена -> автору
+            if task.status == "🟢 Выполнено" and task.author_name:
                 author_email = get_task_person_email(db, task.author_name)
                 if author_email:
-                    subject = f"рџџў Р—Р°РґР°С‡Р° РІС‹РїРѕР»РЅРµРЅР° [{task.zone}]: {task.title}"
-                    background_tasks.add_task(send_task_email_notification, author_email, subject, "Р—Р°РґР°С‡Р° РІС‹РїРѕР»РЅРµРЅР°", task_dict)
+                    subject = f"🟢 Задача выполнена [{task.zone}]: {task.title}"
+                    background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача выполнена", task_dict)
 
-            # 2.2. Р•СЃР»Рё Р·Р°РґР°С‡Р° РїРµСЂРµРЅРµСЃРµРЅР° -> Р°РІС‚РѕСЂСѓ Рё РёСЃРїРѕР»РЅРёС‚РµР»СЋ
-            elif task.status == "рџ”µ РџРµСЂРµРЅРµСЃРµРЅРѕ":
-                due_info = f" РЅР° {task.due_date_str}" if task.due_date_str else ""
-                subject = f"рџ”µ РЎСЂРѕРє Р·Р°РґР°С‡Рё РїРµСЂРµРЅРµСЃРµРЅ{due_info} [{task.zone}]: {task.title}"
+            # 2.2. Если задача перенесена -> автору и исполнителю
+            elif task.status == "🔵 Перенесено":
+                due_info = f" на {task.due_date_str}" if task.due_date_str else ""
+                subject = f"🔵 Срок задачи перенесен{due_info} [{task.zone}]: {task.title}"
                 if task.author_name:
                     author_email = get_task_person_email(db, task.author_name)
                     if author_email:
-                        background_tasks.add_task(send_task_email_notification, author_email, subject, "РЎСЂРѕРє Р·Р°РґР°С‡Рё РїРµСЂРµРЅРµСЃРµРЅ", task_dict)
+                        background_tasks.add_task(send_task_email_notification, author_email, subject, "Срок задачи перенесен", task_dict)
                 if task.assignee_name and task.assignee_name != task.author_name:
                     assignee_email = get_task_person_email(db, task.assignee_name)
                     if assignee_email:
-                        background_tasks.add_task(send_task_email_notification, assignee_email, subject, "РЎСЂРѕРє Р·Р°РґР°С‡Рё РїРµСЂРµРЅРµСЃРµРЅ", task_dict)
+                        background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Срок задачи перенесен", task_dict)
 
-            # 2.3. Р•СЃР»Рё Р·Р°РґР°С‡Р° РѕС‚РјРµРЅРµРЅР° -> РёСЃРїРѕР»РЅРёС‚РµР»СЋ Рё Р°РІС‚РѕСЂСѓ
-            elif task.status == "рџ”ґ РћС‚РјРµРЅРµРЅРѕ":
-                subject = f"рџ”ґ Р—Р°РґР°С‡Р° РѕС‚РјРµРЅРµРЅР° [{task.zone}]: {task.title}"
+            # 2.3. Если задача отменена -> исполнителю и автору
+            elif task.status == "🔴 Отменено":
+                subject = f"🔴 Задача отменена [{task.zone}]: {task.title}"
                 if task.assignee_name:
                     assignee_email = get_task_person_email(db, task.assignee_name)
                     if assignee_email:
-                        background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Р—Р°РґР°С‡Р° РѕС‚РјРµРЅРµРЅР°", task_dict)
+                        background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Задача отменена", task_dict)
                 if task.author_name and task.author_name != task.assignee_name:
                     author_email = get_task_person_email(db, task.author_name)
                     if author_email:
-                        background_tasks.add_task(send_task_email_notification, author_email, subject, "Р—Р°РґР°С‡Р° РѕС‚РјРµРЅРµРЅР°", task_dict)
+                        background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача отменена", task_dict)
 
-            # 2.4. Р•СЃР»Рё Р·Р°РґР°С‡Сѓ РІР·СЏР»Рё РІ СЂР°Р±РѕС‚Сѓ
-            elif task.status == "рџџЎ Р’ СЂР°Р±РѕС‚Рµ" and task.assignee_name:
+            # 2.4. Если задачу взяли в работу
+            elif task.status == "🟡 В работе" and task.assignee_name:
                 assignee_email = get_task_person_email(db, task.assignee_name)
                 if assignee_email:
-                    subject = f"рџ“Њ Р—Р°РґР°С‡Р° РІ СЂР°Р±РѕС‚Рµ [{task.zone}]: {task.title}"
-                    background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Р—Р°РґР°С‡Р° РІ СЂР°Р±РѕС‚Рµ", task_dict)
+                    subject = f"📌 Задача в работе [{task.zone}]: {task.title}"
+                    background_tasks.add_task(send_task_email_notification, assignee_email, subject, "Задача в работе", task_dict)
 
         return {"status": "ok", "task_id": task.id}
     except HTTPException:
@@ -1580,26 +1578,26 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
 @router.delete("/api/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    """РЈРґР°Р»СЏРµС‚ Р·Р°РґР°С‡Сѓ (РґРѕСЃС‚СѓРїРЅРѕ С‚РѕР»СЊРєРѕ РёР· РїР°РЅРµР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°)."""
+    """Удаляет задачу (доступно только из панели администратора)."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
-            raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°")
+            raise HTTPException(status_code=404, detail="Задача не найдена")
         
-        task_info = f"ID: {task.id}, РљРѕРґ: {task.code}, Р—Р°РіРѕР»РѕРІРѕРє: {task.title}, Р—РѕРЅР°: {task.zone}, РџРµСЂРёРѕРґ: {task.month_label}/{task.week_label}"
+        task_info = f"ID: {task.id}, Код: {task.code}, Заголовок: {task.title}, Зона: {task.zone}, Период: {task.month_label}/{task.week_label}"
         db.delete(task)
         
-        # Р›РѕРіРёСЂРѕРІР°РЅРёРµ РІ Р°СѓРґРёС‚
+        # Логирование в аудит
         db.add(models.AuditLog(
-            user_name="РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ",
+            user_name="Администратор",
             action="DELETE",
             target_table="tasks",
             target_id=task_id,
-            details=f"РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ СѓРґР°Р»РёР» Р·Р°РґР°С‡Сѓ [{task_info}]"
+            details=f"Администратор удалил задачу [{task_info}]"
         ))
         
         db.commit()
-        return {"status": "ok", "message": "Р—Р°РґР°С‡Р° СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅР°"}
+        return {"status": "ok", "message": "Задача успешно удалена"}
     except HTTPException:
         raise
 @router.post("/api/tasks/{task_id}/move_next_week")
@@ -1610,35 +1608,35 @@ def move_task_to_next_week(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
-    """РџРµСЂРµРЅРѕСЃРёС‚ РѕС‚РґРµР»СЊРЅСѓСЋ Р·Р°РґР°С‡Сѓ РЅР° СЃР»РµРґСѓСЋС‰СѓСЋ РЅРµРґРµР»СЋ (Рё РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё РІ СЃР»РµРґСѓСЋС‰РёР№ РјРµСЃСЏС†) СЃРѕ СЃС‚Р°С‚СѓСЃРѕРј РџРµСЂРµРЅРµСЃРµРЅРѕ."""
+    """Переносит отдельную задачу на следующую неделю (и при необходимости в следующий месяц) со статусом Перенесено."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
-            raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°")
+            raise HTTPException(status_code=404, detail="Задача не найдена")
 
         old_week = task.week_label or ""
         task.week_label = next_week
         if next_month:
             task.month_label = next_month
-        task.status = "рџ”µ РџРµСЂРµРЅРµСЃРµРЅРѕ"
+        task.status = "🔵 Перенесено"
         
         prev_comment = task.comment or ""
-        note = f"(РџРµСЂРµРЅРµСЃРµРЅРѕ СЃ {old_week})"
+        note = f"(Перенесено с {old_week})"
         if note not in prev_comment:
             task.comment = f"{prev_comment} {note}".strip()
 
         db.add(models.AuditLog(
-            user_name=task.assignee_name or task.author_name or "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ",
+            user_name=task.assignee_name or task.author_name or "Пользователь",
             action="UPDATE",
             target_table="tasks",
             target_id=task.id,
-            details=f"РџРµСЂРµРЅРѕСЃ Р·Р°РґР°С‡Рё [{task.code}] В«{task.title}В» СЃ В«{old_week}В» РЅР° В«{next_week}В»"
+            details=f"Перенос задачи [{task.code}] «{task.title}» с «{old_week}» на «{next_week}»"
         ))
 
         db.commit()
         db.refresh(task)
 
-        # РћС‚РїСЂР°РІРєР° СѓРІРµРґРѕРјР»РµРЅРёСЏ Р°РІС‚РѕСЂСѓ Рё РёСЃРїРѕР»РЅРёС‚РµР»СЋ Рѕ РїРµСЂРµРЅРѕСЃРµ
+        # Отправка уведомления автору и исполнителю о переносе
         task_dict = {
             "id": task.id,
             "code": task.code,
@@ -1657,10 +1655,10 @@ def move_task_to_next_week(
         if task.author_name:
             author_email = get_task_person_email(db, task.author_name)
             if author_email:
-                subject = f"рџ”µ Р—Р°РґР°С‡Р° РїРµСЂРµРЅРµСЃРµРЅР° РЅР° {next_week} [{task.zone}]: {task.title}"
-                background_tasks.add_task(send_task_email_notification, author_email, subject, "Р—Р°РґР°С‡Р° РїРµСЂРµРЅРµСЃРµРЅР°", task_dict)
+                subject = f"🔵 Задача перенесена на {next_week} [{task.zone}]: {task.title}"
+                background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача перенесена", task_dict)
 
-        return {"status": "ok", "message": f"Р—Р°РґР°С‡Р° РїРµСЂРµРЅРµСЃРµРЅР° РЅР° {next_week}"}
+        return {"status": "ok", "message": f"Задача перенесена на {next_week}"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -1672,9 +1670,9 @@ def archive_week_tasks(
     db: Session = Depends(get_db)
 ):
     """
-    Р—Р°РІРµСЂС€Р°РµС‚ РЅРµРґРµР»СЋ:
-    - Р’С‹РїРѕР»РЅРµРЅРЅС‹Рµ (рџџў Р’С‹РїРѕР»РЅРµРЅРѕ) РїРµСЂРµРЅРѕСЃРёС‚ РІ РђСЂС…РёРІ (is_archived = True).
-    - РќРµР·Р°РІРµСЂС€РµРЅРЅС‹Рµ РїРµСЂРµРЅРѕСЃРёС‚ РЅР° СЃР»РµРґСѓСЋС‰СѓСЋ РЅРµРґРµР»СЋ (РµСЃР»Рё СѓРєР°Р·Р°РЅР°).
+    Завершает неделю:
+    - Выполненные (🟢 Выполнено) переносит в Архив (is_archived = True).
+    - Незавершенные переносит на следующую неделю (если указана).
     """
     try:
         tasks = db.query(models.Task).filter(
@@ -1686,25 +1684,25 @@ def archive_week_tasks(
         moved_count = 0
 
         for t in tasks:
-            if t.status == "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ":
+            if t.status == "🟢 Выполнено":
                 t.is_archived = True
                 archived_count += 1
             else:
                 if next_week:
                     t.week_label = next_week
-                    t.status = "рџ”µ РџРµСЂРµРЅРµСЃРµРЅРѕ"
-                    note = f"(РџРµСЂРµРЅРµСЃРµРЅРѕ СЃ {current_week})"
+                    t.status = "🔵 Перенесено"
+                    note = f"(Перенесено с {current_week})"
                     prev_comment = t.comment or ""
                     if note not in prev_comment:
                         t.comment = f"{prev_comment} {note}".strip()
                     moved_count += 1
 
         db.add(models.AuditLog(
-            user_name="РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ",
+            user_name="Администратор",
             action="UPDATE",
             target_table="tasks",
             target_id=None,
-            details=f"РђСЂС…РёРІР°С†РёСЏ РЅРµРґРµР»Рё В«{current_week}В»: {archived_count} Р·Р°РІРµСЂС€РµРЅРѕ РІ Р°СЂС…РёРІ, {moved_count} РїРµСЂРµРЅРµСЃРµРЅРѕ РЅР° В«{next_week or 'СЃР»РµРґ. РЅРµРґРµР»СЋ'}В»"
+            details=f"Архивация недели «{current_week}»: {archived_count} завершено в архив, {moved_count} перенесено на «{next_week or 'след. неделю'}»"
         ))
 
         db.commit()
@@ -1712,7 +1710,7 @@ def archive_week_tasks(
             "status": "ok",
             "archived_count": archived_count,
             "moved_count": moved_count,
-            "message": f"РќРµРґРµР»СЏ Р·Р°РєСЂС‹С‚Р°! Р’ Р°СЂС…РёРІ: {archived_count} Р·Р°РґР°С‡. РџРµСЂРµРЅРµСЃРµРЅРѕ РЅР° {next_week or 'СЃР»РµРґ. РЅРµРґРµР»СЋ'}: {moved_count} Р·Р°РґР°С‡."
+            "message": f"Неделя закрыта! В архив: {archived_count} задач. Перенесено на {next_week or 'след. неделю'}: {moved_count} задач."
         }
     except Exception as e:
         db.rollback()
@@ -1720,39 +1718,39 @@ def archive_week_tasks(
 
 @router.post("/api/tasks/{task_id}/restore")
 def restore_task_from_archive(task_id: int, target_week: Optional[str] = None, db: Session = Depends(get_db)):
-    """Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ Р·Р°РґР°С‡Сѓ РёР· РђСЂС…РёРІР° РѕР±СЂР°С‚РЅРѕ РІ Р°РєС‚РёРІРЅС‹Р№ РїР»Р°РЅ."""
+    """Восстанавливает задачу из Архива обратно в активный план."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
-            raise HTTPException(status_code=404, detail="Р—Р°РґР°С‡Р° РЅРµ РЅР°Р№РґРµРЅР°")
+            raise HTTPException(status_code=404, detail="Задача не найдена")
 
         task.is_archived = False
         if target_week:
             task.week_label = target_week
-        task.status = "вљЄ Р’ РѕС‡РµСЂРµРґРё"
+        task.status = "⚪ В очереди"
         db.commit()
-        return {"status": "ok", "message": "Р—Р°РґР°С‡Р° РІРѕР·РІСЂР°С‰РµРЅР° РІ РїР»Р°РЅ"}
+        return {"status": "ok", "message": "Задача возвращена в план"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/translate")
 def translate_task_text(payload: dict = Body(...)):
-    """РРЅС‚РµР»Р»РµРєС‚СѓР°Р»СЊРЅС‹Р№ РґРІСѓСЃС‚РѕСЂРѕРЅРЅРёР№ Р°РЅР°Р»РёР· Рё РїРµСЂРµРІРѕРґ RU <-> KZ."""
+    """Интеллектуальный двусторонний анализ и перевод RU <-> KZ."""
     text = payload.get("text", "") if isinstance(payload, dict) else str(payload)
     source_lang = payload.get("source_lang", "auto") if isinstance(payload, dict) else "auto"
     return detect_and_translate_task_text(text, forced_source=source_lang if source_lang != "auto" else None)
 
 @router.post("/api/tasks/import_from_google_sheets")
 def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
-    """РРјРїРѕСЂС‚РёСЂСѓРµС‚ РІСЃРµ Р°РєС‚РёРІРЅС‹Рµ Рё Р°СЂС…РёРІРЅС‹Рµ Р·Р°РґР°С‡Рё + СЃРїСЂР°РІРѕС‡РЅРёРєРё РёР· Google РўР°Р±Р»РёС†С‹."""
+    """Импортирует все активные и архивные задачи + справочники из Google Таблицы."""
     try:
         import json
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
 
         if not os.path.exists("google_credentials.json"):
-            raise HTTPException(status_code=400, detail="Р¤Р°Р№Р» google_credentials.json РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=400, detail="Файл google_credentials.json не найден")
 
         creds = service_account.Credentials.from_service_account_info(
             json.load(open('google_credentials.json', 'r', encoding='utf-8')),
@@ -1761,9 +1759,9 @@ def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
         service = build('sheets', 'v4', credentials=creds)
         spreadsheet_id = '1K6Lk0fVfVpfC7gpvg8Hlpj0IgTF9j5woLOWKquyFewc'
 
-        # 1. РРјРїРѕСЂС‚ РЎРїСЂР°РІРѕС‡РЅРёРєРѕРІ (Email)
+        # 1. Импорт Справочников (Email)
         try:
-            res_dir = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='РЎРїСЂР°РІРѕС‡РЅРёРєРё!A2:B100').execute()
+            res_dir = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='Справочники!A2:B100').execute()
             dir_rows = res_dir.get('values', [])
             for r in dir_rows:
                 if len(r) >= 2 and r[0] and r[1]:
@@ -1777,39 +1775,39 @@ def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
         except Exception as e_dir:
             print(f"Directory import note: {e_dir}")
 
-        # 2. РРјРїРѕСЂС‚ РђРєС‚РёРІРЅС‹С… Р·Р°РґР°С‡ ('РџР»Р°РЅ РЅР° РЅРµРґРµР»СЋ')
+        # 2. Импорт Активных задач ('План на неделю')
         imported_active = 0
         try:
-            res_active = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='РџР»Р°РЅ РЅР° РЅРµРґРµР»СЋ!A4:L100').execute()
+            res_active = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='План на неделю!A4:L100').execute()
             active_rows = res_active.get('values', [])
-            week_label = "РќРµРґРµР»СЏ 4 (24.08 - 28.08)"
-            month_label = "РђРІРіСѓСЃС‚ 2026"
+            week_label = "Неделя 4 (24.08 - 28.08)"
+            month_label = "Август 2026"
 
             for i, r in enumerate(active_rows):
                 if not r or len(r) < 3:
                     continue
                 code = r[0] if len(r) > 0 and r[0] else f"TSK-{(i+1):02d}"
-                zone = r[1] if len(r) > 1 and r[1] else "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ"
+                zone = r[1] if len(r) > 1 and r[1] else "Бережливое производство"
                 task_input = r[2] if len(r) > 2 else ""
                 photo = r[3] if len(r) > 3 else ""
                 task_ru = r[4] if len(r) > 4 and r[4] else task_input
                 task_kz = r[5] if len(r) > 5 else ""
-                author = r[6] if len(r) > 6 and r[6] else "Р›РµРІРґР° Рњ."
+                author = r[6] if len(r) > 6 and r[6] else "Левда М."
                 assignee = r[7] if len(r) > 7 else ""
                 due = r[8] if len(r) > 8 else ""
-                status = r[9] if len(r) > 9 and r[9] else "вљЄ Р’ РѕС‡РµСЂРµРґРё"
+                status = r[9] if len(r) > 9 and r[9] else "⚪ В очереди"
                 comment = r[10] if len(r) > 10 else ""
 
                 if not task_ru and not task_input:
                     continue
 
-                # РќРѕСЂРјР°Р»РёР·Р°С†РёСЏ СЃС‚Р°С‚СѓСЃР°
-                norm_status = "вљЄ Р’ РѕС‡РµСЂРµРґРё"
-                if "Р’С‹РїРѕР»РЅРµРЅРѕ" in status: norm_status = "рџџў Р’С‹РїРѕР»РЅРµРЅРѕ"
-                elif "Р’ СЂР°Р±РѕС‚Рµ" in status: norm_status = "рџџЎ Р’ СЂР°Р±РѕС‚Рµ"
-                elif "РџСЂРѕР±Р»РµРјР°" in status or "РџРµСЂРµРЅРµСЃРµРЅРѕ" in status: norm_status = "рџ”µ РџРµСЂРµРЅРµСЃРµРЅРѕ"
+                # Нормализация статуса
+                norm_status = "⚪ В очереди"
+                if "Выполнено" in status: norm_status = "🟢 Выполнено"
+                elif "В работе" in status: norm_status = "🟡 В работе"
+                elif "Проблема" in status or "Перенесено" in status: norm_status = "🔵 Перенесено"
 
-                # РџСЂРѕРІРµСЂСЏРµРј РЅРµС‚ Р»Рё СѓР¶Рµ С‚Р°РєРѕР№ Р·Р°РґР°С‡Рё
+                # Проверяем нет ли уже такой задачи
                 existing = db.query(models.Task).filter(models.Task.title == (task_ru or task_input), models.Task.week_label == week_label).first()
                 if not existing:
                     db.add(models.Task(
@@ -1832,8 +1830,7 @@ def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
         except Exception as e_act:
             print(f"Active tasks import error: {e_act}")
 
-        return {"status": "ok", "imported_active": imported_active, "message": f"РЈСЃРїРµС€РЅРѕ РёРјРїРѕСЂС‚РёСЂРѕРІР°РЅРѕ {imported_active} Р·Р°РґР°С‡ РёР· Google РўР°Р±Р»РёС†С‹"}
+        return {"status": "ok", "imported_active": imported_active, "message": f"Успешно импортировано {imported_active} задач из Google Таблицы"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-

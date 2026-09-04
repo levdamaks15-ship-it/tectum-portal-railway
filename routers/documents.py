@@ -41,9 +41,8 @@ def get_db():
     finally:
         db.close()
 
-
 # ==========================================
-# API Р‘РђР—Р« Р—РќРђРќРР™ (Р›РћРљРђР›Р¬РќРћР• РҐР РђРќРР›РР©Р•)
+# API БАЗЫ ЗНАНИЙ (ЛОКАЛЬНОЕ ХРАНИЛИЩЕ)
 # ==========================================
 from fastapi import Form, UploadFile, File
 from fastapi.responses import FileResponse
@@ -57,20 +56,20 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def sort_folders_custom(folders):
     order = {
         # Orange
-        "Р”РѕР»Р¶РЅРѕСЃС‚РЅС‹Рµ РёРЅСЃС‚СЂСѓРєС†РёРё РїРѕ РІСЃРµРј СЃРѕС‚СЂСѓРґРЅРёРєР°Рј": 0,
-        "РћРў Рё РўР‘": 1,
-        "Р”РѕРіРѕРІРѕСЂР° СЃ РїРѕРґСЂСЏРґС‡РёРєР°РјРё": 2,
+        "Должностные инструкции по всем сотрудникам": 0,
+        "ОТ и ТБ": 1,
+        "Договора с подрядчиками": 2,
         # Purple
-        "РћС‚РґРµР» РєР°РґСЂРѕРІ": 3,
-        "РљРѕРјРјРµСЂС‡РµСЃРєРёР№ РґРµРїР°СЂС‚Р°РјРµРЅС‚": 4,
-        "РўРµС…РЅРёС‡РµСЃРєРёР№ РґРёСЂРµРєС‚РѕСЂ": 5,
-        "Р¤РёРЅР°РЅСЃРѕРІС‹Р№ РґРёСЂРµРєС‚РѕСЂ": 6,
-        "РќР°С‡Р°Р»СЊРЅРёРє РїСЂРѕРёР·РІРѕРґСЃС‚РІР°": 7,
+        "Отдел кадров": 3,
+        "Коммерческий департамент": 4,
+        "Технический директор": 5,
+        "Финансовый директор": 6,
+        "Начальник производства": 7,
         # Green
-        "Р“Р»Р°РІРЅС‹Р№ С‚РµС…РЅРѕР»РѕРі": 8,
-        "РЎР»СѓР¶Р±Р° РєРѕРЅС‚СЂРѕР»СЏ РєР°С‡РµСЃС‚РІР°": 9,
-        "Р‘РµСЂРµР¶Р»РёРІРѕРµ РїСЂРѕРёР·РІРѕРґСЃС‚РІРѕ": 10,
-        "РћР“Рњ": 11
+        "Главный технолог": 8,
+        "Служба контроля качества": 9,
+        "Бережливое производство": 10,
+        "ОГМ": 11
     }
     return sorted(folders, key=lambda x: (order.get(x.name, 999), x.name))
 
@@ -169,7 +168,7 @@ def list_documents(
 
 @router.get("/api/documents/recent")
 def get_recent_documents(db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ 6 РїРѕСЃР»РµРґРЅРёС… РґРѕР±Р°РІР»РµРЅРЅС‹С…/РѕР±РЅРѕРІР»РµРЅРЅС‹С… РґРѕРєСѓРјРµРЅС‚РѕРІ РґР»СЏ РїР°РЅРµР»Рё Р±С‹СЃС‚СЂРѕРіРѕ РґРѕСЃС‚СѓРїР°"""
+    """Возвращает 6 последних добавленных/обновленных документов для панели быстрого доступа"""
     try:
         prot_map = build_category_protection_map(db)
         docs = db.query(models.Document).order_by(models.Document.uploaded_at.desc(), models.Document.id.desc()).limit(6).all()
@@ -187,8 +186,8 @@ def get_recent_documents(db: Session = Depends(get_db)):
                 "is_protected": prot_map.get(d.category_id, False) if d.category_id else False,
                 "version_number": d.version_number or 1,
                 "locked_by_user": d.locked_by_user,
-                "last_modified_by": d.last_modified_by or "РЎРѕС‚СЂСѓРґРЅРёРє",
-                "created_by": d.created_by or d.last_modified_by or "РЎРѕС‚СЂСѓРґРЅРёРє"
+                "last_modified_by": d.last_modified_by or "Сотрудник",
+                "created_by": d.created_by or d.last_modified_by or "Сотрудник"
             })
         return {"status": "success", "data": recent_docs}
     except Exception as e:
@@ -196,7 +195,7 @@ def get_recent_documents(db: Session = Depends(get_db)):
 
 @router.get("/api/documents/all")
 def get_all_documents_flat(db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РїР»РѕСЃРєРёР№ СЃРїРёСЃРѕРє РІСЃРµС… РґРѕРєСѓРјРµРЅС‚РѕРІ СЃ РёРјРµРЅР°РјРё РїР°РїРѕРє РґР»СЏ РјРѕРґР°Р»РєРё РІС‹Р±РѕСЂР°."""
+    """Возвращает плоский список всех документов с именами папок для модалки выбора."""
     try:
         categories = {c.id: c.name for c in db.query(models.DocumentCategory).all()}
         docs = db.query(models.Document).all()
@@ -204,10 +203,10 @@ def get_all_documents_flat(db: Session = Depends(get_db)):
         result = []
         for d in docs:
             file_link = d.external_url if d.external_url else f"/api/documents/download/{d.id}"
-            cat_name = categories.get(d.category_id, "Р“Р»Р°РІРЅР°СЏ РґРёСЂРµРєС‚РѕСЂРёСЏ")
+            cat_name = categories.get(d.category_id, "Главная директория")
             result.append({
                 "id": d.id,
-                "title": d.title or "Р”РѕРєСѓРјРµРЅС‚",
+                "title": d.title or "Документ",
                 "category_id": d.category_id,
                 "category_name": cat_name,
                 "mime_type": d.mime_type or "application/octet-stream",
@@ -217,7 +216,7 @@ def get_all_documents_flat(db: Session = Depends(get_db)):
                 "created_by": d.created_by or d.last_modified_by or ""
             })
         
-        # РЎРѕСЂС‚РёСЂРѕРІРєР° РїРѕ РёРјРµРЅРё
+        # Сортировка по имени
         result.sort(key=lambda x: (x["category_name"], x["title"].lower()))
         return result
     except Exception as e:
@@ -274,22 +273,22 @@ def verify_document_password(req: VerifyPasswordRequest, db: Session = Depends(g
         if req.folder_id and req.folder_id.startswith("folder_"):
             cat_id = int(req.folder_id.split("_")[1])
         if not cat_id:
-            return {"status": "error", "message": "РќРµРІРµСЂРЅС‹Р№ ID РїР°РїРєРё"}
+            return {"status": "error", "message": "Неверный ID папки"}
             
         protected_folder = get_protected_ancestor(db, cat_id)
         if not protected_folder:
-            return {"status": "success"} # РќРµ Р·Р°С‰РёС‰РµРЅР°
+            return {"status": "success"} # Не защищена
             
         hashed_pwd = hashlib.sha256(req.password.encode()).hexdigest()
         if protected_folder.password_hash == hashed_pwd:
             return {"status": "success"}
-        return {"status": "error", "message": "РќРµРІРµСЂРЅС‹Р№ РїР°СЂРѕР»СЊ"}
+        return {"status": "error", "message": "Неверный пароль"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @router.post("/api/documents/sync-folders-to-drive")
 def manual_sync_folders_to_drive(db: Session = Depends(get_db)):
-    """РџСЂРёРЅСѓРґРёС‚РµР»СЊРЅР°СЏ РІС‹РіСЂСѓР·РєР° РІСЃРµС… РїР°РїРѕРє Рё С„Р°Р№Р»РѕРІ РёР· Р±Р°Р·С‹ Tectum РІ Google Drive"""
+    """Принудительная выгрузка всех папок и файлов из базы Tectum в Google Drive"""
     try:
         import google_drive_integration
         all_categories = db.query(models.DocumentCategory).all()
@@ -350,7 +349,7 @@ def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: R
     try:
         folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
         if not folder:
-            return {"status": "error", "message": "РџР°РїРєР° РЅРµ РЅР°Р№РґРµРЅР°"}
+            return {"status": "error", "message": "Папка не найдена"}
             
         if req.password:
             folder.password_hash = hashlib.sha256(req.password.encode()).hexdigest()
@@ -398,7 +397,7 @@ def get_or_create_google_drive_folder_for_category(db: Session, cat_id: Optional
     return root_folder_id
 
 def upload_doc_to_drive_bg(doc_id: int, file_path: str, clean_title: str, cat_id: Optional[int] = None):
-    """Р¤РѕРЅРѕРІР°СЏ РІС‹РіСЂСѓР·РєР° С„Р°Р№Р»Р° РІ Google Drive СЃ РѕР±РЅРѕРІР»РµРЅРёРµРј ID Рё URL РІ Р‘Р” Рё СЃРѕС…СЂР°РЅРµРЅРёРµРј СЃС‚СЂСѓРєС‚СѓСЂС‹ РїР°РїРѕРє"""
+    """Фоновая выгрузка файла в Google Drive с обновлением ID и URL в БД и сохранением структуры папок"""
     try:
         import google_drive_integration
         bg_db = database.SessionLocal()
@@ -488,8 +487,7 @@ def get_direct_upload_token(
         
         upload_url = yandex_disk_integration.get_yandex_upload_url(remote_path)
         if not upload_url:
-            raise HTTPException(status_code=500, detail="РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ СЃСЃС‹Р»РєСѓ РґР»СЏ Р·Р°РіСЂСѓР·РєРё РІ РЇРЅРґРµРєСЃ.Р”РёСЃРє")
-
+            raise HTTPException(status_code=500, detail="Не удалось получить ссылку для загрузки в Яндекс.Диск")
         return {
             "status": "success",
             "upload_url": upload_url,
@@ -546,7 +544,7 @@ class AddExternalLinkRequest(BaseModel):
     title: str
     external_url: str
     parent_id: Optional[str] = None
-    author_name: Optional[str] = "РЎРѕС‚СЂСѓРґРЅРёРє"
+    author_name: Optional[str] = "Сотрудник"
 
 @router.post("/api/documents/add_link")
 def add_external_document_link(
@@ -555,7 +553,7 @@ def add_external_document_link(
     db: Session = Depends(get_db)
 ):
     """
-    Р”РѕР±Р°РІР»СЏРµС‚ СЃСЃС‹Р»РєСѓ РЅР° РІРЅРµС€РЅРёР№ РґРѕРєСѓРјРµРЅС‚ (OneDrive, Google Docs, SharePoint, РЇРЅРґРµРєСЃ.Р”РёСЃРє Рё С‚.Рґ.)
+    Добавляет ссылку на внешний документ (OneDrive, Google Docs, SharePoint, Яндекс.Диск и т.д.)
     """
     try:
         cat_id = None
@@ -572,7 +570,7 @@ def add_external_document_link(
         if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
             clean_url = "https://" + clean_url
 
-        # РћРїСЂРµРґРµР»РµРЅРёРµ С‚РёРїР° РёРєРѕРЅРєРё
+        # Определение типа иконки
         clean_title = req.title.strip()
         mime_type = "application/x-external-link"
         low_url = clean_url.lower()
@@ -594,8 +592,8 @@ def add_external_document_link(
             category_id=cat_id,
             external_url=clean_url,
             mime_type=mime_type,
-            created_by=req.author_name or "РЎРѕС‚СЂСѓРґРЅРёРє",
-            last_modified_by=req.author_name or "РЎРѕС‚СЂСѓРґРЅРёРє",
+            created_by=req.author_name or "Сотрудник",
+            last_modified_by=req.author_name or "Сотрудник",
             uploaded_at=datetime.utcnow()
         )
         db.add(new_doc)
@@ -604,7 +602,7 @@ def add_external_document_link(
 
         return {
             "status": "success",
-            "message": "РЎСЃС‹Р»РєР° СѓСЃРїРµС€РЅРѕ РґРѕР±Р°РІР»РµРЅР°!",
+            "message": "Ссылка успешно добавлена!",
             "file": {
                 "id": f"file_{new_doc.id}",
                 "name": new_doc.title,
@@ -617,7 +615,7 @@ def add_external_document_link(
         return {"status": "error", "message": str(e)}
 
 def extract_external_link_title_sync(clean_url: str) -> Optional[str]:
-    """Р’СЃРїРѕРјРѕРіР°С‚РµР»СЊРЅР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ Р±С‹СЃС‚СЂРѕРіРѕ РёР·РІР»РµС‡РµРЅРёСЏ РЅР°Р·РІР°РЅРёСЏ СЃСЃС‹Р»РєРё"""
+    """Вспомогательная функция для быстрого извлечения названия ссылки"""
     import re
     import html as py_html
     
@@ -645,7 +643,6 @@ def extract_external_link_title_sync(clean_url: str) -> Optional[str]:
                 f"https://docs.google.com/document/d/{doc_id}/preview",
                 clean_url
             ]
-
     for test_url in target_urls_to_try:
         try:
             resp = requests.get(test_url, headers=headers, timeout=4, allow_redirects=True)
@@ -676,14 +673,14 @@ def extract_external_link_title_sync(clean_url: str) -> Optional[str]:
             if title:
                 title = py_html.unescape(title)
                 for suffix in [
-                    " - Google РўР°Р±Р»РёС†С‹", " - Google Р”РѕРєСѓРјРµРЅС‚С‹", " - Google РџСЂРµР·РµРЅС‚Р°С†РёРё", 
-                    " - Google Р”РёСЃРє", " - Google Sheets", " - Google Docs", " - Google Drive",
-                    " - OneDrive", " - Excel", " - Word", " - Microsoft OneDrive", " вЂ” РЇРЅРґРµРєСЃ Р”РёСЃРє"
+                    " - Google Таблицы", " - Google Документы", " - Google Презентации", 
+                    " - Google Диск", " - Google Sheets", " - Google Docs", " - Google Drive",
+                    " - OneDrive", " - Excel", " - Word", " - Microsoft OneDrive", " — Яндекс Диск"
                 ]:
                     if title.endswith(suffix):
                         title = title[:-len(suffix)].strip()
                 
-                if title and not any(bad in title.lower() for bad in ["РІС…РѕРґ", "РІРѕР№С‚Рё", "sign in", "login", "google accounts"]):
+                if title and not any(bad in title.lower() for bad in ["вход", "войти", "sign in", "login", "google accounts"]):
                     return title
         except Exception:
             continue
@@ -692,12 +689,12 @@ def extract_external_link_title_sync(clean_url: str) -> Optional[str]:
 @router.get("/api/documents/fetch_link_title")
 def fetch_external_link_title(url: str = Query(...)):
     """
-    РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё РёР·РІР»РµРєР°РµС‚ СЂРµР°Р»СЊРЅС‹Р№ Р·Р°РіРѕР»РѕРІРѕРє/РЅР°Р·РІР°РЅРёРµ С„Р°Р№Р»Р° РїРѕ СЃСЃС‹Р»РєРµ (OneDrive, Google Docs, Sheets, Yandex Рё РґСЂ.)
+    Автоматически извлекает реальный заголовок/название файла по ссылке (OneDrive, Google Docs, Sheets, Yandex и др.)
     """
     title = extract_external_link_title_sync(url)
     if title:
         return {"status": "success", "title": title}
-    return {"status": "error", "message": "РќРµ СѓРґР°Р»РѕСЃСЊ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РёР·РІР»РµС‡СЊ Р·Р°РіРѕР»РѕРІРѕРє"}
+    return {"status": "error", "message": "Не удалось автоматически извлечь заголовок"}
 
 @router.post("/api/documents/sync_external_titles")
 def sync_external_documents_titles(
@@ -705,7 +702,7 @@ def sync_external_documents_titles(
     db: Session = Depends(get_db)
 ):
     """
-    Р¤РѕРЅРѕРІР°СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ Рё Р°РєС‚СѓР°Р»РёР·Р°С†РёСЏ РЅР°Р·РІР°РЅРёР№ РґРѕРєСѓРјРµРЅС‚РѕРІ РїРѕ РІРЅРµС€РЅРёРј РѕР±Р»Р°С‡РЅС‹Рј СЃСЃС‹Р»РєР°Рј
+    Фоновая синхронизация и актуализация названий документов по внешним облачным ссылкам
     """
     try:
         cat_id = None
@@ -741,7 +738,7 @@ def sync_external_documents_titles(
 def create_document_folder(
     folder_name: str = Form(...),
     parent_id: Optional[str] = Form(None),
-    author_name: Optional[str] = Form("РЎРѕС‚СЂСѓРґРЅРёРє"),
+    author_name: Optional[str] = Form("Сотрудник"),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -757,7 +754,7 @@ def create_document_folder(
                     raise HTTPException(status_code=403, detail="Access Denied")
         else:
             if not x_folder_password or x_folder_password != "6282":
-                raise HTTPException(status_code=403, detail="РќРµРІРµСЂРЅС‹Р№ РїР°СЂРѕР»СЊ РґР»СЏ СЃРѕР·РґР°РЅРёСЏ РєРѕСЂРЅРµРІРѕР№ РїР°РїРєРё")
+                raise HTTPException(status_code=403, detail="Неверный пароль для создания корневой папки")
             
         clean_name = folder_name.strip()
         existing = db.query(models.DocumentCategory).filter(
@@ -774,7 +771,7 @@ def create_document_folder(
         new_folder = models.DocumentCategory(
             name=clean_name,
             parent_id=cat_id,
-            created_by=author_name or "РЎРѕС‚СЂСѓРґРЅРёРє"
+            created_by=author_name or "Сотрудник"
         )
         db.add(new_folder)
         db.commit()
@@ -790,7 +787,7 @@ def create_document_folder(
 
 @router.post("/api/documents/clean_duplicates")
 def clean_duplicate_folders(request: Request, db: Session = Depends(get_db)):
-    """РђРґРјРёРЅРёСЃС‚СЂР°С‚РёРІРЅР°СЏ РѕС‡РёСЃС‚РєР° РґСѓР±Р»РёРєР°С‚РѕРІ РїР°РїРѕРє РІ Р±Р°Р·Рµ РґР°РЅРЅС‹С…"""
+    """Административная очистка дубликатов папок в базе данных"""
     try:
         all_folders = db.query(models.DocumentCategory).all()
         seen = {}
@@ -827,45 +824,45 @@ def check_document_action_permission(
     is_protected_folder_action: bool = False
 ):
     """
-    РџСЂРѕРІРµСЂСЏРµС‚ РїСЂР°РІР° РґРѕСЃС‚СѓРїР° РЅР° РґРµР№СЃС‚РІРёРµ СЃ РґРѕРєСѓРјРµРЅС‚РѕРј/РїР°РїРєРѕР№:
-    - Р Р°Р·СЂРµС€РµРЅРѕ, РµСЃР»Рё Р°РІС‚РѕСЂ СЃРѕРІРїР°РґР°РµС‚ Рё PIN-РєРѕРґ РІР°Р»РёРґРµРЅ.
-    - Р Р°Р·СЂРµС€РµРЅРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°Рј (PIN 6282 РёР»Рё РјР°СЃС‚РµСЂ-РїР°СЂРѕР»СЊ).
-    - Р•СЃР»Рё Сѓ РѕР±СЉРµРєС‚Р° РµС‰Рµ РЅРµ Р±С‹Р» СѓРєР°Р·Р°РЅ СЃРѕР·РґР°С‚РµР»СЊ (СЃС‚Р°СЂС‹Рµ С„Р°Р№Р»С‹) Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ Р°РІС‚РѕСЂРёР·РѕРІР°РЅ вЂ” РґРµР№СЃС‚РІРёРµ СЂР°Р·СЂРµС€РµРЅРѕ.
-    - РРЅР°С‡Рµ вЂ” РѕС‚РєР°Р· 403 СЃ РїРѕСЏСЃРЅРµРЅРёРµРј.
+    Проверяет права доступа на действие с документом/папкой:
+    - Разрешено, если автор совпадает и PIN-код валиден.
+    - Разрешено администраторам (PIN 6282 или мастер-пароль).
+    - Если у объекта еще не был указан создатель (старые файлы) и пользователь авторизован — действие разрешено.
+    - Иначе — отказ 403 с пояснением.
     """
     clean_user = (user_name or "").strip()
     clean_pin = (user_pin or "").strip()
     clean_creator = (creator_name or "").strip()
     
-    # 1. РџСЂРѕРІРµСЂРєР° РЅР° СЃСѓРїРµСЂРїРѕР»СЊР·РѕРІР°С‚РµР»СЏ / РјР°СЃС‚РµСЂ-РїР°СЂРѕР»СЊ
+    # 1. Проверка на суперпользователя / мастер-пароль
     if clean_pin == "6282":
         return True
         
-    # 2. Р•СЃР»Рё Сѓ РѕР±СЉРµРєС‚Р° РЅРµ СѓРєР°Р·Р°РЅ СЃРѕР·РґР°С‚РµР»СЊ Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ Р°РІС‚РѕСЂРёР·РѕРІР°РЅ
+    # 2. Если у объекта не указан создатель и пользователь авторизован
     if not clean_creator:
         if clean_user:
             return True
-        # Р•СЃР»Рё СЃРѕР·РґР°С‚РµР»СЊ РЅРµРёР·РІРµСЃС‚РµРЅ Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ СѓРєР°Р·Р°РЅ
+        # Если создатель неизвестен и пользователь не указан
         return True
 
     if not clean_user:
         raise HTTPException(
             status_code=403, 
-            detail=f"Р”РµР№СЃС‚РІРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРѕ. РћР±СЉРµРєС‚ СЃРѕР·РґР°РЅ СЃРѕС‚СЂСѓРґРЅРёРєРѕРј В«{clean_creator}В». РџРѕР¶Р°Р»СѓР№СЃС‚Р°, Р°РІС‚РѕСЂРёР·СѓР№С‚РµСЃСЊ РїРѕРґ СЃРІРѕРёРј РёРјРµРЅРµРј."
+            detail=f"Действие заблокировано. Объект создан сотрудником «{clean_creator}». Пожалуйста, авторизуйтесь под своим именем."
         )
 
-    # 3. РџСЂРѕРІРµСЂРєР° СЃРѕРѕС‚РІРµС‚СЃС‚РІРёСЏ РёРјРµРЅРё Р°РІС‚РѕСЂР°
+    # 3. Проверка соответствия имени автора
     if clean_user.lower() != clean_creator.lower():
         raise HTTPException(
             status_code=403, 
-            detail=f"Р”РµР№СЃС‚РІРёРµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРѕ: РѕР±СЉРµРєС‚ СЃРѕР·РґР°РЅ СЃРѕС‚СЂСѓРґРЅРёРєРѕРј В«{clean_creator}В». РЈРґР°Р»СЏС‚СЊ Рё РёР·РјРµРЅСЏС‚СЊ РµРіРѕ РјРѕР¶РµС‚ С‚РѕР»СЊРєРѕ Р°РІС‚РѕСЂ РёР»Рё РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ."
+            detail=f"Действие заблокировано: объект создан сотрудником «{clean_creator}». Удалять и изменять его может только автор или Администратор."
         )
 
-    # 4. РџСЂРѕРІРµСЂРєР° PIN-РєРѕРґР° Р°РІС‚РѕСЂР° (РµСЃР»Рё РѕРЅ Р·Р°РґР°РЅ РІ СЃРїСЂР°РІРѕС‡РЅРёРєРµ СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ)
+    # 4. Проверка PIN-кода автора (если он задан в справочнике сотрудников)
     emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_user).first()
     if emp and emp.pin_code and emp.pin_code.strip():
         if emp.pin_code.strip() != clean_pin:
-            raise HTTPException(status_code=401, detail="РќРµРІРµСЂРЅС‹Р№ PIN-РєРѕРґ РґР»СЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РґРµР№СЃС‚РІРёСЏ")
+            raise HTTPException(status_code=401, detail="Неверный PIN-код для подтверждения действия")
 
     return True
 
@@ -881,13 +878,13 @@ def rename_document(
     try:
         new_clean_name = new_name.strip()
         if not new_clean_name:
-            return {"status": "error", "message": "РРјСЏ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј"}
+            return {"status": "error", "message": "Имя не может быть пустым"}
             
         if item_id.startswith("folder_"):
             cat_id = int(item_id.split("_")[1])
             folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
             if not folder:
-                return {"status": "error", "message": "РџР°РїРєР° РЅРµ РЅР°Р№РґРµРЅР°"}
+                return {"status": "error", "message": "Папка не найдена"}
                 
             protected_folder = get_protected_ancestor(db, folder.id)
             if protected_folder:
@@ -903,7 +900,7 @@ def rename_document(
             file_id = int(item_id.split("_")[1])
             doc = db.query(models.Document).filter(models.Document.id == file_id).first()
             if not doc:
-                return {"status": "error", "message": "Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ"}
+                return {"status": "error", "message": "Файл не найден"}
                 
             if doc.category_id:
                 protected_folder = get_protected_ancestor(db, doc.category_id)
@@ -916,7 +913,7 @@ def rename_document(
             db.commit()
             return {"status": "success"}
             
-        return {"status": "error", "message": "РќРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї РѕР±СЉРµРєС‚Р°"}
+        return {"status": "error", "message": "Неизвестный тип объекта"}
     except HTTPException:
         raise
     except Exception as e:
@@ -940,11 +937,11 @@ def move_document(
             elif target_folder_id.isdigit():
                 target_cat_id = int(target_folder_id)
             else:
-                return {"status": "error", "message": "РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂР° РїР°РїРєРё"}
+                return {"status": "error", "message": "Неверный формат идентификатора папки"}
             
             target_folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == target_cat_id).first()
             if not target_folder:
-                return {"status": "error", "message": "Р¦РµР»РµРІР°СЏ РїР°РїРєР° РЅРµ РЅР°Р№РґРµРЅР°"}
+                return {"status": "error", "message": "Целевая папка не найдена"}
                 
             target_protected = get_protected_ancestor(db, target_folder.id)
             if target_protected:
@@ -955,7 +952,7 @@ def move_document(
             cat_id = int(item_id.split("_")[1])
             folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
             if not folder:
-                return {"status": "error", "message": "РџРµСЂРµРјРµС‰Р°РµРјР°СЏ РїР°РїРєР° РЅРµ РЅР°Р№РґРµРЅР°"}
+                return {"status": "error", "message": "Перемещаемая папка не найдена"}
 
             src_protected = get_protected_ancestor(db, folder.id)
             if src_protected:
@@ -965,25 +962,25 @@ def move_document(
             check_document_action_permission(db, folder.created_by, user_name, user_pin or x_folder_password)
 
             if target_cat_id == folder.id:
-                return {"status": "error", "message": "РќРµР»СЊР·СЏ РїРµСЂРµРјРµСЃС‚РёС‚СЊ РїР°РїРєСѓ СЃР°РјСѓ РІ СЃРµР±СЏ"}
+                return {"status": "error", "message": "Нельзя переместить папку саму в себя"}
 
             if target_cat_id is not None:
                 curr = target_cat_id
                 while curr is not None:
                     if curr == folder.id:
-                        return {"status": "error", "message": "РќРµР»СЊР·СЏ РїРµСЂРµРјРµСЃС‚РёС‚СЊ РїР°РїРєСѓ РІ РµС‘ СЃРѕР±СЃС‚РІРµРЅРЅСѓСЋ РїРѕРґРїР°РїРєСѓ"}
+                        return {"status": "error", "message": "Нельзя переместить папку в её собственную подпапку"}
                     parent_row = db.query(models.DocumentCategory.parent_id).filter(models.DocumentCategory.id == curr).first()
                     curr = parent_row[0] if parent_row else None
 
             folder.parent_id = target_cat_id
             db.commit()
-            return {"status": "success", "message": "РџР°РїРєР° СѓСЃРїРµС€РЅРѕ РїРµСЂРµРјРµС‰РµРЅР°"}
+            return {"status": "success", "message": "Папка успешно перемещена"}
 
         elif item_id.startswith("file_"):
             file_id = int(item_id.split("_")[1])
             doc = db.query(models.Document).filter(models.Document.id == file_id).first()
             if not doc:
-                return {"status": "error", "message": "Р¤Р°Р№Р» РЅРµ РЅР°Р№РґРµРЅ"}
+                return {"status": "error", "message": "Файл не найден"}
 
             if doc.category_id:
                 src_protected = get_protected_ancestor(db, doc.category_id)
@@ -995,9 +992,9 @@ def move_document(
 
             doc.category_id = target_cat_id
             db.commit()
-            return {"status": "success", "message": "Р¤Р°Р№Р» СѓСЃРїРµС€РЅРѕ РїРµСЂРµРјРµС‰РµРЅ"}
+            return {"status": "success", "message": "Файл успешно перемещен"}
 
-        return {"status": "error", "message": "РќРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї РѕР±СЉРµРєС‚Р°"}
+        return {"status": "error", "message": "Неизвестный тип объекта"}
     except HTTPException:
         raise
     except Exception as e:
@@ -1079,7 +1076,7 @@ def delete_document(
         return {"status": "error", "message": str(e)}
 
 # ==========================================
-# API Р‘РђР—Р« Р—РќРђРќРР™: Р›РћРљРђР›Р¬РќР«Р• Р¤РђР™Р›Р«, MS OFFICE & Р’Р•Р РЎРРћРќРР РћР’РђРќРР•
+# API БАЗЫ ЗНАНИЙ: ЛОКАЛЬНЫЕ ФАЙЛЫ, MS OFFICE & ВЕРСИОНИРОВАНИЕ
 # ==========================================
 
 DOCS_STORAGE_DIR = os.path.join(os.getcwd(), "uploads", "kb_docs")
@@ -1087,22 +1084,22 @@ os.makedirs(DOCS_STORAGE_DIR, exist_ok=True)
 
 @router.get("/api/documents/download/{doc_id}")
 def download_local_document(doc_id: int, db: Session = Depends(get_db)):
-    """РћС‚РґР°РµС‚ Р»РѕРєР°Р»СЊРЅС‹Р№ С„Р°Р№Р» РґРѕРєСѓРјРµРЅС‚Р° РґР»СЏ СЃРєР°С‡РёРІР°РЅРёСЏ РёР»Рё РѕС‚РєСЂС‹С‚РёСЏ РІ MS Office"""
+    """Отдает локальный файл документа для скачивания или открытия в MS Office"""
     doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
     if not doc:
-        raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=404, detail="Документ не найден")
     
     if not doc.file_path or not os.path.exists(doc.file_path):
-        # Р•СЃР»Рё РїСЂРёРІСЏР·Р°РЅР° С‚РѕР»СЊРєРѕ РІРЅРµС€РЅСЏСЏ СЃСЃС‹Р»РєР°
+        # Если привязана только внешняя ссылка
         if doc.external_url:
             return RedirectResponse(doc.external_url)
-        raise HTTPException(status_code=404, detail="Р¤Р°Р№Р» РґРѕРєСѓРјРµРЅС‚Р° РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РЅР° РґРёСЃРєРµ")
+        raise HTTPException(status_code=404, detail="Файл документа отсутствует на диске")
     
     filename = doc.title or os.path.basename(doc.file_path)
     encoded_filename = quote(filename.encode('utf-8'))
     media_type = doc.mime_type or "application/octet-stream"
     
-    # PDF, РёР·РѕР±СЂР°Р¶РµРЅРёСЏ Рё С‚РµРєСЃС‚ РѕС‚РґР°РµРј inline РґР»СЏ РєРѕРјС„РѕСЂС‚РЅРѕРіРѕ РѕРЅР»Р°Р№РЅ-РїСЂРѕСЃРјРѕС‚СЂР° РЅР° СЃРјР°СЂС‚С„РѕРЅР°С… Рё РџРљ
+    # PDF, изображения и текст отдаем inline для комфортного онлайн-просмотра на смартфонах и ПК
     is_inline = False
     lower_name = filename.lower()
     if lower_name.endswith(('.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt', '.svg')) or (media_type and ("pdf" in media_type or "image" in media_type or "text" in media_type)):
@@ -1122,11 +1119,11 @@ def download_local_document(doc_id: int, db: Session = Depends(get_db)):
 async def upload_local_document(
     file: UploadFile = File(...),
     parent_id: Optional[str] = Form(None),
-    author_name: Optional[str] = Form("РЎРѕС‚СЂСѓРґРЅРёРє"),
+    author_name: Optional[str] = Form("Сотрудник"),
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    """Р—Р°РіСЂСѓР·РєР° РЅРѕРІРѕРіРѕ С„Р°Р№Р»Р° РІ Р»РѕРєР°Р»СЊРЅСѓСЋ Р‘Р°Р·Сѓ Р—РЅР°РЅРёР№ СЃ СЃРѕС…СЂР°РЅРµРЅРёРµРј РІ uploads/kb_docs"""
+    """Загрузка нового файла в локальную Базу Знаний с сохранением в uploads/kb_docs"""
     try:
         cat_id = None
         if parent_id and parent_id.startswith("folder_"):
@@ -1143,7 +1140,7 @@ async def upload_local_document(
         if safe_ext != ".pdf":
             raise HTTPException(
                 status_code=400, 
-                detail="Р›РѕРєР°Р»СЊРЅРѕ СЂР°Р·СЂРµС€РµРЅР° Р·Р°РіСЂСѓР·РєР° С‚РѕР»СЊРєРѕ PDF-РґРѕРєСѓРјРµРЅС‚РѕРІ (.pdf). Р”Р»СЏ Word/Excel С„Р°Р№Р»РѕРІ РёСЃРїРѕР»СЊР·СѓР№С‚Рµ РґРѕР±Р°РІР»РµРЅРёРµ СЃСЃС‹Р»РєРё Google Docs РёР»Рё OneDrive."
+                detail="Локально разрешена загрузка только PDF-документов (.pdf). Для Word/Excel файлов используйте добавление ссылки Google Docs или OneDrive."
             )
         unique_name = f"doc_{uuid.uuid4().hex[:10]}_{int(datetime.utcnow().timestamp())}{safe_ext}"
         save_path = os.path.join(DOCS_STORAGE_DIR, unique_name)
@@ -1159,23 +1156,23 @@ async def upload_local_document(
             file_path=save_path,
             mime_type=file.content_type or "application/octet-stream",
             version_number=1,
-            last_modified_by=author_name or "РЎРѕС‚СЂСѓРґРЅРёРє",
-            created_by=author_name or "РЎРѕС‚СЂСѓРґРЅРёРє",
+            last_modified_by=author_name or "Сотрудник",
+            created_by=author_name or "Сотрудник",
             uploaded_at=datetime.utcnow()
         )
         db.add(new_doc)
         db.commit()
         db.refresh(new_doc)
         
-        # РЎРѕР·РґР°РµРј РЅР°С‡Р°Р»СЊРЅСѓСЋ РІРµСЂСЃРёСЋ v1 РІ Р°СЂС…РёРІРµ
+        # Создаем начальную версию v1 в архиве
         initial_version = models.DocumentVersion(
             document_id=new_doc.id,
             version_number=1,
             file_path=save_path,
             file_size=file_size,
             mime_type=new_doc.mime_type,
-            author_name=author_name or "РЎРѕС‚СЂСѓРґРЅРёРє",
-            comment="РСЃС…РѕРґРЅР°СЏ Р·Р°РіСЂСѓР·РєР° РґРѕРєСѓРјРµРЅС‚Р°",
+            author_name=author_name or "Сотрудник",
+            comment="Исходная загрузка документа",
             created_at=datetime.utcnow()
         )
         db.add(initial_version)
@@ -1183,7 +1180,7 @@ async def upload_local_document(
         
         return {
             "status": "success",
-            "message": "Р¤Р°Р№Р» СѓСЃРїРµС€РЅРѕ Р·Р°РіСЂСѓР¶РµРЅ РІ Р‘Р°Р·Сѓ Р—РЅР°РЅРёР№",
+            "message": "Файл успешно загружен в Базу Знаний",
             "file": {
                 "id": f"file_{new_doc.id}",
                 "name": new_doc.title,
@@ -1208,11 +1205,11 @@ async def save_document_version(
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    """Р—Р°РіСЂСѓР¶Р°РµС‚ РЅРѕРІСѓСЋ РІРµСЂСЃРёСЋ РґРѕРєСѓРјРµРЅС‚Р°, Р°СЂС…РёРІРёСЂСѓРµС‚ СЃС‚Р°СЂСѓСЋ Рё СѓРІРµР»РёС‡РёРІР°РµС‚ СЃС‡РµС‚С‡РёРє РІРµСЂСЃРёР№"""
+    """Загружает новую версию документа, архивирует старую и увеличивает счетчик версий"""
     try:
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
-            raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Документ не найден")
             
         if doc.category_id:
             protected_folder = get_protected_ancestor(db, doc.category_id)
@@ -1232,7 +1229,7 @@ async def save_document_version(
         with open(save_path, "wb") as f_out:
             f_out.write(content)
             
-        # РћР±РЅРѕРІР»СЏРµРј СЃР°Рј РґРѕРєСѓРјРµРЅС‚
+        # Обновляем сам документ
         doc.file_path = save_path
         doc.mime_type = file.content_type or doc.mime_type
         doc.version_number = new_version_num
@@ -1241,7 +1238,7 @@ async def save_document_version(
         doc.locked_at = None
         doc.uploaded_at = datetime.utcnow()
         
-        # Р”РѕР±Р°РІР»СЏРµРј Р·Р°РїРёСЃСЊ РІ Р°СЂС…РёРІ РІРµСЂСЃРёР№
+        # Добавляем запись в архив версий
         new_version_rec = models.DocumentVersion(
             document_id=doc.id,
             version_number=new_version_num,
@@ -1249,7 +1246,7 @@ async def save_document_version(
             file_size=file_size,
             mime_type=doc.mime_type,
             author_name=author_name,
-            comment=comment or f"РћР±РЅРѕРІР»РµРЅРёРµ РґРѕ v{new_version_num}",
+            comment=comment or f"Обновление до v{new_version_num}",
             created_at=datetime.utcnow()
         )
         db.add(new_version_rec)
@@ -1258,7 +1255,7 @@ async def save_document_version(
         
         return {
             "status": "success",
-            "message": f"Р’РµСЂСЃРёСЏ v{new_version_num} СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅР°",
+            "message": f"Версия v{new_version_num} успешно сохранена",
             "version_number": new_version_num,
             "last_modified_by": doc.last_modified_by
         }
@@ -1270,11 +1267,11 @@ async def save_document_version(
 
 @router.get("/api/documents/{doc_id}/versions")
 def get_document_versions(doc_id: int, db: Session = Depends(get_db)):
-    """Р’РѕР·РІСЂР°С‰Р°РµС‚ РёСЃС‚РѕСЂРёСЋ РІСЃРµС… РІРµСЂСЃРёР№ РґРѕРєСѓРјРµРЅС‚Р°"""
+    """Возвращает историю всех версий документа"""
     try:
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
-            raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Документ не найден")
             
         versions = db.query(models.DocumentVersion).filter(
             models.DocumentVersion.document_id == doc_id
@@ -1299,10 +1296,10 @@ def get_document_versions(doc_id: int, db: Session = Depends(get_db)):
 
 @router.get("/api/documents/versions/{version_id}/download")
 def download_document_version(version_id: int, db: Session = Depends(get_db)):
-    """РЎРєР°С‡РёРІР°РЅРёРµ РєРѕРЅРєСЂРµС‚РЅРѕР№ Р°СЂС…РёРІРЅРѕР№ РІРµСЂСЃРёРё РґРѕРєСѓРјРµРЅС‚Р°"""
+    """Скачивание конкретной архивной версии документа"""
     ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.id == version_id).first()
     if not ver or not ver.file_path or not os.path.exists(ver.file_path):
-        raise HTTPException(status_code=404, detail="РђСЂС…РёРІРЅР°СЏ РІРµСЂСЃРёСЏ С„Р°Р№Р»Р° РЅРµ РЅР°Р№РґРµРЅР°")
+        raise HTTPException(status_code=404, detail="Архивная версия файла не найдена")
         
     doc = db.query(models.Document).filter(models.Document.id == ver.document_id).first()
     doc_title = doc.title if doc else "document"
@@ -1324,11 +1321,11 @@ def restore_document_version(
     x_folder_password: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    """РћС‚РєР°С‚ РґРѕРєСѓРјРµРЅС‚Р° Рє РІС‹Р±СЂР°РЅРЅРѕР№ Р°СЂС…РёРІРЅРѕР№ РІРµСЂСЃРёРё СЃ СЃРѕР·РґР°РЅРёРµРј РЅРѕРІРѕРіРѕ С€Р°РіР° РІ РёСЃС‚РѕСЂРёРё"""
+    """Откат документа к выбранной архивной версии с созданием нового шага в истории"""
     try:
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
-            raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Документ не найден")
             
         if doc.category_id:
             protected_folder = get_protected_ancestor(db, doc.category_id)
@@ -1341,9 +1338,9 @@ def restore_document_version(
             models.DocumentVersion.document_id == doc_id
         ).first()
         if not ver or not ver.file_path or not os.path.exists(ver.file_path):
-            raise HTTPException(status_code=404, detail="РђСЂС…РёРІРЅР°СЏ РІРµСЂСЃРёСЏ РЅРµ РЅР°Р№РґРµРЅР° РЅР° РґРёСЃРєРµ")
+            raise HTTPException(status_code=404, detail="Архивная версия не найдена на диске")
             
-        # РЎРѕР·РґР°РµРј РєРѕРїРёСЋ С„Р°Р№Р»Р° Р°СЂС…РёРІРЅРѕР№ РІРµСЂСЃРёРё РєР°Рє РЅРѕРІСѓСЋ Р°РєС‚СѓР°Р»СЊРЅСѓСЋ РІРµСЂСЃРёСЋ
+        # Создаем копию файла архивной версии как новую актуальную версию
         new_version_num = (doc.version_number or 1) + 1
         safe_ext = os.path.splitext(ver.file_path)[1].lower()
         new_unique_name = f"doc_{doc.id}_v{new_version_num}_restored_{uuid.uuid4().hex[:6]}{safe_ext}"
@@ -1354,7 +1351,7 @@ def restore_document_version(
         
         doc.file_path = new_save_path
         doc.version_number = new_version_num
-        doc.last_modified_by = user_name or "РЎРѕС‚СЂСѓРґРЅРёРє"
+        doc.last_modified_by = user_name or "Сотрудник"
         doc.locked_by_user = None
         doc.locked_at = None
         doc.uploaded_at = datetime.utcnow()
@@ -1365,8 +1362,8 @@ def restore_document_version(
             file_path=new_save_path,
             file_size=file_size,
             mime_type=ver.mime_type or doc.mime_type,
-            author_name=user_name or "РЎРѕС‚СЂСѓРґРЅРёРє",
-            comment=f"РћС‚РєР°С‚ Рє РІРµСЂСЃРёРё v{ver.version_number}",
+            author_name=user_name or "Сотрудник",
+            comment=f"Откат к версии v{ver.version_number}",
             created_at=datetime.utcnow()
         )
         db.add(new_ver_rec)
@@ -1375,7 +1372,7 @@ def restore_document_version(
         
         return {
             "status": "success",
-            "message": f"Р”РѕРєСѓРјРµРЅС‚ СѓСЃРїРµС€РЅРѕ РѕС‚РєР°С‡РµРЅ Рє РІРµСЂСЃРёРё v{ver.version_number} (СЃРѕР·РґР°РЅР° РІРµСЂСЃРёСЏ v{new_version_num})",
+            "message": f"Документ успешно откачен к версии v{ver.version_number} (создана версия v{new_version_num})",
             "version_number": new_version_num,
             "last_modified_by": doc.last_modified_by
         }
@@ -1394,20 +1391,20 @@ def lock_document(
     req: LockDocumentRequest,
     db: Session = Depends(get_db)
 ):
-    """Р‘Р»РѕРєРёСЂСѓРµС‚ РґРѕРєСѓРјРµРЅС‚ СЃРѕС‚СЂСѓРґРЅРёРєРѕРј РїСЂРё РІР·СЏС‚РёРё РІ СЂР°Р±РѕС‚Сѓ РІ MS Office"""
+    """Блокирует документ сотрудником при взятии в работу в MS Office"""
     try:
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
-            raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Документ не найден")
             
         if doc.locked_by_user and doc.locked_by_user != req.user_name:
-            # РџСЂРѕРІРµСЂСЏРµРј РЅРµ СѓСЃС‚Р°СЂРµР»Р° Р»Рё Р±Р»РѕРєРёСЂРѕРІРєР° (Р±РѕР»РµРµ 4 С‡Р°СЃРѕРІ)
+            # Проверяем не устарела ли блокировка (более 4 часов)
             if doc.locked_at and (datetime.utcnow() - doc.locked_at).total_seconds() < 14400:
                 return {
                     "status": "locked",
                     "locked_by": doc.locked_by_user,
                     "locked_at": doc.locked_at.strftime("%d.%m %H:%M"),
-                    "message": f"Р”РѕРєСѓРјРµРЅС‚ СѓР¶Рµ СЂРµРґР°РєС‚РёСЂСѓРµС‚ {doc.locked_by_user}"
+                    "message": f"Документ уже редактирует {doc.locked_by_user}"
                 }
                 
         doc.locked_by_user = req.user_name
@@ -1429,26 +1426,26 @@ def unlock_document(
     user_name: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """РЎРЅРёРјР°РµС‚ Р±Р»РѕРєРёСЂРѕРІРєСѓ СЃ РґРѕРєСѓРјРµРЅС‚Р°"""
+    """Снимает блокировку с документа"""
     try:
         doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
         if not doc:
-            raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+            raise HTTPException(status_code=404, detail="Документ не найден")
             
         doc.locked_by_user = None
         doc.locked_at = None
         db.commit()
-        return {"status": "success", "message": "Р‘Р»РѕРєРёСЂРѕРІРєР° СЃРЅСЏС‚Р°"}
+        return {"status": "success", "message": "Блокировка снята"}
     except Exception as e:
         db.rollback()
         return {"status": "error", "message": str(e)}
 
 @router.get("/api/documents/{doc_id}/office_uri")
 def get_office_uri(doc_id: int, request: Request, db: Session = Depends(get_db)):
-    """Р¤РѕСЂРјРёСЂСѓРµС‚ РЅР°С‚РёРІРЅСѓСЋ URI СЃСЃС‹Р»РєСѓ РґР»СЏ Р·Р°РїСѓСЃРєР° MS Office (ms-word, ms-excel, ms-powerpoint)"""
+    """Формирует нативную URI ссылку для запуска MS Office (ms-word, ms-excel, ms-powerpoint)"""
     doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
     if not doc:
-        raise HTTPException(status_code=404, detail="Р”РѕРєСѓРјРµРЅС‚ РЅРµ РЅР°Р№РґРµРЅ")
+        raise HTTPException(status_code=404, detail="Документ не найден")
         
     base_url = str(request.base_url).rstrip("/")
     download_url = f"{base_url}/api/documents/download/{doc.id}"
@@ -1470,4 +1467,3 @@ def get_office_uri(doc_id: int, request: Request, db: Session = Depends(get_db))
         "scheme": scheme,
         "locked_by": doc.locked_by_user
     }
-
