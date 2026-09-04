@@ -1071,6 +1071,7 @@ async def lifespan(app: FastAPI):
 
         # Background auto-sync of folder structure and missing Google Drive URLs for existing documents
         try:
+            from routers.documents import get_or_create_google_drive_folder_for_category
             db_docs = SessionLocal()
             try:
                 # 1. Sync all folder categories to Google Drive
