@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks, Query, Body
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
 from sqlalchemy import or_, and_, func
 
 import models
@@ -14,6 +14,7 @@ from database import SessionLocal
 import excel_exporter
 import openpyxl
 from routers.common import (
+    calculate_shift_deviations,
     check_admin_session,
     get_product_finished_weight_kg,
     get_last_produced_weight_kg,
@@ -1312,5 +1313,402 @@ def get_materials_report(shift_id: int, db: Session = Depends(get_db)):
         "total_deviation_kg": round(total_dev, 2),
         "details": details
     }
+
+
+
+
+# ==========================================
+# DASHBOARD STATS & SUMMARIES
+# ==========================================
+
+@router.get("/api/dashboard/stats")
+def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role") or "admin"
+
+    prod_query = db.query(
+        func.sum(models.Batch.ds_condition).label('condition'),
+        func.sum(models.Batch.ds_first_grade).label('first_grade'),
+        func.sum(models.Batch.ds_defect).label('defect')
+    )
+
+    defects_query = db.query(
+        func.sum(models.Batch.ds_defect_chip).label('chip'),
+        func.sum(models.Batch.ds_defect_scratch).label('scratch'),
+        func.sum(models.Batch.ds_defect_bad_cut).label('bad_cut'),
+        func.sum(models.Batch.ds_defect_stick_bottom).label('stick_bottom'),
+        func.sum(models.Batch.ds_defect_stick_top).label('stick_top'),
+        func.sum(models.Batch.ds_defect_broken).label('broken'),
+        func.sum(models.Batch.ds_defect_fell_box).label('fell_box'),
+        func.sum(models.Batch.ds_defect_dent).label('dent'),
+        func.sum(models.Batch.ds_defect_thickness).label('thickness'),
+        func.sum(models.Batch.ds_defect_delamination).label('delamination'),
+        func.sum(models.Batch.ds_defect_edge).label('edge'),
+    )
+
+    mats_query_receipt = db.query(
+        func.sum(models.RawMaterialReceipt.chrysotile_4_20).label('r_4_20'),
+        func.sum(models.RawMaterialReceipt.chrysotile_5_65).label('r_5_65'),
+        func.sum(models.RawMaterialReceipt.chrysotile_6_40).label('r_6_40'),
+        func.sum(models.RawMaterialReceipt.cement_silo1 + models.RawMaterialReceipt.cement_silo2 + models.RawMaterialReceipt.cement_silo3 + models.RawMaterialReceipt.cement_silo4).label('r_cem'),
+        func.sum(models.RawMaterialReceipt.cellulose).label('r_cel')
+    ).select_from(models.RawMaterialReceipt).join(models.Shift, models.Shift.id == models.RawMaterialReceipt.shift_id)
+
+    mats_query_zo = db.query(
+        func.sum(models.Shift.zo_chrysotile_4_20).label('z_4_20'),
+        func.sum(models.Shift.zo_chrysotile_5_65).label('z_5_65'),
+        func.sum(models.Shift.zo_chrysotile_6_40).label('z_6_40'),
+        func.sum(models.Shift.zo_cement).label('z_cem'),
+        func.sum(models.Shift.zo_cellulose).label('z_cel')
+    )
+
+    dt_query = db.query(models.Downtime)
+
+    if False and user_role == "master" and user_id:
+        prod_query = prod_query.join(models.Shift).filter(models.Shift.master_id == user_id)
+        defects_query = defects_query.join(models.Shift).filter(models.Shift.master_id == user_id)
+        mats_query_receipt = mats_query_receipt.filter(models.Shift.master_id == user_id)
+        mats_query_zo = mats_query_zo.filter(models.Shift.master_id == user_id)
+        dt_query = dt_query.join(models.Shift).filter(models.Shift.master_id == user_id)
+
+    prod_stats = prod_query.first()
+    defects = defects_query.first()
+    mats_rec = mats_query_receipt.first()
+    mats_zo = mats_query_zo.first()
+
+    rec_asb = (mats_rec.r_4_20 or 0) + (mats_rec.r_5_65 or 0) + (mats_rec.r_6_40 or 0) if mats_rec else 0
+    zo_asb = (mats_zo.z_4_20 or 0) + (mats_zo.z_5_65 or 0) + (mats_zo.z_6_40 or 0) if mats_zo else 0
+
+    # --- DOWNTIME AGGREGATION ---
+    downtimes = dt_query.all()
+    total_downtime_minutes = sum((d.duration or 0) for d in downtimes)
+    total_lost_tons = sum((d.lost_tons or 0) for d in downtimes)
+    total_lost_tenge = sum((d.lost_tenge or 0) for d in downtimes)
+    
+    dt_by_cat = {}
+    node_counts = {}
+    for d in downtimes:
+        if d.category:
+            dt_by_cat[d.category] = dt_by_cat.get(d.category, 0) + (d.duration or 0)
+        if d.node:
+            node_counts[d.node] = node_counts.get(d.node, 0) + 1
+            
+    top_reasons = sorted([{"node": k, "count": v} for k, v in node_counts.items()], key=lambda x: x['count'], reverse=True)[:5]
+
+    return {
+        "production": {
+            "condition": prod_stats.condition or 0,
+            "first_grade": prod_stats.first_grade or 0,
+            "defect": prod_stats.defect or 0
+        },
+        "defects": {
+            "Скол": defects.chip or 0,
+            "Сдир": defects.scratch or 0,
+            "Плохой рез": defects.bad_cut or 0,
+            "Налип снизу": defects.stick_bottom or 0,
+            "Налип сверху": defects.stick_top or 0,
+            "Сломан": defects.broken or 0,
+            "Упал коробки": defects.fell_box or 0,
+            "Вмятина": defects.dent or 0,
+            "Толщина": defects.thickness or 0,
+            "Расслоение": defects.delamination or 0,
+            "Кромка": defects.edge or 0
+        },
+        "materials": {
+            "Асбест": {"receipt": rec_asb, "zo": zo_asb},
+            "Цемент": {"receipt": mats_rec.r_cem if mats_rec else 0 or 0, "zo": mats_zo.z_cem if mats_zo else 0 or 0},
+            "Целлюлоза": {"receipt": mats_rec.r_cel if mats_rec else 0 or 0, "zo": mats_zo.z_cel if mats_zo else 0 or 0}
+        },
+        "downtimes": {
+            "total_minutes": total_downtime_minutes,
+            "lost_tons": total_lost_tons,
+            "lost_tenge": total_lost_tenge,
+            "by_category": dt_by_cat,
+            "top_reasons": top_reasons
+        }
+    }
+
+
+
+@router.get("/api/report/summary")
+def get_report_summary(
+    request: Request,
+    from_date: str = None,
+    to_date: str = None,
+    line: str = None,
+    master_id: int = None,
+    export_type: str = None,
+    db: Session = Depends(get_db)
+):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    result = []
+    try:
+        query = db.query(models.Shift)
+    
+        if from_date:
+            if isinstance(from_date, (datetime, date)):
+                f_date = from_date if isinstance(from_date, date) else from_date.date()
+            else:
+                f_date = datetime.strptime(str(from_date), "%Y-%m-%d").date()
+            query = query.filter(models.Shift.date >= f_date)
+        if to_date:
+            if isinstance(to_date, (datetime, date)):
+                t_date = to_date if isinstance(to_date, date) else to_date.date()
+            else:
+                t_date = datetime.strptime(str(to_date), "%Y-%m-%d").date()
+            query = query.filter(models.Shift.date <= t_date)
+        if line:
+            query = query.filter(models.Shift.line == line)
+        if master_id:
+            query = query.filter(models.Shift.master_id == master_id)
+        if export_type:
+            query = query.filter(models.Shift.export_type == export_type)
+        
+        shifts = query.options(
+            joinedload(models.Shift.master),
+            joinedload(models.Shift.batches),
+            joinedload(models.Shift.lfm_reports),
+            joinedload(models.Shift.receipts)
+        ).order_by(models.Shift.date.desc(), models.Shift.line.asc(), models.Shift.shift_name.desc(), models.Shift.batch_number.desc(), models.Shift.id.desc()).all()
+    
+        latest_shift_id = None
+        # Find the most recently created shift
+        latest_shift = db.query(models.Shift).filter(models.Shift.created_at.isnot(None)).order_by(models.Shift.created_at.desc(), models.Shift.id.desc()).first()
+        if latest_shift:
+            latest_shift_id = latest_shift.id
+
+        result = []
+        for shift in shifts:
+            is_other_master = False
+        
+            lfm_reports = shift.lfm_reports
+            batches = shift.batches
+        
+            # Фильтруем абсолютно пустые смены без факта производства и без плана
+            lfm_sheets_check = sum((l.lfm_sheets or 0) for l in lfm_reports) if lfm_reports else 0
+            warehouse_gp_check = sum((b.ds_condition or 0) for b in batches) if batches else 0
+            zo_batches_check = shift.zo_batches or 0
+            plan_sheets_check = shift.plan_sheets or 0
+        
+            if plan_sheets_check == 0 and lfm_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not shift.zo_submitted:
+                continue
+            
+            lfm_sheets = lfm_sheets_check if not is_other_master else 0
+            lfm_resets = sum((l.lfm_wind_resets or 0) for l in lfm_reports) if (lfm_reports and not is_other_master) else 0
+        
+            warehouse_gp = warehouse_gp_check if not is_other_master else 0
+            first_grade = sum((b.ds_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
+            qcd_defect = sum((b.ds_defect or 0) for b in batches) if (batches and not is_other_master) else 0
+        
+            ds_defects = {
+                "ds_defect_chip": sum((b.ds_defect_chip or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_scratch": sum((b.ds_defect_scratch or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_bad_cut": sum((b.ds_defect_bad_cut or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_stick_bottom": sum((b.ds_defect_stick_bottom or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_stick_top": sum((b.ds_defect_stick_top or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_broken": sum((b.ds_defect_broken or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_fell_box": sum((b.ds_defect_fell_box or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_dent": sum((b.ds_defect_dent or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_thickness": sum((b.ds_defect_thickness or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_delamination": sum((b.ds_defect_delamination or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "ds_defect_edge": sum((b.ds_defect_edge or 0) for b in batches) if (batches and not is_other_master) else 0,
+            }
+
+        
+            prev_first_grade = sum((b.prev_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
+            prev_defect = sum((b.prev_defect or 0) for b in batches) if (batches and not is_other_master) else 0
+            prev_defects = {
+                "prev_defect_scratch": sum((b.prev_defect_scratch or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_bad_cut": sum((b.prev_defect_bad_cut or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_stick_top": sum((b.prev_defect_stick_top or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_broken": sum((b.prev_defect_broken or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_fell_box": sum((b.prev_defect_fell_box or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_thickness": sum((b.prev_defect_thickness or 0) for b in batches) if (batches and not is_other_master) else 0,
+                "prev_defect_edge": sum((b.prev_defect_edge or 0) for b in batches) if (batches and not is_other_master) else 0,
+            }
+
+            product_name = shift.product_name if not is_other_master else "Скрыто"
+            batch_number = shift.batch_number if not is_other_master else "Скрыто"
+            export_type_val = shift.export_type if not is_other_master else "Скрыто"
+            master_name = "Смена другого мастера" if is_other_master else (shift.master.name if shift.master else "Мастер удалён")
+        
+            lfm_tons = round(lfm_sheets * get_product_finished_weight_kg(db, product_name) / 1000.0, 2) if (lfm_sheets and not is_other_master) else 0.0
+        
+            dev_data = {"theoretical": {}, "actual": {}, "deviations": {}}
+            if not is_other_master:
+                dev_data = calculate_shift_deviations(db, shift)
+            
+            created_at_iso = shift.created_at.isoformat() if shift.created_at else None
+            remaining_secs = 0
+            # Only the latest shift gets the 30-minute window for masters
+            is_the_latest = (shift.id == latest_shift_id)
+            if shift.created_at and is_the_latest:
+                diff = (datetime.utcnow() - shift.created_at).total_seconds()
+                remaining_secs = max(0, int(1800 - diff))
+            elif user_role == "admin":
+                remaining_secs = 999999
+            
+            result.append({
+                "shift_id": shift.id,
+                "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+                "shift_name": shift.shift_name,
+                "line": shift.line,
+                "master_id": shift.master_id,
+                "master_name": master_name,
+                "batch_number": batch_number,
+                "product_name": product_name,
+                "export_type": export_type_val or "Эталон",
+                "status": shift.status,
+                "created_at": created_at_iso,
+                "remaining_edit_seconds": remaining_secs,
+                "can_edit": (user_role == "admin" or (is_the_latest and remaining_secs > 0)),
+            
+                "plan_sheets": shift.plan_sheets or 0,
+                "plan_tons": shift.plan_tons or 0.0,
+            
+                "lfm_sheets": lfm_sheets,
+                "lfm_wind_resets": lfm_resets,
+                "lfm_tons": lfm_tons,
+                "zo_batches": shift.zo_batches if not is_other_master else 0,
+            
+                "warehouse_gp": warehouse_gp,
+                "first_grade": first_grade,
+                "defect": qcd_defect,
+                "ds_defects": ds_defects,
+                "prev_first_grade": prev_first_grade,
+                "prev_defect": prev_defect,
+                "prev_defects": prev_defects,
+            
+                "receipts": {
+                    "chrysotile_4_20": (sum((r.chrysotile_4_20 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "chrysotile_5_65": (sum((r.chrysotile_5_65 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "chrysotile_6_40": (sum((r.chrysotile_6_40 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "cement": (sum((((r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0))) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "cellulose": (sum((r.cellulose or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "crushed_slate": (sum((r.crushed_slate or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "asbozurit": (sum((r.asbozurit or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "asbocarton": (sum((r.asbocarton or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "pallets": (sum((r.pallets or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "fiberglass": (sum((r.fiberglass or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0,
+                    "laprol": (sum((r.laprol or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) if not is_other_master else 0.0
+                },
+                "zo_usage": {
+                    "chrysotile_4_20": shift.zo_chrysotile_4_20 if not is_other_master else 0.0,
+                    "chrysotile_5_65": shift.zo_chrysotile_5_65 if not is_other_master else 0.0,
+                    "chrysotile_6_40": shift.zo_chrysotile_6_40 if not is_other_master else 0.0,
+                    "cement_silo1": shift.zo_cement_silo1 if not is_other_master else 0.0,
+                    "cement_silo2": shift.zo_cement_silo2 if not is_other_master else 0.0,
+                    "cement_silo3": shift.zo_cement_silo3 if not is_other_master else 0.0,
+                    "cement_silo4": shift.zo_cement_silo4 if not is_other_master else 0.0,
+                    "cellulose": shift.zo_cellulose if not is_other_master else 0.0,
+                    "crushed_slate": shift.zo_crushed_slate if not is_other_master else 0.0,
+                    "asbozurit": shift.zo_asbozurit if not is_other_master else 0.0,
+                    "fiberglass": shift.zo_fiberglass if not is_other_master else 0.0,
+                    "laprol": shift.zo_laprol if not is_other_master else 0.0,
+                    "asbocarton": shift.zo_asbocarton if not is_other_master else 0.0,
+                    "asb_drain": shift.zo_asb_drain if not is_other_master else 0.0,
+                    "cem_drain": shift.zo_cem_drain if not is_other_master else 0.0
+                },
+                "deviations": dev_data
+            })
+        
+    except Exception as err:
+        print(f"Error: {err}")
+    return result
+
+
+@router.get("/api/report/materials_summary")
+def get_materials_summary(
+    request: Request,
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db)
+):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    try:
+        query = db.query(models.Shift)
+    
+        if False and user_role == "master" and user_id:
+            query = query.filter(models.Shift.master_id == user_id)
+        
+        if start_date:
+            query = query.filter(models.Shift.date >= datetime.strptime(start_date, "%Y-%m-%d").date())
+        if end_date:
+            query = query.filter(models.Shift.date <= datetime.strptime(end_date, "%Y-%m-%d").date())
+        
+        shifts = query.order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
+    
+        materials = [
+            "chrysotile_4_20", "chrysotile_5_65", "chrysotile_6_40",
+            "cement", "cellulose", "crushed_slate", "asbozurit",
+            "asbocarton", "fiberglass", "laprol"
+        ]
+    
+        totals = {m: {"receipt": 0.0, "zo": 0.0, "deviation": 0.0} for m in materials}
+        daily_breakdown = []
+    
+        for shift in shifts:
+            zo_cem = (shift.zo_cement_silo1 or 0) + (shift.zo_cement_silo2 or 0) + (shift.zo_cement_silo3 or 0) + (shift.zo_cement_silo4 or 0)
+        
+            shift_mats = {
+                "chrysotile_4_20": {"receipt": (sum((r.chrysotile_4_20 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_chrysotile_4_20 or 0.0},
+                "chrysotile_5_65": {"receipt": (sum((r.chrysotile_5_65 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_chrysotile_5_65 or 0.0},
+                "chrysotile_6_40": {"receipt": (sum((r.chrysotile_6_40 or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_chrysotile_6_40 or 0.0},
+                "cement": {"receipt": (sum((((r.cement_silo1 or 0.0) + (r.cement_silo2 or 0.0) + (r.cement_silo3 or 0.0) + (r.cement_silo4 or 0.0))) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": zo_cem},
+                "cellulose": {"receipt": (sum((r.cellulose or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_cellulose or 0.0},
+                "crushed_slate": {"receipt": (sum((r.crushed_slate or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_crushed_slate or 0.0},
+                "asbozurit": {"receipt": (sum((r.asbozurit or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_asbozurit or 0.0},
+                "asbocarton": {"receipt": (sum((r.asbocarton or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_asbocarton or 0.0},
+                "fiberglass": {"receipt": (sum((r.fiberglass or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_fiberglass or 0.0},
+                "laprol": {"receipt": (sum((r.laprol or 0.0) for r in shift.receipts) if getattr(shift, "receipts", None) else 0.0) or 0.0, "zo": shift.zo_laprol or 0.0}
+            }
+        
+            dev_info = calculate_shift_deviations(db, shift)
+            shift_devs = dev_info["deviations"]
+        
+            day_entry = {
+                "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
+                "shift_name": shift.shift_name,
+                "line": shift.line,
+                "materials": {}
+            }
+        
+            for m in materials:
+                r = shift_mats[m]["receipt"]
+                z = shift_mats[m]["zo"]
+                d = shift_devs.get(m, round(z - r, 2)) if m != "cement" else shift_devs.get("cement", round(z - r, 2))
+            
+                day_entry["materials"][m] = {
+                    "receipt": round(r, 2),
+                    "zo": round(z, 2),
+                    "deviation": round(d, 2)
+                }
+            
+                totals[m]["receipt"] += r
+                totals[m]["zo"] += z
+                totals[m]["deviation"] += d
+            
+            daily_breakdown.append(day_entry)
+        
+        for m in materials:
+            totals[m]["receipt"] = round(totals[m]["receipt"], 2)
+            totals[m]["zo"] = round(totals[m]["zo"], 2)
+            totals[m]["deviation"] = round(totals[m]["deviation"], 2)
+        
+    except Exception as err:
+        print(f"Error: {err}")
+    return {
+        "totals": totals,
+        "daily": daily_breakdown
+    }
+
 
 

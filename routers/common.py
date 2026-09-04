@@ -276,3 +276,59 @@ def sync_receipts_bg():
         db.close()
 
 
+
+
+def calculate_shift_deviations(db: Session, shift: models.Shift):
+    # Find LFM reports for the shift
+    lfm_reports = shift.lfm_reports
+    product_counts = {}
+    for r in lfm_reports:
+        product_counts[r.product_name] = product_counts.get(r.product_name, 0) + (r.lfm_sheets or 0)
+        
+    theoretical = {
+        "chrysotile_4_20": 0.0,
+        "chrysotile_5_65": 0.0,
+        "chrysotile_6_40": 0.0,
+        "cement": 0.0,
+        "cellulose": 0.0,
+        "crushed_slate": 0.0,
+        "asbozurit": 0.0,
+        "fiberglass": 0.0,
+        "asbocarton": 0.0,
+        "laprol": 0.0
+    }
+    
+    for prod_name, sheets in product_counts.items():
+        norm = _get_norm_cached(db, prod_name)
+        if norm:
+            theoretical["chrysotile_4_20"] += sheets * (norm.norm_chrysotile_4_20 or 0.0)
+            theoretical["chrysotile_5_65"] += sheets * (norm.norm_chrysotile_5_65 or 0.0)
+            theoretical["chrysotile_6_40"] += sheets * (norm.norm_chrysotile_6_40 or 0.0)
+            theoretical["cement"] += sheets * (norm.norm_cement or 0.0)
+            theoretical["cellulose"] += sheets * (norm.norm_cellulose or 0.0)
+            theoretical["crushed_slate"] += sheets * (norm.norm_crushed_slate or 0.0)
+            theoretical["asbozurit"] += sheets * (norm.norm_asbozurit or 0.0)
+            theoretical["fiberglass"] += sheets * (norm.norm_fiberglass or 0.0)
+            
+    actual = {
+        "chrysotile_4_20": shift.zo_chrysotile_4_20 or 0.0,
+        "chrysotile_5_65": shift.zo_chrysotile_5_65 or 0.0,
+        "chrysotile_6_40": shift.zo_chrysotile_6_40 or 0.0,
+        "cement": shift.zo_cement or 0.0,
+        "cellulose": shift.zo_cellulose or 0.0,
+        "crushed_slate": shift.zo_crushed_slate or 0.0,
+        "asbozurit": shift.zo_asbozurit or 0.0,
+        "fiberglass": shift.zo_fiberglass or 0.0,
+        "asbocarton": shift.zo_asbocarton or 0.0,
+        "laprol": shift.zo_laprol or 0.0
+    }
+    
+    deviations = {}
+    for mat in theoretical.keys():
+        deviations[mat] = round(actual[mat] - theoretical[mat], 2)
+        
+    return {
+        "theoretical": theoretical,
+        "actual": actual,
+        "deviations": deviations
+    }
