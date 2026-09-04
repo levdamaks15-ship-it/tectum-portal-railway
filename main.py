@@ -1228,34 +1228,32 @@ async def add_no_cache_headers(request: Request, call_next):
         response.headers["Expires"] = "0"
     return response
 
+# ==========================================
+# ROUTERS MOUNTING
+# ==========================================
 from routers.auth import router as auth_router
+from routers.shifts import router as shifts_router
+from routers.analytics import router as analytics_router
 from routers.downtimes import router as downtimes_router
 from routers.planner import router as planner_router
 from routers.checklists import router as checklists_router
 from routers.documents import router as documents_router
-from routers.analytics import router as analytics_router
-app.include_router(auth_router)
-from routers.shifts import router as shifts_router
-from routers.webhooks import router as webhooks_router
 from routers.admin import router as admin_router
-from routers.common import sync_sharepoint_report_bg, sync_lfm_to_plan_board
+from routers.webhooks import router as webhooks_router
+
+app.include_router(auth_router)
+app.include_router(shifts_router)
+app.include_router(analytics_router)
 app.include_router(downtimes_router)
 app.include_router(planner_router)
 app.include_router(checklists_router)
 app.include_router(documents_router)
-app.include_router(analytics_router)
-
-app.include_router(shifts_router)
-app.include_router(webhooks_router)
 app.include_router(admin_router)
+app.include_router(webhooks_router)
 
-
-
-
-@app.get("/api/system/env")
-def get_system_env():
-    return {"is_sandbox": os.environ.get("IS_SANDBOX", "false").lower() == "true"}
-
+# ==========================================
+# STATIC FILES & WEB PAGES
+# ==========================================
 if not os.path.exists("uploads"):
     os.makedirs("uploads", exist_ok=True)
 if not os.path.exists(os.path.join("uploads", "tasks")):
@@ -1263,15 +1261,12 @@ if not os.path.exists(os.path.join("uploads", "tasks")):
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 if not os.path.exists("static"):
-    os.makedirs("static")
+    os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+@app.get("/api/system/env")
+def get_system_env():
+    return {"is_sandbox": os.environ.get("IS_SANDBOX", "false").lower() == "true"}
 
 @app.get("/")
 def read_root():
@@ -1280,8 +1275,6 @@ def read_root():
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     return FileResponse("static/img/Logo.png")
-
-# --- DEMO DATA & DIRECTORIES SYNC MOVED TO routers/admin.py ---
 
 @app.get("/admin")
 def serve_admin():
@@ -1299,7 +1292,4 @@ def serve_tasks():
 def serve_planner():
     return FileResponse("static/tasks.html")
 
-# --- ADMIN TOOLS, BACKUP, NORMS, PLAN BOARD MOVED TO routers/admin.py ---
-
-# --- WEBHOOKS MOVED TO routers/webhooks.py ---
 
