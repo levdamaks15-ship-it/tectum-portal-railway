@@ -1565,11 +1565,11 @@
                     </div>
                 </div>
 
-                <!-- Быстрая загрузка с ПК -->
-                <button class="btn-action btn-upload-pc" onclick="triggerLocalFileUpload()" style="background: #10b981; color: #fff;" title="Загрузить Word, Excel или PDF файл с компьютера">
-                    <i class="fas fa-file-arrow-up"></i> <span>Загрузить с ПК</span>
+                <!-- Быстрая загрузка PDF с ПК -->
+                <button class="btn-action btn-upload-pc" onclick="triggerLocalFileUpload()" style="background: #10b981; color: #fff;" title="Загрузить PDF-документ или регламент с компьютера">
+                    <i class="fas fa-file-pdf"></i> <span>Загрузить PDF</span>
                 </button>
-                <input type="file" id="local-file-input" style="display: none;" onchange="handleLocalFileSelected(event)">
+                <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none;" onchange="handleLocalFileSelected(event)">
 
                 <!-- Синхронизация облачных названий -->
                 <button class="btn-action btn-sync-cloud" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
@@ -1820,58 +1820,37 @@
         </div>
     </div>
 
-    <!-- Модальное окно: Быстрый онлайн просмотр документа + Задачи Планнера -->
+    <!-- Модальное окно: Полноценный онлайн просмотр PDF регламентов и документов -->
     <div id="doc-preview-modal" class="modal" style="z-index: 10000;">
-        <div class="modal-content" style="max-width: 1050px; width: 95vw; height: 92vh; display: flex; flex-direction: column; padding: 1.2rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.8rem; border-bottom: 1px solid var(--docs-panel-border);">
-                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
-                    <i class="fas fa-file-lines" id="preview-modal-icon" style="color: #3b82f6; font-size: 1.2rem;"></i>
-                    <h3 style="margin: 0; font-size: 1.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="preview-modal-title">Просмотр документа</h3>
+        <div class="modal-content" style="max-width: 1200px; width: 96vw; height: 94vh; display: flex; flex-direction: column; padding: 1rem 1.2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.7rem; border-bottom: 1px solid var(--docs-panel-border);">
+                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75%;">
+                    <i class="fas fa-file-pdf" id="preview-modal-icon" style="color: #ef4444; font-size: 1.3rem;"></i>
+                    <h3 style="margin: 0; font-size: 1.15rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="preview-modal-title">Просмотр документа</h3>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                    <button id="preview-modal-newtab-btn" class="btn-action" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Открыть во весь экран в новой вкладке">
-                        <i class="fas fa-arrow-up-right-from-square"></i> <span class="hide-on-mobile">В новой вкладке</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <button id="preview-modal-newtab-btn" class="btn-action" style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.45rem 0.85rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;" title="Открыть во весь экран в новой вкладке">
+                        <i class="fas fa-arrow-up-right-from-square"></i> <span class="hide-on-mobile">Во весь экран</span>
                     </button>
-                    <button id="preview-modal-create-task-btn" class="btn-action" style="background: #10b981; color: #fff; padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Создать задачу по этому документу в Планнере">
-                        <i class="fa-solid fa-plus"></i> <span class="hide-on-mobile">Создать задачу</span>
-                    </button>
-                    <button id="preview-modal-download-btn" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.4rem 0.75rem; font-size: 0.85rem;" title="Скачать для редактирования на ПК">
-                        <i class="fas fa-download"></i> <span class="hide-on-mobile">Скачать</span>
-                    </button>
-                    <button onclick="closeDocPreviewModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.3rem; padding: 0 4px;">
+                    <button onclick="closeDocPreviewModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.4rem; padding: 2px 6px; line-height: 1;" title="Закрыть (Esc)">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
             
-            <div class="preview-modal-body" style="display: flex; flex: 1; gap: 1rem; margin-top: 0.8rem; min-height: 0; overflow: hidden;">
-                <!-- Main Preview Frame -->
-                <div style="flex: 1; position: relative; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid var(--docs-panel-border); min-height: 0;">
-                    <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
-                    <div id="preview-modal-fallback" style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem;">
-                        <i class="fas fa-file-word" id="preview-fallback-icon" style="font-size: 4rem; color: #2563eb; margin-bottom: 1.2rem;"></i>
+            <div class="preview-modal-body" style="display: flex; flex: 1; margin-top: 0.7rem; min-height: 0; overflow: hidden;">
+                <!-- Main Preview Frame: full width & height -->
+                <div style="flex: 1; width: 100%; position: relative; border-radius: 8px; overflow: hidden; background: #525659; border: 1px solid var(--docs-panel-border); min-height: 0;">
+                    <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                    <div id="preview-modal-fallback" style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; background: #f8fafc;">
+                        <i class="fas fa-file-pdf" id="preview-fallback-icon" style="font-size: 4.5rem; color: #ef4444; margin-bottom: 1.2rem;"></i>
                         <h4 id="preview-fallback-filename" style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл документа</h4>
-                        <p style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem;">
-                            Для просмотра и редактирования скачайте файл на свой компьютер. Вы сможете сохранить обновленную версию обратно в Базу Знаний в 1 клик.
+                        <p style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem; font-size: 0.95rem;">
+                            Нажмите кнопку ниже, чтобы открыть PDF-документ на весь экран на вашем устройстве.
                         </p>
-                        <a id="preview-fallback-download-link" href="#" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.7rem 1.4rem; font-size: 0.95rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.5rem;">
-                            <i class="fas fa-download"></i> Скачать файл
+                        <a id="preview-fallback-download-link" href="#" target="_blank" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.75rem 1.6rem; font-size: 1rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.6rem;">
+                            <i class="fas fa-arrow-up-right-from-square"></i> Открыть PDF
                         </a>
-                    </div>
-                </div>
-
-                <!-- Right Sidebar: Linked Planner Tasks Widget -->
-                <div id="preview-modal-tasks-sidebar" style="width: 320px; display: flex; flex-direction: column; background: #ffffff; border: 1px solid var(--docs-panel-border); border-radius: 8px; padding: 0.85rem; overflow-y: auto;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--docs-panel-border);">
-                        <div style="font-weight: 700; font-size: 0.88rem; color: #0f172a; display: flex; align-items: center; gap: 6px;">
-                            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
-                            <span>Задачи по документу</span>
-                        </div>
-                        <span id="preview-modal-tasks-badge" style="background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 0.75rem; padding: 1px 6px; border-radius: 10px;">0</span>
-                    </div>
-
-                    <div id="preview-modal-tasks-list" style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
-                        <!-- Tasks dynamically populated -->
                     </div>
                 </div>
             </div>
@@ -4068,6 +4047,12 @@
         async function uploadFileDirectly(file) {
             if (currentFolderProtected && !await ensurePassword(true)) return;
 
+            const nameLower = (file.name || '').toLowerCase();
+            if (!nameLower.endsWith('.pdf')) {
+                alert('Локально в Базу Знаний разрешена загрузка только документов формата PDF (.pdf).\n\nДля рабочих документов Word (.docx) и Excel (.xlsx) используйте добавление ссылок Google Docs или OneDrive.');
+                return;
+            }
+
             const savedAuthor = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || 'Сотрудник');
             const formData = new FormData();
             formData.append('file', file);
@@ -4149,16 +4134,22 @@
                 iconEl.style.color = iconInfo.color;
             }
 
-            // Определение источника предпросмотра
+            // На мобильных устройствах открываем PDF на весь экран в новой вкладке (нативный полностраничный просмотр в iOS Safari / Android Chrome)
+            const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            if (isMobile) {
+                window.open(downloadUrl, '_blank');
+                return;
+            }
+
+            // Определение источника предпросмотра на десктопе
             if (nameLower.endsWith('.pdf') || nameLower.endsWith('.txt')) {
-                // Прямой просмотр PDF и текста через встроенный браузерный просмотрщик
+                // Прямой полноразмерный просмотр PDF в браузере
                 if (iframe) {
                     iframe.style.display = 'block';
                     iframe.src = downloadUrl;
                 }
                 if (fallback) fallback.style.display = 'none';
             } else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc') || nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.pptx')) {
-                // Если мы на продакшене (Railway с публичным URL), используем Office Online Viewer или Google Viewer
                 const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
                 if (!isLocalhost) {
                     const fullDocUrl = window.location.origin + downloadUrl;
@@ -4169,7 +4160,6 @@
                     }
                     if (fallback) fallback.style.display = 'none';
                 } else {
-                    // В локальном режиме (localhost) внешние онлайн вьюеры не могут достучаться до 127.0.0.1, показываем удобную карточку быстрого скачивания
                     if (iframe) iframe.style.display = 'none';
                     if (fallback) fallback.style.display = 'flex';
                 }
@@ -4185,17 +4175,7 @@
                 };
             }
 
-            const createTaskBtn = document.getElementById('preview-modal-create-task-btn');
-            if (createTaskBtn) {
-                createTaskBtn.onclick = () => {
-                    createTaskFromDoc(rawDocId, fileName);
-                };
-            }
-
             if (modal) modal.style.display = 'flex';
-
-            // Загрузка связанных задач Планнера по этому регламенту
-            loadDocumentTasks(rawDocId, fileName);
         }
 
         async function loadDocumentTasks(docId, docTitle) {

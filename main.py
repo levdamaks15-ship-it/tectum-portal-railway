@@ -7873,6 +7873,11 @@ async def upload_local_document(
         
         orig_filename = os.path.basename(file.filename)
         safe_ext = os.path.splitext(orig_filename)[1].lower()
+        if safe_ext != ".pdf":
+            raise HTTPException(
+                status_code=400, 
+                detail="Локально разрешена загрузка только PDF-документов (.pdf). Для Word/Excel файлов используйте добавление ссылки Google Docs или OneDrive."
+            )
         unique_name = f"doc_{uuid.uuid4().hex[:10]}_{int(datetime.utcnow().timestamp())}{safe_ext}"
         save_path = os.path.join(DOCS_STORAGE_DIR, unique_name)
         
