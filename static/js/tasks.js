@@ -2859,6 +2859,37 @@ async function saveTaskModal() {
    ========================================================== */
 let bulkRowCounter = 0;
 
+function updateBulkColumnsLayout() {
+    const typeSelect = document.getElementById("bulk-type-input");
+    const isServicePlan = typeSelect && typeSelect.value === "service_plan";
+
+    // 1. Шапка таблицы
+    const header = document.getElementById("bulk-tasks-table-header");
+    const headerAssignee = document.getElementById("bulk-header-assignee");
+    if (header) {
+        if (isServicePlan) {
+            header.style.gridTemplateColumns = "32px 1fr 130px 36px";
+            if (headerAssignee) headerAssignee.style.display = "none";
+        } else {
+            header.style.gridTemplateColumns = "32px 1fr 160px 130px 36px";
+            if (headerAssignee) headerAssignee.style.display = "block";
+        }
+    }
+
+    // 2. Все текущие строки
+    const rows = document.querySelectorAll(".bulk-task-row");
+    rows.forEach(row => {
+        const assigneeSel = row.querySelector(".bulk-row-assignee");
+        if (isServicePlan) {
+            row.style.gridTemplateColumns = "32px 1fr 130px 36px";
+            if (assigneeSel) assigneeSel.style.display = "none";
+        } else {
+            row.style.gridTemplateColumns = "32px 1fr 160px 130px 36px";
+            if (assigneeSel) assigneeSel.style.display = "block";
+        }
+    });
+}
+
 function openBulkTasksModal() {
     populateDropdowns();
     bulkRowCounter = 0;
@@ -2866,7 +2897,14 @@ function openBulkTasksModal() {
     // Подстановка типа задачи и службы в зависимости от активного горизонта
     const typeSelect = document.getElementById("bulk-type-input");
     const deptSelect = document.getElementById("bulk-department-input");
+    const authorSelect = document.getElementById("bulk-author-input");
     
+    // Автоподстановка автора
+    let defaultAuthor = "";
+    if (currentPlannerUser && currentPlannerUser.name) {
+        defaultAuthor = currentPlannerUser.name;
+    }
+
     if (typeSelect) {
         if (currentHorizon === "services") {
             typeSelect.value = "service_plan";
@@ -2875,24 +2913,36 @@ function openBulkTasksModal() {
         } else {
             typeSelect.value = "weekly";
         }
-        onBulkTypeChange(typeSelect.value);
     }
 
     if (deptSelect) {
         if (currentDepartmentService && currentDepartmentService !== "all") {
             deptSelect.value = currentDepartmentService;
+        } else if (defaultAuthor === "Курилова С.") {
+            deptSelect.value = "ОГЭ";
+        } else if (defaultAuthor === "Солонцов Ю." || defaultAuthor === "Сазонов С.") {
+            deptSelect.value = "ОГМ";
+        } else if (defaultAuthor === "Косумов Р.") {
+            deptSelect.value = "Технологи";
+        } else if (defaultAuthor === "Зарина") {
+            deptSelect.value = "ОТК";
         } else {
-            deptSelect.value = "";
+            deptSelect.value = (typeSelect && typeSelect.value === "service_plan") ? "ОГМ" : "";
         }
     }
 
-    // Подстановка автора
-    const authorSelect = document.getElementById("bulk-author-input");
     if (authorSelect) {
-        if (currentPlannerUser && currentPlannerUser.name) {
-            authorSelect.value = currentPlannerUser.name;
+        if (defaultAuthor) {
+            authorSelect.value = defaultAuthor;
         } else {
-            authorSelect.value = "";
+            // Если автор не выбран, но служба ОГЭ -> предлагаем Курилову С.
+            if (deptSelect && deptSelect.value === "ОГЭ") {
+                authorSelect.value = "Курилова С.";
+            } else if (deptSelect && deptSelect.value === "ОГМ") {
+                authorSelect.value = "Солонцов Ю.";
+            } else {
+                authorSelect.value = "";
+            }
         }
     }
 
@@ -2920,6 +2970,7 @@ function openBulkTasksModal() {
     addBulkTaskRow();
     addBulkTaskRow();
 
+    updateBulkColumnsLayout();
     updateBulkTasksCountBadge();
 
     const modal = document.getElementById("bulk-tasks-modal");
@@ -2933,9 +2984,38 @@ function closeBulkTasksModal() {
 
 function onBulkTypeChange(typeVal) {
     const deptSelect = document.getElementById("bulk-department-input");
-    if (!deptSelect) return;
+    const authorSelect = document.getElementById("bulk-author-input");
+
     if (typeVal === "service_plan") {
-        if (!deptSelect.value) deptSelect.value = "ОГМ";
+        if (deptSelect && !deptSelect.value) {
+            deptSelect.value = "ОГМ";
+        }
+        if (deptSelect && deptSelect.value === "ОГЭ" && authorSelect && !authorSelect.value) {
+            authorSelect.value = "Курилова С.";
+        }
+    }
+    updateBulkColumnsLayout();
+}
+
+function onBulkDepartmentChange(deptVal) {
+    const authorSelect = document.getElementById("bulk-author-input");
+    const zoneSelect = document.getElementById("bulk-zone-input");
+
+    if (deptVal === "ОГЭ") {
+        if (authorSelect && (!authorSelect.value || authorSelect.value === "Солонцов Ю.")) {
+            authorSelect.value = "Курилова С.";
+        }
+        if (zoneSelect) zoneSelect.value = "ОГЭ";
+    } else if (deptVal === "ОГМ") {
+        if (authorSelect && (!authorSelect.value || authorSelect.value === "Курилова С.")) {
+            authorSelect.value = "Солонцов Ю.";
+        }
+        if (zoneSelect) zoneSelect.value = "ОГМ";
+    } else if (deptVal === "Технологи") {
+        if (authorSelect) authorSelect.value = "Косумов Р.";
+    } else if (deptVal === "ОТК") {
+        if (authorSelect) authorSelect.value = "Зарина";
+        if (zoneSelect) zoneSelect.value = "СКК";
     }
 }
 
@@ -3010,11 +3090,14 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     const defDue = initDue || (document.getElementById("bulk-default-due-input") ? document.getElementById("bulk-default-due-input").value : "");
     const persons = getUniquePersons();
 
+    const typeSelect = document.getElementById("bulk-type-input");
+    const isServicePlan = typeSelect && typeSelect.value === "service_plan";
+
     const rowDiv = document.createElement("div");
     rowDiv.className = "bulk-task-row";
     rowDiv.id = rowId;
     rowDiv.style.display = "grid";
-    rowDiv.style.gridTemplateColumns = "32px 1fr 160px 130px 36px";
+    rowDiv.style.gridTemplateColumns = isServicePlan ? "32px 1fr 130px 36px" : "32px 1fr 160px 130px 36px";
     rowDiv.style.gap = "0.5rem";
     rowDiv.style.alignItems = "center";
     rowDiv.style.background = "#f8fafc";
@@ -3024,8 +3107,8 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
 
     rowDiv.innerHTML = `
         <span class="bulk-row-num" style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-align: center;"></span>
-        <input type="text" class="form-input bulk-row-title" placeholder="Суть задачи... (#ОГМ, #ППР, #Срочно)" value="${escapeHtml(initTitle)}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;" onkeydown="handleBulkRowKeydown(event, '${rowId}')">
-        <select class="form-select bulk-row-assignee" style="font-size: 0.8rem; padding: 0.35rem 0.4rem;">
+        <input type="text" class="form-input bulk-row-title" placeholder="Суть задачи... (#ОГЭ, #ППР, #Срочно, насос ЗО)" value="${escapeHtml(initTitle)}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;" onkeydown="handleBulkRowKeydown(event, '${rowId}')">
+        <select class="form-select bulk-row-assignee" style="font-size: 0.8rem; padding: 0.35rem 0.4rem; ${isServicePlan ? 'display: none;' : ''}">
             <option value="">-- Исполнитель --</option>
             ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === initAssignee ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
         </select>
@@ -3334,9 +3417,19 @@ function exportTasksToPdf() {
 function preparePrintMetaHeader() {
     const metaContainer = document.getElementById("print-meta-info");
     const subtitleEl = document.getElementById("print-header-subtitle");
+    
+    // Если мы в горизонте служб (ОГЭ / ОГМ) или выбран автор/служба ОГЭ/ОГМ — скрываем пустую колонку исполнителя при печати
+    const isServiceMode = (currentHorizon === 'services') || (currentDepartmentService && currentDepartmentService !== 'all');
+    if (isServiceMode) {
+        document.body.classList.add("print-hide-assignee");
+    } else {
+        document.body.classList.remove("print-hide-assignee");
+    }
+
     if (subtitleEl) {
         if (currentHorizon === 'services') {
-            subtitleEl.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / ПЛАН СЛУЖБ (ОГМ / ОГЭ / ТЕХНОЛОГИ / ОТК)";
+            const svcName = (currentDepartmentService && currentDepartmentService !== 'all') ? currentDepartmentService : "ОГМ / ОГЭ / ТЕХНОЛОГИ / ОТК";
+            subtitleEl.textContent = `ПЛАН РАБОТ СЛУЖБЫ: ${svcName}`;
         } else if (currentHorizon === 'roadmaps') {
             subtitleEl.textContent = "СТРАТЕГИЧЕСКИЙ ПЛАН / ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
         } else {
@@ -3362,7 +3455,7 @@ function preparePrintMetaHeader() {
     if (showBacklog) filterDetails.push("⚡ Включая долги прошлых недель");
     if (zone !== "all") filterDetails.push(`Зона: ${zone}`);
     if (author !== "all") filterDetails.push(`Автор: ${author}`);
-    if (assignee !== "all") filterDetails.push(`Исполнитель: ${assignee}`);
+    if (assignee !== "all" && !isServiceMode) filterDetails.push(`Исполнитель: ${assignee}`);
     if (status !== "all") filterDetails.push(`Статус: ${status}`);
 
     const filterText = filterDetails.length > 0 ? filterDetails.join(" • ") : "Все подразделения и статусы";

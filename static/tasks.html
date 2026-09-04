@@ -1344,6 +1344,16 @@
             .planner-table th:nth-child(9), .planner-table td:nth-child(9) { width: 90px !important; white-space: nowrap !important; text-align: center !important; }
             .planner-table th:nth-child(10), .planner-table td:nth-child(10) { width: auto !important; }
 
+            /* При печати планов служб (ОГЭ / ОГМ) скрываем пустую колонку Исполнителя */
+            body.print-hide-assignee .planner-table th:nth-child(7),
+            body.print-hide-assignee .planner-table td:nth-child(7) {
+                display: none !important;
+            }
+            body.print-hide-assignee .planner-table th:nth-child(3),
+            body.print-hide-assignee .planner-table td:nth-child(3) {
+                width: 35% !important;
+            }
+
             .select-status {
                 appearance: none !important;
                 -webkit-appearance: none !important;
@@ -1958,7 +1968,7 @@
 
                     <div>
                         <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Служба</label>
-                        <select class="form-select" id="bulk-department-input" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
+                        <select class="form-select" id="bulk-department-input" onchange="onBulkDepartmentChange(this.value)" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                             <option value="">-- Без привязки --</option>
                             <option value="ОГМ">🔧 ОГМ (Механики)</option>
                             <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
@@ -2016,7 +2026,7 @@
                 <div id="bulk-tasks-table-header" style="display: grid; grid-template-columns: 32px 1fr 160px 130px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
                     <span>№</span>
                     <span>Суть задачи (#теги) *</span>
-                    <span>Исполнитель</span>
+                    <span id="bulk-header-assignee">Исполнитель</span>
                     <span>Срок</span>
                     <span></span>
                 </div>
