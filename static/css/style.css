@@ -63,6 +63,37 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Centered Modals without transform conflicts */
+.modal-centered {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    animation: modalPopCenter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+
+@keyframes modalPopCenter {
+    from {
+        opacity: 0;
+        transform: translate(-50%, calc(-50% + 16px)) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.modal-overlay-fade {
+    animation: overlayFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;

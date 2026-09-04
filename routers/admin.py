@@ -28,7 +28,6 @@ from routers.common import (
     get_db,
     check_admin_session,
     sync_lfm_to_plan_board,
-    sync_sharepoint_report_bg,
     sync_google_sheets_bg,
 )
 
@@ -305,7 +304,7 @@ async def restore_database_from_backup_excel(
         if background_tasks:
             background_tasks.add_task(sync_receipts_bg)
             background_tasks.add_task(sync_downtimes_bg)
-            background_tasks.add_task(sync_sharepoint_report_bg)
+            background_tasks.add_task(sync_google_sheets_bg)
         return res
     except Exception as e:
         db.rollback()
@@ -319,7 +318,7 @@ def trigger_full_google_sync_endpoint(
     db: Session = Depends(get_db)
 ):
     admin = check_admin_session(request, db)
-    background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     background_tasks.add_task(sync_receipts_bg)
     background_tasks.add_task(sync_downtimes_bg)
     

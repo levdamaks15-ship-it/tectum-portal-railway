@@ -39,7 +39,6 @@ from routers.common import (
     get_shift_plan,
     check_admin_session,
     sync_lfm_to_plan_board,
-    sync_sharepoint_report_bg,
     sync_google_sheets_bg,
     sync_receipts_bg,
 )
@@ -1199,58 +1198,6 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
 
 import google_sheets_integration
 
-def sync_sharepoint_report_bg():
-    db = SessionLocal()
-    try:
-        file_bytes = excel_exporter.generate_flat_report(db)
-        filename = "Сводный_отчет_Tectum.xlsx"
-        local_path = os.path.join("static", filename)
-        try:
-            with open(local_path, "wb") as f:
-                f.write(file_bytes)
-        except Exception as local_err:
-            print(f"Error saving local excel: {local_err}")
-            
-        if os.getenv("M365_TENANT_ID"):
-            try:
-                m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
-            except Exception as sp_err:
-                db.add(models.AuditLog(
-                    user_name="System Background Sync",
-                    action="ERROR",
-                    target_table="shifts",
-                    target_id=0,
-                    details=f"Ошибка загрузки сводного отчета в SharePoint: {str(sp_err)}"
-                ))
-                db.commit()
-            
-        try:
-            # Запускаем синхронизацию с Google Таблицами
-            google_sheets_integration.sync_report_to_google_sheets(db)
-            google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
-            google_sheets_integration.export_receipt_to_google_sheets(db)
-            db.add(models.AuditLog(
-                user_name="System Background Sync",
-                action="UPDATE",
-                target_table="shifts",
-                target_id=0,
-                details="Сводный отчет, приход сырья и переборка успешно синхронизированы с Google Таблицами в фоновом режиме."
-            ))
-            db.commit()
-        except Exception as gs_err:
-            db.add(models.AuditLog(
-                user_name="System Background Sync",
-                action="ERROR",
-                target_table="shifts",
-                target_id=0,
-                details=f"Ошибка синхронизации с Google Таблицами: {str(gs_err)}"
-            ))
-            db.commit()
-    except Exception as e:
-        print(f"Error in SharePoint/Google background sync: {e}")
-    finally:
-        db.close()
-
 
 @router.post("/api/report")
 def save_shift_report(data: schemas.ShiftReportCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -1302,8 +1249,7 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
 
     save_report_internal(db, shift, data, user_name, is_new)
     
-    # Trigger background SharePoint & Google Sheets sync
-    background_tasks.add_task(sync_sharepoint_report_bg)
+    # Trigger background Google Sheets sync
     background_tasks.add_task(sync_google_sheets_bg)
     
     return {"status": "success", "shift_id": shift.id}
@@ -1331,8 +1277,7 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
         
     save_report_internal(db, shift, data, user_name, False)
     
-    # Trigger background SharePoint & Google Sheets sync
-    background_tasks.add_task(sync_sharepoint_report_bg)
+    # Trigger background Google Sheets sync
     background_tasks.add_task(sync_google_sheets_bg)
     
     return {"status": "success", "shift_id": shift.id}
@@ -2013,7 +1958,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
         
     # Trigger background Google Sheets sync
-    background_tasks.add_task(sync_sharepoint_report_bg)
+    background_tasks.add_task(sync_google_sheets_bg)
     
     return {"status": "ok", "shift_id": shift_id}
 
@@ -2055,7 +2000,6 @@ def admin_delete_shift(shift_id: int, request: Request, background_tasks: Backgr
     
     # Sync to clear phantom facts from plan board
     sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
-    background_tasks.add_task(sync_sharepoint_report_bg)
     background_tasks.add_task(sync_google_sheets_bg)
     background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
@@ -2091,7 +2035,6 @@ def admin_update_lfm(report_id: int, data: dict, request: Request, background_ta
             sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     else:
         db.commit()
-    background_tasks.add_task(sync_sharepoint_report_bg)
     background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
@@ -2118,7 +2061,6 @@ def admin_delete_lfm(report_id: int, request: Request, background_tasks: Backgro
     # Sync with plan board
     if shift:
         sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
-    background_tasks.add_task(sync_sharepoint_report_bg)
     background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
@@ -2149,7 +2091,6 @@ def admin_update_batch(batch_id: int, data: dict, request: Request, background_t
         db.commit()
     else:
         db.commit()
-    background_tasks.add_task(sync_sharepoint_report_bg)
     background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
@@ -2168,7 +2109,6 @@ def admin_delete_batch(batch_id: int, request: Request, background_tasks: Backgr
     db.add(log_entry)
     db.delete(batch)
     db.commit()
-    background_tasks.add_task(sync_sharepoint_report_bg)
     background_tasks.add_task(sync_google_sheets_bg)
     return {"status": "ok"}
 
@@ -2341,7 +2281,7 @@ def admin_rollback_shift(
     # Синхронизация с планом и гугл таблицами
     sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     if background_tasks:
-        background_tasks.add_task(sync_sharepoint_report_bg)
+        background_tasks.add_task(sync_google_sheets_bg)
 
     return {"status": "ok", "message": f"Смена успешно откачена к состоянию от {log_entry.timestamp}"}
 

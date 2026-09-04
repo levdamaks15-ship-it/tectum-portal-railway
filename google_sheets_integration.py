@@ -123,10 +123,24 @@ def sync_report_to_google_sheets(db: Session):
         print("Синхронизация с Google Таблицами пропущена: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
         return
     
+    from sqlalchemy.orm import selectinload
     service = get_sheets_service()
     
-    # 1. Извлекаем данные из БД (все смены без фильтра по статусу "closed")
-    shifts = db.query(models.Shift).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
+    # 1. Извлекаем данные из БД с жадной предзагрузкой связей для исключения N+1 запросов
+    shifts = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.batches),
+        selectinload(models.Shift.master)
+    ).order_by(
+        models.Shift.date.asc(), 
+        models.Shift.line.asc(), 
+        models.Shift.shift_name.asc(), 
+        models.Shift.batch_number.asc(), 
+        models.Shift.id.asc()
+    ).all()
+    
+    # Кэшируем все нормы расхода и массы продукции одним запросом в память
+    norms_cache = {n.product_name: n for n in db.query(models.ProductNorm).all()}
     
     # Записываем отладочный лог в AuditLog
     db.add(models.AuditLog(
@@ -172,7 +186,10 @@ def sync_report_to_google_sheets(db: Session):
         batch_numbers = ", ".join(b.batch_number for b in s.batches if b.batch_number)
         product_names = ", ".join(set(r.product_name for r in s.lfm_reports if r.product_name))
         formovka_sheets = formovka_sheets_check
-        formovka_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) for r in s.lfm_reports) / 1000.0
+        formovka_tons = sum(
+            r.lfm_sheets * (norms_cache[r.product_name].weight_kg if (r.product_name in norms_cache and norms_cache[r.product_name].weight_kg) else 19.6)
+            for r in s.lfm_reports
+        ) / 1000.0
         
         qcd_condition = warehouse_gp_check
         qcd_first = sum(b.qcd_first_grade for b in s.batches)
@@ -185,7 +202,7 @@ def sync_report_to_google_sheets(db: Session):
             "asbozurit": 0.0, "fiberglass": 0.0
         }
         for r in s.lfm_reports:
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == r.product_name).first()
+            norm = norms_cache.get(r.product_name)
             if norm:
                 theory["chrysotile_4_20"] += r.lfm_sheets * (norm.norm_chrysotile_4_20 or 0.0)
                 theory["chrysotile_5_65"] += r.lfm_sheets * (norm.norm_chrysotile_5_65 or 0.0)
@@ -812,7 +829,11 @@ def export_receipt_to_google_sheets(db: Session):
     # 3. Собираем данные из БД — все записи прихода сырья
     # Выгружаем каждую запись прихода как отдельную строку
     from sqlalchemy import func
-    receipts = db.query(models.RawMaterialReceipt).outerjoin(models.Shift).order_by(
+    from sqlalchemy.orm import selectinload
+    receipts = db.query(models.RawMaterialReceipt).options(
+        selectinload(models.RawMaterialReceipt.master),
+        selectinload(models.RawMaterialReceipt.shift).selectinload(models.Shift.master)
+    ).outerjoin(models.Shift).order_by(
         func.coalesce(models.RawMaterialReceipt.date, models.Shift.date).asc(),
         models.RawMaterialReceipt.id.asc()
     ).all()
@@ -1076,7 +1097,11 @@ def export_downtimes_to_google_sheets(db: Session):
 
     # 3. Собираем данные из БД — все простои с информацией о смене
     from sqlalchemy import func
-    downtimes = db.query(models.Downtime).outerjoin(models.Shift).order_by(
+    from sqlalchemy.orm import selectinload
+    downtimes = db.query(models.Downtime).options(
+        selectinload(models.Downtime.master),
+        selectinload(models.Downtime.shift).selectinload(models.Shift.master)
+    ).outerjoin(models.Shift).order_by(
         func.coalesce(models.Downtime.date, models.Shift.date).asc(),
         models.Downtime.start_time.asc(),
         models.Downtime.id.asc()

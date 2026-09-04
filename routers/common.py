@@ -222,30 +222,9 @@ def sync_sharepoint_report_bg():
                 ))
                 db.commit()
             
-        try:
-            # Запускаем синхронизацию с Google Таблицами
-            google_sheets_integration.sync_report_to_google_sheets(db)
-            google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
-            google_sheets_integration.export_receipt_to_google_sheets(db)
-            db.add(models.AuditLog(
-                user_name="System Background Sync",
-                action="UPDATE",
-                target_table="shifts",
-                target_id=0,
-                details="Сводный отчет, приход сырья и переборка успешно синхронизированы с Google Таблицами в фоновом режиме."
-            ))
-            db.commit()
-        except Exception as gs_err:
-            db.add(models.AuditLog(
-                user_name="System Background Sync",
-                action="ERROR",
-                target_table="shifts",
-                target_id=0,
-                details=f"Ошибка синхронизации с Google Таблицами: {str(gs_err)}"
-            ))
-            db.commit()
+        # SharePoint upload completed without touching Google Sheets
     except Exception as e:
-        print(f"Error in SharePoint/Google background sync: {e}")
+        print(f"Error in SharePoint background sync: {e}")
     finally:
         db.close()
 
@@ -255,14 +234,23 @@ def sync_google_sheets_bg():
     db = SessionLocal()
     try:
         google_sheets_integration.sync_report_to_google_sheets(db)
-        google_sheets_integration.export_receipt_to_google_sheets(db)
         google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+        db.add(models.AuditLog(
+            user_name="Google Sync Reports",
+            action="UPDATE",
+            target_table="shifts",
+            target_id=0,
+            details="Сводный отчет и переборка успешно синхронизированы с Google Таблицами в фоновом режиме."
+        ))
+        db.commit()
     except Exception as e:
-        print(f"Error syncing reports/receipts to Google Sheets: {e}")
+        print(f"Error syncing reports to Google Sheets: {e}")
         try:
             db.add(models.AuditLog(
                 user_name="Google Sync Reports",
                 action="ERROR",
+                target_table="shifts",
+                target_id=0,
                 details=f"Ошибка синхронизации отчетов в Google Sheets: {str(e)}"
             ))
             db.commit()
