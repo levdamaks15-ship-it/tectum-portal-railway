@@ -29,6 +29,8 @@ from routers.common import (
     check_admin_session,
     sync_lfm_to_plan_board,
     sync_google_sheets_bg,
+    sync_receipts_bg,
+    sync_downtimes_bg,
 )
 
 router = APIRouter(tags=["admin"])

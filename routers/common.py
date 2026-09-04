@@ -270,6 +270,27 @@ def sync_receipts_bg():
     finally:
         db.close()
 
+def sync_downtimes_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        if google_sheets_integration:
+            google_sheets_integration.export_downtimes_to_google_sheets(db)
+    except Exception as e:
+        print(f"Error syncing downtimes to Google Sheets: {e}")
+        try:
+            db.add(models.AuditLog(
+                user_name="Google Sync Downtimes",
+                action="ERROR",
+                details=f"Ошибка экспорта простоев в Google Sheets: {str(e)}"
+            ))
+            db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
 
 
 

@@ -7,7 +7,7 @@ from sqlalchemy import or_, and_, func
 import models
 import schemas
 from database import SessionLocal
-from routers.common import check_admin_session
+from routers.common import check_admin_session, sync_downtimes_bg
 
 try:
     import google_sheets_integration
@@ -56,25 +56,6 @@ def calculate_downtime_losses(duration_minutes: int, shift: Optional[models.Shif
     lost_tenge = lost_tons * PRICE_PER_TON
     
     return lost_tons, lost_tenge
-
-def sync_downtimes_bg():
-    db = SessionLocal()
-    try:
-        if google_sheets_integration:
-            google_sheets_integration.export_downtimes_to_google_sheets(db)
-    except Exception as e:
-        print(f"Error syncing downtimes to Google Sheets: {e}")
-        try:
-            db.add(models.AuditLog(
-                user_name="Google Sync Downtimes",
-                action="ERROR",
-                details=f"Ошибка экспорта простоев в Google Sheets: {str(e)}"
-            ))
-            db.commit()
-        except Exception:
-            pass
-    finally:
-        db.close()
 
 
 @router.post("/api/downtimes/directory/sync_from_google")

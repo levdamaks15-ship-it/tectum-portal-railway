@@ -41,6 +41,7 @@ from routers.common import (
     sync_lfm_to_plan_board,
     sync_google_sheets_bg,
     sync_receipts_bg,
+    sync_downtimes_bg,
 )
 
 

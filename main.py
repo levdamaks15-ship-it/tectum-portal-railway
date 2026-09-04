@@ -913,6 +913,17 @@ async def lifespan(app: FastAPI):
                 db_sync.close()
         threading.Thread(target=bg_sync_checklist_employees, daemon=True).start()
 
+        def bg_sync_startup_reports():
+            db_sync = SessionLocal()
+            try:
+                import google_sheets_integration
+                google_sheets_integration.sync_report_to_google_sheets(db_sync)
+            except Exception as sync_e:
+                print(f"Startup report sync warning: {sync_e}")
+            finally:
+                db_sync.close()
+        threading.Thread(target=bg_sync_startup_reports, daemon=True).start()
+
         if not db.query(models.Master).filter(models.Master.role == "director").first():
             db.add(models.Master(name="Технический директор", pin="7777", role="director"))
             db.commit()
