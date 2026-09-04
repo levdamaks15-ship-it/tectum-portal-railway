@@ -1985,58 +1985,121 @@ async function syncDowntimesDirFromGoogle() {
 
 
 // --- DOWNTIMES LOG ---
+let allDowntimesLogData = [];
+
 async function loadDowntimesLog() {
     try {
+        const tbody = document.getElementById('downtimes-log-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Загрузка данных...</td></tr>`;
+
         const res = await fetch('/api/admin/downtimes/all');
         if (!res.ok) throw new Error('Не удалось загрузить простои');
-        const data = await res.json();
-        const tbody = document.getElementById('downtimes-log-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Нет данных</td></tr>`;
-            return;
-        }
+        allDowntimesLogData = await res.json();
         
-        data.forEach(d => {
-            const shiftDate = d.shift_date || 'Н/Д';
-            const shiftName = d.shift_name || 'Н/Д';
-            const line = d.shift_line || 'Н/Д';
-            const startTime = d.start_time || '-';
-            const endTime = d.end_time || '-';
-            const duration = d.duration || 0;
-            const category = d.category || '-';
-            
-            let displayReason = `${d.node || '-'} / ${d.description || '-'}`;
-            if (d.breakdowns) {
-                try {
-                    const bkList = JSON.parse(d.breakdowns);
-                    if (bkList && bkList.length > 0) {
-                        displayReason = bkList.map(b => `${b.node || '-'} / ${b.description || '-'}`).join('<br>');
-                    }
-                } catch(e) {}
-            }
-            
-            tbody.innerHTML += `
-                <tr>
-                    <td>${shiftDate} ${shiftName}</td>
-                    <td>${line}</td>
-                    <td>${startTime} - ${endTime}</td>
-                    <td>${duration}</td>
-                    <td>${displayReason}</td>
-                    <td><span style="background: rgba(23,162,184,0.2); color: #17a2b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">${category}</span></td>
-                    <td style="white-space: nowrap;">
-                        <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
-                        <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>
-            `;
-        });
+        applyDowntimeFilters();
     } catch (e) {
         console.error(e);
         const tbody = document.getElementById('downtimes-log-table-body');
         if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:red;">Ошибка загрузки данных</td></tr>`;
     }
+}
+
+function applyDowntimeFilters() {
+    const tbody = document.getElementById('downtimes-log-table-body');
+    if (!tbody) return;
+
+    const searchVal = (document.getElementById('filter-downtime-search')?.value || '').trim().toLowerCase();
+    const catVal = document.getElementById('filter-downtime-category')?.value || '';
+    const lineVal = document.getElementById('filter-downtime-line')?.value || '';
+
+    const filtered = allDowntimesLogData.filter(d => {
+        // Line filter
+        if (lineVal) {
+            const dLine = String(d.shift_line || '');
+            if (!dLine.includes(lineVal)) return false;
+        }
+
+        // Category filter
+        const category = (d.category || '').trim();
+        if (catVal) {
+            if (catVal === 'Без категории') {
+                if (category && category !== '-' && category !== 'None' && category !== 'Не классифицировано') return false;
+            } else if (!category.toLowerCase().includes(catVal.toLowerCase())) {
+                return false;
+            }
+        }
+
+        // Search text
+        if (searchVal) {
+            const fullText = `${d.node || ''} ${d.description || ''} ${d.breakdowns || ''} ${d.shift_date || ''}`.toLowerCase();
+            if (!fullText.includes(searchVal)) return false;
+        }
+
+        return true;
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Записи не найдены</td></tr>`;
+        return;
+    }
+
+    filtered.forEach(d => {
+        const shiftDate = d.shift_date || 'Н/Д';
+        const shiftName = d.shift_name || 'Н/Д';
+        let line = d.shift_line ? `${d.shift_line}` : 'Н/Д';
+        line = line.replace(/Линия\s*Линия/gi, 'Линия').trim();
+        if (line !== 'Н/Д' && !line.toLowerCase().startsWith('линия')) {
+            line = `Линия ${line}`;
+        }
+        const startTime = d.start_time || '-';
+        const endTime = d.end_time || '-';
+        const duration = d.duration || 0;
+        const category = (d.category || '').trim();
+        
+        // Category badge styling
+        let catBadge = `<span class="downtime-category-badge cat-badge-none">Без категории</span>`;
+        if (category && category !== '-' && category !== 'None') {
+            const catLower = category.toLowerCase();
+            if (catLower.includes('механ')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-mech"><i class="fa-solid fa-wrench"></i> ${category}</span>`;
+            } else if (catLower.includes('энерг') || catLower.includes('электр')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-energy"><i class="fa-solid fa-bolt"></i> ${category}</span>`;
+            } else if (catLower.includes('технолог')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-tech"><i class="fa-solid fa-flask"></i> ${category}</span>`;
+            } else if (catLower.includes('организ')) {
+                catBadge = `<span class="downtime-category-badge cat-badge-org"><i class="fa-solid fa-users"></i> ${category}</span>`;
+            } else {
+                catBadge = `<span class="downtime-category-badge cat-badge-none">${category}</span>`;
+            }
+        }
+
+        // Reason formatting with word wrapping
+        let displayReason = `<b>${d.node || 'Общее'}</b>: ${d.description || '-'}`;
+        if (d.breakdowns) {
+            try {
+                const bkList = JSON.parse(d.breakdowns);
+                if (bkList && bkList.length > 0) {
+                    displayReason = bkList.map(b => `<b>${b.node || 'Узел'}</b>: ${b.description || '-'}`).join('<br>');
+                }
+            } catch(e) {}
+        }
+        
+        tbody.innerHTML += `
+            <tr>
+                <td><b>${shiftDate}</b><br><small style="color:var(--text-secondary)">${shiftName}</small></td>
+                <td><b>${line}</b></td>
+                <td><small>${startTime} - ${endTime}</small></td>
+                <td><b>${duration}</b> мин</td>
+                <td class="downtime-reason-cell">${displayReason}</td>
+                <td>${catBadge}</td>
+                <td style="white-space: nowrap; text-align: right;">
+                    <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' title="Редактировать простой"><i class="fa-solid fa-pen"></i></button>
+                    <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" title="Удалить запись"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
 }
 
 // ==========================================
@@ -2066,7 +2129,7 @@ function setReceiptPeriod(period) {
 async function loadAdminReceipts() {
     const tbody = document.getElementById('receipts-table-body');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Загрузка...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Загрузка...</td></tr>';
     
     let url = '/api/admin/receipts';
     
@@ -2091,42 +2154,78 @@ async function loadAdminReceipts() {
         
         tbody.innerHTML = '';
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Нет данных</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Нет данных</td></tr>';
             return;
         }
 
         data.forEach(r => {
             const shiftDate = r.shift_date ? r.shift_date.split('-').reverse().join('.') : '';
             const shiftName = r.shift_name || '';
-            const line = r.shift_line ? `Линия ${r.shift_line}` : '';
+            let line = r.shift_line ? `${r.shift_line}` : '';
+            line = line.replace(/Линия\s*Линия/gi, 'Линия').trim();
+            if (line && !line.toLowerCase().startsWith('линия')) {
+                line = `Линия ${line}`;
+            }
             const master = r.master_name || '';
             
-            const cement = (r.cement_silo1 + r.cement_silo2 + r.cement_silo3 + r.cement_silo4).toFixed(1);
-            const chrysotile = `${r.chrysotile_4_20.toFixed(1)} / ${r.chrysotile_5_65.toFixed(1)} / ${r.chrysotile_6_40.toFixed(1)}`;
-            const cellulose = r.cellulose.toFixed(1);
-            const others1 = `${r.crushed_slate.toFixed(1)} / ${r.asbozurit.toFixed(1)} / ${r.asbocarton.toFixed(1)}`;
-            const others2 = `${r.pallets.toFixed(1)} / ${r.fiberglass.toFixed(1)} / ${r.laprol.toFixed(1)}`;
+            // Build material badges
+            const badges = [];
+            const cementTotal = (r.cement_silo1 || 0) + (r.cement_silo2 || 0) + (r.cement_silo3 || 0) + (r.cement_silo4 || 0);
+            if (cementTotal > 0) {
+                badges.push(`<span class="mat-badge mat-badge-cement"><i class="fa-solid fa-cube"></i> Цемент: <b>${cementTotal.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.chrysotile_4_20 > 0) {
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 4-20: <b>${r.chrysotile_4_20.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.chrysotile_5_65 > 0) {
+                const tons = (r.chrysotile_5_65 / 1000).toFixed(1);
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 5-65: <b>${r.chrysotile_5_65.toLocaleString('ru-RU')} кг (${tons} т)</b></span>`);
+            }
+            if (r.chrysotile_6_40 > 0) {
+                badges.push(`<span class="mat-badge mat-badge-chrysotile"><i class="fa-solid fa-layer-group"></i> Хриз. 6-40: <b>${r.chrysotile_6_40.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.cellulose > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other"><i class="fa-solid fa-box-open"></i> Целлюлоза: <b>${r.cellulose.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.crushed_slate > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other"><i class="fa-solid fa-recycle"></i> Дроб. шифер: <b>${r.crushed_slate.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.asbozurit > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Асбозурит: <b>${r.asbozurit.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.asbocarton > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Картон: <b>${r.asbocarton.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.pallets > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other"><i class="fa-solid fa-pallet"></i> Поддоны: <b>${r.pallets.toLocaleString('ru-RU')} шт</b></span>`);
+            }
+            if (r.fiberglass > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Стекловолокно: <b>${r.fiberglass.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+            if (r.laprol > 0) {
+                badges.push(`<span class="mat-badge mat-badge-other">Лапрол: <b>${r.laprol.toLocaleString('ru-RU')} кг</b></span>`);
+            }
+
+            const badgesHtml = badges.length > 0 
+                ? `<div class="mat-badge-container">${badges.join('')}</div>`
+                : `<span class="mat-badge-empty">Нет поступившего сырья в смене</span>`;
 
             tbody.innerHTML += `
                 <tr>
-                    <td>${r.id}</td>
-                    <td>${shiftDate} ${shiftName}</td>
-                    <td>${line}<br><small style="color:var(--text-secondary)">${master}</small></td>
-                    <td>${cement}</td>
-                    <td>${chrysotile}</td>
-                    <td>${cellulose}</td>
-                    <td>${others1}</td>
-                    <td>${others2}</td>
+                    <td><b>#${r.id}</b></td>
+                    <td><b>${shiftDate}</b><br><small style="color:var(--text-secondary)">${shiftName}</small></td>
+                    <td><b>${line}</b><br><small style="color:var(--text-secondary)">${master}</small></td>
+                    <td>${badgesHtml}</td>
                     <td style="white-space: nowrap; text-align: right;">
-                        <button class="action-btn btn-edit" onclick='editReceiptRow(${JSON.stringify(r).replace(/'/g, "&apos;")})' style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-pen"></i></button>
-                        <button class="action-btn btn-delete" onclick="deleteReceiptRow(${r.id})" style="padding: 0.3rem 0.6rem;"><i class="fa-solid fa-trash"></i></button>
+                        <button class="action-btn btn-edit" onclick='editReceiptRow(${JSON.stringify(r).replace(/'/g, "&apos;")})' title="Редактировать приход"><i class="fa-solid fa-pen"></i></button>
+                        <button class="action-btn btn-delete" onclick="deleteReceiptRow(${r.id})" title="Удалить запись"><i class="fa-solid fa-trash"></i></button>
                     </td>
                 </tr>
             `;
         });
     } catch (e) {
         console.error(e);
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:red;">Ошибка загрузки</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:red;">Ошибка загрузки</td></tr>';
     }
 }
 
@@ -2614,6 +2713,7 @@ async function loadAdminShiftSchedule() {
         const res = await fetch('/api/checklists/schedule/all');
         if (res.ok) {
             adminShiftSchedule = await res.json();
+            populateScheduleMonthFilter();
             renderShiftScheduleTable();
         }
     } catch (e) {
@@ -2621,36 +2721,145 @@ async function loadAdminShiftSchedule() {
     }
 }
 
+function populateScheduleMonthFilter() {
+    const monthSelect = document.getElementById('schedule-month-filter');
+    if (!monthSelect) return;
+
+    // Collect all unique months from schedule
+    const monthsSet = new Set();
+    adminShiftSchedule.forEach(e => {
+        if (e.date_str) {
+            const parts = e.date_str.split('.');
+            if (parts.length === 3) {
+                monthsSet.add(`${parts[1]}.${parts[2]}`);
+            }
+        }
+    });
+
+    const monthNames = {
+        '01': 'Январь', '02': 'Февраль', '03': 'Март', '04': 'Апрель',
+        '05': 'Май', '06': 'Июнь', '07': 'Июль', '08': 'Август',
+        '09': 'Сентябрь', '10': 'Октябрь', '11': 'Ноябрь', '12': 'Декабрь'
+    };
+
+    const sortedMonths = Array.from(monthsSet).sort();
+    const currentVal = monthSelect.value;
+    
+    monthSelect.innerHTML = '<option value="">Все месяцы</option>';
+    sortedMonths.forEach(m => {
+        const [mm, yyyy] = m.split('.');
+        const label = `${monthNames[mm] || mm} ${yyyy}`;
+        monthSelect.innerHTML += `<option value="${m}">${label}</option>`;
+    });
+
+    // Default to current month if available
+    if (!currentVal) {
+        const now = new Date();
+        const curM = String(now.getMonth() + 1).padStart(2, '0');
+        const curY = String(now.getFullYear());
+        const defaultMonth = `${curM}.${curY}`;
+        if (monthsSet.has(defaultMonth)) {
+            monthSelect.value = defaultMonth;
+        }
+    } else {
+        monthSelect.value = currentVal;
+    }
+}
+
 function renderShiftScheduleTable() {
     const tbody = document.getElementById('shift-schedule-table-body');
     if (!tbody) return;
 
-    const searchDate = document.getElementById('schedule-search-date') ? document.getElementById('schedule-search-date').value.toLowerCase().trim() : '';
+    const selectedMonth = document.getElementById('schedule-month-filter')?.value || '';
+    const selectedGroup = document.getElementById('schedule-group-filter')?.value || '';
+    const searchDate = (document.getElementById('schedule-search-date')?.value || '').toLowerCase().trim();
+
+    // Determine today's date formatted as DD.MM.YYYY
+    const now = new Date();
+    const todayStr = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
 
     let filtered = adminShiftSchedule.filter(e => {
-        return !searchDate || (e.date_str && e.date_str.toLowerCase().includes(searchDate));
+        if (!e.date_str) return false;
+
+        // Month filter
+        if (selectedMonth) {
+            const parts = e.date_str.split('.');
+            if (parts.length === 3 && `${parts[1]}.${parts[2]}` !== selectedMonth) {
+                return false;
+            }
+        }
+
+        // Team/Group filter
+        if (selectedGroup) {
+            const dayG = e.day_shift_group || '';
+            const nightG = e.night_shift_group || '';
+            if (dayG !== selectedGroup && nightG !== selectedGroup) {
+                return false;
+            }
+        }
+
+        // Search date filter
+        if (searchDate && !e.date_str.toLowerCase().includes(searchDate)) {
+            return false;
+        }
+
+        return true;
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">График не найден</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">График не найден по выбранным фильтрам</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtered.map(e => `
-        <tr>
-            <td style="font-weight: 700; color: var(--primary-color);">${e.date_str}</td>
-            <td style="color: var(--text-secondary);">${e.day_of_week || '—'}</td>
-            <td><span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 4px 8px; border-radius: 6px; font-weight: 700;">☀️ ${e.day_shift_group || '—'}</span></td>
-            <td><span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 4px 8px; border-radius: 6px; font-weight: 700;">🌙 ${e.night_shift_group || '—'}</span></td>
-            <td style="text-align: center;">${e.shift1_status || '—'}</td>
-            <td style="text-align: center;">${e.shift2_status || '—'}</td>
-            <td style="text-align: center;">${e.shift3_status || '—'}</td>
-            <td style="text-align: center;">${e.shift4_status || '—'}</td>
-            <td style="text-align: right;">
-                <button class="action-btn btn-edit" onclick="openEditShiftScheduleModal('${e.date_str}', '${e.day_shift_group || ''}', '${e.night_shift_group || ''}')" title="Изменить смены"><i class="fa-solid fa-pen"></i></button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = filtered.map(e => {
+        const isToday = e.date_str === todayStr;
+        const rowClass = isToday ? 'class="schedule-row-today" id="schedule-row-today"' : '';
+        const todayBadge = isToday ? '<span class="today-badge-indicator">Сегодня</span>' : '';
+
+        return `
+            <tr ${rowClass}>
+                <td style="font-weight: 700; color: var(--primary-color); white-space: nowrap;">
+                    ${e.date_str} ${todayBadge}
+                </td>
+                <td style="color: var(--text-secondary);">${e.day_of_week || '—'}</td>
+                <td><span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 3px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">☀️ ${e.day_shift_group || '—'}</span></td>
+                <td><span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 3px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem;">🌙 ${e.night_shift_group || '—'}</span></td>
+                <td style="text-align: center;">${e.shift1_status || '—'}</td>
+                <td style="text-align: center;">${e.shift2_status || '—'}</td>
+                <td style="text-align: center;">${e.shift3_status || '—'}</td>
+                <td style="text-align: center;">${e.shift4_status || '—'}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn btn-edit" onclick="openEditShiftScheduleModal('${e.date_str}', '${e.day_shift_group || ''}', '${e.night_shift_group || ''}')" title="Изменить смены"><i class="fa-solid fa-pen"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function scrollToTodaySchedule() {
+    // Reset filters to show current month if needed
+    const now = new Date();
+    const curM = String(now.getMonth() + 1).padStart(2, '0');
+    const curY = String(now.getFullYear());
+    const monthSelect = document.getElementById('schedule-month-filter');
+    if (monthSelect) {
+        monthSelect.value = `${curM}.${curY}`;
+    }
+    const groupSelect = document.getElementById('schedule-group-filter');
+    if (groupSelect) groupSelect.value = '';
+    const searchInput = document.getElementById('schedule-search-date');
+    if (searchInput) searchInput.value = '';
+
+    renderShiftScheduleTable();
+
+    setTimeout(() => {
+        const todayRow = document.getElementById('schedule-row-today');
+        if (todayRow) {
+            todayRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            alert('Запись на сегодняшнюю дату не найдена в графике');
+        }
+    }, 80);
 }
 
 function openEditShiftScheduleModal(dateStr, dayShift, nightShift) {
