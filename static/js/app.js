@@ -2310,7 +2310,7 @@ async function loadDailyReport() {
     const monthEl = document.getElementById('daily-report-month');
     const weekEl = document.getElementById('daily-report-week-select');
     
-    const line = lineEl ? lineEl.value : 'lfm1';
+    const line = lineEl ? lineEl.value : 'lfm2';
     const rangeType = rangeTypeEl ? rangeTypeEl.value : 'month';
     const month = monthEl ? monthEl.value : '';
     const week = weekEl ? weekEl.value : '';
@@ -3810,7 +3810,7 @@ function renderCrewPlansTable() {
     if (filterStatus === 'met') {
         rows = rows.filter(r => r.is_met);
     } else if (filterStatus === 'unmet') {
-        rows = rows.filter(r => !r.is_met);
+        rows = rows.filter(r => !r.is_met && !r.is_future);
     }
 
     if (rows.length === 0) {
@@ -3826,14 +3826,16 @@ function renderCrewPlansTable() {
             : `<span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;">🌙 Ночь</span>`;
 
         // Status badge
-        const statusBadge = r.is_met
-            ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`
-            : `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-block;">Не выполнен</span>`;
+        const statusBadge = r.is_future
+            ? `<span style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-block;">Запланирована</span>`
+            : (r.is_met
+                ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`
+                : `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-block;">Не выполнен</span>`);
 
         // Diff formatted
-        const diffColor = r.diff >= 0 ? '#047857' : '#b91c1c';
+        const diffColor = r.is_future ? 'var(--text-secondary)' : (r.diff >= 0 ? '#047857' : '#b91c1c');
         const diffPrefix = r.diff > 0 ? '+' : '';
-        const diffText = r.fact_lfm > 0 ? `${diffPrefix}${r.diff.toLocaleString()} шт.` : '-';
+        const diffText = r.is_future ? '-' : (r.fact_lfm > 0 ? `${diffPrefix}${r.diff.toLocaleString()} шт.` : '-');
 
         const crewBadge = r.crew_name 
             ? `<strong style="color: #0f172a; font-size: 0.9rem;">${r.crew_name}</strong>` 

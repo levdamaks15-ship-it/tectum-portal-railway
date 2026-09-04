@@ -80,8 +80,15 @@ from sqlalchemy import func
 import os
 from database import SessionLocal
 import excel_exporter
-import m365_integration
-import google_sheets_integration
+try:
+    import m365_integration
+except ImportError:
+    m365_integration = None
+
+try:
+    import google_sheets_integration
+except ImportError:
+    google_sheets_integration = None
 
 def get_db():
     db = SessionLocal()

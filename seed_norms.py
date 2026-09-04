@@ -2,7 +2,6 @@ from database import SessionLocal, engine, Base
 import models
 
 def seed_norms():
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     
     # Rename "Шифер 8 волн пиленый" to "Шифер 8 волн рифленый" if it exists

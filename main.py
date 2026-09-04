@@ -16,6 +16,7 @@ try:
     import m365_integration
 except ImportError:
     m365_integration = None
+import requests
 import excel_exporter
 import import_aci_excel
 from datetime import datetime, date
@@ -38,7 +39,41 @@ except ImportError:
 try:
     from starlette.middleware.sessions import SessionMiddleware
 except ImportError:
-    SessionMiddleware = None
+    import base64, json
+    from starlette.types import ASGIApp, Receive, Scope, Send
+    class FallbackSessionMiddleware:
+        def __init__(self, app: ASGIApp, secret_key: str = "", **kwargs):
+            self.app = app
+        async def __call__(self, scope: Scope, receive: Receive, send: Send):
+            if scope["type"] not in ("http", "websocket"):
+                await self.app(scope, receive, send)
+                return
+            scope["session"] = {}
+            headers = dict(scope.get("headers", []))
+            cookie_header = headers.get(b"cookie", b"").decode("latin-1")
+            for item in cookie_header.split(";"):
+                item = item.strip()
+                if item.startswith("session="):
+                    val = item[len("session="):]
+                    try:
+                        scope["session"] = json.loads(base64.b64decode(val.encode()).decode())
+                    except Exception:
+                        pass
+            
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    try:
+                        sess_json = json.dumps(scope.get("session", {}))
+                        b64 = base64.b64encode(sess_json.encode()).decode()
+                        cookie = f"session={b64}; Path=/; SameSite=lax"
+                        headers_list = list(message.get("headers", []))
+                        headers_list.append((b"set-cookie", cookie.encode()))
+                        message["headers"] = headers_list
+                    except Exception:
+                        pass
+                await send(message)
+            await self.app(scope, receive, send_wrapper)
+    SessionMiddleware = FallbackSessionMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

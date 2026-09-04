@@ -17,8 +17,10 @@ from routers.common import (
     calculate_shift_deviations,
     check_admin_session,
     get_product_finished_weight_kg,
+    get_product_raw_weight_kg,
     get_last_produced_weight_kg,
-    get_shift_plan
+    get_shift_plan,
+    get_db
 )
 
 try:
@@ -33,21 +35,12 @@ except ImportError:
 
 router = APIRouter(tags=['analytics'])
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-
 @router.get("/api/dashboard/weekly_report")
 def get_weekly_report(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role") or "admin"
 
-    # Р‘РµСЂРµРј РїРѕСЃР»РµРґРЅРёРµ 7 СЃРјРµРЅ (РІРєР»СЋС‡Р°СЏ С‚РµРєСѓС‰СѓСЋ)
+    # Берем последние 7 смен (включая текущую)
     query = db.query(models.Shift)
     if False and user_role == "master" and user_id:
         query = query.filter(models.Shift.master_id == user_id)
@@ -55,10 +48,10 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
     
     report_data = []
     for shift in shifts:
-        # 1. РЎС‡РёС‚Р°РµРј С„РѕСЂРјРѕРІРєСѓ (Р›Р¤Рњ)
+        # 1. Считаем формовку (ЛФМ)
         lfm_sheets = db.query(func.sum(models.LFMReport.lfm_sheets)).filter(models.LFMReport.shift_id == shift.id).scalar() or 0
         
-        # 2. РЎС‡РёС‚Р°РµРј РёС‚РѕРі РЎРљРљ
+        # 2. Считаем итог СКК
         qcd_stats = db.query(
             func.sum(models.Batch.ds_condition).label('condition'),
             func.sum(models.Batch.ds_first_grade).label('first_grade'),
@@ -69,7 +62,7 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
         qcd_fg = qcd_stats.first_grade or 0
         qcd_def = qcd_stats.defect or 0
         
-        # 3. РЎС‡РёС‚Р°РµРј РѕС‚РєР»РѕРЅРµРЅРёРµ СЃС‹СЂСЊСЏ (Р¤Р°РєС‚ РёР· Р—Рћ - РўРµРѕСЂРёСЏ РїРѕ РЅРѕСЂРјР°Рј)
+        # 3. Считаем отклонение сырья (Факт из ЗО - Теория по нормам)
         lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift.id).all()
         product_counts = {}
         for r in lfm_reports:
@@ -93,7 +86,7 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
                 theoretical["asbozurit"] += sheets * norm.norm_asbozurit
                 theoretical["fiberglass"] += sheets * norm.norm_fiberglass
 
-        # Р¤Р°РєС‚РёС‡РµСЃРєРёР№ СЂР°СЃС…РѕРґ СЃС‹СЂСЊСЏ РёР· Р—Рћ Р·Р° СЃРјРµРЅСѓ
+        # Фактический расход сырья из ЗО за смену
         fact_raw = (shift.zo_chrysotile_4_20 or 0.0) + \
                    (shift.zo_chrysotile_5_65 or 0.0) + \
                    (shift.zo_chrysotile_6_40 or 0.0) + \
@@ -103,21 +96,21 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
                    (shift.zo_asbozurit or 0.0) + \
                    (shift.zo_fiberglass or 0.0)
 
-        # РўРµРѕСЂРµС‚РёС‡РµСЃРєРёР№ СЂР°СЃС…РѕРґ СЃС‹СЂСЊСЏ
+        # Теоретический расход сырья
         theory_raw = sum(theoretical.values())
         
-        # РћР±С‰РµРµ РѕС‚РєР»РѕРЅРµРЅРёРµ РїРѕ СЃС‹СЂСЊСЋ РІ РєРі (Р¤Р°РєС‚ - РўРµРѕСЂРёСЏ)
+        # Общее отклонение по сырью в кг (Факт - Теория)
         deviation = fact_raw - theory_raw
 
-        # Р¤Р°РєС‚РёС‡РµСЃРєРёР№ РІРµСЃ С„РѕСЂРјРѕРІРєРё РІ С‚РѕРЅРЅР°С…
+        # Фактический вес формовки в тоннах
         fact_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) / 1000.0 for r in lfm_reports)
 
         report_data.append({
             "id": shift.id,
-            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Рќ/Р”",
+            "date": shift.date.strftime("%Y-%m-%d") if shift.date else "Н/Д",
             "shift_name": shift.shift_name,
             "line": shift.line,
-            "master_name": shift.master.name if shift.master else "Рќ/Р”",
+            "master_name": shift.master.name if shift.master else "Н/Д",
             "lfm_sheets": lfm_sheets,
             "qcd_condition": qcd_cond,
             "qcd_first_grade": qcd_fg,
@@ -127,6 +120,7 @@ def get_weekly_report(request: Request, db: Session = Depends(get_db)):
         })
         
     return report_data
+
 
 @router.get("/api/dashboard/analytics_data")
 def get_analytics_data(
@@ -194,7 +188,7 @@ def get_analytics_data(
             lost_tenge_without_stop += tenge
             count_without_stop += 1
             
-        cat = dt.category or "РќРµ СѓРєР°Р·Р°РЅР°"
+        cat = dt.category or "Не указана"
         if cat not in by_category:
             by_category[cat] = {"with_stop": 0, "without_stop": 0}
         if is_stop:
@@ -206,14 +200,14 @@ def get_analytics_data(
             node_durations[dt.node] = node_durations.get(dt.node, 0) + dur
             
         shift_date = dt.shift.date
-        date_str = shift_date.strftime("%Y-%m-%d") if shift_date else "РќРµ СѓРєР°Р·Р°РЅР°"
+        date_str = shift_date.strftime("%Y-%m-%d") if shift_date else "Не указана"
         
         serialized_downtimes.append({
             "id": dt.id,
             "date": date_str,
             "shift": dt.shift.shift_name if dt.shift else "",
             "line": dt.shift.line if dt.shift else "",
-            "master": dt.shift.master.name if dt.shift and dt.shift.master else "Рќ/Р”",
+            "master": dt.shift.master.name if dt.shift and dt.shift.master else "Н/Д",
             "department": dt.department or "",
             "node": dt.node or "",
             "category": dt.category or "",
@@ -223,7 +217,7 @@ def get_analytics_data(
             "lost_tenge": tenge,
             "description": dt.description or ""
         })
-        date_str = shift_date.strftime("%Y-%m-%d") if shift_date else "РќРµ СѓРєР°Р·Р°РЅР°"
+        date_str = shift_date.strftime("%Y-%m-%d") if shift_date else "Не указана"
         if date_str not in trend_data:
             trend_data[date_str] = {}
         trend_data[date_str][cat] = trend_data[date_str].get(cat, 0) + dur
@@ -255,73 +249,6 @@ def get_analytics_data(
         "downtimes": serialized_downtimes
     }
 
-# --- РќРћР РњР« Р РђРЎРҐРћР”Рђ Р РћРўР§Р•Рў РџРћ РЎР«Р Р¬Р® ---
-@router.get("/api/norms/", response_model=list[schemas.ProductNorm])
-def get_product_norms(db: Session = Depends(get_db)):
-    return db.query(models.ProductNorm).all()
-
-_norms_cache = {}
-_norms_cache_time = 0
-
-def _get_norm_cached(db: Session, product_name: str):
-    global _norms_cache, _norms_cache_time
-    import time
-    if time.time() - _norms_cache_time > 60:
-        norms = db.query(models.ProductNorm).all()
-        _norms_cache = {n.product_name: n for n in norms}
-        _norms_cache_time = time.time()
-    return _norms_cache.get(product_name)
-
-def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
-    norm = _get_norm_cached(db, product_name)
-    if not norm or not norm.weight_kg:
-        return 19.6 # fallback for 8 РІРѕР»РЅ
-    return norm.weight_kg
-
-def get_product_raw_weight_kg(db: Session, product_name: str) -> float:
-    norm = _get_norm_cached(db, product_name)
-    if not norm:
-        return 18.2 # fallback
-    return (
-        (norm.norm_chrysotile_4_20 or 0) +
-        (norm.norm_chrysotile_5_65 or 0) +
-        (norm.norm_chrysotile_6_40 or 0) +
-        (norm.norm_cement or 0) +
-        (norm.norm_cellulose or 0) +
-        (norm.norm_crushed_slate or 0) +
-        (norm.norm_asbozurit or 0) +
-        (norm.norm_fiberglass or 0)
-    )
-
-def get_last_produced_weight_kg(db: Session, line_identifier: str, before_date_str: str = None) -> float:
-    try:
-        q = db.query(models.Shift).filter(models.Shift.line.like(f"%{line_identifier}%"))
-        if before_date_str:
-            q = q.filter(models.Shift.date <= before_date_str)
-        shifts = q.order_by(models.Shift.date.desc(), models.Shift.id.desc()).limit(100).all()
-        if not shifts:
-            shifts = db.query(models.Shift).filter(models.Shift.line.like(f"%{line_identifier}%")).order_by(models.Shift.date.desc(), models.Shift.id.desc()).all()
-        for s in shifts:
-            if s.lfm_reports:
-                for r in reversed(s.lfm_reports):
-                    if r.lfm_sheets > 0 and r.product_name:
-                        return get_product_finished_weight_kg(db, r.product_name)
-    except Exception as e:
-        print(f"Error in get_last_produced_weight_kg: {e}")
-    return 19.6
-
-def get_shift_plan(db: Session, shift: models.Shift) -> int:
-    if shift.plan_sheets is not None and shift.plan_sheets > 0:
-        return shift.plan_sheets
-    sanitary_downtime = 0
-    for dt in shift.downtimes:
-        if dt.category == "РЎР°РЅРёС‚Р°СЂРЅС‹Р№ РґРµРЅСЊ":
-            sanitary_downtime += dt.duration or 0
-    if sanitary_downtime > 0:
-        return 0
-    if getattr(shift, "date", None) and shift.date.weekday() == 0 and shift.shift_name == "Р”РµРЅСЊ":
-        return 0
-    return 2700 if shift.shift_name == "Р”РµРЅСЊ" else 3300
 
 @router.get("/api/dashboard/daily_report")
 def get_daily_report(
@@ -453,14 +380,14 @@ def get_daily_report(
     if shift_number is not None:
         # Initialize plans to 0, because we will populate only matching shifts from pb
         data = {
-            "line_1": {str(sd + timedelta(days=i)): {"Р”РµРЅСЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}, "РќРѕС‡СЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}} for i in range(num_days)},
-            "line_2": {str(sd + timedelta(days=i)): {"Р”РµРЅСЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}, "РќРѕС‡СЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}} for i in range(num_days)}
+            "line_1": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}} for i in range(num_days)},
+            "line_2": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}} for i in range(num_days)}
         }
     else:
         # Default initialization with standard norms
         data = {
-            "line_1": {str(sd + timedelta(days=i)): {"Р”РµРЅСЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "РќРѕС‡СЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)},
-            "line_2": {str(sd + timedelta(days=i)): {"Р”РµРЅСЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "РќРѕС‡СЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)}
+            "line_1": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)},
+            "line_2": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)}
         }
     
     pb_map = {}
@@ -468,15 +395,15 @@ def get_daily_report(
         pb_map[(pb.date, pb.shift_name, pb.line)] = pb
         
         day_key = str(pb.date)
-        line_key = "line_1" if pb.line == "Р›Р¤Рњ-1" else "line_2"
+        line_key = "line_1" if pb.line == "ЛФМ-1" else "line_2"
         s_name = pb.shift_name
-        if day_key in data[line_key] and s_name in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
+        if day_key in data[line_key] and s_name in ["День", "Ночь"]:
             if shift_number is not None and pb.shift_number != shift_number:
                 continue
             data[line_key][day_key][s_name]["plan_sheets"] = pb.plan_sheets or 0
             data[line_key][day_key][s_name]["plan_tons"] = (pb.plan_sheets or 0) * 19.6 / 1000.0
             
-            # Р—Р°РїРёСЃС‹РІР°РµРј С„Р°РєС‚ РґР»СЏ РІСЃРµС…
+            # Записываем факт для всех
             if True:
                 data[line_key][day_key][s_name]["sheets"] = pb.fact_sheets or 0
                 data[line_key][day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
@@ -487,18 +414,18 @@ def get_daily_report(
     accumulate_sheets_slots = set()
     for s in shifts:
         if not s.date: continue
-        # РќРµ РїСЂРѕРїСѓСЃРєР°РµРј СЃРјРµРЅС‹ РґСЂСѓРіРёС… РјР°СЃС‚РµСЂРѕРІ
+        # Не пропускаем смены других мастеров
         if False and user_role == "master" and s.master_id != user_id:
             continue
         day_key = str(s.date)
         line_key = "line_1" if "1" in s.line else "line_2"
-        s_name = "Р”РµРЅСЊ" if s.shift_name == "Р”РµРЅСЊ" else "РќРѕС‡СЊ"
+        s_name = "День" if s.shift_name == "День" else "Ночь"
         
         if day_key not in data[line_key]:
             continue
             
         if shift_number is not None:
-            pb_line_name = "Р›Р¤Рњ-1" if "1" in s.line else "Р›Р¤Рњ-2"
+            pb_line_name = "ЛФМ-1" if "1" in s.line else "ЛФМ-2"
             pb_entry = pb_map.get((s.date, s.shift_name, pb_line_name))
             if pb_entry is None or pb_entry.shift_number != shift_number:
                 continue
@@ -523,11 +450,11 @@ def get_daily_report(
             if data[line_key][day_key][s_name]["sheets"] == 0 or shift_number is not None:
                 accumulate_sheets_slots.add(slot_key)
                 data[line_key][day_key][s_name]["sheets"] = 0
-            # Р’СЃРµРіРґР° РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј Рё РЅР°РєР°РїР»РёРІР°РµРј 1 СЃРѕСЂС‚ Рё Р±СЂР°Рє РЅР°РїСЂСЏРјСѓСЋ РёР· СЂР°РїРѕСЂС‚РѕРІ РјР°СЃС‚РµСЂРѕРІ
+            # Всегда инициализируем и накапливаем 1 сорт и брак напрямую из рапортов мастеров
             data[line_key][day_key][s_name]["first_grade"] = 0
             data[line_key][day_key][s_name]["defect"] = 0
         
-        # РќР°РєР°РїР»РёРІР°РµРј 1 СЃРѕСЂС‚ Рё Р±СЂР°Рє Р”РµСЃС‚Р°РєРµСЂР° РЅР°РїСЂСЏРјСѓСЋ РёР· СЃРјРµРЅРЅРѕРіРѕ СЂР°РїРѕСЂС‚Р°
+        # Накапливаем 1 сорт и брак Дестакера напрямую из сменного рапорта
         data[line_key][day_key][s_name]["first_grade"] += total_1st
         data[line_key][day_key][s_name]["defect"] += total_def
 
@@ -543,7 +470,7 @@ def get_daily_report(
 
     for i in range(num_days):
         day_k = str(sd + timedelta(days=i))
-        for s_nm in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
+        for s_nm in ["День", "Ночь"]:
             for l_k in data:
                 if day_k in data[l_k] and s_nm in data[l_k][day_k]:
                     slot_info = data[l_k][day_k][s_nm]
@@ -570,7 +497,7 @@ def get_daily_report(
         day_num = dt.day
         month_num = dt.month
         
-        for s_name in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
+        for s_name in ["День", "Ночь"]:
             plan_sheets = 0
             fact_sheets = 0
             plan_tons = 0.0
@@ -587,7 +514,7 @@ def get_daily_report(
                 first_grade += shift_data["first_grade"]
                 defect += shift_data["defect"]
             
-            suffix = "Р”" if s_name == "Р”РµРЅСЊ" else "Рќ"
+            suffix = "Д" if s_name == "День" else "Н"
             label = f"{day_num:02d}.{month_num:02d} ({suffix})"
             
             days_list.append({
@@ -662,6 +589,7 @@ def get_daily_report(
         "days": days_list
     }
 
+
 @router.get("/api/dashboard/export_daily_report")
 def export_daily_report(request: Request, start_date: str, line: str = None, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
@@ -690,15 +618,15 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     
-    lines_to_export = [("Р›РёРЅРёСЏ 1", "Р›Р¤Рњ-1"), ("Р›РёРЅРёСЏ 2", "Р›Р¤Рњ-2")]
+    lines_to_export = [("Линия 1", "ЛФМ-1"), ("Линия 2", "ЛФМ-2")]
     if line == 'lfm1':
-        lines_to_export = [("Р›РёРЅРёСЏ 1", "Р›Р¤Рњ-1")]
+        lines_to_export = [("Линия 1", "ЛФМ-1")]
     elif line == 'lfm2':
-        lines_to_export = [("Р›РёРЅРёСЏ 2", "Р›Р¤Рњ-2")]
+        lines_to_export = [("Линия 2", "ЛФМ-2")]
         
     for line_id, line_label in lines_to_export:
         ws = wb.create_sheet(title=line_label)
-        ws.append(["Р”Р°С‚Р°", "РЎРјРµРЅР°", "РџР»Р°РЅ (Р›РёСЃС‚С‹)", "Р¤Р°РєС‚ (Р›РёСЃС‚С‹)", "РџР»Р°РЅ (РўРѕРЅРЅС‹)", "Р¤Р°РєС‚ (РўРѕРЅРЅС‹)", "1-Р№ СЃРѕСЂС‚", "Р‘СЂР°Рє"])
+        ws.append(["Дата", "Смена", "План (Листы)", "Факт (Листы)", "План (Тонны)", "Факт (Тонны)", "1-й сорт", "Брак"])
         
         ws.column_dimensions['A'].width = 12
         ws.column_dimensions['B'].width = 8
@@ -710,19 +638,19 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         ws.column_dimensions['H'].width = 12
         
         day_data = {str(sd + timedelta(days=i)): {
-            "Р”РµРЅСЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, 
-            "РќРѕС‡СЊ": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}
+            "День": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, 
+            "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}
         } for i in range(num_days)}
         
         for pb in plan_boards:
             if pb.line != line_label: continue
             day_key = str(pb.date)
             s_name = pb.shift_name
-            if day_key in day_data and s_name in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
+            if day_key in day_data and s_name in ["День", "Ночь"]:
                 day_data[day_key][s_name]["plan_sheets"] = pb.plan_sheets or 0
                 day_data[day_key][s_name]["plan_tons"] = (pb.plan_sheets or 0) * 19.6 / 1000.0
                 
-                # Р¤Р°РєС‚ Р·Р°РїРёСЃС‹РІР°РµРј С‚РѕР»СЊРєРѕ РґР»СЏ С‚РµРєСѓС‰РµРіРѕ РјР°СЃС‚РµСЂР° (РёР»Рё РµСЃР»Рё СЂРѕР»СЊ РЅРµ master)
+                # Факт записываем только для текущего мастера (или если роль не master)
                 if user_role != "master" or pb.master_id == user_id:
                     day_data[day_key][s_name]["sheets"] = pb.fact_sheets or 0
                     day_data[day_key][s_name]["tons"] = (pb.fact_sheets or 0) * 19.6 / 1000.0
@@ -733,13 +661,13 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         accumulate_sheets_slots = set()
         for s in shifts:
             if not s.date or s.line != line_id: continue
-            # РџСЂРѕРїСѓСЃРєР°РµРј СЃРјРµРЅС‹ РґСЂСѓРіРёС… РјР°СЃС‚РµСЂРѕРІ РґР»СЏ СЂРѕР»Рё master
+            # Пропускаем смены других мастеров для роли master
             if False and user_role == "master" and s.master_id != user_id:
                 continue
             day_key = str(s.date)
             if day_key not in day_data: continue
             
-            s_name = "Р”РµРЅСЊ" if s.shift_name == "Р”РµРЅСЊ" else "РќРѕС‡СЊ"
+            s_name = "День" if s.shift_name == "День" else "Ночь"
             
             total_w = 0
             total_s = 0
@@ -765,7 +693,7 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         for i in range(num_days):
             day_k = str(sd + timedelta(days=i))
             if day_k in day_data:
-                for s_nm in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
+                for s_nm in ["День", "Ночь"]:
                     slot_info = day_data[day_k][s_nm]
                     if slot_info["sheets"] > 0 and slot_info["tons"] > 0:
                         avg_w = (slot_info["tons"] * 1000.0) / slot_info["sheets"]
@@ -777,16 +705,16 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         row_idx = 2
         for i in range(num_days):
             d_str = str(sd + timedelta(days=i))
-            ws.append([d_str, "Р”РµРЅСЊ", day_data[d_str]["Р”РµРЅСЊ"]["plan_sheets"], day_data[d_str]["Р”РµРЅСЊ"]["sheets"], round(day_data[d_str]["Р”РµРЅСЊ"]["plan_tons"], 2), round(day_data[d_str]["Р”РµРЅСЊ"]["tons"], 2), day_data[d_str]["Р”РµРЅСЊ"]["first_grade"], day_data[d_str]["Р”РµРЅСЊ"]["defect"]])
-            ws.append([d_str, "РќРѕС‡СЊ", day_data[d_str]["РќРѕС‡СЊ"]["plan_sheets"], day_data[d_str]["РќРѕС‡СЊ"]["sheets"], round(day_data[d_str]["РќРѕС‡СЊ"]["plan_tons"], 2), round(day_data[d_str]["РќРѕС‡СЊ"]["tons"], 2), day_data[d_str]["РќРѕС‡СЊ"]["first_grade"], day_data[d_str]["РќРѕС‡СЊ"]["defect"]])
+            ws.append([d_str, "День", day_data[d_str]["День"]["plan_sheets"], day_data[d_str]["День"]["sheets"], round(day_data[d_str]["День"]["plan_tons"], 2), round(day_data[d_str]["День"]["tons"], 2), day_data[d_str]["День"]["first_grade"], day_data[d_str]["День"]["defect"]])
+            ws.append([d_str, "Ночь", day_data[d_str]["Ночь"]["plan_sheets"], day_data[d_str]["Ночь"]["sheets"], round(day_data[d_str]["Ночь"]["plan_tons"], 2), round(day_data[d_str]["Ночь"]["tons"], 2), day_data[d_str]["Ночь"]["first_grade"], day_data[d_str]["Ночь"]["defect"]])
             row_idx += 2
             
         chart_sheets = BarChart()
         chart_sheets.type = "col"
         chart_sheets.style = 10
-        chart_sheets.title = f"Р’С‹СЂР°Р±РѕС‚РєР° {line_label} (Р›РёСЃС‚С‹)"
-        chart_sheets.y_axis.title = 'РљРѕР»РёС‡РµСЃС‚РІРѕ (Р›РёСЃС‚С‹)'
-        chart_sheets.x_axis.title = 'Р”Р°С‚Р° / РЎРјРµРЅР°'
+        chart_sheets.title = f"Выработка {line_label} (Листы)"
+        chart_sheets.y_axis.title = 'Количество (Листы)'
+        chart_sheets.x_axis.title = 'Дата / Смена'
         
         data_sheets = Reference(ws, min_col=3, min_row=1, max_row=row_idx-1, max_col=4)
         cats = Reference(ws, min_col=1, min_row=2, max_row=row_idx-1, max_col=2)
@@ -800,9 +728,9 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         chart_tons = BarChart()
         chart_tons.type = "col"
         chart_tons.style = 10
-        chart_tons.title = f"Р’С‹СЂР°Р±РѕС‚РєР° {line_label} (РўРѕРЅРЅС‹)"
-        chart_tons.y_axis.title = 'Р’РµСЃ (РўРѕРЅРЅС‹)'
-        chart_tons.x_axis.title = 'Р”Р°С‚Р° / РЎРјРµРЅР°'
+        chart_tons.title = f"Выработка {line_label} (Тонны)"
+        chart_tons.y_axis.title = 'Вес (Тонны)'
+        chart_tons.x_axis.title = 'Дата / Смена'
         
         data_tons = Reference(ws, min_col=5, min_row=1, max_row=row_idx-1, max_col=6)
         
@@ -820,6 +748,7 @@ def export_daily_report(request: Request, start_date: str, line: str = None, db:
         'Content-Disposition': f'attachment; filename="{filename}"'
     }
     return Response(content=out.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
 
 @router.post("/api/admin/fix_plan_boards")
 def fix_plan_boards(request: Request, db: Session = Depends(get_db)):
@@ -845,10 +774,10 @@ def fix_plan_boards(request: Request, db: Session = Depends(get_db)):
                 except:
                     pass
                     
-            if is_monday and pb.shift_name == "Р”РµРЅСЊ":
+            if is_monday and pb.shift_name == "День":
                 continue
                 
-            correct_plan = 2700 if pb.shift_name == "Р”РµРЅСЊ" else 3300
+            correct_plan = 2700 if pb.shift_name == "День" else 3300
             pb.plan_sheets = correct_plan
             updated_count += 1
             
@@ -858,7 +787,7 @@ def fix_plan_boards(request: Request, db: Session = Depends(get_db)):
                 action="UPDATE",
                 target_table="monthly_plan_board",
                 target_id=pb.id,
-                details=f"РСЃРїСЂР°РІР»РµРЅРёРµ РЅСѓР»РµРІРѕРіРѕ РїР»Р°РЅР°. РЈСЃС‚Р°РЅРѕРІР»РµРЅ РїР»Р°РЅ {correct_plan}."
+                details=f"Исправление нулевого плана. Установлен план {correct_plan}."
             )
             db.add(log_entry)
             
@@ -867,6 +796,7 @@ def fix_plan_boards(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/api/dashboard/shift_board")
 def get_shift_board(month: str, db: Session = Depends(get_db)):
@@ -888,7 +818,7 @@ def get_shift_board(month: str, db: Session = Depends(get_db)):
     board = {}
     for s in shifts:
         if not s.date: continue
-        master = s.master_name or "РќРµРёР·РІРµСЃС‚РЅС‹Р№ РјР°СЃС‚РµСЂ"
+        master = s.master_name or "Неизвестный мастер"
         if master not in board:
             board[master] = []
             
@@ -919,10 +849,11 @@ def get_shift_board(month: str, db: Session = Depends(get_db)):
         
     return board
 
+
 @router.get("/api/dashboard/export_shift")
 def export_shift(shift_id: int = None, db: Session = Depends(get_db)):
     file_bytes = excel_exporter.generate_flat_report(db)
-    filename = "РЎРІРѕРґРЅС‹Р№_РѕС‚С‡РµС‚_Tectum.xlsx"
+    filename = "Сводный_отчет_Tectum.xlsx"
     from urllib.parse import quote
     safe_filename = quote(filename)
     headers = {
@@ -934,23 +865,24 @@ def export_shift(shift_id: int = None, db: Session = Depends(get_db)):
         headers=headers
     )
 
+
 @router.post("/api/dashboard/sync_sharepoint")
 def sync_sharepoint_manually(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     user_role = request.session.get("user_role")
     
     if not user_id:
-        raise HTTPException(status_code=401, detail="Р’С‹ РЅРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅС‹")
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
     if user_role not in ["master", "admin"]:
-        raise HTTPException(status_code=403, detail="Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ. РўРѕР»СЊРєРѕ РјР°СЃС‚РµСЂ СЃРјРµРЅС‹ РёР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ РјРѕРіСѓС‚ Р·Р°РїСѓСЃРєР°С‚СЊ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЋ.")
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастер смены или администратор могут запускать синхронизацию.")
         
     try:
         file_bytes = excel_exporter.generate_flat_report(db)
-        filename = "РЎРІРѕРґРЅС‹Р№_РѕС‚С‡РµС‚_Tectum.xlsx"
+        filename = "Сводный_отчет_Tectum.xlsx"
         
         # Save locally to static folder as well
-        local_path = os.path.join("static", "РЎРІРѕРґРЅС‹Р№_РѕС‚С‡РµС‚_Tectum.xlsx")
+        local_path = os.path.join("static", "Сводный_отчет_Tectum.xlsx")
         try:
             with open(local_path, "wb") as f:
                 f.write(file_bytes)
@@ -965,16 +897,17 @@ def sync_sharepoint_manually(request: Request, db: Session = Depends(get_db)):
             action="UPDATE",
             target_table="shifts",
             target_id=0,
-            details=f"Р СѓС‡РЅР°СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РѕС‚С‡РµС‚Р° СЃ SharePoint РІС‹РїРѕР»РЅРµРЅР° СѓСЃРїРµС€РЅРѕ. РЎСЃС‹Р»РєР°: {web_url}"
+            details=f"Ручная синхронизация отчета с SharePoint выполнена успешно. Ссылка: {web_url}"
         ))
         db.commit()
-        return {"message": "РЎРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РІС‹РїРѕР»РЅРµРЅР° СѓСЃРїРµС€РЅРѕ", "url": web_url}
+        return {"message": "Синхронизация выполнена успешно", "url": web_url}
     except Exception as e:
         error_msg = str(e)
         if "423" in error_msg or "Locked" in error_msg:
-            raise HTTPException(status_code=423, detail="Р¤Р°Р№Р» РѕС‚С‡РµС‚Р° РІСЃРµ РµС‰Рµ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ РІ SharePoint (РєС‚Рѕ-С‚Рѕ РѕС‚РєСЂС‹Р» РµРіРѕ РІ Excel Online). Р—Р°РєСЂРѕР№С‚Рµ С„Р°Р№Р» Рё РїРѕРїСЂРѕР±СѓР№С‚Рµ СЃРЅРѕРІР°.")
+            raise HTTPException(status_code=423, detail="Файл отчета все еще заблокирован в SharePoint (кто-то открыл его в Excel Online). Закройте файл и попробуйте снова.")
         else:
-            raise HTTPException(status_code=500, detail=f"РћС€РёР±РєР° СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Ошибка синхронизации: {error_msg}")
+
 
 @router.post("/api/dashboard/sync_google_sheets_manual")
 def sync_google_sheets_manual(request: Request, db: Session = Depends(get_db)):
@@ -982,10 +915,10 @@ def sync_google_sheets_manual(request: Request, db: Session = Depends(get_db)):
     user_role = request.session.get("user_role")
     
     if not user_id:
-        raise HTTPException(status_code=401, detail="Р’С‹ РЅРµ Р°РІС‚РѕСЂРёР·РѕРІР°РЅС‹")
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
     if user_role not in ["master", "admin"]:
-        raise HTTPException(status_code=403, detail="Р”РѕСЃС‚СѓРї Р·Р°РїСЂРµС‰РµРЅ. РўРѕР»СЊРєРѕ РјР°СЃС‚РµСЂР° РёР»Рё Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂС‹ РјРѕРіСѓС‚ Р·Р°РїСѓСЃРєР°С‚СЊ РІС‹РіСЂСѓР·РєСѓ.")
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастера или администраторы могут запускать выгрузку.")
         
     try:
         google_sheets_integration.sync_report_to_google_sheets(db)
@@ -996,23 +929,24 @@ def sync_google_sheets_manual(request: Request, db: Session = Depends(get_db)):
             action="UPDATE",
             target_table="shifts",
             target_id=0,
-            details="Р’С‹РїРѕР»РЅРµРЅР° СЂСѓС‡РЅР°СЏ РІС‹РіСЂСѓР·РєР° СЃРІРѕРґРЅРѕРіРѕ РѕС‚С‡РµС‚Р° РІ Google РўР°Р±Р»РёС†С‹."
+            details="Выполнена ручная выгрузка сводного отчета в Google Таблицы."
         ))
         db.commit()
-        return {"message": "Р’С‹РіСЂСѓР·РєР° РІ Google РўР°Р±Р»РёС†С‹ РІС‹РїРѕР»РЅРµРЅР° СѓСЃРїРµС€РЅРѕ!"}
+        return {"message": "Выгрузка в Google Таблицы выполнена успешно!"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"РћС€РёР±РєР° РІС‹РіСЂСѓР·РєРё РІ Google: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка выгрузки в Google: {str(e)}")
+
 
 @router.get("/api/dashboard/view_archive")
 def view_archive(db: Session = Depends(get_db)):
     try:
-        url = m365_integration.get_file_web_url("РЎРІРѕРґРЅС‹Р№_РѕС‚С‡РµС‚_Tectum.xlsx", folder="Reports")
+        url = m365_integration.get_file_web_url("Сводный_отчет_Tectum.xlsx", folder="Reports")
         return RedirectResponse(url=url)
     except Exception as e:
-        print("РћС€РёР±РєР° РїРѕР»СѓС‡РµРЅРёСЏ СЃСЃС‹Р»РєРё РёР· SharePoint, РїСЂРѕР±СѓРµРј СЃРіРµРЅРµСЂРёСЂРѕРІР°С‚СЊ Рё Р·Р°РіСЂСѓР·РёС‚СЊ РѕС‚С‡РµС‚:", e)
+        print("Ошибка получения ссылки из SharePoint, пробуем сгенерировать и загрузить отчет:", e)
         try:
             file_bytes = excel_exporter.generate_flat_report(db)
-            filename = "РЎРІРѕРґРЅС‹Р№_РѕС‚С‡РµС‚_Tectum.xlsx"
+            filename = "Сводный_отчет_Tectum.xlsx"
             url = m365_integration.upload_file_to_sharepoint(file_bytes, filename, folder="Reports")
             return RedirectResponse(url=url)
         except Exception as upload_err:
@@ -1020,8 +954,9 @@ def view_archive(db: Session = Depends(get_db)):
             traceback.print_exc()
             raise HTTPException(
                 status_code=500,
-                detail=f"РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃРІРѕРґРЅС‹Р№ РѕС‚С‡РµС‚ РІ SharePoint. РћС€РёР±РєР° Р°РІС‚РѕР·Р°РіСЂСѓР·РєРё: {upload_err}. РСЃС…РѕРґРЅР°СЏ РѕС€РёР±РєР°: {e}"
+                detail=f"Не удалось открыть сводный отчет в SharePoint. Ошибка автозагрузки: {upload_err}. Исходная ошибка: {e}"
             )
+
 
 @router.get("/api/dashboard/export_week")
 def export_week(request: Request, start_date: str, db: Session = Depends(get_db)):
@@ -1049,10 +984,10 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
     
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = f"РќРµРґРµР»СЏ {sd} - {ed}"
+    ws.title = f"Неделя {sd} - {ed}"
     
-    ws.append([f"РћС‚С‡РµС‚ Р·Р° РЅРµРґРµР»СЋ СЃ {sd} РїРѕ {ed}"])
-    ws.append(["Р”Р°С‚Р°", "РЎРјРµРЅР°", "РњР°СЃС‚РµСЂ", "Р›РёРЅРёСЏ", "РџР»Р°РЅ (Р›РёСЃС‚С‹)", "Р¤Р°РєС‚ (Р›РёСЃС‚С‹)", "РџР»Р°РЅ (РўРѕРЅРЅС‹)", "Р¤Р°РєС‚ (РўРѕРЅРЅС‹)"])
+    ws.append([f"Отчет за неделю с {sd} по {ed}"])
+    ws.append(["Дата", "Смена", "Мастер", "Линия", "План (Листы)", "Факт (Листы)", "План (Тонны)", "Факт (Тонны)"])
     
     ws.column_dimensions['A'].width = 12
     ws.column_dimensions['B'].width = 8
@@ -1069,22 +1004,22 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
     ).all()
     pb_dict = {(pb.date, pb.shift_name, pb.line): pb for pb in plan_boards}
 
-    active_lines = set([s.line.replace("Р›РёРЅРёСЏ ", "Р›Р¤Рњ-") for s in shifts if s.line] + [pb.line for pb in plan_boards])
+    active_lines = set([s.line.replace("Линия ", "ЛФМ-") for s in shifts if s.line] + [pb.line for pb in plan_boards])
     if not active_lines:
-        active_lines = {"Р›Р¤Рњ-2"}
+        active_lines = {"ЛФМ-2"}
 
     for l_key in active_lines:
         last_w = get_last_produced_weight_kg(db, "1" if "1" in l_key else "2", str(sd)) / 1000.0
         for i in range(7):
             d = sd + timedelta(days=i)
-            for s_name in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
-                plan_sheets = 0 if d.weekday() == 0 and s_name == "Р”РµРЅСЊ" else (2700 if s_name == "Р”РµРЅСЊ" else 3300)
+            for s_name in ["День", "Ночь"]:
+                plan_sheets = 0 if d.weekday() == 0 and s_name == "День" else (2700 if s_name == "День" else 3300)
                 
                 pb = pb_dict.get((d, s_name, l_key))
                 if pb and pb.plan_sheets is not None:
                     plan_sheets = pb.plan_sheets
                     
-                slot_shifts = [shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Р›РёРЅРёСЏ ", "Р›Р¤Рњ-") if shift.line else "Р›Р¤Рњ-1") == l_key]
+                slot_shifts = [shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key]
                 s = slot_shifts[0] if slot_shifts else None
                 
                 show_fact = (user_role != "master" or (pb and pb.master_id == user_id) or (s and s.master_id == user_id))
@@ -1100,10 +1035,10 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
                         avg_w = last_w
                     if total_sheets == 0 and sum_lfm_sheets > 0:
                         total_sheets = sum_lfm_sheets
-                    master_name = s.master.name if s.master else "Рќ/Р”"
+                    master_name = s.master.name if s.master else "Н/Д"
                 else:
                     avg_w = last_w
-                    master_name = "Рќ/Р”" if show_fact else "РЎРјРµРЅР° РґСЂ. РјР°СЃС‚РµСЂР°"
+                    master_name = "Н/Д" if show_fact else "Смена др. мастера"
                     total_sheets = pb.fact_sheets if (pb and show_fact) else 0
                     
                 plan_tons = plan_sheets * avg_w
@@ -1115,6 +1050,7 @@ def export_week(request: Request, start_date: str, db: Session = Depends(get_db)
     
     filename = f"week_{sd}.xlsx"
     return Response(content=out.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+
 
 @router.get("/api/dashboard/weekly")
 def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get_db)):
@@ -1146,9 +1082,9 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
     ).all()
     pb_dict = {(pb.date, pb.shift_name, pb.line): pb for pb in plan_boards}
     
-    active_lines = set([s.line.replace("Р›РёРЅРёСЏ ", "Р›Р¤Рњ-") for s in shifts if s.line] + [pb.line for pb in plan_boards])
+    active_lines = set([s.line.replace("Линия ", "ЛФМ-") for s in shifts if s.line] + [pb.line for pb in plan_boards])
     if not active_lines:
-        active_lines = {"Р›Р¤Рњ-2"}
+        active_lines = {"ЛФМ-2"}
         
     data = []
     
@@ -1157,14 +1093,14 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
         for i in range(7):
             d = sd + timedelta(days=i)
             day_str = str(d)
-            for s_name in ["Р”РµРЅСЊ", "РќРѕС‡СЊ"]:
-                plan_sheets = 0 if d.weekday() == 0 and s_name == "Р”РµРЅСЊ" else (2700 if s_name == "Р”РµРЅСЊ" else 3300)
+            for s_name in ["День", "Ночь"]:
+                plan_sheets = 0 if d.weekday() == 0 and s_name == "День" else (2700 if s_name == "День" else 3300)
                 
                 pb = pb_dict.get((d, s_name, l_key))
                 if pb and pb.plan_sheets is not None:
                     plan_sheets = pb.plan_sheets
                     
-                slot_shifts = [shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Р›РёРЅРёСЏ ", "Р›Р¤Рњ-") if shift.line else "Р›Р¤Рњ-1") == l_key]
+                slot_shifts = [shift for shift in shifts if shift.date == d and shift.shift_name == s_name and (shift.line.replace("Линия ", "ЛФМ-") if shift.line else "ЛФМ-1") == l_key]
                 s = slot_shifts[0] if slot_shifts else None
                 
                 show_fact = (user_role != "master" or (pb and pb.master_id == user_id) or (s and s.master_id == user_id))
@@ -1193,12 +1129,12 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                     
                     sanitary_note = ""
                     for dt in s.downtimes:
-                        if dt.category == "РЎР°РЅРёС‚Р°СЂРЅС‹Р№ РґРµРЅСЊ":
-                            sanitary_note = "РЎР°РЅРёС‚Р°СЂРЅС‹Р№ РґРµРЅСЊ"
+                        if dt.category == "Санитарный день":
+                            sanitary_note = "Санитарный день"
                             if dt.duration:
-                                sanitary_note += f" ({dt.duration} РјРёРЅ)"
+                                sanitary_note += f" ({dt.duration} мин)"
                             break
-                    master_name = s.master.name if s.master else "Рќ/Р”"
+                    master_name = s.master.name if s.master else "Н/Д"
                     shift_id = s.id
                 else:
                     avg_w = last_w
@@ -1206,8 +1142,8 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
                     ds_defect = pb.defect if (pb and show_fact) else 0
                     qcd_first = 0
                     qcd_defect = 0
-                    sanitary_note = "РЎР°РЅРёС‚Р°СЂРЅС‹Р№ РґРµРЅСЊ (РїР»Р°РЅ 0)" if d.weekday() == 0 and s_name == "Р”РµРЅСЊ" else ("РќРµС‚ РґР°РЅРЅС‹С…" if show_fact else "РЎРјРµРЅР° РґСЂСѓРіРѕРіРѕ РјР°СЃС‚РµСЂР°")
-                    master_name = "Рќ/Р”"
+                    sanitary_note = "Санитарный день (план 0)" if d.weekday() == 0 and s_name == "День" else ("Нет данных" if show_fact else "Смена другого мастера")
+                    master_name = "Н/Д"
                     shift_id = None
                     
                 plan_tons = plan_sheets * avg_w
@@ -1236,90 +1172,6 @@ def get_weekly_json(request: Request, start_date: str, db: Session = Depends(get
         "data": data
     }
 
-
-@router.get("/api/shifts/{shift_id}/materials_report", response_model=schemas.RawMaterialReport)
-def get_materials_report(shift_id: int, db: Session = Depends(get_db)):
-    shift = db.query(models.Shift).get(shift_id)
-    if not shift:
-        raise HTTPException(404, "РЎРјРµРЅР° РЅРµ РЅР°Р№РґРµРЅР°")
-    
-    # 1. РЎС‡РёС‚Р°РµРј РїСЂРѕРёР·РІРµРґРµРЅРЅСѓСЋ РїСЂРѕРґСѓРєС†РёСЋ (Р¤РѕСЂРјРѕРІРєР°)
-    lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == shift_id).all()
-    product_counts = {}
-    for r in lfm_reports:
-        product_counts[r.product_name] = product_counts.get(r.product_name, 0) + r.lfm_sheets
-        
-    # 2. РџРѕР»СѓС‡Р°РµРј РЅРѕСЂРјС‹ РґР»СЏ СЌС‚РёС… РїСЂРѕРґСѓРєС‚РѕРІ Рё СЃС‡РёС‚Р°РµРј С‚РµРѕСЂРёСЋ
-    theoretical = {
-        "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
-        "cement": 0.0, "cellulose": 0.0, "crushed_slate": 0.0,
-        "asbozurit": 0.0, "fiberglass": 0.0
-    }
-    
-    for prod_name, sheets in product_counts.items():
-        norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == prod_name).first()
-        if norm:
-            theoretical["chrysotile_4_20"] += sheets * norm.norm_chrysotile_4_20
-            theoretical["chrysotile_5_65"] += sheets * norm.norm_chrysotile_5_65
-            theoretical["chrysotile_6_40"] += sheets * norm.norm_chrysotile_6_40
-            theoretical["cement"] += sheets * norm.norm_cement
-            theoretical["cellulose"] += sheets * norm.norm_cellulose
-            theoretical["crushed_slate"] += sheets * norm.norm_crushed_slate
-            theoretical["asbozurit"] += sheets * norm.norm_asbozurit
-            theoretical["fiberglass"] += sheets * norm.norm_fiberglass
-
-    # 3. Р¤РѕСЂРјРёСЂСѓРµРј РґРµС‚Р°Р»СЊРЅС‹Р№ РѕС‚С‡РµС‚ (Р¤Р°РєС‚ РёР· ZO - РўРµРѕСЂРёСЏ)
-    details = []
-    total_dev = 0.0
-    
-    mapping = [
-        ("РҐСЂРёР·РѕС‚РёР» 4-20", shift.zo_chrysotile_4_20, theoretical["chrysotile_4_20"]),
-        ("РҐСЂРёР·РѕС‚РёР» 5-65", shift.zo_chrysotile_5_65, theoretical["chrysotile_5_65"]),
-        ("РҐСЂРёР·РѕС‚РёР» 6-40", shift.zo_chrysotile_6_40, theoretical["chrysotile_6_40"]),
-        ("Р¦РµРјРµРЅС‚", shift.zo_cement, theoretical["cement"]),
-        ("Р¦РµР»Р»СЋР»РѕР·Р°", shift.zo_cellulose, theoretical["cellulose"]),
-        ("Р”СЂРѕР±Р»РµРЅС‹Р№ С€РёС„РµСЂ", shift.zo_crushed_slate, theoretical["crushed_slate"]),
-        ("РђСЃР±РѕР·СѓСЂРёС‚", shift.zo_asbozurit, theoretical["asbozurit"]),
-        ("РЎС‚РµРєР»РѕРІРѕР»РѕРєРЅРѕ", shift.zo_fiberglass, theoretical["fiberglass"]),
-        ("Р›Р°РїСЂРѕР»", shift.zo_laprol, 0.0),
-        ("РђСЃР±РѕРєР°СЂС‚РѕРЅ", shift.zo_asbocarton, 0.0)
-    ]
-
-    
-    total_sheets = sum(product_counts.values())
-    
-    for mat_name, actual, theory in mapping:
-        actual_val = actual or 0.0
-        theory_val = theory or 0.0
-        dev = actual_val - theory_val
-        total_dev += dev
-        
-        unit_actual = actual_val / total_sheets if total_sheets > 0 else 0.0
-        unit_theory = theory_val / total_sheets if total_sheets > 0 else 0.0
-        unit_dev = dev / total_sheets if total_sheets > 0 else 0.0
-        
-        details.append({
-            "material": mat_name,
-            "actual": round(actual_val, 2),
-            "theoretical": round(theory_val, 2),
-            "deviation": round(dev, 2),
-            "unit_actual": round(unit_actual, 4),
-            "unit_theoretical": round(unit_theory, 4),
-            "unit_deviation": round(unit_dev, 4)
-        })
-        
-    return {
-        "shift_id": shift_id,
-        "total_deviation_kg": round(total_dev, 2),
-        "details": details
-    }
-
-
-
-
-# ==========================================
-# DASHBOARD STATS & SUMMARIES
-# ==========================================
 
 @router.get("/api/dashboard/stats")
 def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
@@ -1427,7 +1279,6 @@ def get_dashboard_stats(request: Request, db: Session = Depends(get_db)):
             "top_reasons": top_reasons
         }
     }
-
 
 
 @router.get("/api/report/summary")
@@ -1709,6 +1560,3 @@ def get_materials_summary(
         "totals": totals,
         "daily": daily_breakdown
     }
-
-
-

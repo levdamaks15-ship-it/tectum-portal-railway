@@ -16,9 +16,20 @@ import models
 import schemas
 from database import SessionLocal
 import excel_exporter
-import m365_integration
-import google_sheets_integration
-import telegram_service
+try:
+    import m365_integration
+except ImportError:
+    m365_integration = None
+
+try:
+    import google_sheets_integration
+except ImportError:
+    google_sheets_integration = None
+
+try:
+    import telegram_service
+except ImportError:
+    telegram_service = None
 
 from routers.common import (
     get_db,
@@ -174,10 +185,14 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
         import calendar
 
         # Определение года и месяца
+        from datetime import timezone
+        tz_kz = timezone(timedelta(hours=5))
+        now_kz = datetime.now(tz_kz)
+        current_today_str = now_kz.strftime("%Y-%m-%d")
+        current_month_str = now_kz.strftime("%Y-%m")
+
         if not month:
-            from datetime import timezone
-            tz_kz = timezone(timedelta(hours=5))
-            month = datetime.now(tz_kz).strftime("%Y-%m")
+            month = current_month_str
             
         y_str, m_str = month.split("-")
         year = int(y_str)
@@ -186,6 +201,9 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
         
         start_date = f"{year:04d}-{month_num:02d}-01"
         end_date = f"{year:04d}-{month_num:02d}-{days_in_month:02d}"
+        
+        is_current_month = (month == current_month_str)
+        is_future_month = (month > current_month_str)
 
         # 1. Извлекаем рапорты за месяц
         shifts = db.query(models.Shift).filter(
@@ -253,6 +271,10 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
             entry = entry_map.get(d_display_str)
             dow = entry.day_of_week if entry else ""
 
+            # Проверка, наступила ли уже дата
+            is_past = d_date_str < current_today_str
+            is_today = d_date_str == current_today_str
+
             # Обрабатываем День и Ночь
             for s_name in ['День', 'Ночь']:
                 plan = 2700 if s_name == 'День' else 3300
@@ -277,27 +299,39 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
                             crew_num = c_idx
                             break
 
-                is_met = fact_lfm >= plan
+                # Смена считается наступившей / завершенной (elapsed):
+                # 1) Для прошлых месяцев - все смены наступили
+                # 2) Для текущего месяца - если дата раньше сегодняшней, либо сегодня и есть факт выработки
+                is_elapsed = (not is_current_month and not is_future_month) or is_past or (is_today and fact_lfm > 0)
+                is_future = not is_elapsed
+
+                is_met = fact_lfm >= plan if is_elapsed else False
                 diff = fact_lfm - plan
 
-                if crew_num:
-                    c_stat = crew_stats[crew_num]
-                    c_stat["total_shifts"] += 1
-                    c_stat["total_lfm"] += fact_lfm
-                    if s_name == 'День':
-                        c_stat["day_shifts"] += 1
-                        if is_met: c_stat["day_met"] += 1
-                    else:
-                        c_stat["night_shifts"] += 1
-                        if is_met: c_stat["night_met"] += 1
+                if is_elapsed:
+                    if crew_num:
+                        c_stat = crew_stats[crew_num]
+                        c_stat["total_shifts"] += 1
+                        c_stat["total_lfm"] += fact_lfm
+                        if s_name == 'День':
+                            c_stat["day_shifts"] += 1
+                            if is_met: c_stat["day_met"] += 1
+                        else:
+                            c_stat["night_shifts"] += 1
+                            if is_met: c_stat["night_met"] += 1
 
+                        if is_met:
+                            c_stat["met_count"] += 1
+
+                    total_shifts_factory += 1
+                    total_lfm_factory += fact_lfm
                     if is_met:
-                        c_stat["met_count"] += 1
-
-                total_shifts_factory += 1
-                total_lfm_factory += fact_lfm
-                if is_met:
-                    total_met_factory += 1
+                        total_met_factory += 1
+                else:
+                    if crew_num and fact_lfm > 0:
+                        crew_stats[crew_num]["total_lfm"] += fact_lfm
+                    if fact_lfm > 0:
+                        total_lfm_factory += fact_lfm
 
                 days_data.append({
                     "date": d_date_str,
@@ -311,6 +345,7 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
                     "plan": plan,
                     "diff": diff,
                     "is_met": is_met,
+                    "is_future": is_future,
                     "master": masters,
                     "products": products,
                     "batches": batches
