@@ -4134,23 +4134,31 @@
                 iconEl.style.color = iconInfo.color;
             }
 
-            // На мобильных устройствах открываем PDF на весь экран в новой вкладке (нативный полностраничный просмотр в iOS Safari / Android Chrome)
+            // Определение источника предпросмотра
             const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            if (isMobile) {
-                window.open(downloadUrl, '_blank');
-                return;
-            }
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
-            // Определение источника предпросмотра на десктопе
-            if (nameLower.endsWith('.pdf') || nameLower.endsWith('.txt')) {
-                // Прямой полноразмерный просмотр PDF в браузере
+            if (nameLower.endsWith('.pdf')) {
+                let previewSrc = downloadUrl;
+                // На Android и мобильных устройствах вне localhost используем Google Docs Viewer для онлайн чтения без диалога скачивания
+                if (isMobile && !isLocalhost) {
+                    const fullDocUrl = window.location.origin + downloadUrl;
+                    previewSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(fullDocUrl)}&embedded=true`;
+                }
+
+                if (iframe) {
+                    iframe.style.display = 'block';
+                    iframe.src = previewSrc;
+                }
+                if (fallback) fallback.style.display = 'none';
+            } else if (nameLower.endsWith('.txt')) {
                 if (iframe) {
                     iframe.style.display = 'block';
                     iframe.src = downloadUrl;
                 }
                 if (fallback) fallback.style.display = 'none';
             } else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc') || nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.pptx')) {
-                const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
                 if (!isLocalhost) {
                     const fullDocUrl = window.location.origin + downloadUrl;
                     const officeViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(fullDocUrl)}`;
@@ -4171,7 +4179,12 @@
             const newTabBtn = document.getElementById('preview-modal-newtab-btn');
             if (newTabBtn) {
                 newTabBtn.onclick = () => {
-                    window.open(downloadUrl, '_blank');
+                    if (isMobile && !isLocalhost && nameLower.endsWith('.pdf')) {
+                        const fullDocUrl = window.location.origin + downloadUrl;
+                        window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fullDocUrl)}`, '_blank');
+                    } else {
+                        window.open(downloadUrl, '_blank');
+                    }
                 };
             }
 
