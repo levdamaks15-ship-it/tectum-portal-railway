@@ -743,6 +743,15 @@ class BulkTasksCreate(ORMBaseModel):
     target_quarter: Optional[str] = ""
     default_due_date_str: Optional[str] = ""
 
+class BulkTaskStatusUpdate(ORMBaseModel):
+    task_ids: List[int]
+    status: str
+    comment: Optional[str] = ""
+    move_to_next_week: Optional[bool] = False
+    next_month_label: Optional[str] = ""
+    next_week_label: Optional[str] = ""
+    pin_code: Optional[str] = None
+
 class TaskUpdate(ORMBaseModel):
     code: Optional[str] = None
     zone: Optional[str] = None

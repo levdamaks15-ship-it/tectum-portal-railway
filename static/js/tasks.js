@@ -51,6 +51,9 @@ let targetHighlightTaskId = null;
 let currentPlannerUser = null; // { name: string, pin: string }
 let pendingAuthCallback = null;
 
+// Выделенные задачи в службах (Multi-Select)
+let selectedServiceTaskIds = new Set();
+
 document.addEventListener("DOMContentLoaded", async () => {
     initPlannerSession();
     await loadCalendarStructure();
@@ -795,6 +798,7 @@ function switchHorizon(horizon, event) {
         }
     }
     currentHorizon = horizon;
+    clearServicesSelection();
     if (window.location.hash !== `#${horizon}`) {
         history.replaceState(null, '', `#${horizon}`);
     }
@@ -1561,9 +1565,175 @@ function populateDropdowns() {
 }
 
 
+function toggleSelectServiceTask(taskId, isChecked) {
+    if (isChecked) {
+        selectedServiceTaskIds.add(taskId);
+    } else {
+        selectedServiceTaskIds.delete(taskId);
+    }
+    const row = document.getElementById(`task-row-${taskId}`);
+    if (row) {
+        row.classList.toggle('task-row-selected', isChecked);
+    }
+    updateServicesBulkBar();
+}
+
+function toggleSelectAllServices(isChecked) {
+    const isServicesMode = currentHorizon === 'services';
+    if (!isServicesMode) return;
+
+    allTasks.forEach(t => {
+        const isLocked = (t.status && (t.status.includes("Выполнено") || t.status.includes("Отменено")));
+        if (!isLocked) {
+            if (isChecked) {
+                selectedServiceTaskIds.add(t.id);
+            } else {
+                selectedServiceTaskIds.delete(t.id);
+            }
+            const row = document.getElementById(`task-row-${t.id}`);
+            if (row) {
+                row.classList.toggle('task-row-selected', isChecked);
+                const cb = row.querySelector('.task-row-checkbox');
+                if (cb) cb.checked = isChecked;
+            }
+        }
+    });
+    updateServicesBulkBar();
+}
+
+function updateServicesBulkBar() {
+    const bar = document.getElementById("services-bulk-bar");
+    const countSpan = document.getElementById("services-selected-count");
+    const masterCb = document.getElementById("th-select-all-services");
+
+    const count = selectedServiceTaskIds.size;
+    if (countSpan) countSpan.textContent = count;
+
+    if (bar) {
+        bar.style.display = (count > 0 && currentHorizon === 'services') ? 'flex' : 'none';
+    }
+
+    if (masterCb) {
+        const unlockTasks = allTasks.filter(t => !(t.status && (t.status.includes("Выполнено") || t.status.includes("Отменено"))));
+        masterCb.checked = unlockTasks.length > 0 && unlockTasks.every(t => selectedServiceTaskIds.has(t.id));
+    }
+}
+
+function clearServicesSelection() {
+    selectedServiceTaskIds.clear();
+    const checkboxes = document.querySelectorAll('.task-row-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    const rows = document.querySelectorAll('.task-row-selected');
+    rows.forEach(r => r.classList.remove('task-row-selected'));
+    const masterCb = document.getElementById("th-select-all-services");
+    if (masterCb) masterCb.checked = false;
+    updateServicesBulkBar();
+}
+
+async function executeServicesBulkStatus(newStatus) {
+    const taskIds = Array.from(selectedServiceTaskIds);
+    if (taskIds.length === 0) {
+        alert("Пожалуйста, выберите хотя бы одну задачу!");
+        return;
+    }
+
+    const actionTitle = newStatus.includes("Выполнено") ? "завершить" : (newStatus.includes("Отменено") ? "отменить" : "изменить статус для");
+    const confirmAction = confirm(`Вы уверены, что хотите ${actionTitle} ${taskIds.length} задач?`);
+    if (!confirmAction) return;
+
+    // Определяем автора для проверки PIN (если необходимо)
+    const firstTask = allTasks.find(t => t.id === taskIds[0]);
+    const authorUser = firstTask ? (firstTask.author_name || firstTask.assignee_name) : null;
+
+    ensureUserAuthorized(authorUser, async (authSession) => {
+        try {
+            const payload = {
+                task_ids: taskIds,
+                status: newStatus,
+                comment: newStatus.includes("Выполнено") ? "Выполнено" : "",
+                pin_code: authSession ? authSession.pin : ""
+            };
+
+            const res = await fetch("/api/tasks/bulk_status", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                showToast(`Успешно обновлено: ${data.updated_count} задач 🚀`);
+                clearServicesSelection();
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка массового обновления: " + (err.detail || "Не удалось сохранить"));
+            }
+        } catch (e) {
+            console.error("Bulk status update error:", e);
+            alert("Ошибка сети при массовом обновлении задач");
+        }
+    });
+}
+
+async function executeServicesBulkMove() {
+    const taskIds = Array.from(selectedServiceTaskIds);
+    if (taskIds.length === 0) {
+        alert("Пожалуйста, выберите хотя бы одну задачу!");
+        return;
+    }
+
+    const next = getNextCalendarWeek();
+    const confirmMove = confirm(`Перенести ${taskIds.length} задач на «${next.week}» (${next.month})?`);
+    if (!confirmMove) return;
+
+    const firstTask = allTasks.find(t => t.id === taskIds[0]);
+    const authorUser = firstTask ? (firstTask.author_name || firstTask.assignee_name) : null;
+
+    ensureUserAuthorized(authorUser, async (authSession) => {
+        try {
+            const payload = {
+                task_ids: taskIds,
+                status: "🔵 Перенесено",
+                comment: `Перенесено на ${next.week}`,
+                move_to_next_week: true,
+                next_month_label: next.month,
+                next_week_label: next.week,
+                pin_code: authSession ? authSession.pin : ""
+            };
+
+            const res = await fetch("/api/tasks/bulk_status", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                showToast(`Задачи (${data.updated_count} шт.) перенесены на ${next.week} 🚀`);
+                clearServicesSelection();
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка массового переноса: " + (err.detail || "Не удалось перенести"));
+            }
+        } catch (e) {
+            console.error("Bulk move error:", e);
+            alert("Ошибка сети при переносе задач");
+        }
+    });
+}
+
 function renderTasksTable(tasks) {
     const tableBody = document.getElementById("tasks-table-body");
     if (!tableBody) return;
+
+    // Управление видимостью чекбокса в шапке
+    const masterCb = document.getElementById("th-select-all-services");
+    if (masterCb) {
+        masterCb.style.display = (currentHorizon === 'services') ? 'inline-block' : 'none';
+    }
+    updateServicesBulkBar();
 
     if (!tasks || tasks.length === 0) {
         tableBody.innerHTML = `
@@ -1691,10 +1861,19 @@ function renderTasksTable(tasks) {
             </div>
         ` : `<span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>`;
 
+        const isServicesMode = currentHorizon === 'services';
+        const isChecked = selectedServiceTaskIds.has(t.id);
+        const checkboxHtml = isServicesMode ? `
+            <input type="checkbox" class="task-row-checkbox" ${isLocked ? 'disabled' : ''} ${isChecked ? 'checked' : ''} onchange="toggleSelectServiceTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; margin-right: 4px;" title="Выбрать задачу">
+        ` : '';
+
         return `
-            <tr id="task-row-${t.id}" class="${rowExtraClass}">
-                <td>
-                    <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
+            <tr id="task-row-${t.id}" class="${rowExtraClass} ${isChecked ? 'task-row-selected' : ''}">
+                <td style="white-space: nowrap;">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        ${checkboxHtml}
+                        <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
+                    </div>
                     ${backlogBadge}
                     ${crossWeekBadge}
                 </td>
@@ -2009,8 +2188,40 @@ async function quickUpdateStatus(taskId, newStatus) {
     const oldStatus = task ? (task.status || "⚪ В очереди") : "⚪ В очереди";
     previousTaskStatus[taskId] = oldStatus;
 
-    // 1. Если выбрали "Выполнено" — требуем подтверждения факта через модальное окно
+    // 1. Если выбрали "Выполнено":
     if (newStatus === "🟢 Выполнено") {
+        // Для служб (ОГЭ / ОГМ) — экспресс-завершение без бюрократии!
+        const isServiceTask = (task && task.task_type === 'service_plan') || (currentHorizon === 'services');
+        if (isServiceTask) {
+            const requiredUser = task ? (task.assignee_name || task.author_name) : null;
+            ensureUserAuthorized(requiredUser, async (authSession) => {
+                try {
+                    const res = await fetch(`/api/tasks/${taskId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            status: "🟢 Выполнено",
+                            comment: task.comment || "Выполнено",
+                            pin_code: authSession ? authSession.pin : ""
+                        })
+                    });
+                    if (res.ok) {
+                        showToast("Задача службы выполнена! 🎯");
+                        loadTasks();
+                    } else {
+                        const err = await res.json();
+                        alert("Ошибка: " + (err.detail || "Не удалось завершить задачу"));
+                        restoreSelectValue(taskId);
+                    }
+                } catch (e) {
+                    console.error("Error completing service task:", e);
+                    restoreSelectValue(taskId);
+                }
+            });
+            return;
+        }
+
+        // Для обычного спринта (Бережливое производство) — строгое подтверждение факта и фото
         openCompleteTaskModal(taskId);
         return;
     }

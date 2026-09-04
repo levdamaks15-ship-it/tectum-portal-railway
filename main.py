@@ -9961,6 +9961,75 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
         print(f"Error bulk creating tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/tasks/bulk_status")
+def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Массовое обновление статусов пачки задач (для служб ОГЭ / ОГМ) в одной транзакции."""
+    try:
+        task_ids = payload.task_ids or []
+        if not task_ids:
+            raise HTTPException(status_code=400, detail="Список задач пуст")
+
+        tasks = db.query(models.Task).filter(models.Task.id.in_(task_ids)).all()
+        if not tasks:
+            raise HTTPException(status_code=404, detail="Задачи не найдены")
+
+        new_status = payload.status
+        comment_text = (payload.comment or "").strip()
+        move_next = payload.move_to_next_week or False
+        next_month = (payload.next_month_label or "").strip()
+        next_week = (payload.next_week_label or "").strip()
+
+        parent_ids_to_recalc = set()
+        updated_codes = []
+
+        for task in tasks:
+            task.status = new_status
+            if comment_text:
+                task.comment = comment_text
+            elif new_status == "🟢 Выполнено" and not task.comment:
+                task.comment = "Выполнено"
+
+            if move_next and next_week:
+                task.week_label = next_week
+                if next_month:
+                    task.month_label = next_month
+
+            task.updated_at = datetime.utcnow()
+            if task.parent_id:
+                parent_ids_to_recalc.add(task.parent_id)
+            updated_codes.append(task.code or f"TSK-{task.id}")
+
+        for p_id in parent_ids_to_recalc:
+            recalculate_parent_task_progress(db, p_id)
+
+        # Единая запись в AuditLog
+        user_label = tasks[0].assignee_name or tasks[0].author_name or "Планнер"
+        action_desc = f"Массовое изменение статуса на «{new_status}» для {len(tasks)} задач ({', '.join(updated_codes[:8])}{'...' if len(updated_codes) > 8 else ''})"
+        if move_next and next_week:
+            action_desc += f", перенесены на {next_week}"
+
+        db.add(models.AuditLog(
+            user_name=user_label,
+            action="UPDATE",
+            target_table="tasks",
+            target_id=tasks[0].id,
+            details=action_desc
+        ))
+
+        db.commit()
+
+        return {
+            "status": "ok",
+            "updated_count": len(tasks),
+            "new_status": new_status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error bulk updating task status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.put("/api/tasks/{task_id}")
 def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Обновляет задачу, пересчитывает связи и отправляет уведомления."""

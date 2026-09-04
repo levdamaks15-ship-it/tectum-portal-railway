@@ -1326,7 +1326,10 @@
                 overflow-wrap: break-word !important;
                 word-break: normal !important;
             }
-            /* Скрываем столбец Фото (5-й) и Действия (последний) */
+            /* Скрываем столбец Фото (5-й) и Действия (последний), а также чекбоксы и тулбар */
+            #services-bulk-bar,
+            #th-select-all-services,
+            .task-row-checkbox,
             .planner-table th:nth-child(5),
             .planner-table td:nth-child(5),
             .planner-table th:last-child,
@@ -1657,6 +1660,27 @@
         </div>
     </div>
 
+    <!-- Floating Batch Actions Toolbar for Services -->
+    <div id="services-bulk-bar" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 1050; background: #0f172a; color: #ffffff; padding: 0.65rem 1.25rem; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); align-items: center; gap: 0.85rem; border: 1px solid #334155;">
+        <div style="font-size: 0.85rem; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-check-double" style="color: #38bdf8;"></i>
+            <span>Выбрано: <span id="services-selected-count" style="color: #38bdf8;">0</span></span>
+        </div>
+        <div style="height: 18px; width: 1px; background: #334155;"></div>
+        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🟢 Выполнено')" style="background: #10b981; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;" title="Завершить все выбранные задачи">
+            <i class="fa-solid fa-check"></i> <span>Выполнить</span>
+        </button>
+        <button type="button" class="btn-action" onclick="executeServicesBulkMove()" style="background: #3b82f6; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;" title="Перенести все выбранные задачи на следующую неделю">
+            <i class="fa-solid fa-arrow-right"></i> <span>На след. неделю</span>
+        </button>
+        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🔴 Отменено')" style="background: #ef4444; color: #fff; font-size: 0.8rem; padding: 5px 10px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;" title="Отменить выбранные задачи">
+            <i class="fa-solid fa-xmark"></i> <span>Отменить</span>
+        </button>
+        <button type="button" onclick="clearServicesSelection()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0 4px; display: flex; align-items: center;" title="Снять выделение">
+            &times;
+        </button>
+    </div>
+
     <!-- Main Container: Table (Weekly / Services) + Cards + Roadmaps Tree -->
     <main class="table-container">
         <!-- 1. Weekly & Services Table (Desktop/Print) -->
@@ -1664,7 +1688,12 @@
             <table class="planner-table">
                 <thead>
                     <tr>
-                        <th style="width: 70px;">ID</th>
+                        <th style="width: 75px;" id="th-col-id">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <input type="checkbox" id="th-select-all-services" onchange="toggleSelectAllServices(this.checked)" style="display: none; cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать все задачи">
+                                <span>ID</span>
+                            </div>
+                        </th>
                         <th style="width: 150px;">
                             <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
                             <select class="select-filter" id="table-filter-zone" onchange="syncDesktopFilter('zone', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
