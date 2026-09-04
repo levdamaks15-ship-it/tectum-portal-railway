@@ -654,9 +654,11 @@ def generate_full_backup_excel(db: Session) -> bytes:
     # -------------------------------------------------------------
     ws3 = wb.create_sheet(title="Простои")
     ws3.views.sheetView[0].showGridLines = True
+    ws3.freeze_panes = "H2"  # Закрепление 1 строки и столбцов A-G (от даты до длительности включительно)
     headers3 = [
         "Дата", "Смена", "Линия", "Мастер",
-        "Описание простоя", "Начало", "Конец", "Длительность (мин)",
+        "Начало", "Конец", "Длительность (мин)",
+        "Описание простоя",
         "Остановка оборудования"
     ]
     ws3.append(headers3)
@@ -686,10 +688,10 @@ def generate_full_backup_excel(db: Session) -> bytes:
             shift_name_val,
             line_val,
             master_val,
-            desc_text,
             d.start_time or "",
             d.end_time or "",
             d.duration or 0,
+            desc_text,
             "Да" if d.is_equipment_downtime else "Нет"
         ]
         ws3.append(row)
@@ -697,7 +699,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
         for col_idx in range(1, len(headers3) + 1):
             cell = ws3.cell(row=curr_row, column=col_idx)
             cell.border = border_thin
-            if col_idx in [1, 2, 3, 4, 5]:
+            if col_idx in [1, 2, 3, 4, 8]:
                 cell.alignment = Alignment(horizontal="left")
             else:
                 cell.alignment = Alignment(horizontal="center")
@@ -715,6 +717,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
     # -------------------------------------------------------------
     ws4 = wb.create_sheet(title="Переборка")
     ws4.views.sheetView[0].showGridLines = True
+    ws4.freeze_panes = "G2"  # Закрепление 1 строки и столбцов A:F (№ партии ... Продукт)
     headers4 = [
         "№ партии", "Дата", "День нед.", "Время смены", "Мастер ЛФМ", "Продукт", "Формовка, шт",
         "Смена", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
@@ -733,8 +736,16 @@ def generate_full_backup_excel(db: Session) -> bytes:
     all_schedules = {s.date_str: s for s in db.query(models.ShiftScheduleEntry).all()}
     shifts_lookup = {(s.date.strftime("%Y-%m-%d") if s.date else "", s.shift_name, s.line): s for s in db.query(models.Shift).all()}
     
+    from sqlalchemy import case, cast, Integer
     batches = db.query(models.Batch).join(models.Shift).order_by(
-        models.Shift.date.asc(), models.Batch.batch_number.asc()
+        models.Shift.date.asc(),
+        case(
+            (models.Shift.shift_name.ilike('%день%'), 1),
+            (models.Shift.shift_name.ilike('%ночь%'), 2),
+            else_=3
+        ).asc(),
+        cast(models.Batch.batch_number, Integer).asc(),
+        models.Batch.id.asc()
     ).all()
     
     days_map = {0: "Пн", 1: "Вт", 2: "Ср", 3: "Чт", 4: "Пт", 5: "Сб", 6: "Вс"}
@@ -966,6 +977,10 @@ def restore_from_backup_excel(file_bytes: bytes, db: Session, user_name: str = "
     # 2. Простои
     if "Простои" in wb.sheetnames:
         ws = wb["Простои"]
+        # Определяем порядок колонок по шапке (поддержка старого и нового формата)
+        header_row = [str(ws.cell(row=1, column=c).value or "").strip().lower() for c in range(1, 10)]
+        is_new_layout = ("начало" in header_row[4] if len(header_row) > 4 else False) or ("время начала" in header_row[4] if len(header_row) > 4 else False)
+
         for row_idx in range(2, ws.max_row + 1):
             date_val = ws.cell(row=row_idx, column=1).value
             if not date_val: continue
@@ -983,11 +998,21 @@ def restore_from_backup_excel(file_bytes: bytes, db: Session, user_name: str = "
             s_name = str(ws.cell(row=row_idx, column=2).value or "").strip()
             line = str(ws.cell(row=row_idx, column=3).value or "").strip()
             m_name = str(ws.cell(row=row_idx, column=4).value or "").strip()
-            desc = str(ws.cell(row=row_idx, column=5).value or "").strip()
-            start_t = str(ws.cell(row=row_idx, column=6).value or "").strip()
-            end_t = str(ws.cell(row=row_idx, column=7).value or "").strip()
-            dur = int(float(ws.cell(row=row_idx, column=8).value or 0))
-            is_eq = (str(ws.cell(row=row_idx, column=9).value or "").strip().lower() == "да")
+            
+            if is_new_layout:
+                # Новый порядок: Дата, Смена, Линия, Мастер, Начало, Конец, Длительность, Описание, Остановка оборудования
+                start_t = str(ws.cell(row=row_idx, column=5).value or "").strip()
+                end_t = str(ws.cell(row=row_idx, column=6).value or "").strip()
+                dur = int(float(ws.cell(row=row_idx, column=7).value or 0))
+                desc = str(ws.cell(row=row_idx, column=8).value or "").strip()
+                is_eq = (str(ws.cell(row=row_idx, column=9).value or "").strip().lower() == "да")
+            else:
+                # Прежний порядок: Дата, Смена, Линия, Мастер, Описание, Начало, Конец, Длительность, Остановка оборудования
+                desc = str(ws.cell(row=row_idx, column=5).value or "").strip()
+                start_t = str(ws.cell(row=row_idx, column=6).value or "").strip()
+                end_t = str(ws.cell(row=row_idx, column=7).value or "").strip()
+                dur = int(float(ws.cell(row=row_idx, column=8).value or 0))
+                is_eq = (str(ws.cell(row=row_idx, column=9).value or "").strip().lower() == "да")
             
             master_id = None
             if m_name:

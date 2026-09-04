@@ -1066,12 +1066,12 @@ def export_downtimes_to_google_sheets(db: Session):
 
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
 
-    # 2. Формируем заголовки
+    # 2. Формируем заголовки: время идет сразу после мастера
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
+        "Время начала", "Время окончания", "Длительность (мин)",
         "Простой / Описание",
-        "Время начала", "Время окончания",
-        "Длительность (мин)", "Остановка оборудования"
+        "Остановка оборудования"
     ]
 
     # 3. Собираем данные из БД — все простои с информацией о смене
@@ -1098,10 +1098,10 @@ def export_downtimes_to_google_sheets(db: Session):
             shift_name_val,
             line_val,
             master_val,
-            desc_text,
             d.start_time or "",
             d.end_time or "",
             d.duration or 0,
+            desc_text,
             "Да" if d.is_equipment_downtime else "Нет"
         ]
         rows_data.append(row)
@@ -1126,16 +1126,17 @@ def export_downtimes_to_google_sheets(db: Session):
 
     requests = []
 
-    # Закрепляем первую строку (шапку)
+    # Закрепляем первую строку (шапку) и первые 7 колонок (Дата ... Длительность)
     requests.append({
         "updateSheetProperties": {
             "properties": {
                 "sheetId": sheet_id,
                 "gridProperties": {
-                    "frozenRowCount": 1
+                    "frozenRowCount": 1,
+                    "frozenColumnCount": 7
                 }
             },
-            "fields": "gridProperties.frozenRowCount"
+            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
         }
     })
 
@@ -1228,7 +1229,7 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Выравнивание колонок 3-4 (Мастер, Простой / Описание) по левому краю
+    # Выравнивание колонки 3 (Мастер) по левому краю
     requests.append({
         "repeatCell": {
             "range": {
@@ -1236,7 +1237,7 @@ def export_downtimes_to_google_sheets(db: Session):
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
                 "startColumnIndex": 3,
-                "endColumnIndex": 5
+                "endColumnIndex": 4
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1247,15 +1248,15 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Выравнивание колонок 5-6 (Время начала, Время окончания) по центру
+    # Выравнивание колонок 4-5 (Время начала, Время окончания) по центру
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 5,
-                "endColumnIndex": 7
+                "startColumnIndex": 4,
+                "endColumnIndex": 6
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1266,15 +1267,15 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Форматирование колонки 7 (Длительность) как ЧИСЛО (#,##0, RIGHT)
+    # Форматирование колонки 6 (Длительность) как ЧИСЛО (#,##0, RIGHT)
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 7,
-                "endColumnIndex": 8
+                "startColumnIndex": 6,
+                "endColumnIndex": 7
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1286,6 +1287,25 @@ def export_downtimes_to_google_sheets(db: Session):
                 }
             },
             "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+        }
+    })
+
+    # Выравнивание колонки 7 (Простой / Описание) по левому краю
+    requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": max(total_rows, 2),
+                "startColumnIndex": 7,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "LEFT"
+                }
+            },
+            "fields": "userEnteredFormat.horizontalAlignment"
         }
     })
 
@@ -1379,13 +1399,24 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     ]
     
     from datetime import date
+    from sqlalchemy import case, cast, Integer
     # Фильтруем записи с 1 сентября 2026 года (начало нового формата ведения)
+    # Сортируем строго хронологически: Дата -> Смена (День раньше Ночи) -> Номер партии (числовой) -> id
     start_filter_date = date(2026, 9, 1)
     batches = (
         db.query(models.Batch)
         .join(models.Shift)
         .filter(models.Shift.date >= start_filter_date)
-        .order_by(models.Shift.date.asc(), models.Batch.batch_number.asc())
+        .order_by(
+            models.Shift.date.asc(),
+            case(
+                (models.Shift.shift_name.ilike('%день%'), 1),
+                (models.Shift.shift_name.ilike('%ночь%'), 2),
+                else_=3
+            ).asc(),
+            cast(models.Batch.batch_number, Integer).asc(),
+            models.Batch.id.asc()
+        )
         .all()
     )
     
@@ -1523,16 +1554,17 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     has_basic_filter = "basicFilter" in sheet_meta
 
     requests = [
-        # Фиксация строки заголовка
+        # Фиксация строки заголовка (1) и колонок A:F (6)
         {
             "updateSheetProperties": {
                 "properties": {
                     "sheetId": sheet_id,
                     "gridProperties": {
-                        "frozenRowCount": 1
+                        "frozenRowCount": 1,
+                        "frozenColumnCount": 6
                     }
                 },
-                "fields": "gridProperties.frozenRowCount"
+                "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
             }
         },
         # Фиксированная компактная высота шапки (28px)
