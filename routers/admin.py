@@ -337,6 +337,13 @@ def trigger_full_google_sync_endpoint(
 
 
 
+@router.get("/api/norms/", response_model=list[schemas.ProductNorm])
+@router.get("/api/norms", response_model=list[schemas.ProductNorm])
+@router.get("/api/admin/norms/", response_model=list[schemas.ProductNorm])
+@router.get("/api/admin/norms", response_model=list[schemas.ProductNorm])
+def get_product_norms(db: Session = Depends(get_db)):
+    return db.query(models.ProductNorm).order_by(models.ProductNorm.id.asc()).all()
+
 @router.post("/api/admin/norms/", response_model=schemas.ProductNorm)
 def create_norm(norm: schemas.ProductNormCreate, db: Session = Depends(get_db)):
     db_norm = models.ProductNorm(**norm.model_dump())
