@@ -266,9 +266,35 @@ function recalcTonsAndGrades() {
     const sheets = parseFloat(document.getElementById('rep-sheets')?.value) || 0;
     const prodName = document.getElementById('rep-product')?.value || '';
     
-    // Strict exact matching to find correct product norm (fixes the 3500*980 bug)
-    const norm = productNorms[prodName];
-    const weight = norm ? norm.weight_kg : 19.6;
+    // Strict exact matching with aliases to find correct product norm
+    let norm = productNorms[prodName];
+    if (!norm) {
+        if (prodName === 'Шифер 7 волн гладкий') norm = productNorms['Шифер 7 волн глад'];
+        else if (prodName === 'Шифер 7 волн глад') norm = productNorms['Шифер 7 волн гладкий'];
+        else if (prodName === 'Шифер 8 волн гладкий') norm = productNorms['Шифер 8 волн глад'];
+        else if (prodName === 'Шифер 8 волн глад') norm = productNorms['Шифер 8 волн гладкий'];
+    }
+    
+    let weight = norm ? norm.weight_kg : null;
+    if (!weight) {
+        const p = (prodName || '').toLowerCase();
+        if (p.includes('7 волн 3500') || p.includes('3500*980')) {
+            weight = 34.14;
+        } else if (p.includes('7 волн')) {
+            weight = 17.07;
+        } else if (p.includes('плоский 10')) {
+            weight = 34.99;
+        } else if (p.includes('плоский 8')) {
+            weight = 27.99;
+        } else if (p.includes('плоский 6')) {
+            weight = 21.00;
+        } else if (p.includes('рп')) {
+            weight = 17.43;
+        } else {
+            weight = 19.6;
+        }
+    }
+    
     const kgs = sheets * weight;
     const tons = kgs / 1000;
     
@@ -730,6 +756,15 @@ async function loadProductNorms() {
             productNorms = {};
             norms.forEach(n => {
                 productNorms[n.product_name] = n;
+                if (n.product_name === 'Шифер 7 волн глад' && !productNorms['Шифер 7 волн гладкий']) {
+                    productNorms['Шифер 7 волн гладкий'] = n;
+                } else if (n.product_name === 'Шифер 7 волн гладкий' && !productNorms['Шифер 7 волн глад']) {
+                    productNorms['Шифер 7 волн глад'] = n;
+                } else if (n.product_name === 'Шифер 8 волн глад' && !productNorms['Шифер 8 волн гладкий']) {
+                    productNorms['Шифер 8 волн гладкий'] = n;
+                } else if (n.product_name === 'Шифер 8 волн гладкий' && !productNorms['Шифер 8 волн глад']) {
+                    productNorms['Шифер 8 волн глад'] = n;
+                }
             });
         }
     } catch(e) {

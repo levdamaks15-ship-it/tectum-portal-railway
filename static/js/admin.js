@@ -1925,11 +1925,46 @@ async function deleteDowntimeDirEntry(id) {
     }
 }
 
+async function exportNormsToGoogle() {
+    const btn = document.getElementById('btn-export-norms-google');
+    const originalText = btn ? btn.innerHTML : '';
+    
+    if (!confirm("Выгрузить все нормы продукции из Админки в Google Таблицу на лист 'Нормативы'? Это обновит таблицу Google актуальными данными.")) {
+        return;
+    }
+    
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...';
+        }
+        
+        const res = await fetch('/api/norms/export_to_google', {
+            method: 'POST'
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || "Нормативы успешно выгружены в Google Таблицу!");
+        } else {
+            alert("Ошибка выгрузки: " + (data.detail || "Неизвестная ошибка"));
+        }
+    } catch(e) {
+        console.error(e);
+        alert("Сетевая ошибка при выгрузке: " + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+
 async function syncNormsFromGoogle() {
     const btn = document.getElementById('btn-sync-norms-google');
     const originalText = btn ? btn.innerHTML : '';
     
-    if (!confirm("Синхронизировать нормы продукции из Google Таблицы? Это обновит технологические рецептуры и вес изделий.")) {
+    if (!confirm("Синхронизировать нормы продукции из Google Таблицы? Это обновит технологические рецептуры найденных продуктов (существующие в админке нормы удалены НЕ будут).")) {
         return;
     }
     

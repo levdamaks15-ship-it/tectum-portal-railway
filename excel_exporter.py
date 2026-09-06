@@ -9,8 +9,30 @@ import models
 def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
     norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
     if not norm or not norm.weight_kg:
-        return 19.6
-    return norm.weight_kg
+        if product_name == "Шифер 7 волн гладкий":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн глад").first()
+        elif product_name == "Шифер 7 волн глад":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн гладкий").first()
+        elif product_name == "Шифер 8 волн гладкий":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн глад").first()
+        elif product_name == "Шифер 8 волн глад":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн гладкий").first()
+    if norm and norm.weight_kg:
+        return norm.weight_kg
+    p = (product_name or "").lower()
+    if "7 волн 3500" in p or "3500*980" in p:
+        return 34.14
+    if "7 волн" in p:
+        return 17.07
+    if "плоский 10" in p:
+        return 34.99
+    if "плоский 8" in p:
+        return 27.99
+    if "плоский 6" in p:
+        return 21.00
+    if "рп" in p:
+        return 17.43
+    return 19.6
 
 def get_shift_plan(db: Session, shift) -> int:
     if shift.plan_sheets is not None and shift.plan_sheets > 0:

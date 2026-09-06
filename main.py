@@ -1215,8 +1215,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Error seeding planner settings: {e}")
         db.rollback()
-    finally:
-        db.close()
+    try:
+        import seed_norms
+        seed_norms.seed_norms()
+    except Exception as norm_err:
+        print(f"Error ensuring product norms on startup: {norm_err}")
 
     def bg_google_sync_init():
         db = SessionLocal()

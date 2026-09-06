@@ -31,6 +31,8 @@ from routers.common import (
     sync_google_sheets_bg,
     sync_receipts_bg,
     sync_downtimes_bg,
+    invalidate_norms_cache,
+    sync_norms_export_bg,
 )
 
 router = APIRouter(tags=["admin"])
@@ -197,15 +199,41 @@ def sync_norms_from_google_sheets_endpoint(request: Request, db: Session = Depen
         
     try:
         google_sheets_integration.sync_norms_from_google_sheets(db)
+        invalidate_norms_cache()
         # Записываем действие в AuditLog
         db.add(models.AuditLog(
             user_name=user_name,
             action="IMPORT",
             target_table="product_norms",
-            details="Синхронизация нормативов расхода сырья из Google Sheets"
+            details="Синхронизация нормативов расхода сырья из Google Sheets (безопасный UPSERT)"
         ))
         db.commit()
         return {"status": "success", "message": "Нормативы успешно обновлены из Google Sheets"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+@router.post("/api/norms/export_to_google")
+def export_norms_to_google_endpoint(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    
+    if not user_id or not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
+    if user_role not in ["admin", "technologist", "director"]:
+        raise HTTPException(status_code=403, detail="Доступ разрешен только Технологу, Директору или Администратору")
+        
+    try:
+        google_sheets_integration.export_norms_to_google_sheets(db)
+        db.add(models.AuditLog(
+            user_name=user_name,
+            action="EXPORT",
+            target_table="product_norms",
+            details="Экспорт нормативов продукции из админки в Google Sheets"
+        ))
+        db.commit()
+        return {"status": "success", "message": "Нормативы успешно выгружены в Google Таблицу"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
@@ -346,15 +374,17 @@ def get_product_norms(db: Session = Depends(get_db)):
     return db.query(models.ProductNorm).order_by(models.ProductNorm.id.asc()).all()
 
 @router.post("/api/admin/norms/", response_model=schemas.ProductNorm)
-def create_norm(norm: schemas.ProductNormCreate, db: Session = Depends(get_db)):
+def create_norm(norm: schemas.ProductNormCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_norm = models.ProductNorm(**norm.model_dump())
     db.add(db_norm)
     db.commit()
     db.refresh(db_norm)
+    invalidate_norms_cache()
+    background_tasks.add_task(sync_norms_export_bg)
     return db_norm
 
 @router.put("/api/admin/norms/{norm_id}", response_model=schemas.ProductNorm)
-def update_norm(norm_id: int, norm: schemas.ProductNormUpdate, db: Session = Depends(get_db)):
+def update_norm(norm_id: int, norm: schemas.ProductNormUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_norm = db.query(models.ProductNorm).get(norm_id)
     if not db_norm: raise HTTPException(404)
     update_data = norm.model_dump(exclude_unset=True)
@@ -362,14 +392,18 @@ def update_norm(norm_id: int, norm: schemas.ProductNormUpdate, db: Session = Dep
         setattr(db_norm, key, val)
     db.commit()
     db.refresh(db_norm)
+    invalidate_norms_cache()
+    background_tasks.add_task(sync_norms_export_bg)
     return db_norm
 
 @router.delete("/api/admin/norms/{norm_id}")
-def delete_norm(norm_id: int, db: Session = Depends(get_db)):
+def delete_norm(norm_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     db_norm = db.query(models.ProductNorm).get(norm_id)
     if not db_norm: raise HTTPException(404)
     db.delete(db_norm)
     db.commit()
+    invalidate_norms_cache()
+    background_tasks.add_task(sync_norms_export_bg)
     return {"status": "ok"}
 
 @router.post("/api/admin/clear_data/")

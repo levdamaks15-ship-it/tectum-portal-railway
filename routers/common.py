@@ -15,6 +15,10 @@ def check_admin_session(request: Request, db: Session):
 _norms_cache = {}
 _norms_cache_time = 0
 
+def invalidate_norms_cache():
+    global _norms_cache_time
+    _norms_cache_time = 0
+
 def _get_norm_cached(db: Session, product_name: str):
     global _norms_cache, _norms_cache_time
     import time
@@ -22,17 +26,46 @@ def _get_norm_cached(db: Session, product_name: str):
         norms = db.query(models.ProductNorm).all()
         _norms_cache = {n.product_name: n for n in norms}
         _norms_cache_time = time.time()
-    return _norms_cache.get(product_name)
+    res = _norms_cache.get(product_name)
+    if not res:
+        # Check standard aliases
+        if product_name == "Шифер 7 волн гладкий":
+            res = _norms_cache.get("Шифер 7 волн глад")
+        elif product_name == "Шифер 7 волн глад":
+            res = _norms_cache.get("Шифер 7 волн гладкий")
+        elif product_name == "Шифер 8 волн гладкий":
+            res = _norms_cache.get("Шифер 8 волн глад")
+        elif product_name == "Шифер 8 волн глад":
+            res = _norms_cache.get("Шифер 8 волн гладкий")
+    return res
 
 def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
     norm = _get_norm_cached(db, product_name)
     if not norm or not norm.weight_kg:
+        p = (product_name or "").lower()
+        if "7 волн 3500" in p or "3500*980" in p:
+            return 34.14
+        if "7 волн" in p:
+            return 17.07
+        if "плоский 10" in p:
+            return 34.99
+        if "плоский 8" in p:
+            return 27.99
+        if "плоский 6" in p:
+            return 21.00
+        if "рп" in p:
+            return 17.43
         return 19.6
     return norm.weight_kg
 
 def get_product_raw_weight_kg(db: Session, product_name: str) -> float:
     norm = _get_norm_cached(db, product_name)
     if not norm:
+        p = (product_name or "").lower()
+        if "7 волн 3500" in p or "3500*980" in p:
+            return 31.8
+        if "7 волн" in p:
+            return 15.6
         return 18.2
     return (
         (norm.norm_chrysotile_4_20 or 0) +
@@ -256,6 +289,25 @@ def sync_google_sheets_bg():
             db.commit()
         except Exception:
             pass
+    finally:
+        db.close()
+
+def sync_norms_export_bg():
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.export_norms_to_google_sheets(db)
+        db.add(models.AuditLog(
+            user_name="Google Sync Norms",
+            action="EXPORT",
+            target_table="product_norms",
+            target_id=0,
+            details="Нормативы продукции успешно выгружены в Google Таблицу в фоновом режиме."
+        ))
+        db.commit()
+    except Exception as e:
+        print(f"Error exporting norms to Google Sheets: {e}")
     finally:
         db.close()
 

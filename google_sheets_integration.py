@@ -48,8 +48,30 @@ def get_sheets_service():
 def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
     norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
     if not norm or not norm.weight_kg:
-        return 19.6
-    return norm.weight_kg
+        if product_name == "Шифер 7 волн гладкий":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн глад").first()
+        elif product_name == "Шифер 7 волн глад":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн гладкий").first()
+        elif product_name == "Шифер 8 волн гладкий":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн глад").first()
+        elif product_name == "Шифер 8 волн глад":
+            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн гладкий").first()
+    if norm and norm.weight_kg:
+        return norm.weight_kg
+    p = (product_name or "").lower()
+    if "7 волн 3500" in p or "3500*980" in p:
+        return 34.14
+    if "7 волн" in p:
+        return 17.07
+    if "плоский 10" in p:
+        return 34.99
+    if "плоский 8" in p:
+        return 27.99
+    if "плоский 6" in p:
+        return 21.00
+    if "рп" in p:
+        return 17.43
+    return 19.6
 
 def get_pct_deviation(fact_val: float, theo_val: float) -> float:
     if theo_val <= 0:
@@ -740,10 +762,8 @@ def sync_norms_from_google_sheets(db: Session):
         except ValueError:
             return 0.0
             
-    # Начинаем синхронизацию
-    # Сначала удаляем старые нормы, чтобы перезаписать
-    db.query(models.ProductNorm).delete()
-    
+    # Начинаем безопасную синхронизацию (UPSERT)
+    # Существующие в базе данных нормы НЕ удаляются, чтобы админ-панель оставалась первоисточником истины
     for row in rows[1:]:
         if not row or not row[0]:
             continue
@@ -763,21 +783,33 @@ def sync_norms_from_google_sheets(db: Session):
         n_asb = safe_float(row[8] if len(row) > 8 else 0.0)
         n_fib = safe_float(row[9] if len(row) > 9 else 0.0)
         
-        db.add(models.ProductNorm(
-            product_name=p_name,
-            weight_kg=weight,
-            norm_chrysotile_4_20=n_c4,
-            norm_chrysotile_5_65=n_c5,
-            norm_chrysotile_6_40=n_c6,
-            norm_cement=n_cem,
-            norm_cellulose=n_cel,
-            norm_crushed_slate=n_sl,
-            norm_asbozurit=n_asb,
-            norm_fiberglass=n_fib
-        ))
+        existing = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == p_name).first()
+        if existing:
+            existing.weight_kg = weight
+            existing.norm_chrysotile_4_20 = n_c4
+            existing.norm_chrysotile_5_65 = n_c5
+            existing.norm_chrysotile_6_40 = n_c6
+            existing.norm_cement = n_cem
+            existing.norm_cellulose = n_cel
+            existing.norm_crushed_slate = n_sl
+            existing.norm_asbozurit = n_asb
+            existing.norm_fiberglass = n_fib
+        else:
+            db.add(models.ProductNorm(
+                product_name=p_name,
+                weight_kg=weight,
+                norm_chrysotile_4_20=n_c4,
+                norm_chrysotile_5_65=n_c5,
+                norm_chrysotile_6_40=n_c6,
+                norm_cement=n_cem,
+                norm_cellulose=n_cel,
+                norm_crushed_slate=n_sl,
+                norm_asbozurit=n_asb,
+                norm_fiberglass=n_fib
+            ))
         
     db.commit()
-    print("Нормативы успешно обновлены из Google Таблицы.")
+    print("Нормативы успешно синхронизированы из Google Таблицы (UPSERT).")
 
 
 def export_receipt_to_google_sheets(db: Session):

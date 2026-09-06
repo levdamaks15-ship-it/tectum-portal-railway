@@ -28,6 +28,36 @@ def seed_norms():
             "norm_crushed_slate": 0.201
         },
         {
+            "product_name": "Шифер 7 волн глад",
+            "weight_kg": 17.07,
+            "norm_chrysotile_5_65": 2.01,
+            "norm_cement": 13.01,
+            "norm_fiberglass": 0.04,
+            "norm_cellulose": 0.201,
+            "norm_asbozurit": 0.101,
+            "norm_crushed_slate": 0.201
+        },
+        {
+            "product_name": "Шифер 7 волн гладкий",
+            "weight_kg": 17.07,
+            "norm_chrysotile_5_65": 2.01,
+            "norm_cement": 13.01,
+            "norm_fiberglass": 0.04,
+            "norm_cellulose": 0.201,
+            "norm_asbozurit": 0.101,
+            "norm_crushed_slate": 0.201
+        },
+        {
+            "product_name": "Шифер 7 волн рифленый",
+            "weight_kg": 17.07,
+            "norm_chrysotile_5_65": 2.01,
+            "norm_cement": 13.01,
+            "norm_fiberglass": 0.04,
+            "norm_cellulose": 0.201,
+            "norm_asbozurit": 0.101,
+            "norm_crushed_slate": 0.201
+        },
+        {
             "product_name": "Шифер 7 волн 3500*980",
             "weight_kg": 34.14,
             "norm_chrysotile_5_65": 4.03,
