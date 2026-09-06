@@ -755,6 +755,13 @@ class BulkTaskStatusUpdate(ORMBaseModel):
     next_week_label: Optional[str] = ""
     pin_code: Optional[str] = None
 
+class TaskReassignRequest(ORMBaseModel):
+    new_assignee: str
+    reason: str
+    new_department_service: Optional[str] = None
+    reassigned_by: Optional[str] = None
+    pin_code: Optional[str] = None
+
 class TaskUpdate(ORMBaseModel):
     code: Optional[str] = None
     zone: Optional[str] = None

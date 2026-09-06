@@ -338,6 +338,19 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
             if default_month and default_week:
                 break
 
+        # Если сегодня уже следующий месяц, а текущая неделя началась в конце предыдущего,
+        # отдаем приоритет названию месяца, в котором мы находимся сейчас
+        months_ru = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ]
+        curr_calendar_month_name = f"{months_ru[today.month - 1]} {year}"
+        if default_month and default_month != curr_calendar_month_name and curr_calendar_month_name in structure:
+            # Если сегодня уже наступил новый месяц (например, 06.09), переключаем на текущий месяц
+            default_month = curr_calendar_month_name
+            if structure[default_month]:
+                default_week = structure[default_month][0]
+
         # Фоллбэк: если не нашли по точному диапазону дат, берем текущий календарный месяц
         if not default_month:
             months_ru = [
@@ -1661,6 +1674,103 @@ def move_task_to_next_week(
         return {"status": "ok", "message": f"Задача перенесена на {next_week}"}
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/{task_id}/reassign")
+def reassign_task(
+    task_id: int,
+    payload: schemas.TaskReassignRequest,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db)
+):
+    """
+    Переадресация задачи новому исполнителю:
+    1. Проверяет задачу.
+    2. Меняет assignee_name и при необходимости department_service.
+    3. Добавляет системную запись в AuditLog и обновляет комментарий.
+    4. Отправляет фоновое email-уведомление новому исполнителю и автору задачи.
+    """
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        new_assignee = (payload.new_assignee or "").strip()
+        reason = (payload.reason or "").strip()
+        if not new_assignee:
+            raise HTTPException(status_code=400, detail="Укажите нового исполнителя")
+        if not reason:
+            raise HTTPException(status_code=400, detail="Укажите причину переадресации")
+
+        old_assignee = task.assignee_name or "Не назначен"
+        reassigned_by = (payload.reassigned_by or old_assignee).strip()
+
+        # Обновляем исполнителя
+        task.assignee_name = new_assignee
+        if payload.new_department_service:
+            task.department_service = payload.new_department_service.strip()
+
+        # Добавляем пометку в комментарий задачи
+        reassign_note = f"[Переадресовано {reassigned_by} -> {new_assignee}: {reason}]"
+        prev_comment = task.comment or ""
+        task.comment = f"{prev_comment}\n{reassign_note}".strip() if prev_comment else reassign_note
+        task.updated_at = datetime.utcnow()
+
+        # Запись в историю AuditLog
+        db.add(models.AuditLog(
+            user_name=reassigned_by or "Пользователь",
+            action="UPDATE",
+            target_table="tasks",
+            target_id=task.id,
+            details=f"Переадресация задачи [{task.code}] «{task.title}» от «{old_assignee}» к «{new_assignee}». Причина: {reason}"
+        ))
+
+        db.commit()
+        db.refresh(task)
+
+        # Отправка email новому исполнителю и автору
+        task_dict = {
+            "id": task.id,
+            "code": task.code,
+            "title": task.title,
+            "title_kz": task.title_kz,
+            "zone": task.zone,
+            "due_date_str": task.due_date_str,
+            "author_name": task.author_name,
+            "assignee_name": task.assignee_name,
+            "status": task.status,
+            "comment": task.comment,
+            "photo_link": task.photo_link,
+            "month_label": task.month_label,
+            "week_label": task.week_label
+        }
+
+        # 1. Новому исполнителю
+        new_assignee_email = get_task_person_email(db, new_assignee)
+        if new_assignee_email:
+            subject = f"🔄 Вам переадресована задача [{task.zone}]: {task.title}"
+            event_text = f"Задача переадресована вам от {old_assignee}. Причина: {reason}"
+            background_tasks.add_task(send_task_email_notification, new_assignee_email, subject, event_text, task_dict)
+
+        # 2. Автору задачи (если он не является инициатором переадресации)
+        if task.author_name and task.author_name != reassigned_by:
+            author_email = get_task_person_email(db, task.author_name)
+            if author_email:
+                subject = f"🔄 Задача переадресована [{task.zone}]: {task.title}"
+                event_text = f"Исполнитель изменён: {old_assignee} ➔ {new_assignee}. Причина: {reason}"
+                background_tasks.add_task(send_task_email_notification, author_email, subject, event_text, task_dict)
+
+        return {
+            "status": "ok",
+            "message": f"Задача успешно переадресована сотруднику {new_assignee}",
+            "task_id": task.id,
+            "new_assignee": new_assignee
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error reassigning task: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/archive_week")

@@ -25,9 +25,14 @@ let allTagsList = [];
 let allWeeksStructure = {};
 let allMasters = [];
 let showBacklog = false; // toggle to include unfinished tasks from other weeks
-let currentMonth = "Август 2026";
-let currentWeek = "Неделя 4 (24.08 - 28.08)";
-let currentQuarter = "Q3 2026";
+const _monthsRuInit = [
+    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+];
+const _nowInit = new Date();
+let currentMonth = `${_monthsRuInit[_nowInit.getMonth()]} ${_nowInit.getFullYear()}`;
+let currentWeek = "all";
+let currentQuarter = `Q${Math.floor(_nowInit.getMonth() / 3) + 1} ${_nowInit.getFullYear()}`;
 
 // 3 Horizons & Filters State
 let currentHorizon = "weekly"; // "weekly" | "services" | "roadmaps"
@@ -288,17 +293,45 @@ async function handleUrlDeepLinking() {
             }
         }
     } else {
-        // 2. Read month and week from URL
+        // 2. Read month and week from URL with smart validation (не перетирать текущий месяц/неделю устаревшими параметрами)
         const monthParam = urlParams.get("month");
+        const weekParam = urlParams.get("week");
+        let shouldApplyUrlDate = false;
+
         if (monthParam) {
+            // Проверяем, не является ли месяц в URL устаревшим прошлым месяцем
+            const monthsRu = [
+                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+            ];
+            const today = new Date();
+            const curYear = today.getFullYear();
+            const curMonthIdx = today.getMonth(); // 0-11
+
+            const [mName, mYearStr] = monthParam.split(' ');
+            const mYear = parseInt(mYearStr, 10) || curYear;
+            const mIdx = monthsRu.indexOf(mName);
+
+            // Если дата из URL >= текущего месяца/года или это выбор "all", применяем её
+            if (monthParam === "all" || (mIdx !== -1 && (mYear > curYear || (mYear === curYear && mIdx >= curMonthIdx)))) {
+                shouldApplyUrlDate = true;
+            }
+        }
+
+        if (shouldApplyUrlDate && monthParam) {
             currentMonth = monthParam;
             const monthSelect = document.getElementById("filter-month");
             if (monthSelect) monthSelect.value = monthParam;
-        }
-        const weekParam = urlParams.get("week");
-        if (weekParam) {
-            currentWeek = weekParam;
-            onMonthChange(weekParam);
+
+            if (weekParam) {
+                currentWeek = weekParam;
+                onMonthChange(weekParam);
+            } else {
+                onMonthChange();
+            }
+        } else if (monthParam || weekParam) {
+            // Если параметры URL были устаревшими (из прошлого), очищаем их из адресной строки без перезагрузки
+            updateUrlParams();
         }
     }
 
@@ -1829,6 +1862,9 @@ function renderTasksTable(tasks) {
                 <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
                     <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
                 </button>
+                <button class="btn-icon-cell" onclick="openReassignTaskModal(${t.id})" title="Переадресовать задачу другому исполнителю">
+                    <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i>
+                </button>
                 <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
                     <i class="fa-solid fa-arrow-right"></i>
                 </button>
@@ -2036,6 +2072,9 @@ function renderTasksCards(tasks) {
             <div class="card-actions-footer">
                 <button class="btn-card-action" onclick="openTaskHistoryModal(${t.id})" title="История задачи">
                     <i class="fa-solid fa-clock-rotate-left"></i> История
+                </button>
+                <button class="btn-card-action" onclick="openReassignTaskModal(${t.id})" style="color: #4f46e5;" title="Переадресовать">
+                    <i class="fa-solid fa-share-nodes"></i> Передать
                 </button>
                 <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
                     <i class="fa-solid fa-arrow-right"></i> Перенести
@@ -2593,6 +2632,135 @@ async function submitCancelModal() {
     });
 }
 
+/* ==========================================================
+   4. REASSIGN TASK MODAL
+   ========================================================== */
+let pendingReassignTaskId = null;
+
+function openReassignTaskModal(taskId) {
+    const task = allTasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    pendingReassignTaskId = taskId;
+
+    document.getElementById("reassign-task-id").value = taskId;
+    document.getElementById("reassign-task-code").textContent = task.code || `TSK-${task.id}`;
+    document.getElementById("reassign-task-title").textContent = task.title || "—";
+    document.getElementById("reassign-task-current-assignee").textContent = task.assignee_name || "Не назначен";
+    
+    // Заполняем список сотрудников для выбора
+    const assigneeSelect = document.getElementById("reassign-new-assignee");
+    if (assigneeSelect) {
+        const persons = getUniquePersons();
+        // Исключаем текущего исполнителя из выбора
+        const availablePersons = persons.filter(p => p !== task.assignee_name);
+        assigneeSelect.innerHTML = `<option value="">-- Выберите нового исполнителя --</option>` +
+            availablePersons.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    // Служба
+    const deptSelect = document.getElementById("reassign-new-department");
+    if (deptSelect) {
+        deptSelect.value = task.department_service || "";
+    }
+
+    // Сброс причины и чипов
+    document.getElementById("reassign-task-reason").value = "";
+    const chips = document.querySelectorAll("#reassign-reason-chips .reason-chip");
+    chips.forEach(c => c.classList.remove("selected"));
+
+    const btnSubmit = document.getElementById("btn-submit-reassign");
+    if (btnSubmit) btnSubmit.disabled = false;
+
+    document.getElementById("reassign-task-modal").style.display = "flex";
+}
+
+function openReassignModalFromEdit() {
+    const taskIdStr = document.getElementById("task-id-input")?.value;
+    const taskId = parseInt(taskIdStr, 10);
+    if (taskId) {
+        closeTaskModal();
+        openReassignTaskModal(taskId);
+    }
+}
+
+function closeReassignModal() {
+    const modal = document.getElementById("reassign-task-modal");
+    if (modal) modal.style.display = "none";
+    pendingReassignTaskId = null;
+}
+
+function selectReassignChip(btn, text) {
+    const chips = document.querySelectorAll("#reassign-reason-chips .reason-chip");
+    chips.forEach(c => c.classList.remove("selected"));
+    btn.classList.add("selected");
+
+    const reasonInput = document.getElementById("reassign-task-reason");
+    if (reasonInput) {
+        reasonInput.value = text;
+        reasonInput.focus();
+    }
+}
+
+async function submitReassignModal() {
+    const taskId = parseInt(document.getElementById("reassign-task-id").value, 10);
+    const newAssignee = document.getElementById("reassign-new-assignee")?.value.trim();
+    const newDept = document.getElementById("reassign-new-department")?.value.trim();
+    const reason = document.getElementById("reassign-task-reason")?.value.trim();
+    const task = allTasks.find(t => t.id === taskId);
+
+    if (!newAssignee) {
+        alert("Пожалуйста, выберите нового исполнителя!");
+        const assigneeSelect = document.getElementById("reassign-new-assignee");
+        if (assigneeSelect) assigneeSelect.focus();
+        return;
+    }
+
+    if (!reason) {
+        alert("Пожалуйста, обязательно укажите причину переадресации задачи!");
+        const reasonInput = document.getElementById("reassign-task-reason");
+        if (reasonInput) reasonInput.focus();
+        return;
+    }
+
+    const btnSubmit = document.getElementById("btn-submit-reassign");
+    if (btnSubmit) btnSubmit.disabled = true;
+
+    // Авторизация: проверяем сессию текущего пользователя (или исполнителя/автора)
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        try {
+            const payload = {
+                new_assignee: newAssignee,
+                reason: reason,
+                new_department_service: newDept || null,
+                reassigned_by: authSession ? authSession.name : (currentPlannerUser ? currentPlannerUser.name : task.assignee_name),
+                pin_code: authSession ? authSession.pin : ""
+            };
+
+            const res = await fetch(`/api/tasks/${taskId}/reassign`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                closeReassignModal();
+                showToast(`Задача переадресована сотруднику ${newAssignee} 🔄`);
+                loadTasks();
+            } else {
+                const err = await res.json();
+                alert("Ошибка переадресации: " + (err.detail || "Не удалось переадресовать"));
+                if (btnSubmit) btnSubmit.disabled = false;
+            }
+        } catch (e) {
+            console.error("Error reassigning task:", e);
+            alert("Произошла ошибка сети при переадресации задачи");
+            if (btnSubmit) btnSubmit.disabled = false;
+        }
+    });
+}
+
 async function inlineEditComment(taskId, currentComment) {
     const task = allTasks.find(t => t.id === taskId);
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
@@ -2868,6 +3036,10 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     // Сброс прикрепленного документа
     clearSelectedDocAttachment();
 
+    // Скрываем кнопку переадресации при создании новой задачи
+    const btnReassign = document.getElementById("btn-modal-reassign-task");
+    if (btnReassign) btnReassign.style.display = "none";
+
     document.getElementById("task-modal").style.display = "flex";
 }
 
@@ -2948,6 +3120,13 @@ async function openEditTaskModal(taskId) {
     // Если нет KZ перевода - запускаем фоновый перевод
     if (!task.title_kz && task.title) {
         onTaskInputChanged('primary');
+    }
+
+    // Показываем кнопку переадресации при редактировании активной задачи
+    const btnReassign = document.getElementById("btn-modal-reassign-task");
+    if (btnReassign) {
+        const isLocked = (task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено")));
+        btnReassign.style.display = isLocked ? "none" : "inline-flex";
     }
 
     document.getElementById("task-modal").style.display = "flex";
