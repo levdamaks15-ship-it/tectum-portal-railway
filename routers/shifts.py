@@ -91,7 +91,7 @@ def get_all_shifts(db: Session = Depends(get_db)):
         for shift in shifts:
             try:
                 lfm_sheets = sum((r.lfm_sheets or 0) for r in shift.lfm_reports) if shift.lfm_reports else 0
-                warehouse_gp = sum((b.ds_condition or 0) for b in shift.batches) if shift.batches else 0
+                warehouse_gp = sum(((b.ds_condition or 0) + (b.prev_condition or 0)) for b in shift.batches) if shift.batches else 0
                 plan_sheets = shift.plan_sheets or 0
                 zo_batches = shift.zo_batches or 0
                 
@@ -1029,7 +1029,8 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     lfm_report.lfm_wind_resets = data.lfm_wind_resets
     lfm_report.formed_1st_grade = data.first_grade
     lfm_report.formed_defect = data.qcd_defect
-    lfm_report.transferred_to_warehouse = data.warehouse_gp
+    total_warehouse_gp = (data.warehouse_gp or 0) + (data.prev_condition or 0)
+    lfm_report.transferred_to_warehouse = total_warehouse_gp
 
     # Update Batch
     batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
@@ -1064,13 +1065,14 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     batch.ds_defect_delamination = data.ds_defect_delamination
     batch.ds_defect_edge = data.ds_defect_edge
 
-    # Previous shift defects
+    # Previous shift defects and warehouse GP
     prev_defect_sum = (
         (data.prev_defect_scratch or 0) + (data.prev_defect_bad_cut or 0) +
         (data.prev_defect_stick_top or 0) + (data.prev_defect_broken or 0) +
         (data.prev_defect_fell_box or 0) + (data.prev_defect_thickness or 0) +
         (data.prev_defect_edge or 0)
     )
+    batch.prev_condition = data.prev_condition or 0
     batch.prev_first_grade = data.prev_first_grade or 0
     batch.prev_defect = prev_defect_sum
     batch.prev_defect_scratch = data.prev_defect_scratch or 0
@@ -1081,7 +1083,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     batch.prev_defect_thickness = data.prev_defect_thickness or 0
     batch.prev_defect_edge = data.prev_defect_edge or 0
 
-    batch.qcd_condition = data.warehouse_gp
+    batch.qcd_condition = total_warehouse_gp
     batch.qcd_first_grade = data.first_grade
     batch.qcd_defect = ds_defect_sum
 
@@ -1919,7 +1921,12 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     batch.ds_defect = total_ds_defect
     batch.qcd_defect = total_ds_defect
     
-    # Previous shift defects
+    # Previous shift defects and condition
+    if data.prev_condition is not None:
+        if batch.prev_condition != data.prev_condition:
+            changes.append(f"prev_condition: {batch.prev_condition} -> {data.prev_condition}")
+            batch.prev_condition = data.prev_condition
+
     prev_defect_fields = [
         "prev_defect_scratch", "prev_defect_bad_cut", "prev_defect_stick_top",
         "prev_defect_broken", "prev_defect_fell_box", "prev_defect_thickness", "prev_defect_edge"
@@ -1938,6 +1945,11 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         else:
             total_prev_defect += getattr(batch, pf_name, 0) or 0
     batch.prev_defect = total_prev_defect
+
+    # Total warehouse GP in batch and lfm_report
+    total_wh = (batch.ds_condition or 0) + (batch.prev_condition or 0)
+    batch.qcd_condition = total_wh
+    lfm_report.transferred_to_warehouse = total_wh
     
     if changes or snapshot_before:
         log_entry = models.AuditLog(

@@ -253,7 +253,8 @@ class Batch(Base):
     ds_defect_delamination = Column(Integer, default=0) # Расслоение
     ds_defect_edge = Column(Integer, default=0) # Кромка не соотв.
 
-    # --- Дестакер: Предыдущая смена (Брак и 1 сорт прошлой смены) ---
+    # --- Дестакер: Предыдущая смена (Брак, 1 сорт и ГП прошлой смены) ---
+    prev_condition = Column(Integer, default=0)   # На склад ГП прошлой смены
     prev_first_grade = Column(Integer, default=0) # 1 сорт прошлой смены
     prev_defect = Column(Integer, default=0)      # Итого брак прошлой смены
     prev_defect_scratch = Column(Integer, default=0) # Сдир

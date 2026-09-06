@@ -720,9 +720,9 @@ def generate_full_backup_excel(db: Session) -> bytes:
     ws4.freeze_panes = "G2"  # Закрепление 1 строки и столбцов A:F (№ партии ... Продукт)
     headers4 = [
         "№ партии", "Дата", "День нед.", "Время смены", "Мастер ЛФМ", "Продукт", "Формовка, шт",
-        "Смена", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
-        "Прошлая смена", "Мастер (прошлая)", "1 сорт (прошлая), шт", "Брак (прошлая), шт", "Детализация брака (прошлая)",
-        "Всего 1 сорт, шт", "Всего брак, шт"
+        "Смена", "ГП своя, шт", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
+        "Прошлая смена", "Мастер (прошлая)", "ГП прошлая, шт", "1 сорт (прошлая), шт", "Брак (прошлая), шт", "Детализация брака (прошлая)",
+        "Всего ГП, шт", "Всего 1 сорт, шт", "Всего брак, шт"
     ]
     ws4.append(headers4)
     ws4.row_dimensions[1].height = 28
@@ -815,6 +815,10 @@ def generate_full_backup_excel(db: Session) -> bytes:
         if b.prev_defect_edge: prev_parts.append(f"Кромка ({b.prev_defect_edge})")
         prev_note = ", ".join(prev_parts)
         
+        ds_gp = b.ds_condition or 0
+        prev_gp = b.prev_condition or 0
+        total_gp_all = ds_gp + prev_gp
+        
         row = [
             b.batch_number or "",
             date_str_fmt,
@@ -824,15 +828,18 @@ def generate_full_backup_excel(db: Session) -> bytes:
             product_name,
             lfm_sheets,
             shift_group,
+            ds_gp,
             ds_first,
             ds_def,
             f"{pct_defect}%",
             note_defect,
             prev_shift_group,
             prev_master_name,
+            prev_gp,
             prev_f,
             prev_d,
             prev_note,
+            total_gp_all,
             ds_first + prev_f,
             ds_def + prev_d
         ]
@@ -841,7 +848,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
         for col_idx in range(1, len(headers4) + 1):
             cell = ws4.cell(row=curr_row, column=col_idx)
             cell.border = border_thin
-            if col_idx in [1, 2, 3, 4, 5, 6, 8, 12, 13, 14, 17]:
+            if col_idx in [1, 2, 3, 4, 5, 6, 8, 13, 14, 15, 19]:
                 cell.alignment = Alignment(horizontal="left")
             else:
                 cell.alignment = Alignment(horizontal="right")

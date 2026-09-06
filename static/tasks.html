@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20260826_planner_v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260904_tectum_ui_v2">
 
     <style>
         :root {
@@ -113,17 +113,17 @@
             transition: all 0.2s;
         }
         .select-filter:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.15);
         }
 
         .btn-action {
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            padding: 0.45rem 0.9rem;
+            padding: 0.5rem 1rem;
             border-radius: 8px;
-            font-size: 0.85rem;
+            font-size: 0.88rem;
             font-weight: 600;
             cursor: pointer;
             border: 1px solid transparent;
@@ -132,13 +132,15 @@
             font-family: inherit;
         }
         .btn-primary-action {
-            background: #2563eb;
+            background: var(--primary-color);
             color: #ffffff;
-            border-color: #1d4ed8;
-            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+            border-color: #b01c1c;
+            box-shadow: 0 1px 3px rgba(200, 35, 35, 0.25);
         }
         .btn-primary-action:hover {
-            background: #1d4ed8;
+            background: #b01c1c;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(200, 35, 35, 0.3);
         }
         .btn-secondary-action {
             background: #ffffff;
@@ -215,16 +217,16 @@
             border-color: #cbd5e1;
         }
         .filter-chip.active {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-color: #93c5fd;
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
         }
         .horizon-tab-btn {
             display: inline-flex;
             align-items: center;
             gap: 0.45rem;
-            padding: 0.4rem 0.9rem;
+            padding: 0.45rem 0.95rem;
             border-radius: 8px;
             font-size: 0.85rem;
             font-weight: 600;
@@ -242,10 +244,10 @@
             border-color: #94a3b8;
         }
         .horizon-tab-btn.active {
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #f87171;
+            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.18);
         }
 
         /* Roadmap Cards & Hierarchy Tree Styles */
@@ -1160,8 +1162,9 @@
             }
             .toolbar-group-dates select {
                 width: 100%;
-                font-size: 0.82rem !important;
-                padding: 0.45rem 0.5rem !important;
+                font-size: 16px !important; /* Prevents auto-zoom on iOS */
+                padding: 0.55rem 0.65rem !important;
+                min-height: 44px;
             }
             .toolbar-group-actions {
                 display: flex !important;

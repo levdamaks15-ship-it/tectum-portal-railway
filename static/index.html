@@ -5,85 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
-    <link rel="stylesheet" href="/static/css/style.css?v=20260826_light_theme_v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260906_hide_checkbox_v8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/style.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/index.js"></script>
     <style>
+        .user-card {
+            background: #ffffff !important;
+            border: 1px solid var(--stripe-border) !important;
+            border-radius: 16px !important;
+            box-shadow: var(--stripe-shadow-card) !important;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
         .user-card:hover {
-            background: rgba(100, 150, 255, 0.1) !important;
-            transform: translateY(-2px);
-            border-color: var(--primary-color) !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #ffffff !important;
+            transform: translateY(-3px) !important;
+            border-color: rgba(200, 35, 35, 0.35) !important;
+            box-shadow: var(--stripe-shadow-hover) !important;
         }
         .user-card:active {
-            transform: translateY(0);
+            transform: translateY(-1px) scale(0.99) !important;
         }
         
-        /* Accordion styles */
+        /* Bento-Accordion styles */
         .accordion-section {
             margin-bottom: 1.5rem;
+            overflow: visible;
+            background: #ffffff;
+            border: 1px solid var(--stripe-border);
+            border-radius: 16px;
+            box-shadow: var(--stripe-shadow-card);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .accordion-section.collapsed {
             overflow: hidden;
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            transition: all 0.3s ease;
+        }
+        .accordion-section:hover {
+            box-shadow: var(--stripe-shadow-hover);
+            border-color: rgba(200, 35, 35, 0.22);
         }
         .accordion-header {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 1.2rem;
+            background: #ffffff;
+            padding: 1.25rem 1.5rem;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             user-select: none;
-            transition: background 0.2s;
+            transition: background 0.2s ease;
         }
         .accordion-header:hover {
-            background: rgba(255, 255, 255, 0.06);
+            background: #f8fafc;
         }
         .accordion-header h3 {
             margin: 0;
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1.08rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.6rem;
         }
         .accordion-content {
             padding: 1.5rem;
+            background: #ffffff;
             display: block;
-            border-top: 1px solid var(--glass-border);
+            border-top: 1px solid var(--stripe-border);
             animation: slideDown 0.2s ease-out;
         }
         .accordion-content.collapsed {
             display: none;
         }
         .acc-toggle {
-            transition: transform 0.2s ease;
-            font-size: 0.8rem;
+            transition: transform 0.25s ease;
+            font-size: 0.85rem;
             color: var(--text-secondary);
+            width: 28px;
+            height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #f1f5f9;
         }
         .accordion-section.collapsed .acc-toggle {
             transform: rotate(-90deg);
         }
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-5px); }
+            from { opacity: 0; transform: translateY(-6px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
         /* Dynamic forms grid */
+        .form-grid-two {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.2rem;
+        }
         .form-grid-three {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.2rem;
         }
         .form-grid-four {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1.2rem;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
         }
 
         /* Table styles */
@@ -144,14 +178,6 @@
         .kpi-card:hover {
             transform: translateY(-2px);
         }
-        
-        .tab-btn {
-            font-weight: 600;
-            padding: 0.8rem 1.5rem;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
-
         /* Print Media Styles */
         @media print {
             @page {
@@ -265,6 +291,9 @@
             </div>
             <div class="header-actions">
                 <div class="header-quick-links">
+                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks">
+                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
                     <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists">
                         ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                     </a>
@@ -273,22 +302,28 @@
                     </a>
                 </div>
                 <div id="user-info-container" class="header-user-container" style="display: none;">
-                    <div style="text-align: right;">
+                    <div class="user-greeting-text">
                         <p id="user-greeting-name" style="margin: 0; font-weight: 600; color: var(--text-primary);"></p>
                         <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);"></p>
                     </div>
-                    <button onclick="logout()" class="tab-btn" style="border: 1px solid var(--danger-color); color: var(--danger-color);">Выйти</button>
+                    <button onclick="logout()" class="btn-logout" title="Выйти из системы">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Выйти</span>
+                    </button>
                 </div>
             </div>
         </header>
 
-        <div id="login-screen" class="glass-panel" style="max-width: 700px; margin: 0 auto; transition: 0.3s;">
-            <h2 style="margin-bottom: 1.5rem; text-align: center;">Вход в систему</h2>
+        <div id="login-screen" class="glass-panel" style="max-width: 800px; margin: 2.5rem auto; padding: 2.5rem 2rem; border-radius: 20px; box-shadow: var(--stripe-shadow-hover); border: 1px solid var(--stripe-border); background: #ffffff; transition: 0.3s;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 0.35rem; font-weight: 800; font-size: 1.65rem; letter-spacing: -0.02em; color: var(--text-primary);">Вход в систему</h2>
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.92rem;">Портал операционного управления Tectum Engineering</p>
+            </div>
             
             <!-- SSO Section -->
             <div id="sso-section" style="display: none; text-align: center; padding: 1rem 0;">
                 <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Вход с корпоративной учетной записью Microsoft 365</p>
-                <button onclick="window.location.href='/api/auth/login'" style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: auto; padding: 0.8rem 2rem; margin-bottom: 1.5rem; background: #0078d4; color: white; font-weight: bold; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);">
+                <button onclick="window.location.href='/api/auth/login'" style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: auto; padding: 0.8rem 2rem; margin-bottom: 1.5rem; background: #0078d4; color: white; font-weight: bold; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);">
                     <svg width="20" height="20" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M0 0H11V11H0V0Z" fill="#F25022"/>
                         <path d="M12 0H23V11H12V0Z" fill="#7FBA00"/>
@@ -303,30 +338,35 @@
             </div>
             
             <div id="user-selection-section">
-                <p id="selection-title" style="text-align: center; color: var(--text-secondary); margin-bottom: 1rem;">Выберите раздел</p>
-                <div id="user-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; max-height: 50vh; overflow-y: auto; padding: 10px;">
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 1.25rem;">
+                    <span class="stripe-badge badge-steel" id="selection-title">Выберите раздел</span>
+                </div>
+                <div id="user-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 1.1rem; max-height: 55vh; overflow-y: auto; padding: 6px;">
                     <!-- User cards injected by JS -->
                 </div>
-                <div id="back-to-main-container" style="display: none; text-align: center; margin-top: 1rem;">
-                    <button class="btn-secondary" onclick="renderMainScreenGrid()" style="width: auto; padding: 0.5rem 1.5rem;">Назад в главное меню</button>
+                <div id="back-to-main-container" style="display: none; text-align: center; margin-top: 1.5rem;">
+                    <button class="btn-secondary" onclick="renderMainScreenGrid()" style="width: auto; padding: 0.55rem 1.5rem;">← Назад в главное меню</button>
                 </div>
                 <div id="back-to-sso-container" style="display: none; text-align: center; margin-top: 1.5rem;">
-                    <button class="btn-secondary" onclick="showSsoLogin()" style="width: auto; padding: 0.5rem 1.5rem;">Вернуться к входу Microsoft 365</button>
+                    <button class="btn-secondary" onclick="showSsoLogin()" style="width: auto; padding: 0.55rem 1.5rem;">Вернуться к входу Microsoft 365</button>
                 </div>
             </div>
 
             <div id="pin-section" style="display: none; text-align: center; animation: fadeIn 0.3s ease-out;">
-                <h3 id="selected-user-display" style="color: var(--accent-color); margin-bottom: 1.5rem; font-size: 1.5rem;"></h3>
+                <div style="margin-bottom: 1.5rem;">
+                    <span class="stripe-badge badge-brand" style="margin-bottom: 0.5rem;">Авторизация профиля</span>
+                    <h3 id="selected-user-display" style="color: var(--text-primary); font-size: 1.5rem; font-weight: 800; margin-top: 0.4rem;"></h3>
+                </div>
                 <input type="hidden" id="selected-user-name" value="">
                 
-                <div class="input-group" style="max-width: 250px; margin: 0 auto;">
-                    <label>ПИН-код</label>
-                    <input type="password" id="pin-input" placeholder="••••" maxlength="4" style="text-align: center; font-size: 2rem; letter-spacing: 15px; font-weight: bold; padding: 1rem;">
+                <div class="input-group" style="max-width: 260px; margin: 0 auto;">
+                    <label style="text-align: center; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">Введите 4-значный ПИН-код</label>
+                    <input type="password" id="pin-input" placeholder="••••" maxlength="4" style="text-align: center; font-size: 2.2rem; letter-spacing: 16px; font-weight: 800; padding: 0.9rem; border-radius: 12px; background: #f8fafc; border: 1.5px solid var(--stripe-border);">
                 </div>
                 
                 <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-                    <button onclick="login()" style="width: auto; padding: 0.8rem 2.5rem; font-weight: bold;">Войти</button>
-                    <button onclick="resetLoginSelection()" class="btn-secondary" style="width: auto; padding: 0.8rem 2.5rem;">Назад</button>
+                    <button onclick="login()" style="width: auto; padding: 0.8rem 2.5rem; font-weight: 700;">Войти в систему →</button>
+                    <button onclick="resetLoginSelection()" class="btn-secondary" style="width: auto; padding: 0.8rem 2rem;">Назад</button>
                 </div>
                 <p id="login-error" style="color: var(--danger-color); margin-top: 1rem; display: none; font-weight: 600;"></p>
             </div>
@@ -334,46 +374,61 @@
 
         <!-- Main App Screen -->
         <div id="main-app" style="display: none;">
-            <!-- Tabs Navigation -->
-            <div id="tabs-menu" class="tabs-container" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
-                <a href="#production" class="tab-btn active" id="tab-btn-production" onclick="switchTab('production', event)">📝 Рапорт мастера</a>
-                <a href="#crew-plans" class="tab-btn" id="tab-btn-crew-plans" onclick="switchTab('crew-plans', event)">🏆 Выполнение плана бригадами</a>
-                <a href="#summary" class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary', event)">📊 Сводка</a>
-                <a href="#downtimes" class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes', event)">⏱ Журнал Простоев</a>
-                <a href="#daily-report" class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report', event)">📈 Месячная сводка выработки</a>
-                <a href="/static/tasks.html" target="_blank" class="tab-btn" style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--accent-color); color: var(--accent-color);">
-                    🎯 Планнер задач
+            <!-- Tabs Navigation: Single row, uniform size with isolated icon & centered label -->
+            <div id="tabs-menu" class="tabs-container">
+                <a href="#production" class="tab-btn active" id="tab-btn-production" onclick="switchTab('production', event)">
+                    <span class="tab-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                    <span class="tab-label">Рапорт<br>мастера</span>
+                </a>
+                <a href="#crew-plans" class="tab-btn" id="tab-btn-crew-plans" onclick="switchTab('crew-plans', event)">
+                    <span class="tab-icon"><i class="fa-solid fa-trophy"></i></span>
+                    <span class="tab-label">Выполнение плана<br>бригадами</span>
+                </a>
+                <a href="#summary" class="tab-btn" id="tab-btn-summary" onclick="switchTab('summary', event)">
+                    <span class="tab-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                    <span class="tab-label">Сводка<br>производства</span>
+                </a>
+                <a href="#downtimes" class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes', event)">
+                    <span class="tab-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                    <span class="tab-label">Журнал<br>простоев</span>
+                </a>
+                <a href="#daily-report" class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report', event)">
+                    <span class="tab-icon"><i class="fa-solid fa-chart-line"></i></span>
+                    <span class="tab-label">Месячная сводка<br>выработки</span>
                 </a>
             </div>
 
 
-            <!-- Active Shift Banner -->
-            <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; padding: 1rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1rem; position: relative;">
+            <!-- Active Shift Banner: Bento Style -->
+            <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; position: relative; border-radius: 16px; border: 1px solid var(--stripe-border); background: #ffffff; box-shadow: var(--stripe-shadow-card);">
                 <div id="readonly-badge" style="display:none; position: absolute; top: -10px; right: -10px; background: var(--danger-color); color: white; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">РЕЖИМ ПРОСМОТРА</div>
-                <div>Текущая смены: <strong id="active-shift-display" style="color: var(--accent-color)">Нет открытой смены</strong></div>
-                <div id="shift-dev-indicator" style="display:none; cursor: pointer; border: 1px solid var(--glass-border); padding: 0.5rem 1rem; border-radius: 8px;" onclick="switchTab('materials')">
-                    Отклонение по сырью: <strong id="shift-dev-val">0 кг</strong>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="stripe-badge badge-brand">Текущая смена</span>
+                    <strong id="active-shift-display" style="color: var(--text-primary); font-size: 0.95rem;">Нет открытой смены</strong>
                 </div>
-                <div>
-                    <button onclick="loadData()" style="width: auto; padding: 0.5rem 1.2rem; background: var(--glass-border);">Обновить</button>
-                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()" style="display: none; width: auto; padding: 0.5rem 1.2rem;">Закрыть смену</button>
+                <div id="shift-dev-indicator" style="display:none; cursor: pointer; border: 1px solid var(--stripe-border); padding: 0.4rem 0.9rem; border-radius: 9999px; background: #f8fafc; font-size: 0.85rem;" onclick="switchTab('materials')">
+                    Отклонение по сырью: <strong id="shift-dev-val" style="color: var(--primary-color);">0 кг</strong>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button onclick="loadData()" class="btn-secondary" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">🔄 Обновить</button>
+                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()" style="display: none; width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">Закрыть смену</button>
                 </div>
             </div>
 
             <!-- 1. PRODUCTION TAB (📝 Рапорт мастера) -->
             <div id="production-tab" style="display: block;">
-                <div id="report-form-container" style="max-width: 900px; margin: 0 auto;">
+                <div id="report-form-container" style="max-width: 920px; margin: 0 auto;">
                     
                     <!-- Edit Mode Notice Banner -->
-                    <div id="report-edit-mode-banner" style="display: none; background: var(--glass-bg); border: 1px solid rgba(245, 158, 11, 0.5); border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                    <div id="report-edit-mode-banner" style="display: none; background: #ffffff; border: 1.5px solid rgba(245, 158, 11, 0.4); border-radius: 16px; padding: 1.1rem 1.5rem; margin-bottom: 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; box-shadow: var(--stripe-shadow-card);">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="font-size: 1.5rem;">✏️</span>
+                            <span style="font-size: 1.5rem; background: rgba(245, 158, 11, 0.1); width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;">✏️</span>
                             <div>
-                                <div style="font-weight: bold; color: var(--text-primary); font-size: 1rem;" id="report-edit-banner-title">Режим редактирования рапорта</div>
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);" id="report-edit-banner-subtitle">Осталось времени на редактирование: <strong id="report-edit-timer" style="color: var(--text-primary);">--</strong></div>
+                                <div style="font-weight: 700; color: var(--text-primary); font-size: 1rem;" id="report-edit-banner-title">Режим редактирования рапорта</div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);" id="report-edit-banner-subtitle">Осталось времени на редактирование: <strong id="report-edit-timer" style="color: var(--primary-color);">--</strong></div>
                             </div>
                         </div>
-                        <button type="button" onclick="cancelReportEdit()" class="btn-secondary" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem; background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-primary);">✖ Отмена (новый рапорт)</button>
+                        <button type="button" onclick="cancelReportEdit()" class="btn-secondary" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">✖ Отмена (новый рапорт)</button>
                     </div>
 
                     <!-- Accordion Section 1: Заголовок смены -->
@@ -464,14 +519,20 @@
                                 </div>
                             </div>
                             
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
-                                <div class="form-group">
-                                    <label>Выпуск в килограммах (авто)</label>
-                                    <input type="text" id="rep-kg-readonly" readonly placeholder="0.00" style="background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-color)">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; border-top: 1px solid var(--stripe-border); padding-top: 1.5rem;">
+                                <div style="background: #f8fafc; border: 1px solid var(--stripe-border); border-radius: 12px; padding: 1rem 1.25rem;">
+                                    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.35rem;">Выпуск в килограммах (авто)</div>
+                                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                                        <input type="text" id="rep-kg-readonly" readonly placeholder="0.00" style="background: transparent; border: none; box-shadow: none; padding: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; width: auto; max-width: 180px;">
+                                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">кг</span>
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Выпуск в тоннах (авто)</label>
-                                    <input type="text" id="rep-tons-readonly" readonly placeholder="0.000" style="background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-color)">
+                                <div style="background: rgba(200, 35, 35, 0.04); border: 1px solid rgba(200, 35, 35, 0.18); border-radius: 12px; padding: 1rem 1.25rem;">
+                                    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-color); margin-bottom: 0.35rem;">Выпуск в тоннах (авто)</div>
+                                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                                        <input type="text" id="rep-tons-readonly" readonly placeholder="0.000" style="background: transparent; border: none; box-shadow: none; padding: 0; font-size: 1.4rem; font-weight: 800; color: var(--primary-color); font-variant-numeric: tabular-nums; width: auto; max-width: 180px;">
+                                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--primary-color);">тонн</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -484,36 +545,38 @@
                             <span class="acc-toggle">▼</span>
                         </div>
                         <div id="sec-defect" class="accordion-content">
-                            <!-- Общий приход на склад ГП -->
-                            <div class="form-group" style="margin-bottom: 1.2rem; max-width: 350px;">
-                                <label style="font-weight: 700; color: #047857;">На склад ГП (кондиция, листов)</label>
-                                <input type="number" id="rep-warehouse-gp" placeholder="0">
-                            </div>
-
                             <!-- БЛОК 1: СВОЯ СМЕНА -->
-                            <div style="background: #f8fafc; padding: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 1.5rem;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                    <h4 style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700;">🔹 Своя смена</h4>
-                                    <span id="badge-curr-shift-hint" style="font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Текущая смена</span>
+                            <div style="background: #f8fafc; padding: 1.35rem; border-radius: 14px; border: 1px solid var(--stripe-border); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+                                    <h4 style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">🔹 Своя смена</h4>
+                                    <span id="badge-curr-shift-hint" class="stripe-badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">Текущая смена</span>
                                 </div>
                                 
                                 <div class="form-grid-two" style="margin-bottom: 1rem;">
                                     <div class="form-group">
+                                        <label>На склад ГП своей смены (листов)</label>
+                                        <input type="number" id="rep-warehouse-gp" placeholder="0" oninput="recalcWarehouseGPTotal()">
+                                    </div>
+                                    <div class="form-group">
                                         <label>1 Сорт своей смены (листов)</label>
                                         <input type="number" id="rep-first-grade" placeholder="0">
                                     </div>
-                                    <div class="form-group">
-                                        <label>Есть ли брак своей смены?</label>
-                                        <select id="rep-has-defect" onchange="toggleDefectsGrid()">
-                                            <option value="no">Нет брака</option>
-                                            <option value="yes">Да, зарегистрировать брак</option>
-                                        </select>
-                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-bottom: 1rem; max-width: 320px;">
+                                    <label>Регистрация брака своей смены</label>
+                                    <select id="rep-has-defect" onchange="toggleDefectsGrid()">
+                                        <option value="no">Нет брака</option>
+                                        <option value="yes">Да, зарегистрировать брак</option>
+                                    </select>
                                 </div>
 
                                 <!-- 7 видов дефектов своей смены -->
-                                <div id="defects-detail-grid" style="display: none; background: #ffffff; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; margin-top: 0.8rem;">
-                                    <h5 style="margin: 0 0 0.8rem 0; color: #dc2626; font-size: 0.85rem; font-weight: 600;">Детализация дефектов Дестакера (своя смена)</h5>
+                                <div id="defects-detail-grid" style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(220, 38, 38, 0.2); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                        <h5 style="margin: 0; color: var(--primary-color); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">Детализация дефектов Дестакера (своя смена)</h5>
+                                        <span class="stripe-badge badge-brand">7 категорий</span>
+                                    </div>
                                     <div class="form-grid-four">
                                         <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
                                         <div class="form-group"><label>Плохой рез</label><input type="number" id="def-bad-cut" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
@@ -523,37 +586,45 @@
                                         <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="def-thickness" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
                                         <div class="form-group"><label>Кромка</label><input type="number" id="def-edge" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
                                     </div>
-                                    <div class="form-group" style="margin-top: 0.8rem; max-width: 260px;">
-                                        <label style="font-size: 0.8rem;">Итого брака своей смены (авто)</label>
-                                        <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: #f1f5f9; font-weight: bold; color: #dc2626;">
+                                    <div class="form-group" style="margin-top: 1rem; max-width: 280px;">
+                                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака своей смены (авто)</label>
+                                        <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: rgba(220, 38, 38, 0.05); font-weight: 800; color: var(--primary-color); font-size: 1.1rem;">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- БЛОК 2: ПРЕДЫДУЩАЯ СМЕНА -->
-                            <div style="background: #fffbeb; padding: 1.2rem; border-radius: 8px; border: 1px solid #fef3c7; margin-bottom: 1.2rem;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                    <h4 style="margin: 0; color: #b45309; font-size: 1rem; font-weight: 700;">🔸 Предыдущая смена (из камеры твердения)</h4>
-                                    <span id="badge-prev-shift-hint" style="font-size: 0.8rem; background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">Предыдущая смена</span>
+                            <div style="background: #fffdfa; padding: 1.35rem; border-radius: 14px; border: 1px solid rgba(245, 158, 11, 0.25); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+                                    <h4 style="margin: 0; color: #b45309; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">🔸 Предыдущая смена (из камеры твердения)</h4>
+                                    <span id="badge-prev-shift-hint" class="stripe-badge badge-warning">Предыдущая смена</span>
                                 </div>
 
                                 <div class="form-grid-two" style="margin-bottom: 1rem;">
                                     <div class="form-group">
+                                        <label>На склад ГП прошлой смены (листов)</label>
+                                        <input type="number" id="rep-prev-warehouse-gp" placeholder="0" oninput="recalcWarehouseGPTotal()">
+                                    </div>
+                                    <div class="form-group">
                                         <label>1 Сорт прошлой смены (листов)</label>
                                         <input type="number" id="rep-prev-first-grade" placeholder="0">
                                     </div>
-                                    <div class="form-group">
-                                        <label>Есть ли брак прошлой смены?</label>
-                                        <select id="rep-prev-has-defect" onchange="togglePrevDefectsGrid()">
-                                            <option value="no">Нет брака прошлой смены</option>
-                                            <option value="yes">Да, зарегистрировать брак прошлой смены</option>
-                                        </select>
-                                    </div>
+                                </div>
+
+                                <div class="form-group" style="margin-bottom: 1rem; max-width: 320px;">
+                                    <label>Регистрация брака прошлой смены</label>
+                                    <select id="rep-prev-has-defect" onchange="togglePrevDefectsGrid()">
+                                        <option value="no">Нет брака прошлой смены</option>
+                                        <option value="yes">Да, зарегистрировать брак прошлой смены</option>
+                                    </select>
                                 </div>
 
                                 <!-- 7 видов дефектов прошлой смены -->
-                                <div id="prev-defects-detail-grid" style="display: none; background: #ffffff; padding: 1rem; border-radius: 6px; border: 1px solid #fed7aa; margin-top: 0.8rem;">
-                                    <h5 style="margin: 0 0 0.8rem 0; color: #ea580c; font-size: 0.85rem; font-weight: 600;">Детализация дефектов Дестакера (прошлая смена)</h5>
+                                <div id="prev-defects-detail-grid" style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                        <h5 style="margin: 0; color: #ea580c; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">Детализация дефектов Дестакера (прошлая смена)</h5>
+                                        <span class="stripe-badge badge-warning">7 категорий</span>
+                                    </div>
                                     <div class="form-grid-four">
                                         <div class="form-group"><label>Сдир</label><input type="number" id="prev-def-scratch" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
                                         <div class="form-group"><label>Плохой рез</label><input type="number" id="prev-def-bad-cut" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
@@ -563,11 +634,20 @@
                                         <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="prev-def-thickness" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
                                         <div class="form-group"><label>Кромка</label><input type="number" id="prev-def-edge" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
                                     </div>
-                                    <div class="form-group" style="margin-top: 0.8rem; max-width: 260px;">
-                                        <label style="font-size: 0.8rem;">Итого брака прошлой смены (авто)</label>
-                                        <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0" style="background: #f1f5f9; font-weight: bold; color: #ea580c;">
+                                    <div class="form-group" style="margin-top: 1rem; max-width: 280px;">
+                                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака прошлой смены (авто)</label>
+                                        <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0" style="background: rgba(245, 158, 11, 0.05); font-weight: 800; color: #ea580c; font-size: 1.1rem;">
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- ИТОГО НА СКЛАД ГП (АВТОМАТИЧЕСКАЯ СУММА ВНИЗУ БЛОКА) -->
+                            <div style="background: rgba(16, 185, 129, 0.07); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1rem 1.25rem; max-width: 440px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                                <div>
+                                    <div style="font-weight: 700; color: #047857; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.03em;">📦 Всего на склад ГП (авто)</div>
+                                    <div style="font-size: 0.76rem; color: #065f46; margin-top: 2px;">Сумма своей и предыдущей смены</div>
+                                </div>
+                                <input type="text" id="rep-warehouse-gp-total-readonly" readonly placeholder="0" style="width: 140px; text-align: right; font-size: 1.25rem; font-weight: 800; color: #047857; background: #ffffff; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 0.4rem 0.75rem;">
                             </div>
                             <input type="hidden" id="rep-qcd-defect" value="0">
                         </div>
@@ -591,19 +671,20 @@
                                     }
                                     @media (max-width: 768px) {
                                         .rm-grid {
-                                            grid-template-columns: minmax(80px, 1.3fr) repeat(4, 1fr) 1.1fr;
-                                            gap: 0.25rem;
+                                            grid-template-columns: minmax(90px, 1.4fr) repeat(4, minmax(50px, 1fr)) minmax(65px, 1.1fr);
+                                            gap: 0.35rem;
                                         }
                                         .rm-header {
-                                            font-size: 0.65rem;
-                                            padding-bottom: 0.3rem;
+                                            font-size: 0.75rem;
+                                            padding-bottom: 0.35rem;
                                         }
                                         .rm-label-row {
-                                            font-size: 0.72rem;
+                                            font-size: 0.82rem;
                                         }
                                         .rm-grid input[type="number"], .rm-grid input[type="text"] {
-                                            padding: 0.25rem 0.2rem;
-                                            font-size: 0.75rem;
+                                            padding: 0.45rem 0.25rem;
+                                            font-size: 16px !important; /* Prevents auto-zoom on iOS */
+                                            min-height: 44px;
                                         }
                                     }
                                     .rm-header {
@@ -611,7 +692,7 @@
                                         color: var(--text-secondary);
                                         font-size: 0.82rem;
                                         padding-bottom: 0.4rem;
-                                        border-bottom: 1px solid var(--glass-border);
+                                        border-bottom: 1px solid var(--border-color);
                                         text-align: center;
                                     }
                                     .rm-grid .form-group {
@@ -621,14 +702,17 @@
                                         padding: 0.5rem 0.4rem;
                                         text-align: right;
                                         width: 100%;
-                                        font-size: 0.9rem;
-                                        border-radius: 6px;
-                                        border: 1px solid var(--glass-border);
-                                        background: rgba(255, 255, 255, 0.05);
+                                        font-size: 0.95rem;
+                                        border-radius: 8px;
+                                        border: 1px solid var(--border-color-subtle);
+                                        background: #ffffff;
                                         color: var(--text-primary);
+                                        box-shadow: var(--shadow-xs);
+                                        transition: all 0.15s ease;
                                     }
-                                    .rm-grid input[type="number"]:focus {
-                                        border-color: var(--accent-color);
+                                    .rm-grid input[type="number"]:focus, .rm-grid input[type="text"]:focus {
+                                        border-color: var(--primary-color);
+                                        box-shadow: 0 0 0 3px var(--tectum-primary-ring);
                                         outline: none;
                                     }
                                     .rm-label-row {
@@ -851,9 +935,9 @@
                             </script>
                         </div>
                     </div>
-<div style="margin: 2rem 0; text-align: center;">
-                        <button id="btn-submit-shift-report" onclick="submitShiftReport()" class="btn-submit-huge" style="font-size: 1.2rem; padding: 1.2rem 3rem; border-radius: 12px; max-width: 400px; width: 100%;">💾 Сохранить рапорт смены</button>
-                        <div id="draft-indicator" style="margin-top: 10px; font-size: 0.9rem; color: #22c55e; opacity: 0; transition: opacity 0.5s;">✓ Черновик сохранен локально</div>
+                    <div style="margin: 2.5rem 0; text-align: center;">
+                        <button id="btn-submit-shift-report" onclick="submitShiftReport()" class="btn-submit-huge" style="font-size: 1.15rem; font-weight: 700; padding: 1.1rem 3.5rem; border-radius: 12px; max-width: 440px; width: 100%; letter-spacing: -0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), var(--stripe-shadow-btn);">💾 Сохранить сменный рапорт →</button>
+                        <div id="draft-indicator" style="margin-top: 12px; font-size: 0.88rem; font-weight: 600; color: #10b981; opacity: 0; transition: opacity 0.5s;">✓ Черновик сохранен локально</div>
                     </div>
 
                     <!-- Accordion Section 5: Приход сырья -->
@@ -863,7 +947,8 @@
                             <span class="acc-toggle">▼</span>
                         </div>
                         <div id="sec-rec" class="accordion-content">
-                            <div class="form-grid-three" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px;">
+                            <!-- Блок метаданных прихода -->
+                            <div class="receipt-meta-grid" style="margin-bottom: 1.5rem; background: #f8fafc; padding: 1.2rem; border-radius: 14px; border: 1px solid var(--stripe-border);">
                                 <div class="form-group">
                                     <label>Дата</label>
                                     <input type="date" id="rec-date">
@@ -889,24 +974,104 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="form-grid-three">
-                                <div class="form-group"><label>Хризотил 4-20 (мешков по 50 кг)</label><input type="number" id="rec-chr-4-20" placeholder="0"></div>
-                                <div class="form-group"><label>Хризотил 5-65 (мешков по 50 кг)</label><input type="number" id="rec-chr-5-65" placeholder="0"></div>
-                                <div class="form-group"><label>Хризотил 6-40 (мешков по 50 кг)</label><input type="number" id="rec-chr-6-40" placeholder="0"></div>
-                                <div class="form-group"><label>Цемент Силос 1 (кг)</label><input type="number" id="rec-cement-1" placeholder="0"></div>
-                                <div class="form-group"><label>Цемент Силос 2 (кг)</label><input type="number" id="rec-cement-2" placeholder="0"></div>
-                                <div class="form-group"><label>Цемент Силос 3 (кг)</label><input type="number" id="rec-cement-3" placeholder="0"></div>
-                                <div class="form-group"><label>Цемент Силос 4 (кг)</label><input type="number" id="rec-cement-4" placeholder="0"></div>
-                                <div class="form-group"><label>Целлюлоза (кг)</label><input type="number" id="rec-cellulose" placeholder="0"></div>
-                                <div class="form-group"><label>Дробленый шифер (кг)</label><input type="number" id="rec-crushed-slate" placeholder="0"></div>
-                                <div class="form-group"><label>Асбозурит (кг)</label><input type="number" id="rec-asbozurit" placeholder="0"></div>
-                                <div class="form-group"><label>Асбокартон (кг)</label><input type="number" id="rec-asbocarton" placeholder="0"></div>
-                                <div class="form-group"><label>Поддоны (шт)</label><input type="number" id="rec-pallets" placeholder="0"></div>
-                                <div class="form-group"><label>Стекловолокно (кг)</label><input type="number" id="rec-fiberglass" placeholder="0"></div>
-                                <div class="form-group"><label>Лапрол (бочек по 200 кг)</label><input type="number" id="rec-laprol" placeholder="0"></div>
+
+                            <!-- 1. БЛОК ХРИЗОТИЛА -->
+                            <div class="rm-section-box rm-box-chrysotile">
+                                <div class="rm-box-header">
+                                    <div class="rm-box-title">
+                                        <span class="rm-box-icon">🔷</span>
+                                        <h4>Хризотил</h4>
+                                    </div>
+                                    <span class="stripe-badge badge-brand">мешков по 50 кг</span>
+                                </div>
+                                <div class="rm-inputs-grid">
+                                    <div class="form-group">
+                                        <label>Хризотил 4-20 <span class="unit-tag">мешков</span></label>
+                                        <input type="number" id="rec-chr-4-20" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Хризотил 5-65 <span class="unit-tag">мешков</span></label>
+                                        <input type="number" id="rec-chr-5-65" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Хризотил 6-40 <span class="unit-tag">мешков</span></label>
+                                        <input type="number" id="rec-chr-6-40" placeholder="0">
+                                    </div>
+                                </div>
                             </div>
-                            <div style="margin-top: 1rem;">
-                                <button id="btn-submit-receipt" type="button" class="btn-submit" onclick="addReceipt()">➕ Добавить приход</button>
+
+                            <!-- 2. БЛОК ЦЕМЕНТА -->
+                            <div class="rm-section-box rm-box-cement">
+                                <div class="rm-box-header">
+                                    <div class="rm-box-title">
+                                        <span class="rm-box-icon">🏛️</span>
+                                        <h4>Цемент</h4>
+                                    </div>
+                                    <span class="stripe-badge badge-steel">килограммы (кг)</span>
+                                </div>
+                                <div class="rm-inputs-grid">
+                                    <div class="form-group">
+                                        <label>Цемент Силос 1 <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-cement-1" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Цемент Силос 2 <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-cement-2" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Цемент Силос 3 <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-cement-3" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Цемент Силос 4 <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-cement-4" placeholder="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. БЛОК ДОБАВОК И ТАРЫ -->
+                            <div class="rm-section-box rm-box-additives">
+                                <div class="rm-box-header">
+                                    <div class="rm-box-title">
+                                        <span class="rm-box-icon">📦</span>
+                                        <h4>Добавки и материалы</h4>
+                                    </div>
+                                    <span class="stripe-badge badge-success">расходные материалы</span>
+                                </div>
+                                <div class="rm-inputs-grid">
+                                    <div class="form-group">
+                                        <label>Целлюлоза <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-cellulose" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Дробленый шифер <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-crushed-slate" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Асбозурит <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-asbozurit" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Асбокартон <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-asbocarton" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Стекловолокно <span class="unit-tag">кг</span></label>
+                                        <input type="number" id="rec-fiberglass" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Поддоны <span class="unit-tag">шт</span></label>
+                                        <input type="number" id="rec-pallets" placeholder="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Лапрол <span class="unit-tag">бочек по 200 кг</span></label>
+                                        <input type="number" id="rec-laprol" placeholder="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 1.5rem;">
+                                <button id="btn-submit-receipt" type="button" class="btn-submit-huge" style="width: 100%; max-width: 380px; margin: 0 auto; display: block;" onclick="addReceipt()">➕ Зарегистрировать приход</button>
                             </div>
                         </div>
                     </div>
@@ -1535,6 +1700,6 @@
         </button>
     </div>
 
-    <script src="/static/js/app.js?v=20260901_downtimes_date_fix"></script>
+    <script src="/static/js/app.js?v=20260905_number_inputs_bento_v3"></script>
 </body>
 </html>

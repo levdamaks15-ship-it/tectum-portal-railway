@@ -3,6 +3,22 @@
  * 3-Level Planning, Hierarchies, Dependencies, Roadmaps & Hashtags
  */
 
+// Global click handler to open date picker when clicking anywhere in a date/month/time input
+document.addEventListener('click', function (e) {
+    const input = e.target.closest('input');
+    if (!input) return;
+    if (input._flatpickr) {
+        if (!input._flatpickr.isOpen) input._flatpickr.open();
+        return;
+    }
+    const pickerTypes = ['date', 'month', 'time', 'datetime-local', 'week'];
+    if (pickerTypes.includes(input.type)) {
+        if (typeof input.showPicker === 'function') {
+            try { input.showPicker(); } catch (err) {}
+        }
+    }
+});
+
 let allTasks = [];
 let allRoadmaps = [];
 let allTagsList = [];

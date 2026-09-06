@@ -534,7 +534,7 @@ def get_daily_report(
             continue
         
         lfm_sheets = sum((r.lfm_sheets or 0) for r in s.lfm_reports) if getattr(s, 'lfm_reports', None) else 0
-        warehouse_gp = sum((b.ds_condition or 0) for b in s.batches) if getattr(s, 'batches', None) else 0
+        warehouse_gp = sum(((b.ds_condition or 0) + (b.prev_condition or 0)) for b in s.batches) if getattr(s, 'batches', None) else 0
         plan_sheets = s.plan_sheets or 0
         zo_batches = s.zo_batches or 0
         
@@ -1341,7 +1341,9 @@ def get_report_summary(
         
             # Фильтруем абсолютно пустые смены без факта производства и без плана
             lfm_sheets_check = sum((l.lfm_sheets or 0) for l in lfm_reports) if lfm_reports else 0
-            warehouse_gp_check = sum((b.ds_condition or 0) for b in batches) if batches else 0
+            warehouse_gp_check = sum(((b.ds_condition or 0) + (b.prev_condition or 0)) for b in batches) if batches else 0
+            curr_warehouse_gp_check = sum((b.ds_condition or 0) for b in batches) if batches else 0
+            prev_warehouse_gp_check = sum((b.prev_condition or 0) for b in batches) if batches else 0
             zo_batches_check = shift.zo_batches or 0
             plan_sheets_check = shift.plan_sheets or 0
         
@@ -1352,6 +1354,8 @@ def get_report_summary(
             lfm_resets = sum((l.lfm_wind_resets or 0) for l in lfm_reports) if (lfm_reports and not is_other_master) else 0
         
             warehouse_gp = warehouse_gp_check if not is_other_master else 0
+            curr_warehouse_gp = curr_warehouse_gp_check if not is_other_master else 0
+            prev_condition = prev_warehouse_gp_check if not is_other_master else 0
             first_grade = sum((b.ds_first_grade or 0) for b in batches) if (batches and not is_other_master) else 0
             qcd_defect = sum((b.ds_defect or 0) for b in batches) if (batches and not is_other_master) else 0
         
@@ -1427,9 +1431,11 @@ def get_report_summary(
                 "zo_batches": shift.zo_batches if not is_other_master else 0,
             
                 "warehouse_gp": warehouse_gp,
+                "curr_warehouse_gp": curr_warehouse_gp,
                 "first_grade": first_grade,
                 "defect": qcd_defect,
                 "ds_defects": ds_defects,
+                "prev_condition": prev_condition,
                 "prev_first_grade": prev_first_grade,
                 "prev_defect": prev_defect,
                 "prev_defects": prev_defects,

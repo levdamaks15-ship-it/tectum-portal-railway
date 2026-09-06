@@ -170,7 +170,7 @@ async def lifespan(app: FastAPI):
     
     # Batches previous shift defects migration (SQLite)
     for col in [
-        "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
+        "prev_condition", "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
         "prev_defect_stick_top", "prev_defect_broken", "prev_defect_fell_box",
         "prev_defect_thickness", "prev_defect_edge"
     ]:
@@ -296,9 +296,9 @@ async def lifespan(app: FastAPI):
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS master_id INTEGER REFERENCES masters(id);"))
             db_pg.execute(text("ALTER TABLE downtimes ALTER COLUMN shift_id DROP NOT NULL;"))
             
-            # Batches: prev defects
+            # Batches: prev defects & condition
             for b_col in [
-                "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
+                "prev_condition", "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
                 "prev_defect_stick_top", "prev_defect_broken", "prev_defect_fell_box",
                 "prev_defect_thickness", "prev_defect_edge"
             ]:
@@ -780,6 +780,7 @@ async def lifespan(app: FastAPI):
             ("shifts", "receipt_asbocarton", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "receipt_pallets", "DOUBLE PRECISION DEFAULT 0.0"),
             ("shifts", "sharepoint_url", "VARCHAR(500)"),
+            ("batches", "prev_condition", "INTEGER DEFAULT 0"),
             ("batches", "qcd_sorted_packs", "INTEGER DEFAULT 0"),
             ("batches", "qcd_first_grade_note", "VARCHAR(500)"),
             ("batches", "qcd_defect_note", "VARCHAR(500)"),

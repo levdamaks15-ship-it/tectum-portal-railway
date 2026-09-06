@@ -1418,9 +1418,9 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     
     headers = [
         "№ партии", "Дата", "День нед.", "Время смены", "Мастер ЛФМ", "Продукт", "Формовка, шт",
-        "Смена", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
-        "Прошлая смена", "Мастер (прошлая)", "1 сорт (прошлая), шт", "Брак (прошлая), шт", "Детализация брака (прошлая)",
-        "Всего 1 сорт, шт", "Всего брак, шт"
+        "Смена", "ГП своя, шт", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
+        "Прошлая смена", "Мастер (прошлая)", "ГП прошлая, шт", "1 сорт (прошлая), шт", "Брак (прошлая), шт", "Детализация брака (прошлая)",
+        "Всего ГП, шт", "Всего 1 сорт, шт", "Всего брак, шт"
     ]
     
     from datetime import date
@@ -1497,9 +1497,11 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 if prev_shift_obj and prev_shift_obj.master:
                     prev_master_name = prev_shift_obj.master.name
             
+        ds_gp = b.ds_condition or 0
         ds_first = b.ds_first_grade or 0
         ds_def = b.ds_defect or 0
         
+        prev_gp = b.prev_condition or 0
         prev_f = b.prev_first_grade or 0
         prev_d = b.prev_defect or 0
         
@@ -1534,6 +1536,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         if b.prev_defect_edge: prev_parts.append(f"Кромка ({b.prev_defect_edge})")
         prev_note = ", ".join(prev_parts)
         
+        total_gp_all = ds_gp + prev_gp
         total_first_all = ds_first + prev_f
         total_def_all = ds_def + prev_d
         
@@ -1546,15 +1549,18 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             product_name,
             total_sheets,
             shift_group or "",
+            ds_gp,
             ds_first,
             ds_def,
             pct_defect,
             note_defect,
             prev_shift_group or "",
             prev_master_name or "",
+            prev_gp,
             prev_f,
             prev_d,
             prev_note,
+            total_gp_all,
             total_first_all,
             total_def_all
         ])
@@ -1748,7 +1754,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
-        # Формат чисел (1 сорт и Брак текущей бригады: колонки 8, 9)
+        # Формат чисел (ГП своя, 1 сорт и Брак текущей бригады: колонки 8, 9, 10)
         {
             "repeatCell": {
                 "range": {
@@ -1756,7 +1762,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
                     "startColumnIndex": 8,
-                    "endColumnIndex": 10
+                    "endColumnIndex": 11
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1767,26 +1773,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
-        # Формат процентов (% брака: колонка 10)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 10,
-                    "endColumnIndex": 11
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {"type": "PERCENT", "pattern": "0.00%"},
-                        "horizontalAlignment": "RIGHT"
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Выравнивание примечания дефектов (колонка 11) по левому краю
+        # Формат процентов (% брака: колонка 11)
         {
             "repeatCell": {
                 "range": {
@@ -1798,13 +1785,14 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 },
                 "cell": {
                     "userEnteredFormat": {
-                        "horizontalAlignment": "LEFT"
+                        "numberFormat": {"type": "PERCENT", "pattern": "0.00%"},
+                        "horizontalAlignment": "RIGHT"
                     }
                 },
-                "fields": "userEnteredFormat.horizontalAlignment"
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
-        # Выравнивание сдавшей бригады и мастера (колонки 12, 13)
+        # Выравнивание примечания дефектов (колонка 12) по левому краю
         {
             "repeatCell": {
                 "range": {
@@ -1813,6 +1801,24 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "endRowIndex": total_rows,
                     "startColumnIndex": 12,
                     "endColumnIndex": 13
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        # Выравнивание сдавшей бригады и мастера (колонки 13, 14)
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": total_rows,
+                    "startColumnIndex": 13,
+                    "endColumnIndex": 14
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1828,8 +1834,8 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 13,
-                    "endColumnIndex": 14
+                    "startColumnIndex": 14,
+                    "endColumnIndex": 15
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1839,15 +1845,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
-        # Формат чисел (1 сорт и Брак сдавшей бригады: колонки 14, 15)
+        # Формат чисел (ГП, 1 сорт и Брак сдавшей бригады: колонки 15, 16, 17)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 14,
-                    "endColumnIndex": 16
+                    "startColumnIndex": 15,
+                    "endColumnIndex": 18
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1858,15 +1864,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
-        # Выравнивание примечания дефектов сдавшей бригады (колонка 16)
+        # Выравнивание примечания дефектов сдавшей бригады (колонка 18)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 16,
-                    "endColumnIndex": 17
+                    "startColumnIndex": 18,
+                    "endColumnIndex": 19
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -1876,15 +1882,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
-        # Формат чисел (Итоги Всего 1 сорт и Всего брак: колонки 17, 18)
+        # Формат чисел (Итоги Всего ГП, Всего 1 сорт и Всего брак: колонки 19, 20, 21)
         {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": 1,
                     "endRowIndex": total_rows,
-                    "startColumnIndex": 17,
-                    "endColumnIndex": 19
+                    "startColumnIndex": 19,
+                    "endColumnIndex": 22
                 },
                 "cell": {
                     "userEnteredFormat": {

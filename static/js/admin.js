@@ -15,6 +15,22 @@ document.addEventListener('wheel', function (e) {
     }
 }, { passive: true });
 
+// Universal Click-to-Open Picker for all Date, Month and Time inputs in Admin Panel
+document.addEventListener('click', function (e) {
+    const input = e.target.closest('input');
+    if (!input) return;
+    if (input._flatpickr) {
+        if (!input._flatpickr.isOpen) input._flatpickr.open();
+        return;
+    }
+    const pickerTypes = ['date', 'month', 'time', 'datetime-local', 'week'];
+    if (pickerTypes.includes(input.type)) {
+        if (typeof input.showPicker === 'function') {
+            try { input.showPicker(); } catch (err) {}
+        }
+    }
+});
+
 let currentAdmin = null;
 let allMastersCached = [];
 window.allMastersCached = allMastersCached;
@@ -1280,7 +1296,7 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         // Tab 2: Production
         const lfmSheetsVal = lfm.reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
         const lfmWindVal = lfm.reduce((acc, r) => acc + (r.lfm_wind_resets || 0), 0);
-        const whGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const whGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0) + (b.prev_condition || 0), 0);
         const firstGradeVal = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
         const qcdDefectVal = batches.reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
 

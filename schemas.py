@@ -72,6 +72,7 @@ class BatchBase(ORMBaseModel):
     ds_defect_edge: int = 0
     
     # Предыдущая смена
+    prev_condition: int = 0
     prev_first_grade: int = 0
     prev_defect: int = 0
     prev_defect_scratch: int = 0
@@ -491,6 +492,7 @@ class ShiftReportCreate(ORMBaseModel):
     ds_defect_edge: int = 0
     
     # Предыдущая смена
+    prev_condition: int = 0
     prev_first_grade: int = 0
     prev_has_defect: str = "no"
     prev_defect_scratch: int = 0
@@ -602,6 +604,7 @@ class AdminShiftReportUpdate(ORMBaseModel):
     ds_defect_edge: Optional[int] = None
     
     # Предыдущая смена
+    prev_condition: Optional[int] = None
     prev_first_grade: Optional[int] = None
     prev_has_defect: Optional[str] = None
     prev_defect_scratch: Optional[int] = None
