@@ -341,7 +341,7 @@ async function onProductChange(event) {
                     
                     resetReportForm();
                     
-                    if (document.getElementById('rep-date')) document.getElementById('rep-date').value = date;
+                    if (document.getElementById('rep-date')) setDateInputValue('rep-date', date);
                     if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
                     if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
                     if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
@@ -476,6 +476,80 @@ function switchTab(tabId, event) {
     }
 }
 
+// --- Universal Datepicker Helpers & Quick Buttons ---
+function attachQuickDateFooter(fp) {
+    if (!fp || !fp.calendarContainer) return;
+    if (fp.calendarContainer.querySelector('.flatpickr-quick-footer')) return;
+    const footer = document.createElement('div');
+    footer.className = 'flatpickr-quick-footer';
+    footer.innerHTML = `
+        <button type="button" class="fp-btn-preset fp-btn-yesterday">Вчера</button>
+        <button type="button" class="fp-btn-preset fp-btn-today">Сегодня</button>
+    `;
+    footer.querySelector('.fp-btn-yesterday').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        fp.setDate(d, true);
+        fp.close();
+    });
+    footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fp.setDate(new Date(), true);
+        fp.close();
+    });
+    fp.calendarContainer.appendChild(footer);
+}
+
+function setDateInputValue(inputOrId, dateVal, triggerChange = false) {
+    const el = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
+    if (!el) return;
+    if (el._flatpickr) {
+        if (dateVal) {
+            el._flatpickr.setDate(dateVal, triggerChange);
+        } else {
+            el._flatpickr.clear();
+        }
+    } else {
+        el.value = dateVal || '';
+        if (triggerChange) {
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+}
+window.setDateInputValue = setDateInputValue;
+
+function setQuickDate(inputOrId, offsetDays = 0) {
+    const target = new Date();
+    if (offsetDays !== 0) {
+        target.setDate(target.getDate() + offsetDays);
+    }
+    const y = target.getFullYear();
+    const m = String(target.getMonth() + 1).padStart(2, '0');
+    const d = String(target.getDate()).padStart(2, '0');
+    const isoDate = `${y}-${m}-${d}`;
+    setDateInputValue(inputOrId, isoDate, true);
+}
+window.setQuickDate = setQuickDate;
+
+function ensureFlatpickrSync(input) {
+    if (!input || input.__fpSyncBound) return;
+    input.__fpSyncBound = true;
+    input.addEventListener('change', function() {
+        if (this._flatpickr && this.value) {
+            try {
+                const cur = this._flatpickr.selectedDates[0];
+                const curStr = cur ? this._flatpickr.formatDate(cur, "Y-m-d") : '';
+                if (this.value !== curStr) {
+                    this._flatpickr.setDate(this.value, false);
+                }
+            } catch(e) {}
+        }
+    });
+}
+
 // Flatpickr initialization helper: Uniform modern date & month pickers across the portal
 function setupTimePickers() {
     // 1. Time pickers (H:i 24h)
@@ -539,86 +613,101 @@ function setupTimePickers() {
             });
         }
     });
+
+    const commonDateOptions = {
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "d.m.Y",
+        altInputClass: "flatpickr-input date-input-modern",
+        locale: "ru",
+        allowInput: true,
+        onReady: function(selectedDates, dateStr, instance) {
+            attachQuickDateFooter(instance);
+        },
+        onOpen: function(selectedDates, dateStr, instance) {
+            attachQuickDateFooter(instance);
+        }
+    };
     
     // 2. Production Shift Date (Рапорт мастера)
-    if (!document.getElementById('rep-date')?._flatpickr) {
-        flatpickr("#rep-date", {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            defaultDate: new Date(),
-            allowInput: true,
+    const repDateEl = document.getElementById('rep-date');
+    if (repDateEl && !repDateEl._flatpickr) {
+        flatpickr(repDateEl, {
+            ...commonDateOptions,
+            defaultDate: repDateEl.value || new Date(),
             onChange: function(selectedDates, dateStr, instance) {
                 if (typeof onProductChange === 'function') onProductChange();
                 if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
             }
         });
+        ensureFlatpickrSync(repDateEl);
     }
 
     // 3. Raw Material Receipt Date (Приход сырья)
     const recDateEl = document.getElementById('rec-date');
     if (recDateEl && !recDateEl._flatpickr) {
         flatpickr(recDateEl, {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            defaultDate: new Date(),
-            allowInput: true
+            ...commonDateOptions,
+            defaultDate: recDateEl.value || new Date()
         });
+        ensureFlatpickrSync(recDateEl);
     }
 
     // 4. Downtimes Journal Date
     const jDtDateEl = document.getElementById('journal-dt-date');
     if (jDtDateEl && !jDtDateEl._flatpickr) {
         flatpickr(jDtDateEl, {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            defaultDate: new Date(),
-            allowInput: true,
+            ...commonDateOptions,
+            defaultDate: jDtDateEl.value || new Date(),
             onChange: function(selectedDates, dateStr, instance) {
                 loadDowntimesByParams();
                 calcJournalDowntimeDuration();
                 if (typeof saveDowntimeContext === 'function') saveDowntimeContext();
             }
         });
+        ensureFlatpickrSync(jDtDateEl);
     }
     
     // 5. Summary Filter Dates (from/to)
     const filterFromEl = document.getElementById('filter-date-from');
-    if (filterFromEl) {
+    if (filterFromEl && !filterFromEl._flatpickr) {
         flatpickr(filterFromEl, {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            defaultDate: new Date(new Date().setDate(new Date().getDate() - 30)),
-            allowInput: true
+            ...commonDateOptions,
+            defaultDate: filterFromEl.value || new Date(new Date().setDate(new Date().getDate() - 30)),
+            onChange: function() {
+                if (typeof onSummaryMonthChange === 'function') onSummaryMonthChange();
+            }
         });
+        ensureFlatpickrSync(filterFromEl);
     }
     
     const filterToEl = document.getElementById('filter-date-to');
-    if (filterToEl) {
+    if (filterToEl && !filterToEl._flatpickr) {
         flatpickr(filterToEl, {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            defaultDate: new Date(),
-            allowInput: true
+            ...commonDateOptions,
+            defaultDate: filterToEl.value || new Date(),
+            onChange: function() {
+                if (typeof onSummaryMonthChange === 'function') onSummaryMonthChange();
+            }
         });
+        ensureFlatpickrSync(filterToEl);
     }
 
     // 6. Modal Edit Dates (if present)
     const editDtDateEl = document.getElementById('edit-downtime-date');
-    if (editDtDateEl) {
+    if (editDtDateEl && !editDtDateEl._flatpickr) {
         flatpickr(editDtDateEl, {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            allowInput: true
+            ...commonDateOptions
         });
+        ensureFlatpickrSync(editDtDateEl);
     }
 
     const editRecDateEl = document.getElementById('edit-receipt-date');
-    if (editRecDateEl) {
+    if (editRecDateEl && !editRecDateEl._flatpickr) {
         flatpickr(editRecDateEl, {
-            dateFormat: "Y-m-d",
-            locale: "ru",
-            allowInput: true
+            ...commonDateOptions
         });
+        ensureFlatpickrSync(editRecDateEl);
     }
 
     // 7. Month Selectors: Crew Plans, Summary & Monthly Report
@@ -1114,7 +1203,7 @@ async function loadData() {
 }
 
 function prefillReportForm(shift) {
-    document.getElementById('rep-date').value = shift.date;
+    setDateInputValue('rep-date', shift.date);
     document.getElementById('rep-shift').value = shift.shift_name;
     document.getElementById('rep-line').value = shift.line;
     if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
@@ -3657,7 +3746,11 @@ function loadReportDraft() {
             REPORT_FIELDS.forEach(id => {
                 const el = document.getElementById(id);
                 if (el && draft[id] !== undefined && draft[id] !== '') {
-                    el.value = draft[id];
+                    if (el._flatpickr) {
+                        el._flatpickr.setDate(draft[id], false);
+                    } else {
+                        el.value = draft[id];
+                    }
                     if (el.tagName === 'SELECT') {
                         el.dispatchEvent(new Event('change', { bubbles: true }));
                     }
@@ -3726,7 +3819,11 @@ function loadDowntimeContext() {
             DOWNTIME_CONTEXT_FIELDS.forEach(id => {
                 const el = document.getElementById(id);
                 if (el && context[id] !== undefined && context[id] !== '') {
-                    el.value = context[id];
+                    if (el._flatpickr) {
+                        el._flatpickr.setDate(context[id], false);
+                    } else {
+                        el.value = context[id];
+                    }
                     el.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
