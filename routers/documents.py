@@ -6,12 +6,15 @@ import shutil
 import hashlib
 from datetime import datetime, date
 from typing import Optional, List
+from urllib.parse import quote
+import requests
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File, Form, Query, Header, Body
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 
+import database
 import models
 import schemas
 from database import SessionLocal
@@ -1096,8 +1099,18 @@ def download_local_document(doc_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Файл документа отсутствует на диске")
     
     filename = doc.title or os.path.basename(doc.file_path)
+    title_name, title_ext = os.path.splitext(filename)
+    if not title_ext:
+        file_ext = os.path.splitext(doc.file_path)[1]
+        if file_ext:
+            filename = f"{filename}{file_ext}"
+
     encoded_filename = quote(filename.encode('utf-8'))
     media_type = doc.mime_type or "application/octet-stream"
+    
+    # Принудительно устанавливаем корректный MIME-тип для PDF при неточностях в БД
+    if doc.file_path.lower().endswith(".pdf") and (not media_type or media_type == "application/octet-stream"):
+        media_type = "application/pdf"
     
     # PDF, изображения и текст отдаем inline для комфортного онлайн-просмотра на смартфонах и ПК
     is_inline = False
@@ -1106,9 +1119,10 @@ def download_local_document(doc_id: int, db: Session = Depends(get_db)):
         is_inline = True
         
     disposition = "inline" if is_inline else "attachment"
+    ascii_fallback = filename.encode('ascii', 'replace').decode().replace('"', '')
     
     headers = {
-        "Content-Disposition": f"{disposition}; filename*=UTF-8''{encoded_filename}",
+        "Content-Disposition": f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_filename}",
         "Access-Control-Expose-Headers": "Content-Disposition",
         "Cache-Control": "public, max-age=3600" if is_inline else "no-cache, no-store, must-revalidate",
         "Accept-Ranges": "bytes"
@@ -1306,9 +1320,10 @@ def download_document_version(version_id: int, db: Session = Depends(get_db)):
     name_parts = os.path.splitext(doc_title)
     archive_filename = f"{name_parts[0]}_v{ver.version_number}{name_parts[1]}"
     encoded_filename = quote(archive_filename.encode('utf-8'))
+    ascii_fallback = archive_filename.encode('ascii', 'replace').decode().replace('"', '')
     
     headers = {
-        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+        "Content-Disposition": f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_filename}",
         "Access-Control-Expose-Headers": "Content-Disposition"
     }
     return FileResponse(ver.file_path, media_type=ver.mime_type or "application/octet-stream", headers=headers)
