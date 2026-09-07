@@ -577,7 +577,7 @@
 
         .docs-table-header {
             display: grid;
-            grid-template-columns: minmax(240px, 3fr) 100px 140px 140px 140px;
+            grid-template-columns: minmax(220px, 1fr) 115px 135px 115px 195px;
             padding: 0.85rem 1.25rem;
             background: var(--docs-table-header-bg);
             color: var(--docs-text-muted);
@@ -591,7 +591,7 @@
 
         .docs-table-row {
             display: grid;
-            grid-template-columns: minmax(240px, 3fr) 100px 140px 140px 140px;
+            grid-template-columns: minmax(220px, 1fr) 115px 135px 115px 195px;
             padding: 0.75rem 1.25rem;
             align-items: center;
             border-bottom: 1px solid var(--docs-panel-border);
@@ -818,35 +818,100 @@
 
         .row-actions {
             display: flex;
-            gap: 0.4rem;
+            gap: 5px;
             justify-content: flex-end;
             align-items: center;
         }
 
         .btn-icon {
-            background: transparent;
-            border: none;
-            color: var(--docs-text-secondary);
-            cursor: pointer;
-            width: 36px;
-            height: 36px;
-            border-radius: 6px;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            font-size: 0.95rem;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            max-width: 32px !important;
+            min-height: 32px !important;
+            max-height: 32px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-radius: 8px !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            background: #ffffff !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+            cursor: pointer !important;
+            text-decoration: none !important;
+            font-size: 0.88rem !important;
+            line-height: 1 !important;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            outline: none !important;
         }
 
         .btn-icon:hover {
-            color: var(--docs-text-primary);
-            background: var(--docs-btn-bg);
+            transform: translateY(-1px) !important;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12) !important;
         }
 
+        .btn-icon:active {
+            transform: translateY(0) scale(0.96) !important;
+        }
+
+        /* Color variations for document row actions (Soft Badges) */
+        .btn-icon-planner {
+            color: #2563eb !important;
+            background: #eff6ff !important;
+            border-color: #bfdbfe !important;
+        }
+        .btn-icon-planner:hover {
+            background: #dbeafe !important;
+            border-color: #93c5fd !important;
+            color: #1d4ed8 !important;
+        }
+
+        .btn-icon-version {
+            color: #059669 !important;
+            background: #ecfdf5 !important;
+            border-color: #a7f3d0 !important;
+        }
+        .btn-icon-version:hover {
+            background: #d1fae5 !important;
+            border-color: #6ee7b7 !important;
+            color: #047857 !important;
+        }
+
+        .btn-icon-download {
+            color: #0284c7 !important;
+            background: #f0f9ff !important;
+            border-color: #bae6fd !important;
+        }
+        .btn-icon-download:hover {
+            background: #e0f2fe !important;
+            border-color: #7dd3fc !important;
+            color: #0369a1 !important;
+        }
+
+        .btn-icon-move {
+            color: #6366f1 !important;
+            background: #eef2ff !important;
+            border-color: #c7d2fe !important;
+        }
+        .btn-icon-move:hover {
+            background: #e0e7ff !important;
+            border-color: #a5b4fc !important;
+            color: #4338ca !important;
+        }
+
+        .btn-icon-delete {
+            color: #dc2626 !important;
+            background: #fef2f2 !important;
+            border-color: #fecaca !important;
+        }
         .btn-icon-delete:hover {
-            color: #ef4444;
-            background: rgba(239, 68, 68, 0.15);
+            background: #fee2e2 !important;
+            border-color: #fca5a5 !important;
+            color: #b91c1c !important;
         }
 
         .btn-icon-more {
@@ -1416,9 +1481,13 @@
             }
 
             .btn-icon {
-                width: 44px;
-                height: 44px;
-                font-size: 1.1rem;
+                width: 34px !important;
+                height: 34px !important;
+                min-width: 34px !important;
+                max-width: 34px !important;
+                min-height: 34px !important;
+                max-height: 34px !important;
+                font-size: 0.95rem !important;
             }
 
             /* Context Menu as Bottom Sheet on Mobile */
@@ -3002,10 +3071,10 @@
                         <div class="row-meta"><span class="author-badge" title="Создатель: ${escapeHtml(folderAuthor)}"><i class="fa-solid fa-folder-tree" style="color: #64748b; font-size:0.75rem;"></i> ${escapeHtml(folderAuthor)}</span></div>
                         <div class="row-meta"><span class="date-cell">—</span></div>
                         <div class="row-actions">
-                            <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку" style="color: #0284c7;">
+                            <button class="btn-icon btn-icon-move" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку">
                                 <i class="fas fa-folder-tree"></i>
                             </button>
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку" style="color: #ef4444;">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -3073,7 +3142,7 @@
                 let newVersionBtn = '';
                 if (isLocalFile) {
                     newVersionBtn = `
-                        <button class="btn-icon" onclick="openSaveVersionModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}', event)" title="Загрузить новую версию файла" style="color: #10b981;">
+                        <button class="btn-icon btn-icon-version" onclick="openSaveVersionModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}', event)" title="Загрузить новую версию файла">
                             <i class="fas fa-file-arrow-up"></i>
                         </button>
                     `;
@@ -3107,17 +3176,17 @@
                             <span class="date-cell">${dateDisplay}</span>
                         </div>
                         <div class="row-actions">
-                            <button class="btn-icon" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}')" title="Создать задачу по документу в Планнере" style="color: #2563eb; background: #eff6ff; border-radius: 6px;">
+                            <button class="btn-icon btn-icon-planner" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}')" title="Создать задачу по документу в Планнере">
                                 <i class="fa-solid fa-list-check"></i>
                             </button>
                             ${newVersionBtn}
-                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="btn-icon" title="Скачать на диск" style="color: #3b82f6;">
+                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="btn-icon btn-icon-download" title="Скачать на диск">
                                 <i class="fas fa-download"></i>
                             </a>
-                            <button class="btn-icon" onclick="event.stopPropagation(); openMoveModal('${file.id}', '${escapeHtml(file.name).replace(/'/g, "\\'")}', false, '${file.category_id || ''}', ${file.is_protected})" title="Переместить файл" style="color: #0284c7;">
+                            <button class="btn-icon btn-icon-move" onclick="event.stopPropagation(); openMoveModal('${file.id}', '${escapeHtml(file.name).replace(/'/g, "\\'")}', false, '${file.category_id || ''}', ${file.is_protected})" title="Переместить файл">
                                 <i class="fas fa-folder-tree"></i>
                             </button>
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event, ${file.is_protected})" title="Удалить" style="color: #ef4444;">
+                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event, ${file.is_protected})" title="Удалить">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
