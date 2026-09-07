@@ -372,9 +372,18 @@ function restoreLastLineAndShift() {
         const recLine = document.getElementById('rec-line');
         const dtLine = document.getElementById('journal-dt-line');
         
-        if (repLine) repLine.value = savedLine;
-        if (recLine) recLine.value = savedLine;
-        if (dtLine) dtLine.value = savedLine;
+        if (repLine) {
+            repLine.value = savedLine;
+            repLine.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (recLine) {
+            recLine.value = savedLine;
+            recLine.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (dtLine) {
+            dtLine.value = savedLine;
+            dtLine.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
     }
     
@@ -383,9 +392,18 @@ function restoreLastLineAndShift() {
         const recShift = document.getElementById('rec-shift');
         const dtShift = document.getElementById('journal-dt-shift-name');
         
-        if (repShift) repShift.value = savedShift;
-        if (recShift) recShift.value = savedShift;
-        if (dtShift) dtShift.value = savedShift;
+        if (repShift) {
+            repShift.value = savedShift;
+            repShift.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (recShift) {
+            recShift.value = savedShift;
+            recShift.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        if (dtShift) {
+            dtShift.value = savedShift;
+            dtShift.dispatchEvent(new Event('change', { bubbles: true }));
+        }
     }
 }
 
@@ -461,27 +479,31 @@ function switchTab(tabId, event) {
 // Flatpickr initialization helper: Uniform modern date & month pickers across the portal
 function setupTimePickers() {
     // 1. Time pickers (H:i 24h)
-    flatpickr(".time-picker", {
-        enableTime: true,
-        noCalendar: true,
-        dateFormat: "H:i",
-        time_24hr: true,
-        locale: "ru",
-        allowInput: true,
-        minuteIncrement: 1,
-        onChange: function(selectedDates, dateStr, instance) {
-            if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
-                calcJournalDowntimeDuration();
-            } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
-                calcEditDowntimeDuration();
-            }
-        },
-        onClose: function(selectedDates, dateStr, instance) {
-            if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
-                calcJournalDowntimeDuration();
-            } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
-                calcEditDowntimeDuration();
-            }
+    document.querySelectorAll(".time-picker").forEach(input => {
+        if (!input._flatpickr) {
+            flatpickr(input, {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: "H:i",
+                time_24hr: true,
+                locale: "ru",
+                allowInput: true,
+                minuteIncrement: 1,
+                onChange: function(selectedDates, dateStr, instance) {
+                    if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
+                        calcJournalDowntimeDuration();
+                    } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
+                        calcEditDowntimeDuration();
+                    }
+                },
+                onClose: function(selectedDates, dateStr, instance) {
+                    if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
+                        calcJournalDowntimeDuration();
+                    } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
+                        calcEditDowntimeDuration();
+                    }
+                }
+            });
         }
     });
 
@@ -519,20 +541,22 @@ function setupTimePickers() {
     });
     
     // 2. Production Shift Date (Рапорт мастера)
-    flatpickr("#rep-date", {
-        dateFormat: "Y-m-d",
-        locale: "ru",
-        defaultDate: new Date(),
-        allowInput: true,
-        onChange: function(selectedDates, dateStr, instance) {
-            if (typeof onProductChange === 'function') onProductChange();
-            if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
-        }
-    });
+    if (!document.getElementById('rep-date')?._flatpickr) {
+        flatpickr("#rep-date", {
+            dateFormat: "Y-m-d",
+            locale: "ru",
+            defaultDate: new Date(),
+            allowInput: true,
+            onChange: function(selectedDates, dateStr, instance) {
+                if (typeof onProductChange === 'function') onProductChange();
+                if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
+            }
+        });
+    }
 
     // 3. Raw Material Receipt Date (Приход сырья)
     const recDateEl = document.getElementById('rec-date');
-    if (recDateEl) {
+    if (recDateEl && !recDateEl._flatpickr) {
         flatpickr(recDateEl, {
             dateFormat: "Y-m-d",
             locale: "ru",
@@ -543,7 +567,7 @@ function setupTimePickers() {
 
     // 4. Downtimes Journal Date
     const jDtDateEl = document.getElementById('journal-dt-date');
-    if (jDtDateEl) {
+    if (jDtDateEl && !jDtDateEl._flatpickr) {
         flatpickr(jDtDateEl, {
             dateFormat: "Y-m-d",
             locale: "ru",
@@ -551,6 +575,8 @@ function setupTimePickers() {
             allowInput: true,
             onChange: function(selectedDates, dateStr, instance) {
                 loadDowntimesByParams();
+                calcJournalDowntimeDuration();
+                if (typeof saveDowntimeContext === 'function') saveDowntimeContext();
             }
         });
     }
@@ -677,8 +703,7 @@ function initCustomSelect(selectEl) {
     const menu = document.createElement('div');
     menu.className = 'custom-select-menu';
 
-    function buildOptions() {
-        menu.innerHTML = '';
+    function syncUI() {
         const options = Array.from(selectEl.options);
         const selectedOption = options[selectEl.selectedIndex] || options[0];
 
@@ -689,7 +714,24 @@ function initCustomSelect(selectEl) {
             } else {
                 triggerText.classList.remove('placeholder');
             }
+        } else {
+            triggerText.textContent = '';
         }
+
+        menu.querySelectorAll('.custom-select-item').forEach((item, idx) => {
+            if (idx === selectEl.selectedIndex) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    selectEl.syncCustomSelect = syncUI;
+
+    function buildOptions() {
+        menu.innerHTML = '';
+        const options = Array.from(selectEl.options);
 
         options.forEach((opt, idx) => {
             const item = document.createElement('div');
@@ -702,29 +744,52 @@ function initCustomSelect(selectEl) {
 
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (selectEl.selectedIndex !== idx) {
-                    selectEl.selectedIndex = idx;
-                    triggerText.textContent = opt.textContent;
-                    if (!opt.value && opt.textContent.includes('--')) {
-                        triggerText.classList.add('placeholder');
-                    } else {
-                        triggerText.classList.remove('placeholder');
-                    }
-                    menu.querySelectorAll('.custom-select-item').forEach(i => i.classList.remove('selected'));
-                    item.classList.add('selected');
+                selectEl.selectedIndex = idx;
+                syncUI();
 
-                    // Fire change and input events on the native select
-                    selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-                    selectEl.dispatchEvent(new Event('input', { bubbles: true }));
-                }
+                // Fire change and input events on the native select
+                selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+                selectEl.dispatchEvent(new Event('input', { bubbles: true }));
                 wrapper.classList.remove('open');
             });
 
             menu.appendChild(item);
         });
+
+        syncUI();
     }
 
     buildOptions();
+
+    // Intercept programmatic modifications to .value and .selectedIndex so UI never desyncs
+    const valDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+    const idxDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+    if (valDescriptor && idxDescriptor) {
+        try {
+            Object.defineProperty(selectEl, 'value', {
+                get() {
+                    return valDescriptor.get.call(this);
+                },
+                set(newVal) {
+                    valDescriptor.set.call(this, newVal);
+                    syncUI();
+                },
+                configurable: true
+            });
+            Object.defineProperty(selectEl, 'selectedIndex', {
+                get() {
+                    return idxDescriptor.get.call(this);
+                },
+                set(newIdx) {
+                    idxDescriptor.set.call(this, newIdx);
+                    syncUI();
+                },
+                configurable: true
+            });
+        } catch(err) {
+            console.warn("Could not attach reactive property traps to select:", err);
+        }
+    }
 
     // Toggle menu
     trigger.addEventListener('click', (e) => {
@@ -751,24 +816,9 @@ function initCustomSelect(selectEl) {
         }
     });
 
-    // Listen to native select change (in case it is updated programmatically via JS)
+    // Listen to native select change
     selectEl.addEventListener('change', () => {
-        const selectedOption = selectEl.options[selectEl.selectedIndex];
-        if (selectedOption) {
-            triggerText.textContent = selectedOption.textContent;
-            if (!selectedOption.value && selectedOption.textContent.includes('--')) {
-                triggerText.classList.add('placeholder');
-            } else {
-                triggerText.classList.remove('placeholder');
-            }
-        }
-        menu.querySelectorAll('.custom-select-item').forEach((item, idx) => {
-            if (idx === selectEl.selectedIndex) {
-                item.classList.add('selected');
-            } else {
-                item.classList.remove('selected');
-            }
-        });
+        syncUI();
     });
 
     // Observe DOM mutations in native select (when <option> tags are added dynamically)
@@ -826,27 +876,54 @@ async function loadMasters() {
         if (res.ok) {
             mastersList = await res.json();
             
-            // Populate dropdowns
+            // Populate dropdowns preserving current/draft selection
             const repMaster = document.getElementById('rep-master');
             const filterMaster = document.getElementById('filter-master');
             const recMaster = document.getElementById('rec-master');
+            const dtMaster = document.getElementById('journal-dt-master-select');
             
             if (repMaster) {
+                const prevRepMaster = repMaster.value;
                 repMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (prevRepMaster && Array.from(repMaster.options).some(o => o.value == prevRepMaster)) {
+                    repMaster.value = prevRepMaster;
+                }
+                repMaster.dispatchEvent(new Event('change', { bubbles: true }));
             }
             if (filterMaster) {
+                const prevFilterMaster = filterMaster.value;
                 filterMaster.innerHTML = '<option value="">-- Все мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (prevFilterMaster) filterMaster.value = prevFilterMaster;
+                filterMaster.dispatchEvent(new Event('change', { bubbles: true }));
             }
             if (recMaster) {
+                const prevRecMaster = recMaster.value;
                 recMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (prevRecMaster && Array.from(recMaster.options).some(o => o.value == prevRecMaster)) {
+                    recMaster.value = prevRecMaster;
+                }
+                recMaster.dispatchEvent(new Event('change', { bubbles: true }));
             }
-            const dtMaster = document.getElementById('journal-dt-master-select');
             if (dtMaster) {
+                let prevDtMaster = dtMaster.value;
+                if (!prevDtMaster) {
+                    try {
+                        const savedCtx = localStorage.getItem('downtime_context');
+                        if (savedCtx) {
+                            const parsed = JSON.parse(savedCtx);
+                            if (parsed['journal-dt-master-select']) prevDtMaster = parsed['journal-dt-master-select'];
+                        }
+                    } catch(e) {}
+                }
                 dtMaster.innerHTML = '<option value="">-- Выберите мастера --</option>' + 
                     mastersList.filter(m => m.role === 'master' && m.name !== 'Мастер смены').map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (prevDtMaster && Array.from(dtMaster.options).some(o => o.value == prevDtMaster)) {
+                    dtMaster.value = prevDtMaster;
+                }
+                dtMaster.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
     } catch(e) {
@@ -2494,13 +2571,23 @@ async function addJournalDowntime() {
         if (res.ok) {
             saveLastLineAndShift(line, shift_name);
             showNotification('success', 'Отлично!', 'Простой успешно зафиксирован в журнале.');
-            // Очищаем поля ввода
+            // Очищаем поля ввода и состояние Flatpickr
             document.getElementById('journal-dt-desc').value = '';
-            document.getElementById('journal-dt-start').value = '';
-            document.getElementById('journal-dt-end').value = '';
+            
+            const startInput = document.getElementById('journal-dt-start');
+            if (startInput?._flatpickr) startInput._flatpickr.clear();
+            else if (startInput) startInput.value = '';
+
+            const endInput = document.getElementById('journal-dt-end');
+            if (endInput?._flatpickr) endInput._flatpickr.clear();
+            else if (endInput) endInput.value = '';
+
             document.getElementById('journal-dt-is-equipment-stop').checked = true;
             updateDowntimeToggleUI();
             calcJournalDowntimeDuration();
+
+            // Перезагружаем таблицу простоев, чтобы свежая запись сразу появилась
+            await loadDowntimesByParams();
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {
@@ -3571,6 +3658,9 @@ function loadReportDraft() {
                 const el = document.getElementById(id);
                 if (el && draft[id] !== undefined && draft[id] !== '') {
                     el.value = draft[id];
+                    if (el.tagName === 'SELECT') {
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                     hasData = true;
                 }
             });
@@ -3637,6 +3727,7 @@ function loadDowntimeContext() {
                 const el = document.getElementById(id);
                 if (el && context[id] !== undefined && context[id] !== '') {
                     el.value = context[id];
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
             if (typeof loadDowntimesByParams === 'function') {

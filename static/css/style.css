@@ -1856,7 +1856,8 @@ select[data-custom-select-initialized="true"] {
 .receipt-meta-grid .form-group:nth-child(even) .custom-select-menu,
 .form-grid-two > div:nth-child(even) .custom-select-menu,
 .form-grid-three > div:nth-child(even) .custom-select-menu,
-.receipt-meta-grid > div:nth-child(even) .custom-select-menu {
+.receipt-meta-grid > div:nth-child(even) .custom-select-menu,
+.downtime-params-grid > div:nth-child(even) .custom-select-menu {
     left: auto !important;
     right: 0 !important;
 }
