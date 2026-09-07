@@ -506,86 +506,7 @@
             flex: 1;
         }
 
-        /* Quick Access Bar */
-        .quick-access-section {
-            margin-bottom: 1.5rem;
-        }
-
-        .quick-access-title {
-            font-size: 0.88rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--docs-text-muted);
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .quick-access-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 0.85rem;
-        }
-
-        .quick-card {
-            background: var(--docs-panel-bg);
-            border: 1px solid var(--docs-panel-border);
-            border-radius: 12px;
-            padding: 0.85rem 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.85rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            cursor: pointer;
-            text-decoration: none;
-            overflow: hidden;
-        }
-
-        .quick-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-            border-color: #93c5fd;
-        }
-
-        .quick-card-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-
-        .quick-card-info {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-width: 0;
-            flex: 1;
-        }
-
-        .quick-card-name {
-            font-weight: 600;
-            font-size: 0.88rem;
-            color: var(--docs-text-primary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .quick-card-meta {
-            font-size: 0.75rem;
-            color: var(--docs-text-muted);
-            margin-top: 2px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        /* Quick Access Bar removed for streamlined mobile/desktop experience */
 
         /* Modern 5-Column Table / List View */
         .docs-table {
@@ -1426,60 +1347,31 @@
 
             .top-bar {
                 flex-direction: column;
-                gap: 0.65rem;
-                padding: 0.75rem 0.85rem;
+                gap: 0;
+                padding: 0;
+                margin-bottom: 0.85rem;
+                background: transparent;
+                border: none;
+                box-shadow: none;
             }
 
             .search-box {
                 width: 100%;
+                max-width: 100%;
             }
 
             .search-box input {
-                font-size: 16px;
-                padding: 0.7rem 1rem 0.7rem 2.4rem;
+                font-size: 0.95rem;
+                padding: 0.75rem 1rem 0.75rem 2.6rem;
+                border-radius: 10px;
+                border: 1px solid var(--docs-search-border);
+                background: var(--docs-panel-bg);
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
             }
 
+            /* On mobile/tablet hide management and upload buttons to maximize viewing area */
             .action-buttons {
-                width: 100%;
-                display: grid !important;
-                grid-template-columns: 1fr 1fr 1fr;
-                gap: 0.5rem;
-            }
-
-            .dropdown-menu-create {
-                width: 100%;
-            }
-
-            .dropdown-menu-create .btn-action,
-            .btn-upload-pc,
-            .btn-nav-planner {
-                width: 100%;
-                justify-content: center;
-                padding: 0.6rem 0.4rem;
-                font-size: 0.82rem;
-                white-space: nowrap;
-            }
-
-            .btn-sync-cloud {
                 display: none !important;
-                /* On mobile hidden to save space */
-            }
-
-            .user-session-wrapper {
-                grid-column: span 3;
-                width: 100%;
-            }
-
-            .btn-user-badge {
-                width: 100%;
-                justify-content: center;
-                padding: 0.55rem 0.75rem;
-                font-size: 0.88rem;
-            }
-
-            .dropdown-content-create {
-                width: 100%;
-                max-width: 320px;
             }
 
             #docs-top-theme-btn {
@@ -1487,8 +1379,9 @@
             }
 
             .folder-header-bar {
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
                 gap: 0.6rem;
+                align-items: center;
             }
 
             .page-title {
@@ -1498,12 +1391,10 @@
             #docs-sort {
                 font-size: 0.85rem;
                 padding: 0.45rem 0.6rem;
+                max-width: 170px;
             }
-        }
 
-        @media (max-width: 680px) {
-
-            /* Transform table to modern mobile card list */
+            /* Transform table to modern touch-friendly card list */
             .docs-table {
                 background: transparent;
                 border: none;
@@ -1512,23 +1403,32 @@
             }
 
             .docs-table-header {
-                display: none;
+                display: none !important;
             }
 
             .docs-table-row {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
                 background: var(--docs-panel-bg);
                 border: 1px solid var(--docs-panel-border);
                 border-radius: 12px;
                 padding: 0.85rem 1rem;
                 margin-bottom: 0;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                cursor: pointer;
+                transition: transform 0.1s ease, background-color 0.15s ease;
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            .docs-table-row:active {
+                transform: scale(0.985);
+                background: var(--docs-card-hover);
             }
 
             .row-name {
                 flex: 1;
+                width: 100%;
+                min-width: 0;
                 gap: 0.75rem;
             }
 
@@ -1536,6 +1436,7 @@
                 width: 42px;
                 height: 42px;
                 font-size: 1.35rem;
+                flex-shrink: 0;
             }
 
             .item-title {
@@ -1543,21 +1444,27 @@
                 font-weight: 600;
                 white-space: normal;
                 display: -webkit-box;
-                -webkit-line-clamp: 2;
+                -webkit-line-clamp: 3;
                 -webkit-box-orient: vertical;
-                line-height: 1.3;
+                overflow: hidden;
+                line-height: 1.35;
+                word-break: break-word;
             }
 
             .item-mobile-meta {
                 display: block;
+                font-size: 0.78rem;
+                color: var(--docs-text-muted);
+                margin-top: 3px;
             }
 
             .row-meta {
-                display: none;
+                display: none !important;
             }
 
+            /* Hide row action buttons on mobile to prevent accidental deletion and give full width to title */
             .row-actions {
-                gap: 0.2rem;
+                display: none !important;
             }
 
             .btn-icon {
@@ -1569,6 +1476,9 @@
                 max-height: 34px !important;
                 font-size: 0.95rem !important;
             }
+        }
+
+        @media (max-width: 680px) {
 
             /* Context Menu as Bottom Sheet on Mobile */
             .context-menu {
@@ -1697,6 +1607,17 @@
         </div>
 
         <div class="sidebar-footer">
+            <div class="sidebar-user-section" style="margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--docs-sidebar-border); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <button class="sidebar-home-link" id="sidebar-docs-user-badge" onclick="promptDocsUserAuth()"
+                    style="flex: 1; justify-content: flex-start; padding: 0.55rem 0.75rem; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600;"
+                    title="Нажмите для входа или смены профиля">
+                    <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="sidebar-docs-user-name">Войти (PIN)</span>
+                </button>
+                <button id="sidebar-btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля"
+                    style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0.4rem 0.6rem; border-radius: 6px;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
             <a href="/static/tasks.html" class="sidebar-home-link"
                 style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 600;"
                 title="Открыть Планнер по бережливому производству">
@@ -1747,7 +1668,7 @@
                     style="background: #10b981; color: #fff;" title="Загрузить PDF-документ или регламент с компьютера">
                     <i class="fas fa-file-pdf"></i> <span>Загрузить PDF</span>
                 </button>
-                <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none;"
+                <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
                     onchange="handleLocalFileSelected(event)">
 
                 <!-- Синхронизация облачных названий -->
@@ -1759,7 +1680,7 @@
 
                 <!-- Кнопка перехода в Планнер -->
                 <a href="/static/tasks.html" class="btn-action btn-nav-planner"
-                    style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; text-decoration: none;"
+                    style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; text-decoration: none;"
                     title="Перейти в Планнер задач">
                     <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
                 </a>
@@ -1777,16 +1698,6 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-            </div>
-        </div>
-
-        <!-- Quick Access Recent Documents -->
-        <div id="quick-access-container" class="quick-access-section" style="display: none;">
-            <div class="quick-access-title">
-                <i class="fas fa-bolt" style="color: #f59e0b;"></i> Быстрый доступ (Недавние документы)
-            </div>
-            <div class="quick-access-grid" id="quick-access-grid">
-                <!-- Карточки недавних документов загрузятся через JS -->
             </div>
         </div>
 
@@ -2633,7 +2544,6 @@
                     currentFoldersData = foldersList;
                     currentFilesData = filesList;
                     applySort();
-                    loadQuickAccessBar();
 
                 } else {
                     container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message || data.detail || 'Не удалось получить данные'}</div>`;
@@ -3161,47 +3071,7 @@
         }
 
         async function loadQuickAccessBar() {
-            const container = document.getElementById('quick-access-container');
-            const grid = document.getElementById('quick-access-grid');
-            if (!container || !grid) return;
-
-            // Показываем блок быстрого доступа только в корневой директории
-            if (currentFolderId) {
-                container.style.display = 'none';
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/documents/recent');
-                const result = await res.json();
-                if (result.status === 'success' && Array.isArray(result.data) && result.data.length > 0) {
-                    container.style.display = 'block';
-                    grid.innerHTML = result.data.map(doc => {
-                        const iconInfo = getFileIcon(doc.mimeType, doc.name, doc.external_url || doc.webViewLink);
-                        const isLocal = !doc.external_url;
-                        const docJson = escapeHtml(JSON.stringify(doc));
-                        return `
-                            <div class="quick-card" onclick="openPreviewModal(${docJson}, event)">
-                                <div class="quick-card-icon" style="background: var(--docs-item-badge-bg);">
-                                    <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
-                                </div>
-                                <div class="quick-card-info">
-                                    <div class="quick-card-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</div>
-                                    <div class="quick-card-meta">
-                                        ${isLocal ? `<span class="version-badge" style="font-size:0.7rem; padding:1px 5px;">v${doc.version_number || 1}</span>` : ''}
-                                        <span>${escapeHtml(doc.last_modified_by || 'Сотрудник')}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                } else {
-                    container.style.display = 'none';
-                }
-            } catch (e) {
-                console.log('Error loading quick access docs:', e);
-                container.style.display = 'none';
-            }
+            // Быстрый доступ удален для минималистичного мобильного и десктопного интерфейса
         }
 
         function renderItems(folders, files) {
@@ -3329,7 +3199,7 @@
                 }
 
                 html += `
-                    <div class="docs-table-row" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
+                    <div class="docs-table-row file-row" onclick="openPreviewModal(${fileJson}, event)" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)" style="cursor: pointer;">
                         <div class="row-name">
                             <div class="icon-badge" style="cursor: pointer;" onclick="openPreviewModal(${fileJson}, event)">
                                 <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
@@ -4154,22 +4024,42 @@
             const nameEl = document.getElementById("docs-user-name");
             const badgeEl = document.getElementById("docs-user-badge");
             const logoutBtn = document.getElementById("btn-docs-logout");
-            if (!nameEl || !badgeEl) return;
+            if (nameEl && badgeEl) {
+                if (currentDocsUser && currentDocsUser.name) {
+                    nameEl.textContent = currentDocsUser.name;
+                    badgeEl.style.background = "#eff6ff";
+                    badgeEl.style.color = "#1d4ed8";
+                    badgeEl.style.borderColor = "#bfdbfe";
+                    badgeEl.title = `Авторизован: ${currentDocsUser.name}. Нажмите для смены`;
+                    if (logoutBtn) logoutBtn.style.display = "inline-block";
+                } else {
+                    nameEl.textContent = "Войти (PIN)";
+                    badgeEl.style.background = "#f8fafc";
+                    badgeEl.style.color = "#334155";
+                    badgeEl.style.borderColor = "#cbd5e1";
+                    badgeEl.title = "Нажмите, чтобы войти под своим именем";
+                    if (logoutBtn) logoutBtn.style.display = "none";
+                }
+            }
 
-            if (currentDocsUser && currentDocsUser.name) {
-                nameEl.textContent = currentDocsUser.name;
-                badgeEl.style.background = "#eff6ff";
-                badgeEl.style.color = "#1d4ed8";
-                badgeEl.style.borderColor = "#bfdbfe";
-                badgeEl.title = `Авторизован: ${currentDocsUser.name}. Нажмите для смены`;
-                if (logoutBtn) logoutBtn.style.display = "inline-block";
-            } else {
-                nameEl.textContent = "Войти (PIN)";
-                badgeEl.style.background = "#f8fafc";
-                badgeEl.style.color = "#334155";
-                badgeEl.style.borderColor = "#cbd5e1";
-                badgeEl.title = "Нажмите, чтобы войти под своим именем";
-                if (logoutBtn) logoutBtn.style.display = "none";
+            // Синхронизация профиля в мобильном боковом меню (Sidebar)
+            const sidebarNameEl = document.getElementById("sidebar-docs-user-name");
+            const sidebarBadgeEl = document.getElementById("sidebar-docs-user-badge");
+            const sidebarLogoutBtn = document.getElementById("sidebar-btn-docs-logout");
+            if (sidebarNameEl && sidebarBadgeEl) {
+                if (currentDocsUser && currentDocsUser.name) {
+                    sidebarNameEl.textContent = currentDocsUser.name;
+                    sidebarBadgeEl.style.background = "#eff6ff";
+                    sidebarBadgeEl.style.color = "#1d4ed8";
+                    sidebarBadgeEl.style.borderColor = "#bfdbfe";
+                    if (sidebarLogoutBtn) sidebarLogoutBtn.style.display = "inline-block";
+                } else {
+                    sidebarNameEl.textContent = "Войти (PIN)";
+                    sidebarBadgeEl.style.background = "#f8fafc";
+                    sidebarBadgeEl.style.color = "#334155";
+                    sidebarBadgeEl.style.borderColor = "#cbd5e1";
+                    if (sidebarLogoutBtn) sidebarLogoutBtn.style.display = "none";
+                }
             }
         }
 
