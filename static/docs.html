@@ -2427,13 +2427,16 @@
         }
 
         function getFolderPasswordHeader() {
-            const pwd = sessionStorage.getItem('folder_password');
+            let pwd = sessionStorage.getItem('folder_password');
+            if (!pwd && currentDocsUser && currentDocsUser.pin) {
+                pwd = currentDocsUser.pin;
+            }
             return pwd ? { 'X-Folder-Password': pwd } : {};
         }
 
         let currentFolderProtected = false;
-
         let passwordModalResolve = null;
+        let passwordModalFolderId = null;
 
         function togglePasswordVisibility(inputId, btn) {
             const input = document.getElementById(inputId);
@@ -2454,31 +2457,108 @@
             }
         }
 
-        function submitPasswordModal(isConfirmed) {
-            const modal = document.getElementById('password-modal');
-            const input = document.getElementById('folder-password-input');
-            const pwd = input ? input.value : '';
-            if (modal) modal.style.display = 'none';
-            if (input) input.value = '';
-
-            if (passwordModalResolve) {
-                if (isConfirmed && pwd.trim()) {
-                    sessionStorage.setItem('folder_password', pwd.trim());
-                    passwordModalResolve(true);
-                } else {
-                    passwordModalResolve(false);
-                }
-                passwordModalResolve = null;
+        async function verifyPasswordOnServer(folderId, password) {
+            try {
+                const res = await fetch('/api/documents/verify-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        folder_id: folderId ? String(folderId) : (currentFolderId ? String(currentFolderId) : null),
+                        password: password
+                    })
+                });
+                const data = await res.json();
+                return { ok: res.ok && data.status === 'success', data: data };
+            } catch (e) {
+                return { ok: false, data: { message: 'Ошибка связи с сервером при проверке пароля' } };
             }
         }
 
-        async function ensurePassword(isProtected) {
+        async function submitPasswordModal(isConfirmed) {
+            const modal = document.getElementById('password-modal');
+            const input = document.getElementById('folder-password-input');
+            const submitBtn = modal ? modal.querySelector('.btn-action') : null;
+
+            if (!isConfirmed) {
+                if (modal) modal.style.display = 'none';
+                if (input) input.value = '';
+                if (passwordModalResolve) {
+                    passwordModalResolve(false);
+                    passwordModalResolve = null;
+                }
+                passwordModalFolderId = null;
+                return;
+            }
+
+            const pwd = input ? input.value.trim() : '';
+            if (!pwd) {
+                alert('Пожалуйста, введите пароль или PIN-код!');
+                if (input) input.focus();
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Проверка...';
+            }
+
+            try {
+                const checkRes = await verifyPasswordOnServer(passwordModalFolderId, pwd);
+                if (checkRes.ok) {
+                    sessionStorage.setItem('folder_password', pwd);
+                    if (pwd === '6282' && (!currentDocsUser || !currentDocsUser.pin)) {
+                        currentDocsUser = { name: 'Левда М.', pin: '6282' };
+                        localStorage.setItem('tectum_portal_user', JSON.stringify(currentDocsUser));
+                        localStorage.setItem('tectum_current_user_name', 'Левда М.');
+                        updateDocsUserBadge();
+                    } else if (checkRes.data?.employee_name && (!currentDocsUser || !currentDocsUser.pin)) {
+                        currentDocsUser = { name: checkRes.data.employee_name, pin: pwd };
+                        localStorage.setItem('tectum_portal_user', JSON.stringify(currentDocsUser));
+                        localStorage.setItem('tectum_current_user_name', checkRes.data.employee_name);
+                        updateDocsUserBadge();
+                    }
+                    if (modal) modal.style.display = 'none';
+                    if (input) input.value = '';
+                    if (passwordModalResolve) {
+                        passwordModalResolve(true);
+                        passwordModalResolve = null;
+                    }
+                    passwordModalFolderId = null;
+                } else {
+                    alert(checkRes.data?.message || 'Неверный пароль или PIN-код доступа!');
+                    if (input) {
+                        input.value = '';
+                        input.focus();
+                    }
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-key"></i> Подтвердить';
+                }
+            }
+        }
+
+        async function ensurePassword(isProtected, targetFolderId = null) {
             if (!isProtected) return true;
-            let pwd = sessionStorage.getItem('folder_password');
-            if (pwd) return true;
+            // Администратор (6282) имеет прямой доступ
+            if (currentDocsUser && currentDocsUser.pin === '6282') return true;
+
+            const checkFolderId = targetFolderId || currentFolderId;
+            let pwd = sessionStorage.getItem('folder_password') || (currentDocsUser ? currentDocsUser.pin : null);
+            if (pwd) {
+                const checkRes = await verifyPasswordOnServer(checkFolderId, pwd);
+                if (checkRes.ok) {
+                    sessionStorage.setItem('folder_password', pwd);
+                    return true;
+                } else {
+                    sessionStorage.removeItem('folder_password');
+                }
+            }
 
             return new Promise((resolve) => {
                 passwordModalResolve = resolve;
+                passwordModalFolderId = checkFolderId;
                 const modal = document.getElementById('password-modal');
                 const input = document.getElementById('folder-password-input');
                 if (input) {
@@ -2496,12 +2576,29 @@
             });
         }
 
+        async function ensureAuthForAction() {
+            let curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : '';
+            let curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+            if (curUser && curPin && curUser !== 'Сотрудник') {
+                return { user: curUser, pin: curPin };
+            }
+            return new Promise((resolve) => {
+                openDocsPinModal(null, (user) => {
+                    if (user && user.name && user.pin) {
+                        resolve({ user: user.name, pin: user.pin });
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
+        }
+
         async function openFileLink(viewUrl, isProtected, event) {
             if (event) event.preventDefault();
-            if (!await ensurePassword(isProtected)) return;
+            if (!await ensurePassword(isProtected, currentFolderId)) return;
             let finalUrl = viewUrl;
-            if (isProtected) {
-                const pwd = sessionStorage.getItem('folder_password');
+            if (isProtected || currentFolderProtected) {
+                const pwd = sessionStorage.getItem('folder_password') || (currentDocsUser ? currentDocsUser.pin : '');
                 if (pwd) {
                     finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pwd=' + encodeURIComponent(pwd);
                 }
@@ -2521,6 +2618,11 @@
         const docsCache = new Map();
 
         async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
+            if (isProtected) {
+                if (!await ensurePassword(true, folderId)) {
+                    return;
+                }
+            }
             currentFolderProtected = isProtected;
             const container = document.getElementById('files-container');
             const cacheKey = searchQuery ? `search_${searchQuery}` : (folderId || 'root');
@@ -3034,7 +3136,7 @@
         async function submitCreateGoogleDoc() {
             let requiresPassword = currentFolderProtected;
             if (!currentFolderId) requiresPassword = true;
-            if (!await ensurePassword(requiresPassword)) return;
+            if (!await ensurePassword(requiresPassword, currentFolderId)) return;
 
             const name = document.getElementById('new-doc-name').value.trim();
             if (!name) {
@@ -3104,13 +3206,16 @@
 
         async function submitRename() {
             if (renameTargetProtected || currentFolderProtected) {
-                if (!await ensurePassword(true)) return;
+                if (!await ensurePassword(true, currentFolderId)) return;
             }
+            const auth = await ensureAuthForAction();
+            if (!auth) return;
+
             const newName = document.getElementById('rename-input').value.trim();
             if (!newName) return;
 
-            const curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || '');
-            const curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+            const curUser = auth.user;
+            const curPin = auth.pin;
 
             const formData = new FormData();
             formData.append('new_name', newName);
@@ -3124,14 +3229,14 @@
                     body: formData
                 });
                 const data = await res.json();
-                if (data.status === 'success') {
+                if (res.ok && data.status === 'success') {
                     docsCache.clear();
                     closeRenameModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
                     showToast('Успешно переименовано');
                 } else {
-                    alert('Ошибка: ' + (data.detail || data.message));
+                    alert('Ошибка: ' + (data.detail || data.message || 'Отказано в доступе'));
                 }
             } catch (err) {
                 alert('Ошибка соединения');
@@ -3353,12 +3458,16 @@
             if (event) event.stopPropagation();
             hideContextMenu();
             if (isProtected || currentFolderProtected) {
-                if (!await ensurePassword(true)) return;
+                if (!await ensurePassword(true, currentFolderId)) return;
             }
+
+            const auth = await ensureAuthForAction();
+            if (!auth) return;
+
             if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return;
 
-            const curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || '');
-            const curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+            const curUser = auth.user;
+            const curPin = auth.pin;
 
             let delUrl = `/api/documents/${itemId}`;
             const params = new URLSearchParams();
@@ -3372,13 +3481,17 @@
                     headers: getFolderPasswordHeader()
                 });
                 const data = await res.json();
-                if (data.status === 'success') {
+                if (res.ok && data.status === 'success') {
                     docsCache.clear();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
                     showToast('Элемент успешно удален');
                 } else {
-                    alert('Ошибка при удалении: ' + (data.detail || data.message));
+                    const msg = data.detail || data.message || 'Отказано в доступе';
+                    alert('Ошибка при удалении: ' + msg);
+                    if (res.status === 403 && (msg.includes('пароль') || msg.includes('Access Denied'))) {
+                        sessionStorage.removeItem('folder_password');
+                    }
                 }
             } catch (error) {
                 alert('Ошибка соединения при удалении');
@@ -3400,7 +3513,7 @@
             if (!currentFolderId) {
                 requiresPassword = true;
             }
-            if (!await ensurePassword(requiresPassword)) return;
+            if (!await ensurePassword(requiresPassword, currentFolderId)) return;
 
             const name = document.getElementById('new-folder-name').value.trim();
             if (!name) return;
@@ -3474,7 +3587,7 @@
         }
 
         async function submitAddLink() {
-            if (currentFolderProtected && !await ensurePassword(true)) return;
+            if (currentFolderProtected && !await ensurePassword(true, currentFolderId)) return;
 
             let title = document.getElementById('add-link-title').value.trim();
             let url = document.getElementById('add-link-url').value.trim();
@@ -3585,65 +3698,6 @@
             }
         });
 
-        async function submitAddLink() {
-            if (currentFolderProtected && !await ensurePassword(true)) return;
-
-            let title = document.getElementById('add-link-title').value.trim();
-            let url = document.getElementById('add-link-url').value.trim();
-
-            if (!url) {
-                alert('Вставьте ссылку на файл!');
-                return;
-            }
-            if (!title) {
-                if (url.includes('google')) title = 'Документ Google';
-                else if (url.includes('onedrive') || url.includes('1drv.ms')) title = 'Документ OneDrive';
-                else title = 'Внешний документ';
-            }
-
-            // Автоматическое добавление русской локали для OneDrive
-            if ((url.includes('onedrive.live.com') || url.includes('1drv.ms') || url.includes('sharepoint.com')) && !url.includes('locale=') && !url.includes('ui=')) {
-                const separator = url.includes('?') ? '&' : '?';
-                url = `${url}${separator}locale=ru-RU`;
-            }
-
-            const btn = document.getElementById('btn-submit-add-link');
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Сохранение...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/documents/add_link', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...getFolderPasswordHeader()
-                    },
-                    body: JSON.stringify({
-                        title: title,
-                        external_url: url,
-                        parent_id: currentFolderId
-                    })
-                });
-                const data = await res.json();
-                btn.innerHTML = orig;
-                btn.disabled = false;
-
-                if (data.status === 'success') {
-                    closeAddLinkModal();
-                    showToast(data.message || 'Ссылка успешно прикреплена!');
-                    docsCache.clear();
-                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
-                    loadSidebarTree();
-                } else {
-                    alert('Ошибка: ' + data.message);
-                }
-            } catch (e) {
-                btn.innerHTML = orig;
-                btn.disabled = false;
-                alert('Ошибка соединения с сервером');
-            }
-        }
 
         async function syncFolderTitles() {
             const btn = document.getElementById('btn-sync-titles');
@@ -3941,16 +3995,19 @@
             const isTargetProtected = targetFolder ? targetFolder.is_protected : false;
 
             if (moveTargetProtected || isTargetProtected || currentFolderProtected) {
-                if (!await ensurePassword(true)) return;
+                if (!await ensurePassword(true, currentFolderId)) return;
             }
+
+            const auth = await ensureAuthForAction();
+            if (!auth) return;
 
             const btnSubmit = document.getElementById('btn-submit-move');
             const originalText = btnSubmit.innerHTML;
             btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Перемещение...';
             btnSubmit.disabled = true;
 
-            const curUser = (currentDocsUser && currentDocsUser.name) ? currentDocsUser.name : (localStorage.getItem('tectum_current_user_name') || '');
-            const curPin = (currentDocsUser && currentDocsUser.pin) ? currentDocsUser.pin : '';
+            const curUser = auth.user;
+            const curPin = auth.pin;
 
             const formData = new FormData();
             formData.append('target_folder_id', moveSelectedFolderId === 'root' ? '' : moveSelectedFolderId);
@@ -3967,14 +4024,14 @@
                 btnSubmit.innerHTML = originalText;
                 btnSubmit.disabled = false;
 
-                if (data.status === 'success') {
+                if (res.ok && data.status === 'success') {
                     docsCache.clear();
                     closeMoveModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     loadSidebarTree();
                     showToast(moveTargetIsFolder ? 'Папка успешно перемещена' : 'Файл успешно перемещен');
                 } else {
-                    alert('Ошибка перемещения: ' + (data.detail || data.message));
+                    alert('Ошибка перемещения: ' + (data.detail || data.message || 'Отказано в доступе'));
                 }
             } catch (err) {
                 btnSubmit.innerHTML = originalText;
@@ -4272,7 +4329,7 @@
         }
 
         async function uploadFileDirectly(file) {
-            if (currentFolderProtected && !await ensurePassword(true)) return;
+            if (currentFolderProtected && !await ensurePassword(true, currentFolderId)) return;
 
             const nameLower = (file.name || '').toLowerCase();
             if (!nameLower.endsWith('.pdf')) {
@@ -4311,9 +4368,13 @@
         }
 
         /* --- Document Online Preview & Downloader Modal --- */
-        function openPreviewModal(file, event) {
+        async function openPreviewModal(file, event) {
             if (event) event.stopPropagation();
             if (!file) return;
+
+            if (file.is_protected || currentFolderProtected) {
+                if (!await ensurePassword(true, currentFolderId)) return;
+            }
 
             // Если это внешняя ссылка (Google Docs, Google Sheets, OneDrive)
             if (file.external_url) {
@@ -4339,7 +4400,13 @@
             const fallbackFilename = document.getElementById('preview-fallback-filename');
             const fallbackLink = document.getElementById('preview-fallback-download-link');
 
-            const downloadUrl = `/api/documents/download/${rawDocId}`;
+            let downloadUrl = `/api/documents/download/${rawDocId}`;
+            if (file.is_protected || currentFolderProtected) {
+                const pwd = sessionStorage.getItem('folder_password') || (currentDocsUser ? currentDocsUser.pin : '');
+                if (pwd) {
+                    downloadUrl += `?pwd=${encodeURIComponent(pwd)}`;
+                }
+            }
             const fileName = file.name || 'Документ';
             const nameLower = fileName.toLowerCase();
 
@@ -4517,7 +4584,7 @@
         /* --- Version History & Archive --- */
         async function openVersionsModal(docId, docTitle, event) {
             if (event) event.stopPropagation();
-            if (currentFolderProtected && !await ensurePassword(true)) return;
+            if (currentFolderProtected && !await ensurePassword(true, currentFolderId)) return;
 
             currentVersionsDocId = docId;
             currentEditingDocName = docTitle;
@@ -4645,7 +4712,7 @@
         /* --- Save New Version Modal --- */
         async function openSaveVersionModal(docId, docTitle, event) {
             if (event) event.stopPropagation();
-            if (currentFolderProtected && !await ensurePassword(true)) return;
+            if (currentFolderProtected && !await ensurePassword(true, currentFolderId)) return;
 
             currentEditingDocId = docId;
             currentEditingDocName = docTitle;

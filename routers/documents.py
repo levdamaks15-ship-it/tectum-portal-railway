@@ -109,6 +109,35 @@ def get_protected_ancestor(db: Session, folder_id: int):
 def is_folder_protected(db: Session, folder_id: int) -> bool:
     return get_protected_ancestor(db, folder_id) is not None
 
+def verify_folder_access(db: Session, folder_id: int, user_pin: Optional[str] = None, folder_password: Optional[str] = None) -> bool:
+    """Проверяет доступ к защищенной папке: админ (6282 / Левда М.), хэш пароля папки или PIN автора папки"""
+    protected_folder = get_protected_ancestor(db, folder_id)
+    if not protected_folder:
+        return True # папка не защищена
+        
+    pin_candidate = (user_pin or "").strip()
+    pwd_candidate = (folder_password or "").strip()
+    
+    # 1. Мастер-пароль Администратора (6282 / Левда М.)
+    if pin_candidate == "6282" or pwd_candidate == "6282":
+        return True
+        
+    # 2. Прямой пароль папки (sha256)
+    if pwd_candidate and protected_folder.password_hash:
+        if protected_folder.password_hash == hashlib.sha256(pwd_candidate.encode()).hexdigest():
+            return True
+            
+    # 3. PIN автора защищенной папки (автор защищенного раздела)
+    if protected_folder.created_by:
+        author_emp = db.query(models.PlannerEmployee).filter(
+            models.PlannerEmployee.name == protected_folder.created_by
+        ).first()
+        if author_emp and author_emp.pin_code and author_emp.pin_code.strip():
+            if author_emp.pin_code.strip() in [pin_candidate, pwd_candidate]:
+                return True
+                
+    return False
+
 @router.get("/api/documents/list")
 def list_documents(
     parent_id: Optional[str] = Query(None),
@@ -266,26 +295,38 @@ def get_documents_tree(db: Session = Depends(get_db)):
         return {"status": "error", "message": str(e)}
 
 class VerifyPasswordRequest(BaseModel):
-    folder_id: str
+    folder_id: Optional[str] = None
     password: str
 
 @router.post("/api/documents/verify-password")
 def verify_document_password(req: VerifyPasswordRequest, db: Session = Depends(get_db)):
     try:
+        clean_pwd = req.password.strip()
+        if clean_pwd == "6282":
+            return {"status": "success", "is_admin": True, "employee_name": "Левда М."}
+
         cat_id = None
         if req.folder_id and req.folder_id.startswith("folder_"):
             cat_id = int(req.folder_id.split("_")[1])
-        if not cat_id:
-            return {"status": "error", "message": "Неверный ID папки"}
+        elif req.folder_id and req.folder_id.isdigit():
+            cat_id = int(req.folder_id)
+
+        if cat_id is not None:
+            protected_folder = get_protected_ancestor(db, cat_id)
+            if not protected_folder:
+                return {"status": "error", "message": "Папка не защищена паролем"}
+            if verify_folder_access(db, cat_id, user_pin=clean_pwd, folder_password=clean_pwd):
+                return {"status": "success"}
+            return {"status": "error", "message": "Неверный пароль к защищенному разделу"}
             
-        protected_folder = get_protected_ancestor(db, cat_id)
-        if not protected_folder:
-            return {"status": "success"} # Не защищена
-            
-        hashed_pwd = hashlib.sha256(req.password.encode()).hexdigest()
-        if protected_folder.password_hash == hashed_pwd:
-            return {"status": "success"}
-        return {"status": "error", "message": "Неверный пароль"}
+        # Если folder_id не указан, проверяем PIN сотрудника
+        emp = db.query(models.PlannerEmployee).filter(
+            models.PlannerEmployee.pin_code == clean_pwd,
+            models.PlannerEmployee.is_active == True
+        ).first()
+        if emp:
+            return {"status": "success", "employee_name": emp.name}
+        return {"status": "error", "message": "Неверный пароль или PIN-код"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -452,7 +493,7 @@ def get_direct_upload_token(
         if cat_id is not None:
             protected_folder = get_protected_ancestor(db, cat_id)
             if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                if not verify_folder_access(db, protected_folder.id, user_pin=x_folder_password, folder_password=x_folder_password):
                     raise HTTPException(status_code=403, detail="Access Denied")
 
         if relative_path:
@@ -566,7 +607,7 @@ def add_external_document_link(
         if cat_id is not None:
             protected_folder = get_protected_ancestor(db, cat_id)
             if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                if not verify_folder_access(db, protected_folder.id, user_pin=x_folder_password, folder_password=x_folder_password):
                     raise HTTPException(status_code=403, detail="Access Denied")
 
         clean_url = req.external_url.strip()
@@ -753,7 +794,7 @@ def create_document_folder(
         if cat_id is not None:
             protected_folder = get_protected_ancestor(db, cat_id)
             if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                if not verify_folder_access(db, protected_folder.id, user_pin=x_folder_password, folder_password=x_folder_password):
                     raise HTTPException(status_code=403, detail="Access Denied")
         else:
             if not x_folder_password or x_folder_password != "6282":
@@ -785,6 +826,8 @@ def create_document_folder(
             "name": new_folder.name,
             "mimeType": "application/vnd.google-apps.folder"
         }}
+    except HTTPException:
+        raise
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -827,47 +870,61 @@ def check_document_action_permission(
     is_protected_folder_action: bool = False
 ):
     """
-    Проверяет права доступа на действие с документом/папкой:
-    - Разрешено, если автор совпадает и PIN-код валиден.
-    - Разрешено администраторам (PIN 6282 или мастер-пароль).
-    - Если у объекта еще не был указан создатель (старые файлы) и пользователь авторизован — действие разрешено.
-    - Иначе — отказ 403 с пояснением.
+    Проверяет права доступа на мутирующие действия с документом или папкой (удаление, перемещение, переименование):
+    - Полный доступ: Администратор (пароль 6282 / Левда М. или сотрудник с ролью admin/director).
+    - Категорический отказ анонимным пользователям и неавторизованному "Сотрудник".
+    - Общие/исторические документы без автора или с автором "Сотрудник": может удалять ТОЛЬКО Администратор (6282).
+    - Авторские документы: может удалять сам автор (при совпадении имени и подтверждении PIN-кода) либо Администратор (6282).
     """
     clean_user = (user_name or "").strip()
     clean_pin = (user_pin or "").strip()
     clean_creator = (creator_name or "").strip()
-    
-    # 1. Проверка на суперпользователя / мастер-пароль
+
+    # 1. Мастер-пароль Администратора (6282 / Левда М.)
     if clean_pin == "6282":
         return True
-        
-    # 2. Если у объекта не указан создатель и пользователь авторизован
-    if not clean_creator:
-        if clean_user:
-            return True
-        # Если создатель неизвестен и пользователь не указан
-        return True
 
-    if not clean_user:
+    # 2. Проверка роли Администратора в справочнике мастеров (models.Master)
+    if clean_user:
+        admin_master = db.query(models.Master).filter(
+            models.Master.name == clean_user,
+            models.Master.role.in_(["admin", "director"])
+        ).first()
+        if admin_master and clean_pin == "6282":
+            return True
+
+    # 3. Категорический запрет анонимных действий: пользователь обязан быть авторизован с PIN-кодом
+    if not clean_user or clean_user.lower() == "сотрудник" or not clean_pin:
         raise HTTPException(
-            status_code=403, 
-            detail=f"Действие заблокировано. Объект создан сотрудником «{clean_creator}». Пожалуйста, авторизуйтесь под своим именем."
+            status_code=403,
+            detail="Действие запрещено. Для удаления или изменения документов требуется авторизация автора (PIN) или администратора (6282)."
         )
 
-    # 3. Проверка соответствия имени автора
+    # 4. Общие или исторические документы без конкретного создателя
+    if not clean_creator or clean_creator.lower() == "сотрудник":
+        raise HTTPException(
+            status_code=403,
+            detail="Удаление общих документов компании разрешено только Администратору (пароль 6282)."
+        )
+
+    # 5. Проверка авторства: только сам автор может удалять/изменять свой документ
     if clean_user.lower() != clean_creator.lower():
         raise HTTPException(
-            status_code=403, 
-            detail=f"Действие заблокировано: объект создан сотрудником «{clean_creator}». Удалять и изменять его может только автор или Администратор."
+            status_code=403,
+            detail=f"Действие заблокировано: объект создан сотрудником «{clean_creator}». Удалять и изменять его может только автор или Администратор (6282)."
         )
 
-    # 4. Проверка PIN-кода автора (если он задан в справочнике сотрудников)
+    # 6. Валидация личного PIN-кода автора
     emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_user).first()
     if emp and emp.pin_code and emp.pin_code.strip():
         if emp.pin_code.strip() != clean_pin:
-            raise HTTPException(status_code=401, detail="Неверный PIN-код для подтверждения действия")
-
-    return True
+            raise HTTPException(status_code=401, detail="Неверный PIN-код сотрудника")
+        return True
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="У сотрудника не настроен PIN-код для подтверждения действий."
+        )
 
 @router.put("/api/documents/{item_id}/rename")
 def rename_document(
@@ -889,10 +946,8 @@ def rename_document(
             if not folder:
                 return {"status": "error", "message": "Папка не найдена"}
                 
-            protected_folder = get_protected_ancestor(db, folder.id)
-            if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                    raise HTTPException(status_code=403, detail="Access Denied")
+            if not verify_folder_access(db, folder.id, user_pin=user_pin, folder_password=x_folder_password):
+                raise HTTPException(status_code=403, detail="Доступ к защищенному разделу запрещен")
                     
             check_document_action_permission(db, folder.created_by, user_name, user_pin or x_folder_password)
             folder.name = new_clean_name
@@ -906,10 +961,8 @@ def rename_document(
                 return {"status": "error", "message": "Файл не найден"}
                 
             if doc.category_id:
-                protected_folder = get_protected_ancestor(db, doc.category_id)
-                if protected_folder:
-                    if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                        raise HTTPException(status_code=403, detail="Access Denied")
+                if not verify_folder_access(db, doc.category_id, user_pin=user_pin, folder_password=x_folder_password):
+                    raise HTTPException(status_code=403, detail="Доступ к защищенному разделу запрещен")
                         
             check_document_action_permission(db, doc.created_by or doc.last_modified_by, user_name, user_pin or x_folder_password)
             doc.title = new_clean_name
@@ -946,10 +999,8 @@ def move_document(
             if not target_folder:
                 return {"status": "error", "message": "Целевая папка не найдена"}
                 
-            target_protected = get_protected_ancestor(db, target_folder.id)
-            if target_protected:
-                if not x_folder_password or target_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                    raise HTTPException(status_code=403, detail="Access Denied")
+            if not verify_folder_access(db, target_folder.id, user_pin=user_pin, folder_password=x_folder_password):
+                raise HTTPException(status_code=403, detail="Доступ к целевому защищенному разделу запрещен")
 
         if item_id.startswith("folder_"):
             cat_id = int(item_id.split("_")[1])
@@ -957,10 +1008,8 @@ def move_document(
             if not folder:
                 return {"status": "error", "message": "Перемещаемая папка не найдена"}
 
-            src_protected = get_protected_ancestor(db, folder.id)
-            if src_protected:
-                if not x_folder_password or src_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                    raise HTTPException(status_code=403, detail="Access Denied")
+            if not verify_folder_access(db, folder.id, user_pin=user_pin, folder_password=x_folder_password):
+                raise HTTPException(status_code=403, detail="Доступ к исходному защищенному разделу запрещен")
 
             check_document_action_permission(db, folder.created_by, user_name, user_pin or x_folder_password)
 
@@ -986,10 +1035,8 @@ def move_document(
                 return {"status": "error", "message": "Файл не найден"}
 
             if doc.category_id:
-                src_protected = get_protected_ancestor(db, doc.category_id)
-                if src_protected:
-                    if not x_folder_password or src_protected.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                        raise HTTPException(status_code=403, detail="Access Denied")
+                if not verify_folder_access(db, doc.category_id, user_pin=user_pin, folder_password=x_folder_password):
+                    raise HTTPException(status_code=403, detail="Доступ к защищенному разделу запрещен")
 
             check_document_action_permission(db, doc.created_by or doc.last_modified_by, user_name, user_pin or x_folder_password)
 
@@ -1023,10 +1070,8 @@ def delete_document(
                 cat_id_to_check = doc.category_id
                 
         if cat_id_to_check is not None:
-            protected_folder = get_protected_ancestor(db, cat_id_to_check)
-            if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
-                    raise HTTPException(status_code=403, detail="Access Denied")
+            if not verify_folder_access(db, cat_id_to_check, user_pin=user_pin, folder_password=x_folder_password):
+                raise HTTPException(status_code=403, detail="Доступ к защищенному разделу запрещен")
 
         if item_id.startswith("folder_"):
             cat_id = int(item_id.split("_")[1])
@@ -1086,11 +1131,26 @@ DOCS_STORAGE_DIR = os.path.join(os.getcwd(), "uploads", "kb_docs")
 os.makedirs(DOCS_STORAGE_DIR, exist_ok=True)
 
 @router.get("/api/documents/download/{doc_id}")
-def download_local_document(doc_id: int, db: Session = Depends(get_db)):
+def download_local_document(
+    doc_id: int, 
+    request: Request,
+    pwd: Optional[str] = None,
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     """Отдает локальный файл документа для скачивания или открытия в MS Office"""
     doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Документ не найден")
+
+    if doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            user = request.session.get("user")
+            user_pin = user.get("pin") if user else None
+            provided_key = pwd or x_folder_password or user_pin
+            if not verify_folder_access(db, protected_folder.id, user_pin=provided_key, folder_password=provided_key):
+                raise HTTPException(status_code=403, detail="Доступ к документу в защищенной папке ограничен")
     
     if not doc.file_path or not os.path.exists(doc.file_path):
         # Если привязана только внешняя ссылка
@@ -1146,7 +1206,7 @@ async def upload_local_document(
         if cat_id is not None:
             protected_folder = get_protected_ancestor(db, cat_id)
             if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                if not verify_folder_access(db, protected_folder.id, user_pin=x_folder_password, folder_password=x_folder_password):
                     raise HTTPException(status_code=403, detail="Access Denied")
         
         orig_filename = os.path.basename(file.filename)
@@ -1228,7 +1288,7 @@ async def save_document_version(
         if doc.category_id:
             protected_folder = get_protected_ancestor(db, doc.category_id)
             if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                if not verify_folder_access(db, protected_folder.id, user_pin=x_folder_password, folder_password=x_folder_password):
                     raise HTTPException(status_code=403, detail="Access Denied")
                     
         orig_filename = os.path.basename(file.filename)
@@ -1309,13 +1369,27 @@ def get_document_versions(doc_id: int, db: Session = Depends(get_db)):
         return {"status": "error", "message": str(e)}
 
 @router.get("/api/documents/versions/{version_id}/download")
-def download_document_version(version_id: int, db: Session = Depends(get_db)):
+def download_document_version(
+    version_id: int, 
+    request: Request,
+    pwd: Optional[str] = None,
+    x_folder_password: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
     """Скачивание конкретной архивной версии документа"""
     ver = db.query(models.DocumentVersion).filter(models.DocumentVersion.id == version_id).first()
     if not ver or not ver.file_path or not os.path.exists(ver.file_path):
         raise HTTPException(status_code=404, detail="Архивная версия файла не найдена")
         
     doc = db.query(models.Document).filter(models.Document.id == ver.document_id).first()
+    if doc and doc.category_id:
+        protected_folder = get_protected_ancestor(db, doc.category_id)
+        if protected_folder:
+            user = request.session.get("user")
+            user_pin = user.get("pin") if user else None
+            provided_key = pwd or x_folder_password or user_pin
+            if not verify_folder_access(db, protected_folder.id, user_pin=provided_key, folder_password=provided_key):
+                raise HTTPException(status_code=403, detail="Доступ к архиву в защищенной папке ограничен")
     doc_title = doc.title if doc else "document"
     name_parts = os.path.splitext(doc_title)
     archive_filename = f"{name_parts[0]}_v{ver.version_number}{name_parts[1]}"
@@ -1345,7 +1419,7 @@ def restore_document_version(
         if doc.category_id:
             protected_folder = get_protected_ancestor(db, doc.category_id)
             if protected_folder:
-                if not x_folder_password or protected_folder.password_hash != hashlib.sha256(x_folder_password.encode()).hexdigest():
+                if not verify_folder_access(db, protected_folder.id, user_pin=x_folder_password, folder_password=x_folder_password):
                     raise HTTPException(status_code=403, detail="Access Denied")
                     
         ver = db.query(models.DocumentVersion).filter(
