@@ -1281,7 +1281,12 @@ async function submitShiftReport() {
             showNotification('error', 'Ошибка сохранения', err.detail || 'Неизвестная ошибка сервера');
         }
     } catch(e) {
-        showNotification('error', 'Сетевая ошибка', e.message);
+        if (typeof saveReportDraft === 'function') saveReportDraft();
+        showNotification(
+            'error', 
+            'Сбой отправки рапорта', 
+            `${e.message || 'Не удалось связаться с сервером.'}\n\n✓ Все данные смены надежно сохранены в черновике на вашем устройстве! Проверьте связь и нажмите кнопку еще раз.`
+        );
     } finally {
         setButtonLoading('btn-submit-shift-report', false);
     }

@@ -1301,6 +1301,7 @@ from routers.checklists import router as checklists_router
 from routers.documents import router as documents_router
 from routers.admin import router as admin_router
 from routers.webhooks import router as webhooks_router
+from routers.system import router as system_router
 
 app.include_router(auth_router)
 app.include_router(shifts_router)
@@ -1311,6 +1312,7 @@ app.include_router(checklists_router)
 app.include_router(documents_router)
 app.include_router(admin_router)
 app.include_router(webhooks_router)
+app.include_router(system_router)
 
 # ==========================================
 # STATIC FILES & WEB PAGES
@@ -1325,13 +1327,15 @@ if not os.path.exists("static"):
     os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/api/system/env")
-def get_system_env():
-    return {"is_sandbox": os.environ.get("IS_SANDBOX", "false").lower() == "true"}
+HTML_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0"
+}
 
 @app.get("/")
 def read_root():
-    return FileResponse("static/index.html")
+    return FileResponse("static/index.html", headers=HTML_NO_CACHE_HEADERS)
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
@@ -1339,18 +1343,19 @@ def favicon():
 
 @app.get("/admin")
 def serve_admin():
-    return FileResponse("static/admin.html")
+    return FileResponse("static/admin.html", headers=HTML_NO_CACHE_HEADERS)
 
 @app.get("/analytics")
 def read_analytics():
-    return FileResponse("static/analytics.html")
+    return FileResponse("static/analytics.html", headers=HTML_NO_CACHE_HEADERS)
 
 @app.get("/tasks")
 def serve_tasks():
-    return FileResponse("static/tasks.html")
+    return FileResponse("static/tasks.html", headers=HTML_NO_CACHE_HEADERS)
 
 @app.get("/planner")
 def serve_planner():
-    return FileResponse("static/tasks.html")
+    return FileResponse("static/tasks.html", headers=HTML_NO_CACHE_HEADERS)
+
 
 
