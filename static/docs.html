@@ -316,6 +316,42 @@
             background: rgba(59, 130, 246, 0.12);
         }
 
+        /* На ПК скрываем авторизацию и планнер из сайдбара, так как они есть в верхней панели */
+        @media (min-width: 901px) {
+            .sidebar-user-section,
+            .sidebar-planner-link {
+                display: none !important;
+            }
+        }
+
+        /* Контейнер и стили сортировки документов */
+        .docs-sort-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .mobile-sort-icon {
+            display: none;
+        }
+
+        #docs-sort {
+            padding: 0.55rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--docs-search-border);
+            background: var(--docs-panel-bg);
+            color: var(--docs-text-primary);
+            outline: none;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 0.88rem;
+            transition: all 0.2s ease;
+        }
+
+        #docs-sort:focus {
+            border-color: #3b82f6;
+        }
+
         /* Main Content */
         .docs-content {
             flex: 1;
@@ -1388,10 +1424,41 @@
                 font-size: 1.15rem;
             }
 
+            .docs-sort-container {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 38px;
+                height: 38px;
+                border-radius: 8px;
+                background: var(--docs-panel-bg);
+                border: 1px solid var(--docs-search-border);
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+                flex-shrink: 0;
+            }
+
+            .mobile-sort-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--docs-text-primary);
+                font-size: 1rem;
+                pointer-events: none;
+            }
+
             #docs-sort {
-                font-size: 0.85rem;
-                padding: 0.45rem 0.6rem;
-                max-width: 170px;
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                opacity: 0 !important;
+                cursor: pointer !important;
+                -webkit-appearance: menulist-button !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
             }
 
             /* Transform table to modern touch-friendly card list */
@@ -1618,7 +1685,7 @@
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <a href="/static/tasks.html" class="sidebar-home-link"
+            <a href="/static/tasks.html" class="sidebar-home-link sidebar-planner-link"
                 style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 600;"
                 title="Открыть Планнер по бережливому производству">
                 <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> Планнер (Задачи)
@@ -1708,10 +1775,11 @@
                 </button>
                 <h1 id="current-folder-name" class="page-title">Главная директория</h1>
             </div>
-            <div>
-                <select id="docs-sort"
-                    style="padding: 0.55rem 0.75rem; border-radius: 8px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit; cursor: pointer; width: 100%;"
-                    onchange="applySort()">
+            <div class="docs-sort-container" title="Сортировка документов">
+                <div class="mobile-sort-icon">
+                    <i class="fa-solid fa-arrow-down-wide-short"></i>
+                </div>
+                <select id="docs-sort" onchange="applySort()" title="Сортировка документов">
                     <option value="date_desc">Сначала новые (по дате)</option>
                     <option value="date_asc">Сначала старые (по дате)</option>
                     <option value="name_asc">По имени (А-Я)</option>

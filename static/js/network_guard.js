@@ -53,7 +53,7 @@
                 backdrop-filter: blur(8px);
                 -webkit-backdrop-filter: blur(8px);
             }
-            @media (max-width: 768px) {
+            @media (max-width: 900px) {
                 #netguard-pill {
                     top: auto !important;
                     left: auto !important;
@@ -62,6 +62,9 @@
                     padding: 3px 8px;
                     font-size: 11px;
                     gap: 5px;
+                }
+                #netguard-pill.state-online {
+                    display: none !important;
                 }
             }
             #netguard-pill:hover {
