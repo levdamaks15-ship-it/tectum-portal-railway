@@ -1134,16 +1134,28 @@ def export_downtimes_to_google_sheets(db: Session):
         selectinload(models.Downtime.master),
         selectinload(models.Downtime.shift).selectinload(models.Shift.master)
     ).outerjoin(models.Shift).order_by(
-        func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date).asc(),
+        func.coalesce(models.Downtime.date, models.Shift.date).asc(),
         models.Downtime.start_time.asc(),
         models.Downtime.id.asc()
     ).all()
 
-    # Chronological sort guarantee in Python using actual incident date and start time
+    # Chronological sort guarantee in Python using shift date and factory schedule:
+    # График завода: День с 08:00 до 19:00, Ночь с 19:00 до 08:00 утра.
+    # В смене «Ночь»: сначала вечерние часы (19:00 - 23:59, период 0), затем утренние часы (00:00 - 08:00, период 1).
     def dt_sort_key(d):
-        act_d = d.actual_date or d.effective_actual_date or d.date or (d.shift.date if d.shift else None)
+        shift_d = d.date or (d.shift.date if d.shift else None)
+        shift_n = d.shift_name or (d.shift.shift_name if d.shift else "")
         t_str = (d.start_time or "").strip()
-        return (str(act_d or ""), t_str, d.id or 0)
+        h = 0
+        try:
+            h = int(t_str.split(":")[0])
+        except Exception:
+            pass
+        shift_order = 0 if shift_n == "День" else 1
+        period = 0
+        if shift_n == "Ночь":
+            period = 0 if h >= 12 else 1
+        return (str(shift_d or ""), shift_order, period, t_str, d.id or 0)
 
     downtimes = sorted(downtimes, key=dt_sort_key)
 
@@ -1151,7 +1163,8 @@ def export_downtimes_to_google_sheets(db: Session):
     rows_data.append(headers)
 
     for d in downtimes:
-        d_date = d.actual_date or d.effective_actual_date or d.date or (d.shift.date if d.shift else None)
+        # Для Google Таблицы в колонку «Дата» строго идет дата смены (дата заступления бригады)
+        d_date = d.date or (d.shift.date if d.shift else None)
         date_str = d_date.strftime("%d.%m.%Y") if hasattr(d_date, 'strftime') else (str(d_date) if d_date else "")
         shift_name_val = d.shift_name or (d.shift.shift_name if d.shift else "")
         line_val = d.line or (d.shift.line if d.shift else "")

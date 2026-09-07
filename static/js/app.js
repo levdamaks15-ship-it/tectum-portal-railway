@@ -2374,10 +2374,15 @@ function calcJournalDowntimeDuration() {
     const shiftName = document.getElementById('journal-dt-shift-name')?.value || 'День';
     const dateVal = document.getElementById('journal-dt-date')?.value || '';
 
-    // Night shift date detection & hint
+    // Night shift date detection & hint (график: Ночь с 19:00 до 08:00 утра)
     if (nightHint) {
         if (shiftName === 'Ночь' && s) {
             const hour = parseInt(s.split(':')[0], 10);
+            let shiftDateStr = dateVal;
+            if (dateVal && dateVal.includes('-')) {
+                const p = dateVal.split('-');
+                if (p.length === 3) shiftDateStr = `${p[2]}.${p[1]}.${p[0]}`;
+            }
             if (!isNaN(hour) && hour < 12) {
                 let nextDateStr = '';
                 if (dateVal) {
@@ -2394,10 +2399,10 @@ function calcJournalDowntimeDuration() {
                     } catch(err) {}
                 }
                 nightHint.style.display = 'flex';
-                nightHint.innerHTML = `<span>🌅</span> <div><strong>Утро следующего дня</strong> (${nextDateStr || '+1 день'}): простой зафиксируется в конце смены «Ночь»</div>`;
+                nightHint.innerHTML = `<span>🌅</span> <div><strong>Утро следующего дня</strong> (${nextDateStr || '+1 день'}): простой относится к ночной смене от <strong>${shiftDateStr}</strong> (19:00 – 08:00)</div>`;
             } else {
                 nightHint.style.display = 'flex';
-                nightHint.innerHTML = `<span>🌙</span> <div><strong>Вечер смены</strong> (${dateVal || 'выбранная дата'}): начало смены «Ночь»</div>`;
+                nightHint.innerHTML = `<span>🌙</span> <div><strong>Вечер смены</strong> (${shiftDateStr}): начало ночной смены (19:00 – 08:00)</div>`;
             }
         } else {
             nightHint.style.display = 'none';
@@ -2434,7 +2439,7 @@ function calcEditDowntimeDuration() {
             const hour = parseInt(s.split(':')[0], 10);
             if (!isNaN(hour) && hour < 12) {
                 nightHint.style.display = 'flex';
-                nightHint.innerHTML = `<span>🌅</span> <div><strong>Утро следующего дня (+1 день)</strong>: инцидент произошел в утренней части смены «Ночь»</div>`;
+                nightHint.innerHTML = `<span>🌅</span> <div><strong>Утро следующего дня (+1 день)</strong>: простой относится к ночной смене (19:00 – 08:00)</div>`;
             } else {
                 nightHint.style.display = 'none';
             }
