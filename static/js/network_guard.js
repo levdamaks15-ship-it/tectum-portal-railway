@@ -29,8 +29,13 @@
         style.textContent = `
             #netguard-pill {
                 position: fixed;
-                bottom: 16px;
-                right: 16px;
+                top: auto !important;
+                left: auto !important;
+                bottom: 16px !important;
+                right: 16px !important;
+                height: auto !important;
+                max-height: 36px !important;
+                box-sizing: border-box !important;
                 z-index: 1050;
                 display: flex;
                 align-items: center;
@@ -50,8 +55,10 @@
             }
             @media (max-width: 768px) {
                 #netguard-pill {
-                    bottom: 12px;
-                    right: 12px;
+                    top: auto !important;
+                    left: auto !important;
+                    bottom: 12px !important;
+                    right: 12px !important;
                     padding: 3px 8px;
                     font-size: 11px;
                     gap: 5px;
