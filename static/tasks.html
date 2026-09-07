@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,7 +23,7 @@
             --tbl-border-subtle: #cbd5e1;
             --tbl-hover: #f8fafc;
             --tbl-header-bg: #f1f5f9;
-            
+
             --status-queue-bg: #f1f5f9;
             --status-queue-color: #475569;
             --status-work-bg: #fef3c7;
@@ -66,7 +67,11 @@
             text-decoration: none;
             color: inherit;
         }
-        .header-brand img { height: 36px; }
+
+        .header-brand img {
+            height: 36px;
+        }
+
         .header-brand h1 {
             font-size: 1.15rem;
             font-weight: 800;
@@ -74,6 +79,7 @@
             letter-spacing: 0.5px;
             color: #0f172a;
         }
+
         .header-brand span {
             font-size: 0.75rem;
             color: #64748b;
@@ -112,6 +118,7 @@
             cursor: pointer;
             transition: all 0.2s;
         }
+
         .select-filter:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.15);
@@ -131,34 +138,40 @@
             text-decoration: none;
             font-family: inherit;
         }
+
         .btn-primary-action {
             background: var(--primary-color);
             color: #ffffff;
             border-color: #b01c1c;
             box-shadow: 0 1px 3px rgba(200, 35, 35, 0.25);
         }
+
         .btn-primary-action:hover {
             background: #b01c1c;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(200, 35, 35, 0.3);
         }
+
         .btn-secondary-action {
             background: #ffffff;
             color: #334155;
             border: 1px solid var(--tbl-border-subtle);
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
         }
+
         .btn-secondary-action:hover {
             background: #f8fafc;
             color: #0f172a;
             border-color: #94a3b8;
         }
+
         .btn-backlog-active {
             background: #fffbeb !important;
             color: #b45309 !important;
             border-color: #f59e0b !important;
             box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
         }
+
         .badge-backlog {
             display: inline-flex;
             align-items: center;
@@ -185,17 +198,22 @@
             overflow-x: auto;
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
-            scrollbar-width: none; /* Firefox */
+            scrollbar-width: none;
+            /* Firefox */
         }
+
         .quick-filters-bar::-webkit-scrollbar {
-            display: none; /* Chrome, Safari, Edge */
+            display: none;
+            /* Chrome, Safari, Edge */
         }
+
         .quick-chips-group {
             display: flex;
             align-items: center;
             gap: 0.4rem;
             flex-wrap: nowrap;
         }
+
         .filter-chip {
             display: inline-flex;
             align-items: center;
@@ -211,17 +229,20 @@
             transition: all 0.15s ease;
             user-select: none;
         }
+
         .filter-chip:hover {
             background: #f1f5f9;
             color: #0f172a;
             border-color: #cbd5e1;
         }
+
         .filter-chip.active {
             background: #fef2f2;
             color: #b91c1c;
             border-color: #fca5a5;
             box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
         }
+
         .horizon-tab-btn {
             display: inline-flex;
             align-items: center;
@@ -238,11 +259,13 @@
             transition: all 0.2s ease;
             font-family: inherit;
         }
+
         .horizon-tab-btn:hover {
             background: #f1f5f9;
             color: #0f172a;
             border-color: #94a3b8;
         }
+
         .horizon-tab-btn.active {
             background: #fef2f2;
             color: #b91c1c;
@@ -262,22 +285,26 @@
             gap: 0.85rem;
             transition: all 0.2s ease;
         }
+
         .roadmap-card:hover {
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
             border-color: #cbd5e1;
         }
+
         .roadmap-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             gap: 0.5rem;
         }
+
         .roadmap-title {
             font-size: 1.05rem;
             font-weight: 700;
             color: #0f172a;
             line-height: 1.35;
         }
+
         .roadmap-progress-wrap {
             background: #f1f5f9;
             border-radius: 999px;
@@ -285,12 +312,14 @@
             overflow: hidden;
             position: relative;
         }
+
         .roadmap-progress-bar {
             background: linear-gradient(90deg, #3b82f6, #10b981);
             height: 100%;
             border-radius: 999px;
             transition: width 0.4s ease;
         }
+
         .roadmap-milestone-box {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -298,6 +327,7 @@
             padding: 0.6rem 0.75rem;
             margin-top: 0.5rem;
         }
+
         .roadmap-subtask-item {
             display: flex;
             align-items: center;
@@ -308,12 +338,15 @@
             transition: background 0.15s ease;
             border-radius: 6px;
         }
+
         .roadmap-subtask-item:hover {
             background: #ffffff;
         }
+
         .roadmap-subtask-item:last-child {
             border-bottom: none;
         }
+
         .roadmap-check-btn {
             display: inline-flex;
             align-items: center;
@@ -330,17 +363,20 @@
             flex-shrink: 0;
             padding: 0;
         }
+
         .roadmap-check-btn:hover {
             border-color: #10b981;
             background: #f0fdf4;
             color: #10b981;
             transform: scale(1.1);
         }
+
         .roadmap-check-btn.checked {
             background: #10b981;
             border-color: #10b981;
             color: #ffffff;
         }
+
         .roadmap-quick-add-wrap {
             display: none;
             margin-top: 6px;
@@ -348,8 +384,9 @@
             background: #ffffff;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
+
         .roadmap-quick-add-input {
             width: 100%;
             border: none;
@@ -360,6 +397,7 @@
             color: #0f172a;
             box-sizing: border-box;
         }
+
         .dep-blocker-badge {
             display: inline-flex;
             align-items: center;
@@ -372,6 +410,7 @@
             font-size: 0.7rem;
             font-weight: 600;
         }
+
         .badge-cross-week {
             display: inline-flex;
             align-items: center;
@@ -386,6 +425,7 @@
             white-space: nowrap;
             margin-top: 3px;
         }
+
         .badge-deadline-week {
             display: inline-flex;
             align-items: center;
@@ -399,6 +439,7 @@
             font-weight: 700;
             white-space: nowrap;
         }
+
         .tag-pill {
             display: inline-block;
             background: #eff6ff;
@@ -412,6 +453,7 @@
             margin: 1px 2px;
             transition: all 0.15s ease;
         }
+
         .tag-pill:hover {
             background: #dbeafe;
             color: #1d4ed8;
@@ -423,6 +465,7 @@
             border-color: #fde68a;
             box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
         }
+
         .btn-reset-filters {
             display: inline-flex;
             align-items: center;
@@ -437,11 +480,13 @@
             cursor: pointer;
             transition: all 0.15s ease;
         }
+
         .btn-reset-filters:hover {
             background: #fee2e2;
             color: #b91c1c;
             border-color: #fca5a5;
         }
+
         .btn-reset-filters.active {
             background: #fef2f2;
             color: #dc2626;
@@ -531,16 +576,42 @@
             min-width: 125px;
             box-sizing: border-box;
         }
-        .status-queue { background: var(--status-queue-bg); color: var(--status-queue-color); border-color: #cbd5e1; }
-        .status-work { background: var(--status-work-bg); color: var(--status-work-color); border-color: #fde68a; }
-        .status-done { background: var(--status-done-bg); color: var(--status-done-color); border-color: #a7f3d0; }
-        .status-moved { background: var(--status-moved-bg); color: var(--status-moved-color); border-color: #bfdbfe; }
-        .status-cancelled { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+        .status-queue {
+            background: var(--status-queue-bg);
+            color: var(--status-queue-color);
+            border-color: #cbd5e1;
+        }
+
+        .status-work {
+            background: var(--status-work-bg);
+            color: var(--status-work-color);
+            border-color: #fde68a;
+        }
+
+        .status-done {
+            background: var(--status-done-bg);
+            color: var(--status-done-color);
+            border-color: #a7f3d0;
+        }
+
+        .status-moved {
+            background: var(--status-moved-bg);
+            color: var(--status-moved-color);
+            border-color: #bfdbfe;
+        }
+
+        .status-cancelled {
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fecaca;
+        }
 
         .task-row-done {
             opacity: 0.82;
             background: #fafcfb !important;
         }
+
         .task-card-done {
             opacity: 0.85;
             background: #fafcfb !important;
@@ -551,6 +622,7 @@
             opacity: 0.75;
             background: #fdfafb !important;
         }
+
         .task-card-cancelled {
             opacity: 0.78;
             background: #fdfafb !important;
@@ -569,6 +641,7 @@
             gap: 6px;
             margin-bottom: 0.5rem;
         }
+
         .reason-chip {
             background: #f1f5f9;
             border: 1px solid #cbd5e1;
@@ -581,17 +654,20 @@
             transition: all 0.15s ease;
             user-select: none;
         }
+
         .reason-chip:hover {
             background: #e2e8f0;
             color: #0f172a;
             border-color: #94a3b8;
         }
+
         .reason-chip.selected {
             background: #eff6ff;
             color: #1d4ed8;
             border-color: #3b82f6;
             font-weight: 600;
         }
+
         .reason-chip.selected-danger {
             background: #fef2f2;
             color: #dc2626;
@@ -606,6 +682,7 @@
             margin-top: 4px;
             flex-wrap: wrap;
         }
+
         .date-preset-btn {
             background: #f8fafc;
             border: 1px solid #cbd5e1;
@@ -616,6 +693,7 @@
             cursor: pointer;
             transition: all 0.15s ease;
         }
+
         .date-preset-btn:hover {
             background: #e2e8f0;
             color: #0f172a;
@@ -632,6 +710,7 @@
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
         }
+
         .kpi-card-chip {
             display: inline-flex;
             align-items: center;
@@ -644,21 +723,25 @@
             transition: all 0.15s ease;
             user-select: none;
         }
+
         .kpi-card-chip:hover {
             background: #f1f5f9;
             border-color: #cbd5e1;
             transform: translateY(-1px);
         }
+
         .kpi-card-chip.active {
             border-color: #3b82f6;
             background: #eff6ff;
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
         }
+
         .kpi-title {
             font-size: 0.75rem;
             color: #64748b;
             font-weight: 600;
         }
+
         .kpi-value {
             font-size: 0.95rem;
             font-weight: 800;
@@ -671,6 +754,7 @@
             padding-left: 20px;
             margin-top: 1rem;
         }
+
         .timeline-container::before {
             content: '';
             position: absolute;
@@ -680,13 +764,16 @@
             width: 2px;
             background: #e2e8f0;
         }
+
         .timeline-item {
             position: relative;
             margin-bottom: 1.25rem;
         }
+
         .timeline-item:last-child {
             margin-bottom: 0;
         }
+
         .timeline-dot {
             position: absolute;
             left: -20px;
@@ -698,18 +785,34 @@
             border: 3px solid #3b82f6;
             box-sizing: border-box;
         }
-        .timeline-dot.dot-create { border-color: #10b981; }
-        .timeline-dot.dot-reschedule { border-color: #0284c7; }
-        .timeline-dot.dot-complete { border-color: #16a34a; }
-        .timeline-dot.dot-cancel { border-color: #ef4444; }
-        .timeline-dot.dot-update { border-color: #f59e0b; }
-        
+
+        .timeline-dot.dot-create {
+            border-color: #10b981;
+        }
+
+        .timeline-dot.dot-reschedule {
+            border-color: #0284c7;
+        }
+
+        .timeline-dot.dot-complete {
+            border-color: #16a34a;
+        }
+
+        .timeline-dot.dot-cancel {
+            border-color: #ef4444;
+        }
+
+        .timeline-dot.dot-update {
+            border-color: #f59e0b;
+        }
+
         .timeline-card {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 0.6rem 0.85rem;
         }
+
         .timeline-header {
             display: flex;
             justify-content: space-between;
@@ -717,15 +820,18 @@
             gap: 0.5rem;
             margin-bottom: 0.25rem;
         }
+
         .timeline-user {
             font-size: 0.82rem;
             font-weight: 700;
             color: #0f172a;
         }
+
         .timeline-date {
             font-size: 0.74rem;
             color: #94a3b8;
         }
+
         .timeline-body {
             font-size: 0.82rem;
             color: #334155;
@@ -746,6 +852,7 @@
             font-weight: 600;
             transition: background 0.2s;
         }
+
         .btn-photo-link:hover {
             background: #cffafe;
         }
@@ -756,6 +863,7 @@
             align-items: center;
             gap: 0.3rem;
         }
+
         .btn-icon-cell {
             background: transparent;
             border: none;
@@ -766,10 +874,12 @@
             border-radius: 4px;
             transition: color 0.2s, background 0.2s;
         }
+
         .btn-icon-cell:hover {
             color: #0f172a;
             background: #e2e8f0;
         }
+
         .btn-icon-cell:disabled,
         .btn-card-action:disabled,
         .select-status:disabled {
@@ -790,10 +900,12 @@
                 background-color: rgba(37, 99, 235, 0.22);
                 box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);
             }
+
             50% {
                 background-color: rgba(37, 99, 235, 0.12);
                 box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.25);
             }
+
             100% {
                 background-color: transparent;
                 box-shadow: none;
@@ -808,6 +920,7 @@
             animation: taskHighlightPulse 3.5s ease-out forwards;
             border-color: #2563eb !important;
         }
+
         /* Modal dialogs */
         .modal-overlay {
             position: fixed;
@@ -825,9 +938,11 @@
             padding: 1rem;
             box-sizing: border-box;
         }
+
         .modal-overlay.active {
             display: flex !important;
         }
+
         .modal-box {
             background: #ffffff;
             border: 1px solid var(--tbl-border);
@@ -841,6 +956,7 @@
             overflow-y: auto;
             box-sizing: border-box;
         }
+
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -849,12 +965,14 @@
             border-bottom: 1px solid var(--tbl-border);
             padding-bottom: 0.75rem;
         }
+
         .modal-header h3 {
             margin: 0;
             font-size: 1.15rem;
             color: #0f172a;
             font-weight: 700;
         }
+
         .modal-close {
             background: transparent;
             border: none;
@@ -864,13 +982,16 @@
             padding: 0.2rem;
             border-radius: 4px;
         }
+
         .modal-close:hover {
             color: #0f172a;
             background: #f1f5f9;
         }
+
         .form-row {
             margin-bottom: 1rem;
         }
+
         .form-row label {
             display: block;
             font-size: 0.82rem;
@@ -878,7 +999,10 @@
             color: #334155;
             margin-bottom: 0.35rem;
         }
-        .form-input, .form-textarea, .form-select {
+
+        .form-input,
+        .form-textarea,
+        .form-select {
             width: 100%;
             box-sizing: border-box;
             background: #ffffff;
@@ -891,7 +1015,10 @@
             outline: none;
             transition: border-color 0.2s;
         }
-        .form-input:focus, .form-textarea:focus, .form-select:focus {
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
             border-color: #2563eb;
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
         }
@@ -907,13 +1034,14 @@
             border-radius: 30px;
             font-size: 0.9rem;
             font-weight: 600;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
             z-index: 2000;
             transition: transform 0.3s ease;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
+
         .toast.show {
             transform: translateX(-50%) translateY(0);
         }
@@ -1035,6 +1163,7 @@
             cursor: pointer;
             transition: all 0.15s ease;
         }
+
         .card-add-comment-btn:hover {
             background: #f1f5f9;
             color: #0f172a;
@@ -1080,6 +1209,7 @@
             color: #1d4ed8;
             border-color: #bfdbfe;
         }
+
         .btn-card-action-primary:hover {
             background: #dbeafe;
             color: #1e40af;
@@ -1116,37 +1246,45 @@
                 padding: 0.5rem 0.75rem;
                 gap: 0.5rem;
             }
+
             .header-brand h1 {
                 font-size: 0.92rem;
                 letter-spacing: 0;
             }
+
             .header-brand span {
                 font-size: 0.62rem;
             }
+
             .header-brand img {
                 height: 26px;
             }
+
             .planner-header-actions {
                 display: flex;
                 align-items: center;
                 gap: 0.35rem;
                 flex-wrap: nowrap !important;
             }
+
             .btn-action-header {
                 padding: 0.35rem 0.55rem;
                 font-size: 0.8rem;
             }
+
             .user-session-badge {
                 padding: 3px 6px !important;
                 font-size: 0.75rem !important;
                 max-width: 110px;
             }
+
             .user-session-name {
                 max-width: 70px;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+
             /* 2-Row Compact Mobile Toolbar */
             .toolbar {
                 padding: 0.5rem 0.75rem;
@@ -1154,24 +1292,29 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+
             .toolbar-group-dates {
                 display: grid !important;
                 grid-template-columns: 1fr 1fr;
                 gap: 0.45rem;
                 width: 100%;
             }
+
             .toolbar-group-dates select {
                 width: 100%;
-                font-size: 16px !important; /* Prevents auto-zoom on iOS */
+                font-size: 16px !important;
+                /* Prevents auto-zoom on iOS */
                 padding: 0.55rem 0.65rem !important;
                 min-height: 44px;
             }
+
             .toolbar-group-actions {
                 display: flex !important;
                 align-items: center;
                 gap: 0.45rem;
                 width: 100%;
             }
+
             .toolbar-group-actions .btn-action {
                 flex: 1;
                 justify-content: center;
@@ -1179,21 +1322,27 @@
                 font-size: 0.82rem;
                 white-space: nowrap;
             }
+
             .toolbar-group-actions .btn-primary-action {
                 flex: 1.25;
             }
+
             .table-container {
                 padding: 0.6rem 0.65rem;
             }
+
             .hide-mobile {
                 display: none !important;
             }
+
             .planner-table {
                 display: none !important;
             }
+
             .planner-cards-container {
                 display: flex !important;
             }
+
             .btn-mobile-full {
                 width: 100%;
                 justify-content: center;
@@ -1211,9 +1360,13 @@
                 size: A4 landscape;
                 margin: 6mm 6mm 6mm 6mm;
             }
-            *, *:before, *:after {
+
+            *,
+            *:before,
+            *:after {
                 box-sizing: border-box !important;
             }
+
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
@@ -1221,27 +1374,28 @@
                 padding: 0 !important;
                 margin: 0 !important;
             }
+
             /* Скрываем ВСЕ интерактивные панели интерфейса */
             header,
             nav,
-            .planner-header, 
-            .horizon-nav-bar, 
-            #tags-cloud-bar, 
-            .toolbar, 
-            #main-toolbar, 
-            .kpi-summary-bar, 
+            .planner-header,
+            .horizon-nav-bar,
+            #tags-cloud-bar,
+            .toolbar,
+            #main-toolbar,
+            .kpi-summary-bar,
             #kpi-summary-bar,
             .quick-filters-bar,
             #quick-filters-bar,
             .quick-chips-group,
             .kpi-card-chip,
-            .row-actions, 
-            .modal-overlay, 
-            .toast, 
-            .hide-print, 
-            .mobile-filters-panel, 
-            .planner-cards-container, 
-            #roadmaps-view-container, 
+            .row-actions,
+            .modal-overlay,
+            .toast,
+            .hide-print,
+            .mobile-filters-panel,
+            .planner-cards-container,
+            #roadmaps-view-container,
             .btn-photo-link,
             .btn-action,
             .select-filter,
@@ -1249,12 +1403,14 @@
             #planner-user-badge {
                 display: none !important;
             }
+
             .table-container {
                 padding: 0 !important;
                 margin: 0 !important;
                 overflow: visible !important;
                 display: block !important;
             }
+
             .print-only-header {
                 display: flex !important;
                 justify-content: space-between;
@@ -1263,14 +1419,17 @@
                 padding-bottom: 6px;
                 margin-bottom: 8px;
             }
+
             .print-header-brand {
                 display: flex;
                 align-items: center;
                 gap: 10px;
             }
+
             .print-header-brand img {
                 height: 32px;
             }
+
             .print-header-title h2 {
                 margin: 0;
                 font-size: 12pt;
@@ -1278,17 +1437,20 @@
                 color: #000000;
                 letter-spacing: 0.5px;
             }
+
             .print-header-title span {
                 font-size: 8pt;
                 color: #333333;
                 font-weight: 600;
             }
+
             .print-meta-info {
                 text-align: right;
                 font-size: 7.5pt;
                 color: #333333;
                 line-height: 1.3;
             }
+
             .planner-table {
                 display: table !important;
                 width: 100% !important;
@@ -1297,9 +1459,11 @@
                 box-shadow: none !important;
                 table-layout: auto !important;
             }
+
             .planner-table tr {
                 page-break-inside: avoid;
             }
+
             .planner-table th {
                 background: #f1f5f9 !important;
                 color: #000000 !important;
@@ -1312,12 +1476,15 @@
                 text-align: left;
                 white-space: nowrap;
             }
+
             .planner-table th select {
                 display: none !important;
             }
+
             .planner-table th .th-title {
                 display: block !important;
             }
+
             .planner-table td {
                 border: 1px solid #94a3b8 !important;
                 color: #000000 !important;
@@ -1329,6 +1496,7 @@
                 overflow-wrap: break-word !important;
                 word-break: normal !important;
             }
+
             /* Скрываем столбец Фото (5-й) и Действия (последний), а также чекбоксы и тулбар */
             #services-bulk-bar,
             #th-select-all-services,
@@ -1339,22 +1507,63 @@
             .planner-table td:last-child {
                 display: none !important;
             }
+
             /* Пропорциональные ширины столбцов под А4 Landscape */
-            .planner-table th:nth-child(1), .planner-table td:nth-child(1) { width: 50px !important; white-space: nowrap !important; }
-            .planner-table th:nth-child(2), .planner-table td:nth-child(2) { width: 110px !important; }
-            .planner-table th:nth-child(3), .planner-table td:nth-child(3) { width: 28% !important; }
-            .planner-table th:nth-child(4), .planner-table td:nth-child(4) { width: 20% !important; }
-            .planner-table th:nth-child(6), .planner-table td:nth-child(6) { width: 110px !important; }
-            .planner-table th:nth-child(7), .planner-table td:nth-child(7) { width: 95px !important; }
-            .planner-table th:nth-child(8), .planner-table td:nth-child(8) { width: 70px !important; white-space: nowrap !important; }
-            .planner-table th:nth-child(9), .planner-table td:nth-child(9) { width: 90px !important; white-space: nowrap !important; text-align: center !important; }
-            .planner-table th:nth-child(10), .planner-table td:nth-child(10) { width: auto !important; }
+            .planner-table th:nth-child(1),
+            .planner-table td:nth-child(1) {
+                width: 50px !important;
+                white-space: nowrap !important;
+            }
+
+            .planner-table th:nth-child(2),
+            .planner-table td:nth-child(2) {
+                width: 110px !important;
+            }
+
+            .planner-table th:nth-child(3),
+            .planner-table td:nth-child(3) {
+                width: 28% !important;
+            }
+
+            .planner-table th:nth-child(4),
+            .planner-table td:nth-child(4) {
+                width: 20% !important;
+            }
+
+            .planner-table th:nth-child(6),
+            .planner-table td:nth-child(6) {
+                width: 110px !important;
+            }
+
+            .planner-table th:nth-child(7),
+            .planner-table td:nth-child(7) {
+                width: 95px !important;
+            }
+
+            .planner-table th:nth-child(8),
+            .planner-table td:nth-child(8) {
+                width: 70px !important;
+                white-space: nowrap !important;
+            }
+
+            .planner-table th:nth-child(9),
+            .planner-table td:nth-child(9) {
+                width: 90px !important;
+                white-space: nowrap !important;
+                text-align: center !important;
+            }
+
+            .planner-table th:nth-child(10),
+            .planner-table td:nth-child(10) {
+                width: auto !important;
+            }
 
             /* При печати планов служб (ОГЭ / ОГМ) скрываем пустую колонку Исполнителя */
             body.print-hide-assignee .planner-table th:nth-child(7),
             body.print-hide-assignee .planner-table td:nth-child(7) {
                 display: none !important;
             }
+
             body.print-hide-assignee .planner-table th:nth-child(3),
             body.print-hide-assignee .planner-table td:nth-child(3) {
                 width: 35% !important;
@@ -1372,6 +1581,7 @@
                 text-align: center !important;
                 pointer-events: none !important;
             }
+
             .badge-zone {
                 display: inline-block !important;
                 border: 1px solid #94a3b8 !important;
@@ -1380,6 +1590,7 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+
             .badge-code {
                 display: inline-block !important;
                 font-size: 7pt !important;
@@ -1387,19 +1598,23 @@
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            .badge-cross-week, .badge-deadline-week {
+
+            .badge-cross-week,
+            .badge-deadline-week {
                 display: inline-block !important;
                 font-size: 7pt !important;
                 padding: 1px 3px !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
+
             .tag-pill {
                 display: inline-block !important;
                 font-size: 6.5pt !important;
                 padding: 0 3px !important;
                 border: 1px solid #cbd5e1 !important;
             }
+
             .dep-blocker-badge {
                 display: inline-block !important;
                 font-size: 6.5pt !important;
@@ -1408,6 +1623,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- Header Navigation -->
@@ -1422,46 +1638,62 @@
 
         <div class="planner-header-actions" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: nowrap;">
             <!-- Planner User Session Badge -->
-            <div id="planner-user-badge" class="user-session-badge" onclick="promptChangePlannerUser()" style="display: flex; align-items: center; gap: 5px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: #1d4ed8; cursor: pointer;" title="Нажмите, чтобы войти под своим именем">
+            <div id="planner-user-badge" class="user-session-badge" onclick="promptChangePlannerUser()"
+                style="display: flex; align-items: center; gap: 5px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: #1d4ed8; cursor: pointer;"
+                title="Нажмите, чтобы войти под своим именем">
                 <i class="fa-solid fa-user-lock" style="font-size: 0.75rem;"></i>
                 <span id="planner-user-name" class="user-session-name">Войти (PIN)</span>
-                <button type="button" id="btn-planner-logout" onclick="event.stopPropagation(); logoutPlannerUser();" style="display: none; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.85rem;" title="Выйти / Сменить пользователя">&times;</button>
+                <button type="button" id="btn-planner-logout" onclick="event.stopPropagation(); logoutPlannerUser();"
+                    style="display: none; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.85rem;"
+                    title="Выйти / Сменить пользователя">&times;</button>
             </div>
 
-            <a href="/static/docs.html" class="btn-action btn-secondary-action btn-action-header" title="База знаний" style="white-space: nowrap;">
+            <a href="/static/docs.html" class="btn-action btn-secondary-action btn-action-header" title="База знаний"
+                style="white-space: nowrap;">
                 <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
-            <a href="/" class="btn-action btn-secondary-action btn-action-header" title="На главную" style="white-space: nowrap;">
+            <a href="/" class="btn-action btn-secondary-action btn-action-header" title="На главную"
+                style="white-space: nowrap;">
                 <i class="fa-solid fa-house"></i>
             </a>
         </div>
     </header>
 
     <!-- Horizon Tabs Bar (3 Levels of Planning) -->
-    <div class="horizon-nav-bar" style="background: #ffffff; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
+    <div class="horizon-nav-bar"
+        style="background: #ffffff; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-            <a href="#weekly" class="horizon-tab-btn active" id="tab-horizon-weekly" onclick="switchHorizon('weekly', event)">
+            <a href="#weekly" class="horizon-tab-btn active" id="tab-horizon-weekly"
+                onclick="switchHorizon('weekly', event)">
                 <i class="fa-solid fa-bolt" style="color: #2563eb;"></i> <span>⚡ Недельный спринт</span>
             </a>
-            <a href="#services" class="horizon-tab-btn" id="tab-horizon-services" onclick="switchHorizon('services', event)">
+            <a href="#services" class="horizon-tab-btn" id="tab-horizon-services"
+                onclick="switchHorizon('services', event)">
                 <i class="fa-solid fa-wrench" style="color: #059669;"></i> <span>🔧 Службы ОГМ / ОГЭ</span>
             </a>
-            <a href="#roadmaps" class="horizon-tab-btn" id="tab-horizon-roadmaps" onclick="switchHorizon('roadmaps', event)">
-                <i class="fa-solid fa-map-location-dot" style="color: #7c3aed;"></i> <span>🗺️ Дорожные карты и проекты</span>
+            <a href="#roadmaps" class="horizon-tab-btn" id="tab-horizon-roadmaps"
+                onclick="switchHorizon('roadmaps', event)">
+                <i class="fa-solid fa-map-location-dot" style="color: #7c3aed;"></i> <span>🗺️ Дорожные карты и
+                    проекты</span>
             </a>
         </div>
 
         <!-- Tags Cloud Toggle -->
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button type="button" class="filter-chip" id="btn-toggle-tags-bar" onclick="toggleTagsCloudBar()" title="Показать / скрыть облако хэштегов">
-                <i class="fa-solid fa-hashtag" style="color: #2563eb;"></i> <span>Теги</span> <span id="tags-count-badge" style="background: #eff6ff; color: #1d4ed8; padding: 1px 5px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;">0</span>
+            <button type="button" class="filter-chip" id="btn-toggle-tags-bar" onclick="toggleTagsCloudBar()"
+                title="Показать / скрыть облако хэштегов">
+                <i class="fa-solid fa-hashtag" style="color: #2563eb;"></i> <span>Теги</span> <span
+                    id="tags-count-badge"
+                    style="background: #eff6ff; color: #1d4ed8; padding: 1px 5px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;">0</span>
             </button>
         </div>
     </div>
 
     <!-- Tags Cloud Bar (Expandable / Collapsible) -->
-    <div id="tags-cloud-bar" style="display: none; background: #f8fafc; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-        <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Хэштеги:</span>
+    <div id="tags-cloud-bar"
+        style="display: none; background: #f8fafc; border-bottom: 1px solid var(--tbl-border); padding: 0.5rem 1.5rem; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span
+            style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Хэштеги:</span>
         <div id="tags-cloud-items" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
             <!-- Populated dynamically -->
         </div>
@@ -1471,7 +1703,8 @@
     <div class="toolbar" id="main-toolbar">
         <div class="toolbar-group toolbar-group-dates">
             <!-- Month Selector -->
-            <select class="select-filter" id="filter-month" onchange="onMonthChange()" style="font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff;">
+            <select class="select-filter" id="filter-month" onchange="onMonthChange()"
+                style="font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff;">
                 <option value="all">🌐 За всё время</option>
                 <option value="Январь 2026">Январь 2026</option>
                 <option value="Февраль 2026">Февраль 2026</option>
@@ -1488,12 +1721,14 @@
             </select>
 
             <!-- Week Selector (Mon-Fri) -->
-            <select class="select-filter" id="filter-week" onchange="loadTasks()" style="font-weight: 600; color: #b45309; border-color: #fde68a; background: #fffbeb;">
+            <select class="select-filter" id="filter-week" onchange="loadTasks()"
+                style="font-weight: 600; color: #b45309; border-color: #fde68a; background: #fffbeb;">
                 <!-- Populated dynamically -->
             </select>
 
             <!-- Quarter Selector for Roadmaps (Hidden by default) -->
-            <select class="select-filter" id="filter-quarter" onchange="loadRoadmaps()" style="display: none; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">
+            <select class="select-filter" id="filter-quarter" onchange="loadRoadmaps()"
+                style="display: none; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">
                 <option value="all">📅 Все кварталы</option>
                 <option value="Q1 2026">Q1 2026</option>
                 <option value="Q2 2026">Q2 2026</option>
@@ -1504,17 +1739,21 @@
 
         <div class="toolbar-group toolbar-group-actions">
             <!-- Backlog Toggle -->
-            <button class="btn-action btn-secondary-action" id="btn-toggle-backlog" onclick="toggleBacklog()" title="Показать незавершённые задачи с прошлых недель">
-                <i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых недель</span><span class="mobile-only">Долги</span>
+            <button class="btn-action btn-secondary-action" id="btn-toggle-backlog" onclick="toggleBacklog()"
+                title="Показать незавершённые задачи с прошлых недель">
+                <i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых
+                    недель</span><span class="mobile-only">Долги</span>
             </button>
 
             <!-- Docs Control Filter for Services -->
-            <button class="btn-action btn-secondary-action" id="btn-filter-hasdoc" onclick="toggleDocFilter()" style="display: none;" title="Показать только задачи с прикрепленными регламентами">
+            <button class="btn-action btn-secondary-action" id="btn-filter-hasdoc" onclick="toggleDocFilter()"
+                style="display: none;" title="Показать только задачи с прикрепленными регламентами">
                 <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i> <span>С регламентами</span>
             </button>
 
             <!-- Mobile Filters Toggle Button -->
-            <button class="btn-action btn-secondary-action mobile-only" id="btn-toggle-filters" onclick="toggleMobileFilters()" title="Фильтры">
+            <button class="btn-action btn-secondary-action mobile-only" id="btn-toggle-filters"
+                onclick="toggleMobileFilters()" title="Фильтры">
                 <i class="fa-solid fa-filter"></i> <span>Фильтры</span>
                 <span id="mobile-filter-badge" class="filter-count-badge" style="display: none;">0</span>
             </button>
@@ -1525,17 +1764,20 @@
             </button>
 
             <!-- Bulk Add Tasks Button -->
-            <button class="btn-action btn-secondary-action" id="btn-bulk-add-tasks" onclick="openBulkTasksModal()" title="Массовое создание нескольких задач за один раз">
+            <button class="btn-action btn-secondary-action" id="btn-bulk-add-tasks" onclick="openBulkTasksModal()"
+                title="Массовое создание нескольких задач за один раз">
                 <i class="fa-solid fa-layer-group" style="color: #2563eb;"></i> <span>Массовый ввод</span>
             </button>
 
             <!-- Print Button (for Info Stand - Desktop only) -->
-            <button class="btn-action btn-secondary-action hide-mobile" onclick="printTasksPlanner()" title="Печать текущей таблицы задач для инфостенда">
+            <button class="btn-action btn-secondary-action hide-mobile" onclick="printTasksPlanner()"
+                title="Печать текущей таблицы задач для инфостенда">
                 <i class="fa-solid fa-print"></i> <span>Печать</span>
             </button>
 
             <!-- PDF Export Button (Desktop only) -->
-            <button class="btn-action btn-secondary-action hide-mobile" onclick="exportTasksToPdf()" title="Выгрузить отфильтрованные задачи в PDF для инфостенда">
+            <button class="btn-action btn-secondary-action hide-mobile" onclick="exportTasksToPdf()"
+                title="Выгрузить отфильтрованные задачи в PDF для инфостенда">
                 <i class="fa-solid fa-file-pdf" style="color: #dc2626;"></i> <span>PDF</span>
             </button>
         </div>
@@ -1583,13 +1825,16 @@
     <!-- Quick Presets & Service Chips Bar -->
     <div class="quick-filters-bar" id="quick-filters-bar">
         <div class="quick-chips-group" id="quick-chips-group">
-            <button type="button" class="filter-chip active" id="chip-all" onclick="applyPresetFilter('all')" title="Показать все задачи">
+            <button type="button" class="filter-chip active" id="chip-all" onclick="applyPresetFilter('all')"
+                title="Показать все задачи">
                 <i class="fa-solid fa-layer-group"></i> <span>Все задачи</span>
             </button>
-            <button type="button" class="filter-chip" id="chip-my" onclick="toggleMyTasksFilter()" title="Показать только мои задачи (автор или исполнитель)">
+            <button type="button" class="filter-chip" id="chip-my" onclick="toggleMyTasksFilter()"
+                title="Показать только мои задачи (автор или исполнитель)">
                 <i class="fa-solid fa-user-check"></i> <span id="chip-my-label">Мои задачи</span>
             </button>
-            <button type="button" class="filter-chip" id="chip-inwork" onclick="applyPresetFilter('in_work')" title="Задачи в работе">
+            <button type="button" class="filter-chip" id="chip-inwork" onclick="applyPresetFilter('in_work')"
+                title="Задачи в работе">
                 <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> <span>В работе</span>
             </button>
 
@@ -1597,14 +1842,19 @@
             <span style="color: #cbd5e1; font-weight: 300; margin: 0 2px;">|</span>
 
             <!-- Service Zone Chips -->
-            <button type="button" class="filter-chip" id="chip-zone-ogm" onclick="applyDepartmentFilter('ОГМ')">🔧 ОГМ Механики</button>
-            <button type="button" class="filter-chip" id="chip-zone-oge" onclick="applyDepartmentFilter('ОГЭ')">⚡ ОГЭ Электрики</button>
-            <button type="button" class="filter-chip" id="chip-zone-tech" onclick="applyDepartmentFilter('Технологи')">🔬 Технологи</button>
-            <button type="button" class="filter-chip" id="chip-zone-qcd" onclick="applyDepartmentFilter('ОТК')">📋 ОТК / СКК</button>
+            <button type="button" class="filter-chip" id="chip-zone-ogm" onclick="applyDepartmentFilter('ОГМ')">🔧 ОГМ
+                Механики</button>
+            <button type="button" class="filter-chip" id="chip-zone-oge" onclick="applyDepartmentFilter('ОГЭ')">⚡ ОГЭ
+                Электрики</button>
+            <button type="button" class="filter-chip" id="chip-zone-tech"
+                onclick="applyDepartmentFilter('Технологи')">🔬 Технологи</button>
+            <button type="button" class="filter-chip" id="chip-zone-qcd" onclick="applyDepartmentFilter('ОТК')">📋 ОТК /
+                СКК</button>
         </div>
 
         <div style="display: flex; align-items: center; gap: 0.4rem;">
-            <button type="button" class="btn-reset-filters" id="btn-reset-filters-chip" onclick="resetAllFilters()" style="display: none;" title="Сбросить все активные фильтры">
+            <button type="button" class="btn-reset-filters" id="btn-reset-filters-chip" onclick="resetAllFilters()"
+                style="display: none;" title="Сбросить все активные фильтры">
                 <i class="fa-solid fa-rotate-left"></i> <span>Сбросить (<span id="reset-filter-count">0</span>)</span>
             </button>
         </div>
@@ -1614,14 +1864,19 @@
     <div class="mobile-filters-panel" id="mobile-filters-panel">
         <div class="mobile-filters-grid">
             <div>
-                <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Зона / Служба</label>
-                <select class="select-filter" id="mobile-filter-zone" onchange="syncMobileFilter('zone', this.value)" style="width: 100%; font-size: 0.8rem;">
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Зона
+                    / Служба</label>
+                <select class="select-filter" id="mobile-filter-zone" onchange="syncMobileFilter('zone', this.value)"
+                    style="width: 100%; font-size: 0.8rem;">
                     <option value="all">📁 Все зоны</option>
                 </select>
             </div>
             <div>
-                <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Статус</label>
-                <select class="select-filter" id="mobile-filter-status" onchange="syncMobileFilter('status', this.value)" style="width: 100%; font-size: 0.8rem;">
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Статус</label>
+                <select class="select-filter" id="mobile-filter-status"
+                    onchange="syncMobileFilter('status', this.value)" style="width: 100%; font-size: 0.8rem;">
                     <option value="all">⚡ Все статусы</option>
                     <option value="🟡 В работе">🟡 В работе</option>
                     <option value="🟢 Выполнено">🟢 Выполнено</option>
@@ -1630,20 +1885,25 @@
                 </select>
             </div>
             <div>
-                <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Исполнитель</label>
-                <select class="select-filter" id="mobile-filter-assignee" onchange="syncMobileFilter('assignee', this.value)" style="width: 100%; font-size: 0.8rem;">
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Исполнитель</label>
+                <select class="select-filter" id="mobile-filter-assignee"
+                    onchange="syncMobileFilter('assignee', this.value)" style="width: 100%; font-size: 0.8rem;">
                     <option value="all">👤 Все исполн.</option>
                 </select>
             </div>
             <div>
-                <label style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Автор</label>
-                <select class="select-filter" id="mobile-filter-author" onchange="syncMobileFilter('author', this.value)" style="width: 100%; font-size: 0.8rem;">
+                <label
+                    style="display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; margin-bottom: 2px;">Автор</label>
+                <select class="select-filter" id="mobile-filter-author"
+                    onchange="syncMobileFilter('author', this.value)" style="width: 100%; font-size: 0.8rem;">
                     <option value="all">✍️ Все авторы</option>
                 </select>
             </div>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem;">
-            <button class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 3px 8px;" onclick="resetAllFilters()">
+            <button class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 3px 8px;"
+                onclick="resetAllFilters()">
                 <i class="fa-solid fa-rotate-left"></i> Сбросить фильтры
             </button>
         </div>
@@ -1664,22 +1924,32 @@
     </div>
 
     <!-- Floating Batch Actions Toolbar for Services -->
-    <div id="services-bulk-bar" style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 1050; background: #0f172a; color: #ffffff; padding: 0.65rem 1.25rem; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); align-items: center; gap: 0.85rem; border: 1px solid #334155;">
-        <div style="font-size: 0.85rem; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
+    <div id="services-bulk-bar"
+        style="display: none; position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 1050; background: #0f172a; color: #ffffff; padding: 0.65rem 1.25rem; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3); align-items: center; gap: 0.85rem; border: 1px solid #334155;">
+        <div
+            style="font-size: 0.85rem; font-weight: 700; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
             <i class="fa-solid fa-check-double" style="color: #38bdf8;"></i>
             <span>Выбрано: <span id="services-selected-count" style="color: #38bdf8;">0</span></span>
         </div>
         <div style="height: 18px; width: 1px; background: #334155;"></div>
-        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🟢 Выполнено')" style="background: #10b981; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;" title="Завершить все выбранные задачи">
+        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🟢 Выполнено')"
+            style="background: #10b981; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;"
+            title="Завершить все выбранные задачи">
             <i class="fa-solid fa-check"></i> <span>Выполнить</span>
         </button>
-        <button type="button" class="btn-action" onclick="executeServicesBulkMove()" style="background: #3b82f6; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;" title="Перенести все выбранные задачи на следующую неделю">
+        <button type="button" class="btn-action" onclick="executeServicesBulkMove()"
+            style="background: #3b82f6; color: #fff; font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;"
+            title="Перенести все выбранные задачи на следующую неделю">
             <i class="fa-solid fa-arrow-right"></i> <span>На след. неделю</span>
         </button>
-        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🔴 Отменено')" style="background: #ef4444; color: #fff; font-size: 0.8rem; padding: 5px 10px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;" title="Отменить выбранные задачи">
+        <button type="button" class="btn-action" onclick="executeServicesBulkStatus('🔴 Отменено')"
+            style="background: #ef4444; color: #fff; font-size: 0.8rem; padding: 5px 10px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer;"
+            title="Отменить выбранные задачи">
             <i class="fa-solid fa-xmark"></i> <span>Отменить</span>
         </button>
-        <button type="button" onclick="clearServicesSelection()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0 4px; display: flex; align-items: center;" title="Снять выделение">
+        <button type="button" onclick="clearServicesSelection()"
+            style="background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0 4px; display: flex; align-items: center;"
+            title="Снять выделение">
             &times;
         </button>
     </div>
@@ -1693,13 +1963,18 @@
                     <tr>
                         <th style="width: 75px;" id="th-col-id">
                             <div style="display: flex; align-items: center; gap: 5px;">
-                                <input type="checkbox" id="th-select-all-services" onchange="toggleSelectAllServices(this.checked)" style="display: none; cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать все задачи">
+                                <input type="checkbox" id="th-select-all-services"
+                                    onchange="toggleSelectAllServices(this.checked)"
+                                    style="display: none; cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;"
+                                    title="Выбрать все задачи">
                                 <span>ID</span>
                             </div>
                         </th>
                         <th style="width: 150px;">
                             <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
-                            <select class="select-filter" id="table-filter-zone" onchange="syncDesktopFilter('zone', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <select class="select-filter" id="table-filter-zone"
+                                onchange="syncDesktopFilter('zone', this.value)"
+                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                                 <option value="all">📁 Все зоны</option>
                             </select>
                         </th>
@@ -1708,20 +1983,26 @@
                         <th style="width: 60px; text-align: center;">Фото</th>
                         <th style="width: 130px;">
                             <div class="th-title" style="margin-bottom: 4px;">Автор</div>
-                            <select class="select-filter" id="table-filter-author" onchange="syncDesktopFilter('author', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <select class="select-filter" id="table-filter-author"
+                                onchange="syncDesktopFilter('author', this.value)"
+                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                                 <option value="all">✍️ Все авторы</option>
                             </select>
                         </th>
                         <th style="width: 140px;">
                             <div class="th-title" style="margin-bottom: 4px;">Исполнитель</div>
-                            <select class="select-filter" id="table-filter-assignee" onchange="syncDesktopFilter('assignee', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <select class="select-filter" id="table-filter-assignee"
+                                onchange="syncDesktopFilter('assignee', this.value)"
+                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                                 <option value="all">👤 Все исполн.</option>
                             </select>
                         </th>
                         <th style="width: 80px; white-space: nowrap;">Срок</th>
                         <th style="width: 140px; min-width: 140px; text-align: center; white-space: nowrap;">
                             <div class="th-title" style="margin-bottom: 4px;">Статус</div>
-                            <select class="select-filter" id="table-filter-status" onchange="syncDesktopFilter('status', this.value)" style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
+                            <select class="select-filter" id="table-filter-status"
+                                onchange="syncDesktopFilter('status', this.value)"
+                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
                                 <option value="all">⚡ Все статусы</option>
                                 <option value="🟡 В работе">🟡 В работе</option>
                                 <option value="🟢 Выполнено">🟢 Выполнено</option>
@@ -1752,7 +2033,8 @@
 
         <!-- 2. Roadmaps & Strategic Projects Container (Grid View) -->
         <div id="roadmaps-view-container" style="display: none;">
-            <div id="roadmaps-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem;">
+            <div id="roadmaps-cards-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.25rem;">
                 <div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;">
                     <i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...
                 </div>
@@ -1767,14 +2049,17 @@
                 <h3 id="modal-title">Новая задача</h3>
                 <button class="modal-close" onclick="closeTaskModal()">&times;</button>
             </div>
-            
+
             <input type="hidden" id="task-id-input" value="">
 
             <!-- Planning Horizon Selector (3 Levels) -->
-            <div class="form-row" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem;">
-                <label style="margin-bottom: 0.35rem; font-weight: 700; color: #0f172a;"><i class="fa-solid fa-layer-group" style="color: #2563eb;"></i> Горизонт планирования</label>
+            <div class="form-row"
+                style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <label style="margin-bottom: 0.35rem; font-weight: 700; color: #0f172a;"><i
+                        class="fa-solid fa-layer-group" style="color: #2563eb;"></i> Горизонт планирования</label>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem;">
-                    <select class="form-select" id="task-type-input" onchange="onTaskTypeChange(this.value)" style="font-weight: 600;">
+                    <select class="form-select" id="task-type-input" onchange="onTaskTypeChange(this.value)"
+                        style="font-weight: 600;">
                         <option value="weekly">⚡ Недельный спринт</option>
                         <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
                         <option value="roadmap">🗺️ Дорожная карта (Проект)</option>
@@ -1791,7 +2076,8 @@
             </div>
 
             <!-- Hierarchy & Dependencies (Parent Project & Blocker) -->
-            <div class="form-row" id="task-hierarchy-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div class="form-row" id="task-hierarchy-row"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                 <div>
                     <label id="task-parent-label">Родительский проект / Этап</label>
                     <select class="form-select" id="task-parent-input">
@@ -1807,7 +2093,8 @@
             </div>
 
             <!-- Roadmap Specific Fields (Quarter & Progress) -->
-            <div class="form-row" id="task-roadmap-fields-row" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.6rem 0.75rem;">
+            <div class="form-row" id="task-roadmap-fields-row"
+                style="display: none; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.6rem 0.75rem;">
                 <div>
                     <label style="color: #6d28d9; font-weight: 600;">Целевой квартал</label>
                     <select class="form-select" id="task-quarter-input">
@@ -1818,49 +2105,72 @@
                     </select>
                 </div>
                 <div>
-                    <label style="color: #6d28d9; font-weight: 600;">Прогресс выполнения: <span id="task-progress-display" style="font-weight: 700; color: #7c3aed;">0%</span></label>
-                    <input type="range" min="0" max="100" step="5" value="0" id="task-progress-input" oninput="document.getElementById('task-progress-display').textContent = this.value + '%'" style="width: 100%; accent-color: #7c3aed; margin-top: 6px;">
+                    <label style="color: #6d28d9; font-weight: 600;">Прогресс выполнения: <span
+                            id="task-progress-display" style="font-weight: 700; color: #7c3aed;">0%</span></label>
+                    <input type="range" min="0" max="100" step="5" value="0" id="task-progress-input"
+                        oninput="document.getElementById('task-progress-display').textContent = this.value + '%'"
+                        style="width: 100%; accent-color: #7c3aed; margin-top: 6px;">
                 </div>
             </div>
 
             <!-- Task text & Auto-Translation (2 Columns) -->
-            <div class="form-row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; align-items: start;">
+            <div class="form-row"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; align-items: start;">
                 <!-- Column 1: Task (Any language) -->
                 <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                         <label id="task-primary-label" style="margin-bottom: 0;">Суть задачи *</label>
-                        <span id="detected-lang-badge" style="display: none; font-size: 0.72rem; color: #64748b; font-weight: 500;"></span>
+                        <span id="detected-lang-badge"
+                            style="display: none; font-size: 0.72rem; color: #64748b; font-weight: 500;"></span>
                     </div>
-                    <textarea class="form-textarea" id="task-ru-input" rows="3" placeholder="Формулировка задачи... Используйте #хэштеги (#ОГМ #ППР #Срочно)" oninput="onTaskInputChanged('primary')" required style="resize: vertical; min-height: 78px;"></textarea>
+                    <textarea class="form-textarea" id="task-ru-input" rows="3"
+                        placeholder="Формулировка задачи... Используйте #хэштеги (#ОГМ #ППР #Срочно)"
+                        oninput="onTaskInputChanged('primary')" required
+                        style="resize: vertical; min-height: 78px;"></textarea>
                 </div>
 
                 <!-- Column 2: Translation (Auto) -->
                 <div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                        <label id="task-trans-label" style="margin-bottom: 0;">Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span></label>
-                        <div id="translate-status-badge" style="display: none; font-size: 0.75rem; color: #2563eb; align-items: center; gap: 4px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label id="task-trans-label" style="margin-bottom: 0;">Перевод <span
+                                style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span></label>
+                        <div id="translate-status-badge"
+                            style="display: none; font-size: 0.75rem; color: #2563eb; align-items: center; gap: 4px;">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Перевод...</span>
                         </div>
                     </div>
-                    <textarea class="form-textarea" id="task-kz-input" rows="3" placeholder="Автоматический перевод..." oninput="onTaskInputChanged('secondary')" style="resize: vertical; min-height: 78px; background: #f8fafc; color: #334155;"></textarea>
+                    <textarea class="form-textarea" id="task-kz-input" rows="3" placeholder="Автоматический перевод..."
+                        oninput="onTaskInputChanged('secondary')"
+                        style="resize: vertical; min-height: 78px; background: #f8fafc; color: #334155;"></textarea>
                 </div>
             </div>
 
             <!-- Tags Field & Quick Chips -->
             <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-tags" style="color: #2563eb;"></i> Хэштеги задачи</label>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-tags" style="color: #2563eb;"></i> Хэштеги
+                        задачи</label>
                     <span style="font-size: 0.72rem; color: #64748b;">(через запятую или кликните чип)</span>
                 </div>
                 <input type="text" class="form-input" id="task-tags-input" placeholder="#ОГМ, #ППР, #ЛФМ, #Закупки...">
                 <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px;">
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ОГМ')">#ОГМ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ОГЭ')">#ОГЭ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ППР')">#ППР</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#ЛФМ')">#ЛФМ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#Дестакер')">#Дестакер</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#Закупки')">#Закупки</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;" onclick="addTagToModalInput('#Срочно')">#Срочно</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#ОГМ')">#ОГМ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#ОГЭ')">#ОГЭ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#ППР')">#ППР</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#ЛФМ')">#ЛФМ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#Дестакер')">#Дестакер</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#Закупки')">#Закупки</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
+                        onclick="addTagToModalInput('#Срочно')">#Срочно</span>
                 </div>
             </div>
 
@@ -1886,41 +2196,60 @@
 
             <!-- Photo Link with single Gallery / File upload -->
             <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #2563eb;"></i> Фото задачи</label>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #2563eb;"></i> Фото
+                        задачи</label>
                     <div style="display: flex; gap: 6px;">
-                        <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;" onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn')">
-                        <button type="button" class="btn-action btn-primary-action" style="font-size: 0.75rem; padding: 4px 10px;" onclick="document.getElementById('task-photo-gallery').click()" title="Выбрать фото из галереи или файлов">
+                        <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;"
+                            onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn')">
+                        <button type="button" class="btn-action btn-primary-action"
+                            style="font-size: 0.75rem; padding: 4px 10px;"
+                            onclick="document.getElementById('task-photo-gallery').click()"
+                            title="Выбрать фото из галереи или файлов">
                             <i class="fa-solid fa-images"></i> <span>Выбрать фото</span>
                         </button>
                     </div>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="url" class="form-input" id="task-photo-input" placeholder="Ссылка на фото или загрузите через кнопку выше..." oninput="onPhotoInputChanged('task-photo-input')" style="padding-right: 85px;">
-                    <button type="button" id="task-photo-preview-btn" class="btn-action btn-secondary-action" style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;" onclick="openPhotoViewerModal(document.getElementById('task-photo-input').value)">
+                    <input type="url" class="form-input" id="task-photo-input"
+                        placeholder="Ссылка на фото или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('task-photo-input')" style="padding-right: 85px;">
+                    <button type="button" id="task-photo-preview-btn" class="btn-action btn-secondary-action"
+                        style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
+                        onclick="openPhotoViewerModal(document.getElementById('task-photo-input').value)">
                         <i class="fa-solid fa-eye"></i> Просмотр
                     </button>
                 </div>
-                <div id="task-photo-preview-hint" style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                <div id="task-photo-preview-hint"
+                    style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
                     <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
                 </div>
             </div>
 
             <!-- Document from Knowledge Base (Attachment) -->
             <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-file-lines" style="color: #2563eb;"></i> Регламент / Документ из Базы Знаний</label>
-                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.75rem; padding: 4px 10px;" onclick="openDocPickerModal()" title="Выбрать файл или регламент из Базы Знаний">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
+                        Регламент / Документ из Базы Знаний</label>
+                    <button type="button" class="btn-action btn-secondary-action"
+                        style="font-size: 0.75rem; padding: 4px 10px;" onclick="openDocPickerModal()"
+                        title="Выбрать файл или регламент из Базы Знаний">
                         <i class="fa-solid fa-folder-open"></i> <span>Выбрать из Базы Знаний</span>
                     </button>
                 </div>
                 <input type="hidden" id="task-doc-id-input" value="">
-                <div id="task-doc-selected-box" style="display: none; align-items: center; justify-content: space-between; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.5rem 0.75rem;">
+                <div id="task-doc-selected-box"
+                    style="display: none; align-items: center; justify-content: space-between; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.5rem 0.75rem;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
                         <i class="fa-solid fa-paperclip" style="color: #2563eb;"></i>
-                        <span id="task-doc-name-display" style="font-weight: 600; font-size: 0.85rem; color: #1d4ed8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                        <span id="task-doc-name-display"
+                            style="font-weight: 600; font-size: 0.85rem; color: #1d4ed8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
                     </div>
-                    <button type="button" onclick="clearSelectedDocAttachment()" style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.9rem;" title="Открепить документ">&times;</button>
+                    <button type="button" onclick="clearSelectedDocAttachment()"
+                        style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.9rem;"
+                        title="Открепить документ">&times;</button>
                 </div>
             </div>
 
@@ -1941,7 +2270,8 @@
             </div>
 
             <!-- Deadline & Status -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row" id="task-due-status-row">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row"
+                id="task-due-status-row">
                 <div id="task-due-container">
                     <label>Срок выполнения (Дата)</label>
                     <input type="date" class="form-input" id="task-due-input">
@@ -1960,18 +2290,24 @@
             <!-- Comment / Fact -->
             <div class="form-row" id="task-comment-container">
                 <label>Факт / Комментарий</label>
-                <input type="text" class="form-input" id="task-comment-input" placeholder="Ход выполнения, замечания...">
+                <input type="text" class="form-input" id="task-comment-input"
+                    placeholder="Ход выполнения, замечания...">
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
                 <div>
-                    <button type="button" class="btn-action" id="btn-modal-reassign-task" style="display: none; background: #6366f1; color: #ffffff; font-weight: 600;" onclick="openReassignModalFromEdit()">
+                    <button type="button" class="btn-action" id="btn-modal-reassign-task"
+                        style="display: none; background: #6366f1; color: #ffffff; font-weight: 600;"
+                        onclick="openReassignModalFromEdit()">
                         <i class="fa-solid fa-share-nodes"></i> <span>Переадресовать</span>
                     </button>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    <button type="button" class="btn-action btn-secondary-action" onclick="closeTaskModal()">Отмена</button>
-                    <button type="button" class="btn-action btn-primary-action" onclick="saveTaskModal()">Сохранить</button>
+                    <button type="button" class="btn-action btn-secondary-action"
+                        onclick="closeTaskModal()">Отмена</button>
+                    <button type="button" class="btn-action btn-primary-action"
+                        onclick="saveTaskModal()">Сохранить</button>
                 </div>
             </div>
         </div>
@@ -1989,16 +2325,24 @@
             </div>
 
             <!-- Common / Default Parameters for Bulk Tasks -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem;">
-                <div style="font-size: 0.78rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;">
-                    <span><i class="fa-solid fa-sliders" style="color: #2563eb;"></i> Общие параметры для пачки задач</span>
-                    <span id="bulk-tasks-count-badge" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">Строк: 1</span>
+            <div
+                style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                <div
+                    style="font-size: 0.78rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.6rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-sliders" style="color: #2563eb;"></i> Общие параметры для пачки
+                        задач</span>
+                    <span id="bulk-tasks-count-badge"
+                        style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">Строк:
+                        1</span>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.65rem;">
                     <div>
-                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Горизонт / Тип</label>
-                        <select class="form-select" id="bulk-type-input" onchange="onBulkTypeChange(this.value)" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Горизонт
+                            / Тип</label>
+                        <select class="form-select" id="bulk-type-input" onchange="onBulkTypeChange(this.value)"
+                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                             <option value="weekly">⚡ Недельный спринт</option>
                             <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
                             <option value="roadmap">🗺️ Дорожная карта</option>
@@ -2006,8 +2350,11 @@
                     </div>
 
                     <div>
-                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Служба</label>
-                        <select class="form-select" id="bulk-department-input" onchange="onBulkDepartmentChange(this.value)" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Служба</label>
+                        <select class="form-select" id="bulk-department-input"
+                            onchange="onBulkDepartmentChange(this.value)"
+                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                             <option value="">-- Без привязки --</option>
                             <option value="ОГМ">🔧 ОГМ (Механики)</option>
                             <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
@@ -2017,29 +2364,42 @@
                     </div>
 
                     <div>
-                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Автор задач *</label>
-                        <select class="form-select" id="bulk-author-input" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Автор
+                            задач *</label>
+                        <select class="form-select" id="bulk-author-input"
+                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                             <option value="">-- Выберите автора --</option>
                         </select>
                     </div>
 
                     <div>
-                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Зона по умолчанию</label>
-                        <select class="form-select" id="bulk-zone-input" style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Зона
+                            по умолчанию</label>
+                        <select class="form-select" id="bulk-zone-input"
+                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                         </select>
                     </div>
 
                     <div>
-                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Срок по умолчанию</label>
-                        <input type="date" class="form-input" id="bulk-default-due-input" onchange="onBulkDefaultDueChanged(this.value)" style="font-size: 0.82rem; padding: 0.35rem 0.6rem;">
+                        <label
+                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Срок
+                            по умолчанию</label>
+                        <input type="date" class="form-input" id="bulk-default-due-input"
+                            onchange="onBulkDefaultDueChanged(this.value)"
+                            style="font-size: 0.82rem; padding: 0.35rem 0.6rem;">
                     </div>
                 </div>
             </div>
 
             <!-- Paste from Clipboard Helper (Collapsible) -->
-            <div style="margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()" style="font-size: 0.78rem; padding: 4px 10px;">
-                    <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить списком из блокнота/буфера</span>
+            <div
+                style="margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"
+                    style="font-size: 0.78rem; padding: 4px 10px;">
+                    <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить списком из
+                        блокнота/буфера</span>
                 </button>
                 <div style="font-size: 0.75rem; color: #64748b;">
                     💡 Нажимайте <b>Enter</b> в поле сути задачи для добавления новой строки
@@ -2047,22 +2407,30 @@
             </div>
 
             <!-- Quick Paste Textarea Container (Hidden by default) -->
-            <div id="bulk-quick-paste-box" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">
-                <label style="font-size: 0.78rem; font-weight: 600; color: #92400e; margin-bottom: 4px; display: block;">
+            <div id="bulk-quick-paste-box"
+                style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">
+                <label
+                    style="font-size: 0.78rem; font-weight: 600; color: #92400e; margin-bottom: 4px; display: block;">
                     Вставьте список задач (каждая строка с новой строки):
                 </label>
-                <textarea class="form-textarea" id="bulk-paste-textarea" rows="4" placeholder="1. Проверить натяжение цепи #ОГМ&#10;2. Замена подшипника привода Дестакера #ОГМ&#10;3. Ревизия клеммной коробки #ОГЭ" style="font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
+                <textarea class="form-textarea" id="bulk-paste-textarea" rows="4"
+                    placeholder="1. Проверить натяжение цепи #ОГМ&#10;2. Замена подшипника привода Дестакера #ОГМ&#10;3. Ревизия клеммной коробки #ОГЭ"
+                    style="font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
                 <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
-                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()" style="font-size: 0.75rem; padding: 3px 8px;">Закрыть</button>
-                    <button type="button" class="btn-action btn-primary-action" onclick="parseBulkTasksFromTextarea()" style="font-size: 0.75rem; padding: 3px 10px;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"
+                        style="font-size: 0.75rem; padding: 3px 8px;">Закрыть</button>
+                    <button type="button" class="btn-action btn-primary-action" onclick="parseBulkTasksFromTextarea()"
+                        style="font-size: 0.75rem; padding: 3px 10px;">
                         <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Разбить на строки</span>
                     </button>
                 </div>
             </div>
 
             <!-- Bulk Tasks Rows Container -->
-            <div style="max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; background: #ffffff;">
-                <div id="bulk-tasks-table-header" style="display: grid; grid-template-columns: 32px 1fr 160px 130px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
+            <div
+                style="max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; background: #ffffff;">
+                <div id="bulk-tasks-table-header"
+                    style="display: grid; grid-template-columns: 32px 1fr 160px 130px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
                     <span>№</span>
                     <span>Суть задачи (#теги) *</span>
                     <span id="bulk-header-assignee">Исполнитель</span>
@@ -2075,15 +2443,20 @@
             </div>
 
             <!-- Add Row Button & Actions -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="addBulkTaskRow()" style="font-size: 0.82rem; padding: 5px 12px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="addBulkTaskRow()"
+                    style="font-size: 0.82rem; padding: 5px 12px;">
                     <i class="fa-solid fa-plus" style="color: #2563eb;"></i> <span>Добавить строку</span>
                 </button>
 
                 <div style="display: flex; gap: 0.5rem;">
-                    <button type="button" class="btn-action btn-secondary-action" onclick="closeBulkTasksModal()">Отмена</button>
-                    <button type="button" class="btn-action btn-primary-action" id="btn-save-bulk-tasks" onclick="saveBulkTasksModal()" style="font-weight: 700;">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> <span id="btn-save-bulk-text">Сохранить задачи (1)</span>
+                    <button type="button" class="btn-action btn-secondary-action"
+                        onclick="closeBulkTasksModal()">Отмена</button>
+                    <button type="button" class="btn-action btn-primary-action" id="btn-save-bulk-tasks"
+                        onclick="saveBulkTasksModal()" style="font-weight: 700;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> <span id="btn-save-bulk-text">Сохранить задачи
+                            (1)</span>
                     </button>
                 </div>
             </div>
@@ -2100,43 +2473,62 @@
                 </div>
                 <button class="modal-close" onclick="closeCompleteModal()">&times;</button>
             </div>
-            
+
             <input type="hidden" id="complete-task-id" value="">
-            
-            <div style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="complete-task-code">TSK-01</div>
-                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="complete-task-title">Название задачи</div>
+
+            <div
+                style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="complete-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="complete-task-title">Название задачи</div>
             </div>
 
             <div class="form-row">
                 <label>Что сделано / Факт выполнения <span style="color: #ef4444;">*</span></label>
-                <textarea class="form-textarea" id="complete-task-fact" rows="3" placeholder="Опишите результат выполнения задачи (например: монтаж завершен, стенд установлен)..." required></textarea>
+                <textarea class="form-textarea" id="complete-task-fact" rows="3"
+                    placeholder="Опишите результат выполнения задачи (например: монтаж завершен, стенд установлен)..."
+                    required></textarea>
             </div>
 
             <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #10b981;"></i> Подтверждающее фото <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #10b981;"></i>
+                        Подтверждающее фото <span
+                            style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
                     <div style="display: flex; gap: 6px;">
-                        <input type="file" id="complete-photo-gallery" accept="image/*" style="display: none;" onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn')">
-                        <button type="button" class="btn-action" style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 4px 10px;" onclick="document.getElementById('complete-photo-gallery').click()" title="Выбрать фото из галереи или файлов">
+                        <input type="file" id="complete-photo-gallery" accept="image/*" style="display: none;"
+                            onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn')">
+                        <button type="button" class="btn-action"
+                            style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 4px 10px;"
+                            onclick="document.getElementById('complete-photo-gallery').click()"
+                            title="Выбрать фото из галереи или файлов">
                             <i class="fa-solid fa-images"></i> <span>Выбрать фото</span>
                         </button>
                     </div>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="url" class="form-input" id="complete-task-photo" placeholder="Ссылка на фото или загрузите через кнопку выше..." oninput="onPhotoInputChanged('complete-task-photo')" style="padding-right: 85px;">
-                    <button type="button" id="complete-photo-preview-btn" class="btn-action btn-secondary-action" style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;" onclick="openPhotoViewerModal(document.getElementById('complete-task-photo').value)">
+                    <input type="url" class="form-input" id="complete-task-photo"
+                        placeholder="Ссылка на фото или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('complete-task-photo')" style="padding-right: 85px;">
+                    <button type="button" id="complete-photo-preview-btn" class="btn-action btn-secondary-action"
+                        style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
+                        onclick="openPhotoViewerModal(document.getElementById('complete-task-photo').value)">
                         <i class="fa-solid fa-eye"></i> Просмотр
                     </button>
                 </div>
-                <div id="complete-photo-preview-hint" style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                <div id="complete-photo-preview-hint"
+                    style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
                     <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
                 </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closeCompleteModal()">Отмена</button>
-                <button type="button" class="btn-action" style="background: #10b981; color: #ffffff;" onclick="submitCompleteModal()">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeCompleteModal()">Отмена</button>
+                <button type="button" class="btn-action" style="background: #10b981; color: #ffffff;"
+                    onclick="submitCompleteModal()">
                     <i class="fa-solid fa-check"></i> Завершить задачу
                 </button>
             </div>
@@ -2156,40 +2548,56 @@
 
             <input type="hidden" id="reschedule-task-id" value="">
 
-            <div style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.75rem; color: #0369a1; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="reschedule-task-code">TSK-01</div>
-                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="reschedule-task-title">Название задачи</div>
+            <div
+                style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #0369a1; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="reschedule-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="reschedule-task-title">Название задачи</div>
                 <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">
-                    Текущий срок: <span id="reschedule-task-current-due" style="font-weight: 600; color: #0f172a;">—</span>
+                    Текущий срок: <span id="reschedule-task-current-due"
+                        style="font-weight: 600; color: #0f172a;">—</span>
                 </div>
             </div>
 
             <div class="form-row">
                 <label>Новый срок выполнения <span style="color: #ef4444;">*</span></label>
-                <input type="date" class="form-input" id="reschedule-task-date" required onchange="onRescheduleDatePicked(this.value)">
+                <input type="date" class="form-input" id="reschedule-task-date" required
+                    onchange="onRescheduleDatePicked(this.value)">
                 <div class="date-presets-row">
                     <button type="button" class="date-preset-btn" onclick="applyDatePreset(1)">+1 день</button>
                     <button type="button" class="date-preset-btn" onclick="applyDatePreset(3)">+3 дня</button>
                     <button type="button" class="date-preset-btn" onclick="applyDatePreset(7)">+1 неделя</button>
-                    <button type="button" class="date-preset-btn" onclick="applyDatePresetToFriday()">До пятницы</button>
+                    <button type="button" class="date-preset-btn" onclick="applyDatePresetToFriday()">До
+                        пятницы</button>
                 </div>
             </div>
 
             <div class="form-row">
                 <label>Причина переноса <span style="color: #ef4444;">*</span></label>
                 <div class="reason-chips-grid" id="reschedule-reason-chips">
-                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Ожидание ТМЦ / запчастей')">⚙️ Ожидание ТМЦ/запчастей</button>
-                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Ремонт / наладка оборудования')">🔧 Ремонт линии</button>
-                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Смещение графика смен')">📅 Сдвиг графика</button>
-                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'По указанию руководства')">⚠️ Указание руководства</button>
-                    <button type="button" class="reason-chip" onclick="selectRescheduleChip(this, 'Высокая загрузка другим приоритетом')">⏳ Загрузка приоритетом</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Ожидание ТМЦ / запчастей')">⚙️ Ожидание
+                        ТМЦ/запчастей</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Ремонт / наладка оборудования')">🔧 Ремонт линии</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Смещение графика смен')">📅 Сдвиг графика</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'По указанию руководства')">⚠️ Указание руководства</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectRescheduleChip(this, 'Высокая загрузка другим приоритетом')">⏳ Загрузка
+                        приоритетом</button>
                 </div>
-                <textarea class="form-textarea" id="reschedule-task-reason" rows="2" placeholder="Укажите подробную причину переноса срока..." required></textarea>
+                <textarea class="form-textarea" id="reschedule-task-reason" rows="2"
+                    placeholder="Укажите подробную причину переноса срока..." required></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closeRescheduleModal()">Отмена</button>
-                <button type="button" class="btn-action" style="background: #0284c7; color: #ffffff;" onclick="submitRescheduleModal()">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeRescheduleModal()">Отмена</button>
+                <button type="button" class="btn-action" style="background: #0284c7; color: #ffffff;"
+                    onclick="submitRescheduleModal()">
                     <i class="fa-solid fa-calendar-check"></i> Перенести срок
                 </button>
             </div>
@@ -2209,28 +2617,39 @@
 
             <input type="hidden" id="cancel-task-id" value="">
 
-            <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.75rem; color: #b91c1c; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="cancel-task-code">TSK-01</div>
-                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="cancel-task-title">Название задачи</div>
+            <div
+                style="background: #fef2f2; border: 1px solid #fecaca; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #b91c1c; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="cancel-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="cancel-task-title">Название задачи</div>
                 <div style="font-size: 0.78rem; color: #ef4444; margin-top: 0.35rem;">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Отмена снимает задачу с плана и блокирует её редактирование
+                    <i class="fa-solid fa-triangle-exclamation"></i> Отмена снимает задачу с плана и блокирует её
+                    редактирование
                 </div>
             </div>
 
             <div class="form-row">
                 <label>Причина отмены <span style="color: #ef4444;">*</span></label>
                 <div class="reason-chips-grid" id="cancel-reason-chips">
-                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Дубликат задачи')">❌ Дубликат задачи</button>
-                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Неактуально / снято с плана')">🛑 Неактуально</button>
-                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Заменено другой задачей')">🔄 Заменено другой</button>
-                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Отменено по согласованию')">📋 По согласованию</button>
+                    <button type="button" class="reason-chip" onclick="selectCancelChip(this, 'Дубликат задачи')">❌
+                        Дубликат задачи</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectCancelChip(this, 'Неактуально / снято с плана')">🛑 Неактуально</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectCancelChip(this, 'Заменено другой задачей')">🔄 Заменено другой</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectCancelChip(this, 'Отменено по согласованию')">📋 По согласованию</button>
                 </div>
-                <textarea class="form-textarea" id="cancel-task-reason" rows="2" placeholder="Опишите причину отмены задачи..." required></textarea>
+                <textarea class="form-textarea" id="cancel-task-reason" rows="2"
+                    placeholder="Опишите причину отмены задачи..." required></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closeCancelModal()">Назад</button>
-                <button type="button" class="btn-action" style="background: #dc2626; color: #ffffff;" onclick="submitCancelModal()">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeCancelModal()">Назад</button>
+                <button type="button" class="btn-action" style="background: #dc2626; color: #ffffff;"
+                    onclick="submitCancelModal()">
                     <i class="fa-solid fa-ban"></i> Отменить задачу
                 </button>
             </div>
@@ -2250,23 +2669,29 @@
 
             <input type="hidden" id="reassign-task-id" value="">
 
-            <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.75rem; color: #4338ca; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;" id="reassign-task-code">TSK-01</div>
-                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="reassign-task-title">Название задачи</div>
+            <div
+                style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.75rem; color: #4338ca; font-family: monospace; font-weight: 700; margin-bottom: 0.25rem;"
+                    id="reassign-task-code">TSK-01</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="reassign-task-title">Название задачи</div>
                 <div style="font-size: 0.78rem; color: #64748b; margin-top: 0.35rem;">
-                    Текущий исполнитель: <span id="reassign-task-current-assignee" style="font-weight: 700; color: #1e1b4b;">—</span>
+                    Текущий исполнитель: <span id="reassign-task-current-assignee"
+                        style="font-weight: 700; color: #1e1b4b;">—</span>
                 </div>
             </div>
 
             <div class="form-row">
                 <label>Новый исполнитель <span style="color: #ef4444;">*</span></label>
-                <select class="form-select" id="reassign-new-assignee" required style="font-weight: 600; color: #1e1b4b;">
+                <select class="form-select" id="reassign-new-assignee" required
+                    style="font-weight: 600; color: #1e1b4b;">
                     <option value="">-- Выберите нового исполнителя --</option>
                 </select>
             </div>
 
             <div class="form-row">
-                <label>Перевести в службу / направление <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                <label>Перевести в службу / направление <span
+                        style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
                 <select class="form-select" id="reassign-new-department">
                     <option value="">-- Оставить без изменений --</option>
                     <option value="ОГМ">🔧 ОГМ (Механики)</option>
@@ -2279,18 +2704,30 @@
             <div class="form-row">
                 <label>Причина переадресации <span style="color: #ef4444;">*</span></label>
                 <div class="reason-chips-grid" id="reassign-reason-chips">
-                    <button type="button" class="reason-chip" onclick="selectReassignChip(this, 'Относится к компетенции механиков (ОГМ)')">🔧 Компетенция ОГМ</button>
-                    <button type="button" class="reason-chip" onclick="selectReassignChip(this, 'Относится к электрической части (ОГЭ)')">⚡ Электрика / ОГЭ</button>
-                    <button type="button" class="reason-chip" onclick="selectReassignChip(this, 'Технологический вопрос / рецептура')">🔬 Вопрос технологов</button>
-                    <button type="button" class="reason-chip" onclick="selectReassignChip(this, 'Смена зоны ответственности')">🔄 Зона ответственности</button>
-                    <button type="button" class="reason-chip" onclick="selectReassignChip(this, 'По поручению руководителя')">👔 По поручению</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Относится к компетенции механиков (ОГМ)')">🔧 Компетенция
+                        ОГМ</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Относится к электрической части (ОГЭ)')">⚡ Электрика /
+                        ОГЭ</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Технологический вопрос / рецептура')">🔬 Вопрос
+                        технологов</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'Смена зоны ответственности')">🔄 Зона
+                        ответственности</button>
+                    <button type="button" class="reason-chip"
+                        onclick="selectReassignChip(this, 'По поручению руководителя')">👔 По поручению</button>
                 </div>
-                <textarea class="form-textarea" id="reassign-task-reason" rows="2" placeholder="Опишите почему задача передается другому коллеге..." required></textarea>
+                <textarea class="form-textarea" id="reassign-task-reason" rows="2"
+                    placeholder="Опишите почему задача передается другому коллеге..." required></textarea>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closeReassignModal()">Отмена</button>
-                <button type="button" class="btn-action" id="btn-submit-reassign" style="background: #6366f1; color: #ffffff; font-weight: 700;" onclick="submitReassignModal()">
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeReassignModal()">Отмена</button>
+                <button type="button" class="btn-action" id="btn-submit-reassign"
+                    style="background: #6366f1; color: #ffffff; font-weight: 700;" onclick="submitReassignModal()">
                     <i class="fa-solid fa-share-nodes"></i> Переадресовать задачу
                 </button>
             </div>
@@ -2308,12 +2745,18 @@
                 <button class="modal-close" onclick="closeTaskHistoryModal()">&times;</button>
             </div>
 
-            <div style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <span style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700;" id="history-task-code">TSK-01</span>
-                    <span id="history-task-status-badge" style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: #eff6ff; color: #1d4ed8;">🟡 В работе</span>
+            <div
+                style="background: #f8fafc; border: 1px solid var(--tbl-border); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <span style="font-size: 0.75rem; color: #2563eb; font-family: monospace; font-weight: 700;"
+                        id="history-task-code">TSK-01</span>
+                    <span id="history-task-status-badge"
+                        style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: #eff6ff; color: #1d4ed8;">🟡
+                        В работе</span>
                 </div>
-                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;" id="history-task-title">Название задачи</div>
+                <div style="font-weight: 600; color: #0f172a; font-size: 0.95rem; line-height: 1.4;"
+                    id="history-task-title">Название задачи</div>
             </div>
 
             <div style="max-height: 52vh; overflow-y: auto; padding-right: 4px;">
@@ -2325,18 +2768,24 @@
             </div>
 
             <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closeTaskHistoryModal()">Закрыть</button>
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeTaskHistoryModal()">Закрыть</button>
             </div>
         </div>
     </div>
 
     <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) -->
-    <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()" style="z-index: 6000; background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px);">
-        <div style="position: relative; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;" onclick="event.stopPropagation()">
-            <button type="button" onclick="closePhotoViewerModal()" style="position: absolute; top: -45px; right: 0; background: rgba(255,255,255,0.2); border: none; color: #ffffff; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
-            <img id="photo-viewer-img" src="" alt="Фото задачи" style="max-width: 100%; max-height: 82vh; border-radius: 8px; object-fit: contain; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+    <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()"
+        style="z-index: 6000; background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px);">
+        <div style="position: relative; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;"
+            onclick="event.stopPropagation()">
+            <button type="button" onclick="closePhotoViewerModal()"
+                style="position: absolute; top: -45px; right: 0; background: rgba(255,255,255,0.2); border: none; color: #ffffff; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
+            <img id="photo-viewer-img" src="" alt="Фото задачи"
+                style="max-width: 100%; max-height: 82vh; border-radius: 8px; object-fit: contain; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
             <div style="margin-top: 10px; display: flex; gap: 8px;">
-                <a id="photo-viewer-direct-link" href="#" target="_blank" class="btn-action btn-secondary-action" style="font-size: 0.8rem; background: rgba(255,255,255,0.9);">
+                <a id="photo-viewer-direct-link" href="#" target="_blank" class="btn-action btn-secondary-action"
+                    style="font-size: 0.8rem; background: rgba(255,255,255,0.9);">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть оригинал
                 </a>
             </div>
@@ -2353,29 +2802,36 @@
                 </div>
                 <button class="modal-close" onclick="closeDocPickerModal()">&times;</button>
             </div>
-            
+
             <div style="margin-bottom: 0.85rem;">
-                <input type="text" id="doc-picker-search" class="form-input" placeholder="🔍 Быстрый поиск регламента или инструкции..." oninput="filterDocPickerList(this.value)">
+                <input type="text" id="doc-picker-search" class="form-input"
+                    placeholder="🔍 Быстрый поиск регламента или инструкции..."
+                    oninput="filterDocPickerList(this.value)">
             </div>
 
-            <div style="max-height: 48vh; overflow-y: auto; border: 1px solid var(--tbl-border); border-radius: 8px; background: #ffffff;" id="doc-picker-list-container">
+            <div style="max-height: 48vh; overflow-y: auto; border: 1px solid var(--tbl-border); border-radius: 8px; background: #ffffff;"
+                id="doc-picker-list-container">
                 <div style="text-align: center; padding: 2rem; color: #64748b;">
                     <i class="fa-solid fa-spinner fa-spin"></i> Загрузка документов...
                 </div>
             </div>
 
             <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closeDocPickerModal()">Отмена</button>
+                <button type="button" class="btn-action btn-secondary-action"
+                    onclick="closeDocPickerModal()">Отмена</button>
             </div>
         </div>
     </div>
 
     <!-- PIN AUTHORIZATION MODAL -->
     <div class="modal-overlay" id="planner-pin-modal" style="z-index: 5000;">
-        <div class="modal-box" style="max-width: 420px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+        <div class="modal-box"
+            style="max-width: 420px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
             <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔐</div>
-            <h3 style="margin: 0 0 0.5rem; color: #0f172a; font-size: 1.15rem;" id="pin-modal-title">Авторизация сотрудника</h3>
-            <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 1.25rem;" id="pin-modal-desc">Выберите себя и введите 4-значный PIN-код для работы с задачами:</p>
+            <h3 style="margin: 0 0 0.5rem; color: #0f172a; font-size: 1.15rem;" id="pin-modal-title">Авторизация
+                сотрудника</h3>
+            <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 1.25rem;" id="pin-modal-desc">Выберите себя и
+                введите 4-значный PIN-код для работы с задачами:</p>
 
             <div class="form-row" style="text-align: left;">
                 <label>Сотрудник *</label>
@@ -2386,7 +2842,8 @@
 
             <div class="form-row" id="pin-input-group" style="text-align: left;">
                 <label><i class="fa-solid fa-key" style="color: #f59e0b;"></i> 4-значный PIN-код *</label>
-                <input type="password" class="form-input" id="pin-auth-input" maxlength="10" placeholder="••••" style="font-size: 1.4rem; letter-spacing: 8px; text-align: center; font-weight: 700;">
+                <input type="password" class="form-input" id="pin-auth-input" maxlength="10" placeholder="••••"
+                    style="font-size: 1.4rem; letter-spacing: 8px; text-align: center; font-weight: 700;">
             </div>
 
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
@@ -2404,8 +2861,9 @@
         <span id="toast-text">Готово</span>
     </div>
 
-    <script src="/static/js/network_guard.js?v=20260907_netguard_v2"></script>
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v3"></script>
     <script src="/static/js/tasks.js?v=20260831_roadmap_1click_v2"></script>
     <script src="/static/js/version_guard.js"></script>
 </body>
+
 </html>

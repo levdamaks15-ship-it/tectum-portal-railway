@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,16 +24,18 @@
             box-shadow: var(--stripe-shadow-card) !important;
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
+
         .user-card:hover {
             background: #ffffff !important;
             transform: translateY(-3px) !important;
             border-color: rgba(200, 35, 35, 0.35) !important;
             box-shadow: var(--stripe-shadow-hover) !important;
         }
+
         .user-card:active {
             transform: translateY(-1px) scale(0.99) !important;
         }
-        
+
         /* Bento-Accordion styles */
         .accordion-section {
             margin-bottom: 1.5rem;
@@ -43,13 +46,16 @@
             box-shadow: var(--stripe-shadow-card);
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
+
         .accordion-section.collapsed {
             overflow: hidden;
         }
+
         .accordion-section:hover {
             box-shadow: var(--stripe-shadow-hover);
             border-color: rgba(200, 35, 35, 0.22);
         }
+
         .accordion-header {
             background: #ffffff;
             padding: 1.25rem 1.5rem;
@@ -60,9 +66,11 @@
             user-select: none;
             transition: background 0.2s ease;
         }
+
         .accordion-header:hover {
             background: #f8fafc;
         }
+
         .accordion-header h3 {
             margin: 0;
             font-size: 1.08rem;
@@ -73,6 +81,7 @@
             align-items: center;
             gap: 0.6rem;
         }
+
         .accordion-content {
             padding: 1.5rem;
             background: #ffffff;
@@ -80,9 +89,11 @@
             border-top: 1px solid var(--stripe-border);
             animation: slideDown 0.2s ease-out;
         }
+
         .accordion-content.collapsed {
             display: none;
         }
+
         .acc-toggle {
             transition: transform 0.25s ease;
             font-size: 0.85rem;
@@ -95,12 +106,21 @@
             border-radius: 50%;
             background: #f1f5f9;
         }
+
         .accordion-section.collapsed .acc-toggle {
             transform: rotate(-90deg);
         }
+
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* Dynamic forms grid */
@@ -109,11 +129,13 @@
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 1.2rem;
         }
+
         .form-grid-three {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1.2rem;
         }
+
         .form-grid-four {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -127,31 +149,38 @@
             font-size: 0.85rem;
             color: var(--text-primary);
         }
-        .table-glass-summary th, .table-glass-summary td {
+
+        .table-glass-summary th,
+        .table-glass-summary td {
             padding: 0.75rem 0.5rem;
             border-bottom: 1px solid var(--glass-border);
             text-align: left;
         }
+
         .table-glass-summary th {
             background: var(--surface-color);
             font-weight: 600;
             position: sticky;
             top: 0;
             z-index: 10;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
+
         .table-glass-summary tbody tr:hover {
             background: rgba(255, 255, 255, 0.02);
         }
+
         .table-glass-summary td.editable {
             cursor: pointer;
             position: relative;
             background: rgba(255, 255, 255, 0.01);
             transition: background 0.2s;
         }
+
         .table-glass-summary td.editable:hover {
             background: rgba(230, 57, 70, 0.1);
         }
+
         .table-glass-summary td.editable::after {
             content: "✏️";
             position: absolute;
@@ -162,6 +191,7 @@
             opacity: 0;
             transition: opacity 0.2s;
         }
+
         .table-glass-summary td.editable:hover::after {
             opacity: 0.6;
         }
@@ -175,20 +205,24 @@
             text-align: center;
             transition: transform 0.2s;
         }
+
         .kpi-card:hover {
             transform: translateY(-2px);
         }
+
         /* Print Media Styles */
         @media print {
             @page {
                 size: landscape;
                 margin: 10mm 8mm;
             }
+
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
                 font-family: 'Inter', -apple-system, sans-serif !important;
             }
+
             .header-main,
             #tabs-menu,
             #active-shift-banner,
@@ -200,6 +234,7 @@
             #crew-plans-filters-toolbar {
                 display: none !important;
             }
+
             #crew-plans-tab {
                 display: block !important;
                 border: none !important;
@@ -208,27 +243,32 @@
                 margin: 0 !important;
                 box-shadow: none !important;
             }
+
             #crew-plans-tab-header {
                 display: block !important;
                 margin-bottom: 12px !important;
                 border-bottom: 2px solid #0f172a !important;
                 padding-bottom: 8px !important;
             }
+
             #crew-plans-print-title {
                 font-size: 16pt !important;
                 font-weight: bold !important;
                 color: #0f172a !important;
                 margin: 0 0 4px 0 !important;
             }
+
             #crew-plans-print-subtitle {
                 font-size: 9.5pt !important;
                 color: #475569 !important;
                 margin: 0 !important;
             }
+
             .table-responsive-container {
                 overflow: visible !important;
                 max-height: none !important;
             }
+
             .table-glass-summary {
                 width: 100% !important;
                 border-collapse: collapse !important;
@@ -236,6 +276,7 @@
                 background: #ffffff !important;
                 color: #000000 !important;
             }
+
             .table-glass-summary th,
             .table-glass-summary td {
                 border: 1px solid #94a3b8 !important;
@@ -243,11 +284,13 @@
                 color: #000000 !important;
                 background: #ffffff !important;
             }
+
             .table-glass-summary th {
                 background: #f1f5f9 !important;
                 font-weight: bold !important;
                 color: #0f172a !important;
             }
+
             .table-glass-summary span {
                 border: none !important;
                 padding: 0 !important;
@@ -258,18 +301,19 @@
         }
     </style>
 </head>
+
 <body>
     <script>
         // Instant Fast Auth Check: Prevent login screen flickering if user is cached in localStorage
-        (function() {
+        (function () {
             try {
                 const cachedUserStr = localStorage.getItem('tectum_auth_user');
                 if (cachedUserStr) {
                     window.__cachedUser = JSON.parse(cachedUserStr);
                 }
-            } catch(e) {}
+            } catch (e) { }
         })();
-        
+
         fetch('/api/system/env').then(res => res.json()).then(data => {
             if (data.is_sandbox) {
                 const banner = document.createElement('div');
@@ -292,7 +336,8 @@
             <div class="header-actions">
                 <div class="header-quick-links">
                     <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks">
-                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                        🎯 <span>Планнер задач</span> <i
+                            class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                     </a>
                     <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists">
                         ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
@@ -304,7 +349,8 @@
                 <div id="user-info-container" class="header-user-container" style="display: none;">
                     <div class="user-greeting-text">
                         <p id="user-greeting-name" style="margin: 0; font-weight: 600; color: var(--text-primary);"></p>
-                        <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);"></p>
+                        <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                        </p>
                     </div>
                     <button onclick="logout()" class="btn-logout" title="Выйти из системы">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -314,61 +360,80 @@
             </div>
         </header>
 
-        <div id="login-screen" class="glass-panel" style="max-width: 800px; margin: 2.5rem auto; padding: 2.5rem 2rem; border-radius: 20px; box-shadow: var(--stripe-shadow-hover); border: 1px solid var(--stripe-border); background: #ffffff; transition: 0.3s;">
+        <div id="login-screen" class="glass-panel"
+            style="max-width: 800px; margin: 2.5rem auto; padding: 2.5rem 2rem; border-radius: 20px; box-shadow: var(--stripe-shadow-hover); border: 1px solid var(--stripe-border); background: #ffffff; transition: 0.3s;">
             <div style="text-align: center; margin-bottom: 2rem;">
-                <h2 style="margin-bottom: 0.35rem; font-weight: 800; font-size: 1.65rem; letter-spacing: -0.02em; color: var(--text-primary);">Вход в систему</h2>
-                <p style="color: var(--text-secondary); margin: 0; font-size: 0.92rem;">Портал операционного управления Tectum Engineering</p>
+                <h2
+                    style="margin-bottom: 0.35rem; font-weight: 800; font-size: 1.65rem; letter-spacing: -0.02em; color: var(--text-primary);">
+                    Вход в систему</h2>
+                <p style="color: var(--text-secondary); margin: 0; font-size: 0.92rem;">Портал операционного управления
+                    Tectum Engineering</p>
             </div>
-            
+
             <!-- SSO Section -->
             <div id="sso-section" style="display: none; text-align: center; padding: 1rem 0;">
-                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Вход с корпоративной учетной записью Microsoft 365</p>
-                <button onclick="window.location.href='/api/auth/login'" style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: auto; padding: 0.8rem 2rem; margin-bottom: 1.5rem; background: #0078d4; color: white; font-weight: bold; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);">
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Вход с корпоративной учетной записью
+                    Microsoft 365</p>
+                <button onclick="window.location.href='/api/auth/login'"
+                    style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: auto; padding: 0.8rem 2rem; margin-bottom: 1.5rem; background: #0078d4; color: white; font-weight: bold; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);">
                     <svg width="20" height="20" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M0 0H11V11H0V0Z" fill="#F25022"/>
-                        <path d="M12 0H23V11H12V0Z" fill="#7FBA00"/>
-                        <path d="M0 12H11V23H0V12Z" fill="#00A4EF"/>
-                        <path d="M12 12H23V23H12V12Z" fill="#FFB900"/>
+                        <path d="M0 0H11V11H0V0Z" fill="#F25022" />
+                        <path d="M12 0H23V11H12V0Z" fill="#7FBA00" />
+                        <path d="M0 12H11V23H0V12Z" fill="#00A4EF" />
+                        <path d="M12 12H23V23H12V12Z" fill="#FFB900" />
                     </svg>
                     Войти через Microsoft 365
                 </button>
                 <div style="margin-top: 1rem;">
-                    <button class="btn-secondary" onclick="showPinLoginLegacy()" style="width: auto; padding: 0.5rem 1.5rem;">Войти по ПИН-коду</button>
+                    <button class="btn-secondary" onclick="showPinLoginLegacy()"
+                        style="width: auto; padding: 0.5rem 1.5rem;">Войти по ПИН-коду</button>
                 </div>
             </div>
-            
+
             <div id="user-selection-section">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 1.25rem;">
+                <div
+                    style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 1.25rem;">
                     <span class="stripe-badge badge-steel" id="selection-title">Выберите раздел</span>
                 </div>
-                <div id="user-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 1.1rem; max-height: 55vh; overflow-y: auto; padding: 6px;">
+                <div id="user-grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 1.1rem; max-height: 55vh; overflow-y: auto; padding: 6px;">
                     <!-- User cards injected by JS -->
                 </div>
                 <div id="back-to-main-container" style="display: none; text-align: center; margin-top: 1.5rem;">
-                    <button class="btn-secondary" onclick="renderMainScreenGrid()" style="width: auto; padding: 0.55rem 1.5rem;">← Назад в главное меню</button>
+                    <button class="btn-secondary" onclick="renderMainScreenGrid()"
+                        style="width: auto; padding: 0.55rem 1.5rem;">← Назад в главное меню</button>
                 </div>
                 <div id="back-to-sso-container" style="display: none; text-align: center; margin-top: 1.5rem;">
-                    <button class="btn-secondary" onclick="showSsoLogin()" style="width: auto; padding: 0.55rem 1.5rem;">Вернуться к входу Microsoft 365</button>
+                    <button class="btn-secondary" onclick="showSsoLogin()"
+                        style="width: auto; padding: 0.55rem 1.5rem;">Вернуться к входу Microsoft 365</button>
                 </div>
             </div>
 
             <div id="pin-section" style="display: none; text-align: center; animation: fadeIn 0.3s ease-out;">
                 <div style="margin-bottom: 1.5rem;">
                     <span class="stripe-badge badge-brand" style="margin-bottom: 0.5rem;">Авторизация профиля</span>
-                    <h3 id="selected-user-display" style="color: var(--text-primary); font-size: 1.5rem; font-weight: 800; margin-top: 0.4rem;"></h3>
+                    <h3 id="selected-user-display"
+                        style="color: var(--text-primary); font-size: 1.5rem; font-weight: 800; margin-top: 0.4rem;">
+                    </h3>
                 </div>
                 <input type="hidden" id="selected-user-name" value="">
-                
+
                 <div class="input-group" style="max-width: 260px; margin: 0 auto;">
-                    <label style="text-align: center; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">Введите 4-значный ПИН-код</label>
-                    <input type="password" id="pin-input" placeholder="••••" maxlength="4" style="text-align: center; font-size: 2.2rem; letter-spacing: 16px; font-weight: 800; padding: 0.9rem; border-radius: 12px; background: #f8fafc; border: 1.5px solid var(--stripe-border);">
+                    <label
+                        style="text-align: center; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">Введите
+                        4-значный ПИН-код</label>
+                    <input type="password" id="pin-input" placeholder="••••" maxlength="4"
+                        style="text-align: center; font-size: 2.2rem; letter-spacing: 16px; font-weight: 800; padding: 0.9rem; border-radius: 12px; background: #f8fafc; border: 1.5px solid var(--stripe-border);">
                 </div>
-                
+
                 <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-                    <button onclick="login()" style="width: auto; padding: 0.8rem 2.5rem; font-weight: 700;">Войти в систему →</button>
-                    <button onclick="resetLoginSelection()" class="btn-secondary" style="width: auto; padding: 0.8rem 2rem;">Назад</button>
+                    <button onclick="login()" style="width: auto; padding: 0.8rem 2.5rem; font-weight: 700;">Войти в
+                        систему →</button>
+                    <button onclick="resetLoginSelection()" class="btn-secondary"
+                        style="width: auto; padding: 0.8rem 2rem;">Назад</button>
                 </div>
-                <p id="login-error" style="color: var(--danger-color); margin-top: 1rem; display: none; font-weight: 600;"></p>
+                <p id="login-error"
+                    style="color: var(--danger-color); margin-top: 1rem; display: none; font-weight: 600;"></p>
             </div>
         </div>
 
@@ -376,7 +441,8 @@
         <div id="main-app" style="display: none;">
             <!-- Tabs Navigation: Single row, uniform size with isolated icon & centered label -->
             <div id="tabs-menu" class="tabs-container">
-                <a href="#production" class="tab-btn active" id="tab-btn-production" onclick="switchTab('production', event)">
+                <a href="#production" class="tab-btn active" id="tab-btn-production"
+                    onclick="switchTab('production', event)">
                     <span class="tab-icon"><i class="fa-solid fa-clipboard-list"></i></span>
                     <span class="tab-label">Рапорт<br>мастера</span>
                 </a>
@@ -392,7 +458,8 @@
                     <span class="tab-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
                     <span class="tab-label">Журнал<br>простоев</span>
                 </a>
-                <a href="#daily-report" class="tab-btn" id="tab-btn-daily-report" onclick="switchTab('daily-report', event)">
+                <a href="#daily-report" class="tab-btn" id="tab-btn-daily-report"
+                    onclick="switchTab('daily-report', event)">
                     <span class="tab-icon"><i class="fa-solid fa-chart-line"></i></span>
                     <span class="tab-label">Месячная сводка<br>выработки</span>
                 </a>
@@ -400,35 +467,51 @@
 
 
             <!-- Active Shift Banner: Bento Style -->
-            <div class="glass-panel card" id="active-shift-banner" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; position: relative; border-radius: 16px; border: 1px solid var(--stripe-border); background: #ffffff; box-shadow: var(--stripe-shadow-card);">
-                <div id="readonly-badge" style="display:none; position: absolute; top: -10px; right: -10px; background: var(--danger-color); color: white; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">РЕЖИМ ПРОСМОТРА</div>
+            <div class="glass-panel card" id="active-shift-banner"
+                style="margin-bottom: 1.5rem; padding: 1rem 1.5rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; position: relative; border-radius: 16px; border: 1px solid var(--stripe-border); background: #ffffff; box-shadow: var(--stripe-shadow-card);">
+                <div id="readonly-badge"
+                    style="display:none; position: absolute; top: -10px; right: -10px; background: var(--danger-color); color: white; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                    РЕЖИМ ПРОСМОТРА</div>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="stripe-badge badge-brand">Текущая смена</span>
-                    <strong id="active-shift-display" style="color: var(--text-primary); font-size: 0.95rem;">Нет открытой смены</strong>
+                    <strong id="active-shift-display" style="color: var(--text-primary); font-size: 0.95rem;">Нет
+                        открытой смены</strong>
                 </div>
-                <div id="shift-dev-indicator" style="display:none; cursor: pointer; border: 1px solid var(--stripe-border); padding: 0.4rem 0.9rem; border-radius: 9999px; background: #f8fafc; font-size: 0.85rem;" onclick="switchTab('materials')">
+                <div id="shift-dev-indicator"
+                    style="display:none; cursor: pointer; border: 1px solid var(--stripe-border); padding: 0.4rem 0.9rem; border-radius: 9999px; background: #f8fafc; font-size: 0.85rem;"
+                    onclick="switchTab('materials')">
                     Отклонение по сырью: <strong id="shift-dev-val" style="color: var(--primary-color);">0 кг</strong>
                 </div>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <button onclick="loadData()" class="btn-secondary" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">🔄 Обновить</button>
-                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()" style="display: none; width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">Закрыть смену</button>
+                    <button onclick="loadData()" class="btn-secondary"
+                        style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">🔄 Обновить</button>
+                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()"
+                        style="display: none; width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">Закрыть
+                        смену</button>
                 </div>
             </div>
 
             <!-- 1. PRODUCTION TAB (📝 Рапорт мастера) -->
             <div id="production-tab" style="display: block;">
                 <div id="report-form-container" style="max-width: 920px; margin: 0 auto;">
-                    
+
                     <!-- Edit Mode Notice Banner -->
-                    <div id="report-edit-mode-banner" style="display: none; background: #ffffff; border: 1.5px solid rgba(245, 158, 11, 0.4); border-radius: 16px; padding: 1.1rem 1.5rem; margin-bottom: 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; box-shadow: var(--stripe-shadow-card);">
+                    <div id="report-edit-mode-banner"
+                        style="display: none; background: #ffffff; border: 1.5px solid rgba(245, 158, 11, 0.4); border-radius: 16px; padding: 1.1rem 1.5rem; margin-bottom: 1.5rem; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; box-shadow: var(--stripe-shadow-card);">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <span style="font-size: 1.5rem; background: rgba(245, 158, 11, 0.1); width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;">✏️</span>
+                            <span
+                                style="font-size: 1.5rem; background: rgba(245, 158, 11, 0.1); width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px;">✏️</span>
                             <div>
-                                <div style="font-weight: 700; color: var(--text-primary); font-size: 1rem;" id="report-edit-banner-title">Режим редактирования рапорта</div>
-                                <div style="font-size: 0.85rem; color: var(--text-secondary);" id="report-edit-banner-subtitle">Осталось времени на редактирование: <strong id="report-edit-timer" style="color: var(--primary-color);">--</strong></div>
+                                <div style="font-weight: 700; color: var(--text-primary); font-size: 1rem;"
+                                    id="report-edit-banner-title">Режим редактирования рапорта</div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);"
+                                    id="report-edit-banner-subtitle">Осталось времени на редактирование: <strong
+                                        id="report-edit-timer" style="color: var(--primary-color);">--</strong></div>
                             </div>
                         </div>
-                        <button type="button" onclick="cancelReportEdit()" class="btn-secondary" style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">✖ Отмена (новый рапорт)</button>
+                        <button type="button" onclick="cancelReportEdit()" class="btn-secondary"
+                            style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">✖ Отмена (новый
+                            рапорт)</button>
                     </div>
 
                     <!-- Accordion Section 1: Заголовок смены -->
@@ -442,8 +525,11 @@
                                 <div class="form-group">
                                     <label>Дата рапорта</label>
                                     <div style="position: relative;">
-                                        <input type="text" id="rep-date" placeholder="ДД.ММ.ГГГГ" onchange="updateShiftScheduleHints()" style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
-                                        <i class="fa-regular fa-calendar-days" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
+                                        <input type="text" id="rep-date" placeholder="ДД.ММ.ГГГГ"
+                                            onchange="updateShiftScheduleHints()"
+                                            style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
+                                        <i class="fa-regular fa-calendar-days"
+                                            style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -510,7 +596,8 @@
                             <div class="form-grid-three">
                                 <div class="form-group">
                                     <label>Сформовано (листов) [ЛФМ]</label>
-                                    <input type="number" id="rep-sheets" placeholder="0" oninput="recalcTonsAndGrades()">
+                                    <input type="number" id="rep-sheets" placeholder="0"
+                                        oninput="recalcTonsAndGrades()">
                                 </div>
                                 <div class="form-group">
                                     <label>Сбросов наката (шт) [ЛФМ]</label>
@@ -521,20 +608,31 @@
                                     <input type="number" id="rep-batches" placeholder="0">
                                 </div>
                             </div>
-                            
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; border-top: 1px solid var(--stripe-border); padding-top: 1.5rem;">
-                                <div style="background: #f8fafc; border: 1px solid var(--stripe-border); border-radius: 12px; padding: 1rem 1.25rem;">
-                                    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.35rem;">Выпуск в килограммах (авто)</div>
+
+                            <div
+                                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; border-top: 1px solid var(--stripe-border); padding-top: 1.5rem;">
+                                <div
+                                    style="background: #f8fafc; border: 1px solid var(--stripe-border); border-radius: 12px; padding: 1rem 1.25rem;">
+                                    <div
+                                        style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.35rem;">
+                                        Выпуск в килограммах (авто)</div>
                                     <div style="display: flex; align-items: baseline; gap: 6px;">
-                                        <input type="text" id="rep-kg-readonly" readonly placeholder="0.00" style="background: transparent; border: none; box-shadow: none; padding: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; width: auto; max-width: 180px;">
-                                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">кг</span>
+                                        <input type="text" id="rep-kg-readonly" readonly placeholder="0.00"
+                                            style="background: transparent; border: none; box-shadow: none; padding: 0; font-size: 1.4rem; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; width: auto; max-width: 180px;">
+                                        <span
+                                            style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">кг</span>
                                     </div>
                                 </div>
-                                <div style="background: rgba(200, 35, 35, 0.04); border: 1px solid rgba(200, 35, 35, 0.18); border-radius: 12px; padding: 1rem 1.25rem;">
-                                    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-color); margin-bottom: 0.35rem;">Выпуск в тоннах (авто)</div>
+                                <div
+                                    style="background: rgba(200, 35, 35, 0.04); border: 1px solid rgba(200, 35, 35, 0.18); border-radius: 12px; padding: 1rem 1.25rem;">
+                                    <div
+                                        style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-color); margin-bottom: 0.35rem;">
+                                        Выпуск в тоннах (авто)</div>
                                     <div style="display: flex; align-items: baseline; gap: 6px;">
-                                        <input type="text" id="rep-tons-readonly" readonly placeholder="0.000" style="background: transparent; border: none; box-shadow: none; padding: 0; font-size: 1.4rem; font-weight: 800; color: var(--primary-color); font-variant-numeric: tabular-nums; width: auto; max-width: 180px;">
-                                        <span style="font-size: 0.9rem; font-weight: 600; color: var(--primary-color);">тонн</span>
+                                        <input type="text" id="rep-tons-readonly" readonly placeholder="0.000"
+                                            style="background: transparent; border: none; box-shadow: none; padding: 0; font-size: 1.4rem; font-weight: 800; color: var(--primary-color); font-variant-numeric: tabular-nums; width: auto; max-width: 180px;">
+                                        <span
+                                            style="font-size: 0.9rem; font-weight: 600; color: var(--primary-color);">тонн</span>
                                     </div>
                                 </div>
                             </div>
@@ -549,16 +647,23 @@
                         </div>
                         <div id="sec-defect" class="accordion-content">
                             <!-- БЛОК 1: СВОЯ СМЕНА -->
-                            <div style="background: #f8fafc; padding: 1.35rem; border-radius: 14px; border: 1px solid var(--stripe-border); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
-                                    <h4 style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">🔹 Своя смена</h4>
-                                    <span id="badge-curr-shift-hint" class="stripe-badge" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">Текущая смена</span>
+                            <div
+                                style="background: #f8fafc; padding: 1.35rem; border-radius: 14px; border: 1px solid var(--stripe-border); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+                                    <h4
+                                        style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                        🔹 Своя смена</h4>
+                                    <span id="badge-curr-shift-hint" class="stripe-badge"
+                                        style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">Текущая
+                                        смена</span>
                                 </div>
-                                
+
                                 <div class="form-grid-two" style="margin-bottom: 1rem;">
                                     <div class="form-group">
                                         <label>На склад ГП своей смены (листов)</label>
-                                        <input type="number" id="rep-warehouse-gp" placeholder="0" oninput="recalcWarehouseGPTotal()">
+                                        <input type="number" id="rep-warehouse-gp" placeholder="0"
+                                            oninput="recalcWarehouseGPTotal()">
                                     </div>
                                     <div class="form-group">
                                         <label>1 Сорт своей смены (листов)</label>
@@ -575,38 +680,65 @@
                                 </div>
 
                                 <!-- 7 видов дефектов своей смены -->
-                                <div id="defects-detail-grid" style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(220, 38, 38, 0.2); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                                        <h5 style="margin: 0; color: var(--primary-color); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">Детализация дефектов Дестакера (своя смена)</h5>
+                                <div id="defects-detail-grid"
+                                    style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(220, 38, 38, 0.2); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
+                                    <div
+                                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                        <h5
+                                            style="margin: 0; color: var(--primary-color); font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">
+                                            Детализация дефектов Дестакера (своя смена)</h5>
                                         <span class="stripe-badge badge-brand">7 категорий</span>
                                     </div>
                                     <div class="form-grid-four">
-                                        <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                        <div class="form-group"><label>Плохой рез</label><input type="number" id="def-bad-cut" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                        <div class="form-group"><label>Налип сверху</label><input type="number" id="def-stick-top" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                        <div class="form-group"><label>Сломан</label><input type="number" id="def-broken" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                        <div class="form-group"><label>Упал коробки</label><input type="number" id="def-fell" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="def-thickness" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
-                                        <div class="form-group"><label>Кромка</label><input type="number" id="def-edge" placeholder="0" class="defect-input" oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Сдир</label><input type="number" id="def-scratch"
+                                                placeholder="0" class="defect-input" oninput="recalcDefectTotal()">
+                                        </div>
+                                        <div class="form-group"><label>Плохой рез</label><input type="number"
+                                                id="def-bad-cut" placeholder="0" class="defect-input"
+                                                oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Налип сверху</label><input type="number"
+                                                id="def-stick-top" placeholder="0" class="defect-input"
+                                                oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Сломан</label><input type="number"
+                                                id="def-broken" placeholder="0" class="defect-input"
+                                                oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Упал коробки</label><input type="number"
+                                                id="def-fell" placeholder="0" class="defect-input"
+                                                oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number"
+                                                id="def-thickness" placeholder="0" class="defect-input"
+                                                oninput="recalcDefectTotal()"></div>
+                                        <div class="form-group"><label>Кромка</label><input type="number" id="def-edge"
+                                                placeholder="0" class="defect-input" oninput="recalcDefectTotal()">
+                                        </div>
                                     </div>
                                     <div class="form-group" style="margin-top: 1rem; max-width: 280px;">
-                                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака своей смены (авто)</label>
-                                        <input type="text" id="rep-defect-total-readonly" readonly placeholder="0" style="background: rgba(220, 38, 38, 0.05); font-weight: 800; color: var(--primary-color); font-size: 1.1rem;">
+                                        <label
+                                            style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого
+                                            брака своей смены (авто)</label>
+                                        <input type="text" id="rep-defect-total-readonly" readonly placeholder="0"
+                                            style="background: rgba(220, 38, 38, 0.05); font-weight: 800; color: var(--primary-color); font-size: 1.1rem;">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- БЛОК 2: ПРЕДЫДУЩАЯ СМЕНА -->
-                            <div style="background: #fffdfa; padding: 1.35rem; border-radius: 14px; border: 1px solid rgba(245, 158, 11, 0.25); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
-                                    <h4 style="margin: 0; color: #b45309; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">🔸 Предыдущая смена (из камеры твердения)</h4>
-                                    <span id="badge-prev-shift-hint" class="stripe-badge badge-warning">Предыдущая смена</span>
+                            <div
+                                style="background: #fffdfa; padding: 1.35rem; border-radius: 14px; border: 1px solid rgba(245, 158, 11, 0.25); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
+                                    <h4
+                                        style="margin: 0; color: #b45309; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                                        🔸 Предыдущая смена (из камеры твердения)</h4>
+                                    <span id="badge-prev-shift-hint" class="stripe-badge badge-warning">Предыдущая
+                                        смена</span>
                                 </div>
 
                                 <div class="form-grid-two" style="margin-bottom: 1rem;">
                                     <div class="form-group">
                                         <label>На склад ГП прошлой смены (листов)</label>
-                                        <input type="number" id="rep-prev-warehouse-gp" placeholder="0" oninput="recalcWarehouseGPTotal()">
+                                        <input type="number" id="rep-prev-warehouse-gp" placeholder="0"
+                                            oninput="recalcWarehouseGPTotal()">
                                     </div>
                                     <div class="form-group">
                                         <label>1 Сорт прошлой смены (листов)</label>
@@ -623,34 +755,60 @@
                                 </div>
 
                                 <!-- 7 видов дефектов прошлой смены -->
-                                <div id="prev-defects-detail-grid" style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                                        <h5 style="margin: 0; color: #ea580c; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">Детализация дефектов Дестакера (прошлая смена)</h5>
+                                <div id="prev-defects-detail-grid"
+                                    style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
+                                    <div
+                                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                        <h5
+                                            style="margin: 0; color: #ea580c; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">
+                                            Детализация дефектов Дестакера (прошлая смена)</h5>
                                         <span class="stripe-badge badge-warning">7 категорий</span>
                                     </div>
                                     <div class="form-grid-four">
-                                        <div class="form-group"><label>Сдир</label><input type="number" id="prev-def-scratch" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Плохой рез</label><input type="number" id="prev-def-bad-cut" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Налип сверху</label><input type="number" id="prev-def-stick-top" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Сломан</label><input type="number" id="prev-def-broken" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Упал коробки</label><input type="number" id="prev-def-fell" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number" id="prev-def-thickness" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Кромка</label><input type="number" id="prev-def-edge" placeholder="0" class="prev-defect-input" oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Сдир</label><input type="number"
+                                                id="prev-def-scratch" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Плохой рез</label><input type="number"
+                                                id="prev-def-bad-cut" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Налип сверху</label><input type="number"
+                                                id="prev-def-stick-top" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Сломан</label><input type="number"
+                                                id="prev-def-broken" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Упал коробки</label><input type="number"
+                                                id="prev-def-fell" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number"
+                                                id="prev-def-thickness" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
+                                        <div class="form-group"><label>Кромка</label><input type="number"
+                                                id="prev-def-edge" placeholder="0" class="prev-defect-input"
+                                                oninput="recalcPrevDefectTotal()"></div>
                                     </div>
                                     <div class="form-group" style="margin-top: 1rem; max-width: 280px;">
-                                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака прошлой смены (авто)</label>
-                                        <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0" style="background: rgba(245, 158, 11, 0.05); font-weight: 800; color: #ea580c; font-size: 1.1rem;">
+                                        <label
+                                            style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого
+                                            брака прошлой смены (авто)</label>
+                                        <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0"
+                                            style="background: rgba(245, 158, 11, 0.05); font-weight: 800; color: #ea580c; font-size: 1.1rem;">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- ИТОГО НА СКЛАД ГП (АВТОМАТИЧЕСКАЯ СУММА ВНИЗУ БЛОКА) -->
-                            <div style="background: rgba(16, 185, 129, 0.07); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1rem 1.25rem; max-width: 440px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                            <div
+                                style="background: rgba(16, 185, 129, 0.07); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1rem 1.25rem; max-width: 440px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
                                 <div>
-                                    <div style="font-weight: 700; color: #047857; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.03em;">📦 Всего на склад ГП (авто)</div>
-                                    <div style="font-size: 0.76rem; color: #065f46; margin-top: 2px;">Сумма своей и предыдущей смены</div>
+                                    <div
+                                        style="font-weight: 700; color: #047857; font-size: 0.88rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                                        📦 Всего на склад ГП (авто)</div>
+                                    <div style="font-size: 0.76rem; color: #065f46; margin-top: 2px;">Сумма своей и
+                                        предыдущей смены</div>
                                 </div>
-                                <input type="text" id="rep-warehouse-gp-total-readonly" readonly placeholder="0" style="width: 140px; text-align: right; font-size: 1.25rem; font-weight: 800; color: #047857; background: #ffffff; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 0.4rem 0.75rem;">
+                                <input type="text" id="rep-warehouse-gp-total-readonly" readonly placeholder="0"
+                                    style="width: 140px; text-align: right; font-size: 1.25rem; font-weight: 800; color: #047857; background: #ffffff; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 0.4rem 0.75rem;">
                             </div>
                             <input type="hidden" id="rep-qcd-defect" value="0">
                         </div>
@@ -662,68 +820,81 @@
                             <h3>🧪 4. Расход сырья (ЗО / ЛФМ)</h3>
                             <span class="acc-toggle">▼</span>
                         </div>
-                                                                        <div id="sec-raw" class="accordion-content">
+                        <div id="sec-raw" class="accordion-content">
                             <style>
+                                .rm-grid {
+                                    display: grid;
+                                    grid-template-columns: minmax(130px, 1.8fr) repeat(4, minmax(60px, 1fr)) minmax(70px, 1fr);
+                                    gap: 0.5rem;
+                                    align-items: center;
+                                    margin-bottom: 1.5rem;
+                                    padding: 0.5rem 0;
+                                }
+
+                                @media (max-width: 768px) {
                                     .rm-grid {
-                                        display: grid;
-                                        grid-template-columns: minmax(130px, 1.8fr) repeat(4, minmax(60px, 1fr)) minmax(70px, 1fr);
-                                        gap: 0.5rem;
-                                        align-items: center;
-                                        margin-bottom: 1.5rem;
-                                        padding: 0.5rem 0;
+                                        grid-template-columns: minmax(90px, 1.4fr) repeat(4, minmax(50px, 1fr)) minmax(65px, 1.1fr);
+                                        gap: 0.35rem;
                                     }
-                                    @media (max-width: 768px) {
-                                        .rm-grid {
-                                            grid-template-columns: minmax(90px, 1.4fr) repeat(4, minmax(50px, 1fr)) minmax(65px, 1.1fr);
-                                            gap: 0.35rem;
-                                        }
-                                        .rm-header {
-                                            font-size: 0.75rem;
-                                            padding-bottom: 0.35rem;
-                                        }
-                                        .rm-label-row {
-                                            font-size: 0.82rem;
-                                        }
-                                        .rm-grid input[type="number"], .rm-grid input[type="text"] {
-                                            padding: 0.45rem 0.25rem;
-                                            font-size: 16px !important; /* Prevents auto-zoom on iOS */
-                                            min-height: 44px;
-                                        }
-                                    }
+
                                     .rm-header {
-                                        font-weight: 600;
-                                        color: var(--text-secondary);
-                                        font-size: 0.82rem;
-                                        padding-bottom: 0.4rem;
-                                        border-bottom: 1px solid var(--border-color);
-                                        text-align: center;
+                                        font-size: 0.75rem;
+                                        padding-bottom: 0.35rem;
                                     }
-                                    .rm-grid .form-group {
-                                        margin-bottom: 0;
-                                    }
-                                    .rm-grid input[type="number"], .rm-grid input[type="text"] {
-                                        padding: 0.5rem 0.4rem;
-                                        text-align: right;
-                                        width: 100%;
-                                        font-size: 0.95rem;
-                                        border-radius: 8px;
-                                        border: 1px solid var(--border-color-subtle);
-                                        background: #ffffff;
-                                        color: var(--text-primary);
-                                        box-shadow: var(--shadow-xs);
-                                        transition: all 0.15s ease;
-                                    }
-                                    .rm-grid input[type="number"]:focus, .rm-grid input[type="text"]:focus {
-                                        border-color: var(--primary-color);
-                                        box-shadow: 0 0 0 3px var(--tectum-primary-ring);
-                                        outline: none;
-                                    }
+
                                     .rm-label-row {
-                                        font-size: 0.9rem;
-                                        color: var(--text-primary);
-                                        font-weight: 500;
+                                        font-size: 0.82rem;
                                     }
-                                </style>
+
+                                    .rm-grid input[type="number"],
+                                    .rm-grid input[type="text"] {
+                                        padding: 0.45rem 0.25rem;
+                                        font-size: 16px !important;
+                                        /* Prevents auto-zoom on iOS */
+                                        min-height: 44px;
+                                    }
+                                }
+
+                                .rm-header {
+                                    font-weight: 600;
+                                    color: var(--text-secondary);
+                                    font-size: 0.82rem;
+                                    padding-bottom: 0.4rem;
+                                    border-bottom: 1px solid var(--border-color);
+                                    text-align: center;
+                                }
+
+                                .rm-grid .form-group {
+                                    margin-bottom: 0;
+                                }
+
+                                .rm-grid input[type="number"],
+                                .rm-grid input[type="text"] {
+                                    padding: 0.5rem 0.4rem;
+                                    text-align: right;
+                                    width: 100%;
+                                    font-size: 0.95rem;
+                                    border-radius: 8px;
+                                    border: 1px solid var(--border-color-subtle);
+                                    background: #ffffff;
+                                    color: var(--text-primary);
+                                    box-shadow: var(--shadow-xs);
+                                    transition: all 0.15s ease;
+                                }
+
+                                .rm-grid input[type="number"]:focus,
+                                .rm-grid input[type="text"]:focus {
+                                    border-color: var(--primary-color);
+                                    box-shadow: 0 0 0 3px var(--tectum-primary-ring);
+                                    outline: none;
+                                }
+
+                                .rm-label-row {
+                                    font-size: 0.9rem;
+                                    color: var(--text-primary);
+                                    font-weight: 500;
+                                }
+                            </style>
 
                             <div>
                                 <div class="rm-grid" id="rm-calculator-grid">
@@ -733,41 +904,68 @@
                                     <div class="rm-header" id="rm-header-silo3">Силос 3</div>
                                     <div class="rm-header" id="rm-header-silo4">Силос 4</div>
                                     <div class="rm-header" style="text-align: right;">Итого</div>
-                                    
+
                                     <!-- Хризотил 4-20 -->
                                     <div class="rm-label-row">Хризотил 4-20 (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-chr-4-20-1" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-4-20-2" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-4-20-3" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-4-20-4" oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-chr-4-20" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-1"
+                                            oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-2"
+                                            oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-3"
+                                            oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-4-20-4"
+                                            oninput="calcSumRM('chr-4-20')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-chr-4-20" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Хризотил 5-65 -->
                                     <div class="rm-label-row">Хризотил 5-65 (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-chr-5-65-1" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-5-65-2" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-5-65-3" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-5-65-4" oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-chr-5-65" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-1"
+                                            oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-2"
+                                            oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-3"
+                                            oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-5-65-4"
+                                            oninput="calcSumRM('chr-5-65')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-chr-5-65" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Хризотил 6-40 -->
                                     <div class="rm-label-row">Хризотил 6-40 (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-chr-6-40-1" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-6-40-2" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-6-40-3" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-chr-6-40-4" oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-chr-6-40" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-1"
+                                            oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-2"
+                                            oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-3"
+                                            oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-chr-6-40-4"
+                                            oninput="calcSumRM('chr-6-40')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-chr-6-40" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
-                                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
+                                    <div
+                                        style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;">
+                                    </div>
 
                                     <!-- Цемент -->
-                                    <div class="rm-label-row" style="font-weight: 600; color: var(--primary-color);">Цемент (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-cem-1" oninput="calcCem()" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cem-2" oninput="calcCem()" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cem-3" oninput="calcCem()" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cem-4" oninput="calcCem()" placeholder="0"></div>
-                                    <div class="form-group"><input type="text" id="zo-cem-total-readonly" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
-                                    
+                                    <div class="rm-label-row" style="font-weight: 600; color: var(--primary-color);">
+                                        Цемент (кг)</div>
+                                    <div class="form-group"><input type="number" id="calc-cem-1" oninput="calcCem()"
+                                            placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-2" oninput="calcCem()"
+                                            placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-3" oninput="calcCem()"
+                                            placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cem-4" oninput="calcCem()"
+                                            placeholder="0"></div>
+                                    <div class="form-group"><input type="text" id="zo-cem-total-readonly" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
+
                                     <!-- Скрытые поля цемента для сохранения в базу -->
                                     <input type="hidden" id="zo-cem-1" value="0">
                                     <input type="hidden" id="zo-cem-2" value="0">
@@ -810,56 +1008,94 @@
                                     <input type="hidden" id="zo-car-3" value="0">
                                     <input type="hidden" id="zo-car-4" value="0">
 
-                                    
-                                    <div style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;"></div>
+
+                                    <div
+                                        style="grid-column: 1 / -1; height: 1px; background: var(--glass-border); margin: 0.5rem 0;">
+                                    </div>
 
                                     <!-- Целлюлоза -->
                                     <div class="rm-label-row">Целлюлоза (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-cellulose-1" oninput="calcSumRM('cellulose')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cellulose-2" oninput="calcSumRM('cellulose')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cellulose-3" oninput="calcSumRM('cellulose')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-cellulose-4" oninput="calcSumRM('cellulose')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-cellulose" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-1"
+                                            oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-2"
+                                            oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-3"
+                                            oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-cellulose-4"
+                                            oninput="calcSumRM('cellulose')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-cellulose" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Дробленый шифер -->
                                     <div class="rm-label-row">Дробленый шифер (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-crushed-slate-1" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-crushed-slate-2" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-crushed-slate-3" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-crushed-slate-4" oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-crushed-slate" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-1"
+                                            oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-2"
+                                            oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-3"
+                                            oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-crushed-slate-4"
+                                            oninput="calcSumRM('crushed-slate')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-crushed-slate" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Асбозурит -->
                                     <div class="rm-label-row">Асбозурит (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-asbozurit-1" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbozurit-2" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbozurit-3" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbozurit-4" oninput="calcSumRM('asbozurit')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-asbozurit" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-1"
+                                            oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-2"
+                                            oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-3"
+                                            oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbozurit-4"
+                                            oninput="calcSumRM('asbozurit')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-asbozurit" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Стекловолокно -->
                                     <div class="rm-label-row">Стекловолокно (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-fiberglass-1" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-fiberglass-2" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-fiberglass-3" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-fiberglass-4" oninput="calcSumRM('fiberglass')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-fiberglass" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-1"
+                                            oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-2"
+                                            oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-3"
+                                            oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-fiberglass-4"
+                                            oninput="calcSumRM('fiberglass')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-fiberglass" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Лапрол -->
                                     <div class="rm-label-row">Лапрол (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-1" oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-2" oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-3" oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-4" oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-laprol" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-1"
+                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-2"
+                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-3"
+                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-laprol-4"
+                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-laprol" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Асбокартон -->
                                     <div class="rm-label-row">Асбокартон (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-asbocarton-1" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbocarton-2" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbocarton-3" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-asbocarton-4" oninput="calcSumRM('asbocarton')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="zo-asbocarton" readonly style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-1"
+                                            oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-2"
+                                            oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-3"
+                                            oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="calc-asbocarton-4"
+                                            oninput="calcSumRM('asbocarton')" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-asbocarton" readonly
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                    </div>
 
                                     <!-- Слив хризотила -->
                                     <div class="rm-label-row" style="margin-top: 10px;">Слив хризотила (кг)</div>
@@ -867,7 +1103,8 @@
                                     <div></div>
                                     <div></div>
                                     <div></div>
-                                    <div class="form-group" style="margin-top: 10px;"><input type="number" id="zo-asb-drain" placeholder="0"></div>
+                                    <div class="form-group" style="margin-top: 10px;"><input type="number"
+                                            id="zo-asb-drain" placeholder="0"></div>
 
                                     <!-- Слив цемента -->
                                     <div class="rm-label-row">Слив цемента (кг)</div>
@@ -875,10 +1112,11 @@
                                     <div></div>
                                     <div></div>
                                     <div></div>
-                                    <div class="form-group"><input type="number" id="zo-cem-drain" placeholder="0"></div>
+                                    <div class="form-group"><input type="number" id="zo-cem-drain" placeholder="0">
+                                    </div>
                                 </div>
                             </div>
-                            
+
                             <script>
                                 function calcSumRM(key) {
                                     const s1 = parseFloat(document.getElementById('calc-' + key + '-1')?.value) || 0;
@@ -888,23 +1126,23 @@
                                     const total = s1 + s2 + s3 + s4;
                                     const target = document.getElementById('zo-' + key);
                                     if (target) target.value = total > 0 ? total : '';
-                                    
-                                    const hiddenKey = key === 'cellulose' ? 'zo-cel' : 
-                                                      key === 'crushed-slate' ? 'zo-csl' : 
-                                                      key === 'asbozurit' ? 'zo-asb' :
-                                                      key === 'fiberglass' ? 'zo-fib' :
-                                                      key === 'laprol' ? 'zo-lap' :
-                                                      key === 'asbocarton' ? 'zo-car' : 
-                                                      key.startsWith('chr') ? 'zo-' + key : 'zo-' + key;
-                                                      
+
+                                    const hiddenKey = key === 'cellulose' ? 'zo-cel' :
+                                        key === 'crushed-slate' ? 'zo-csl' :
+                                            key === 'asbozurit' ? 'zo-asb' :
+                                                key === 'fiberglass' ? 'zo-fib' :
+                                                    key === 'laprol' ? 'zo-lap' :
+                                                        key === 'asbocarton' ? 'zo-car' :
+                                                            key.startsWith('chr') ? 'zo-' + key : 'zo-' + key;
+
                                     if (document.getElementById(hiddenKey + '-1')) {
                                         document.getElementById(hiddenKey + '-1').value = s1 > 0 ? s1 : '0';
                                         document.getElementById(hiddenKey + '-2').value = s2 > 0 ? s2 : '0';
                                         document.getElementById(hiddenKey + '-3').value = s3 > 0 ? s3 : '0';
                                         document.getElementById(hiddenKey + '-4').value = s4 > 0 ? s4 : '0';
                                     }
-                                    
-                                    if(key.startsWith('chr-')){
+
+                                    if (key.startsWith('chr-')) {
                                         if (typeof recalcChrTotal === 'function') recalcChrTotal();
                                     }
                                 }
@@ -914,7 +1152,7 @@
                                     const s2 = parseFloat(document.getElementById('calc-cem-2')?.value) || 0;
                                     const s3 = parseFloat(document.getElementById('calc-cem-3')?.value) || 0;
                                     const s4 = parseFloat(document.getElementById('calc-cem-4')?.value) || 0;
-                                    
+
                                     if (document.getElementById('zo-cem-1')) {
                                         document.getElementById('zo-cem-1').value = s1 > 0 ? s1 : '0';
                                         document.getElementById('zo-cem-2').value = s2 > 0 ? s2 : '0';
@@ -923,11 +1161,11 @@
                                     }
                                     if (typeof recalcCemTotal === 'function') recalcCemTotal();
                                 }
-                                
-                                window.updateLineSiloHeaders = function() {
+
+                                window.updateLineSiloHeaders = function () {
                                     calcCem();
                                 };
-                                
+
                                 // Hook into line change to update calculations if needed
                                 document.addEventListener('DOMContentLoaded', () => {
                                     const lineSelect = document.getElementById('rep-line');
@@ -939,8 +1177,12 @@
                         </div>
                     </div>
                     <div style="margin: 2.5rem 0; text-align: center;">
-                        <button id="btn-submit-shift-report" onclick="submitShiftReport()" class="btn-submit-huge" style="font-size: 1.15rem; font-weight: 700; padding: 1.1rem 3.5rem; border-radius: 12px; max-width: 440px; width: 100%; letter-spacing: -0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), var(--stripe-shadow-btn);">💾 Сохранить сменный рапорт →</button>
-                        <div id="draft-indicator" style="margin-top: 12px; font-size: 0.88rem; font-weight: 600; color: #10b981; opacity: 0; transition: opacity 0.5s;">✓ Черновик сохранен локально</div>
+                        <button id="btn-submit-shift-report" onclick="submitShiftReport()" class="btn-submit-huge"
+                            style="font-size: 1.15rem; font-weight: 700; padding: 1.1rem 3.5rem; border-radius: 12px; max-width: 440px; width: 100%; letter-spacing: -0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), var(--stripe-shadow-btn);">💾
+                            Сохранить сменный рапорт →</button>
+                        <div id="draft-indicator"
+                            style="margin-top: 12px; font-size: 0.88rem; font-weight: 600; color: #10b981; opacity: 0; transition: opacity 0.5s;">
+                            ✓ Черновик сохранен локально</div>
                     </div>
 
                     <!-- Accordion Section 5: Приход сырья -->
@@ -951,12 +1193,15 @@
                         </div>
                         <div id="sec-rec" class="accordion-content">
                             <!-- Блок метаданных прихода -->
-                            <div class="receipt-meta-grid" style="margin-bottom: 1.5rem; background: #f8fafc; padding: 1.2rem; border-radius: 14px; border: 1px solid var(--stripe-border);">
+                            <div class="receipt-meta-grid"
+                                style="margin-bottom: 1.5rem; background: #f8fafc; padding: 1.2rem; border-radius: 14px; border: 1px solid var(--stripe-border);">
                                 <div class="form-group">
                                     <label>Дата прихода</label>
                                     <div style="position: relative;">
-                                        <input type="text" id="rec-date" placeholder="ДД.ММ.ГГГГ" style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
-                                        <i class="fa-regular fa-calendar-days" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
+                                        <input type="text" id="rec-date" placeholder="ДД.ММ.ГГГГ"
+                                            style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
+                                        <i class="fa-regular fa-calendar-days"
+                                            style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -1077,7 +1322,9 @@
                             </div>
 
                             <div style="margin-top: 1.5rem;">
-                                <button id="btn-submit-receipt" type="button" class="btn-submit-huge" style="width: 100%; max-width: 380px; margin: 0 auto; display: block;" onclick="addReceipt()">➕ Зарегистрировать приход</button>
+                                <button id="btn-submit-receipt" type="button" class="btn-submit-huge"
+                                    style="width: 100%; max-width: 380px; margin: 0 auto; display: block;"
+                                    onclick="addReceipt()">➕ Зарегистрировать приход</button>
                             </div>
                         </div>
                     </div>
@@ -1085,15 +1332,19 @@
                 </div>
 
                 <!-- Microsoft Forms-style Success Screen -->
-                <div id="report-success-screen" class="glass-panel" style="display: none; max-width: 600px; margin: 3rem auto; text-align: center; padding: 3rem 2rem; border-radius: 16px;">
-                    <div style="width: 80px; height: 80px; background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+                <div id="report-success-screen" class="glass-panel"
+                    style="display: none; max-width: 600px; margin: 3rem auto; text-align: center; padding: 3rem 2rem; border-radius: 16px;">
+                    <div
+                        style="width: 80px; height: 80px; background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
                         <span style="font-size: 3rem; color: #22c55e;">✓</span>
                     </div>
                     <h2 style="margin-bottom: 1rem; color: var(--text-primary);">Рапорт успешно сохранен!</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; line-height: 1.5;">
+                    <p
+                        style="color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; line-height: 1.5;">
                         Данные смены успешно отправлены в базу данных и синхронизированы с облаком.
                     </p>
-                    <button onclick="showNewReportForm()" class="btn-submit-huge" style="font-size: 1.1rem; padding: 1rem 2.5rem; border-radius: 8px; width: auto; max-width: 320px; display: inline-block;">
+                    <button onclick="showNewReportForm()" class="btn-submit-huge"
+                        style="font-size: 1.1rem; padding: 1rem 2.5rem; border-radius: 8px; width: auto; max-width: 320px; display: inline-block;">
                         📝 Заполнить еще один рапорт
                     </button>
                 </div>
@@ -1102,34 +1353,41 @@
             <!-- 2. SUMMARY TAB (📊 Сводка и Дашборды) -->
             <div id="summary-tab" style="display: none;">
                 <!-- Filters row -->
-                <div class="glass-panel card" style="padding: 1.2rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                <div class="glass-panel card"
+                    style="padding: 1.2rem; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Интервал</label>
-                        <select id="summary-filter-type" onchange="toggleSummaryFilterFields()" style="margin-bottom: 0;">
+                        <select id="summary-filter-type" onchange="toggleSummaryFilterFields()"
+                            style="margin-bottom: 0;">
                             <option value="dates" selected>Диапазон дат</option>
                             <option value="month">Месяц</option>
                             <option value="week">Неделя</option>
                         </select>
                     </div>
-                    
+
                     <!-- Date fields -->
-                    <div id="summary-field-date-from" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px;">
+                    <div id="summary-field-date-from" class="form-group"
+                        style="margin-bottom: 0; flex: 1; min-width: 130px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата с</label>
                         <input type="date" id="filter-date-from" style="margin-bottom: 0;">
                     </div>
-                    <div id="summary-field-date-to" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px;">
+                    <div id="summary-field-date-to" class="form-group"
+                        style="margin-bottom: 0; flex: 1; min-width: 130px;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Дата по</label>
                         <input type="date" id="filter-date-to" style="margin-bottom: 0;">
                     </div>
-                    
+
                     <!-- Month field -->
-                    <div id="summary-field-month" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
+                    <div id="summary-field-month" class="form-group"
+                        style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Месяц</label>
-                        <input type="month" id="summary-filter-month" onchange="onSummaryMonthChange()" style="margin-bottom: 0;">
+                        <input type="month" id="summary-filter-month" onchange="onSummaryMonthChange()"
+                            style="margin-bottom: 0;">
                     </div>
-                    
+
                     <!-- Week field -->
-                    <div id="summary-field-week" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
+                    <div id="summary-field-week" class="form-group"
+                        style="margin-bottom: 0; flex: 1; min-width: 130px; display: none;">
                         <label style="font-size: 0.75rem; color: var(--text-secondary);">Неделя</label>
                         <select id="summary-filter-week" style="margin-bottom: 0;">
                             <option value="1" selected>Неделя 1</option>
@@ -1163,9 +1421,14 @@
                             <option value="Шымкент">Шымкент</option>
                         </select>
                     </div>
-                    <button onclick="loadReportSummary()" class="btn-success" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0;">Применить</button>
-                    <button id="btn-export-google-sheets" onclick="syncGoogleSheetsManually()" class="btn-secondary" style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #0f9d58; color: white; border: none;">📈 Выгрузить в Гугл Таблицы</button>
-                    <button onclick="downloadExcelLocal()" class="btn-secondary" style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #107c41; color: white; border: none;">📊 Скачать в Excel</button>
+                    <button onclick="loadReportSummary()" class="btn-success"
+                        style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0;">Применить</button>
+                    <button id="btn-export-google-sheets" onclick="syncGoogleSheetsManually()" class="btn-secondary"
+                        style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #0f9d58; color: white; border: none;">📈
+                        Выгрузить в Гугл Таблицы</button>
+                    <button onclick="downloadExcelLocal()" class="btn-secondary"
+                        style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #107c41; color: white; border: none;">📊
+                        Скачать в Excel</button>
                 </div>
 
                 <!-- Table display -->
@@ -1175,53 +1438,56 @@
                         <table class="table-glass-summary">
                             <thead>
                                 <tr>
-                                     <th style="min-width: 110px;">Действия</th>
-                                     <th>Дата</th>
-                                     <th>Партия</th>
-                                     <th>Линия</th>
-                                     <th>Смена</th>
-                                     <th>Мастер</th>
-                                     <th>Продукт</th>
-                                     <th>Назначение</th>
-                                     <th>Замесы</th>
-                                     <th>Формовка<br>(листы)</th>
-                                     <th>Формовка<br>(тонны)</th>
-                                     <th>На склад<br>(ГП)</th>
-                                     <th>1 Сорт</th>
-                                     <th>Брак</th>
-                                     <th>Сбросы<br>наката</th>
-                                     <th>Слив<br>асб. (кг)</th>
-                                     <th>Слив<br>цем. (кг)</th>
-                                     <th>Расход<br>асб. 4-20 (кг)</th>
-                                     <th>Расход<br>асб. 5-65 (кг)</th>
-                                     <th>Расход<br>асб. 6-40 (кг)</th>
-                                     <th>Расход<br>асб. общ. (кг)</th>
-                                     <th>Расход<br>цем. С1 (кг)</th>
-                                     <th>Расход<br>цем. С2 (кг)</th>
-                                     <th>Расход<br>цем. С3 (кг)</th>
-                                     <th>Расход<br>цем. С4 (кг)</th>
-                                     <th>Расход<br>цем. общ. (кг)</th>
-                                     <th>Расход<br>асбокарт. (кг)</th>
-                                     <th>Расход<br>лапрол (кг)</th>
-                                     <th>Расход<br>целлюл. (кг)</th>
-                                     <th>Расход<br>стекловол. (кг)</th>
-                                     <th>Расход<br>дроб.шиф. (кг)</th>
-                                     <th>Расход<br>асбозурит (кг)</th>
-                                     <th>Откл.<br>асб. 4-20 (%)</th>
-                                     <th>Откл.<br>асб. 5-65 (%)</th>
-                                     <th>Откл.<br>асб. 6-40 (%)</th>
-                                     <th>Откл.<br>асб. общ. (%)</th>
-                                     <th>Откл.<br>цем. общ. (%)</th>
-                                     <th>Откл.<br>асбокарт. (%)</th>
-                                     <th>Откл.<br>лапрол (%)</th>
-                                     <th>Откл.<br>целлюл. (%)</th>
-                                     <th>Откл.<br>стекловол. (%)</th>
-                                     <th>Откл.<br>дроб.шиф. (%)</th>
-                                     <th>Откл.<br>асбозурит (%)</th>
+                                    <th style="min-width: 110px;">Действия</th>
+                                    <th>Дата</th>
+                                    <th>Партия</th>
+                                    <th>Линия</th>
+                                    <th>Смена</th>
+                                    <th>Мастер</th>
+                                    <th>Продукт</th>
+                                    <th>Назначение</th>
+                                    <th>Замесы</th>
+                                    <th>Формовка<br>(листы)</th>
+                                    <th>Формовка<br>(тонны)</th>
+                                    <th>На склад<br>(ГП)</th>
+                                    <th>1 Сорт</th>
+                                    <th>Брак</th>
+                                    <th>Сбросы<br>наката</th>
+                                    <th>Слив<br>асб. (кг)</th>
+                                    <th>Слив<br>цем. (кг)</th>
+                                    <th>Расход<br>асб. 4-20 (кг)</th>
+                                    <th>Расход<br>асб. 5-65 (кг)</th>
+                                    <th>Расход<br>асб. 6-40 (кг)</th>
+                                    <th>Расход<br>асб. общ. (кг)</th>
+                                    <th>Расход<br>цем. С1 (кг)</th>
+                                    <th>Расход<br>цем. С2 (кг)</th>
+                                    <th>Расход<br>цем. С3 (кг)</th>
+                                    <th>Расход<br>цем. С4 (кг)</th>
+                                    <th>Расход<br>цем. общ. (кг)</th>
+                                    <th>Расход<br>асбокарт. (кг)</th>
+                                    <th>Расход<br>лапрол (кг)</th>
+                                    <th>Расход<br>целлюл. (кг)</th>
+                                    <th>Расход<br>стекловол. (кг)</th>
+                                    <th>Расход<br>дроб.шиф. (кг)</th>
+                                    <th>Расход<br>асбозурит (кг)</th>
+                                    <th>Откл.<br>асб. 4-20 (%)</th>
+                                    <th>Откл.<br>асб. 5-65 (%)</th>
+                                    <th>Откл.<br>асб. 6-40 (%)</th>
+                                    <th>Откл.<br>асб. общ. (%)</th>
+                                    <th>Откл.<br>цем. общ. (%)</th>
+                                    <th>Откл.<br>асбокарт. (%)</th>
+                                    <th>Откл.<br>лапрол (%)</th>
+                                    <th>Откл.<br>целлюл. (%)</th>
+                                    <th>Откл.<br>стекловол. (%)</th>
+                                    <th>Откл.<br>дроб.шиф. (%)</th>
+                                    <th>Откл.<br>асбозурит (%)</th>
                                 </tr>
                             </thead>
                             <tbody id="summary-table-body">
-                                <tr><td colspan="42" style="text-align: center; color: var(--text-secondary);">Выберите фильтры и нажмите "Применить"</td></tr>
+                                <tr>
+                                    <td colspan="42" style="text-align: center; color: var(--text-secondary);">Выберите
+                                        фильтры и нажмите "Применить"</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -1230,28 +1496,35 @@
                 <!-- Dashboards section -->
                 <div class="glass-panel card" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem;">
                     <h3 style="margin-bottom: 1.2rem;">Производственные показатели</h3>
-                    <div class="grid-operators-status" style="display: none; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="grid-operators-status"
+                        style="display: none; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                         <div class="kpi-card">
                             <div style="font-size: 0.8rem; color: var(--text-secondary);">Всего сформовано</div>
-                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--accent-color)" id="dash-total-sheets">0 шт</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--accent-color)"
+                                id="dash-total-sheets">0 шт</div>
                         </div>
                         <div class="kpi-card">
                             <div style="font-size: 0.8rem; color: var(--text-secondary);">Всего сдано на склад</div>
-                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--success-color)" id="dash-total-warehouse">0 шт</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--success-color)"
+                                id="dash-total-warehouse">0 шт</div>
                         </div>
                         <div class="kpi-card">
                             <div style="font-size: 0.8rem; color: var(--text-secondary);">Общий процент брака</div>
-                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--danger-color)" id="dash-defect-rate">0.0%</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: var(--danger-color)"
+                                id="dash-defect-rate">0.0%</div>
                         </div>
                         <div class="kpi-card">
                             <div style="font-size: 0.8rem; color: var(--text-secondary);">Общий тоннаж</div>
-                            <div style="font-size: 1.6rem; font-weight: bold; color: white" id="dash-total-tons">0.0 т</div>
+                            <div style="font-size: 1.6rem; font-weight: bold; color: white" id="dash-total-tons">0.0 т
+                            </div>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                    <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
                         <!-- Chart 1: Plan vs Fact Sheets -->
-                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                        <div
+                            style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
                             <h4 style="text-align: center; margin-bottom: 0.8rem;">Формовка: План vs Факт (листы)</h4>
                             <div style="position: relative; height: 260px; width: 100%;">
                                 <canvas id="chart-plan-fact-sheets"></canvas>
@@ -1259,7 +1532,8 @@
                         </div>
 
                         <!-- Chart 2: Plan vs Fact Tons -->
-                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                        <div
+                            style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
                             <h4 style="text-align: center; margin-bottom: 0.8rem;">Формовка: План vs Факт (тонны)</h4>
                             <div style="position: relative; height: 260px; width: 100%;">
                                 <canvas id="chart-plan-fact-tons"></canvas>
@@ -1271,14 +1545,17 @@
                 <!-- Materials Dashboard -->
                 <div class="glass-panel card" style="display: none; padding: 1.5rem;">
                     <h3 style="margin-bottom: 1.2rem;">Баланс и Отклонения Сырья</h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
-                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                    <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <div
+                            style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
                             <h4 style="text-align: center; margin-bottom: 0.8rem;">Приход vs Расход сырья</h4>
                             <div style="position: relative; height: 260px; width: 100%;">
                                 <canvas id="chart-materials-balance"></canvas>
                             </div>
                         </div>
-                        <div style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
+                        <div
+                            style="background: rgba(0,0,0,0.15); padding: 1.2rem; border-radius: 8px; border: 1px solid var(--glass-border)">
                             <h4 style="text-align: center; margin-bottom: 0.8rem;">Сводное отклонение от норм (кг)</h4>
                             <div style="position: relative; height: 260px; width: 100%;">
                                 <canvas id="chart-materials-deviations"></canvas>
@@ -1291,48 +1568,68 @@
 
             <!-- 3. DOWNTIMES TAB (⏱ Журнал Простоев) -->
             <div id="downtimes-tab" style="display: none; max-width: 680px; margin: 0 auto;">
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 1.5rem; color: #0f172a;">
-                    
+                <div
+                    style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 1.5rem; color: #0f172a;">
+
                     <!-- Header -->
                     <div style="margin-bottom: 1.25rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1rem;">
-                        <h3 style="margin: 0 0 0.35rem 0; font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+                        <h3
+                            style="margin: 0 0 0.35rem 0; font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
                             <span>⏱️</span> Фиксация простоя оборудования
                         </h3>
-                        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Быстрая независимая запись инцидента в журнал</p>
+                        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Быстрая независимая запись инцидента в
+                            журнал</p>
                     </div>
 
                     <input type="hidden" id="journal-dt-active-shift-id">
 
                     <!-- Section 1: Shift Parameters (2x2 Grid) -->
                     <div style="margin-bottom: 1.25rem;">
-                        <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
+                        <label
+                            style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
                             1. Параметры смены
                         </label>
-                        <div class="form-grid-two downtime-params-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-grid-two downtime-params-grid"
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                             <div>
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅 Дата</label>
+                                <label
+                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅
+                                    Дата</label>
                                 <div style="position: relative;">
-                                    <input type="text" id="journal-dt-date" placeholder="ДД.ММ.ГГГГ" onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();" style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
-                                    <i class="fa-regular fa-calendar-days" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
+                                    <input type="text" id="journal-dt-date" placeholder="ДД.ММ.ГГГГ"
+                                        onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();"
+                                        style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
+                                    <i class="fa-regular fa-calendar-days"
+                                        style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
                                 </div>
                             </div>
                             <div>
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">☀️/🌙 Смена</label>
-                                <select id="journal-dt-shift-name" onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <label
+                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">☀️/🌙
+                                    Смена</label>
+                                <select id="journal-dt-shift-name"
+                                    onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();"
+                                    style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
                                     <option value="День">☀️ День</option>
                                     <option value="Ночь">🌙 Ночь</option>
                                 </select>
                             </div>
                             <div>
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">🏭 Линия</label>
-                                <select id="journal-dt-line" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <label
+                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">🏭
+                                    Линия</label>
+                                <select id="journal-dt-line" onchange="loadDowntimesByParams()"
+                                    style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
                                     <option value="Линия 1">Линия 1</option>
                                     <option value="Линия 2">Линия 2</option>
                                 </select>
                             </div>
                             <div>
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">👤 Мастер</label>
-                                <select id="journal-dt-master-select" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <label
+                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">👤
+                                    Мастер</label>
+                                <select id="journal-dt-master-select" onchange="loadDowntimesByParams()"
+                                    style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
                                     <option value="">-- Выберите мастера --</option>
                                 </select>
                             </div>
@@ -1341,60 +1638,90 @@
 
                     <!-- Section 2: Description -->
                     <div style="margin-bottom: 1.25rem;">
-                        <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.4rem;">
+                        <label
+                            style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.4rem;">
                             2. Что произошло / Что делали *
                         </label>
-                        <textarea id="journal-dt-desc" rows="3" placeholder="Например: Замена ножей, чистка кармана и рекуператора, устранение затора..." oninput="onDowntimeTextChange()" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
+                        <textarea id="journal-dt-desc" rows="3"
+                            placeholder="Например: Замена ножей, чистка кармана и рекуператора, устранение затора..."
+                            oninput="onDowntimeTextChange()"
+                            style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
                     </div>
 
                     <!-- Section 3: Time Interval & Duration -->
                     <div style="margin-bottom: 1.25rem;">
-                        <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
+                        <label
+                            style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
                             3. Время и длительность
                         </label>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 0.75rem; align-items: end;">
+                        <div
+                            style="display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 0.75rem; align-items: end;">
                             <div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Начало</label>
-                                    <button type="button" onclick="setTimeNow('journal-dt-start')" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить текущее время">Сейчас</button>
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰
+                                        Начало</label>
+                                    <button type="button" onclick="setTimeNow('journal-dt-start')"
+                                        style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
+                                        title="Установить текущее время">Сейчас</button>
                                 </div>
-                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="--:--" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
+                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="--:--"
+                                    oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
+                                    style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
                             <div id="wrapper-dt-end">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Конец</label>
-                                    <button type="button" onclick="setTimeNow('journal-dt-end')" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить текущее время">Сейчас</button>
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰
+                                        Конец</label>
+                                    <button type="button" onclick="setTimeNow('journal-dt-end')"
+                                        style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
+                                        title="Установить текущее время">Сейчас</button>
                                 </div>
-                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="--:--" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
+                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="--:--"
+                                    oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
+                                    style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
                             <div>
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏱️ Итого</label>
-                                <div id="journal-dt-duration-preview" style="padding: 0.5rem; border-radius: 10px; background: #f0f9ff; border: 1px solid #bae6fd; font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #0369a1; text-align: center; height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                                <label
+                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏱️
+                                    Итого</label>
+                                <div id="journal-dt-duration-preview"
+                                    style="padding: 0.5rem; border-radius: 10px; background: #f0f9ff; border: 1px solid #bae6fd; font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #0369a1; text-align: center; height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
                                     --:--
                                 </div>
                             </div>
                         </div>
-                        <div id="journal-dt-night-hint" style="display: none; margin-top: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: #fefce8; color: #854d0e;"></div>
+                        <div id="journal-dt-night-hint"
+                            style="display: none; margin-top: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: #fefce8; color: #854d0e;">
+                        </div>
                     </div>
 
                     <!-- Section 4: Equipment Stop Toggle Card -->
                     <div style="margin-bottom: 1.5rem;">
-                        <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="display: none;" onchange="updateDowntimeToggleUI()">
-                        <div id="journal-dt-toggle-card" onclick="toggleEquipmentStopManual()" style="cursor: pointer; padding: 0.85rem 1rem; border-radius: 12px; border: 1.5px solid #fca5a5; background: #fef2f2; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease;">
+                        <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="display: none;"
+                            onchange="updateDowntimeToggleUI()">
+                        <div id="journal-dt-toggle-card" onclick="toggleEquipmentStopManual()"
+                            style="cursor: pointer; padding: 0.85rem 1rem; border-radius: 12px; border: 1.5px solid #fca5a5; background: #fef2f2; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease;">
                             <div style="display: flex; align-items: center; gap: 0.65rem;">
                                 <span id="journal-dt-toggle-icon" style="font-size: 1.3rem;">🛑</span>
                                 <div>
-                                    <div id="journal-dt-toggle-title" style="font-weight: 700; font-size: 0.92rem; color: #991b1b;">Остановка оборудования</div>
-                                    <div id="journal-dt-toggle-subtitle" style="font-size: 0.75rem; color: #b91c1c;">Линия была полностью остановлена</div>
+                                    <div id="journal-dt-toggle-title"
+                                        style="font-weight: 700; font-size: 0.92rem; color: #991b1b;">Остановка
+                                        оборудования</div>
+                                    <div id="journal-dt-toggle-subtitle" style="font-size: 0.75rem; color: #b91c1c;">
+                                        Линия была полностью остановлена</div>
                                 </div>
                             </div>
-                            <span id="journal-dt-toggle-badge" style="font-size: 0.8rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 20px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171;">ДА</span>
+                            <span id="journal-dt-toggle-badge"
+                                style="font-size: 0.8rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 20px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171;">ДА</span>
                         </div>
                     </div>
 
                     <!-- Section 5: Submit Button -->
                     <div>
-                        <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary" style="height: 48px; width: 100%; padding: 0 1.5rem; font-size: 1.05rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; margin-bottom: 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);">
+                        <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary"
+                            style="height: 48px; width: 100%; padding: 0 1.5rem; font-size: 1.05rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; margin-bottom: 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);">
                             <span>🚀</span> Зафиксировать простой
                         </button>
                     </div>
@@ -1404,29 +1731,41 @@
 
             <!-- 4. CREW PLANS TAB (🏆 Выполнение плана бригадами) -->
             <div id="crew-plans-tab" class="glass-panel card" style="display: none;">
-                <div id="crew-plans-tab-header" style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div id="crew-plans-tab-header"
+                    style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
-                        <h3 id="crew-plans-print-title" style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 8px;">
+                        <h3 id="crew-plans-print-title"
+                            style="margin-bottom: 0.2rem; display: flex; align-items: center; gap: 8px;">
                             <span>🏆</span> Выполнение сменного плана бригадами
                         </h3>
-                        <p id="crew-plans-print-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
-                            Сводка выполнения нормы формовки ЛФМ по утвержденному графику сменности (☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.)
+                        <p id="crew-plans-print-subtitle"
+                            style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
+                            Сводка выполнения нормы формовки ЛФМ по утвержденному графику сменности (☀️ День ≥ 2 700
+                            шт., 🌙 Ночь ≥ 3 300 шт.)
                         </p>
                     </div>
-                    <button onclick="window.print()" class="btn-secondary" style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <button onclick="window.print()" class="btn-secondary"
+                        style="width: auto; padding: 0.5rem 1.2rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
                         <span>🖨️</span> Печать / PDF
                     </button>
                 </div>
 
                 <!-- Filters Toolbar -->
-                <div id="crew-plans-filters-toolbar" style="background: #ffffff; border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                <div id="crew-plans-filters-toolbar"
+                    style="background: #ffffff; border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Отчетный месяц</label>
-                        <input type="month" id="crew-plans-month" onchange="loadCrewPlansFulfillment()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Отчетный
+                            месяц</label>
+                        <input type="month" id="crew-plans-month" onchange="loadCrewPlansFulfillment()"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                     </div>
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Фильтр по бригаде</label>
-                        <select id="crew-plans-filter-crew" onchange="renderCrewPlansTable()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Фильтр
+                            по бригаде</label>
+                        <select id="crew-plans-filter-crew" onchange="renderCrewPlansTable()"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                             <option value="">Все смены (1..4)</option>
                             <option value="1">Смена №1</option>
                             <option value="2">Смена №2</option>
@@ -1435,28 +1774,36 @@
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 180px;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Статус плана</label>
-                        <select id="crew-plans-filter-status" onchange="renderCrewPlansTable()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Статус
+                            плана</label>
+                        <select id="crew-plans-filter-status" onchange="renderCrewPlansTable()"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                             <option value="">Все результаты</option>
                             <option value="met">✅ Только выполненные</option>
                             <option value="unmet">❌ Только невыполненные</option>
                         </select>
                     </div>
-                    <button onclick="loadCrewPlansFulfillment()" class="btn-primary" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px;">
+                    <button onclick="loadCrewPlansFulfillment()" class="btn-primary"
+                        style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px;">
                         <span>🔄</span> Обновить
                     </button>
                 </div>
 
                 <!-- KPI Cards by Crews -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;" id="crew-kpi-cards-grid">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"
+                    id="crew-kpi-cards-grid">
                     <!-- Cards injected by JS -->
                 </div>
 
                 <!-- Factory Summary Banner -->
-                <div id="crew-plans-factory-banner" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0.8rem 1.2rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
+                <div id="crew-plans-factory-banner"
+                    style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0.8rem 1.2rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.8rem;">
                     <div>
                         <span style="font-weight: 700; color: #0f172a; font-size: 0.95rem;">ИТОГО ПО ЗАВОДУ:</span>
-                        <span id="factory-total-met-badge" style="margin-left: 8px; font-weight: bold; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px;">0 выполнений</span>
+                        <span id="factory-total-met-badge"
+                            style="margin-left: 8px; font-weight: bold; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px;">0
+                            выполнений</span>
                     </div>
                     <div style="font-size: 0.85rem; color: var(--text-secondary);" id="factory-total-stats-text">
                         Всего отработано смен: 0 | Суммарно отформовано: 0 листов
@@ -1465,7 +1812,8 @@
 
                 <!-- Detail Table -->
                 <div class="table-responsive-container">
-                    <table class="table-glass-summary" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+                    <table class="table-glass-summary"
+                        style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
                         <thead>
                             <tr>
                                 <th style="width: 90px;">Дата</th>
@@ -1481,7 +1829,11 @@
                             </tr>
                         </thead>
                         <tbody id="crew-plans-table-body">
-                            <tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Загрузка сводки...</td></tr>
+                            <tr>
+                                <td colspan="10"
+                                    style="text-align: center; padding: 2rem; color: var(--text-secondary);">Загрузка
+                                    сводки...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -1491,35 +1843,46 @@
             <div id="daily-report-tab" class="glass-panel card" style="display: none;">
                 <div style="margin-bottom: 1.25rem;">
                     <h3 id="daily-report-title" style="margin-bottom: 0.2rem;">Месячная сводка выработки</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Аналитика выработки, план-факт и процент брака за период</p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">Аналитика выработки,
+                        план-факт и процент брака за период</p>
                 </div>
 
-                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+                <div
+                    style="background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); padding: 1rem 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Линия</label>
-                        <select id="daily-report-line" onchange="loadDailyReport()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Линия</label>
+                        <select id="daily-report-line" onchange="loadDailyReport()"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                             <option value="lfm2" selected>Линия 2 (ЛФМ-2)</option>
                             <option value="lfm1">Линия 1 (ЛФМ-1)</option>
                             <option value="all">Все линии (ЛФМ-1 + ЛФМ-2)</option>
                         </select>
                     </div>
-                    
+
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Интервал</label>
-                        <select id="daily-report-range-type" onchange="toggleRangeControls(); loadDailyReport();" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Интервал</label>
+                        <select id="daily-report-range-type" onchange="toggleRangeControls(); loadDailyReport();"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                             <option value="month" selected>Весь месяц</option>
                             <option value="week">Конкретная неделя</option>
                         </select>
                     </div>
 
                     <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Месяц</label>
-                        <input type="month" id="daily-report-month" onchange="onDailyReportMonthChange()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Месяц</label>
+                        <input type="month" id="daily-report-month" onchange="onDailyReportMonthChange()"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                     </div>
-                    
-                    <div id="daily-report-week-wrapper" class="form-group" style="margin-bottom: 0; flex: 1; min-width: 160px; display: none;">
-                        <label style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Неделя</label>
-                        <select id="daily-report-week-select" onchange="loadDailyReport()" style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
+
+                    <div id="daily-report-week-wrapper" class="form-group"
+                        style="margin-bottom: 0; flex: 1; min-width: 160px; display: none;">
+                        <label
+                            style="font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.35rem;">Неделя</label>
+                        <select id="daily-report-week-select" onchange="loadDailyReport()"
+                            style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                             <option value="1" selected>Неделя 1</option>
                             <option value="2">Неделя 2</option>
                             <option value="3">Неделя 3</option>
@@ -1527,80 +1890,127 @@
                             <option value="5">Неделя 5</option>
                         </select>
                     </div>
-                    
-                    <button onclick="exportDailyReportPDF()" class="btn-success" style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #217346; color: white; border: none; white-space: nowrap; font-weight: 600; cursor: pointer; border-radius: 8px;">
+
+                    <button onclick="exportDailyReportPDF()" class="btn-success"
+                        style="height: 38px; width: auto; padding: 0 1.5rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #217346; color: white; border: none; white-space: nowrap; font-weight: 600; cursor: pointer; border-radius: 8px;">
                         <span>🖨️</span> Печать / PDF
                     </button>
                 </div>
 
                 <!-- KPI Today (MTD) Section -->
-                <div style="margin-bottom: 2rem; background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); padding: 1rem; border-radius: 12px;">
-                    <h4 style="font-size: 1.05rem; color: #22c55e; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                <div
+                    style="margin-bottom: 2rem; background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); padding: 1rem; border-radius: 12px;">
+                    <h4
+                        style="font-size: 1.05rem; color: #22c55e; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
                         <span>⚡</span> ФАКТИЧЕСКИЕ ПОКАЗАТЕЛИ НА ТЕКУЩУЮ ДАТУ (По отработанным сменам)
                     </h4>
                     <div id="daily-report-today-kpi-container" class="grid-daily-kpis">
                         <div class="kpi-card" style="border-left: 4px solid #22c55e; background: rgba(0, 0, 0, 0.2);">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка на сегодня (Тонны)</div>
-                            <div id="kpi-today-tons" style="font-size: 1.5rem; font-weight: bold; color: #22c55e;">0.0</div>
-                            <div id="kpi-today-sheets" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">0 листов</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                                Выработка на сегодня (Тонны)</div>
+                            <div id="kpi-today-tons" style="font-size: 1.5rem; font-weight: bold; color: #22c55e;">0.0
+                            </div>
+                            <div id="kpi-today-sheets"
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">0 листов
+                            </div>
                         </div>
                         <div class="kpi-card" style="border-left: 4px solid #3b82f6; background: rgba(0, 0, 0, 0.2);">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">План на сегодня (Тонны)</div>
-                            <div id="kpi-today-plan-tons" style="font-size: 1.5rem; font-weight: bold; color: #3b82f6;">0.0</div>
-                            <div id="kpi-today-plan-sheets" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">0 листов</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">План на
+                                сегодня (Тонны)</div>
+                            <div id="kpi-today-plan-tons" style="font-size: 1.5rem; font-weight: bold; color: #3b82f6;">
+                                0.0</div>
+                            <div id="kpi-today-plan-sheets"
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">0 листов
+                            </div>
                         </div>
                         <div class="kpi-card" style="border-left: 4px solid #eab308; background: rgba(0, 0, 0, 0.2);">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Отклонение от плана (Тонны)</div>
-                            <div id="kpi-today-diff-tons" style="font-size: 1.5rem; font-weight: bold; color: #eab308;">0.0</div>
-                            <div id="kpi-today-diff-tons-detail" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">В норме</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                                Отклонение от плана (Тонны)</div>
+                            <div id="kpi-today-diff-tons" style="font-size: 1.5rem; font-weight: bold; color: #eab308;">
+                                0.0</div>
+                            <div id="kpi-today-diff-tons-detail"
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">В норме
+                            </div>
                         </div>
                         <div class="kpi-card" style="border-left: 4px solid #8b5cf6; background: rgba(0, 0, 0, 0.2);">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Отклонение от плана (Листы)</div>
-                            <div id="kpi-today-diff-sheets" style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">0</div>
-                            <div id="kpi-today-diff-sheets-detail" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">В норме</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                                Отклонение от плана (Листы)</div>
+                            <div id="kpi-today-diff-sheets"
+                                style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">0</div>
+                            <div id="kpi-today-diff-sheets-detail"
+                                style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">В норме
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- KPI Month Total Section -->
                 <div style="margin-bottom: 1.5rem;">
-                    <h4 style="font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <h4
+                        style="font-size: 1.05rem; color: var(--text-secondary); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
                         <span>📅</span> ИТОГОВЫЕ ПРОГНОЗНЫЕ ПОКАЗАТЕЛИ ЗА ВЕСЬ МЕСЯЦ
                     </h4>
-                    <div id="daily-report-kpi-container" class="grid-daily-kpis" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <div id="daily-report-kpi-container" class="grid-daily-kpis"
+                        style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка (Листы)</div>
-                            <div id="kpi-total-sheets" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                                Выработка (Листы)</div>
+                            <div id="kpi-total-sheets"
+                                style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0</div>
                         </div>
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Выработка (Тонны)</div>
-                            <div id="kpi-total-tons" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0.0</div>
-                            <div id="kpi-tons-detail" style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">План: 0.0 / Факт: 0.0</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                                Выработка (Тонны)</div>
+                            <div id="kpi-total-tons"
+                                style="font-size: 1.5rem; font-weight: bold; color: var(--accent-color);">0.0</div>
+                            <div id="kpi-tons-detail"
+                                style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">План:
+                                0.0 / Факт: 0.0</div>
                         </div>
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Остаток до конца периода (Листы)</div>
-                            <div id="kpi-lag-sheets" style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">0</div>
-                            <div id="kpi-lag-sheets-detail" style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">Недовыполнение</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Остаток
+                                до конца периода (Листы)</div>
+                            <div id="kpi-lag-sheets" style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">0
+                            </div>
+                            <div id="kpi-lag-sheets-detail"
+                                style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">
+                                Недовыполнение</div>
                         </div>
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Остаток до конца периода (Тонны)</div>
-                            <div id="kpi-lag-tons" style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">0.0</div>
-                            <div id="kpi-lag-tons-detail" style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">Недовыполнение</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Остаток
+                                до конца периода (Тонны)</div>
+                            <div id="kpi-lag-tons" style="font-size: 1.5rem; font-weight: bold; color: #8b5cf6;">0.0
+                            </div>
+                            <div id="kpi-lag-tons-detail"
+                                style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">
+                                Недовыполнение</div>
                         </div>
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Средний % выполнения плана</div>
-                            <div id="kpi-avg-plan-percent" style="font-size: 1.5rem; font-weight: bold; color: #eab308;">0%</div>
-                            <div id="kpi-plan-fact-detail" style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">План: 0 / Факт: 0</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Средний
+                                % выполнения плана</div>
+                            <div id="kpi-avg-plan-percent"
+                                style="font-size: 1.5rem; font-weight: bold; color: #eab308;">0%</div>
+                            <div id="kpi-plan-fact-detail"
+                                style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">План:
+                                0 / Факт: 0</div>
                         </div>
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Процент 1-го сорта</div>
-                            <div id="kpi-first-grade-percent" style="font-size: 1.5rem; font-weight: bold; color: #22c55e;">0.00%</div>
-                            <div id="kpi-first-grade-detail" style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">1 сорт: 0 листов</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Процент
+                                1-го сорта</div>
+                            <div id="kpi-first-grade-percent"
+                                style="font-size: 1.5rem; font-weight: bold; color: #22c55e;">0.00%</div>
+                            <div id="kpi-first-grade-detail"
+                                style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">1
+                                сорт: 0 листов</div>
                         </div>
                         <div class="kpi-card">
-                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Процент брака</div>
-                            <div id="kpi-defect-percent" style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);">0.00%</div>
-                            <div id="kpi-defect-detail" style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">Брак: 0 листов</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Процент
+                                брака</div>
+                            <div id="kpi-defect-percent"
+                                style="font-size: 1.5rem; font-weight: bold; color: var(--danger-color);">0.00%</div>
+                            <div id="kpi-defect-detail"
+                                style="font-size: 0.8rem; font-weight: 700; color: #0f172a; margin-top: 0.25rem;">Брак:
+                                0 листов</div>
                         </div>
                     </div>
                 </div>
@@ -1624,24 +2034,33 @@
             <!-- 6. MATERIALS TAB (🧪 Сводка по сырью) -->
             <div id="materials-tab" class="glass-panel card" style="display: none;">
                 <h3>🧪 Сводка по сырью (Отклонения)</h3>
-                <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br/>Положительное число означает перерасход сырья, отрицательное — экономию.</p>
-                
+                <p style="font-size: 0.9rem; color: var(--text-secondary);">Отображаются отклонения фактического расхода
+                    (ЗО) от теоретического (расчет по выпущенным листам ЛФМ).<br />Положительное число означает
+                    перерасход сырья, отрицательное — экономию.</p>
+
                 <!-- Панель Технолога: Управление нормативами расхода из Google Sheets -->
-                <div id="technologist-norms-panel" style="display: none; background: rgba(31, 78, 120, 0.15); border: 1px solid rgba(31, 78, 120, 0.3); padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; margin-top: 1rem;">
-                    <h4 style="margin-top: 0; margin-bottom: 0.5rem; color: #7cb9e8; display: flex; align-items: center; gap: 6px;">⚙️ Панель Технолога: Управление нормативами</h4>
+                <div id="technologist-norms-panel"
+                    style="display: none; background: rgba(31, 78, 120, 0.15); border: 1px solid rgba(31, 78, 120, 0.3); padding: 1.2rem; border-radius: 8px; margin-bottom: 1.5rem; margin-top: 1rem;">
+                    <h4
+                        style="margin-top: 0; margin-bottom: 0.5rem; color: #7cb9e8; display: flex; align-items: center; gap: 6px;">
+                        ⚙️ Панель Технолога: Управление нормативами</h4>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                        Вы можете изменить нормы расхода сырья на вкладке <strong>«Нормативы»</strong> в вашем Google Документе, а затем применить их на портале, нажав кнопку ниже.
+                        Вы можете изменить нормы расхода сырья на вкладке <strong>«Нормативы»</strong> в вашем Google
+                        Документе, а затем применить их на портале, нажав кнопку ниже.
                     </p>
                     <div style="display: flex; align-items: center; gap: 1rem;">
-                        <button onclick="syncNormsFromGoogle()" class="btn-success" style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
+                        <button onclick="syncNormsFromGoogle()" class="btn-success"
+                            style="width: auto; padding: 0.6rem 1.5rem; margin-bottom: 0; background: #1F4E78; border-color: #1F4E78;">
                             🔄 Синхронизировать нормы из Google
                         </button>
-                        <span id="norms-sync-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
+                        <span id="norms-sync-status"
+                            style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);"></span>
                     </div>
                 </div>
 
                 <div class="table-responsive-container" style="margin-top: 1rem;">
-                    <table class="table-glass" style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
+                    <table class="table-glass"
+                        style="width: 100%; border-collapse: collapse; text-align: left; color: var(--text-primary);">
                         <thead>
                             <tr>
                                 <th>Материал</th>
@@ -1654,7 +2073,10 @@
                             </tr>
                         </thead>
                         <tbody id="materials-report-list">
-                            <tr><td colspan="7" style="text-align:center; color: var(--text-secondary);">Загрузка отчета...</td></tr>
+                            <tr>
+                                <td colspan="7" style="text-align:center; color: var(--text-secondary);">Загрузка
+                                    отчета...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -1662,66 +2084,100 @@
 
         </div>
     </div>
-    
+
     <!-- Modal for editing downtimes -->
-    <div id="edit-dt-modal" class="modal-centered card" style="display:none; z-index: 1000; width: 90%; max-width: 550px; box-shadow: 0 0 30px rgba(0,0,0,0.9); background: rgba(30, 41, 59, 0.98); padding: 1.5rem; border: 1px solid var(--glass-border); border-radius: 14px;">
+    <div id="edit-dt-modal" class="modal-centered card"
+        style="display:none; z-index: 1000; width: 90%; max-width: 550px; box-shadow: 0 0 30px rgba(0,0,0,0.9); background: rgba(30, 41, 59, 0.98); padding: 1.5rem; border: 1px solid var(--glass-border); border-radius: 14px;">
         <h3 style="margin-bottom: 1rem; color: var(--accent-color); display: flex; align-items: center; gap: 0.5rem;">
             <span>✏️</span> Редактирование простоя
         </h3>
         <input type="hidden" id="edit-dt-id">
         <div style="margin-bottom: 1rem;">
-            <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.4rem;">Описание поломки / работ</label>
-            <textarea id="edit-dt-desc" rows="3" style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical;"></textarea>
+            <label
+                style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.4rem;">Описание
+                поломки / работ</label>
+            <textarea id="edit-dt-desc" rows="3"
+                style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical;"></textarea>
         </div>
-        <div style="margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; align-items: end;">
+        <div
+            style="margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; align-items: end;">
             <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Время начала</label>
-                    <button type="button" onclick="setTimeNow('edit-dt-start')" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;" title="Текущее время">Сейчас</button>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Время
+                        начала</label>
+                    <button type="button" onclick="setTimeNow('edit-dt-start')"
+                        style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;"
+                        title="Текущее время">Сейчас</button>
                 </div>
-                <input type="text" class="time-picker" id="edit-dt-start" placeholder="--:--" oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()" style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center;">
+                <input type="text" class="time-picker" id="edit-dt-start" placeholder="--:--"
+                    oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()"
+                    style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center;">
             </div>
             <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Время окончания</label>
-                    <button type="button" onclick="setTimeNow('edit-dt-end')" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;" title="Текущее время">Сейчас</button>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Время
+                        окончания</label>
+                    <button type="button" onclick="setTimeNow('edit-dt-end')"
+                        style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;"
+                        title="Текущее время">Сейчас</button>
                 </div>
-                <input type="text" class="time-picker" id="edit-dt-end" placeholder="--:--" oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()" style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center;">
+                <input type="text" class="time-picker" id="edit-dt-end" placeholder="--:--"
+                    oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()"
+                    style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center;">
             </div>
             <div>
-                <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.25rem;">Длительность</label>
-                <div id="edit-dt-duration-preview" style="padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #38bdf8; text-align: center; height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                <label
+                    style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.25rem;">Длительность</label>
+                <div id="edit-dt-duration-preview"
+                    style="padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #38bdf8; text-align: center; height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
                     --:--
                 </div>
             </div>
         </div>
-        <div id="edit-dt-night-hint" style="display: none; margin-bottom: 1rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: rgba(254, 240, 138, 0.15); color: #fef08a;"></div>
+        <div id="edit-dt-night-hint"
+            style="display: none; margin-bottom: 1rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: rgba(254, 240, 138, 0.15); color: #fef08a;">
+        </div>
 
         <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" id="edit-dt-is-equipment-stop" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color);">
-            <label for="edit-dt-is-equipment-stop" style="margin: 0; cursor: pointer; font-size: 0.9rem; user-select: none;">Ремонт с остановкой оборудования</label>
+            <input type="checkbox" id="edit-dt-is-equipment-stop"
+                style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color);">
+            <label for="edit-dt-is-equipment-stop"
+                style="margin: 0; cursor: pointer; font-size: 0.9rem; user-select: none;">Ремонт с остановкой
+                оборудования</label>
         </div>
         <div style="display:flex; justify-content: flex-end; gap: 1rem;">
-            <button type="button" onclick="closeEditDowntimeModal()" class="btn-secondary" style="width: auto; padding: 0.6rem 1.2rem;">Отмена</button>
-            <button onclick="submitEditDowntime()" class="btn-primary" style="width: auto; padding: 0.6rem 1.5rem;">Сохранить изменения</button>
+            <button type="button" onclick="closeEditDowntimeModal()" class="btn-secondary"
+                style="width: auto; padding: 0.6rem 1.2rem;">Отмена</button>
+            <button onclick="submitEditDowntime()" class="btn-primary"
+                style="width: auto; padding: 0.6rem 1.5rem;">Сохранить изменения</button>
         </div>
     </div>
-    
+
     <!-- Universal Notification Modal -->
-    <div id="universal-notification-overlay" class="modal-overlay-fade" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9998; backdrop-filter: blur(4px);"></div>
-    <div id="universal-notification-modal" class="modal-centered card" style="display:none; z-index: 9999; width: 90%; max-width: 460px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.9); background: rgba(30, 41, 59, 0.98); padding: 2rem 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
-        <div id="unm-icon" style="width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; transition: all 0.3s ease;">
+    <div id="universal-notification-overlay" class="modal-overlay-fade"
+        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9998; backdrop-filter: blur(4px);">
+    </div>
+    <div id="universal-notification-modal" class="modal-centered card"
+        style="display:none; z-index: 9999; width: 90%; max-width: 460px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.9); background: rgba(30, 41, 59, 0.98); padding: 2rem 1.5rem; text-align: center; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+        <div id="unm-icon"
+            style="width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; transition: all 0.3s ease;">
             <span id="unm-icon-text" style="font-size: 2.5rem;"></span>
         </div>
         <h2 id="unm-title" style="margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.4rem;"></h2>
-        <div id="unm-message" style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.5; word-break: break-word; max-height: 45vh; overflow-y: auto; text-align: left; background: rgba(15, 23, 42, 0.6); padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);"></div>
-        <button onclick="closeUniversalNotification()" class="btn-submit-huge" id="unm-btn" style="font-size: 1.05rem; padding: 0.7rem 2.2rem; border-radius: 8px; width: auto; display: inline-block; transition: all 0.2s ease;">
+        <div id="unm-message"
+            style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.5; word-break: break-word; max-height: 45vh; overflow-y: auto; text-align: left; background: rgba(15, 23, 42, 0.6); padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+        </div>
+        <button onclick="closeUniversalNotification()" class="btn-submit-huge" id="unm-btn"
+            style="font-size: 1.05rem; padding: 0.7rem 2.2rem; border-radius: 8px; width: auto; display: inline-block; transition: all 0.2s ease;">
             ОК
         </button>
     </div>
 
-    <script src="/static/js/network_guard.js?v=20260907_netguard_v2"></script>
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v3"></script>
     <script src="/static/js/app.js?v=20260907_fix_selects_v4"></script>
     <script src="/static/js/version_guard.js"></script>
 </body>
+
 </html>

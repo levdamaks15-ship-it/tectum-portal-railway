@@ -29,9 +29,9 @@
         style.textContent = `
             #netguard-pill {
                 position: fixed;
-                top: 14px;
-                left: 16px;
-                z-index: 99999;
+                bottom: 16px;
+                right: 16px;
+                z-index: 1050;
                 display: flex;
                 align-items: center;
                 gap: 7px;
@@ -42,23 +42,25 @@
                 font-weight: 600;
                 cursor: pointer;
                 user-select: none;
-                transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                opacity: 0.88;
+                transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.12);
                 backdrop-filter: blur(8px);
                 -webkit-backdrop-filter: blur(8px);
             }
             @media (max-width: 768px) {
                 #netguard-pill {
-                    top: 10px;
-                    left: 10px;
+                    bottom: 12px;
+                    right: 12px;
                     padding: 3px 8px;
                     font-size: 11px;
                     gap: 5px;
                 }
             }
             #netguard-pill:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+                opacity: 1;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 14px rgba(0,0,0,0.18);
             }
             #netguard-pill.state-online {
                 background: rgba(255, 255, 255, 0.9);
@@ -106,8 +108,8 @@
             }
             #netguard-toast {
                 position: fixed;
-                bottom: 24px;
-                right: 24px;
+                bottom: 56px;
+                right: 16px;
                 z-index: 999999;
                 background: rgba(15, 23, 42, 0.95);
                 color: #fff;
@@ -121,6 +123,12 @@
                 box-shadow: 0 8px 24px rgba(0,0,0,0.3);
                 border: 1px solid rgba(255,255,255,0.1);
                 animation: netguardSlideUp 0.3s ease-out;
+            }
+            @media (max-width: 768px) {
+                #netguard-toast {
+                    bottom: 48px;
+                    right: 12px;
+                }
             }
             @keyframes netguardSlideUp {
                 from { transform: translateY(30px); opacity: 0; }
@@ -302,10 +310,10 @@
             if (isNetworkFailure && retriesLeft > 0) {
                 const reason = timeoutTriggered ? 'таймаут 12с' : 'обрыв связи';
                 console.warn(`[NetworkGuard] Network glitch (${reason}). Retrying attempt ${3 - retriesLeft}/2 in ${delayMs}ms...`);
-                
+
                 networkState = 'slow';
                 renderPill();
-                
+
                 await new Promise(r => setTimeout(r, delayMs));
                 return smartFetch(url, options, retriesLeft - 1, delayMs * 1.5);
             }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -206,9 +207,11 @@
         #sidebar-folders::-webkit-scrollbar {
             width: 5px;
         }
+
         #sidebar-folders::-webkit-scrollbar-track {
             background: transparent;
         }
+
         #sidebar-folders::-webkit-scrollbar-thumb {
             background: rgba(100, 116, 139, 0.25);
             border-radius: 4px;
@@ -269,7 +272,8 @@
             flex: 1;
         }
 
-        .folder-item-tree:hover, .folder-item-tree.active {
+        .folder-item-tree:hover,
+        .folder-item-tree.active {
             background: rgba(59, 130, 246, 0.15);
             color: #3b82f6;
             font-weight: 600;
@@ -331,8 +335,13 @@
         }
 
         @keyframes bounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-10px); }
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-10px);
+            }
         }
 
         .top-bar {
@@ -404,6 +413,7 @@
             font-size: 0.9rem;
             min-height: 42px;
         }
+
         .btn-theme-toggle:hover {
             background: rgba(59, 130, 246, 0.15);
             border-color: #3b82f6;
@@ -430,19 +440,29 @@
             border: 1px solid var(--docs-search-border);
             color: var(--docs-text-primary);
         }
-        .btn-create-folder:hover { background: rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
+
+        .btn-create-folder:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: #3b82f6;
+        }
 
         .btn-upload-folder {
             background: #10b981;
             color: white;
         }
-        .btn-upload-folder:hover { background: #059669; }
+
+        .btn-upload-folder:hover {
+            background: #059669;
+        }
 
         .btn-upload-file {
             background: #3b82f6;
             color: white;
         }
-        .btn-upload-file:hover { background: #2563eb; }
+
+        .btn-upload-file:hover {
+            background: #2563eb;
+        }
 
         .btn-back {
             background: var(--docs-btn-bg);
@@ -458,6 +478,7 @@
             font-size: 0.9rem;
             min-height: 38px;
         }
+
         .btn-back:hover {
             color: #fff;
             border-color: #3b82f6;
@@ -495,6 +516,7 @@
         .quick-access-section {
             margin-bottom: 1.5rem;
         }
+
         .quick-access-title {
             font-size: 0.88rem;
             font-weight: 700;
@@ -506,11 +528,13 @@
             align-items: center;
             gap: 0.5rem;
         }
+
         .quick-access-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 0.85rem;
         }
+
         .quick-card {
             background: var(--docs-panel-bg);
             border: 1px solid var(--docs-panel-border);
@@ -519,17 +543,19 @@
             display: flex;
             align-items: center;
             gap: 0.85rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             cursor: pointer;
             text-decoration: none;
             overflow: hidden;
         }
+
         .quick-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
             border-color: #93c5fd;
         }
+
         .quick-card-icon {
             width: 38px;
             height: 38px;
@@ -540,6 +566,7 @@
             font-size: 1.25rem;
             flex-shrink: 0;
         }
+
         .quick-card-info {
             display: flex;
             flex-direction: column;
@@ -547,6 +574,7 @@
             min-width: 0;
             flex: 1;
         }
+
         .quick-card-name {
             font-weight: 600;
             font-size: 0.88rem;
@@ -555,6 +583,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
         .quick-card-meta {
             font-size: 0.75rem;
             color: var(--docs-text-muted);
@@ -610,6 +639,7 @@
             transition: all 0.15s ease;
             user-select: none;
         }
+
         .quick-tag:hover {
             background: #38bdf8;
             color: #0f172a;
@@ -620,7 +650,8 @@
             border-bottom: none;
         }
 
-        .docs-table-row:hover, .docs-table-row.selected {
+        .docs-table-row:hover,
+        .docs-table-row.selected {
             background: var(--docs-table-row-hover);
         }
 
@@ -720,11 +751,12 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
+
         .version-badge:hover {
             background: #2563eb;
             color: #ffffff;
             border-color: #2563eb;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
         }
 
         .lock-indicator {
@@ -755,11 +787,12 @@
             text-decoration: none;
             transition: all 0.15s ease;
         }
+
         .btn-office-action:hover {
             background: #2563eb;
             color: #ffffff;
             border-color: #2563eb;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.25);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
         }
 
         .btn-version-action {
@@ -776,6 +809,7 @@
             cursor: pointer;
             transition: all 0.15s ease;
         }
+
         .btn-version-action:hover {
             background: #e2e8f0;
             color: #0f172a;
@@ -802,6 +836,7 @@
             font-weight: 700;
             gap: 1rem;
         }
+
         .drag-overlay.active {
             display: flex;
         }
@@ -864,6 +899,7 @@
             background: #eff6ff !important;
             border-color: #bfdbfe !important;
         }
+
         .btn-icon-planner:hover {
             background: #dbeafe !important;
             border-color: #93c5fd !important;
@@ -875,6 +911,7 @@
             background: #ecfdf5 !important;
             border-color: #a7f3d0 !important;
         }
+
         .btn-icon-version:hover {
             background: #d1fae5 !important;
             border-color: #6ee7b7 !important;
@@ -886,6 +923,7 @@
             background: #f0f9ff !important;
             border-color: #bae6fd !important;
         }
+
         .btn-icon-download:hover {
             background: #e0f2fe !important;
             border-color: #7dd3fc !important;
@@ -897,6 +935,7 @@
             background: #eef2ff !important;
             border-color: #c7d2fe !important;
         }
+
         .btn-icon-move:hover {
             background: #e0e7ff !important;
             border-color: #a5b4fc !important;
@@ -908,6 +947,7 @@
             background: #fef2f2 !important;
             border-color: #fecaca !important;
         }
+
         .btn-icon-delete:hover {
             background: #fee2e2 !important;
             border-color: #fca5a5 !important;
@@ -960,13 +1000,25 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.96); }
-            to { opacity: 1; transform: scale(1); }
+            from {
+                opacity: 0;
+                transform: scale(0.96);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         @keyframes slideUpSheet {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
         }
 
         .context-menu-item {
@@ -980,7 +1032,8 @@
             user-select: none;
         }
 
-        .context-menu-item:hover, .context-menu-item:active {
+        .context-menu-item:hover,
+        .context-menu-item:active {
             background: var(--docs-context-item-hover);
             color: #3b82f6;
         }
@@ -992,7 +1045,8 @@
             font-size: 1rem;
         }
 
-        .context-menu-item:hover i, .context-menu-item:active i {
+        .context-menu-item:hover i,
+        .context-menu-item:active i {
             color: #3b82f6;
         }
 
@@ -1004,7 +1058,8 @@
             color: #ef4444;
         }
 
-        .context-menu-item.danger:hover, .context-menu-item.danger:active {
+        .context-menu-item.danger:hover,
+        .context-menu-item.danger:active {
             background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
         }
@@ -1037,8 +1092,15 @@
         }
 
         @keyframes slideUpToast {
-            from { opacity: 0; transform: translate(-50%, 15px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
+            from {
+                opacity: 0;
+                transform: translate(-50%, 15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
         }
 
         /* Create + Sync Buttons Group */
@@ -1063,7 +1125,7 @@
             min-width: 230px;
             border: 1px solid var(--docs-dropdown-border);
             border-radius: 12px;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
             z-index: 2100;
             padding: 6px 0;
         }
@@ -1084,7 +1146,8 @@
             user-select: none;
         }
 
-        .dropdown-item:hover, .dropdown-item:active {
+        .dropdown-item:hover,
+        .dropdown-item:active {
             background: var(--docs-context-item-hover);
         }
 
@@ -1092,7 +1155,10 @@
         .modal {
             display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
@@ -1143,8 +1209,10 @@
             box-sizing: border-box;
             outline: none;
             font-family: inherit;
-            font-size: 16px; /* Prevents auto-zoom on iOS */
+            font-size: 16px;
+            /* Prevents auto-zoom on iOS */
         }
+
         .form-group input:focus {
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -1166,7 +1234,11 @@
             font-size: 0.95rem;
             min-height: 44px;
         }
-        .btn-cancel:hover { color: var(--docs-text-primary); border-color: var(--docs-text-muted); }
+
+        .btn-cancel:hover {
+            color: var(--docs-text-primary);
+            border-color: var(--docs-text-muted);
+        }
 
         /* Move Modal Styles */
         .move-tree-container {
@@ -1178,16 +1250,20 @@
             padding: 0.5rem;
             margin-bottom: 0.9rem;
         }
+
         .move-tree-container::-webkit-scrollbar {
             width: 5px;
         }
+
         .move-tree-container::-webkit-scrollbar-track {
             background: transparent;
         }
+
         .move-tree-container::-webkit-scrollbar-thumb {
             background: rgba(100, 116, 139, 0.3);
             border-radius: 4px;
         }
+
         .move-folder-wrapper {
             display: flex;
             align-items: center;
@@ -1195,6 +1271,7 @@
             margin-bottom: 2px;
             width: 100%;
         }
+
         .move-tree-toggle {
             cursor: pointer;
             width: 22px;
@@ -1208,13 +1285,16 @@
             transition: transform 0.2s ease;
             border-radius: 4px;
         }
+
         .move-tree-toggle:hover {
             background: rgba(255, 255, 255, 0.08);
             color: var(--docs-text-primary);
         }
+
         .move-tree-toggle.expanded {
             transform: rotate(90deg);
         }
+
         .move-folder-item {
             flex: 1;
             min-width: 0;
@@ -1232,29 +1312,35 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
         .move-folder-item:hover {
             background: var(--docs-context-item-hover);
         }
+
         .move-folder-item.selected {
             background: rgba(59, 130, 246, 0.22);
             border: 1px solid rgba(59, 130, 246, 0.5);
             font-weight: 600;
             color: #3b82f6;
         }
+
         .move-folder-item.disabled {
             opacity: 0.4;
             cursor: not-allowed;
             pointer-events: none;
         }
+
         .move-tree-node {
             margin-left: 11px;
             border-left: 1px dashed var(--docs-sidebar-border, rgba(255, 255, 255, 0.12));
             padding-left: 4px;
             display: none;
         }
+
         .move-tree-node.expanded {
             display: block;
         }
+
         .move-search-input {
             width: 100%;
             padding: 0.65rem 0.9rem;
@@ -1267,6 +1353,7 @@
             outline: none;
             box-sizing: border-box;
         }
+
         .move-search-input:focus {
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
@@ -1277,12 +1364,14 @@
             text-align: center;
             color: var(--docs-text-muted);
         }
+
         .empty-state i {
             font-size: 3.5rem;
             margin-bottom: 1.2rem;
             opacity: 0.6;
             color: #3b82f6;
         }
+
         .empty-state p {
             font-size: 1.05rem;
             margin: 0.4rem 0;
@@ -1383,7 +1472,8 @@
             }
 
             .btn-sync-cloud {
-                display: none !important; /* On mobile hidden to save space */
+                display: none !important;
+                /* On mobile hidden to save space */
             }
 
             .user-session-wrapper {
@@ -1423,6 +1513,7 @@
         }
 
         @media (max-width: 680px) {
+
             /* Transform table to modern mobile card list */
             .docs-table {
                 background: transparent;
@@ -1503,7 +1594,7 @@
                 border-radius: 20px 20px 0 0 !important;
                 padding: 12px 14px 28px 14px !important;
                 box-sizing: border-box !important;
-                box-shadow: 0 -10px 35px rgba(0,0,0,0.6) !important;
+                box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.6) !important;
                 animation: slideUpSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
                 border-left: none !important;
                 border-right: none !important;
@@ -1576,18 +1667,21 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Mobile Top Navigation Header -->
     <div class="mobile-docs-header" id="mobile-docs-header">
         <button class="mobile-menu-btn" onclick="toggleDocsSidebar()" aria-label="Открыть разделы" title="Папки">
             <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="mobile-brand" onclick="navigateToRootFolder()" style="cursor: pointer;" title="На главную директорию">
+        <div class="mobile-brand" onclick="navigateToRootFolder()" style="cursor: pointer;"
+            title="На главную директорию">
             <i class="fas fa-folder-tree"></i>
             <span>База Знаний</span>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button class="mobile-menu-btn" onclick="window.location.href='/static/index.html'" title="На главный портал">
+            <button class="mobile-menu-btn" onclick="window.location.href='/static/index.html'"
+                title="На главный портал">
                 <i class="fas fa-home"></i>
             </button>
         </div>
@@ -1599,21 +1693,24 @@
     <!-- Sidebar Tree Navigation -->
     <div class="docs-sidebar" id="docs-sidebar">
         <div class="sidebar-header-row">
-            <div class="sidebar-brand" onclick="navigateToRootFolder()" style="cursor: pointer; user-select: none;" title="На главную директорию">
+            <div class="sidebar-brand" onclick="navigateToRootFolder()" style="cursor: pointer; user-select: none;"
+                title="На главную директорию">
                 <i class="fas fa-folder-tree"></i> База Знаний
             </div>
             <button class="mobile-sidebar-close" onclick="toggleDocsSidebar(false)" aria-label="Закрыть">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        
+
         <div class="folder-tree-title">Главные разделы</div>
         <div id="sidebar-folders">
             <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
         </div>
-        
+
         <div class="sidebar-footer">
-            <a href="/static/tasks.html" class="sidebar-home-link" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 600;" title="Открыть Планнер по бережливому производству">
+            <a href="/static/tasks.html" class="sidebar-home-link"
+                style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 600;"
+                title="Открыть Планнер по бережливому производству">
                 <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> Планнер (Задачи)
             </a>
             <a href="/static/index.html" class="sidebar-home-link">
@@ -1627,51 +1724,67 @@
         <div class="top-bar">
             <div class="search-box">
                 <i class="fas fa-search"></i>
-                <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..." oninput="handleSearch(this.value)" autocomplete="off">
+                <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..."
+                    oninput="handleSearch(this.value)" autocomplete="off">
             </div>
-            
+
             <div class="action-buttons">
                 <!-- Dropdown Создать -->
                 <div class="dropdown-menu-create">
-                    <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)" style="background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); color: #fff; box-shadow: 0 4px 14px rgba(200,35,35,0.25);">
-                        <i class="fas fa-plus"></i> <span>Создать</span> <i class="fas fa-chevron-down" style="font-size:0.75rem; margin-left:4px;"></i>
+                    <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)"
+                        style="background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); color: #fff; box-shadow: 0 4px 14px rgba(200,35,35,0.25);">
+                        <i class="fas fa-plus"></i> <span>Создать</span> <i class="fas fa-chevron-down"
+                            style="font-size:0.75rem; margin-left:4px;"></i>
                     </button>
                     <div id="create-dropdown" class="dropdown-content-create">
                         <div class="dropdown-item" onclick="showFolderModal()">
-                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i> Новую папку
+                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i>
+                            Новую папку
                         </div>
                         <div class="context-menu-separator"></div>
                         <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
-                            <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i> Ссылка Google (Docs / Sheets)
+                            <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i>
+                            Ссылка Google (Docs / Sheets)
                         </div>
                         <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
-                            <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i> Ссылка Microsoft (OneDrive / Excel)
+                            <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i>
+                            Ссылка Microsoft (OneDrive / Excel)
                         </div>
                     </div>
                 </div>
 
                 <!-- Быстрая загрузка PDF с ПК -->
-                <button class="btn-action btn-upload-pc" onclick="triggerLocalFileUpload()" style="background: #10b981; color: #fff;" title="Загрузить PDF-документ или регламент с компьютера">
+                <button class="btn-action btn-upload-pc" onclick="triggerLocalFileUpload()"
+                    style="background: #10b981; color: #fff;" title="Загрузить PDF-документ или регламент с компьютера">
                     <i class="fas fa-file-pdf"></i> <span>Загрузить PDF</span>
                 </button>
-                <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none;" onchange="handleLocalFileSelected(event)">
+                <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none;"
+                    onchange="handleLocalFileSelected(event)">
 
                 <!-- Синхронизация облачных названий -->
-                <button class="btn-action btn-sync-cloud" onclick="syncFolderTitles()" id="btn-sync-titles" title="Актуализировать названия Google/OneDrive документов" style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
+                <button class="btn-action btn-sync-cloud" onclick="syncFolderTitles()" id="btn-sync-titles"
+                    title="Актуализировать названия Google/OneDrive документов"
+                    style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
                     <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
                 </button>
 
                 <!-- Кнопка перехода в Планнер -->
-                <a href="/static/tasks.html" class="btn-action btn-nav-planner" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; text-decoration: none;" title="Перейти в Планнер задач">
+                <a href="/static/tasks.html" class="btn-action btn-nav-planner"
+                    style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; text-decoration: none;"
+                    title="Перейти в Планнер задач">
                     <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
                 </a>
 
                 <!-- Сквозной профиль сотрудника (User Session Badge) -->
                 <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
-                    <button class="btn-action btn-user-badge" id="docs-user-badge" onclick="promptDocsUserAuth()" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; padding: 0.55rem 0.85rem;" title="Нажмите для входа или смены профиля">
-                        <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="docs-user-name">Войти (PIN)</span>
+                    <button class="btn-action btn-user-badge" id="docs-user-badge" onclick="promptDocsUserAuth()"
+                        style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; padding: 0.55rem 0.85rem;"
+                        title="Нажмите для входа или смены профиля">
+                        <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="docs-user-name">Войти
+                            (PIN)</span>
                     </button>
-                    <button id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля" style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px;">
+                    <button id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля"
+                        style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px;">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -1696,7 +1809,9 @@
                 <h1 id="current-folder-name" class="page-title">Главная директория</h1>
             </div>
             <div>
-                <select id="docs-sort" style="padding: 0.55rem 0.75rem; border-radius: 8px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit; cursor: pointer; width: 100%;" onchange="applySort()">
+                <select id="docs-sort"
+                    style="padding: 0.55rem 0.75rem; border-radius: 8px; border: 1px solid var(--docs-search-border); background: var(--docs-panel-bg); color: var(--docs-text-primary); outline: none; font-family: inherit; cursor: pointer; width: 100%;"
+                    onchange="applySort()">
                     <option value="date_desc">Сначала новые (по дате)</option>
                     <option value="date_asc">Сначала старые (по дате)</option>
                     <option value="name_asc">По имени (А-Я)</option>
@@ -1716,7 +1831,8 @@
             <h3>Создать новую папку</h3>
             <div class="form-group">
                 <label>Название папки</label>
-                <input type="text" id="new-folder-name" placeholder="Например: Отдел кадров" onkeydown="if(event.key==='Enter') createFolder()">
+                <input type="text" id="new-folder-name" placeholder="Например: Отдел кадров"
+                    onkeydown="if(event.key==='Enter') createFolder()">
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeFolderModal()">Отмена</button>
@@ -1731,7 +1847,8 @@
             <h3>Переименовать</h3>
             <div class="form-group">
                 <label>Новое имя</label>
-                <input type="text" id="rename-input" placeholder="Введите имя..." onkeydown="if(event.key==='Enter') submitRename()">
+                <input type="text" id="rename-input" placeholder="Введите имя..."
+                    onkeydown="if(event.key==='Enter') submitRename()">
             </div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeRenameModal()">Отмена</button>
@@ -1744,34 +1861,42 @@
     <div id="move-modal" class="modal">
         <div class="modal-content" style="max-width: 480px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                <h3 id="move-modal-title" style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
+                <h3 id="move-modal-title"
+                    style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
                     <i class="fas fa-folder-tree" style="color: #3b82f6;"></i> <span>Переместить в папку</span>
                 </h3>
-                <button onclick="closeMoveModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
+                <button onclick="closeMoveModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <p style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <p
+                style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 Перемещение: <strong style="color: var(--docs-text-primary);" id="move-modal-item-text"></strong>
             </p>
 
             <div class="form-group" style="margin-bottom: 0.5rem;">
-                <input type="text" id="move-folder-search" class="move-search-input" placeholder="🔍 Быстрый поиск папки..." oninput="filterMoveFolders(this.value)">
+                <input type="text" id="move-folder-search" class="move-search-input"
+                    placeholder="🔍 Быстрый поиск папки..." oninput="filterMoveFolders(this.value)">
             </div>
 
             <div id="move-folder-tree" class="move-tree-container">
                 <!-- Загружается динамически -->
             </div>
 
-            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; color: var(--docs-text-secondary); margin-bottom: 1.2rem; background: var(--docs-btn-bg); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--docs-btn-border);">
+            <div
+                style="display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem; color: var(--docs-text-secondary); margin-bottom: 1.2rem; background: var(--docs-btn-bg); padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--docs-btn-border);">
                 <span>Назначение:</span>
-                <span id="move-selected-label" style="font-weight: 600; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">📁 Главная директория (Корень)</span>
+                <span id="move-selected-label"
+                    style="font-weight: 600; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">📁
+                    Главная директория (Корень)</span>
             </div>
 
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeMoveModal()">Отмена</button>
-                <button class="btn-action" id="btn-submit-move" onclick="submitMoveItem()" style="background: #2563eb; color: #fff; min-height: 44px;">
+                <button class="btn-action" id="btn-submit-move" onclick="submitMoveItem()"
+                    style="background: #2563eb; color: #fff; min-height: 44px;">
                     <i class="fas fa-arrow-right-to-bracket"></i> Переместить сюда
                 </button>
             </div>
@@ -1785,24 +1910,29 @@
                 <h3 id="add-link-modal-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                     <i class="fas fa-link" style="color: #3b82f6;"></i> Прикрепить онлайн-документ
                 </h3>
-                <button onclick="closeAddLinkModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                <button onclick="closeAddLinkModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
             <div class="form-group">
                 <label>Ссылка на файл / таблицу (Google Docs, Sheets, OneDrive, Excel)</label>
-                <input type="url" id="add-link-url" placeholder="Вставьте ссылку (https://docs.google.com/... или https://1drv.ms/...)" oninput="onLinkUrlInput(this.value)" onkeydown="if(event.key==='Enter') submitAddLink()">
+                <input type="url" id="add-link-url"
+                    placeholder="Вставьте ссылку (https://docs.google.com/... или https://1drv.ms/...)"
+                    oninput="onLinkUrlInput(this.value)" onkeydown="if(event.key==='Enter') submitAddLink()">
             </div>
-            
+
             <div class="form-group">
                 <label>Название документа (подтягивается автоматически)</label>
-                <input type="text" id="add-link-title" placeholder="Название файла..." onkeydown="if(event.key==='Enter') submitAddLink()">
+                <input type="text" id="add-link-title" placeholder="Название файла..."
+                    onkeydown="if(event.key==='Enter') submitAddLink()">
             </div>
 
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeAddLinkModal()">Отмена</button>
-                <button class="btn-action" id="btn-submit-add-link" onclick="submitAddLink()" style="background: #2563eb;">
+                <button class="btn-action" id="btn-submit-add-link" onclick="submitAddLink()"
+                    style="background: #2563eb;">
                     <i class="fas fa-link"></i> Прикрепить ссылку (Enter)
                 </button>
             </div>
@@ -1812,22 +1942,27 @@
     <!-- Модальное окно: Ввод пароля к защищенному разделу / действию -->
     <div id="password-modal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 1rem auto;">
+            <div
+                style="width: 48px; height: 48px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 1rem auto;">
                 <i class="fas fa-lock"></i>
             </div>
             <h3 style="margin-bottom: 0.5rem;">Доступ защищен</h3>
-            <p style="font-size: 0.88rem; color: var(--docs-text-muted); margin-bottom: 1.25rem;">Введите пароль для доступа к этому разделу или документу:</p>
+            <p style="font-size: 0.88rem; color: var(--docs-text-muted); margin-bottom: 1.25rem;">Введите пароль для
+                доступа к этому разделу или документу:</p>
             <div class="form-group" style="text-align: left;">
                 <div style="position: relative; display: flex; align-items: center;">
-                    <input type="password" id="folder-password-input" placeholder="Введите пароль..." style="padding-right: 40px;" onkeydown="if(event.key==='Enter') submitPasswordModal(true)">
-                    <button type="button" onclick="togglePasswordVisibility('folder-password-input', this)" style="position: absolute; right: 10px; background: none; border: none; color: var(--docs-text-muted); cursor: pointer; padding: 4px; font-size: 0.95rem;">
+                    <input type="password" id="folder-password-input" placeholder="Введите пароль..."
+                        style="padding-right: 40px;" onkeydown="if(event.key==='Enter') submitPasswordModal(true)">
+                    <button type="button" onclick="togglePasswordVisibility('folder-password-input', this)"
+                        style="position: absolute; right: 10px; background: none; border: none; color: var(--docs-text-muted); cursor: pointer; padding: 4px; font-size: 0.95rem;">
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
             </div>
             <div class="modal-actions" style="justify-content: center; gap: 0.75rem; margin-top: 1.25rem;">
                 <button class="btn-cancel" onclick="submitPasswordModal(false)">Отмена</button>
-                <button class="btn-action" onclick="submitPasswordModal(true)" style="background: #ef4444; color: #fff;">
+                <button class="btn-action" onclick="submitPasswordModal(true)"
+                    style="background: #ef4444; color: #fff;">
                     <i class="fas fa-key"></i> Подтвердить
                 </button>
             </div>
@@ -1841,21 +1976,25 @@
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
                     <i class="fas fa-clock-rotate-left" style="color: #2563eb;"></i> <span>История версий и архив</span>
                 </h3>
-                <button onclick="closeVersionsModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
+                <button onclick="closeVersionsModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 4px;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <p style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <p
+                style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 Документ: <strong style="color: var(--docs-text-primary);" id="versions-modal-doc-title"></strong>
             </p>
 
-            <div id="versions-list-container" style="max-height: 380px; overflow-y: auto; border: 1px solid var(--docs-panel-border); border-radius: 8px; margin-bottom: 1rem;">
+            <div id="versions-list-container"
+                style="max-height: 380px; overflow-y: auto; border: 1px solid var(--docs-panel-border); border-radius: 8px; margin-bottom: 1rem;">
                 <!-- Список версий загружается динамически -->
             </div>
 
             <div class="modal-actions" style="justify-content: space-between;">
-                <button class="btn-action" onclick="openSaveVersionModalFromHistory()" style="background: #10b981; color: #fff;">
+                <button class="btn-action" onclick="openSaveVersionModalFromHistory()"
+                    style="background: #10b981; color: #fff;">
                     <i class="fas fa-file-arrow-up"></i> Загрузить новую версию
                 </button>
                 <button class="btn-cancel" onclick="closeVersionsModal()">Закрыть</button>
@@ -1870,35 +2009,41 @@
                 <h3 style="margin: 0; display: flex; align-items: center; gap: 0.6rem; font-size: 1.2rem;">
                     <i class="fas fa-file-arrow-up" style="color: #10b981;"></i> <span>Загрузить новую версию</span>
                 </h3>
-                <button onclick="closeSaveVersionModal()" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
+                <button onclick="closeSaveVersionModal()"
+                    style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem;">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <p style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <p
+                style="font-size: 0.88rem; color: var(--docs-text-secondary); margin-bottom: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 Обновление: <strong style="color: var(--docs-text-primary);" id="save-version-doc-title"></strong>
             </p>
 
             <div class="form-group">
                 <label>Выберите обновленный файл (Word / Excel / PDF)</label>
-                <input type="file" id="version-file-input" style="padding: 0.4rem; border: 1px dashed var(--docs-input-border); border-radius: 8px; width: 100%;">
+                <input type="file" id="version-file-input"
+                    style="padding: 0.4rem; border: 1px dashed var(--docs-input-border); border-radius: 8px; width: 100%;">
             </div>
 
             <div class="form-group">
                 <label>Кто вносит изменения (Сотрудник из Планнера)</label>
-                <select id="version-employee-select" style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--docs-input-border); background: var(--docs-input-bg); color: var(--docs-input-color); font-family: inherit;">
+                <select id="version-employee-select"
+                    style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--docs-input-border); background: var(--docs-input-bg); color: var(--docs-input-color); font-family: inherit;">
                     <option value="">-- Выберите сотрудника --</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label>Комментарий к правкам (что изменилось?)</label>
-                <input type="text" id="version-comment-input" placeholder="Например: Обновлены нормативы расхода цемента">
+                <input type="text" id="version-comment-input"
+                    placeholder="Например: Обновлены нормативы расхода цемента">
             </div>
 
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeSaveVersionModal()">Отмена</button>
-                <button class="btn-action" id="btn-submit-save-version" onclick="submitSaveNewVersion()" style="background: #10b981; color: #fff;">
+                <button class="btn-action" id="btn-submit-save-version" onclick="submitSaveNewVersion()"
+                    style="background: #10b981; color: #fff;">
                     <i class="fas fa-check"></i> Сохранить версию
                 </button>
             </div>
@@ -1907,36 +2052,57 @@
 
     <!-- Модальное окно: Полноценный онлайн просмотр PDF регламентов и документов -->
     <div id="doc-preview-modal" class="modal" style="z-index: 10000;">
-        <div class="modal-content" style="max-width: 1200px; width: 96vw; height: 94vh; display: flex; flex-direction: column; padding: 1rem 1.2rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.7rem; border-bottom: 1px solid var(--docs-panel-border); min-height: 42px;">
-                <div style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 68%;">
-                    <button onclick="closeDocPreviewModal()" class="btn-action" style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.35rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;" title="Назад к списку документов">
+        <div class="modal-content"
+            style="max-width: 1200px; width: 96vw; height: 94vh; display: flex; flex-direction: column; padding: 1rem 1.2rem;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.7rem; border-bottom: 1px solid var(--docs-panel-border); min-height: 42px;">
+                <div
+                    style="display: flex; align-items: center; gap: 0.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 68%;">
+                    <button onclick="closeDocPreviewModal()" class="btn-action"
+                        style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.35rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px;"
+                        title="Назад к списку документов">
                         <i class="fas fa-chevron-left"></i> <span style="font-weight: 600;">Назад</span>
                     </button>
-                    <i class="fas fa-file-pdf" id="preview-modal-icon" style="color: #ef4444; font-size: 1.2rem; flex-shrink: 0;"></i>
-                    <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="preview-modal-title">Просмотр документа</h3>
+                    <i class="fas fa-file-pdf" id="preview-modal-icon"
+                        style="color: #ef4444; font-size: 1.2rem; flex-shrink: 0;"></i>
+                    <h3 style="margin: 0; font-size: 1.05rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                        id="preview-modal-title">Просмотр документа</h3>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <button id="preview-modal-newtab-btn" class="btn-action" style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.35rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px;" title="Открыть во весь экран в новой вкладке">
-                        <i class="fas fa-arrow-up-right-from-square"></i> <span class="hide-on-mobile">Во весь экран</span>
+                    <button id="preview-modal-newtab-btn" class="btn-action"
+                        style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 0.35rem 0.65rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px;"
+                        title="Открыть во весь экран в новой вкладке">
+                        <i class="fas fa-arrow-up-right-from-square"></i> <span class="hide-on-mobile">Во весь
+                            экран</span>
                     </button>
-                    <button onclick="closeDocPreviewModal()" style="background: rgba(241, 245, 249, 0.8); border: 1px solid #cbd5e1; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 1.2rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;" title="Закрыть (Esc)">
+                    <button onclick="closeDocPreviewModal()"
+                        style="background: rgba(241, 245, 249, 0.8); border: 1px solid #cbd5e1; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 1.2rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; line-height: 1;"
+                        title="Закрыть (Esc)">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
-            
-            <div class="preview-modal-body" style="display: flex; flex: 1; margin-top: 0.7rem; min-height: 0; overflow: hidden;">
+
+            <div class="preview-modal-body"
+                style="display: flex; flex: 1; margin-top: 0.7rem; min-height: 0; overflow: hidden;">
                 <!-- Main Preview Frame: full width & height -->
-                <div style="flex: 1; width: 100%; position: relative; border-radius: 8px; overflow: hidden; background: #525659; border: 1px solid var(--docs-panel-border); min-height: 0;">
-                    <iframe id="preview-modal-iframe" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
-                    <div id="preview-modal-fallback" style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; background: #f8fafc;">
-                        <i class="fas fa-file-pdf" id="preview-fallback-icon" style="font-size: 4.5rem; color: #ef4444; margin-bottom: 1.2rem;"></i>
-                        <h4 id="preview-fallback-filename" style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл документа</h4>
-                        <p style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem; font-size: 0.95rem;">
+                <div
+                    style="flex: 1; width: 100%; position: relative; border-radius: 8px; overflow: hidden; background: #525659; border: 1px solid var(--docs-panel-border); min-height: 0;">
+                    <iframe id="preview-modal-iframe" src=""
+                        style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                    <div id="preview-modal-fallback"
+                        style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; background: #f8fafc;">
+                        <i class="fas fa-file-pdf" id="preview-fallback-icon"
+                            style="font-size: 4.5rem; color: #ef4444; margin-bottom: 1.2rem;"></i>
+                        <h4 id="preview-fallback-filename"
+                            style="margin-bottom: 0.5rem; font-size: 1.2rem; color: var(--docs-text-primary);">Файл
+                            документа</h4>
+                        <p
+                            style="color: var(--docs-text-secondary); max-width: 480px; margin-bottom: 1.5rem; font-size: 0.95rem;">
                             Нажмите кнопку ниже, чтобы открыть PDF-документ на весь экран на вашем устройстве.
                         </p>
-                        <a id="preview-fallback-download-link" href="#" target="_blank" class="btn-action" style="background: #2563eb; color: #fff; padding: 0.75rem 1.6rem; font-size: 1rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.6rem;">
+                        <a id="preview-fallback-download-link" href="#" target="_blank" class="btn-action"
+                            style="background: #2563eb; color: #fff; padding: 0.75rem 1.6rem; font-size: 1rem; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.6rem;">
                             <i class="fas fa-arrow-up-right-from-square"></i> Открыть PDF
                         </a>
                     </div>
@@ -1948,7 +2114,8 @@
     <!-- Модальное окно сквозной PIN-авторизации сотрудника -->
     <div id="docs-pin-modal" class="modal" style="z-index: 10050;">
         <div class="modal-content" style="max-width: 400px; padding: 1.5rem; text-align: center;">
-            <div style="width: 52px; height: 52px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.8rem;">
+            <div
+                style="width: 52px; height: 52px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.8rem;">
                 <i class="fa-solid fa-id-card-clip"></i>
             </div>
             <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.25rem;">Вход сотрудника</h3>
@@ -1957,20 +2124,28 @@
             </p>
 
             <div class="form-group" style="text-align: left; margin-bottom: 1rem;">
-                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">Сотрудник</label>
-                <select id="docs-pin-user-select" onchange="onDocsPinUserSelectChanged()" style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem; background: #fff;">
+                <label
+                    style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">Сотрудник</label>
+                <select id="docs-pin-user-select" onchange="onDocsPinUserSelectChanged()"
+                    style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem; background: #fff;">
                     <option value="">-- Выберите сотрудника --</option>
                 </select>
             </div>
 
             <div class="form-group" id="docs-pin-input-group" style="text-align: left; margin-bottom: 1.4rem;">
-                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">4-значный PIN-код</label>
-                <input type="password" id="docs-pin-input" maxlength="4" placeholder="••••" style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1.2rem; letter-spacing: 0.35rem; text-align: center; background: #fff;" onkeydown="if(event.key==='Enter') submitDocsPinAuth()">
+                <label
+                    style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">4-значный
+                    PIN-код</label>
+                <input type="password" id="docs-pin-input" maxlength="4" placeholder="••••"
+                    style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1.2rem; letter-spacing: 0.35rem; text-align: center; background: #fff;"
+                    onkeydown="if(event.key==='Enter') submitDocsPinAuth()">
             </div>
 
             <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-                <button class="btn-cancel" onclick="closeDocsPinModal()" style="flex: 1; min-height: 42px;">Отмена</button>
-                <button class="btn-action" onclick="submitDocsPinAuth()" style="flex: 1.2; min-height: 42px; background: #2563eb; color: #fff; justify-content: center;">
+                <button class="btn-cancel" onclick="closeDocsPinModal()"
+                    style="flex: 1; min-height: 42px;">Отмена</button>
+                <button class="btn-action" onclick="submitDocsPinAuth()"
+                    style="flex: 1.2; min-height: 42px; background: #2563eb; color: #fff; justify-content: center;">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i> Войти
                 </button>
             </div>
@@ -1994,40 +2169,56 @@
     </div>
 
     <!-- Плавающий постоянный монитор операций (Загрузка / Удаление / Синхронизация в реальном времени) -->
-    <div id="upload-progress-widget" style="display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; background: var(--docs-panel-bg, #1e293b); border: 1px solid var(--docs-panel-border, #334155); border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,0.45); padding: 1rem 1.3rem; width: 380px; max-width: 92vw; backdrop-filter: blur(16px); color: var(--docs-text-primary, #fff); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+    <div id="upload-progress-widget"
+        style="display: none; position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; background: var(--docs-panel-bg, #1e293b); border: 1px solid var(--docs-panel-border, #334155); border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,0.45); padding: 1rem 1.3rem; width: 380px; max-width: 92vw; backdrop-filter: blur(16px); color: var(--docs-text-primary, #fff); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
             <div style="display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem;">
-                <i class="fas fa-spinner fa-spin" id="upload-widget-icon" style="color: #3b82f6; font-size: 1.1rem;"></i>
+                <i class="fas fa-spinner fa-spin" id="upload-widget-icon"
+                    style="color: #3b82f6; font-size: 1.1rem;"></i>
                 <span id="upload-widget-title">Операция...</span>
             </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span id="upload-widget-counter" style="font-size: 0.82rem; font-weight: 700; color: #3b82f6; background: rgba(59, 130, 246, 0.15); padding: 0.2rem 0.6rem; border-radius: 20px;">0 / 0</span>
-                <button onclick="toggleWidgetDetails()" id="upload-widget-toggle-btn" style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;" title="Подробнее">
+                <span id="upload-widget-counter"
+                    style="font-size: 0.82rem; font-weight: 700; color: #3b82f6; background: rgba(59, 130, 246, 0.15); padding: 0.2rem 0.6rem; border-radius: 20px;">0
+                    / 0</span>
+                <button onclick="toggleWidgetDetails()" id="upload-widget-toggle-btn"
+                    style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;"
+                    title="Подробнее">
                     <i class="fas fa-chevron-down" id="upload-widget-chevron"></i>
                 </button>
-                <button onclick="closeWidget()" style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;" title="Закрыть">
+                <button onclick="closeWidget()"
+                    style="background: none; border: none; color: var(--docs-text-secondary, #94a3b8); cursor: pointer; padding: 2px 4px; font-size: 0.85rem;"
+                    title="Закрыть">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
-        <div style="font-size: 0.82rem; color: var(--docs-text-secondary, #94a3b8); margin-bottom: 0.2rem; display: flex; justify-content: space-between; gap: 0.5rem;">
-            <span id="upload-widget-target-folder" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: #38bdf8;">Папка: Главная</span>
+        <div
+            style="font-size: 0.82rem; color: var(--docs-text-secondary, #94a3b8); margin-bottom: 0.2rem; display: flex; justify-content: space-between; gap: 0.5rem;">
+            <span id="upload-widget-target-folder"
+                style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; color: #38bdf8;">Папка:
+                Главная</span>
             <span id="upload-widget-speed" style="font-weight: 600;">0%</span>
         </div>
-        <div style="font-size: 0.8rem; color: var(--docs-text-primary, #fff); margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;" id="upload-widget-filename">
+        <div style="font-size: 0.8rem; color: var(--docs-text-primary, #fff); margin-bottom: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace;"
+            id="upload-widget-filename">
             Подготовка...
         </div>
-        <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 0.3rem;">
-            <div id="upload-widget-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); border-radius: 4px; transition: width 0.25s ease;"></div>
+        <div
+            style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 0.3rem;">
+            <div id="upload-widget-bar"
+                style="width: 0%; height: 100%; background: linear-gradient(90deg, #3b82f6, #10b981); border-radius: 4px; transition: width 0.25s ease;">
+            </div>
         </div>
-        
+
         <!-- Разворачиваемый лог операций в реальном времени -->
-        <div id="upload-widget-log-container" style="display: none; margin-top: 0.8rem; border-top: 1px solid var(--docs-panel-border, #334155); padding-top: 0.6rem; max-height: 140px; overflow-y: auto; font-size: 0.75rem; font-family: monospace;">
+        <div id="upload-widget-log-container"
+            style="display: none; margin-top: 0.8rem; border-top: 1px solid var(--docs-panel-border, #334155); padding-top: 0.6rem; max-height: 140px; overflow-y: auto; font-size: 0.75rem; font-family: monospace;">
             <div id="upload-widget-log-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
         </div>
     </div>
 
-    <script src="/static/js/network_guard.js?v=20260907_netguard_v2"></script>
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v3"></script>
     <script>
         let currentFolderId = null;
         let parentFolderIdHistory = [];
@@ -2044,7 +2235,7 @@
             const sidebar = document.getElementById('docs-sidebar');
             const backdrop = document.getElementById('docs-sidebar-backdrop');
             if (!sidebar || !backdrop) return;
-            
+
             const isOpen = typeof forceState === 'boolean' ? forceState : !sidebar.classList.contains('open');
             if (isOpen) {
                 sidebar.classList.add('open');
@@ -2061,7 +2252,7 @@
             const sortVal = document.getElementById('docs-sort').value;
             let folders = [...currentFoldersData];
             let files = [...currentFilesData];
-            
+
             const sortBy = (arr, isFolder) => {
                 arr.sort((a, b) => {
                     if (sortVal === 'name_asc') {
@@ -2080,10 +2271,10 @@
                     return 0;
                 });
             };
-            
+
             sortBy(files, false);
             sortBy(folders, true);
-            
+
             const strictOrder = {
                 // Orange
                 "Должностные инструкции по всем сотрудникам": 0,
@@ -2101,7 +2292,7 @@
                 "Бережливое производство": 10,
                 "ОГМ": 11
             };
-            
+
             folders.sort((a, b) => {
                 const orderA = strictOrder.hasOwnProperty(a.name) ? strictOrder[a.name] : 999;
                 const orderB = strictOrder.hasOwnProperty(b.name) ? strictOrder[b.name] : 999;
@@ -2126,14 +2317,14 @@
 
             // 1. Таблицы (Excel, Google Sheets, CSV, TSV)
             if (
-                m.includes('spreadsheet') || 
-                m.includes('excel') || 
-                m.includes('calc') || 
+                m.includes('spreadsheet') ||
+                m.includes('excel') ||
+                m.includes('calc') ||
                 m.includes('csv') ||
-                url.includes('spreadsheets') || 
-                url.includes('excel') || 
-                name.endsWith('.xlsx') || 
-                name.endsWith('.xls') || 
+                url.includes('spreadsheets') ||
+                url.includes('excel') ||
+                name.endsWith('.xlsx') ||
+                name.endsWith('.xls') ||
                 name.endsWith('.csv') ||
                 name.endsWith('.xlsm') ||
                 name.endsWith('.ods') ||
@@ -2146,12 +2337,12 @@
 
             // 2. Документы / Тексты (Word, Google Docs, TXT, ODT)
             if (
-                m.includes('word') || 
-                m.includes('document') || 
+                m.includes('word') ||
+                m.includes('document') ||
                 url.includes('docs.google.com/document') ||
-                name.endsWith('.docx') || 
-                name.endsWith('.doc') || 
-                name.endsWith('.rtf') || 
+                name.endsWith('.docx') ||
+                name.endsWith('.doc') ||
+                name.endsWith('.rtf') ||
                 name.endsWith('.odt') ||
                 name.endsWith('.txt') ||
                 name.includes('документ') ||
@@ -2166,11 +2357,11 @@
 
             // 3. Презентации (PowerPoint, Google Slides)
             if (
-                m.includes('presentation') || 
-                m.includes('powerpoint') || 
+                m.includes('presentation') ||
+                m.includes('powerpoint') ||
                 url.includes('docs.google.com/presentation') ||
-                name.endsWith('.pptx') || 
-                name.endsWith('.ppt') || 
+                name.endsWith('.pptx') ||
+                name.endsWith('.ppt') ||
                 name.endsWith('.odp') ||
                 name.includes('презентац')
             ) {
@@ -2184,11 +2375,11 @@
 
             // 5. Изображения / Фото / Чертежи
             if (
-                m.includes('image') || 
-                name.endsWith('.png') || 
-                name.endsWith('.jpg') || 
-                name.endsWith('.jpeg') || 
-                name.endsWith('.svg') || 
+                m.includes('image') ||
+                name.endsWith('.png') ||
+                name.endsWith('.jpg') ||
+                name.endsWith('.jpeg') ||
+                name.endsWith('.svg') ||
                 name.endsWith('.webp') ||
                 name.endsWith('.bmp') ||
                 name.endsWith('.dwg')
@@ -2365,7 +2556,7 @@
             currentFolderProtected = isProtected;
             const container = document.getElementById('files-container');
             const cacheKey = searchQuery ? `search_${searchQuery}` : (folderId || 'root');
-            
+
             // Сохраняем текущую папку в URL hash для сохранения позиции при F5
             if (!searchQuery) {
                 if (folderId) {
@@ -2380,7 +2571,7 @@
                     sessionStorage.removeItem('last_docs_folder_protected');
                 }
             }
-            
+
             // Stale-While-Revalidate: If cached data exists and is under 60s old, show immediately
             if (docsCache.has(cacheKey) && !searchQuery) {
                 const cached = docsCache.get(cacheKey);
@@ -2406,7 +2597,7 @@
             } else {
                 container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка документов...</div>';
             }
-            
+
             try {
                 let url = '/api/documents/list';
                 const params = new URLSearchParams();
@@ -2418,10 +2609,10 @@
                 if (params.toString()) {
                     url += '?' + params.toString();
                 }
-                
+
                 const res = await fetch(url);
                 const data = await res.json();
-                
+
                 if (data.status === 'success' && data.data) {
                     if (addToHistory && currentFolderId !== folderId && !searchQuery) {
                         if (currentFolderId) {
@@ -2429,7 +2620,7 @@
                             folderNameHistory.push(document.getElementById('current-folder-name').innerText);
                         }
                     }
-                    
+
                     const foldersList = Array.isArray(data.data.folders) ? data.data.folders : [];
                     const filesList = Array.isArray(data.data.files) ? data.data.files : [];
 
@@ -2442,7 +2633,7 @@
                         });
                     }
                     document.getElementById('current-folder-name').innerText = folderName;
-                    
+
                     const btnBack = document.getElementById('btn-back');
                     if (parentFolderIdHistory.length > 0 && !searchQuery) {
                         btnBack.style.display = 'inline-flex';
@@ -2454,7 +2645,7 @@
                     currentFilesData = filesList;
                     applySort();
                     loadQuickAccessBar();
-                    
+
                 } else {
                     container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message || data.detail || 'Не удалось получить данные'}</div>`;
                 }
@@ -2485,7 +2676,7 @@
                     const files = data.data.files || [];
                     const sidebar = document.getElementById('sidebar-folders');
                     sidebar.innerHTML = '';
-                    
+
                     const folderMap = {};
                     const rootFolders = [];
                     const rootFiles = [];
@@ -2503,7 +2694,7 @@
                             rootFiles.push(f);
                         }
                     });
-                    
+
                     folders.forEach(f => {
                         if (f.parent_id && folderMap[f.parent_id]) {
                             folderMap[f.parent_id].children.push(f);
@@ -2511,7 +2702,7 @@
                             rootFolders.push(f);
                         }
                     });
-                    
+
                     rootFolders.forEach(root => {
                         sidebar.appendChild(renderTreeNode(root));
                     });
@@ -2528,27 +2719,27 @@
         function renderTreeFileNode(file) {
             const wrapper = document.createElement('div');
             wrapper.className = 'folder-item-wrapper';
-            
+
             const spacer = document.createElement('div');
             spacer.className = 'folder-tree-toggle';
             spacer.style.visibility = 'hidden';
-            
+
             const item = document.createElement('div');
             item.className = 'folder-item-tree';
-            
+
             const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
             const viewUrl = getWebViewLink(file);
             const lockIcon = file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
-            
+
             item.innerHTML = `<i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</span>${lockIcon}`;
-            
+
             item.onclick = (e) => {
                 if (window.innerWidth <= 900) {
                     toggleDocsSidebar(false);
                 }
                 openFileLink(viewUrl, file.is_protected, e);
             };
-            
+
             wrapper.appendChild(spacer);
             wrapper.appendChild(item);
             return wrapper;
@@ -2556,12 +2747,12 @@
 
         function renderTreeNode(folder) {
             const wrapper = document.createElement('div');
-            
+
             const header = document.createElement('div');
             header.className = 'folder-item-wrapper';
-            
+
             const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
-            
+
             const toggle = document.createElement('div');
             toggle.className = 'folder-tree-toggle';
             if (hasChildren) {
@@ -2570,25 +2761,25 @@
                 toggle.innerHTML = '';
                 toggle.style.visibility = 'hidden'; // Keeps exact spacing so all folders align in one straight column!
             }
-            
+
             const item = document.createElement('div');
             item.className = 'folder-item-tree';
-            
+
             const iconColor = getFolderColor(folder.name);
             const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
             item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span>${escapeHtml(folder.name)}</span>${lockIcon}`;
             if (currentFolderId === folder.id) {
                 item.classList.add('active');
             }
-            
+
             const childrenContainer = document.createElement('div');
             childrenContainer.className = 'folder-tree-node';
-            
+
             if (expandedFolders.has(folder.id)) {
                 childrenContainer.classList.add('expanded');
                 toggle.classList.add('expanded');
             }
-            
+
             toggle.onclick = (e) => {
                 e.stopPropagation();
                 if (hasChildren) {
@@ -2603,32 +2794,32 @@
                     }
                 }
             };
-            
+
             item.onclick = () => {
                 expandedFolders.add(folder.id);
                 parentFolderIdHistory = [];
                 folderNameHistory = [];
                 document.getElementById('search-input').value = '';
-                
+
                 document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 if (hasChildren) {
                     childrenContainer.classList.add('expanded');
                     toggle.classList.add('expanded');
                 }
-                
+
                 // On mobile, auto close sidebar when folder is selected
                 if (window.innerWidth <= 900) {
                     toggleDocsSidebar(false);
                 }
-                
+
                 loadDocuments(folder.id, folder.name, false, null, folder.is_protected);
             };
-            
+
             header.appendChild(toggle);
             header.appendChild(item);
             wrapper.appendChild(header);
-            
+
             if (folder.children && folder.children.length > 0) {
                 folder.children.forEach(child => {
                     childrenContainer.appendChild(renderTreeNode(child));
@@ -2644,7 +2835,7 @@
             if (hasChildren) {
                 wrapper.appendChild(childrenContainer);
             }
-            
+
             return wrapper;
         }
 
@@ -2729,7 +2920,7 @@
 
             let html = '';
             const closeBtnHtml = `<button class="context-menu-close-btn" onclick="hideContextMenu()"><i class="fas fa-times"></i></button>`;
-            
+
             if (isFolder) {
                 html = `
                     <div class="context-menu-header">
@@ -2814,8 +3005,8 @@
             e.stopPropagation();
             const rect = e.currentTarget.getBoundingClientRect();
             handleItemContextMenu({
-                preventDefault: () => {},
-                stopPropagation: () => {},
+                preventDefault: () => { },
+                stopPropagation: () => { },
                 currentTarget: e.currentTarget.closest('.docs-table-row'),
                 clientX: rect.left,
                 clientY: rect.bottom + 4
@@ -2909,7 +3100,7 @@
                     closeCreateDocModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     showToast('Google документ успешно создан');
-                    
+
                     if (data.file && data.file.webViewLink) {
                         window.open(data.file.webViewLink, '_blank');
                     }
@@ -2984,7 +3175,7 @@
             const container = document.getElementById('quick-access-container');
             const grid = document.getElementById('quick-access-grid');
             if (!container || !grid) return;
-            
+
             // Показываем блок быстрого доступа только в корневой директории
             if (currentFolderId) {
                 container.style.display = 'none';
@@ -3087,7 +3278,7 @@
                 const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
                 const typeName = getFileTypeName(file.name, file.mimeType, file.external_url || file.webViewLink);
                 const fileJson = escapeHtml(JSON.stringify(file));
-                
+
                 // Надежное извлечение числового ID документа из file.id ('file_495' или 495)
                 let rawDocId = null;
                 if (file.id) {
@@ -3099,7 +3290,7 @@
                 }
                 const isLocalFile = !file.external_url && rawDocId !== null;
                 const isOfficeDoc = isLocalFile && isOfficeDocument(file.name);
-                
+
                 // URL для просмотра/скачивания
                 let viewUrl = file.external_url;
                 if (!viewUrl && rawDocId !== null) {
@@ -3122,7 +3313,7 @@
 
                 // Автор / Создатель
                 const authorDisplay = file.created_by || file.last_modified_by || (isLocalFile ? 'Сотрудник' : 'Облако');
-                
+
                 // Дата изменения
                 let dateDisplay = '—';
                 if (file.uploaded_at) {
@@ -3133,7 +3324,7 @@
                         } else {
                             dateDisplay = file.uploaded_at;
                         }
-                    } catch(e) {
+                    } catch (e) {
                         dateDisplay = file.uploaded_at;
                     }
                 }
@@ -3249,7 +3440,7 @@
             if (params.toString()) delUrl += '?' + params.toString();
 
             try {
-                const res = await fetch(delUrl, { 
+                const res = await fetch(delUrl, {
                     method: 'DELETE',
                     headers: getFolderPasswordHeader()
                 });
@@ -3267,13 +3458,13 @@
             }
         }
 
-        function showFolderModal() { 
+        function showFolderModal() {
             hideContextMenu();
-            document.getElementById('folder-modal').style.display = 'flex'; 
+            document.getElementById('folder-modal').style.display = 'flex';
             setTimeout(() => document.getElementById('new-folder-name').focus(), 50);
         }
-        function closeFolderModal() { 
-            document.getElementById('folder-modal').style.display = 'none'; 
+        function closeFolderModal() {
+            document.getElementById('folder-modal').style.display = 'none';
             document.getElementById('new-folder-name').value = '';
         }
 
@@ -3283,7 +3474,7 @@
                 requiresPassword = true;
             }
             if (!await ensurePassword(requiresPassword)) return;
-            
+
             const name = document.getElementById('new-folder-name').value.trim();
             if (!name) return;
 
@@ -3300,13 +3491,13 @@
                     body: formData
                 });
                 const data = await res.json();
-                
+
                 if (data.status === 'success') {
                     docsCache.clear();
                     closeFolderModal();
                     loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
                     if (!currentFolderId) {
-                        loadDocuments(); 
+                        loadDocuments();
                     }
                     loadSidebarTree();
                     showToast('Папка создана');
@@ -3453,7 +3644,7 @@
         }
 
         // Глобальный перехват Ctrl+V для мгновенной вставки ссылок из буфера
-        window.addEventListener('paste', function(e) {
+        window.addEventListener('paste', function (e) {
             if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
                 return;
             }
@@ -3708,14 +3899,14 @@
                 }
 
                 const wrapper = document.createElement('div');
-                
+
                 const header = document.createElement('div');
                 header.className = 'move-folder-wrapper';
-                
+
                 const hasChildren = folder.children && folder.children.length > 0;
                 const isDisabled = disabledIds.has(folder.id);
                 const isSelected = moveSelectedFolderId === folder.id;
-                
+
                 const toggle = document.createElement('div');
                 toggle.className = 'move-tree-toggle';
                 if (hasChildren) {
@@ -3724,27 +3915,27 @@
                     toggle.innerHTML = '';
                     toggle.style.visibility = 'hidden';
                 }
-                
+
                 const item = document.createElement('div');
                 item.className = 'move-folder-item';
                 if (isSelected) item.classList.add('selected');
                 if (isDisabled) item.classList.add('disabled');
-                
+
                 const iconColor = getFolderColor(folder.name);
                 const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
                 const disabledText = isDisabled ? '<span style="margin-left: auto; font-size: 0.72rem; color: var(--docs-text-muted);">(текущая/вложенная)</span>' : '';
-                
+
                 item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 0.95rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(folder.name)}</span>${lockIcon}${disabledText}`;
-                
+
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'move-tree-node';
-                
+
                 const isExpanded = expandedMoveFolders.has(folder.id) || (cleanFilter.length > 0);
                 if (isExpanded) {
                     childrenContainer.classList.add('expanded');
                     toggle.classList.add('expanded');
                 }
-                
+
                 toggle.onclick = (e) => {
                     e.stopPropagation();
                     if (hasChildren) {
@@ -3759,7 +3950,7 @@
                         }
                     }
                 };
-                
+
                 item.onclick = (e) => {
                     if (isDisabled) return;
                     selectMoveTarget(folder.id, folder.name, item);
@@ -3769,11 +3960,11 @@
                         toggle.classList.add('expanded');
                     }
                 };
-                
+
                 header.appendChild(toggle);
                 header.appendChild(item);
                 wrapper.appendChild(header);
-                
+
                 if (hasChildren) {
                     folder.children.forEach(child => {
                         const childNode = renderMoveTreeNode(child);
@@ -3783,7 +3974,7 @@
                     });
                     wrapper.appendChild(childrenContainer);
                 }
-                
+
                 return wrapper;
             }
 
@@ -3818,10 +4009,10 @@
 
         async function submitMoveItem() {
             if (!moveTargetItemId) return;
-            
+
             const targetFolder = allMoveFoldersList.find(f => f.id === moveSelectedFolderId);
             const isTargetProtected = targetFolder ? targetFolder.is_protected : false;
-            
+
             if (moveTargetProtected || isTargetProtected || currentFolderProtected) {
                 if (!await ensurePassword(true)) return;
             }
@@ -3890,7 +4081,7 @@
                 } else if (data.employees && Array.isArray(data.employees)) {
                     rawList = data.employees;
                 }
-                
+
                 // Фильтрация системных отделов, служб и обобщенных мастеров
                 const stopWords = ['офис', 'мастер', 'огэ', 'огм', 'служба', 'цех', 'отдел', 'участок', 'скк', 'директор', 'технолог'];
                 plannerEmployeesList = rawList.filter(emp => {
@@ -3966,7 +4157,7 @@
                         currentDocsUser = { name: fallbackName, pin: "" };
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
             updateDocsUserBadge();
         }
 
@@ -4649,7 +4840,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             initTheme();
             initDocsUserSession();
-            
+
             // Восстановление позиции папки при обновлении страницы (F5)
             const hash = window.location.hash ? window.location.hash.substring(1) : null;
             const savedFolderId = hash || sessionStorage.getItem('last_docs_folder_id');
@@ -4691,4 +4882,5 @@
     </script>
     <script src="/static/js/version_guard.js"></script>
 </body>
+
 </html>

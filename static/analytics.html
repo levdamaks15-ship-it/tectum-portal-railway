@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,12 +15,14 @@
             max-width: 1600px;
             margin: 0 auto;
         }
+
         .header-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
         }
+
         .btn-nav {
             background: #f8fafc;
             border: 1px solid #cbd5e1;
@@ -34,8 +37,12 @@
             gap: 8px;
             font-weight: 600;
         }
-        .btn-nav:hover { background: #e2e8f0; color: #0f172a; }
-        
+
+        .btn-nav:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
         .filters-panel {
             background: #ffffff;
             border: 1px solid var(--glass-border);
@@ -45,9 +52,9 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
-        
+
         .preset-buttons {
             display: flex;
             gap: 0.5rem;
@@ -55,6 +62,7 @@
             margin-bottom: 1rem;
             grid-column: 1 / -1;
         }
+
         .preset-buttons button {
             background: #f8fafc;
             border: 1px solid #cbd5e1;
@@ -65,7 +73,9 @@
             transition: 0.2s;
             font-weight: 500;
         }
-        .preset-buttons button.active, .preset-buttons button:hover {
+
+        .preset-buttons button.active,
+        .preset-buttons button:hover {
             background: var(--primary-color);
             color: white;
             border-color: var(--primary-color);
@@ -77,20 +87,23 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
+
         .kpi-card {
             background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1.5rem;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
+
         .kpi-value {
             font-size: 2.5rem;
             font-weight: bold;
             color: var(--primary-color);
             margin: 0.5rem 0;
         }
+
         .kpi-trend {
             font-size: 0.9rem;
             display: flex;
@@ -98,9 +111,20 @@
             justify-content: center;
             gap: 5px;
         }
-        .trend-up { color: var(--danger-color); } /* For downtime, up is bad */
-        .trend-down { color: var(--success-color); } /* Down is good */
-        .trend-neutral { color: var(--text-secondary); }
+
+        .trend-up {
+            color: var(--danger-color);
+        }
+
+        /* For downtime, up is bad */
+        .trend-down {
+            color: var(--success-color);
+        }
+
+        /* Down is good */
+        .trend-neutral {
+            color: var(--text-secondary);
+        }
 
         .charts-row {
             display: grid;
@@ -108,14 +132,15 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
+
         .chart-card {
             background: #ffffff;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
-        
+
         /* Advanced Pivot Table Styles */
         .pivot-table-wrapper {
             background: #ffffff;
@@ -123,60 +148,85 @@
             border-radius: 12px;
             padding: 1.5rem;
             overflow-x: auto;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
+
         .pivot-table {
             width: 100%;
             border-collapse: collapse;
         }
-        .pivot-table th, .pivot-table td {
+
+        .pivot-table th,
+        .pivot-table td {
             padding: 1rem;
             text-align: left;
             border-bottom: 1px solid #e2e8f0;
             color: #1e293b;
         }
+
         .pivot-table th {
             font-weight: bold;
             color: #475569;
             cursor: pointer;
             background: #f8fafc;
         }
-        .pivot-table th:hover { color: #0f172a; }
+
+        .pivot-table th:hover {
+            color: #0f172a;
+        }
+
         .row-category {
             font-weight: bold;
             background: #f8fafc;
             cursor: pointer;
         }
+
         .row-node {
-            display: none; /* hidden by default */
+            display: none;
+            /* hidden by default */
         }
+
         .row-node td:first-child {
             padding-left: 3rem;
             color: #64748b;
         }
+
         .expanded .row-node {
             display: table-row;
         }
+
         .chevron {
             transition: transform 0.3s;
             display: inline-block;
             margin-right: 10px;
         }
+
         .expanded .chevron {
             transform: rotate(90deg);
         }
+
         .diff-col {
             font-size: 0.9em;
         }
-        
+
         .loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 1000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: white; font-size: 1.5rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.5rem;
         }
     </style>
 </head>
+
 <body>
     <script>
         fetch('/api/system/env').then(res => res.json()).then(data => {
@@ -211,7 +261,7 @@
                 <button data-preset="last_week">Прошлая неделя</button>
                 <button data-preset="this_month">Этот месяц</button>
             </div>
-            
+
             <div class="form-group">
                 <label>Период (С)</label>
                 <input type="date" id="filter-date-from">
@@ -285,7 +335,8 @@
         <div class="pivot-table-wrapper">
             <h3 style="margin-bottom: 1rem; display: flex; justify-content: space-between;">
                 Сводная таблица (Pivot)
-                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);">Сравнение с предыдущим аналогичным периодом</span>
+                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);">Сравнение с
+                    предыдущим аналогичным периодом</span>
             </h3>
             <table class="pivot-table" id="pivot-table">
                 <thead>
@@ -304,8 +355,9 @@
         </div>
     </div>
 
-    <script src="/static/js/network_guard.js?v=20260907_netguard_v2"></script>
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v3"></script>
     <script src="/static/js/analytics.js?v=1"></script>
     <script src="/static/js/version_guard.js"></script>
 </body>
+
 </html>

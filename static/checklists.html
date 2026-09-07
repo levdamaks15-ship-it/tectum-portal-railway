@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,7 +9,9 @@
     <link rel="stylesheet" href="/static/css/style.css?v=20260907_calendar_time_v1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --cl-primary: #C82323;
@@ -22,7 +25,7 @@
             --cl-text: #0f172a;
             --cl-subtext: #64748b;
         }
-        
+
         [data-theme="dark"] {
             --cl-bg: #0f172a;
             --cl-card: #1e293b;
@@ -62,7 +65,7 @@
             border: 1px solid var(--cl-border);
             border-radius: 14px;
             margin-bottom: 1rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
             flex-wrap: wrap;
             gap: 10px;
         }
@@ -104,7 +107,7 @@
         .cl-tab-btn.active {
             background: var(--cl-primary);
             color: white;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
         }
 
         .template-selector-grid {
@@ -134,12 +137,12 @@
         .template-card:hover {
             border-color: var(--cl-primary);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(37,99,235,0.1);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.1);
         }
 
         .template-card.selected {
             border-color: var(--cl-primary);
-            background: rgba(37,99,235,0.04);
+            background: rgba(37, 99, 235, 0.04);
         }
 
         .template-badge {
@@ -148,7 +151,7 @@
             border-radius: 6px;
             font-size: 0.72rem;
             font-weight: 700;
-            background: rgba(37,99,235,0.1);
+            background: rgba(37, 99, 235, 0.1);
             color: var(--cl-primary);
             margin-bottom: 6px;
         }
@@ -159,7 +162,7 @@
             border-radius: 14px;
             padding: 1.2rem;
             margin-bottom: 1.5rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
             box-sizing: border-box;
             width: 100%;
         }
@@ -322,7 +325,7 @@
             border: none;
             border-radius: 12px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(37,99,235,0.3);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
             transition: all 0.2s;
             display: flex;
             align-items: center;
@@ -348,7 +351,7 @@
             border-radius: 16px;
             padding: 1.2rem;
             margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
 
         .history-header {
@@ -376,595 +379,640 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @media (max-width: 600px) {
-            .cl-container { padding: 0.6rem; }
-            .meta-grid { grid-template-columns: 1fr; }
-            .check-item-header { flex-direction: column; align-items: flex-start; }
-            .status-toggle-btn-group { width: 100%; margin-top: 8px; }
-            .status-btn { flex: 1; justify-content: center; }
+            .cl-container {
+                padding: 0.6rem;
+            }
+
+            .meta-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .check-item-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .status-toggle-btn-group {
+                width: 100%;
+                margin-top: 8px;
+            }
+
+            .status-btn {
+                flex: 1;
+                justify-content: center;
+            }
         }
     </style>
 </head>
+
 <body>
 
-<div class="cl-container">
-    <!-- Header -->
-    <header class="cl-header">
-        <div class="cl-header-logo">
-            <a href="/" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit;">
-                <img src="/static/img/Logo.png" alt="Logo" style="height: 38px;">
-                <div>
-                    <div style="font-weight: 800; font-size: 1.1rem; letter-spacing: 0.5px;">TECTUM</div>
-                    <div style="font-size: 0.75rem; color: var(--cl-subtext); font-weight: 600;">КАБИНЕТ ЧЕК-ЛИСТОВ</div>
-                </div>
-            </a>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-            <a href="/" class="status-btn" style="text-decoration: none; padding: 8px 12px; font-size: 0.85rem;">
-                🏠 На портал
-            </a>
-        </div>
-    </header>
+    <div class="cl-container">
+        <!-- Header -->
+        <header class="cl-header">
+            <div class="cl-header-logo">
+                <a href="/"
+                    style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit;">
+                    <img src="/static/img/Logo.png" alt="Logo" style="height: 38px;">
+                    <div>
+                        <div style="font-weight: 800; font-size: 1.1rem; letter-spacing: 0.5px;">TECTUM</div>
+                        <div style="font-size: 0.75rem; color: var(--cl-subtext); font-weight: 600;">КАБИНЕТ ЧЕК-ЛИСТОВ
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <a href="/" class="status-btn" style="text-decoration: none; padding: 8px 12px; font-size: 0.85rem;">
+                    🏠 На портал
+                </a>
+            </div>
+        </header>
 
-    <!-- Navigation Tabs -->
-    <div class="cl-nav-tabs">
-        <a href="#fill" class="cl-tab-btn active" id="cl-tab-btn-fill" onclick="switchClTab('fill', event)">✍️ Заполнить чек-лист</a>
-        <a href="#journal" class="cl-tab-btn" id="cl-tab-btn-journal" onclick="switchClTab('journal', event)">📋 Журнал сдачи</a>
-        <button type="button" class="cl-tab-btn" onclick="openGoogleSheet()">📊 Открыть Google Таблицу</button>
+        <!-- Navigation Tabs -->
+        <div class="cl-nav-tabs">
+            <a href="#fill" class="cl-tab-btn active" id="cl-tab-btn-fill" onclick="switchClTab('fill', event)">✍️
+                Заполнить чек-лист</a>
+            <a href="#journal" class="cl-tab-btn" id="cl-tab-btn-journal" onclick="switchClTab('journal', event)">📋
+                Журнал сдачи</a>
+            <button type="button" class="cl-tab-btn" onclick="openGoogleSheet()">📊 Открыть Google Таблицу</button>
+        </div>
+
+        <!-- TAB 1: Fill Form -->
+        <div id="tab-fill-content">
+            <!-- Template Picker -->
+            <div style="margin-bottom: 0.8rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
+                ВЫБЕРИТЕ ТИП ЧЕК-ЛИСТА:
+            </div>
+            <div class="template-selector-grid" id="template-cards-container">
+                <!-- Rendered by JS -->
+            </div>
+
+            <!-- Form Panel -->
+            <div class="form-panel" id="checklist-form-panel">
+                <div style="margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 id="active-template-title" style="margin: 0; font-size: 1.25rem;">Чек-лист мастера смены
+                        </h2>
+                        <p id="active-template-sub"
+                            style="margin: 4px 0 0; color: var(--cl-subtext); font-size: 0.85rem;">Проверка состояния
+                            оборудования</p>
+                    </div>
+                    <div id="duty-shift-badge"
+                        style="background: rgba(37,99,235,0.1); color: var(--cl-primary); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">
+                        Загрузка смены...
+                    </div>
+                </div>
+
+                <!-- Parameters Grid -->
+                <div class="meta-grid">
+                    <div class="form-group">
+                        <label>1. Дата</label>
+                        <input type="text" id="cl-date" class="form-control" readonly
+                            style="opacity: 0.85; background: var(--cl-card);">
+                    </div>
+                    <div class="form-group">
+                        <label>2. Смена (Время)</label>
+                        <select id="cl-shift-name" class="form-control" onchange="onShiftChange()"
+                            style="font-weight: 700; border-color: var(--cl-primary);">
+                            <option value="День">☀️ День (08:00 – 19:00)</option>
+                            <option value="Ночь">🌙 Ночь (19:00 – 08:00)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>3. Дежурная бригада</label>
+                        <select id="cl-shift-group" class="form-control" disabled
+                            style="opacity: 0.85; background: var(--cl-card);">
+                            <option value="1-я смена">1-я смена</option>
+                            <option value="2-я смена">2-я смена</option>
+                            <option value="3-я смена">3-я смена</option>
+                            <option value="4-я смена">4-я смена</option>
+                            <option value="Котельная">Котельная</option>
+                            <option value="Дневной персонал">Дневной персонал</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="dept-form-group">
+                        <label>4. Производственный участок</label>
+                        <select id="cl-department" class="form-control" onchange="onDepartmentChange()">
+                            <!-- Loaded based on active template & factory areas -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="inspector-label-text">5. Принимающий смену</label>
+                        <select id="cl-inspector-name" class="form-control" onchange="onInspectorChange()">
+                            <!-- Loaded from API -->
+                        </select>
+                    </div>
+                    <div class="form-group" id="submitter-form-group">
+                        <label id="submitter-label-text">6. Сдающий смену</label>
+                        <select id="cl-submitter-name" class="form-control">
+                            <!-- Loaded from API -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Checklist Items -->
+                <div style="margin-bottom: 1rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
+                    ПУНКТЫ ПРОВЕРКИ И СОСТОЯНИЕ РАБОЧИХ МЕСТ:
+                </div>
+                <div id="checklist-items-container">
+                    <!-- Injected items -->
+                </div>
+
+                <!-- Overall Notes -->
+                <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                    <label>Общие примечания / Выявленные замечания за смену</label>
+                    <textarea id="cl-overall-notes" class="form-control" rows="3"
+                        placeholder="Укажите дополнительные замечания или важные детали смены..."></textarea>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="cl-submit-btn" class="submit-btn" onclick="submitChecklist()">
+                    <span>💾 Сохранить и передать в отчет</span>
+                </button>
+                <div id="cl-submit-status"
+                    style="margin-top: 10px; text-align: center; font-weight: 600; display: none;"></div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Journal -->
+        <div id="tab-journal-content" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Журнал сданных чек-листов</h3>
+                <button onclick="loadChecklistJournal()" class="status-btn"
+                    style="padding: 6px 12px; font-size: 0.85rem;">🔄 Обновить</button>
+            </div>
+            <div id="journal-list-container">
+                <div style="text-align: center; color: var(--cl-subtext); padding: 2rem;">Загрузка истории...</div>
+            </div>
+        </div>
     </div>
 
-    <!-- TAB 1: Fill Form -->
-    <div id="tab-fill-content">
-        <!-- Template Picker -->
-        <div style="margin-bottom: 0.8rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
-            ВЫБЕРИТЕ ТИП ЧЕК-ЛИСТА:
+    <!-- Universal Notification Modal (как на портале) -->
+    <div id="universal-notification-overlay" class="modal-overlay-fade"
+        style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; backdrop-filter: blur(4px);">
+    </div>
+    <div id="universal-notification-modal" class="modal-centered"
+        style="display:none; z-index: 9999; width: 90%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); background: var(--cl-card); padding: 2.5rem 2rem; text-align: center; border: 1px solid var(--cl-border); border-radius: 16px;">
+        <div id="unm-icon"
+            style="width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; transition: all 0.3s ease;">
+            <span id="unm-icon-text" style="font-size: 2.8rem; line-height: 1;"></span>
         </div>
-        <div class="template-selector-grid" id="template-cards-container">
-            <!-- Rendered by JS -->
-        </div>
-
-        <!-- Form Panel -->
-        <div class="form-panel" id="checklist-form-panel">
-            <div style="margin-bottom: 1.2rem; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h2 id="active-template-title" style="margin: 0; font-size: 1.25rem;">Чек-лист мастера смены</h2>
-                    <p id="active-template-sub" style="margin: 4px 0 0; color: var(--cl-subtext); font-size: 0.85rem;">Проверка состояния оборудования</p>
-                </div>
-                <div id="duty-shift-badge" style="background: rgba(37,99,235,0.1); color: var(--cl-primary); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 0.85rem;">
-                    Загрузка смены...
-                </div>
-            </div>
-
-            <!-- Parameters Grid -->
-            <div class="meta-grid">
-                <div class="form-group">
-                    <label>1. Дата</label>
-                    <input type="text" id="cl-date" class="form-control" readonly style="opacity: 0.85; background: var(--cl-card);">
-                </div>
-                <div class="form-group">
-                    <label>2. Смена (Время)</label>
-                    <select id="cl-shift-name" class="form-control" onchange="onShiftChange()" style="font-weight: 700; border-color: var(--cl-primary);">
-                        <option value="День">☀️ День (08:00 – 19:00)</option>
-                        <option value="Ночь">🌙 Ночь (19:00 – 08:00)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>3. Дежурная бригада</label>
-                    <select id="cl-shift-group" class="form-control" disabled style="opacity: 0.85; background: var(--cl-card);">
-                        <option value="1-я смена">1-я смена</option>
-                        <option value="2-я смена">2-я смена</option>
-                        <option value="3-я смена">3-я смена</option>
-                        <option value="4-я смена">4-я смена</option>
-                        <option value="Котельная">Котельная</option>
-                        <option value="Дневной персонал">Дневной персонал</option>
-                    </select>
-                </div>
-                <div class="form-group" id="dept-form-group">
-                    <label>4. Производственный участок</label>
-                    <select id="cl-department" class="form-control" onchange="onDepartmentChange()">
-                        <!-- Loaded based on active template & factory areas -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label id="inspector-label-text">5. Принимающий смену</label>
-                    <select id="cl-inspector-name" class="form-control" onchange="onInspectorChange()">
-                        <!-- Loaded from API -->
-                    </select>
-                </div>
-                <div class="form-group" id="submitter-form-group">
-                    <label id="submitter-label-text">6. Сдающий смену</label>
-                    <select id="cl-submitter-name" class="form-control">
-                        <!-- Loaded from API -->
-                    </select>
-                </div>
-            </div>
-
-            <!-- Checklist Items -->
-            <div style="margin-bottom: 1rem; font-weight: 700; font-size: 0.95rem; color: var(--cl-subtext);">
-                ПУНКТЫ ПРОВЕРКИ И СОСТОЯНИЕ РАБОЧИХ МЕСТ:
-            </div>
-            <div id="checklist-items-container">
-                <!-- Injected items -->
-            </div>
-
-            <!-- Overall Notes -->
-            <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
-                <label>Общие примечания / Выявленные замечания за смену</label>
-                <textarea id="cl-overall-notes" class="form-control" rows="3" placeholder="Укажите дополнительные замечания или важные детали смены..."></textarea>
-            </div>
-
-            <!-- Submit Button -->
-            <button id="cl-submit-btn" class="submit-btn" onclick="submitChecklist()">
-                <span>💾 Сохранить и передать в отчет</span>
-            </button>
-            <div id="cl-submit-status" style="margin-top: 10px; text-align: center; font-weight: 600; display: none;"></div>
-        </div>
+        <h2 id="unm-title" style="margin-bottom: 0.8rem; color: var(--cl-text); font-size: 1.4rem;"></h2>
+        <p id="unm-message" style="color: var(--cl-subtext); margin-bottom: 1.8rem; font-size: 1rem; line-height: 1.5;">
+        </p>
+        <button onclick="closeUniversalNotification()" class="submit-btn" id="unm-btn"
+            style="font-size: 1.05rem; padding: 0.75rem 2.5rem; border-radius: 8px; width: auto; display: inline-block;">
+            ОК
+        </button>
     </div>
 
-    <!-- TAB 2: Journal -->
-    <div id="tab-journal-content" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="margin: 0;">Журнал сданных чек-листов</h3>
-            <button onclick="loadChecklistJournal()" class="status-btn" style="padding: 6px 12px; font-size: 0.85rem;">🔄 Обновить</button>
-        </div>
-        <div id="journal-list-container">
-            <div style="text-align: center; color: var(--cl-subtext); padding: 2rem;">Загрузка истории...</div>
-        </div>
-    </div>
-</div>
+    <script src="/static/js/network_guard.js?v=20260907_netguard_v3"></script>
+    <script>
+        let currentTemplates = [];
+        let activeTemplate = null;
+        let allEmployees = [];
+        let scheduleInfo = null;
 
-<!-- Universal Notification Modal (как на портале) -->
-<div id="universal-notification-overlay" class="modal-overlay-fade" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; backdrop-filter: blur(4px);"></div>
-<div id="universal-notification-modal" class="modal-centered" style="display:none; z-index: 9999; width: 90%; max-width: 420px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); background: var(--cl-card); padding: 2.5rem 2rem; text-align: center; border: 1px solid var(--cl-border); border-radius: 16px;">
-    <div id="unm-icon" style="width: 75px; height: 75px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; transition: all 0.3s ease;">
-        <span id="unm-icon-text" style="font-size: 2.8rem; line-height: 1;"></span>
-    </div>
-    <h2 id="unm-title" style="margin-bottom: 0.8rem; color: var(--cl-text); font-size: 1.4rem;"></h2>
-    <p id="unm-message" style="color: var(--cl-subtext); margin-bottom: 1.8rem; font-size: 1rem; line-height: 1.5;"></p>
-    <button onclick="closeUniversalNotification()" class="submit-btn" id="unm-btn" style="font-size: 1.05rem; padding: 0.75rem 2.5rem; border-radius: 8px; width: auto; display: inline-block;">
-        ОК
-    </button>
-</div>
+        const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/17AqmwqceblrAzlHfSztc80cmGJJ71B_godpYoK0QHrc/edit";
 
-<script src="/static/js/network_guard.js?v=20260907_netguard_v2"></script>
-<script>
-    let currentTemplates = [];
-    let activeTemplate = null;
-    let allEmployees = [];
-    let scheduleInfo = null;
-
-    const SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/17AqmwqceblrAzlHfSztc80cmGJJ71B_godpYoK0QHrc/edit";
-
-    function openGoogleSheet() {
-        window.open(SPREADSHEET_URL, '_blank');
-    }
-
-    function toggleTheme() {
-        const current = document.documentElement.getAttribute('data-theme');
-        const target = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', target);
-        localStorage.setItem('theme', target);
-    }
-
-    // Init Theme
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-
-    function showNotification(type, title, message) {
-        const modal = document.getElementById('universal-notification-modal');
-        const overlay = document.getElementById('universal-notification-overlay');
-        const iconContainer = document.getElementById('unm-icon');
-        const iconText = document.getElementById('unm-icon-text');
-        const titleEl = document.getElementById('unm-title');
-        const messageEl = document.getElementById('unm-message');
-        const btn = document.getElementById('unm-btn');
-
-        if (!modal || !overlay) {
-            alert(`${title}\n${message}`);
-            return;
+        function openGoogleSheet() {
+            window.open(SPREADSHEET_URL, '_blank');
         }
 
-        if (type === 'success') {
-            iconContainer.style.background = 'rgba(34, 197, 94, 0.15)';
-            iconContainer.style.border = '2px solid #22c55e';
-            iconText.style.color = '#22c55e';
-            iconText.innerHTML = '✓';
-            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-            btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
-        } else if (type === 'error') {
-            iconContainer.style.background = 'rgba(239, 68, 68, 0.15)';
-            iconContainer.style.border = '2px solid #ef4444';
-            iconText.style.color = '#ef4444';
-            iconText.innerHTML = '✕';
-            btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
-            btn.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.3)';
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const target = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', target);
+            localStorage.setItem('theme', target);
         }
 
-        titleEl.innerText = title;
-        messageEl.innerText = message;
+        // Init Theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
 
-        overlay.style.display = 'block';
-        modal.style.display = 'block';
-    }
+        function showNotification(type, title, message) {
+            const modal = document.getElementById('universal-notification-modal');
+            const overlay = document.getElementById('universal-notification-overlay');
+            const iconContainer = document.getElementById('unm-icon');
+            const iconText = document.getElementById('unm-icon-text');
+            const titleEl = document.getElementById('unm-title');
+            const messageEl = document.getElementById('unm-message');
+            const btn = document.getElementById('unm-btn');
 
-    function closeUniversalNotification() {
-        const overlay = document.getElementById('universal-notification-overlay');
-        const modal = document.getElementById('universal-notification-modal');
-        if (overlay) overlay.style.display = 'none';
-        if (modal) modal.style.display = 'none';
-    }
-
-    function switchClTab(tab, event) {
-        if (event) {
-            if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-                event.preventDefault();
-            } else {
+            if (!modal || !overlay) {
+                alert(`${title}\n${message}`);
                 return;
             }
-        }
-        if (window.location.hash !== `#${tab}`) {
-            history.replaceState(null, '', `#${tab}`);
-        }
-        document.querySelectorAll('.cl-tab-btn').forEach(btn => btn.classList.remove('active'));
-        if (tab === 'fill') {
-            const btn = document.getElementById('cl-tab-btn-fill') || document.querySelectorAll('.cl-tab-btn')[0];
-            if (btn) btn.classList.add('active');
-            document.getElementById('tab-fill-content').style.display = 'block';
-            document.getElementById('tab-journal-content').style.display = 'none';
-        } else if (tab === 'journal') {
-            const btn = document.getElementById('cl-tab-btn-journal') || document.querySelectorAll('.cl-tab-btn')[1];
-            if (btn) btn.classList.add('active');
-            document.getElementById('tab-fill-content').style.display = 'none';
-            document.getElementById('tab-journal-content').style.display = 'block';
-            loadChecklistJournal();
-        }
-    }
 
-    const FALLBACK_TEMPLATES = [
-        {
-            code: "master_shift",
-            title: "Чек-лист мастера смены",
-            subtitle: "Проверка состояния оборудования и рабочих мест перед началом смены",
-            department: "Цех ХЦИ",
-            has_submitter: true,
-            inspector_label: "Принимающий смену мастер",
-            submitter_label: "Сдающий смену мастер",
-            items: [
-                {index: 1, title: "Состояние прокладок", desc: "Целостность и износ прокладочного материала"},
-                {index: 2, title: "Подкрутка всех болтов и гаек на машине", desc: "Проверка затяжки ключевых узлов и креплений"},
-                {index: 3, title: "Проверка состояния бахромы", desc: "Состояние и очистка сукна / бахромы"},
-                {index: 4, title: "Наличие поддонов", desc: "Запас деревянных поддонов на линии и участках"},
-                {index: 5, title: "Все ли расходники в достатке", desc: "Наличие сырья, скотча, маркировочных материалов"},
-                {index: 6, title: "Таблички КВТ установлены правильно", desc: "Контроль визуализации и знаков безопасности"},
-                {index: 7, title: "Отсутствие засорения и забивки механизмов и деталей", desc: "Чистота направляющих, роликов, датчиков"},
-                {index: 8, title: "Порядок на рабочих местах", desc: "5S, отсутствие посторонних предметов и мусора"},
-                {index: 9, title: "Готовые пачки продукции вывезены со склада/участка", desc: "Своевременная передача на склад ГП"}
-            ]
-        },
-        {
-            code: "worker_shift_handover",
-            title: "Чек-лист приема-передачи смены (Рабочие)",
-            subtitle: "Ауысымды қабылдау-тапсыру чек-парағы / Состояние рабочего места",
-            department: "Сменный участок",
-            has_submitter: true,
-            inspector_label: "Принимающий / Қабылдаушы",
-            submitter_label: "Сдающий / Тапсырушы",
-            items: [
-                {index: 1, title: "Чистота рабочего места / Тазалық", desc: "Уборка зоны, отсутствие шлама, грязи и отходов"},
-                {index: 2, title: "Состояние инвентаря / Мүкәммал", desc: "Наличие и исправность лопат, щеток, емкостей"},
-                {index: 3, title: "Состояние инструмента / Құрал", desc: "Комплектность и исправность рабочего инструмента"},
-                {index: 4, title: "Оборудование и механизмы / Қондырғылар", desc: "Исправность узлов на позиции, отсутствие течей и шумов"},
-                {index: 5, title: "СИЗ и Безопасность / Қорғаныс құралдары", desc: "Применение спецодежды, касок, защитных очков"}
-            ]
-        },
-        {
-            code: "day_inspection",
-            title: "Чек-лист дневных сотрудников и инспекций",
-            subtitle: "Тексеру чек-парағы / Ежедневный контроль участка",
-            department: "ИТР / Дневные службы",
-            has_submitter: true,
-            inspector_label: "Проверяющий / Тексеруші",
-            submitter_label: "Ответственный сдающий / Тапсырушы",
-            items: [
-                {index: 1, title: "Чистота и порядок в цехе / Тазалық", desc: "Отсутствие захламления проходов и зон обслуживания"},
-                {index: 2, title: "Состояние инвентаря и оборудования / Мүкәммал", desc: "Техническое состояние закрепленных агрегатов"},
-                {index: 3, title: "Исправность инструмента / Құрал", desc: "Правильное хранение и безопасность использования"},
-                {index: 4, title: "Охрана труда и промбезопасность", desc: "Соблюдение регламентов и инструкций персоналом"}
-            ]
-        }
-    ];
+            if (type === 'success') {
+                iconContainer.style.background = 'rgba(34, 197, 94, 0.15)';
+                iconContainer.style.border = '2px solid #22c55e';
+                iconText.style.color = '#22c55e';
+                iconText.innerHTML = '✓';
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
+            } else if (type === 'error') {
+                iconContainer.style.background = 'rgba(239, 68, 68, 0.15)';
+                iconContainer.style.border = '2px solid #ef4444';
+                iconText.style.color = '#ef4444';
+                iconText.innerHTML = '✕';
+                btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                btn.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.3)';
+            }
 
-    async function initChecklistApp() {
-        currentTemplates = FALLBACK_TEMPLATES;
-        renderTemplateCards();
-        selectTemplate(currentTemplates[0].code);
+            titleEl.innerText = title;
+            messageEl.innerText = message;
 
-        const initialHash = window.location.hash ? window.location.hash.replace('#', '') : '';
-        if (initialHash === 'journal' || initialHash === 'fill') {
-            switchClTab(initialHash);
+            overlay.style.display = 'block';
+            modal.style.display = 'block';
         }
 
-        try {
-            const [schedRes, empRes, tplRes] = await Promise.allSettled([
-                fetch('/api/checklists/schedule/today').then(r => r.json()),
-                fetch('/api/checklists/employees').then(r => r.json()),
-                fetch('/api/checklists/templates').then(r => r.json())
-            ]);
+        function closeUniversalNotification() {
+            const overlay = document.getElementById('universal-notification-overlay');
+            const modal = document.getElementById('universal-notification-modal');
+            if (overlay) overlay.style.display = 'none';
+            if (modal) modal.style.display = 'none';
+        }
 
-            if (schedRes.status === 'fulfilled' && schedRes.value) {
-                scheduleInfo = schedRes.value;
-                document.getElementById('cl-date').value = scheduleInfo.date || '19.08.2026';
-                document.getElementById('cl-shift-name').value = scheduleInfo.shift_name || 'День';
-                
-                if (scheduleInfo.current_shift_group) {
-                    setShiftGroupValue(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group);
-                    const dutyBadge = document.getElementById('duty-shift-badge');
-                    if (dutyBadge) {
-                        dutyBadge.innerText = `Дежурит: ${getShiftPairDisplayName(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group)} (${scheduleInfo.shift_name})`;
-                    }
+        function switchClTab(tab, event) {
+            if (event) {
+                if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+                    event.preventDefault();
+                } else {
+                    return;
                 }
             }
-
-            if (empRes.status === 'fulfilled' && Array.isArray(empRes.value)) {
-                allEmployees = empRes.value;
+            if (window.location.hash !== `#${tab}`) {
+                history.replaceState(null, '', `#${tab}`);
             }
-
-            if (tplRes.status === 'fulfilled' && Array.isArray(tplRes.value) && tplRes.value.length > 0) {
-                currentTemplates = tplRes.value;
-                renderTemplateCards();
+            document.querySelectorAll('.cl-tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (tab === 'fill') {
+                const btn = document.getElementById('cl-tab-btn-fill') || document.querySelectorAll('.cl-tab-btn')[0];
+                if (btn) btn.classList.add('active');
+                document.getElementById('tab-fill-content').style.display = 'block';
+                document.getElementById('tab-journal-content').style.display = 'none';
+            } else if (tab === 'journal') {
+                const btn = document.getElementById('cl-tab-btn-journal') || document.querySelectorAll('.cl-tab-btn')[1];
+                if (btn) btn.classList.add('active');
+                document.getElementById('tab-fill-content').style.display = 'none';
+                document.getElementById('tab-journal-content').style.display = 'block';
+                loadChecklistJournal();
             }
-
-            if (activeTemplate) {
-                selectTemplate(activeTemplate.code);
-            } else if (currentTemplates.length > 0) {
-                selectTemplate(currentTemplates[0].code);
-            }
-        } catch (e) {
-            console.error('Error initializing checklists:', e);
         }
-    }
 
-    function renderTemplateCards() {
-        const container = document.getElementById('template-cards-container');
-        if (!container) return;
-        
-        container.innerHTML = currentTemplates.map(t => `
+        const FALLBACK_TEMPLATES = [
+            {
+                code: "master_shift",
+                title: "Чек-лист мастера смены",
+                subtitle: "Проверка состояния оборудования и рабочих мест перед началом смены",
+                department: "Цех ХЦИ",
+                has_submitter: true,
+                inspector_label: "Принимающий смену мастер",
+                submitter_label: "Сдающий смену мастер",
+                items: [
+                    { index: 1, title: "Состояние прокладок", desc: "Целостность и износ прокладочного материала" },
+                    { index: 2, title: "Подкрутка всех болтов и гаек на машине", desc: "Проверка затяжки ключевых узлов и креплений" },
+                    { index: 3, title: "Проверка состояния бахромы", desc: "Состояние и очистка сукна / бахромы" },
+                    { index: 4, title: "Наличие поддонов", desc: "Запас деревянных поддонов на линии и участках" },
+                    { index: 5, title: "Все ли расходники в достатке", desc: "Наличие сырья, скотча, маркировочных материалов" },
+                    { index: 6, title: "Таблички КВТ установлены правильно", desc: "Контроль визуализации и знаков безопасности" },
+                    { index: 7, title: "Отсутствие засорения и забивки механизмов и деталей", desc: "Чистота направляющих, роликов, датчиков" },
+                    { index: 8, title: "Порядок на рабочих местах", desc: "5S, отсутствие посторонних предметов и мусора" },
+                    { index: 9, title: "Готовые пачки продукции вывезены со склада/участка", desc: "Своевременная передача на склад ГП" }
+                ]
+            },
+            {
+                code: "worker_shift_handover",
+                title: "Чек-лист приема-передачи смены (Рабочие)",
+                subtitle: "Ауысымды қабылдау-тапсыру чек-парағы / Состояние рабочего места",
+                department: "Сменный участок",
+                has_submitter: true,
+                inspector_label: "Принимающий / Қабылдаушы",
+                submitter_label: "Сдающий / Тапсырушы",
+                items: [
+                    { index: 1, title: "Чистота рабочего места / Тазалық", desc: "Уборка зоны, отсутствие шлама, грязи и отходов" },
+                    { index: 2, title: "Состояние инвентаря / Мүкәммал", desc: "Наличие и исправность лопат, щеток, емкостей" },
+                    { index: 3, title: "Состояние инструмента / Құрал", desc: "Комплектность и исправность рабочего инструмента" },
+                    { index: 4, title: "Оборудование и механизмы / Қондырғылар", desc: "Исправность узлов на позиции, отсутствие течей и шумов" },
+                    { index: 5, title: "СИЗ и Безопасность / Қорғаныс құралдары", desc: "Применение спецодежды, касок, защитных очков" }
+                ]
+            },
+            {
+                code: "day_inspection",
+                title: "Чек-лист дневных сотрудников и инспекций",
+                subtitle: "Тексеру чек-парағы / Ежедневный контроль участка",
+                department: "ИТР / Дневные службы",
+                has_submitter: true,
+                inspector_label: "Проверяющий / Тексеруші",
+                submitter_label: "Ответственный сдающий / Тапсырушы",
+                items: [
+                    { index: 1, title: "Чистота и порядок в цехе / Тазалық", desc: "Отсутствие захламления проходов и зон обслуживания" },
+                    { index: 2, title: "Состояние инвентаря и оборудования / Мүкәммал", desc: "Техническое состояние закрепленных агрегатов" },
+                    { index: 3, title: "Исправность инструмента / Құрал", desc: "Правильное хранение и безопасность использования" },
+                    { index: 4, title: "Охрана труда и промбезопасность", desc: "Соблюдение регламентов и инструкций персоналом" }
+                ]
+            }
+        ];
+
+        async function initChecklistApp() {
+            currentTemplates = FALLBACK_TEMPLATES;
+            renderTemplateCards();
+            selectTemplate(currentTemplates[0].code);
+
+            const initialHash = window.location.hash ? window.location.hash.replace('#', '') : '';
+            if (initialHash === 'journal' || initialHash === 'fill') {
+                switchClTab(initialHash);
+            }
+
+            try {
+                const [schedRes, empRes, tplRes] = await Promise.allSettled([
+                    fetch('/api/checklists/schedule/today').then(r => r.json()),
+                    fetch('/api/checklists/employees').then(r => r.json()),
+                    fetch('/api/checklists/templates').then(r => r.json())
+                ]);
+
+                if (schedRes.status === 'fulfilled' && schedRes.value) {
+                    scheduleInfo = schedRes.value;
+                    document.getElementById('cl-date').value = scheduleInfo.date || '19.08.2026';
+                    document.getElementById('cl-shift-name').value = scheduleInfo.shift_name || 'День';
+
+                    if (scheduleInfo.current_shift_group) {
+                        setShiftGroupValue(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group);
+                        const dutyBadge = document.getElementById('duty-shift-badge');
+                        if (dutyBadge) {
+                            dutyBadge.innerText = `Дежурит: ${getShiftPairDisplayName(scheduleInfo.current_shift_group, scheduleInfo.prev_shift_group)} (${scheduleInfo.shift_name})`;
+                        }
+                    }
+                }
+
+                if (empRes.status === 'fulfilled' && Array.isArray(empRes.value)) {
+                    allEmployees = empRes.value;
+                }
+
+                if (tplRes.status === 'fulfilled' && Array.isArray(tplRes.value) && tplRes.value.length > 0) {
+                    currentTemplates = tplRes.value;
+                    renderTemplateCards();
+                }
+
+                if (activeTemplate) {
+                    selectTemplate(activeTemplate.code);
+                } else if (currentTemplates.length > 0) {
+                    selectTemplate(currentTemplates[0].code);
+                }
+            } catch (e) {
+                console.error('Error initializing checklists:', e);
+            }
+        }
+
+        function renderTemplateCards() {
+            const container = document.getElementById('template-cards-container');
+            if (!container) return;
+
+            container.innerHTML = currentTemplates.map(t => `
             <div class="template-card ${activeTemplate && activeTemplate.code === t.code ? 'selected' : ''}" onclick="selectTemplate('${t.code}')">
                 <span class="template-badge">${t.department}</span>
                 <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 4px;">${t.title}</div>
                 <div style="font-size: 0.8rem; color: var(--cl-subtext);">${t.subtitle}</div>
             </div>
         `).join('');
-    }
-
-    function selectTemplate(code) {
-        activeTemplate = currentTemplates.find(t => t.code === code);
-        if (!activeTemplate) return;
-
-        renderTemplateCards();
-
-        document.getElementById('active-template-title').innerText = activeTemplate.title;
-        document.getElementById('active-template-sub').innerText = activeTemplate.subtitle;
-
-        document.getElementById('inspector-label-text').innerText = `5. ${activeTemplate.inspector_label || "Принимающий (ФИО)"}`;
-        document.getElementById('submitter-label-text').innerText = `6. ${activeTemplate.submitter_label || "Сдающий (ФИО)"}`;
-
-        updateDepartmentsList();
-        renderChecklistItems();
-    }
-
-    function onShiftGroupChange() {
-        updateDepartmentsList();
-    }
-
-    function getShiftGroupDisplayName(shiftStr) {
-        if (!shiftStr) return "1-я смена";
-        const str = String(shiftStr).trim();
-        const numMatch = str.match(/\d+/);
-        if (numMatch) {
-            return `${numMatch[0]}-я смена`;
-        }
-        if (str.toLowerCase().includes("котельн")) return "Котельная";
-        if (str.toLowerCase().includes("дневн")) return "Дневной персонал";
-        return str;
-    }
-
-    function getShiftPairDisplayName(curShiftStr, prevShiftStr) {
-        const curNum = (curShiftStr ? String(curShiftStr).match(/\d+/) || [''] : [''])[0];
-        const prevNum = (prevShiftStr ? String(prevShiftStr).match(/\d+/) || [''] : [''])[0];
-        if (curNum && prevNum) {
-            return `Смена ${curNum} (прием) ➔ Смена ${prevNum} (сдача)`;
-        }
-        return getShiftGroupDisplayName(curShiftStr);
-    }
-
-    function setShiftGroupValue(curShiftStr, prevShiftStr) {
-        const select = document.getElementById('cl-shift-group');
-        if (!select) return;
-        const curNorm = getShiftGroupDisplayName(curShiftStr);
-        const pairLabel = getShiftPairDisplayName(curShiftStr, prevShiftStr);
-        
-        // Добавляем или обновляем кастомную опцию с парой смен
-        let opt = Array.from(select.options).find(o => o.value === curNorm);
-        if (opt) {
-            opt.innerText = pairLabel;
-            select.value = curNorm;
-        } else {
-            select.innerHTML = `<option value="${curNorm}" selected>${pairLabel}</option>` + select.innerHTML;
-            select.value = curNorm;
-        }
-    }
-
-    const FACTORY_DEPARTMENTS = [
-        "ЛФМ",
-        "Дестакер",
-        "Стакер",
-        "Заготовительное отделение (ЗО)",
-        "Рекуператоры и целлюлоза",
-        "Участок дозировки",
-        "Сменные ремслужбы",
-        "СКК",
-        "Слесарная мастерская",
-        "Зона ремонта насосов",
-        "Участок ремонта цилиндров"
-    ];
-
-    function updateDepartmentsList() {
-        const deptSelect = document.getElementById('cl-department');
-        if (!deptSelect || !activeTemplate) return;
-
-        let depts = [];
-        if (activeTemplate.code === 'master_shift') {
-            depts = ['Цех ХЦИ'];
-        } else if (activeTemplate.code === 'day_inspection') {
-            depts = ['Все участки', ...FACTORY_DEPARTMENTS];
-        } else {
-            depts = FACTORY_DEPARTMENTS;
         }
 
-        deptSelect.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
-        
-        filterEmployeesByDepartment();
-    }
+        function selectTemplate(code) {
+            activeTemplate = currentTemplates.find(t => t.code === code);
+            if (!activeTemplate) return;
 
-    function onDepartmentChange() {
-        filterEmployeesByDepartment();
-    }
+            renderTemplateCards();
 
-    function filterEmployeesByDepartment() {
-        const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
-        const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
-        function normalizeShiftNum(str) {
-            if (!str) return "";
-            const m = String(str).match(/\d+/);
-            return m ? m[0] : "";
-        }
+            document.getElementById('active-template-title').innerText = activeTemplate.title;
+            document.getElementById('active-template-sub').innerText = activeTemplate.subtitle;
 
-        const curNum = normalizeShiftNum(currentShiftG);
-        const prevNum = normalizeShiftNum(prevShiftG);
-
-        const deptSelect = document.getElementById('cl-department');
-        const selectedDept = deptSelect ? deptSelect.value : '';
-
-        const inspectorSelect = document.getElementById('cl-inspector-name');
-        const submitterSelect = document.getElementById('cl-submitter-name');
-
-        if (!inspectorSelect || !submitterSelect) return;
-
-        if (!allEmployees || allEmployees.length === 0) {
-            inspectorSelect.innerHTML = '<option value="">Загрузка сотрудников...</option>';
-            submitterSelect.innerHTML = '<option value="">Загрузка сотрудников...</option>';
-            return;
-        }
-
-        // Если это мастерский чек-лист, показываем строго мастеров
-        if (activeTemplate && activeTemplate.code === 'master_shift') {
-            const allMasters = allEmployees.filter(e => e.position && e.position.toLowerCase().includes('мастер'));
-
-            const curMasters = allMasters.filter(e => {
-                const eNum = normalizeShiftNum(e.shift_group);
-                return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
-            });
-            const prevMasters = allMasters.filter(e => {
-                const eNum = normalizeShiftNum(e.shift_group);
-                return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
-            });
-
-            const inspectorList = curMasters.length ? curMasters : allMasters;
-            const submitterList = prevMasters.length ? prevMasters : allMasters;
-
-            inspectorSelect.innerHTML = inspectorList.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
-            submitterSelect.innerHTML = submitterList.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
-            return;
-        }
-
-        // Фильтрация по участку
-        function matchDept(emp) {
-            if (!selectedDept || selectedDept === 'Все участки') return true;
-            if (emp.department && emp.department.toLowerCase() === selectedDept.toLowerCase()) return true;
-            const p = (emp.position || '').toLowerCase();
-            if (selectedDept === 'ЛФМ') return p.includes('машин') || p.includes('помощник');
-            if (selectedDept === 'Дестакер') return p.includes('дестакер');
-            if (selectedDept === 'Стакер') return p.includes('стакер') && !p.includes('дестакер');
-            if (selectedDept.includes('Рекуператор') || selectedDept.includes('целлюлоз')) return p.includes('целлюлоз') || p.includes('рекуператор');
-            if (selectedDept.includes('Заготовительное') || selectedDept.includes('ЗО')) return p.includes('зо') && !p.includes('целлюлоз');
-            if (selectedDept === 'Участок дозировки') return p.includes('дозиров');
-            if (selectedDept.includes('Сменные ремслужбы') || selectedDept.includes('Слесарная')) return p.includes('слесар') || p.includes('электрик');
-            if (selectedDept === 'Зона ремонта насосов') return p.includes('насос');
-            if (selectedDept === 'Участок ремонта цилиндров') return p.includes('цилиндр');
-            if (selectedDept === 'СКК') return p.includes('лаборант') || p.includes('отк') || p.includes('скк');
-            return true;
-        }
-
-        // 1. Принимающие (из текущей смены и выбранного участка)
-        let curShiftEmployees = allEmployees.filter(e => {
-            const eNum = normalizeShiftNum(e.shift_group);
-            const matchShift = (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
-            return matchShift && matchDept(e);
-        });
-
-        // 2. Сдающие (из сдающей смены и выбранного участка)
-        let prevShiftEmployees = allEmployees.filter(e => {
-            const eNum = normalizeShiftNum(e.shift_group);
-            const matchShift = (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
-            return matchShift && matchDept(e);
-        });
-
-        // Fallbacks: если по участку нет людей, берем всех из смены
-        if (curShiftEmployees.length === 0) {
-            curShiftEmployees = allEmployees.filter(e => {
-                const eNum = normalizeShiftNum(e.shift_group);
-                return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
-            });
-        }
-        if (curShiftEmployees.length === 0) {
-            curShiftEmployees = allEmployees;
-        }
-
-        if (prevShiftEmployees.length === 0) {
-            prevShiftEmployees = allEmployees.filter(e => {
-                const eNum = normalizeShiftNum(e.shift_group);
-                return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
-            });
-        }
-        if (prevShiftEmployees.length === 0) {
-            prevShiftEmployees = allEmployees;
-        }
-
-        inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
-        submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
-    }
-
-    function onInspectorChange() {}
-
-    async function onShiftChange() {
-        const isDay = document.getElementById('cl-shift-name').value === 'День';
-
-        if (scheduleInfo && scheduleInfo.schedule_entry) {
-            const curG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
-            // Для Дня: сдавала прошлая Ночь. Для Ночи: сдает сегодняшний День.
-            const prevG = isDay ? (scheduleInfo.prev_shift_group || scheduleInfo.schedule_entry.night_shift_group) : scheduleInfo.schedule_entry.day_shift_group;
-
-            scheduleInfo.current_shift_group = curG;
-            scheduleInfo.prev_shift_group = prevG;
-            scheduleInfo.shift_name = isDay ? 'День' : 'Ночь';
-
-            setShiftGroupValue(curG, prevG);
-            document.getElementById('duty-shift-badge').innerText = `Дежурит: ${getShiftPairDisplayName(curG, prevG)} (${scheduleInfo.shift_name})`;
+            document.getElementById('inspector-label-text').innerText = `5. ${activeTemplate.inspector_label || "Принимающий (ФИО)"}`;
+            document.getElementById('submitter-label-text').innerText = `6. ${activeTemplate.submitter_label || "Сдающий (ФИО)"}`;
 
             updateDepartmentsList();
+            renderChecklistItems();
         }
-    }
 
-    function renderChecklistItems() {
-        const container = document.getElementById('checklist-items-container');
-        if (!container || !activeTemplate) return;
+        function onShiftGroupChange() {
+            updateDepartmentsList();
+        }
 
-        container.innerHTML = activeTemplate.items.map(item => `
+        function getShiftGroupDisplayName(shiftStr) {
+            if (!shiftStr) return "1-я смена";
+            const str = String(shiftStr).trim();
+            const numMatch = str.match(/\d+/);
+            if (numMatch) {
+                return `${numMatch[0]}-я смена`;
+            }
+            if (str.toLowerCase().includes("котельн")) return "Котельная";
+            if (str.toLowerCase().includes("дневн")) return "Дневной персонал";
+            return str;
+        }
+
+        function getShiftPairDisplayName(curShiftStr, prevShiftStr) {
+            const curNum = (curShiftStr ? String(curShiftStr).match(/\d+/) || [''] : [''])[0];
+            const prevNum = (prevShiftStr ? String(prevShiftStr).match(/\d+/) || [''] : [''])[0];
+            if (curNum && prevNum) {
+                return `Смена ${curNum} (прием) ➔ Смена ${prevNum} (сдача)`;
+            }
+            return getShiftGroupDisplayName(curShiftStr);
+        }
+
+        function setShiftGroupValue(curShiftStr, prevShiftStr) {
+            const select = document.getElementById('cl-shift-group');
+            if (!select) return;
+            const curNorm = getShiftGroupDisplayName(curShiftStr);
+            const pairLabel = getShiftPairDisplayName(curShiftStr, prevShiftStr);
+
+            // Добавляем или обновляем кастомную опцию с парой смен
+            let opt = Array.from(select.options).find(o => o.value === curNorm);
+            if (opt) {
+                opt.innerText = pairLabel;
+                select.value = curNorm;
+            } else {
+                select.innerHTML = `<option value="${curNorm}" selected>${pairLabel}</option>` + select.innerHTML;
+                select.value = curNorm;
+            }
+        }
+
+        const FACTORY_DEPARTMENTS = [
+            "ЛФМ",
+            "Дестакер",
+            "Стакер",
+            "Заготовительное отделение (ЗО)",
+            "Рекуператоры и целлюлоза",
+            "Участок дозировки",
+            "Сменные ремслужбы",
+            "СКК",
+            "Слесарная мастерская",
+            "Зона ремонта насосов",
+            "Участок ремонта цилиндров"
+        ];
+
+        function updateDepartmentsList() {
+            const deptSelect = document.getElementById('cl-department');
+            if (!deptSelect || !activeTemplate) return;
+
+            let depts = [];
+            if (activeTemplate.code === 'master_shift') {
+                depts = ['Цех ХЦИ'];
+            } else if (activeTemplate.code === 'day_inspection') {
+                depts = ['Все участки', ...FACTORY_DEPARTMENTS];
+            } else {
+                depts = FACTORY_DEPARTMENTS;
+            }
+
+            deptSelect.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
+
+            filterEmployeesByDepartment();
+        }
+
+        function onDepartmentChange() {
+            filterEmployeesByDepartment();
+        }
+
+        function filterEmployeesByDepartment() {
+            const currentShiftG = document.getElementById('cl-shift-group').value || (scheduleInfo ? scheduleInfo.current_shift_group : '');
+            const prevShiftG = (scheduleInfo && scheduleInfo.prev_shift_group) ? scheduleInfo.prev_shift_group : "";
+            function normalizeShiftNum(str) {
+                if (!str) return "";
+                const m = String(str).match(/\d+/);
+                return m ? m[0] : "";
+            }
+
+            const curNum = normalizeShiftNum(currentShiftG);
+            const prevNum = normalizeShiftNum(prevShiftG);
+
+            const deptSelect = document.getElementById('cl-department');
+            const selectedDept = deptSelect ? deptSelect.value : '';
+
+            const inspectorSelect = document.getElementById('cl-inspector-name');
+            const submitterSelect = document.getElementById('cl-submitter-name');
+
+            if (!inspectorSelect || !submitterSelect) return;
+
+            if (!allEmployees || allEmployees.length === 0) {
+                inspectorSelect.innerHTML = '<option value="">Загрузка сотрудников...</option>';
+                submitterSelect.innerHTML = '<option value="">Загрузка сотрудников...</option>';
+                return;
+            }
+
+            // Если это мастерский чек-лист, показываем строго мастеров
+            if (activeTemplate && activeTemplate.code === 'master_shift') {
+                const allMasters = allEmployees.filter(e => e.position && e.position.toLowerCase().includes('мастер'));
+
+                const curMasters = allMasters.filter(e => {
+                    const eNum = normalizeShiftNum(e.shift_group);
+                    return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
+                });
+                const prevMasters = allMasters.filter(e => {
+                    const eNum = normalizeShiftNum(e.shift_group);
+                    return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+                });
+
+                const inspectorList = curMasters.length ? curMasters : allMasters;
+                const submitterList = prevMasters.length ? prevMasters : allMasters;
+
+                inspectorSelect.innerHTML = inspectorList.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
+                submitterSelect.innerHTML = submitterList.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
+                return;
+            }
+
+            // Фильтрация по участку
+            function matchDept(emp) {
+                if (!selectedDept || selectedDept === 'Все участки') return true;
+                if (emp.department && emp.department.toLowerCase() === selectedDept.toLowerCase()) return true;
+                const p = (emp.position || '').toLowerCase();
+                if (selectedDept === 'ЛФМ') return p.includes('машин') || p.includes('помощник');
+                if (selectedDept === 'Дестакер') return p.includes('дестакер');
+                if (selectedDept === 'Стакер') return p.includes('стакер') && !p.includes('дестакер');
+                if (selectedDept.includes('Рекуператор') || selectedDept.includes('целлюлоз')) return p.includes('целлюлоз') || p.includes('рекуператор');
+                if (selectedDept.includes('Заготовительное') || selectedDept.includes('ЗО')) return p.includes('зо') && !p.includes('целлюлоз');
+                if (selectedDept === 'Участок дозировки') return p.includes('дозиров');
+                if (selectedDept.includes('Сменные ремслужбы') || selectedDept.includes('Слесарная')) return p.includes('слесар') || p.includes('электрик');
+                if (selectedDept === 'Зона ремонта насосов') return p.includes('насос');
+                if (selectedDept === 'Участок ремонта цилиндров') return p.includes('цилиндр');
+                if (selectedDept === 'СКК') return p.includes('лаборант') || p.includes('отк') || p.includes('скк');
+                return true;
+            }
+
+            // 1. Принимающие (из текущей смены и выбранного участка)
+            let curShiftEmployees = allEmployees.filter(e => {
+                const eNum = normalizeShiftNum(e.shift_group);
+                const matchShift = (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
+                return matchShift && matchDept(e);
+            });
+
+            // 2. Сдающие (из сдающей смены и выбранного участка)
+            let prevShiftEmployees = allEmployees.filter(e => {
+                const eNum = normalizeShiftNum(e.shift_group);
+                const matchShift = (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+                return matchShift && matchDept(e);
+            });
+
+            // Fallbacks: если по участку нет людей, берем всех из смены
+            if (curShiftEmployees.length === 0) {
+                curShiftEmployees = allEmployees.filter(e => {
+                    const eNum = normalizeShiftNum(e.shift_group);
+                    return (curNum && eNum === curNum) || (e.shift_group === currentShiftG);
+                });
+            }
+            if (curShiftEmployees.length === 0) {
+                curShiftEmployees = allEmployees;
+            }
+
+            if (prevShiftEmployees.length === 0) {
+                prevShiftEmployees = allEmployees.filter(e => {
+                    const eNum = normalizeShiftNum(e.shift_group);
+                    return (prevNum && eNum === prevNum) || (e.shift_group === prevShiftG);
+                });
+            }
+            if (prevShiftEmployees.length === 0) {
+                prevShiftEmployees = allEmployees;
+            }
+
+            inspectorSelect.innerHTML = curShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
+            submitterSelect.innerHTML = prevShiftEmployees.map(e => `<option value="${e.name}">${e.name} (${e.position}${e.shift_group ? ' - ' + e.shift_group : ''})</option>`).join('');
+        }
+
+        function onInspectorChange() { }
+
+        async function onShiftChange() {
+            const isDay = document.getElementById('cl-shift-name').value === 'День';
+
+            if (scheduleInfo && scheduleInfo.schedule_entry) {
+                const curG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
+                // Для Дня: сдавала прошлая Ночь. Для Ночи: сдает сегодняшний День.
+                const prevG = isDay ? (scheduleInfo.prev_shift_group || scheduleInfo.schedule_entry.night_shift_group) : scheduleInfo.schedule_entry.day_shift_group;
+
+                scheduleInfo.current_shift_group = curG;
+                scheduleInfo.prev_shift_group = prevG;
+                scheduleInfo.shift_name = isDay ? 'День' : 'Ночь';
+
+                setShiftGroupValue(curG, prevG);
+                document.getElementById('duty-shift-badge').innerText = `Дежурит: ${getShiftPairDisplayName(curG, prevG)} (${scheduleInfo.shift_name})`;
+
+                updateDepartmentsList();
+            }
+        }
+
+        function renderChecklistItems() {
+            const container = document.getElementById('checklist-items-container');
+            if (!container || !activeTemplate) return;
+
+            container.innerHTML = activeTemplate.items.map(item => `
             <div class="check-item" id="check-item-row-${item.index}">
                 <div class="check-item-header">
                     <div>
@@ -988,124 +1036,124 @@
                 </div>
             </div>
         `).join('');
-    }
-
-    function setItemStatus(index, status) {
-        const row = document.getElementById(`check-item-row-${index}`);
-        const btnOk = document.getElementById(`btn-ok-${index}`);
-        const btnFail = document.getElementById(`btn-fail-${index}`);
-        const commentBox = document.getElementById(`comment-box-${index}`);
-
-        if (status === 'ok') {
-            btnOk.classList.add('active');
-            btnFail.classList.remove('active');
-            row.classList.remove('has-remark');
-            commentBox.classList.remove('visible');
-        } else {
-            btnFail.classList.add('active');
-            btnOk.classList.remove('active');
-            row.classList.add('has-remark');
-            commentBox.classList.add('visible');
-            const commentInput = document.getElementById(`comment-input-${index}`);
-            if (commentInput) commentInput.focus();
-        }
-    }
-
-    async function submitChecklist() {
-        const inspectorName = document.getElementById('cl-inspector-name').value;
-        if (!inspectorName) {
-            alert('Пожалуйста, выберите ФИО принимающего / проверяющего сотрудника!');
-            return;
         }
 
-        const submitterName = document.getElementById('cl-submitter-name').value;
-        const dateStr = document.getElementById('cl-date').value;
-        const shiftName = document.getElementById('cl-shift-name').value;
-        const shiftGroup = document.getElementById('cl-shift-group').value;
-        const notes = document.getElementById('cl-overall-notes').value;
+        function setItemStatus(index, status) {
+            const row = document.getElementById(`check-item-row-${index}`);
+            const btnOk = document.getElementById(`btn-ok-${index}`);
+            const btnFail = document.getElementById(`btn-fail-${index}`);
+            const commentBox = document.getElementById(`comment-box-${index}`);
 
-        // Gather items
-        const items = activeTemplate.items.map(item => {
-            const isOk = document.getElementById(`btn-ok-${item.index}`).classList.contains('active');
-            const comment = document.getElementById(`comment-input-${item.index}`).value;
-            return {
-                index: item.index,
-                title: item.title,
-                status: isOk ? 'ok' : 'fail',
-                comment: isOk ? '' : comment
-            };
-        });
-
-        const deptVal = document.getElementById('cl-department') ? document.getElementById('cl-department').value : activeTemplate.department;
-
-        const payload = {
-            template_code: activeTemplate.code,
-            template_title: activeTemplate.title,
-            date_str: dateStr,
-            shift_name: shiftName,
-            shift_group: shiftGroup,
-            department: deptVal,
-            inspector_name: inspectorName,
-            inspector_position: activeTemplate.code === 'master_shift' ? 'Мастер' : deptVal,
-            submitter_name: submitterName,
-            submitter_position: activeTemplate.code === 'master_shift' ? 'Мастер' : deptVal,
-            notes: notes,
-            items: items
-        };
-
-        const submitBtn = document.getElementById('cl-submit-btn');
-        const statusDiv = document.getElementById('cl-submit-status');
-
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>⏳ Сохранение и передача в Google Sheets...</span>';
-        statusDiv.style.display = 'none';
-
-        try {
-            const resp = await fetch('/api/checklists/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            const res = await resp.json();
-            if (resp.ok) {
-                // Очистка полей ввода и возврат формы в начальное состояние
-                document.getElementById('cl-overall-notes').value = '';
-                renderChecklistItems();
-
-                // Модальное уведомление с кнопкой ОК (как на портале)
-                showNotification(
-                    'success', 
-                    'Чек-лист сохранен!', 
-                    `Чек-лист #${res.id} успешно зарегистрирован в базе данных и отправлен в Google Таблицу.`
-                );
+            if (status === 'ok') {
+                btnOk.classList.add('active');
+                btnFail.classList.remove('active');
+                row.classList.remove('has-remark');
+                commentBox.classList.remove('visible');
             } else {
-                throw new Error(res.detail || 'Ошибка сохранения');
+                btnFail.classList.add('active');
+                btnOk.classList.remove('active');
+                row.classList.add('has-remark');
+                commentBox.classList.add('visible');
+                const commentInput = document.getElementById(`comment-input-${index}`);
+                if (commentInput) commentInput.focus();
             }
-        } catch (err) {
-            showNotification('error', 'Ошибка сохранения', err.message || 'Не удалось сохранить чек-лист');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<span>💾 Сохранить и передать в отчет</span>';
         }
-    }
 
-    async function loadChecklistJournal() {
-        const container = document.getElementById('journal-list-container');
-        if (!container) return;
-
-        container.innerHTML = '<div style="text-align:center; color:var(--cl-subtext); padding:2rem;">Загрузка журнала...</div>';
-
-        try {
-            const resp = await fetch('/api/checklists/submissions?limit=30');
-            const data = await resp.json();
-
-            if (!data || data.length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:var(--cl-subtext); padding:2rem;">Заполненных чек-листов пока нет. Будьте первым!</div>';
+        async function submitChecklist() {
+            const inspectorName = document.getElementById('cl-inspector-name').value;
+            if (!inspectorName) {
+                alert('Пожалуйста, выберите ФИО принимающего / проверяющего сотрудника!');
                 return;
             }
 
-            container.innerHTML = data.map(sub => `
+            const submitterName = document.getElementById('cl-submitter-name').value;
+            const dateStr = document.getElementById('cl-date').value;
+            const shiftName = document.getElementById('cl-shift-name').value;
+            const shiftGroup = document.getElementById('cl-shift-group').value;
+            const notes = document.getElementById('cl-overall-notes').value;
+
+            // Gather items
+            const items = activeTemplate.items.map(item => {
+                const isOk = document.getElementById(`btn-ok-${item.index}`).classList.contains('active');
+                const comment = document.getElementById(`comment-input-${item.index}`).value;
+                return {
+                    index: item.index,
+                    title: item.title,
+                    status: isOk ? 'ok' : 'fail',
+                    comment: isOk ? '' : comment
+                };
+            });
+
+            const deptVal = document.getElementById('cl-department') ? document.getElementById('cl-department').value : activeTemplate.department;
+
+            const payload = {
+                template_code: activeTemplate.code,
+                template_title: activeTemplate.title,
+                date_str: dateStr,
+                shift_name: shiftName,
+                shift_group: shiftGroup,
+                department: deptVal,
+                inspector_name: inspectorName,
+                inspector_position: activeTemplate.code === 'master_shift' ? 'Мастер' : deptVal,
+                submitter_name: submitterName,
+                submitter_position: activeTemplate.code === 'master_shift' ? 'Мастер' : deptVal,
+                notes: notes,
+                items: items
+            };
+
+            const submitBtn = document.getElementById('cl-submit-btn');
+            const statusDiv = document.getElementById('cl-submit-status');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>⏳ Сохранение и передача в Google Sheets...</span>';
+            statusDiv.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/checklists/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const res = await resp.json();
+                if (resp.ok) {
+                    // Очистка полей ввода и возврат формы в начальное состояние
+                    document.getElementById('cl-overall-notes').value = '';
+                    renderChecklistItems();
+
+                    // Модальное уведомление с кнопкой ОК (как на портале)
+                    showNotification(
+                        'success',
+                        'Чек-лист сохранен!',
+                        `Чек-лист #${res.id} успешно зарегистрирован в базе данных и отправлен в Google Таблицу.`
+                    );
+                } else {
+                    throw new Error(res.detail || 'Ошибка сохранения');
+                }
+            } catch (err) {
+                showNotification('error', 'Ошибка сохранения', err.message || 'Не удалось сохранить чек-лист');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>💾 Сохранить и передать в отчет</span>';
+            }
+        }
+
+        async function loadChecklistJournal() {
+            const container = document.getElementById('journal-list-container');
+            if (!container) return;
+
+            container.innerHTML = '<div style="text-align:center; color:var(--cl-subtext); padding:2rem;">Загрузка журнала...</div>';
+
+            try {
+                const resp = await fetch('/api/checklists/submissions?limit=30');
+                const data = await resp.json();
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; color:var(--cl-subtext); padding:2rem;">Заполненных чек-листов пока нет. Будьте первым!</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(sub => `
                 <div class="history-card">
                     <div class="history-header">
                         <div>
@@ -1126,13 +1174,14 @@
                     </div>
                 </div>
             `).join('');
-        } catch (e) {
-            container.innerHTML = `<div style="color:var(--cl-danger); padding:1rem;">Ошибка загрузки журнала: ${e.message}</div>`;
+            } catch (e) {
+                container.innerHTML = `<div style="color:var(--cl-danger); padding:1rem;">Ошибка загрузки журнала: ${e.message}</div>`;
+            }
         }
-    }
 
-    window.addEventListener('DOMContentLoaded', initChecklistApp);
-</script>
-<script src="/static/js/version_guard.js"></script>
+        window.addEventListener('DOMContentLoaded', initChecklistApp);
+    </script>
+    <script src="/static/js/version_guard.js"></script>
 </body>
+
 </html>
