@@ -477,11 +477,46 @@ function setupTimePickers() {
             }
         },
         onClose: function(selectedDates, dateStr, instance) {
+            const val = (instance.input ? instance.input.value : '').trim();
+            if (val) {
+                instance.setDate(val, true, "H:i");
+            }
             if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
                 calcJournalDowntimeDuration();
             } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
                 calcEditDowntimeDuration();
             }
+        }
+    });
+
+    // Auto-commit on input blur / change / complete time typing so Enter is never required
+    document.querySelectorAll('.time-picker').forEach(input => {
+        if (!input.__timeAutoCommitBound) {
+            input.__timeAutoCommitBound = true;
+            const commit = () => {
+                const val = (input.value || '').trim();
+                if (val && input._flatpickr) {
+                    input._flatpickr.setDate(val, true, "H:i");
+                }
+                if (input.id.startsWith('journal-dt-')) {
+                    calcJournalDowntimeDuration();
+                } else if (input.id.startsWith('edit-dt-')) {
+                    calcEditDowntimeDuration();
+                }
+            };
+            input.addEventListener('blur', commit);
+            input.addEventListener('change', commit);
+            input.addEventListener('input', function() {
+                const val = (this.value || '').trim();
+                if (/^\d{2}:\d{2}$/.test(val) && this._flatpickr) {
+                    this._flatpickr.setDate(val, true, "H:i");
+                }
+                if (this.id.startsWith('journal-dt-')) {
+                    calcJournalDowntimeDuration();
+                } else if (this.id.startsWith('edit-dt-')) {
+                    calcEditDowntimeDuration();
+                }
+            });
         }
     });
     
