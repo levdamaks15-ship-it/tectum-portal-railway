@@ -30,7 +30,7 @@
             #netguard-pill {
                 position: fixed;
                 top: 14px;
-                right: 18px;
+                left: 16px;
                 z-index: 99999;
                 display: flex;
                 align-items: center;
@@ -46,6 +46,15 @@
                 box-shadow: 0 2px 8px rgba(0,0,0,0.12);
                 backdrop-filter: blur(8px);
                 -webkit-backdrop-filter: blur(8px);
+            }
+            @media (max-width: 768px) {
+                #netguard-pill {
+                    top: 10px;
+                    left: 10px;
+                    padding: 3px 8px;
+                    font-size: 11px;
+                    gap: 5px;
+                }
             }
             #netguard-pill:hover {
                 transform: translateY(-1px);
