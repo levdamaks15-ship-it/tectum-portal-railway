@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
-    <link rel="stylesheet" href="/static/css/style.css?v=20260907_calendar_fix_v2">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260907_simple_calendar_v1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -440,13 +440,7 @@
                         <div id="sec-header" class="accordion-content">
                             <div class="form-grid-three">
                                 <div class="form-group">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                                        <label style="margin: 0;">Дата рапорта</label>
-                                        <div style="display: flex; gap: 4px;">
-                                            <button type="button" onclick="setQuickDate('rep-date', 0)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить сегодняшнюю дату">Сегодня</button>
-                                            <button type="button" onclick="setQuickDate('rep-date', -1)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить вчерашнюю дату">Вчера</button>
-                                        </div>
-                                    </div>
+                                    <label>Дата рапорта</label>
                                     <div style="position: relative;">
                                         <input type="text" id="rep-date" placeholder="ДД.ММ.ГГГГ" onchange="updateShiftScheduleHints()" style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
                                         <i class="fa-regular fa-calendar-days" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
@@ -959,13 +953,7 @@
                             <!-- Блок метаданных прихода -->
                             <div class="receipt-meta-grid" style="margin-bottom: 1.5rem; background: #f8fafc; padding: 1.2rem; border-radius: 14px; border: 1px solid var(--stripe-border);">
                                 <div class="form-group">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                                        <label style="margin: 0;">Дата прихода</label>
-                                        <div style="display: flex; gap: 4px;">
-                                            <button type="button" onclick="setQuickDate('rec-date', 0)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить сегодняшнюю дату">Сегодня</button>
-                                            <button type="button" onclick="setQuickDate('rec-date', -1)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить вчерашнюю дату">Вчера</button>
-                                        </div>
-                                    </div>
+                                    <label>Дата прихода</label>
                                     <div style="position: relative;">
                                         <input type="text" id="rec-date" placeholder="ДД.ММ.ГГГГ" style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
                                         <i class="fa-regular fa-calendar-days" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
@@ -1322,13 +1310,7 @@
                         </label>
                         <div class="form-grid-two downtime-params-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
                             <div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">📅 Дата</label>
-                                    <div style="display: flex; gap: 4px;">
-                                        <button type="button" onclick="setQuickDate('journal-dt-date', 0)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить сегодняшнюю дату">Сегодня</button>
-                                        <button type="button" onclick="setQuickDate('journal-dt-date', -1)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить вчерашнюю дату">Вчера</button>
-                                    </div>
-                                </div>
+                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅 Дата</label>
                                 <div style="position: relative;">
                                     <input type="text" id="journal-dt-date" placeholder="ДД.ММ.ГГГГ" onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();" style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
                                     <i class="fa-regular fa-calendar-days" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>

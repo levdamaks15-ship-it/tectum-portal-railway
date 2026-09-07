@@ -476,32 +476,7 @@ function switchTab(tabId, event) {
     }
 }
 
-// --- Universal Datepicker Helpers & Quick Buttons ---
-function attachQuickDateFooter(fp) {
-    if (!fp || !fp.calendarContainer) return;
-    if (fp.calendarContainer.querySelector('.flatpickr-quick-footer')) return;
-    const footer = document.createElement('div');
-    footer.className = 'flatpickr-quick-footer';
-    footer.innerHTML = `
-        <button type="button" class="fp-btn-preset fp-btn-yesterday">Вчера</button>
-        <button type="button" class="fp-btn-preset fp-btn-today">Сегодня</button>
-    `;
-    footer.querySelector('.fp-btn-yesterday').addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const d = new Date();
-        d.setDate(d.getDate() - 1);
-        fp.setDate(d, true);
-        fp.close();
-    });
-    footer.querySelector('.fp-btn-today').addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        fp.setDate(new Date(), true);
-        fp.close();
-    });
-    fp.calendarContainer.appendChild(footer);
-}
+// --- Universal Datepicker Helpers ---
 
 function setDateInputValue(inputOrId, dateVal, triggerChange = false) {
     const el = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
@@ -619,14 +594,9 @@ function setupTimePickers() {
         altInput: true,
         altFormat: "d.m.Y",
         altInputClass: "flatpickr-input date-input-modern",
+        monthSelectorType: "static",
         locale: "ru",
-        allowInput: true,
-        onReady: function(selectedDates, dateStr, instance) {
-            attachQuickDateFooter(instance);
-        },
-        onOpen: function(selectedDates, dateStr, instance) {
-            attachQuickDateFooter(instance);
-        }
+        allowInput: false
     };
     
     // 2. Production Shift Date (Рапорт мастера)
