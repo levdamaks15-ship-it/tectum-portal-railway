@@ -133,6 +133,7 @@ class LFMReport(LFMReportBase):
 
 class DowntimeBase(ORMBaseModel):
     date: Optional[dt_module.date] = None
+    actual_date: Optional[dt_module.date] = None
     shift_name: Optional[str] = None
     line: Optional[str] = None
     master_id: Optional[int] = None

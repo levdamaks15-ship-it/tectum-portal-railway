@@ -31,6 +31,19 @@ def get_db():
 TONS_PER_HOUR = 5.0
 PRICE_PER_TON = 100000.0
 
+def compute_downtime_actual_date(shift_date, shift_name, start_time):
+    if not shift_date:
+        return None
+    if shift_name == "Ночь" and start_time:
+        try:
+            hour = int(start_time.strip().split(":")[0])
+            if hour < 12:
+                from datetime import timedelta
+                return shift_date + timedelta(days=1)
+        except Exception:
+            pass
+    return shift_date
+
 def calculate_downtime_losses(duration_minutes: int, shift: Optional[models.Shift], db: Session) -> tuple[float, float]:
     if duration_minutes <= 0:
         return 0.0, 0.0
@@ -206,7 +219,11 @@ def create_autonomous_downtime(data: schemas.DowntimeCreate, background_tasks: B
     dept_val = data.department or ""
     is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else True
     
-    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id"})
+    base_date = data.date or (shift.date if shift else None)
+    s_name = data.shift_name or (shift.shift_name if shift else "")
+    actual_date = compute_downtime_actual_date(base_date, s_name, data.start_time)
+
+    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id", "actual_date"})
     dt_data["description"] = desc_text
     dt_data["comment"] = data.comment or desc_text
     dt_data["category"] = category_val
@@ -218,6 +235,7 @@ def create_autonomous_downtime(data: schemas.DowntimeCreate, background_tasks: B
         **dt_data,
         shift_id=shift_id,
         date=data.date,
+        actual_date=actual_date,
         shift_name=data.shift_name,
         line=data.line,
         master_id=data.master_id,
@@ -257,12 +275,30 @@ def get_downtimes_by_slot(date: str, shift_name: str, line: str, db: Session = D
             models.Downtime.line == line,
             and_(models.Downtime.line.is_(None), models.Shift.line == line)
         )
-    ).order_by(models.Downtime.start_time.asc(), models.Downtime.id.asc()).all()
+    ).all()
+    
+    # Chronological sorting for the shift: in night shifts, evening (18-23) comes before morning (00-11)
+    def shift_sort_key(d):
+        t = (d.start_time or "").strip()
+        h = 0
+        try:
+            h = int(t.split(":")[0])
+        except Exception:
+            pass
+        if shift_name == "Ночь":
+            period = 0 if h >= 12 else 1
+            return (period, t, d.id or 0)
+        return (t, d.id or 0)
+
+    downtimes = sorted(downtimes, key=shift_sort_key)
     
     result = []
     for d in downtimes:
         d_dict = schemas.Downtime.model_validate(d).model_dump()
         d_dict["record_date"] = str(d.record_date) if d.record_date else str(parsed_date)
+        effective_act = d.actual_date or d.effective_actual_date
+        d_dict["actual_date"] = str(effective_act) if effective_act else str(parsed_date)
+        d_dict["is_next_day"] = bool(effective_act and parsed_date and effective_act > parsed_date)
         d_dict["record_shift_name"] = d.record_shift_name or shift_name
         d_dict["record_line"] = d.record_line or line
         d_dict["master_name"] = d.master.name if d.master else (d.shift.master.name if d.shift and d.shift.master else "Н/Д")
@@ -297,7 +333,11 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     dept_val = data.department or ""
     is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else True
     
-    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id"})
+    base_date = data.date or shift.date
+    s_name = data.shift_name or shift.shift_name
+    actual_date = compute_downtime_actual_date(base_date, s_name, data.start_time)
+
+    dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id", "actual_date"})
     dt_data["description"] = desc_text
     dt_data["comment"] = data.comment or desc_text
     dt_data["category"] = category_val
@@ -309,6 +349,7 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
         **dt_data,
         shift_id=shift_id,
         date=data.date or shift.date,
+        actual_date=actual_date,
         shift_name=data.shift_name or shift.shift_name,
         line=data.line or shift.line,
         master_id=data.master_id or shift.master_id,
@@ -365,6 +406,10 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     dept_val = data.department or dt.department or ""
     is_equipment_val = data.is_equipment_downtime if data.is_equipment_downtime is not None else dt.is_equipment_downtime
     
+    base_date = dt.date or (shift.date if shift else None)
+    s_name = dt.shift_name or (shift.shift_name if shift else "")
+    dt.actual_date = compute_downtime_actual_date(base_date, s_name, data.start_time)
+
     dt.start_time = data.start_time
     dt.end_time = data.end_time
     dt.description = desc_text

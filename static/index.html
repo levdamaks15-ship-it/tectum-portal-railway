@@ -1306,13 +1306,13 @@
                             <div>
                                 <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅 Дата</label>
                                 <div style="position: relative;">
-                                    <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" onchange="loadDowntimesByParams()" style="padding: 0.45rem 2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
+                                    <input type="text" id="journal-dt-date" placeholder="ГГГГ-ММ-ДД" onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();" style="padding: 0.45rem 2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
                                     <i class="fa-solid fa-chevron-down" style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: #64748b; pointer-events: none;"></i>
                                 </div>
                             </div>
                             <div>
                                 <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">☀️/🌙 Смена</label>
-                                <select id="journal-dt-shift-name" onchange="loadDowntimesByParams()" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <select id="journal-dt-shift-name" onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();" style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
                                     <option value="День">☀️ День</option>
                                     <option value="Ночь">🌙 Ночь</option>
                                 </select>
@@ -1348,20 +1348,27 @@
                         </label>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 0.75rem; align-items: end;">
                             <div>
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏰ Начало</label>
-                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="14:15" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Начало</label>
+                                    <button type="button" onclick="setTimeNow('journal-dt-start')" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить текущее время">Сейчас</button>
+                                </div>
+                                <input type="text" class="time-picker" id="journal-dt-start" placeholder="--:--" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
                             <div id="wrapper-dt-end">
-                                <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏰ Конец</label>
-                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="14:45" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Конец</label>
+                                    <button type="button" onclick="setTimeNow('journal-dt-end')" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;" title="Установить текущее время">Сейчас</button>
+                                </div>
+                                <input type="text" class="time-picker" id="journal-dt-end" placeholder="--:--" oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()" style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
                             </div>
                             <div>
                                 <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏱️ Итого</label>
-                                <div id="journal-dt-duration-preview" style="padding: 0.5rem; border-radius: 10px; background: #f0f9ff; border: 1px solid #bae6fd; font-family: monospace; font-size: 1rem; font-weight: 700; color: #0369a1; text-align: center; height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
-                                    0:00
+                                <div id="journal-dt-duration-preview" style="padding: 0.5rem; border-radius: 10px; background: #f0f9ff; border: 1px solid #bae6fd; font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #0369a1; text-align: center; height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                                    --:--
                                 </div>
                             </div>
                         </div>
+                        <div id="journal-dt-night-hint" style="display: none; margin-top: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: #fefce8; color: #854d0e;"></div>
                     </div>
 
                     <!-- Section 4: Equipment Stop Toggle Card -->
@@ -1662,20 +1669,27 @@
         </div>
         <div style="margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; align-items: end;">
             <div>
-                <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.4rem;">Время начала</label>
-                <input type="text" class="time-picker" id="edit-dt-start" oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()" style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Время начала</label>
+                    <button type="button" onclick="setTimeNow('edit-dt-start')" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;" title="Текущее время">Сейчас</button>
+                </div>
+                <input type="text" class="time-picker" id="edit-dt-start" placeholder="--:--" oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()" style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center;">
             </div>
             <div>
-                <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.4rem;">Время окончания</label>
-                <input type="text" class="time-picker" id="edit-dt-end" oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()" style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Время окончания</label>
+                    <button type="button" onclick="setTimeNow('edit-dt-end')" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;" title="Текущее время">Сейчас</button>
+                </div>
+                <input type="text" class="time-picker" id="edit-dt-end" placeholder="--:--" oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()" style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center;">
             </div>
             <div>
-                <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.4rem;">Длительность</label>
-                <div id="edit-dt-duration-preview" style="padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 1rem; font-weight: 700; color: #38bdf8; text-align: center;">
-                    0:00
+                <label style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 0.25rem;">Длительность</label>
+                <div id="edit-dt-duration-preview" style="padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #38bdf8; text-align: center; height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
+                    --:--
                 </div>
             </div>
         </div>
+        <div id="edit-dt-night-hint" style="display: none; margin-bottom: 1rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: rgba(254, 240, 138, 0.15); color: #fef08a;"></div>
 
         <div style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
             <input type="checkbox" id="edit-dt-is-equipment-stop" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color);">

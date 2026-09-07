@@ -405,6 +405,22 @@ input.time-picker,
     position: relative;
 }
 
+/* Flatpickr Time Picker Enhancement */
+.flatpickr-time {
+    max-height: 42px !important;
+    border-radius: 10px !important;
+    font-family: monospace !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+}
+.flatpickr-calendar.hasTime.noCalendar {
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 6px !important;
+    background: #ffffff !important;
+}
+
 /* Hide native browser calendar/clock icons so the whole box behaves as a clean input button */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="month"]::-webkit-calendar-picker-indicator,
@@ -1501,7 +1517,44 @@ button.btn-cancel:hover {
     border-radius: 16px !important;
     box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.08) !important;
     font-family: inherit !important;
-    padding: 8px !important;
+    padding: 10px 12px !important;
+    box-sizing: content-box !important;
+    width: 308px !important;
+}
+
+.flatpickr-calendar.hasTime.noCalendar {
+    width: auto !important;
+    box-sizing: border-box !important;
+    padding: 6px !important;
+}
+
+.flatpickr-innerContainer {
+    overflow: visible !important;
+}
+
+.flatpickr-rContainer {
+    width: 308px !important;
+    max-width: 308px !important;
+}
+
+.flatpickr-days {
+    width: 308px !important;
+    overflow: visible !important;
+}
+
+.dayContainer {
+    width: 308px !important;
+    min-width: 308px !important;
+    max-width: 308px !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    overflow: visible !important;
+}
+
+.flatpickr-weekdays {
+    width: 100% !important;
+    max-width: 308px !important;
+    overflow: visible !important;
 }
 
 .flatpickr-calendar.arrowTop:before,

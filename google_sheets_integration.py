@@ -1134,16 +1134,24 @@ def export_downtimes_to_google_sheets(db: Session):
         selectinload(models.Downtime.master),
         selectinload(models.Downtime.shift).selectinload(models.Shift.master)
     ).outerjoin(models.Shift).order_by(
-        func.coalesce(models.Downtime.date, models.Shift.date).asc(),
+        func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date).asc(),
         models.Downtime.start_time.asc(),
         models.Downtime.id.asc()
     ).all()
+
+    # Chronological sort guarantee in Python using actual incident date and start time
+    def dt_sort_key(d):
+        act_d = d.actual_date or d.effective_actual_date or d.date or (d.shift.date if d.shift else None)
+        t_str = (d.start_time or "").strip()
+        return (str(act_d or ""), t_str, d.id or 0)
+
+    downtimes = sorted(downtimes, key=dt_sort_key)
 
     rows_data = []
     rows_data.append(headers)
 
     for d in downtimes:
-        d_date = d.date or (d.shift.date if d.shift else None)
+        d_date = d.actual_date or d.effective_actual_date or d.date or (d.shift.date if d.shift else None)
         date_str = d_date.strftime("%d.%m.%Y") if hasattr(d_date, 'strftime') else (str(d_date) if d_date else "")
         shift_name_val = d.shift_name or (d.shift.shift_name if d.shift else "")
         line_val = d.line or (d.shift.line if d.shift else "")

@@ -262,7 +262,7 @@ async def lifespan(app: FastAPI):
 
     try:
         conn = sqlite3.connect("tectum.db")
-        conn.execute("ALTER TABLE downtimes ADD COLUMN breakdowns VARCHAR")
+        conn.execute("ALTER TABLE downtimes ADD COLUMN actual_date DATE")
         conn.commit()
         conn.close()
     except: pass
@@ -291,12 +291,27 @@ async def lifespan(app: FastAPI):
             db_pg.execute(text("ALTER TABLE raw_material_receipts ALTER COLUMN shift_id DROP NOT NULL;"))
             
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS date DATE;"))
+            db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS actual_date DATE;"))
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS shift_name VARCHAR(50);"))
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS line VARCHAR(50);"))
             db_pg.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS master_id INTEGER REFERENCES masters(id);"))
             db_pg.execute(text("ALTER TABLE downtimes ALTER COLUMN shift_id DROP NOT NULL;"))
+
+        # Backfill actual_date for all existing downtimes where actual_date IS NULL
+        try:
+            all_dts = db_pg.query(models.Downtime).options(selectinload(models.Downtime.shift)).filter(models.Downtime.actual_date.is_(None)).all()
+            updated_act = 0
+            for dt_item in all_dts:
+                dt_item.actual_date = dt_item.effective_actual_date
+                updated_act += 1
+            if updated_act > 0:
+                db_pg.commit()
+                print(f"Backfilled actual_date for {updated_act} downtimes.")
+        except Exception as e_bf:
+            print(f"Warning populating actual_date: {e_bf}")
+            db_pg.rollback()
             
-            # Batches: prev defects & condition
+        # Batches: prev defects & condition
             for b_col in [
                 "prev_condition", "prev_first_grade", "prev_defect", "prev_defect_scratch", "prev_defect_bad_cut",
                 "prev_defect_stick_top", "prev_defect_broken", "prev_defect_fell_box",

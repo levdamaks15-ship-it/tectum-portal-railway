@@ -467,7 +467,22 @@ function setupTimePickers() {
         dateFormat: "H:i",
         time_24hr: true,
         locale: "ru",
-        allowInput: true
+        allowInput: true,
+        minuteIncrement: 1,
+        onChange: function(selectedDates, dateStr, instance) {
+            if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
+                calcJournalDowntimeDuration();
+            } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
+                calcEditDowntimeDuration();
+            }
+        },
+        onClose: function(selectedDates, dateStr, instance) {
+            if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
+                calcJournalDowntimeDuration();
+            } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
+                calcEditDowntimeDuration();
+            }
+        }
     });
     
     // 2. Production Shift Date (Рапорт мастера)
@@ -2158,30 +2173,118 @@ function parseDurationMinutes(startTime, endTime) {
     return Math.max(0, total2 - total1);
 }
 
+function setTimeNow(inputId) {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const val = `${h}:${m}`;
+    const el = document.getElementById(inputId);
+    if (el) {
+        el.value = val;
+        if (el._flatpickr) {
+            el._flatpickr.setDate(val, true);
+        }
+        if (inputId.startsWith('journal-dt-')) {
+            calcJournalDowntimeDuration();
+        } else if (inputId.startsWith('edit-dt-')) {
+            calcEditDowntimeDuration();
+        }
+    }
+}
+
 function calcJournalDowntimeDuration() {
-    const s = document.getElementById('journal-dt-start')?.value || '';
-    const e = document.getElementById('journal-dt-end')?.value || '';
+    const s = (document.getElementById('journal-dt-start')?.value || '').trim();
+    const e = (document.getElementById('journal-dt-end')?.value || '').trim();
     const preview = document.getElementById('journal-dt-duration-preview');
+    const nightHint = document.getElementById('journal-dt-night-hint');
+    const shiftName = document.getElementById('journal-dt-shift-name')?.value || 'День';
+    const dateVal = document.getElementById('journal-dt-date')?.value || '';
+
+    // Night shift date detection & hint
+    if (nightHint) {
+        if (shiftName === 'Ночь' && s) {
+            const hour = parseInt(s.split(':')[0], 10);
+            if (!isNaN(hour) && hour < 12) {
+                let nextDateStr = '';
+                if (dateVal) {
+                    try {
+                        const parts = dateVal.split('-');
+                        if (parts.length === 3) {
+                            const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                            d.setDate(d.getDate() + 1);
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, '0');
+                            const day = String(d.getDate()).padStart(2, '0');
+                            nextDateStr = `${day}.${m}.${y}`;
+                        }
+                    } catch(err) {}
+                }
+                nightHint.style.display = 'flex';
+                nightHint.innerHTML = `<span>🌅</span> <div><strong>Утро следующего дня</strong> (${nextDateStr || '+1 день'}): простой зафиксируется в конце смены «Ночь»</div>`;
+            } else {
+                nightHint.style.display = 'flex';
+                nightHint.innerHTML = `<span>🌙</span> <div><strong>Вечер смены</strong> (${dateVal || 'выбранная дата'}): начало смены «Ночь»</div>`;
+            }
+        } else {
+            nightHint.style.display = 'none';
+        }
+    }
+
     if (!preview) return;
-    if (!s || !e) {
-        preview.textContent = '0:00';
+    if (!s && !e) {
+        preview.innerHTML = '<span style="color: #94a3b8; font-weight: 500;">--:--</span>';
         return;
     }
+    if (s && !e) {
+        preview.innerHTML = '<span style="color: #ea580c; font-weight: 600;">⏳ В процессе</span>';
+        return;
+    }
+    if (!s && e) {
+        preview.innerHTML = '<span style="color: #ef4444; font-weight: 600;">⚠️ Укажите начало</span>';
+        return;
+    }
+
     const mins = parseDurationMinutes(s, e);
-    preview.textContent = `${formatDurationHM(mins)} (${mins} мин)`;
+    preview.innerHTML = `<span style="color: #0369a1; font-weight: 700;">⏱️ ${formatDurationHM(mins)}</span> <span style="color: #0284c7; font-size: 0.8rem; font-weight: 500;">(${mins} мин)</span>`;
 }
 
 function calcEditDowntimeDuration() {
-    const s = document.getElementById('edit-dt-start')?.value || '';
-    const e = document.getElementById('edit-dt-end')?.value || '';
+    const s = (document.getElementById('edit-dt-start')?.value || '').trim();
+    const e = (document.getElementById('edit-dt-end')?.value || '').trim();
     const preview = document.getElementById('edit-dt-duration-preview');
+    const nightHint = document.getElementById('edit-dt-night-hint');
+    const shiftName = document.getElementById('journal-dt-shift-name')?.value || '';
+
+    if (nightHint) {
+        if (shiftName === 'Ночь' && s) {
+            const hour = parseInt(s.split(':')[0], 10);
+            if (!isNaN(hour) && hour < 12) {
+                nightHint.style.display = 'flex';
+                nightHint.innerHTML = `<span>🌅</span> <div><strong>Утро следующего дня (+1 день)</strong>: инцидент произошел в утренней части смены «Ночь»</div>`;
+            } else {
+                nightHint.style.display = 'none';
+            }
+        } else {
+            nightHint.style.display = 'none';
+        }
+    }
+
     if (!preview) return;
-    if (!s || !e) {
-        preview.textContent = '0:00';
+    if (!s && !e) {
+        preview.innerHTML = '<span style="color: rgba(255,255,255,0.4);">--:--</span>';
         return;
     }
+    if (s && !e) {
+        preview.innerHTML = '<span style="color: #fb923c; font-weight: 600;">⏳ В процессе</span>';
+        return;
+    }
+    if (!s && e) {
+        preview.innerHTML = '<span style="color: #f87171; font-weight: 600;">⚠️ Укажите начало</span>';
+        return;
+    }
+
     const mins = parseDurationMinutes(s, e);
-    preview.textContent = `${formatDurationHM(mins)} (${mins} мин)`;
+    preview.innerHTML = `<span style="color: #38bdf8; font-weight: 700;">⏱️ ${formatDurationHM(mins)}</span> <span style="color: #7dd3fc; font-size: 0.8rem; font-weight: 500;">(${mins} мин)</span>`;
 }
 
 function updateDowntimeToggleUI() {
@@ -2266,6 +2369,11 @@ function renderDowntimesTable(shift) {
         
         const desc = d.description || d.comment || '-';
         
+        let startDisplay = d.start_time || '-';
+        if (d.is_next_day) {
+            startDisplay += ` <span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 6px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600; vertical-align: middle;" title="Утро следующего дня (${d.actual_date || ''})">🌅 +1 дн</span>`;
+        }
+
         const canEdit = (d.can_edit !== undefined) ? d.can_edit : true;
         const deleteBtn = canEdit ? `<button onclick="deleteDowntime(${d.id})" class="btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px;" title="Удалить">🗑️</button>` : '';
         const editBtn = canEdit ? `<button onclick="openEditDowntimeModal(${d.id})" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.4rem; border-radius: 6px;" title="Редактировать">✏️</button>` : '';
@@ -2274,7 +2382,7 @@ function renderDowntimesTable(shift) {
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border); transition: background 0.2s ease;">
                 <td style="text-align: center; color: var(--text-secondary); padding: 0.6rem 0.4rem;">${idx + 1}</td>
-                <td style="font-family: monospace; font-weight: 600; padding: 0.6rem 0.4rem;">${d.start_time || '-'}</td>
+                <td style="font-family: monospace; font-weight: 600; padding: 0.6rem 0.4rem; white-space: nowrap;">${startDisplay}</td>
                 <td style="font-family: monospace; font-weight: 600; padding: 0.6rem 0.4rem;">${d.end_time || '-'}</td>
                 <td style="font-family: monospace; font-weight: 700; color: #0284c7; padding: 0.6rem 0.4rem;">${durationStr}</td>
                 <td style="padding: 0.6rem 0.4rem; word-break: break-word; font-weight: 500;">${desc}</td>

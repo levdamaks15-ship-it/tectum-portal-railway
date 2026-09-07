@@ -180,6 +180,7 @@ class Downtime(Base):
     status = Column(String, default="pending") # pending, resolved
     is_equipment_downtime = Column(Boolean, default=True)
     breakdowns = Column(String, nullable=True) # JSON string of breakdown objects
+    actual_date = Column(Date, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     master = relationship("Master")
@@ -190,6 +191,23 @@ class Downtime(Base):
         if self.date:
             return self.date
         return self.shift.date if self.shift else None
+
+    @property
+    def effective_actual_date(self):
+        if self.actual_date:
+            return self.actual_date
+        base_date = self.record_date
+        if not base_date:
+            return None
+        s_name = self.record_shift_name
+        if s_name == "Ночь" and self.start_time:
+            try:
+                hour = int(self.start_time.strip().split(":")[0])
+                if hour < 12:
+                    return base_date + datetime.timedelta(days=1)
+            except Exception:
+                pass
+        return base_date
 
     @property
     def record_shift_name(self):
