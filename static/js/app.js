@@ -477,10 +477,6 @@ function setupTimePickers() {
             }
         },
         onClose: function(selectedDates, dateStr, instance) {
-            const val = (instance.input ? instance.input.value : '').trim();
-            if (val) {
-                instance.setDate(val, true, "H:i");
-            }
             if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
                 calcJournalDowntimeDuration();
             } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
@@ -489,27 +485,29 @@ function setupTimePickers() {
         }
     });
 
-    // Auto-commit on input blur / change / complete time typing so Enter is never required
+    // Auto-commit typed time on blur without recursion (triggerChange: false)
     document.querySelectorAll('.time-picker').forEach(input => {
         if (!input.__timeAutoCommitBound) {
             input.__timeAutoCommitBound = true;
-            const commit = () => {
-                const val = (input.value || '').trim();
-                if (val && input._flatpickr) {
-                    input._flatpickr.setDate(val, true, "H:i");
+            input.addEventListener('blur', function() {
+                const val = (this.value || '').trim();
+                if (val && this._flatpickr) {
+                    try {
+                        this._flatpickr.setDate(val, false, "H:i");
+                    } catch(e) {}
                 }
-                if (input.id.startsWith('journal-dt-')) {
+                if (this.id.startsWith('journal-dt-')) {
                     calcJournalDowntimeDuration();
-                } else if (input.id.startsWith('edit-dt-')) {
+                } else if (this.id.startsWith('edit-dt-')) {
                     calcEditDowntimeDuration();
                 }
-            };
-            input.addEventListener('blur', commit);
-            input.addEventListener('change', commit);
+            });
             input.addEventListener('input', function() {
                 const val = (this.value || '').trim();
                 if (/^\d{2}:\d{2}$/.test(val) && this._flatpickr) {
-                    this._flatpickr.setDate(val, true, "H:i");
+                    try {
+                        this._flatpickr.setDate(val, false, "H:i");
+                    } catch(e) {}
                 }
                 if (this.id.startsWith('journal-dt-')) {
                     calcJournalDowntimeDuration();
@@ -2222,7 +2220,7 @@ function setTimeNow(inputId) {
     if (el) {
         el.value = val;
         if (el._flatpickr) {
-            el._flatpickr.setDate(val, true);
+            el._flatpickr.setDate(val, false);
         }
         if (inputId.startsWith('journal-dt-')) {
             calcJournalDowntimeDuration();
