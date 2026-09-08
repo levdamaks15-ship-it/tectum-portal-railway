@@ -1674,6 +1674,22 @@ async function editDowntimeRow(d) {
         });
     }
 
+    // Free text description (matching portal UX)
+    let desc = d.description || d.comment || '';
+    if (!desc && d.breakdowns) {
+        try {
+            const bkList = JSON.parse(d.breakdowns);
+            if (bkList && bkList.length > 0) {
+                desc = bkList.map(b => b.description || b.node || '').filter(Boolean).join(', ');
+            }
+        } catch(e) {}
+    }
+    if (!desc && d.node && d.node !== 'Основное оборудование' && d.node !== 'Общее') {
+        desc = d.node;
+    }
+    const descEl = document.getElementById('edit-downtime-desc');
+    if (descEl) descEl.value = desc;
+
     document.getElementById('edit-downtime-time').value = d.start_time || '';
     document.getElementById('edit-downtime-end-time').value = d.end_time || '';
     document.getElementById('edit-downtime-duration').value = d.duration || 0;
@@ -1684,53 +1700,36 @@ async function editDowntimeRow(d) {
     document.getElementById('edit-downtime-category').value = d.category || 'Механические';
     document.getElementById('edit-downtime-is-equipment-stop').checked = d.is_equipment_downtime !== false;
     
-    document.getElementById('admin-dt-breakdowns-container').innerHTML = '';
-    if (d.breakdowns) {
-        try {
-            const bkList = JSON.parse(d.breakdowns);
-            for (const bk of bkList) {
-                await addAdminBreakdownRow(bk);
-            }
-        } catch(e) {
-            await addAdminBreakdownRow({ department: d.department, node: d.node, description: d.description });
-        }
-    } else {
-        await addAdminBreakdownRow({ department: d.department, node: d.node, description: d.description });
-    }
-    
+    calcAdminDowntimeDuration();
     document.getElementById('edit-downtime-modal').style.display = 'flex';
 }
 
 async function saveDowntimeEdit() {
     const id = document.getElementById('edit-downtime-id').value;
-    
-    const breakdownRows = document.querySelectorAll('#admin-dt-breakdowns-container .breakdown-row');
-    const breakdownsList = [];
-    let firstDept = "", firstNode = "", firstDesc = "";
+    if (!id) return;
 
-    breakdownRows.forEach(row => {
-        const dept = row.querySelector('.brk-dept').value;
-        const node = row.querySelector('.brk-node').value;
-        const selDesc = row.querySelector('.brk-desc').value;
-        const custDesc = row.querySelector('.brk-custom-desc').value;
-        const cat = row.querySelector('.brk-category').value;
-        
-        let desc = selDesc;
-        if (selDesc === '_CUSTOM_') {
-            desc = custDesc;
-        }
-        
-        if (dept && node && desc) {
-            breakdownsList.push({ department: dept, node: node, description: desc, category: cat });
-            if (!firstDept) { firstDept = dept; firstNode = node; firstDesc = desc; }
-        }
-    });
+    const desc = (document.getElementById('edit-downtime-desc')?.value || '').trim();
+    const startTime = (document.getElementById('edit-downtime-time')?.value || '').trim();
+    const endTime = (document.getElementById('edit-downtime-end-time')?.value || '').trim();
+    const durationVal = parseInt(document.getElementById('edit-downtime-duration')?.value) || 0;
 
-    if (breakdownsList.length === 0) {
-        alert("Добавьте хотя бы одну поломку (участок, узел, причина)!");
+    if (!desc) {
+        alert("Введите описание того, что произошло или какие работы проводились!");
+        document.getElementById('edit-downtime-desc')?.focus();
         return;
     }
-    
+    if (!startTime) {
+        alert("Укажите время начала простоя!");
+        document.getElementById('edit-downtime-time')?.focus();
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-downtime');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+    }
+
     const lineVal = document.getElementById('edit-downtime-line').value;
     const lineFormatted = lineVal.includes('Линия') ? lineVal : `Линия ${lineVal}`;
 
@@ -1739,19 +1738,21 @@ async function saveDowntimeEdit() {
         shift_name: document.getElementById('edit-downtime-shift').value || 'День',
         line: lineFormatted,
         master_id: parseInt(document.getElementById('edit-downtime-master').value) || null,
-        start_time: document.getElementById('edit-downtime-time').value || null,
-        end_time: document.getElementById('edit-downtime-end-time').value || null,
-        duration: parseInt(document.getElementById('edit-downtime-duration').value) || 0,
-        department: firstDept,
-        node: firstNode,
-        description: firstDesc,
+        start_time: startTime,
+        end_time: endTime || null,
+        duration: durationVal,
+        description: desc,
+        comment: desc,
+        node: "Основное оборудование",
+        department: "",
         lost_tons: parseFloat(document.getElementById('edit-downtime-lost-tons').value) || 0.0,
         lost_tenge: parseFloat(document.getElementById('edit-downtime-lost-tenge').value) || 0.0,
         status: document.getElementById('edit-downtime-status').value || 'pending',
         category: document.getElementById('edit-downtime-category').value,
         is_equipment_downtime: document.getElementById('edit-downtime-is-equipment-stop').checked,
-        breakdowns: JSON.stringify(breakdownsList)
+        breakdowns: null
     };
+
     try {
         const res = await fetch(`/api/admin/downtimes/${id}`, {
             method: 'PUT',
@@ -1767,10 +1768,17 @@ async function saveDowntimeEdit() {
                 loadDowntimesLog();
             }
         } else {
-            alert("Ошибка сохранения простоя");
+            const err = await res.json().catch(() => ({}));
+            alert("Ошибка сохранения простоя: " + (err.detail || res.statusText));
         }
     } catch(e) {
         console.error(e);
+        alert("Ошибка сети при сохранении: " + e.message);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fa-solid fa-save"></i> Сохранить';
+        }
     }
 }
 
@@ -2126,7 +2134,10 @@ function applyDowntimeFilters() {
         }
 
         // Reason formatting with word wrapping
-        let displayReason = `<b>${d.node || 'Общее'}</b>: ${d.description || '-'}`;
+        let displayReason = d.description || d.comment || '-';
+        if (d.node && d.node !== 'Основное оборудование' && d.node !== 'Общее' && !displayReason.includes(d.node)) {
+            displayReason = `<b>${d.node}</b>: ${displayReason}`;
+        }
         if (d.breakdowns) {
             try {
                 const bkList = JSON.parse(d.breakdowns);
@@ -2382,160 +2393,38 @@ async function deleteReceiptRow(id) {
 }
 
 // ------------------------------------------------
-// DYNAMIC BREAKDOWNS LOGIC (ADMIN)
+// DOWNTIME ADMIN TIME & DURATION HELPERS
 // ------------------------------------------------
-let adminBreakdownRowCounter = 0;
-
-async function addAdminBreakdownRow(initialData = null) {
-    const container = document.getElementById(`admin-dt-breakdowns-container`);
-    if (!container) return;
-    
-    const rowId = adminBreakdownRowCounter++;
-    
-    const rowHtml = `
-        <div class="breakdown-row" id="admin-dt-brk-row-${rowId}" style="border: 1px solid var(--glass-border); padding: 1rem; border-radius: 8px; background: rgba(255,255,255,0.02); position: relative;">
-            <button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="position: absolute; top: 0.5rem; right: 0.5rem; width: auto; padding: 0.2rem 0.6rem; font-size: 0.7rem; cursor: pointer; border: none; border-radius: 4px;">Удалить</button>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.5rem; padding-right: 3rem;">
-                <div>
-                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Участок / Отделение</label>
-                    <select class="brk-dept" onchange="onAdminBrkDeptChange(this)" style="margin-bottom:0;">
-                        <option value="">-- Выберите участок --</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Узел / Оборудование</label>
-                    <select class="brk-node" onchange="onAdminBrkNodeChange(this)" style="margin-bottom:0;">
-                        <option value="">-- Сначала выберите участок --</option>
-                    </select>
-                </div>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div>
-                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Поломка / Причина</label>
-                    <select class="brk-desc" onchange="onAdminBrkDescChange(this)" style="margin-bottom:0;">
-                        <option value="">-- Сначала выберите узел --</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size: 0.8rem; color: var(--text-secondary);">Кастомный текст (Свой вариант)</label>
-                    <input type="text" class="brk-custom-desc" placeholder="Введите свою поломку" style="display:none; margin-bottom:0;" />
-                </div>
-            </div>
-            <input type="hidden" class="brk-category" value="" />
-        </div>
-    `;
-    
-    container.insertAdjacentHTML('beforeend', rowHtml);
-    
-    const rowDiv = document.getElementById(`admin-dt-brk-row-${rowId}`);
-    const deptSelect = rowDiv.querySelector('.brk-dept');
-    
-    try {
-        const res = await fetch('/api/downtimes/directory/departments');
-        if (res.ok) {
-            const depts = await res.json();
-            depts.sort((a, b) => a.localeCompare(b));
-            deptSelect.innerHTML = '<option value="">-- Выберите участок --</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
-            
-            if (initialData && initialData.department) {
-                deptSelect.value = initialData.department;
-                await onAdminBrkDeptChange(deptSelect, initialData.node, initialData.description);
-                if (initialData.category) {
-                    rowDiv.querySelector('.brk-category').value = initialData.category;
-                }
-            }
-        }
-    } catch(e) {
-        console.error(e);
+function setTimeNowAdmin(inputId) {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const el = document.getElementById(inputId);
+    if (el) {
+        el.value = `${h}:${m}`;
+        calcAdminDowntimeDuration();
     }
 }
 
-async function onAdminBrkDeptChange(selectElement, initialNode = null, initialDesc = null) {
-    const rowDiv = selectElement.closest('.breakdown-row');
-    const dept = selectElement.value;
-    const selectNode = rowDiv.querySelector('.brk-node');
+function calcAdminDowntimeDuration() {
+    const s = (document.getElementById('edit-downtime-time')?.value || '').trim();
+    const e = (document.getElementById('edit-downtime-end-time')?.value || '').trim();
+    const durInput = document.getElementById('edit-downtime-duration');
+    if (!durInput) return;
     
-    if (!dept) {
-        selectNode.innerHTML = '<option value="">-- Сначала выберите участок --</option>';
-        return;
-    }
-    
-    try {
-        const res = await fetch(`/api/downtimes/directory/nodes?department=${encodeURIComponent(dept)}`);
-        if (res.ok) {
-            const nodes = await res.json();
-            nodes.sort((a, b) => a.localeCompare(b));
-            selectNode.innerHTML = '<option value="">-- Выберите узел --</option>' +
-                nodes.map(n => `<option value="${n}">${n}</option>`).join('');
-                
-            if (initialNode) {
-                selectNode.value = initialNode;
-                await onAdminBrkNodeChange(selectNode, initialDesc);
-            }
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-async function onAdminBrkNodeChange(selectElement, initialDesc = null) {
-    const rowDiv = selectElement.closest('.breakdown-row');
-    const dept = rowDiv.querySelector('.brk-dept').value;
-    const node = selectElement.value;
-    const selectBk = rowDiv.querySelector('.brk-desc');
-    
-    if (!dept || !node) {
-        selectBk.innerHTML = '<option value="">-- Сначала выберите узел --</option>';
-        return;
-    }
-    
-    try {
-        const res = await fetch(`/api/downtimes/directory/breakdowns?department=${encodeURIComponent(dept)}&node=${encodeURIComponent(node)}`);
-        if (res.ok) {
-            const breakdowns = await res.json();
-            breakdowns.sort((a, b) => a.breakdown.localeCompare(b.breakdown));
-            
-            selectBk.innerHTML = '<option value="">-- Выберите поломку --</option>' +
-                breakdowns.map(b => `<option value="${b.breakdown}" data-category="${b.category || ''}">${b.breakdown}</option>`).join('') +
-                '<option value="_CUSTOM_">✏️ Свой вариант (Ввести вручную)</option>';
-                
-            if (initialDesc) {
-                let exists = false;
-                for (let i = 0; i < selectBk.options.length; i++) {
-                    if (selectBk.options[i].value === initialDesc) {
-                        exists = true;
-                        break;
-                    }
-                }
-                
-                if (exists) {
-                    selectBk.value = initialDesc;
-                } else {
-                    selectBk.value = '_CUSTOM_';
-                    rowDiv.querySelector('.brk-custom-desc').value = initialDesc;
-                }
-                onAdminBrkDescChange(selectBk);
-            }
-        }
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-function onAdminBrkDescChange(selectElement) {
-    const rowDiv = selectElement.closest('.breakdown-row');
-    const customInput = rowDiv.querySelector('.brk-custom-desc');
-    const categoryInput = rowDiv.querySelector('.brk-category');
-    
-    if (selectElement.value === '_CUSTOM_') {
-        customInput.style.display = 'block';
-        categoryInput.value = 'Разное';
-    } else {
-        customInput.style.display = 'none';
-        const selectedOption = selectElement.options[selectElement.selectedIndex];
-        if (selectedOption) {
-            categoryInput.value = selectedOption.getAttribute('data-category') || '';
-        }
+    if (!s || !e) return;
+    const p1 = s.split(':');
+    const p2 = e.split(':');
+    if (p1.length >= 2 && p2.length >= 2) {
+        const h1 = parseInt(p1[0], 10) || 0;
+        const m1 = parseInt(p1[1], 10) || 0;
+        const h2 = parseInt(p2[0], 10) || 0;
+        const m2 = parseInt(p2[1], 10) || 0;
+        let t1 = h1 * 60 + m1;
+        let t2 = h2 * 60 + m2;
+        if (t2 < t1) t2 += 24 * 60; // переход через полночь
+        const diff = Math.max(0, t2 - t1);
+        durInput.value = diff;
     }
 }
 

@@ -2610,83 +2610,129 @@
 
     <!-- Edit Downtime Row Modal -->
     <div id="edit-downtime-modal" class="modal" style="z-index: 2010;">
-        <div class="modal-content" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
-            <h3>Редактировать простой</h3>
+        <div class="modal-content" style="max-width: 540px; max-height: 85vh; overflow-y: auto; word-break: break-word;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.75rem;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.2rem;">
+                    <span>⏱️</span> Редактировать простой
+                </h3>
+                <button type="button" onclick="document.getElementById('edit-downtime-modal').style.display='none'" style="background: none; border: none; font-size: 1.25rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+            </div>
             <input type="hidden" id="edit-downtime-id">
+
+            <!-- 1. Параметры смены -->
+            <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.5rem;">
+                1. Параметры смены
+            </label>
             <div class="unified-form-grid"
-                style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--glass-border);">
-                <div class="form-group"><label>Дата</label><input type="date" id="edit-downtime-date"></div>
+                style="grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.65rem; margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--glass-border);">
+                <div class="form-group"><label>📅 Дата</label><input type="date" id="edit-downtime-date"></div>
                 <div class="form-group">
-                    <label>Смена</label>
+                    <label>☀️/🌙 Смена</label>
                     <select id="edit-downtime-shift">
                         <option value="День">День</option>
                         <option value="Ночь">Ночь</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Линия</label>
+                    <label>🏭 Линия</label>
                     <select id="edit-downtime-line">
                         <option value="1">Линия 1</option>
                         <option value="2">Линия 2</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Мастер смены</label>
+                    <label>👤 Мастер смены</label>
                     <select id="edit-downtime-master"></select>
                 </div>
             </div>
-            <div class="form-group"><label>Начало простоя</label><input type="text" id="edit-downtime-time"></div>
-            <div class="form-group"><label>Конец простоя</label><input type="text" id="edit-downtime-end-time"></div>
-            <div class="form-group"><label>Длительность (мин)</label><input type="number" id="edit-downtime-duration">
+
+            <!-- 2. Что произошло / Что делали (Свободный ввод как в портале) -->
+            <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.4rem;">
+                    2. Что произошло / Что делали *
+                </label>
+                <textarea id="edit-downtime-desc" rows="3"
+                    placeholder="Например: Замена ножей, чистка кармана и рекуператора, устранение затора..."
+                    style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
             </div>
 
-            <!-- Блок поломок (Admin) -->
-            <div
-                style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
-                <label
-                    style="font-size: 0.9rem; color: var(--accent-color); font-weight: bold; margin-bottom: 0.75rem; display: block;">Список
-                    поломок / работ</label>
-                <div id="admin-dt-breakdowns-container"
-                    style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem;">
-                    <!-- Строки поломок будут добавляться через JS -->
+            <!-- 3. Время и длительность -->
+            <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.5rem;">
+                    3. Время и длительность
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; align-items: end;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <label style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Начало</label>
+                            <button type="button" onclick="setTimeNowAdmin('edit-downtime-time')"
+                                style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer;"
+                                title="Установить текущее время">Сейчас</button>
+                        </div>
+                        <input type="text" id="edit-downtime-time" placeholder="--:--"
+                            oninput="calcAdminDowntimeDuration()" onchange="calcAdminDowntimeDuration()"
+                            style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; text-align: center; height: 38px;">
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                            <label style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin: 0;">⏰ Конец</label>
+                            <button type="button" onclick="setTimeNowAdmin('edit-downtime-end-time')"
+                                style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer;"
+                                title="Установить текущее время">Сейчас</button>
+                        </div>
+                        <input type="text" id="edit-downtime-end-time" placeholder="--:--"
+                            oninput="calcAdminDowntimeDuration()" onchange="calcAdminDowntimeDuration()"
+                            style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; text-align: center; height: 38px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.78rem; color: #64748b; font-weight: 600; margin-bottom: 0.25rem; display: block;">⏱️ Итого (мин)</label>
+                        <input type="number" id="edit-downtime-duration" placeholder="0"
+                            style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-size: 1rem; font-weight: 700; border: 1px solid #bae6fd; background: #f0f9ff; color: #0369a1; box-sizing: border-box; text-align: center; height: 38px;">
+                    </div>
                 </div>
-                <button type="button" onclick="addAdminBreakdownRow()" class="btn-secondary"
-                    style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem; border: 1px dashed #cbd5e1;">+
-                    Добавить поломку</button>
             </div>
 
-            <div class="form-group"><label>Потери (тонн)</label><input type="number" id="edit-downtime-lost-tons"
-                    step="0.1"></div>
-            <div class="form-group"><label>Потери (тенге)</label><input type="number" id="edit-downtime-lost-tenge"
-                    step="0.1"></div>
-            <div class="form-group">
-                <label>Статус</label>
-                <select id="edit-downtime-status">
-                    <option value="pending">pending (В процессе)</option>
-                    <option value="resolved">resolved (Решено)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Категория</label>
-                <select id="edit-downtime-category">
-                    <option value="Механические">Механические</option>
-                    <option value="Энергетические">Энергетические</option>
-                    <option value="Технологические">Технологические</option>
-                    <option value="ТО и ППР">ТО и ППР</option>
-                    <option value="Остановки не связанные с простоем оборудования">Остановки не связанные с простоем
-                        оборудования</option>
-                    <option value="Санитарный день">Санитарный день</option>
-                </select>
-            </div>
+            <!-- 4. Остановка оборудования -->
             <div class="form-group"
-                style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; cursor: pointer;">
-                <input type="checkbox" id="edit-downtime-is-equipment-stop" style="width: auto; margin: 0;">
-                <label style="margin: 0; cursor: pointer;">Ремонт с остановкой оборудования</label>
+                style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; cursor: pointer; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #fee2e2; background: #fff5f5;">
+                <input type="checkbox" id="edit-downtime-is-equipment-stop" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                <label for="edit-downtime-is-equipment-stop" style="margin: 0; cursor: pointer; font-weight: 600; font-size: 0.88rem; color: #991b1b;">
+                    🛑 Остановка оборудования (Линия была полностью остановлена)
+                </label>
             </div>
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+
+            <!-- 5. Параметры классификации и потерь (Админ) -->
+            <div class="unified-form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <div class="form-group">
+                    <label>Категория</label>
+                    <select id="edit-downtime-category">
+                        <option value="Механические">Механические</option>
+                        <option value="Энергетические">Энергетические</option>
+                        <option value="Технологические">Технологические</option>
+                        <option value="ТО и ППР">ТО и ППР</option>
+                        <option value="Остановки не связанные с простоем оборудования">Остановки не связанные с простоем оборудования</option>
+                        <option value="Санитарный день">Санитарный день</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Статус</label>
+                    <select id="edit-downtime-status">
+                        <option value="pending">pending (В процессе)</option>
+                        <option value="resolved">resolved (Решено)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="unified-form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="form-group"><label>Потери (тонн)</label><input type="number" id="edit-downtime-lost-tons" step="0.1"></div>
+                <div class="form-group"><label>Потери (тенге)</label><input type="number" id="edit-downtime-lost-tenge" step="0.1"></div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.25rem;">
                 <button type="button" onclick="document.getElementById('edit-downtime-modal').style.display='none'"
-                    class="btn-secondary">Отмена</button>
-                <button onclick="saveDowntimeEdit()" class="btn-save">Сохранить</button>
+                    class="btn-secondary" style="width: auto; padding: 0.6rem 1.2rem;">Отмена</button>
+                <button id="btn-save-downtime" onclick="saveDowntimeEdit()" class="btn-save" style="width: auto; padding: 0.6rem 1.5rem;">
+                    <i class="fa-solid fa-save"></i> Сохранить
+                </button>
             </div>
 
         </div>

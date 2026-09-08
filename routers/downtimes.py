@@ -522,6 +522,27 @@ def admin_update_downtime(downtime_id: int, data: dict, request: Request, backgr
     
     old_values = {}
     new_values = {}
+    
+    # Safe date conversion
+    if "date" in data:
+        raw_date = data["date"]
+        if isinstance(raw_date, str) and raw_date.strip():
+            try:
+                data["date"] = datetime.strptime(raw_date.strip(), "%Y-%m-%d").date()
+            except Exception:
+                try:
+                    data["date"] = datetime.strptime(raw_date.strip(), "%d.%m.%Y").date()
+                except Exception:
+                    data["date"] = None
+        elif not raw_date:
+            data["date"] = None
+
+    # Free text synchronization (description and comment)
+    if "description" in data or "comment" in data:
+        desc_text = (data.get("description") or data.get("comment") or "").strip()
+        data["description"] = desc_text
+        data["comment"] = desc_text
+
     for key, val in data.items():
         if hasattr(dt, key):
             old_val = getattr(dt, key)
@@ -529,6 +550,35 @@ def admin_update_downtime(downtime_id: int, data: dict, request: Request, backgr
                 old_values[key] = str(old_val)
                 new_values[key] = str(val)
                 setattr(dt, key, val)
+
+    # Actual date recalculation (e.g. night shift crossover)
+    cur_date = dt.date or (dt.shift.date if dt.shift else None)
+    cur_shift = dt.shift_name or (dt.shift.shift_name if dt.shift else "")
+    cur_start = dt.start_time
+    new_act_date = compute_downtime_actual_date(cur_date, cur_shift, cur_start)
+    if dt.actual_date != new_act_date:
+        dt.actual_date = new_act_date
+
+    # Recalculate duration if 0 and start/end are set
+    if (not dt.duration or dt.duration <= 0) and dt.start_time and dt.end_time:
+        try:
+            t_start = datetime.strptime(dt.start_time.strip(), "%H:%M")
+            t_end = datetime.strptime(dt.end_time.strip(), "%H:%M")
+            if t_end < t_start:
+                dt.duration = int((t_end.timestamp() + 24*3600 - t_start.timestamp()) / 60)
+            else:
+                dt.duration = int((t_end - t_start).total_seconds() / 60)
+        except Exception:
+            pass
+
+    # Recalculate losses if empty and duration is known
+    if (not dt.lost_tons or not dt.lost_tenge) and dt.duration:
+        shift = dt.shift or (db.query(models.Shift).get(dt.shift_id) if dt.shift_id else None)
+        auto_tons, auto_tenge = calculate_downtime_losses(dt.duration, shift, db)
+        if not dt.lost_tons:
+            dt.lost_tons = auto_tons
+        if not dt.lost_tenge:
+            dt.lost_tenge = auto_tenge
                 
     if old_values:
         log_entry = models.AuditLog(
