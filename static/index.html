@@ -210,6 +210,36 @@
             transform: translateY(-2px);
         }
 
+        /* Report Mode & Dual Shift Switch */
+        .custom-toggle-switch input:checked + .custom-toggle-slider {
+            background-color: var(--primary-color) !important;
+        }
+        .custom-toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .25s ease;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+        }
+        .custom-toggle-switch input:checked + .custom-toggle-slider:before {
+            transform: translateX(20px);
+        }
+        .report-mode-option.active {
+            border-color: var(--primary-color) !important;
+            background: rgba(200, 35, 35, 0.04) !important;
+        }
+        .btn-dual-part.active {
+            border-color: var(--primary-color) !important;
+            background: #ffffff !important;
+            color: var(--primary-color) !important;
+            box-shadow: var(--stripe-shadow-sm) !important;
+        }
+
         /* Print Media Styles */
         @media print {
             @page {
@@ -514,6 +544,43 @@
                             рапорт)</button>
                     </div>
 
+                    <!-- Report Mode Selector (Полная смена / Только ГП) -->
+                    <div id="report-mode-selector-card" class="glass-panel"
+                        style="padding: 1rem 1.25rem; margin-bottom: 1.25rem; border-radius: 16px; border: 1.5px solid var(--stripe-border); background: #ffffff; box-shadow: var(--stripe-shadow-sm);">
+                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.1rem;">⚙️</span>
+                                <span>Режим сменного рапорта</span>
+                            </div>
+                            <span id="report-mode-badge" class="stripe-badge" style="background: rgba(200, 35, 35, 0.08); color: var(--primary-color); border: 1px solid rgba(200, 35, 35, 0.2);">🏭 Полный цикл</span>
+                        </div>
+                        <div class="report-mode-grid"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem;">
+                            <label class="report-mode-option active" id="report-mode-option-full"
+                                onclick="if(event.target.tagName !== 'INPUT') setReportMode('full')"
+                                style="display: flex; align-items: flex-start; gap: 12px; padding: 0.85rem 1.1rem; border-radius: 12px; border: 2px solid var(--primary-color); background: rgba(200, 35, 35, 0.04); cursor: pointer; transition: all 0.2s ease;">
+                                <input type="radio" name="report-mode-radio" id="report-mode-full" value="full" checked
+                                    onchange="setReportMode('full')"
+                                    style="margin-top: 4px; accent-color: var(--primary-color); cursor: pointer; width: 16px; height: 16px;">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-primary);">🏭 Полная смена</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Формовка ЛФМ + Сырье ЗО + Сдача ГП</div>
+                                </div>
+                            </label>
+                            <label class="report-mode-option" id="report-mode-option-gp-only"
+                                onclick="if(event.target.tagName !== 'INPUT') setReportMode('gp_only')"
+                                style="display: flex; align-items: flex-start; gap: 12px; padding: 0.85rem 1.1rem; border-radius: 12px; border: 1.5px solid var(--stripe-border); background: #f8fafc; cursor: pointer; transition: all 0.2s ease;">
+                                <input type="radio" name="report-mode-radio" id="report-mode-gp-only" value="gp_only"
+                                    onchange="setReportMode('gp_only')"
+                                    style="margin-top: 4px; accent-color: var(--primary-color); cursor: pointer; width: 16px; height: 16px;">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 0.92rem; color: var(--text-primary);">📦 Только сдача ГП на склад</div>
+                                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px;">Доразборка вылежавшейся партии / ППР</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Accordion Section 1: Заголовок смены -->
                     <div class="glass-panel accordion-section" id="acc-header-section">
                         <div class="accordion-header" onclick="toggleAccordion('sec-header')">
@@ -583,7 +650,75 @@
                                     </select>
                                 </div>
                             </div>
+
+                            <!-- Тумблер перехода на другую продукцию -->
+                            <div id="transition-switch-wrapper"
+                                style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px dashed var(--stripe-border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; margin: 0; user-select: none;">
+                                    <span class="custom-toggle-switch" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                                        <input type="checkbox" id="rep-is-transition" onchange="toggleTransitionMode(this.checked)" style="opacity: 0; width: 0; height: 0;">
+                                        <span class="custom-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 24px;"></span>
+                                    </span>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary);">🔄 Переход на другую продукцию в смене</div>
+                                        <div style="font-size: 0.78rem; color: var(--text-secondary);">Сдвоенный рапорт (раздельный учет формовки и сырья для двух продуктов)</div>
+                                    </div>
+                                </label>
+                                <span class="stripe-badge badge-warning" id="transition-active-badge" style="display: none; font-weight: 700;">Сдвоенный рапорт активен</span>
+                            </div>
+
+                            <!-- Контейнер табов частей смены (по умолчанию скрыт) -->
+                            <div id="dual-report-tabs-container"
+                                style="display: none; margin-top: 1rem; padding: 0.65rem; background: #f1f5f9; border-radius: 12px; border: 1px solid var(--stripe-border);">
+                                <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                                    <button type="button" id="tab-btn-part1" class="btn-dual-part active" onclick="switchDualTab(1)"
+                                        style="flex: 1; min-width: 200px; padding: 0.65rem 1rem; border-radius: 10px; font-weight: 700; font-size: 0.88rem; border: 1.5px solid var(--primary-color); background: #ffffff; color: var(--primary-color); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--stripe-shadow-sm); transition: all 0.2s;">
+                                        <span>1️⃣</span> <span>Часть 1:</span> <strong id="tab-part1-product-label" style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Не выбран</strong>
+                                    </button>
+                                    <button type="button" id="tab-btn-part2" class="btn-dual-part" onclick="switchDualTab(2)"
+                                        style="flex: 1; min-width: 200px; padding: 0.65rem 1rem; border-radius: 10px; font-weight: 600; font-size: 0.88rem; border: 1.5px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
+                                        <span>2️⃣</span> <span>Часть 2:</span> <strong id="tab-part2-product-label" style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Не выбран</strong>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Виджет суммарного выпуска за 12ч смену (по умолчанию скрыт) -->
+                            <div id="dual-summary-widget"
+                                style="display: none; margin-top: 1rem; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 1rem 1.25rem; box-shadow: var(--stripe-shadow-sm);">
+                                <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 0.65rem; display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="display: flex; align-items: center; gap: 6px;">📊 Итоги за всю 12ч смену (Сумма Ч1 + Ч2)</span>
+                                    <span class="stripe-badge badge-brand" style="font-size: 0.72rem;">Автопересчет</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 0.65rem;">
+                                    <div style="background: #f8fafc; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--stripe-border);">
+                                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Формовка ЛФМ</div>
+                                        <div style="font-size: 1.15rem; font-weight: 800; color: var(--text-primary);"><span id="dual-sum-lfm-sheets">0</span> <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary);">лист.</span></div>
+                                    </div>
+                                    <div style="background: #f8fafc; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--stripe-border);">
+                                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Вес формовки</div>
+                                        <div style="font-size: 1.15rem; font-weight: 800; color: var(--primary-color);"><span id="dual-sum-lfm-tons">0.00</span> <span style="font-size: 0.75rem; font-weight: 600; color: var(--primary-color);">т</span></div>
+                                    </div>
+                                    <div style="background: #f8fafc; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--stripe-border);">
+                                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Сдача на склад ГП</div>
+                                        <div style="font-size: 1.15rem; font-weight: 800; color: #047857;"><span id="dual-sum-warehouse-gp">0</span> <span style="font-size: 0.75rem; font-weight: 600; color: #047857;">лист.</span></div>
+                                    </div>
+                                    <div style="background: #f8fafc; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid var(--stripe-border);">
+                                        <div style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Расход цемента</div>
+                                        <div style="font-size: 1.15rem; font-weight: 800; color: #b45309;"><span id="dual-sum-cement">0</span> <span style="font-size: 0.75rem; font-weight: 600; color: #b45309;">кг</span></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Бейдж для режима Только ГП (Секция 2 скрыта) -->
+                    <div id="banner-gp-only-prod" class="glass-panel"
+                        style="display: none; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 14px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; color: #166534; font-size: 0.88rem; font-weight: 600; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.1rem;">ℹ️</span>
+                            <span>Секция 2: <strong>Формовка не производилась</strong> (ЛФМ: 0 листов / 0.00 т)</span>
+                        </div>
+                        <span class="stripe-badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">Только ГП</span>
                     </div>
 
                     <!-- Accordion Section 2: Производство -->
@@ -661,7 +796,7 @@
 
                                 <div class="form-grid-two" style="margin-bottom: 1rem;">
                                     <div class="form-group">
-                                        <label>На склад ГП своей смены (листов)</label>
+                                        <label id="lbl-rep-warehouse-gp">Сдано кондиции на склад ГП (листов) *</label>
                                         <input type="number" id="rep-warehouse-gp" placeholder="0"
                                             oninput="recalcWarehouseGPTotal()">
                                     </div>
@@ -723,7 +858,7 @@
                             </div>
 
                             <!-- БЛОК 2: ПРЕДЫДУЩАЯ СМЕНА -->
-                            <div
+                            <div id="prev-shift-block"
                                 style="background: #fffdfa; padding: 1.35rem; border-radius: 14px; border: 1px solid rgba(245, 158, 11, 0.25); margin-bottom: 1.5rem; box-shadow: var(--stripe-shadow-sm);">
                                 <div
                                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem;">
@@ -734,65 +869,74 @@
                                         смена</span>
                                 </div>
 
-                                <div class="form-grid-two" style="margin-bottom: 1rem;">
-                                    <div class="form-group">
-                                        <label>На склад ГП прошлой смены (листов)</label>
-                                        <input type="number" id="rep-prev-warehouse-gp" placeholder="0"
-                                            oninput="recalcWarehouseGPTotal()">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>1 Сорт прошлой смены (листов)</label>
-                                        <input type="number" id="rep-prev-first-grade" placeholder="0">
-                                    </div>
+                                <!-- Информационное сообщение блокировки на Табе 2 при сдвоенном рапорте -->
+                                <div id="prev-shift-tab2-lock-banner"
+                                    style="display: none; background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem; color: #1e40af; font-size: 0.85rem; font-weight: 600; align-items: center; gap: 8px;">
+                                    <span>ℹ️</span>
+                                    <span>Разборка стоп прошлой смены учитывается в Части 1 сдвоенного рапорта и заблокирована во 2-й части во избежание задвоения.</span>
                                 </div>
 
-                                <div class="form-group" style="margin-bottom: 1rem; max-width: 320px;">
-                                    <label>Регистрация брака прошлой смены</label>
-                                    <select id="rep-prev-has-defect" onchange="togglePrevDefectsGrid()">
-                                        <option value="no">Нет брака прошлой смены</option>
-                                        <option value="yes">Да, зарегистрировать брак прошлой смены</option>
-                                    </select>
-                                </div>
+                                <div id="prev-shift-inputs-container">
+                                    <div class="form-grid-two" style="margin-bottom: 1rem;">
+                                        <div class="form-group">
+                                            <label>На склад ГП прошлой смены (листов)</label>
+                                            <input type="number" id="rep-prev-warehouse-gp" placeholder="0"
+                                                oninput="recalcWarehouseGPTotal()">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>1 Сорт прошлой смены (листов)</label>
+                                            <input type="number" id="rep-prev-first-grade" placeholder="0">
+                                        </div>
+                                    </div>
 
-                                <!-- 7 видов дефектов прошлой смены -->
-                                <div id="prev-defects-detail-grid"
-                                    style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
-                                    <div
-                                        style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                                        <h5
-                                            style="margin: 0; color: #ea580c; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">
-                                            Детализация дефектов Дестакера (прошлая смена)</h5>
-                                        <span class="stripe-badge badge-warning">7 категорий</span>
+                                    <div class="form-group" style="margin-bottom: 1rem; max-width: 320px;">
+                                        <label>Регистрация брака прошлой смены</label>
+                                        <select id="rep-prev-has-defect" onchange="togglePrevDefectsGrid()">
+                                            <option value="no">Нет брака прошлой смены</option>
+                                            <option value="yes">Да, зарегистрировать брак прошлой смены</option>
+                                        </select>
                                     </div>
-                                    <div class="form-grid-four">
-                                        <div class="form-group"><label>Сдир</label><input type="number"
-                                                id="prev-def-scratch" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Плохой рез</label><input type="number"
-                                                id="prev-def-bad-cut" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Налип сверху</label><input type="number"
-                                                id="prev-def-stick-top" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Сломан</label><input type="number"
-                                                id="prev-def-broken" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Упал коробки</label><input type="number"
-                                                id="prev-def-fell" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Не соотв. толщины</label><input type="number"
-                                                id="prev-def-thickness" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                        <div class="form-group"><label>Кромка</label><input type="number"
-                                                id="prev-def-edge" placeholder="0" class="prev-defect-input"
-                                                oninput="recalcPrevDefectTotal()"></div>
-                                    </div>
-                                    <div class="form-group" style="margin-top: 1rem; max-width: 280px;">
-                                        <label
-                                            style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого
-                                            брака прошлой смены (авто)</label>
-                                        <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0"
-                                            style="background: rgba(245, 158, 11, 0.05); font-weight: 800; color: #ea580c; font-size: 1.1rem;">
+
+                                    <!-- 7 видов дефектов прошлой смены -->
+                                    <div id="prev-defects-detail-grid"
+                                        style="display: none; background: #ffffff; padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 1rem; box-shadow: var(--stripe-shadow-sm);">
+                                        <div
+                                            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                                            <h5
+                                                style="margin: 0; color: #ea580c; font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">
+                                                Детализация дефектов Дестакера (прошлая смена)</h5>
+                                            <span class="stripe-badge badge-warning">7 категорий</span>
+                                        </div>
+                                        <div class="form-grid-four">
+                                            <div class="form-group"><label>Сдир</label><input type="number"
+                                                    id="prev-def-scratch" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                            <div class="form-group"><label>Плохой рез</label><input type="number"
+                                                    id="prev-def-bad-cut" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                            <div class="form-group"><label>Налип сверху</label><input type="number"
+                                                    id="prev-def-stick-top" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                            <div class="form-group"><label>Сломан</label><input type="number"
+                                                    id="prev-def-broken" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                            <div class="form-group"><label>Упал коробки</label><input type="number"
+                                                    id="prev-def-fell" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                            <div class="form-group"><label>Не соотв. толщины</label><input type="number"
+                                                    id="prev-def-thickness" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                            <div class="form-group"><label>Кромка</label><input type="number"
+                                                    id="prev-def-edge" placeholder="0" class="prev-defect-input"
+                                                    oninput="recalcPrevDefectTotal()"></div>
+                                        </div>
+                                        <div class="form-group" style="margin-top: 1rem; max-width: 280px;">
+                                            <label
+                                                style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого
+                                                брака прошлой смены (авто)</label>
+                                            <input type="text" id="rep-prev-defect-total-readonly" readonly placeholder="0"
+                                                style="background: rgba(245, 158, 11, 0.05); font-weight: 800; color: #ea580c; font-size: 1.1rem;">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -812,6 +956,16 @@
                             </div>
                             <input type="hidden" id="rep-qcd-defect" value="0">
                         </div>
+                    </div>
+
+                    <!-- Бейдж для режима Только ГП (Секция 4 скрыта) -->
+                    <div id="banner-gp-only-raw" class="glass-panel"
+                        style="display: none; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 14px; padding: 0.85rem 1.25rem; margin-bottom: 1.5rem; color: #166534; font-size: 0.88rem; font-weight: 600; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.1rem;">ℹ️</span>
+                            <span>Секция 4: <strong>Сырье не списывалось</strong> (0 кг / замесов нет)</span>
+                        </div>
+                        <span class="stripe-badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0;">Только ГП</span>
                     </div>
 
                     <!-- Accordion Section 4: Расход сырья -->
