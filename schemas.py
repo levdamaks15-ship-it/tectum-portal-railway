@@ -870,4 +870,63 @@ class PlannerZoneResponse(PlannerZoneBase):
     class Config:
         from_attributes = True
 
+# --- Кабинет СКК / Переборка продукции ---
+
+class QcdShiftWindowItem(ORMBaseModel):
+    id: int
+    date: str
+    shift_name: str
+    line: str
+    master_name: str
+    batch_number: str
+    product_name: str
+    lfm_sheets: int
+    stacked_stacks: int
+
+class QcdSortingCreate(ORMBaseModel):
+    act_date: date
+    inspector_name: str
+    selected_shift_ids: list[int]
+    product_name: Optional[str] = "Шифер 8 волн"
+    
+    total_formed: int = 0
+    first_grade_total: int = 0
+    defect_total: int = 0
+    defect_percentage: float = 0.0
+    
+    # 12 категорий 1 сорта (словарь: { "chip": 0, "scratch": 0, ... })
+    first_grade_details: dict[str, int] = {}
+    
+    # Категории брака (словарь: { "fell_box": 0, "broken": 0, "tech_defect": 0, ... })
+    defect_details: dict[str, int] = {}
+    
+    # Расширенные причины, виновники, замечания
+    notes: Optional[str] = None
+    
+    # Снимок смен на момент акта
+    shifts_breakdown: Optional[list[dict]] = None
+
+class QcdSortingResponse(ORMBaseModel):
+    id: int
+    act_number: str
+    act_date: date
+    inspector_name: str
+    selected_shift_ids: Optional[str] = None
+    product_name: Optional[str] = None
+    total_formed: int
+    first_grade_total: int
+    defect_total: int
+    defect_percentage: float
+    first_grade_details: Optional[str] = None
+    defect_details: Optional[str] = None
+    shifts_breakdown: Optional[str] = None
+    notes: Optional[str] = None
+    google_synced: bool = False
+    google_sync_error: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 

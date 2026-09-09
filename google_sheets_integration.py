@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
+QCD_SPREADSHEET_ID = os.getenv("QCD_SPREADSHEET_ID", "1UtlJO02uAaokD9oOGMa9GPvckjORLT_KiLIWJZLKI1o")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google_credentials.json")
 
 def get_sheets_service():
@@ -2367,4 +2368,201 @@ def export_checklists_to_google_sheets(db: Session):
     except Exception as e:
         print(f"Ошибка экспорта чек-листов в Google Sheets: {e}")
         raise e
+
+
+def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
+    """
+    Экспорт актов переборки СКК в отдельную Google Таблицу (QCD_SPREADSHEET_ID).
+    Выгружает красивую таблицу со структурой:
+    - Шапка с заголовками
+    - База формовки
+    - 1 сорт (детализация и сумма)
+    - Брак (детализация и сумма)
+    - % брака
+    - Причины / Виновники
+    """
+    target_id = QCD_SPREADSHEET_ID
+    if not target_id or target_id.startswith("1_mock"):
+        return
+        
+    try:
+        service = get_sheets_service()
+        sheet_name = "Переборка СКК"
+        
+        # 1. Проверяем наличие листа в документе
+        spreadsheet = service.spreadsheets().get(spreadsheetId=target_id).execute()
+        sheets = spreadsheet.get("sheets", [])
+        sheet_id = None
+        
+        for s in sheets:
+            if s["properties"]["title"] == sheet_name:
+                sheet_id = s["properties"]["sheetId"]
+                break
+                
+        if sheet_id is None:
+            # Если лист "Переборка СКК" не найден, переименовываем первый лист (обычно "Лист1" / "Sheet1") или добавляем новый
+            first_sheet = sheets[0] if sheets else None
+            if first_sheet and first_sheet["properties"]["title"] in ["Лист1", "Sheet1"]:
+                sheet_id = first_sheet["properties"]["sheetId"]
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=target_id,
+                    body={"requests": [{"updateSheetProperties": {
+                        "properties": {"sheetId": sheet_id, "title": sheet_name},
+                        "fields": "title"
+                    }}]}
+                ).execute()
+            else:
+                add_res = service.spreadsheets().batchUpdate(
+                    spreadsheetId=target_id,
+                    body={"requests": [{"addSheet": {
+                        "properties": {"title": sheet_name, "gridProperties": {"frozenRowCount": 1}}
+                    }}]}
+                ).execute()
+                sheet_id = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+        # 2. Получаем все отчеты СКК из БД
+        reports = db.query(models.QcdSortingReport).order_by(
+            models.QcdSortingReport.act_date.asc(),
+            models.QcdSortingReport.id.asc()
+        ).all()
+
+        headers = [
+            "№ Акта", "Дата акта", "Инспектор СКК", "Продукция",
+            "Выбранные смены", "Партии / Мастера", "Формовка ЛФМ (шт)",
+            "1 Сорт (ИТОГО)", "Скол", "Сдир", "Плох. рез", "Налип низ", "Налип верх",
+            "Кривой край", "Нет рис.", "Вмятина", "Толщина", "Расслоение", "Выпир. кромки", "Прочий 1 сорт",
+            "БРАК (ИТОГО)", "Упал коробки", "Сломан", "Техн. брак",
+            "% Брака", "Причины / Виновники / Замечания", "Дата фиксации (UTC)"
+        ]
+
+        rows = [headers]
+        for r in reports:
+            # Парсинг JSON-детализации
+            try:
+                fg = json.loads(r.first_grade_details) if r.first_grade_details else {}
+            except Exception:
+                fg = {}
+            try:
+                defects = json.loads(r.defect_details) if r.defect_details else {}
+            except Exception:
+                defects = {}
+            try:
+                shifts_data = json.loads(r.shifts_breakdown) if r.shifts_breakdown else []
+                shift_names = ", ".join(f"{s.get('date', '')} {s.get('shift_name', '')}" for s in shifts_data if isinstance(s, dict))
+                parties_masters = ", ".join(f"№{s.get('batch_number', '')} ({s.get('master_name', '')})" for s in shifts_data if isinstance(s, dict))
+            except Exception:
+                shift_names = str(r.selected_shift_ids or "")
+                parties_masters = ""
+
+            rows.append([
+                r.act_number or f"СКК-{r.id}",
+                r.act_date.strftime("%d.%m.%Y") if r.act_date else "",
+                r.inspector_name or "",
+                r.product_name or "Шифер 8 волн",
+                shift_names,
+                parties_masters,
+                r.total_formed or 0,
+                r.first_grade_total or 0,
+                fg.get("chip", 0),
+                fg.get("scratch", 0),
+                fg.get("bad_cut", 0),
+                fg.get("stick_bottom", 0),
+                fg.get("stick_top", 0),
+                fg.get("curved_edge", 0),
+                fg.get("no_pattern", 0),
+                fg.get("dent", 0),
+                fg.get("thickness", 0),
+                fg.get("delamination", 0),
+                fg.get("edge_bulge", 0),
+                fg.get("other", 0),
+                r.defect_total or 0,
+                defects.get("fell_box", 0),
+                defects.get("broken", 0),
+                defects.get("tech_defect", 0),
+                f"{r.defect_percentage:.2f}%" if r.defect_percentage is not None else "0.00%",
+                r.notes or "",
+                r.created_at.strftime("%d.%m.%Y %H:%M") if r.created_at else ""
+            ])
+
+        # 3. Полная перезапись листа
+        service.spreadsheets().values().clear(
+            spreadsheetId=target_id,
+            range=f"'{sheet_name}'!A1:AA3000"
+        ).execute()
+
+        service.spreadsheets().values().update(
+            spreadsheetId=target_id,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows}
+        ).execute()
+
+        # 4. Стилизация (Брендовый стиль Tectum: темно-синий/стальной заголовок, сетка, автоширина)
+        header_color = {"red": 0.08, "green": 0.25, "blue": 0.45} # Navy Blue
+        requests = [
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": header_color,
+                            "textFormat": {
+                                "bold": True,
+                                "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                                "fontSize": 10,
+                                "fontFamily": "Calibri"
+                            },
+                            "horizontalAlignment": "CENTER",
+                            "verticalAlignment": "MIDDLE"
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                }
+            },
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": sheet_id,
+                        "gridProperties": {
+                            "frozenRowCount": 1
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount"
+                }
+            },
+            {
+                "autoResizeDimensions": {
+                    "dimensions": {
+                        "sheetId": sheet_id,
+                        "dimension": "COLUMNS",
+                        "startIndex": 0,
+                        "endIndex": len(headers)
+                    }
+                }
+            }
+        ]
+        service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
+
+        # Обновляем флаг google_synced для отчетов
+        for r in reports:
+            r.google_synced = True
+            r.google_sync_error = None
+        db.commit()
+
+        print(f"[Google Sheets] Успешно синхронизировано {len(reports)} актов переборки СКК в таблицу {target_id}.")
+    except Exception as e:
+        print(f"[Google Sheets Error] Ошибка синхронизации переборки СКК: {e}")
+        if report_id:
+            rep = db.query(models.QcdSortingReport).get(report_id)
+            if rep:
+                rep.google_synced = False
+                rep.google_sync_error = str(e)[:500]
+                db.commit()
+
 

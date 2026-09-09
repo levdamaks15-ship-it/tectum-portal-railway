@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, Text
 from sqlalchemy.orm import relationship
 import datetime
 from database import Base
@@ -521,3 +521,34 @@ class PlannerZone(Base):
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class QcdSortingReport(Base):
+    __tablename__ = "qcd_sorting_reports"
+    id = Column(Integer, primary_key=True, index=True)
+    act_number = Column(String(50), unique=True, index=True) # например СКК-2026/09-001
+    act_date = Column(Date, index=True)
+    inspector_name = Column(String(150), index=True)
+    selected_shift_ids = Column(Text) # JSON list [101, 102, ...]
+    product_name = Column(String(100), default="Шифер 8 волн", nullable=True)
+    
+    total_formed = Column(Integer, default=0) # База формовки из рапортов ЛФМ
+    first_grade_total = Column(Integer, default=0) # Итого 1 сорт
+    defect_total = Column(Integer, default=0) # Итого брак
+    defect_percentage = Column(Float, default=0.0) # % брака
+    
+    # Детализация 1 сорта (JSON: скол, сдир, плохой рез, налип снизу, налип сверху, кривой край, нет рисунка, вмятина, толщина, расслоение, выпирание кромок, прочее)
+    first_grade_details = Column(Text, nullable=True)
+    
+    # Детализация брака (JSON: упал с коробки, сломан, техн. брак и др.)
+    defect_details = Column(Text, nullable=True)
+    
+    # Снимок смен на момент акта (JSON: массив объектов с датой, сменой, мастером, партией, формовкой)
+    shifts_breakdown = Column(Text, nullable=True)
+    
+    # Расширенные причины, виновники, замечания
+    notes = Column(Text, nullable=True)
+    
+    google_synced = Column(Boolean, default=False)
+    google_sync_error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+

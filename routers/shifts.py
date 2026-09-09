@@ -1541,74 +1541,7 @@ def get_pending_destacker_batches(db: Session = Depends(get_db)):
     # Дестакер видит все партии, которые были уложены (stacked)
     return db.query(models.Batch).filter(models.Batch.status == "stacked").all()
 
-@router.get("/api/batches/pending_qcd", response_model=list[schemas.Batch])
-def get_pending_qcd_batches(db: Session = Depends(get_db)):
-    # СКК видит партии, которые уложены или разобраны, но еще не проверены СКК
-    return db.query(models.Batch).filter(
-        or_(models.Batch.status == "stacked", models.Batch.status == "destacked")
-    ).all()
 
-class DestackerUpdate(BaseModel):
-    ds_condition: int
-    ds_first_grade: int
-    ds_defect_chip: int = 0
-    ds_defect_scratch: int = 0
-    ds_defect_bad_cut: int = 0
-    ds_defect_stick_bottom: int = 0
-    ds_defect_stick_top: int = 0
-    ds_defect_broken: int = 0
-    ds_defect_fell_box: int = 0
-    ds_defect_dent: int = 0
-    ds_defect_thickness: int = 0
-    ds_defect_delamination: int = 0
-    ds_defect_edge: int = 0
-
-@router.post("/api/batches/{batch_id}/destacker")
-def update_destacker(batch_id: int, data: DestackerUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    batch = db.query(models.Batch).get(batch_id)
-    if not batch: raise HTTPException(404)
-    batch.ds_condition = data.ds_condition
-    batch.ds_first_grade = data.ds_first_grade
-    batch.ds_defect_chip = data.ds_defect_chip
-    batch.ds_defect_scratch = data.ds_defect_scratch
-    batch.ds_defect_bad_cut = data.ds_defect_bad_cut
-    batch.ds_defect_stick_bottom = data.ds_defect_stick_bottom
-    batch.ds_defect_stick_top = data.ds_defect_stick_top
-    batch.ds_defect_broken = data.ds_defect_broken
-    batch.ds_defect_fell_box = data.ds_defect_fell_box
-    batch.ds_defect_dent = data.ds_defect_dent
-    batch.ds_defect_thickness = data.ds_defect_thickness
-    batch.ds_defect_delamination = data.ds_defect_delamination
-    batch.ds_defect_edge = data.ds_defect_edge
-    
-    # Суммируем весь брак
-    batch.ds_defect = (
-        data.ds_defect_chip + data.ds_defect_scratch + data.ds_defect_bad_cut +
-        data.ds_defect_stick_bottom + data.ds_defect_stick_top + data.ds_defect_broken +
-        data.ds_defect_fell_box + data.ds_defect_dent + data.ds_defect_thickness +
-        data.ds_defect_delamination + data.ds_defect_edge
-    )
-    batch.status = "destacked"
-    db.commit()
-    background_tasks.add_task(sync_google_sheets_bg)
-    return {"status": "ok"}
-
-class QCDUpdate(BaseModel):
-    qcd_sorted_packs: int = 0
-    qcd_first_grade: int = 0
-    qcd_first_grade_note: Optional[str] = None
-    qcd_defect_note: Optional[str] = None
-    qcd_defect_chip: int = 0
-    qcd_defect_scratch: int = 0
-    qcd_defect_bad_cut: int = 0
-    qcd_defect_stick_bottom: int = 0
-    qcd_defect_stick_top: int = 0
-    qcd_defect_broken: int = 0
-    qcd_defect_fell_box: int = 0
-    qcd_defect_dent: int = 0
-    qcd_defect_thickness: int = 0
-    qcd_defect_delamination: int = 0
-    qcd_defect_edge: int = 0
 
 
 

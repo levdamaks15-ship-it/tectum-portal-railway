@@ -346,6 +346,36 @@ def sync_downtimes_bg():
 
 
 
+def sync_qcd_dedicated_bg(report_id: int = None):
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.sync_qcd_reports_to_dedicated_sheet(db, report_id)
+        db.add(models.AuditLog(
+            user_name="Google Sync QCD",
+            action="EXPORT",
+            target_table="qcd_sorting_reports",
+            target_id=report_id or 0,
+            details="Акты переборки СКК успешно синхронизированы в отдельную Google Таблицу."
+        ))
+        db.commit()
+    except Exception as e:
+        print(f"Error syncing QCD reports to dedicated sheet: {e}")
+        try:
+            db.add(models.AuditLog(
+                user_name="Google Sync QCD",
+                action="ERROR",
+                target_table="qcd_sorting_reports",
+                target_id=report_id or 0,
+                details=f"Ошибка экспорта переборки СКК в Google Sheets: {str(e)}"
+            ))
+            db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
 def calculate_shift_deviations(db: Session, shift: models.Shift):
     # Find LFM reports for the shift
     lfm_reports = shift.lfm_reports

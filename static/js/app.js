@@ -1029,6 +1029,11 @@ async function login() {
             localStorage.setItem('tectum_current_user_name', currentUser.name);
         } catch(e) {}
 
+        if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
+            window.location.href = '/static/qcd.html';
+            return;
+        }
+
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
         document.getElementById('user-info-container').style.display = 'flex';
@@ -3969,8 +3974,14 @@ function renderMainScreenGrid() {
         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
     </svg>`;
 
+    const svgQCD = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        <polyline points="9 12 11 14 15 10"></polyline>
+    </svg>`;
+
     grid.innerHTML = 
         createCardHTML('Кабинет мастера', 'Производство', svgMaster, "selectUser('Мастер смены', 'Мастер')") +
+        createCardHTML('Кабинет СКК', 'Контроль качества', svgQCD, "selectUser('Мусаилова З.', 'Руководитель СКК')") +
         createCardHTML('Планнер задач', 'Бережливое производство', svgTasks, null, '/static/tasks.html') +
         createCardHTML('Кабинет чек-листов', 'Смены и ТО', svgChecklists, null, '/static/checklists.html') +
         createCardHTML('База знаний', 'Документация', svgDocs, null, '/static/docs.html') +
@@ -4001,8 +4012,12 @@ function renderItrGrid() {
         "Сазонов С.": "Старший механик",
         "Носиков Е.": "Главный инженер",
         "Хохлов К.": "Ведущий киповец",
-        "Зарина": "Начальник лаборатории",
+        "Мусаилова З.": "Руководитель СКК",
+        "Зарина": "Руководитель СКК",
         "Косумов Р.": "Главный технолог",
+        "Туматов Д.": "Директор",
+        "Левда М.": "Офис-менеджер БП"
+    };
         "Туматов Д.": "Директор",
         "Левда М.": "Офис-менеджер БП"
     };

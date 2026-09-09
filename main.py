@@ -1023,8 +1023,24 @@ async def lifespan(app: FastAPI):
             bulekhanov.name = "Булеханов К."
             bulekhanov.pin = "2026"
             bulekhanov.role = "director"
+
+        # Руководитель СКК: Мусаилова З., PIN 0000
+        musailova = db.query(models.Master).filter(or_(models.Master.name.like("%Мусаилова%"), models.Master.name == "Зарина", models.Master.id == 25)).first()
+        if not musailova:
+            db.add(models.Master(name="Мусаилова З.", pin="0000", role="qcd"))
+        else:
+            musailova.name = "Мусаилова З."
+            musailova.pin = "0000"
+            musailova.role = "qcd"
+
+        # Гарантия создания таблицы qcd_sorting_reports
+        try:
+            models.QcdSortingReport.__table__.create(bind=engine, checkfirst=True)
+        except Exception:
+            pass
+
         db.commit()
-        print("Successfully seeded/updated 'Левда М.' and 'Булеханов К.' profiles, removed duplicate Tectum admin.")
+        print("Successfully seeded/updated 'Левда М.', 'Булеханов К.' and 'Мусаилова З.' (СКК).")
     except Exception as e:
         print(f"Error seeding users: {e}")
         db.rollback()
@@ -1302,6 +1318,7 @@ from routers.documents import router as documents_router
 from routers.admin import router as admin_router
 from routers.webhooks import router as webhooks_router
 from routers.system import router as system_router
+from routers.qcd_sorting import router as qcd_sorting_router
 
 app.include_router(auth_router)
 app.include_router(shifts_router)
@@ -1313,6 +1330,7 @@ app.include_router(documents_router)
 app.include_router(admin_router)
 app.include_router(webhooks_router)
 app.include_router(system_router)
+app.include_router(qcd_sorting_router)
 
 # ==========================================
 # STATIC FILES & WEB PAGES
