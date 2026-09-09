@@ -113,7 +113,6 @@ function setButtonLoading(buttonId, isLoading, originalText = '') {
     const btn = document.getElementById(buttonId);
     if (!btn) return;
     
-    if (!btn.dataset) btn.dataset = {};
     if (isLoading) {
         btn.disabled = true;
         btn.dataset.originalText = btn.innerHTML;
@@ -226,750 +225,12 @@ function recalcPrevDefectTotal() {
     if (totalEl) totalEl.value = total;
 }
 
-// --- Report Mode & Dual Shift State ---
-window.currentReportMode = 'full'; // 'full' or 'gp_only'
-window.dualReportState = {
-    enabled: false,
-    activeTab: 1,
-    common: {},
-    part1: null,
-    part2: null
-};
-
-function getDraftStorageKey(mode, batch) {
-    const m = mode || window.currentReportMode || 'full';
-    const b = (batch !== undefined && batch !== null ? batch : (document.getElementById('rep-batch')?.value || '')).toString().trim();
-    if (b) {
-        return `shift_draft_${m}_${b}`;
-    }
-    return `shift_draft_${m}_active`;
-}
-
-function setReportMode(mode, event) {
-    if (event && event.target && event.target.tagName === 'LABEL') {
-        // Prevent double trigger on label click
-        return;
-    }
-    
-    // Save current mode draft before switching
-    if (!window.editingShiftId && typeof saveReportDraft === 'function') {
-        saveReportDraft();
-    }
-    
-    window.currentReportMode = mode;
-    
-    const radioFull = document.getElementById('report-mode-full');
-    const radioGpOnly = document.getElementById('report-mode-gp-only');
-    const optFull = document.getElementById('report-mode-option-full');
-    const optGpOnly = document.getElementById('report-mode-option-gp-only');
-    const badge = document.getElementById('report-mode-badge');
-    const secProd = document.getElementById('acc-prod-section');
-    const secRaw = document.getElementById('acc-raw-section');
-    const bannerProd = document.getElementById('banner-gp-only-prod');
-    const bannerRaw = document.getElementById('banner-gp-only-raw');
-    const transWrapper = document.getElementById('transition-switch-wrapper');
-    const submitBtn = document.getElementById('btn-submit-shift-report');
-    const whLabel = document.getElementById('lbl-rep-warehouse-gp');
-    
-    const batchVal = document.getElementById('rep-batch')?.value?.trim() || '';
-    const draftKey = getDraftStorageKey(mode, batchVal);
-    const existingDraftRaw = localStorage.getItem(draftKey) || localStorage.getItem(`shift_draft_${mode}_active`);
-    
-    if (mode === 'gp_only') {
-        if (radioGpOnly) radioGpOnly.checked = true;
-        if (radioFull) radioFull.checked = false;
-        if (optGpOnly) {
-            optGpOnly.classList.add('active');
-            optGpOnly.style.borderColor = 'var(--primary-color)';
-            optGpOnly.style.background = 'rgba(200, 35, 35, 0.04)';
-        }
-        if (optFull) {
-            optFull.classList.remove('active');
-            optFull.style.borderColor = 'var(--stripe-border)';
-            optFull.style.background = '#f8fafc';
-        }
-        if (badge) {
-            badge.textContent = '📦 Только сдача ГП';
-            badge.style.background = '#dcfce7';
-            badge.style.color = '#15803d';
-            badge.style.border = '1px solid #bbf7d0';
-        }
-        if (whLabel) {
-            whLabel.innerHTML = '📦 Сдано кондиции на склад ГП (листов) <span style="color:var(--primary-color);">*</span>';
-            whLabel.style.fontWeight = '700';
-        }
-        
-        // Turn off transition mode if it was active
-        if (window.dualReportState && window.dualReportState.enabled) {
-            const transToggle = document.getElementById('rep-is-transition');
-            if (transToggle) transToggle.checked = false;
-            toggleTransitionMode(false);
-        }
-        if (transWrapper) transWrapper.style.display = 'none';
-        
-        // Hide Section 2 & 4, show informative banners
-        if (secProd) secProd.style.display = 'none';
-        if (secRaw) secRaw.style.display = 'none';
-        if (bannerProd) bannerProd.style.display = 'flex';
-        if (bannerRaw) bannerRaw.style.display = 'flex';
-        
-        // If an existing GP-only draft exists for this batch, restore it; otherwise zero out sections 2 & 4
-        if (existingDraftRaw) {
-            loadReportDraft(draftKey);
-        } else {
-            // Zero out Section 2 inputs
-            const sSheets = document.getElementById('rep-sheets'); if (sSheets) sSheets.value = '0';
-            const sResets = document.getElementById('rep-resets'); if (sResets) sResets.value = '0';
-            const sBatches = document.getElementById('rep-batches'); if (sBatches) sBatches.value = '0';
-            const sKg = document.getElementById('rep-kg-readonly'); if (sKg) sKg.value = '0.00';
-            const sTons = document.getElementById('rep-tons-readonly'); if (sTons) sTons.value = '0.000';
-            
-            // Zero out Section 4 inputs
-            const rmInputs = [
-                'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
-                'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
-                'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
-                'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
-                'calc-cellulose-1', 'calc-cellulose-2', 'calc-cellulose-3', 'calc-cellulose-4',
-                'calc-crushed-slate-1', 'calc-crushed-slate-2', 'calc-crushed-slate-3', 'calc-crushed-slate-4',
-                'calc-asbozurit-1', 'calc-asbozurit-2', 'calc-asbozurit-3', 'calc-asbozurit-4',
-                'calc-fiberglass-1', 'calc-fiberglass-2', 'calc-fiberglass-3', 'calc-fiberglass-4',
-                'calc-laprol-1', 'calc-laprol-2', 'calc-laprol-3', 'calc-laprol-4',
-                'calc-asbocarton-1', 'calc-asbocarton-2', 'calc-asbocarton-3', 'calc-asbocarton-4',
-                'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40', 'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
-                'zo-chr-4-20-1', 'zo-chr-4-20-2', 'zo-chr-4-20-3', 'zo-chr-4-20-4',
-                'zo-chr-5-65-1', 'zo-chr-5-65-2', 'zo-chr-5-65-3', 'zo-chr-5-65-4',
-                'zo-chr-6-40-1', 'zo-chr-6-40-2', 'zo-chr-6-40-3', 'zo-chr-6-40-4',
-                'zo-cel-1', 'zo-cel-2', 'zo-cel-3', 'zo-cel-4',
-                'zo-csl-1', 'zo-csl-2', 'zo-csl-3', 'zo-csl-4',
-                'zo-asb-1', 'zo-asb-2', 'zo-asb-3', 'zo-asb-4',
-                'zo-fib-1', 'zo-fib-2', 'zo-fib-3', 'zo-fib-4',
-                'zo-lap-1', 'zo-lap-2', 'zo-lap-3', 'zo-lap-4',
-                'zo-car-1', 'zo-car-2', 'zo-car-3', 'zo-car-4',
-                'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton',
-                'zo-asb-drain', 'zo-cem-drain'
-            ];
-            rmInputs.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            const chrTotalEl = document.getElementById('zo-chr-total-readonly'); if (chrTotalEl) chrTotalEl.value = '0.0';
-            const cemTotalEl = document.getElementById('zo-cem-total-readonly'); if (cemTotalEl) cemTotalEl.value = '0';
-        }
-        
-        // Focus warehouse_gp
-        const whInput = document.getElementById('rep-warehouse-gp');
-        if (whInput) {
-            setTimeout(() => {
-                whInput.focus();
-            }, 50);
-        }
-        
-        // Update submit button text
-        if (submitBtn && !window.editingShiftId) {
-            submitBtn.innerHTML = `💾 Сохранить сдачу ГП на склад (партия ${batchVal || '—'})`;
-        }
-    } else {
-        // full mode
-        if (radioFull) radioFull.checked = true;
-        if (radioGpOnly) radioGpOnly.checked = false;
-        if (optFull) {
-            optFull.classList.add('active');
-            optFull.style.borderColor = 'var(--primary-color)';
-            optFull.style.background = 'rgba(200, 35, 35, 0.04)';
-        }
-        if (optGpOnly) {
-            optGpOnly.classList.remove('active');
-            optGpOnly.style.borderColor = 'var(--stripe-border)';
-            optGpOnly.style.background = '#f8fafc';
-        }
-        if (badge) {
-            badge.textContent = '🏭 Полный цикл';
-            badge.style.background = 'rgba(200, 35, 35, 0.08)';
-            badge.style.color = 'var(--primary-color)';
-            badge.style.border = '1px solid rgba(200, 35, 35, 0.2)';
-        }
-        if (whLabel) {
-            whLabel.innerHTML = 'Сдано кондиции на склад ГП (листов) *';
-            whLabel.style.fontWeight = '';
-        }
-        
-        if (transWrapper) transWrapper.style.display = 'flex';
-        if (secProd) secProd.style.display = 'block';
-        if (secRaw) secRaw.style.display = 'block';
-        if (bannerProd) bannerProd.style.display = 'none';
-        if (bannerRaw) bannerRaw.style.display = 'none';
-        
-        if (submitBtn && !window.editingShiftId) {
-            submitBtn.innerHTML = '💾 Сохранить сменный рапорт →';
-        }
-        
-        // If a full-mode draft existed, restore it cleanly
-        if (existingDraftRaw) {
-            loadReportDraft(draftKey);
-        }
-    }
-    
-    recalcTonsAndGrades();
-    recalcWarehouseGPTotal();
-}
-
-function toggleTransitionMode(enabled, isRestoring = false) {
-    const tabsCont = document.getElementById('dual-report-tabs-container');
-    const summaryWidget = document.getElementById('dual-summary-widget');
-    const activeBadge = document.getElementById('transition-active-badge');
-    const switchEl = document.getElementById('rep-is-transition');
-    if (switchEl && switchEl.checked !== !!enabled) {
-        switchEl.checked = !!enabled;
-    }
-    
-    if (enabled) {
-        window.dualReportState.enabled = true;
-        if (tabsCont) tabsCont.style.display = 'block';
-        if (summaryWidget) summaryWidget.style.display = 'block';
-        if (activeBadge) activeBadge.style.display = 'inline-block';
-        
-        if (!isRestoring) {
-            // Fresh user toggle: save current form into Part 1
-            saveDualTabState(1);
-            if (!window.dualReportState.part2) {
-                window.dualReportState.part2 = createEmptyPartState();
-            }
-            switchDualTab(1);
-        }
-        updateDualSummary();
-    } else {
-        // If we were on Tab 2, restore Tab 1 to form BEFORE disabling
-        if (window.dualReportState && window.dualReportState.activeTab === 2) {
-            loadDualTabState(1);
-            window.dualReportState.activeTab = 1;
-        }
-        if (window.dualReportState) {
-            window.dualReportState.enabled = false;
-        }
-        
-        if (tabsCont) tabsCont.style.display = 'none';
-        if (summaryWidget) summaryWidget.style.display = 'none';
-        if (activeBadge) activeBadge.style.display = 'none';
-        
-        // Ensure prev shift block is unlocked
-        const lockBanner = document.getElementById('prev-shift-tab2-lock-banner');
-        if (lockBanner) lockBanner.style.display = 'none';
-        const prevInputs = document.querySelectorAll('#prev-shift-inputs-container input, #prev-shift-inputs-container select');
-        prevInputs.forEach(el => {
-            el.disabled = false;
-            el.style.backgroundColor = '';
-            el.style.cursor = '';
-        });
-        
-        recalcTonsAndGrades();
-        recalcWarehouseGPTotal();
-        recalcDefectTotal();
-        recalcPrevDefectTotal();
-    }
-}
-
-function switchDualTab(tabIndex) {
-    if (!window.dualReportState || !window.dualReportState.enabled) return;
-    
-    const currentTab = window.dualReportState.activeTab;
-    saveDualTabState(currentTab);
-    
-    window.dualReportState.activeTab = tabIndex;
-    
-    // Update tab buttons appearance
-    const btnPart1 = document.getElementById('tab-btn-part1');
-    const btnPart2 = document.getElementById('tab-btn-part2');
-    
-    if (tabIndex === 1) {
-        if (btnPart1) {
-            btnPart1.classList.add('active');
-            btnPart1.style.borderColor = 'var(--primary-color)';
-            btnPart1.style.background = '#ffffff';
-            btnPart1.style.color = 'var(--primary-color)';
-            btnPart1.style.boxShadow = 'var(--stripe-shadow-sm)';
-            btnPart1.style.fontWeight = '700';
-        }
-        if (btnPart2) {
-            btnPart2.classList.remove('active');
-            btnPart2.style.borderColor = 'transparent';
-            btnPart2.style.background = 'transparent';
-            btnPart2.style.color = 'var(--text-secondary)';
-            btnPart2.style.boxShadow = 'none';
-            btnPart2.style.fontWeight = '600';
-        }
-    } else {
-        if (btnPart2) {
-            btnPart2.classList.add('active');
-            btnPart2.style.borderColor = 'var(--primary-color)';
-            btnPart2.style.background = '#ffffff';
-            btnPart2.style.color = 'var(--primary-color)';
-            btnPart2.style.boxShadow = 'var(--stripe-shadow-sm)';
-            btnPart2.style.fontWeight = '700';
-        }
-        if (btnPart1) {
-            btnPart1.classList.remove('active');
-            btnPart1.style.borderColor = 'transparent';
-            btnPart1.style.background = 'transparent';
-            btnPart1.style.color = 'var(--text-secondary)';
-            btnPart1.style.boxShadow = 'none';
-            btnPart1.style.fontWeight = '600';
-        }
-    }
-    
-    // Synchronize common fields from state
-    const common = window.dualReportState.common || {};
-    if (common.date && document.getElementById('rep-date')) setDateInputValue('rep-date', common.date);
-    if (common.shift_name && document.getElementById('rep-shift')) document.getElementById('rep-shift').value = common.shift_name;
-    if (common.line && document.getElementById('rep-line')) {
-        document.getElementById('rep-line').value = common.line;
-        if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
-    }
-    if (common.master_id && document.getElementById('rep-master')) document.getElementById('rep-master').value = common.master_id;
-    if (common.batch_number && document.getElementById('rep-batch')) document.getElementById('rep-batch').value = common.batch_number;
-    
-    // Load requested part data
-    loadDualTabState(tabIndex);
-    
-    recalcTonsAndGrades();
-    recalcDefectTotal();
-    recalcPrevDefectTotal();
-    recalcWarehouseGPTotal();
-    recalcChrTotal();
-    if (typeof calcCem === 'function') calcCem();
-    recalcCemTotal();
-    updateDualSummary();
-    
-    // Auto-save draft on tab switch to ensure persistent multi-tab state
-    if (typeof saveReportDraft === 'function' && !window.editingShiftId) {
-        saveReportDraft();
-    }
-}
-
-function createEmptyPartState() {
-    return {
-        product_name: '',
-        export_type: 'Эталон',
-        lfm_sheets: 0,
-        lfm_wind_resets: 0,
-        zo_batches: 0,
-        warehouse_gp: 0,
-        first_grade: 0,
-        has_defect: 'no',
-        defects: {
-            chip: 0, scratch: 0, bad_cut: 0, stick_bottom: 0, stick_top: 0, broken: 0,
-            fell: 0, dent: 0, thickness: 0, delamination: 0, edge: 0
-        },
-        prev_condition: 0,
-        prev_first_grade: 0,
-        prev_has_defect: 'no',
-        prev_defects: { scratch: 0, bad_cut: 0, stick_top: 0, broken: 0, fell: 0, thickness: 0, edge: 0 },
-        raw_materials: {}
-    };
-}
-
-function saveDualTabState(tabIndex) {
-    if (!window.dualReportState) return;
-    
-    // Save common fields
-    window.dualReportState.common = {
-        date: document.getElementById('rep-date')?.value || '',
-        shift_name: document.getElementById('rep-shift')?.value || '',
-        line: document.getElementById('rep-line')?.value || '',
-        master_id: parseInt(document.getElementById('rep-master')?.value) || 0,
-        batch_number: document.getElementById('rep-batch')?.value || ''
-    };
-    
-    const partData = {
-        product_name: document.getElementById('rep-product')?.value || '',
-        export_type: document.getElementById('rep-export-type')?.value || 'Эталон',
-        lfm_sheets: parseInt(document.getElementById('rep-sheets')?.value) || 0,
-        lfm_wind_resets: parseInt(document.getElementById('rep-resets')?.value) || 0,
-        zo_batches: parseInt(document.getElementById('rep-batches')?.value) || 0,
-        warehouse_gp: parseInt(document.getElementById('rep-warehouse-gp')?.value) || 0,
-        first_grade: parseInt(document.getElementById('rep-first-grade')?.value) || 0,
-        has_defect: document.getElementById('rep-has-defect')?.value || 'no',
-        defects: {
-            chip: parseInt(document.getElementById('def-chip')?.value) || 0,
-            scratch: parseInt(document.getElementById('def-scratch')?.value) || 0,
-            bad_cut: parseInt(document.getElementById('def-bad-cut')?.value) || 0,
-            stick_bottom: parseInt(document.getElementById('def-stick-bottom')?.value) || 0,
-            stick_top: parseInt(document.getElementById('def-stick-top')?.value) || 0,
-            broken: parseInt(document.getElementById('def-broken')?.value) || 0,
-            fell: parseInt(document.getElementById('def-fell')?.value) || 0,
-            dent: parseInt(document.getElementById('def-dent')?.value) || 0,
-            thickness: parseInt(document.getElementById('def-thickness')?.value) || 0,
-            delamination: parseInt(document.getElementById('def-delamination')?.value) || 0,
-            edge: parseInt(document.getElementById('def-edge')?.value) || 0
-        },
-        raw_materials: {}
-    };
-    
-    const rmIds = [
-        'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
-        'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
-        'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
-        'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
-        'calc-cellulose-1', 'calc-cellulose-2', 'calc-cellulose-3', 'calc-cellulose-4',
-        'calc-crushed-slate-1', 'calc-crushed-slate-2', 'calc-crushed-slate-3', 'calc-crushed-slate-4',
-        'calc-asbozurit-1', 'calc-asbozurit-2', 'calc-asbozurit-3', 'calc-asbozurit-4',
-        'calc-fiberglass-1', 'calc-fiberglass-2', 'calc-fiberglass-3', 'calc-fiberglass-4',
-        'calc-laprol-1', 'calc-laprol-2', 'calc-laprol-3', 'calc-laprol-4',
-        'calc-asbocarton-1', 'calc-asbocarton-2', 'calc-asbocarton-3', 'calc-asbocarton-4',
-        'zo-chr-4-20-1', 'zo-chr-4-20-2', 'zo-chr-4-20-3', 'zo-chr-4-20-4',
-        'zo-chr-5-65-1', 'zo-chr-5-65-2', 'zo-chr-5-65-3', 'zo-chr-5-65-4',
-        'zo-chr-6-40-1', 'zo-chr-6-40-2', 'zo-chr-6-40-3', 'zo-chr-6-40-4',
-        'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
-        'zo-cel-1', 'zo-cel-2', 'zo-cel-3', 'zo-cel-4',
-        'zo-csl-1', 'zo-csl-2', 'zo-csl-3', 'zo-csl-4',
-        'zo-asb-1', 'zo-asb-2', 'zo-asb-3', 'zo-asb-4',
-        'zo-fib-1', 'zo-fib-2', 'zo-fib-3', 'zo-fib-4',
-        'zo-lap-1', 'zo-lap-2', 'zo-lap-3', 'zo-lap-4',
-        'zo-car-1', 'zo-car-2', 'zo-car-3', 'zo-car-4',
-        'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40',
-        'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton',
-        'zo-asb-drain', 'zo-cem-drain'
-    ];
-    rmIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) partData.raw_materials[id] = el.value;
-    });
-    
-    if (tabIndex === 1) {
-        partData.prev_condition = parseInt(document.getElementById('rep-prev-warehouse-gp')?.value) || 0;
-        partData.prev_first_grade = parseInt(document.getElementById('rep-prev-first-grade')?.value) || 0;
-        partData.prev_has_defect = document.getElementById('rep-prev-has-defect')?.value || 'no';
-        partData.prev_defects = {
-            scratch: parseInt(document.getElementById('prev-def-scratch')?.value) || 0,
-            bad_cut: parseInt(document.getElementById('prev-def-bad-cut')?.value) || 0,
-            stick_top: parseInt(document.getElementById('prev-def-stick-top')?.value) || 0,
-            broken: parseInt(document.getElementById('prev-def-broken')?.value) || 0,
-            fell: parseInt(document.getElementById('prev-def-fell')?.value) || 0,
-            thickness: parseInt(document.getElementById('prev-def-thickness')?.value) || 0,
-            edge: parseInt(document.getElementById('prev-def-edge')?.value) || 0
-        };
-    } else {
-        partData.prev_condition = 0;
-        partData.prev_first_grade = 0;
-        partData.prev_has_defect = 'no';
-        partData.prev_defects = { scratch: 0, bad_cut: 0, stick_top: 0, broken: 0, fell: 0, thickness: 0, edge: 0 };
-    }
-    
-    window.dualReportState['part' + tabIndex] = partData;
-}
-
-function loadDualTabState(tabIndex) {
-    if (!window.dualReportState) return;
-    const partData = window.dualReportState['part' + tabIndex];
-    if (!partData) return;
-    
-    // Product & export type
-    const prodEl = document.getElementById('rep-product');
-    if (prodEl) prodEl.value = partData.product_name || '';
-    const expEl = document.getElementById('rep-export-type');
-    if (expEl) expEl.value = partData.export_type || 'Эталон';
-    
-    // Production
-    const sheetsEl = document.getElementById('rep-sheets');
-    if (sheetsEl) sheetsEl.value = (partData.lfm_sheets && partData.lfm_sheets > 0) ? partData.lfm_sheets : '';
-    const resetsEl = document.getElementById('rep-resets');
-    if (resetsEl) resetsEl.value = (partData.lfm_wind_resets && partData.lfm_wind_resets > 0) ? partData.lfm_wind_resets : '';
-    const batchesEl = document.getElementById('rep-batches');
-    if (batchesEl) batchesEl.value = (partData.zo_batches && partData.zo_batches > 0) ? partData.zo_batches : '';
-    
-    // Section 3 (Warehouse GP & defects)
-    const whEl = document.getElementById('rep-warehouse-gp');
-    if (whEl) whEl.value = (partData.warehouse_gp && partData.warehouse_gp > 0) ? partData.warehouse_gp : '';
-    const fgEl = document.getElementById('rep-first-grade');
-    if (fgEl) fgEl.value = (partData.first_grade && partData.first_grade > 0) ? partData.first_grade : '';
-    const hdEl = document.getElementById('rep-has-defect');
-    if (hdEl) hdEl.value = partData.has_defect || 'no';
-    
-    const d = partData.defects || {};
-    const setVal = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.value = (val && val > 0) ? val : '';
-    };
-    setVal('def-chip', d.chip);
-    setVal('def-scratch', d.scratch);
-    setVal('def-bad-cut', d.bad_cut);
-    setVal('def-stick-bottom', d.stick_bottom);
-    setVal('def-stick-top', d.stick_top);
-    setVal('def-broken', d.broken);
-    setVal('def-fell', d.fell);
-    setVal('def-dent', d.dent);
-    setVal('def-thickness', d.thickness);
-    setVal('def-delamination', d.delamination);
-    setVal('def-edge', d.edge);
-    toggleDefectsGrid();
-    
-    // Previous shift section
-    const lockBanner = document.getElementById('prev-shift-tab2-lock-banner');
-    const prevInputs = document.querySelectorAll('#prev-shift-inputs-container input, #prev-shift-inputs-container select');
-    
-    if (tabIndex === 2) {
-        if (lockBanner) lockBanner.style.display = 'flex';
-        prevInputs.forEach(el => {
-            el.disabled = true;
-            el.style.backgroundColor = '#f1f5f9';
-            el.style.cursor = 'not-allowed';
-            if (el.tagName === 'INPUT') el.value = '';
-            if (el.tagName === 'SELECT') el.value = 'no';
-        });
-        togglePrevDefectsGrid();
-    } else {
-        if (lockBanner) lockBanner.style.display = 'none';
-        prevInputs.forEach(el => {
-            el.disabled = false;
-            el.style.backgroundColor = '';
-            el.style.cursor = '';
-        });
-        setVal('rep-prev-warehouse-gp', partData.prev_condition);
-        setVal('rep-prev-first-grade', partData.prev_first_grade);
-        const prevHdEl = document.getElementById('rep-prev-has-defect');
-        if (prevHdEl) prevHdEl.value = partData.prev_has_defect || 'no';
-        const pd = partData.prev_defects || {};
-        setVal('prev-def-scratch', pd.scratch);
-        setVal('prev-def-bad-cut', pd.bad_cut);
-        setVal('prev-def-stick-top', pd.stick_top);
-        setVal('prev-def-broken', pd.broken);
-        setVal('prev-def-fell', pd.fell);
-        setVal('prev-def-thickness', pd.thickness);
-        setVal('prev-def-edge', pd.edge);
-        togglePrevDefectsGrid();
-    }
-    
-    // Raw materials
-    const rms = partData.raw_materials || {};
-    const rmIds = [
-        'calc-chr-4-20-1', 'calc-chr-4-20-2', 'calc-chr-4-20-3', 'calc-chr-4-20-4',
-        'calc-chr-5-65-1', 'calc-chr-5-65-2', 'calc-chr-5-65-3', 'calc-chr-5-65-4',
-        'calc-chr-6-40-1', 'calc-chr-6-40-2', 'calc-chr-6-40-3', 'calc-chr-6-40-4',
-        'calc-cem-1', 'calc-cem-2', 'calc-cem-3', 'calc-cem-4',
-        'calc-cellulose-1', 'calc-cellulose-2', 'calc-cellulose-3', 'calc-cellulose-4',
-        'calc-crushed-slate-1', 'calc-crushed-slate-2', 'calc-crushed-slate-3', 'calc-crushed-slate-4',
-        'calc-asbozurit-1', 'calc-asbozurit-2', 'calc-asbozurit-3', 'calc-asbozurit-4',
-        'calc-fiberglass-1', 'calc-fiberglass-2', 'calc-fiberglass-3', 'calc-fiberglass-4',
-        'calc-laprol-1', 'calc-laprol-2', 'calc-laprol-3', 'calc-laprol-4',
-        'calc-asbocarton-1', 'calc-asbocarton-2', 'calc-asbocarton-3', 'calc-asbocarton-4',
-        'zo-chr-4-20-1', 'zo-chr-4-20-2', 'zo-chr-4-20-3', 'zo-chr-4-20-4',
-        'zo-chr-5-65-1', 'zo-chr-5-65-2', 'zo-chr-5-65-3', 'zo-chr-5-65-4',
-        'zo-chr-6-40-1', 'zo-chr-6-40-2', 'zo-chr-6-40-3', 'zo-chr-6-40-4',
-        'zo-cem-1', 'zo-cem-2', 'zo-cem-3', 'zo-cem-4',
-        'zo-cel-1', 'zo-cel-2', 'zo-cel-3', 'zo-cel-4',
-        'zo-csl-1', 'zo-csl-2', 'zo-csl-3', 'zo-csl-4',
-        'zo-asb-1', 'zo-asb-2', 'zo-asb-3', 'zo-asb-4',
-        'zo-fib-1', 'zo-fib-2', 'zo-fib-3', 'zo-fib-4',
-        'zo-lap-1', 'zo-lap-2', 'zo-lap-3', 'zo-lap-4',
-        'zo-car-1', 'zo-car-2', 'zo-car-3', 'zo-car-4',
-        'zo-chr-4-20', 'zo-chr-5-65', 'zo-chr-6-40',
-        'zo-cellulose', 'zo-crushed-slate', 'zo-asbozurit', 'zo-fiberglass', 'zo-laprol', 'zo-asbocarton',
-        'zo-asb-drain', 'zo-cem-drain'
-    ];
-    rmIds.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = rms[id] || '';
-    });
-}
-
-function getProductUnitWeight(prodName) {
-    if (!prodName) return 19.6;
-    let norm = (typeof productNorms !== 'undefined') ? productNorms[prodName] : null;
-    if (!norm && typeof productNorms !== 'undefined') {
-        if (prodName === 'Шифер 7 волн гладкий') norm = productNorms['Шифер 7 волн глад'];
-        else if (prodName === 'Шифер 7 волн глад') norm = productNorms['Шифер 7 волн гладкий'];
-        else if (prodName === 'Шифер 8 волн гладкий') norm = productNorms['Шифер 8 волн глад'];
-        else if (prodName === 'Шифер 8 волн глад') norm = productNorms['Шифер 8 волн гладкий'];
-    }
-    if (norm && norm.weight_kg) return norm.weight_kg;
-    const p = prodName.toLowerCase();
-    if (p.includes('7 волн 3500') || p.includes('3500*980')) return 34.14;
-    if (p.includes('7 волн')) return 17.07;
-    if (p.includes('плоский 10')) return 34.99;
-    if (p.includes('плоский 8')) return 27.99;
-    if (p.includes('плоский 6')) return 21.00;
-    if (p.includes('рп')) return 17.43;
-    return 19.6;
-}
-
-function updateDualSummary() {
-    if (!window.dualReportState || !window.dualReportState.enabled) return;
-    
-    // Save current active tab fields to state
-    saveDualTabState(window.dualReportState.activeTab);
-    
-    const p1 = window.dualReportState.part1 || {};
-    const p2 = window.dualReportState.part2 || {};
-    
-    // Update tab labels
-    const p1Label = document.getElementById('tab-part1-product-label');
-    const p2Label = document.getElementById('tab-part2-product-label');
-    const formatPartLabel = (p) => {
-        if (!p || !p.product_name) return 'Не выбран';
-        return (p.export_type && p.export_type !== 'Эталон') ? `${p.product_name} (${p.export_type})` : p.product_name;
-    };
-    if (p1Label) p1Label.textContent = formatPartLabel(p1);
-    if (p2Label) p2Label.textContent = formatPartLabel(p2);
-    
-    // LFM sheets
-    const sheets1 = p1.lfm_sheets || 0;
-    const sheets2 = p2.lfm_sheets || 0;
-    const totalSheets = sheets1 + sheets2;
-    
-    // LFM tons
-    const w1 = getProductUnitWeight(p1.product_name);
-    const w2 = getProductUnitWeight(p2.product_name);
-    const tons1 = (sheets1 * w1) / 1000.0;
-    const tons2 = (sheets2 * w2) / 1000.0;
-    const totalTons = tons1 + tons2;
-    
-    // Warehouse GP
-    const wh1 = p1.warehouse_gp || 0;
-    const prevWh1 = p1.prev_condition || 0;
-    const wh2 = p2.warehouse_gp || 0;
-    const totalWarehouse = wh1 + prevWh1 + wh2;
-    
-    // Cement
-    const rm1 = p1.raw_materials || {};
-    const rm2 = p2.raw_materials || {};
-    const getCem = (rm, i) => (parseFloat(rm['zo-cem-' + i]) || parseFloat(rm['calc-cem-' + i]) || 0);
-    const cem1 = getCem(rm1, 1) + getCem(rm1, 2) + getCem(rm1, 3) + getCem(rm1, 4);
-    const cem2 = getCem(rm2, 1) + getCem(rm2, 2) + getCem(rm2, 3) + getCem(rm2, 4);
-    const totalCement = cem1 + cem2;
-    
-    const sumSheetsEl = document.getElementById('dual-sum-lfm-sheets');
-    const sumTonsEl = document.getElementById('dual-sum-lfm-tons');
-    const sumWhEl = document.getElementById('dual-sum-warehouse-gp');
-    const sumCemEl = document.getElementById('dual-sum-cement');
-    
-    if (sumSheetsEl) sumSheetsEl.textContent = totalSheets.toString();
-    if (sumTonsEl) sumTonsEl.textContent = totalTons.toFixed(2);
-    if (sumWhEl) sumWhEl.textContent = totalWarehouse.toString();
-    if (sumCemEl) sumCemEl.textContent = Math.round(totalCement).toString();
-}
-
-function buildShiftPayloadFromPart(partIndex) {
-    const common = window.dualReportState.common || {};
-    const part = window.dualReportState['part' + partIndex] || {};
-    const rms = part.raw_materials || {};
-    const d = part.defects || {};
-    const pd = part.prev_defects || {};
-    
-    return {
-        date: common.date || '',
-        shift_name: common.shift_name || '',
-        line: common.line || '',
-        master_id: common.master_id || 0,
-        batch_number: common.batch_number || '',
-        product_name: part.product_name || '',
-        export_type: part.export_type || 'Эталон',
-        
-        lfm_sheets: part.lfm_sheets || 0,
-        lfm_wind_resets: part.lfm_wind_resets || 0,
-        zo_batches: part.zo_batches || 0,
-        
-        warehouse_gp: part.warehouse_gp || 0,
-        first_grade: part.first_grade || 0,
-        has_defect: part.has_defect || 'no',
-        
-        ds_defect_chip: d.chip || 0,
-        ds_defect_scratch: d.scratch || 0,
-        ds_defect_bad_cut: d.bad_cut || 0,
-        ds_defect_stick_bottom: d.stick_bottom || 0,
-        ds_defect_stick_top: d.stick_top || 0,
-        ds_defect_broken: d.broken || 0,
-        ds_defect_fell_box: d.fell || 0,
-        ds_defect_dent: d.dent || 0,
-        ds_defect_thickness: d.thickness || 0,
-        ds_defect_delamination: d.delamination || 0,
-        ds_defect_edge: d.edge || 0,
-        
-        prev_condition: partIndex === 1 ? (part.prev_condition || 0) : 0,
-        prev_first_grade: partIndex === 1 ? (part.prev_first_grade || 0) : 0,
-        prev_has_defect: partIndex === 1 ? (part.prev_has_defect || 'no') : 'no',
-        prev_defect_scratch: partIndex === 1 ? (pd.scratch || 0) : 0,
-        prev_defect_bad_cut: partIndex === 1 ? (pd.bad_cut || 0) : 0,
-        prev_defect_stick_top: partIndex === 1 ? (pd.stick_top || 0) : 0,
-        prev_defect_broken: partIndex === 1 ? (pd.broken || 0) : 0,
-        prev_defect_fell_box: partIndex === 1 ? (pd.fell || 0) : 0,
-        prev_defect_thickness: partIndex === 1 ? (pd.thickness || 0) : 0,
-        prev_defect_edge: partIndex === 1 ? (pd.edge || 0) : 0,
-        
-        qcd_defect: 0,
-        
-        zo_chrysotile_4_20_silo1: parseFloat(rms['zo-chr-4-20-1']) || parseFloat(rms['calc-chr-4-20-1']) || 0.0,
-        zo_chrysotile_4_20_silo2: parseFloat(rms['zo-chr-4-20-2']) || parseFloat(rms['calc-chr-4-20-2']) || 0.0,
-        zo_chrysotile_4_20_silo3: parseFloat(rms['zo-chr-4-20-3']) || parseFloat(rms['calc-chr-4-20-3']) || 0.0,
-        zo_chrysotile_4_20_silo4: parseFloat(rms['zo-chr-4-20-4']) || parseFloat(rms['calc-chr-4-20-4']) || 0.0,
-        
-        zo_chrysotile_5_65_silo1: parseFloat(rms['zo-chr-5-65-1']) || parseFloat(rms['calc-chr-5-65-1']) || 0.0,
-        zo_chrysotile_5_65_silo2: parseFloat(rms['zo-chr-5-65-2']) || parseFloat(rms['calc-chr-5-65-2']) || 0.0,
-        zo_chrysotile_5_65_silo3: parseFloat(rms['zo-chr-5-65-3']) || parseFloat(rms['calc-chr-5-65-3']) || 0.0,
-        zo_chrysotile_5_65_silo4: parseFloat(rms['zo-chr-5-65-4']) || parseFloat(rms['calc-chr-5-65-4']) || 0.0,
-        
-        zo_chrysotile_6_40_silo1: parseFloat(rms['zo-chr-6-40-1']) || parseFloat(rms['calc-chr-6-40-1']) || 0.0,
-        zo_chrysotile_6_40_silo2: parseFloat(rms['zo-chr-6-40-2']) || parseFloat(rms['calc-chr-6-40-2']) || 0.0,
-        zo_chrysotile_6_40_silo3: parseFloat(rms['zo-chr-6-40-3']) || parseFloat(rms['calc-chr-6-40-3']) || 0.0,
-        zo_chrysotile_6_40_silo4: parseFloat(rms['zo-chr-6-40-4']) || parseFloat(rms['calc-chr-6-40-4']) || 0.0,
-        
-        zo_cement_silo1: parseFloat(rms['zo-cem-1']) || parseFloat(rms['calc-cem-1']) || 0.0,
-        zo_cement_silo2: parseFloat(rms['zo-cem-2']) || parseFloat(rms['calc-cem-2']) || 0.0,
-        zo_cement_silo3: parseFloat(rms['zo-cem-3']) || parseFloat(rms['calc-cem-3']) || 0.0,
-        zo_cement_silo4: parseFloat(rms['zo-cem-4']) || parseFloat(rms['calc-cem-4']) || 0.0,
-        
-        zo_cellulose_silo1: parseFloat(rms['zo-cel-1']) || parseFloat(rms['calc-cellulose-1']) || 0.0,
-        zo_cellulose_silo2: parseFloat(rms['zo-cel-2']) || parseFloat(rms['calc-cellulose-2']) || 0.0,
-        zo_cellulose_silo3: parseFloat(rms['zo-cel-3']) || parseFloat(rms['calc-cellulose-3']) || 0.0,
-        zo_cellulose_silo4: parseFloat(rms['zo-cel-4']) || parseFloat(rms['calc-cellulose-4']) || 0.0,
-        
-        zo_crushed_slate_silo1: parseFloat(rms['zo-csl-1']) || parseFloat(rms['calc-crushed-slate-1']) || 0.0,
-        zo_crushed_slate_silo2: parseFloat(rms['zo-csl-2']) || parseFloat(rms['calc-crushed-slate-2']) || 0.0,
-        zo_crushed_slate_silo3: parseFloat(rms['zo-csl-3']) || parseFloat(rms['calc-crushed-slate-3']) || 0.0,
-        zo_crushed_slate_silo4: parseFloat(rms['zo-csl-4']) || parseFloat(rms['calc-crushed-slate-4']) || 0.0,
-        
-        zo_asbozurit_silo1: parseFloat(rms['zo-asb-1']) || parseFloat(rms['calc-asbozurit-1']) || 0.0,
-        zo_asbozurit_silo2: parseFloat(rms['zo-asb-2']) || parseFloat(rms['calc-asbozurit-2']) || 0.0,
-        zo_asbozurit_silo3: parseFloat(rms['zo-asb-3']) || parseFloat(rms['calc-asbozurit-3']) || 0.0,
-        zo_asbozurit_silo4: parseFloat(rms['zo-asb-4']) || parseFloat(rms['calc-asbozurit-4']) || 0.0,
-        
-        zo_fiberglass_silo1: parseFloat(rms['zo-fib-1']) || parseFloat(rms['calc-fiberglass-1']) || 0.0,
-        zo_fiberglass_silo2: parseFloat(rms['zo-fib-2']) || parseFloat(rms['calc-fiberglass-2']) || 0.0,
-        zo_fiberglass_silo3: parseFloat(rms['zo-fib-3']) || parseFloat(rms['calc-fiberglass-3']) || 0.0,
-        zo_fiberglass_silo4: parseFloat(rms['zo-fib-4']) || parseFloat(rms['calc-fiberglass-4']) || 0.0,
-        
-        zo_laprol_silo1: parseFloat(rms['zo-lap-1']) || parseFloat(rms['calc-laprol-1']) || 0.0,
-        zo_laprol_silo2: parseFloat(rms['zo-lap-2']) || parseFloat(rms['calc-laprol-2']) || 0.0,
-        zo_laprol_silo3: parseFloat(rms['zo-lap-3']) || parseFloat(rms['calc-laprol-3']) || 0.0,
-        zo_laprol_silo4: parseFloat(rms['zo-lap-4']) || parseFloat(rms['calc-laprol-4']) || 0.0,
-        
-        zo_asbocarton_silo1: parseFloat(rms['zo-car-1']) || parseFloat(rms['calc-asbocarton-1']) || 0.0,
-        zo_asbocarton_silo2: parseFloat(rms['zo-car-2']) || parseFloat(rms['calc-asbocarton-2']) || 0.0,
-        zo_asbocarton_silo3: parseFloat(rms['zo-car-3']) || parseFloat(rms['calc-asbocarton-3']) || 0.0,
-        zo_asbocarton_silo4: parseFloat(rms['zo-car-4']) || parseFloat(rms['calc-asbocarton-4']) || 0.0,
-        
-        zo_chrysotile_4_20: parseFloat(rms['zo-chr-4-20']) || 0.0,
-        zo_chrysotile_5_65: parseFloat(rms['zo-chr-5-65']) || 0.0,
-        zo_chrysotile_6_40: parseFloat(rms['zo-chr-6-40']) || 0.0,
-        zo_cellulose: parseFloat(rms['zo-cellulose']) || 0.0,
-        zo_crushed_slate: parseFloat(rms['zo-crushed-slate']) || 0.0,
-        zo_asbozurit: parseFloat(rms['zo-asbozurit']) || 0.0,
-        zo_fiberglass: parseFloat(rms['zo-fiberglass']) || 0.0,
-        zo_laprol: parseFloat(rms['zo-laprol']) || 0.0,
-        zo_asbocarton: parseFloat(rms['zo-asbocarton']) || 0.0,
-        zo_asb_drain: parseFloat(rms['zo-asb-drain']) || 0.0,
-        zo_cem_drain: parseFloat(rms['zo-cem-drain']) || 0.0
-    };
-}
-
 function recalcWarehouseGPTotal() {
     const curr = parseFloat(document.getElementById('rep-warehouse-gp')?.value) || 0;
     const prev = parseFloat(document.getElementById('rep-prev-warehouse-gp')?.value) || 0;
     const total = curr + prev;
     const totalEl = document.getElementById('rep-warehouse-gp-total-readonly');
     if (totalEl) totalEl.value = total;
-    if (window.dualReportState && window.dualReportState.enabled) {
-        updateDualSummary();
-    }
 }
 
 async function updateShiftScheduleHints() {
@@ -1045,23 +306,10 @@ function recalcTonsAndGrades() {
     if (tonsEl) {
         tonsEl.value = tons.toFixed(3);
     }
-    
-    if (window.dualReportState && window.dualReportState.enabled) {
-        updateDualSummary();
-    }
 }
 
 async function onProductChange(event) {
     recalcTonsAndGrades();
-    
-    if (window.dualReportState && window.dualReportState.enabled) {
-        const currentTab = window.dualReportState.activeTab || 1;
-        const prodName = document.getElementById('rep-product')?.value || '';
-        const labelEl = document.getElementById(`tab-part${currentTab}-product-label`);
-        if (labelEl) labelEl.textContent = prodName || 'Не выбран';
-        updateDualSummary();
-        return;
-    }
     
     const date = document.getElementById('rep-date')?.value;
     const shiftName = document.getElementById('rep-shift')?.value;
@@ -1183,9 +431,6 @@ function recalcCemTotal() {
     const v4 = parseFloat(document.getElementById('zo-cem-4')?.value) || 0;
     const target = document.getElementById('zo-cem-total-readonly');
     if (target) target.value = (v1 + v2 + v3 + v4).toFixed(0);
-    if (window.dualReportState && window.dualReportState.enabled) {
-        updateDualSummary();
-    }
 }
 
 function switchTab(tabId, event) {
@@ -1928,18 +1173,6 @@ async function loadData() {
 }
 
 function prefillReportForm(shift) {
-    // Immediate mode check if shift already contains production numbers
-    if (shift.lfm_sheets !== undefined) {
-        const sSheets = parseInt(shift.lfm_sheets) || 0;
-        const sWh = parseInt(shift.warehouse_gp || shift.curr_warehouse_gp) || 0;
-        const sPrevWh = parseInt(shift.prev_condition) || 0;
-        if (sSheets === 0 && (sWh > 0 || sPrevWh > 0)) {
-            setReportMode('gp_only');
-        } else {
-            setReportMode('full');
-        }
-    }
-
     setDateInputValue('rep-date', shift.date);
     document.getElementById('rep-shift').value = shift.shift_name;
     document.getElementById('rep-line').value = shift.line;
@@ -2007,18 +1240,12 @@ function prefillReportForm(shift) {
     fetch(`/api/report/summary?from_date=${shift.date}&to_date=${shift.date}&line=${encodeURIComponent(shift.line)}`)
         .then(res => res.json())
         .then(data => {
-            if (!Array.isArray(data)) return;
             const row = data.find(r => r.shift_id === shift.id);
             if (row) {
-                const currWh = (row.curr_warehouse_gp !== undefined) ? row.curr_warehouse_gp : (row.warehouse_gp || '0');
-                const prevWh = (row.prev_condition !== undefined) ? row.prev_condition : '0';
-                if (row.lfm_sheets === 0 && (row.warehouse_gp > 0 || currWh > 0 || prevWh > 0)) {
-                    setReportMode('gp_only');
-                } else {
-                    setReportMode('full');
-                }
                 document.getElementById('rep-sheets').value = row.lfm_sheets || '0';
                 document.getElementById('rep-resets').value = row.lfm_wind_resets || '0';
+                const currWh = (row.curr_warehouse_gp !== undefined) ? row.curr_warehouse_gp : (row.warehouse_gp || '0');
+                const prevWh = (row.prev_condition !== undefined) ? row.prev_condition : '0';
                 document.getElementById('rep-warehouse-gp').value = currWh;
                 const prevWhEl = document.getElementById('rep-prev-warehouse-gp');
                 if (prevWhEl) prevWhEl.value = prevWh;
@@ -2070,343 +1297,144 @@ function prefillReportForm(shift) {
                 recalcChrTotal();
                 recalcCemTotal();
             }
-        })
-        .catch(err => {
-            console.error('Error prefilling report from summary:', err);
         });
 }
 
 async function submitShiftReport() {
-    const isUpdating = !!window.editingShiftId;
-    const isDual = !isUpdating && !!(window.dualReportState && window.dualReportState.enabled);
-    const isGpOnly = window.currentReportMode === 'gp_only';
-    
-    let url = '/api/report';
-    let method = 'POST';
-    let payload = null;
-    let commonLine = '';
-    let commonShiftName = '';
+    const data = {
+        date: document.getElementById('rep-date')?.value || '',
+        shift_name: document.getElementById('rep-shift')?.value || '',
+        line: document.getElementById('rep-line')?.value || '',
+        master_id: parseInt(document.getElementById('rep-master')?.value) || 0,
+        batch_number: document.getElementById('rep-batch')?.value || '',
+        product_name: document.getElementById('rep-product')?.value || '',
+        export_type: document.getElementById('rep-export-type')?.value || 'Эталон',
+        
+        lfm_sheets: parseInt(document.getElementById('rep-sheets')?.value) || 0,
+        lfm_wind_resets: parseInt(document.getElementById('rep-resets')?.value) || 0,
+        zo_batches: parseInt(document.getElementById('rep-batches')?.value) || 0,
+        
+        warehouse_gp: parseInt(document.getElementById('rep-warehouse-gp')?.value) || 0,
+        first_grade: parseInt(document.getElementById('rep-first-grade')?.value) || 0,
+        has_defect: document.getElementById('rep-has-defect')?.value || 'no',
+        
+        ds_defect_chip: parseInt(document.getElementById('def-chip')?.value) || 0,
+        ds_defect_scratch: parseInt(document.getElementById('def-scratch')?.value) || 0,
+        ds_defect_bad_cut: parseInt(document.getElementById('def-bad-cut')?.value) || 0,
+        ds_defect_stick_bottom: parseInt(document.getElementById('def-stick-bottom')?.value) || 0,
+        ds_defect_stick_top: parseInt(document.getElementById('def-stick-top')?.value) || 0,
+        ds_defect_broken: parseInt(document.getElementById('def-broken')?.value) || 0,
+        ds_defect_fell_box: parseInt(document.getElementById('def-fell')?.value) || 0,
+        ds_defect_dent: parseInt(document.getElementById('def-dent')?.value) || 0,
+        ds_defect_thickness: parseInt(document.getElementById('def-thickness')?.value) || 0,
+        ds_defect_delamination: parseInt(document.getElementById('def-delamination')?.value) || 0,
+        ds_defect_edge: parseInt(document.getElementById('def-edge')?.value) || 0,
 
-    if (isUpdating) {
-        url = `/api/report/${window.editingShiftId}`;
-        method = 'PUT';
+        // Предыдущая смена
+        prev_condition: parseInt(document.getElementById('rep-prev-warehouse-gp')?.value) || 0,
+        prev_first_grade: parseInt(document.getElementById('rep-prev-first-grade')?.value) || 0,
+        prev_has_defect: document.getElementById('rep-prev-has-defect')?.value || 'no',
+        prev_defect_scratch: parseInt(document.getElementById('prev-def-scratch')?.value) || 0,
+        prev_defect_bad_cut: parseInt(document.getElementById('prev-def-bad-cut')?.value) || 0,
+        prev_defect_stick_top: parseInt(document.getElementById('prev-def-stick-top')?.value) || 0,
+        prev_defect_broken: parseInt(document.getElementById('prev-def-broken')?.value) || 0,
+        prev_defect_fell_box: parseInt(document.getElementById('prev-def-fell')?.value) || 0,
+        prev_defect_thickness: parseInt(document.getElementById('prev-def-thickness')?.value) || 0,
+        prev_defect_edge: parseInt(document.getElementById('prev-def-edge')?.value) || 0,
         
-        const dateVal = document.getElementById('rep-date')?.value || '';
-        const shiftVal = document.getElementById('rep-shift')?.value || '';
-        const lineVal = document.getElementById('rep-line')?.value || '';
-        const masterVal = parseInt(document.getElementById('rep-master')?.value) || 0;
-        const batchVal = document.getElementById('rep-batch')?.value || '';
-        const prodVal = document.getElementById('rep-product')?.value || '';
-        const expVal = document.getElementById('rep-export-type')?.value || 'Эталон';
-        
-        if (!dateVal || !shiftVal || !lineVal || isNaN(masterVal) || !masterVal || !prodVal) {
-            showNotification('error', 'Ошибка', "Пожалуйста, заполните все обязательные поля заголовка смены!");
-            return;
-        }
-        
-        commonLine = lineVal;
-        commonShiftName = shiftVal;
-        
-        payload = {
-            date: dateVal,
-            shift_name: shiftVal,
-            line: lineVal,
-            master_id: masterVal,
-            batch_number: batchVal,
-            product_name: prodVal,
-            export_type: expVal,
-            
-            lfm_sheets: isGpOnly ? 0 : (parseInt(document.getElementById('rep-sheets')?.value) || 0),
-            lfm_wind_resets: isGpOnly ? 0 : (parseInt(document.getElementById('rep-resets')?.value) || 0),
-            zo_batches: isGpOnly ? 0 : (parseInt(document.getElementById('rep-batches')?.value) || 0),
-            
-            warehouse_gp: parseInt(document.getElementById('rep-warehouse-gp')?.value) || 0,
-            first_grade: parseInt(document.getElementById('rep-first-grade')?.value) || 0,
-            has_defect: document.getElementById('rep-has-defect')?.value || 'no',
-            
-            ds_defect_chip: parseInt(document.getElementById('def-chip')?.value) || 0,
-            ds_defect_scratch: parseInt(document.getElementById('def-scratch')?.value) || 0,
-            ds_defect_bad_cut: parseInt(document.getElementById('def-bad-cut')?.value) || 0,
-            ds_defect_stick_bottom: parseInt(document.getElementById('def-stick-bottom')?.value) || 0,
-            ds_defect_stick_top: parseInt(document.getElementById('def-stick-top')?.value) || 0,
-            ds_defect_broken: parseInt(document.getElementById('def-broken')?.value) || 0,
-            ds_defect_fell_box: parseInt(document.getElementById('def-fell')?.value) || 0,
-            ds_defect_dent: parseInt(document.getElementById('def-dent')?.value) || 0,
-            ds_defect_thickness: parseInt(document.getElementById('def-thickness')?.value) || 0,
-            ds_defect_delamination: parseInt(document.getElementById('def-delamination')?.value) || 0,
-            ds_defect_edge: parseInt(document.getElementById('def-edge')?.value) || 0,
+        qcd_defect: parseInt(document.getElementById('rep-qcd-defect')?.value) || 0,
 
-            prev_condition: parseInt(document.getElementById('rep-prev-warehouse-gp')?.value) || 0,
-            prev_first_grade: parseInt(document.getElementById('rep-prev-first-grade')?.value) || 0,
-            prev_has_defect: document.getElementById('rep-prev-has-defect')?.value || 'no',
-            prev_defect_scratch: parseInt(document.getElementById('prev-def-scratch')?.value) || 0,
-            prev_defect_bad_cut: parseInt(document.getElementById('prev-def-bad-cut')?.value) || 0,
-            prev_defect_stick_top: parseInt(document.getElementById('prev-def-stick-top')?.value) || 0,
-            prev_defect_broken: parseInt(document.getElementById('prev-def-broken')?.value) || 0,
-            prev_defect_fell_box: parseInt(document.getElementById('prev-def-fell')?.value) || 0,
-            prev_defect_thickness: parseInt(document.getElementById('prev-def-thickness')?.value) || 0,
-            prev_defect_edge: parseInt(document.getElementById('prev-def-edge')?.value) || 0,
-            
-            qcd_defect: parseInt(document.getElementById('rep-qcd-defect')?.value) || 0,
 
-            zo_chrysotile_4_20_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0),
-            zo_chrysotile_4_20_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0),
-            zo_chrysotile_4_20_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0),
-            zo_chrysotile_4_20_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0),
-            
-            zo_chrysotile_5_65_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0),
-            zo_chrysotile_5_65_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-2')?.value) || 0.0),
-            zo_chrysotile_5_65_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-3')?.value) || 0.0),
-            zo_chrysotile_5_65_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-4')?.value) || 0.0),
-            
-            zo_chrysotile_6_40_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-1')?.value) || 0.0),
-            zo_chrysotile_6_40_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-2')?.value) || 0.0),
-            zo_chrysotile_6_40_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0),
-            zo_chrysotile_6_40_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0),
-            
-            zo_cement_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0),
-            zo_cement_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0),
-            zo_cement_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0),
-            zo_cement_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0),
-            
-            zo_cellulose_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0),
-            zo_cellulose_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0),
-            zo_cellulose_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-3')?.value) || 0.0),
-            zo_cellulose_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-4')?.value) || 0.0),
-            
-            zo_crushed_slate_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-1')?.value) || 0.0),
-            zo_crushed_slate_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-2')?.value) || 0.0),
-            zo_crushed_slate_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-3')?.value) || 0.0),
-            zo_crushed_slate_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-4')?.value) || 0.0),
-            
-            zo_asbozurit_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-1')?.value) || 0.0),
-            zo_asbozurit_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-2')?.value) || 0.0),
-            zo_asbozurit_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-3')?.value) || 0.0),
-            zo_asbozurit_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-4')?.value) || 0.0),
-            
-            zo_fiberglass_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-1')?.value) || 0.0),
-            zo_fiberglass_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-2')?.value) || 0.0),
-            zo_fiberglass_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0),
-            zo_fiberglass_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0),
-            
-            zo_laprol_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0),
-            zo_laprol_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0),
-            zo_laprol_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-3')?.value) || 0.0),
-            zo_laprol_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-4')?.value) || 0.0),
-            
-            zo_asbocarton_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-1')?.value) || 0.0),
-            zo_asbocarton_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-2')?.value) || 0.0),
-            zo_asbocarton_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-3')?.value) || 0.0),
-            zo_asbocarton_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-4')?.value) || 0.0),
-            
-            zo_chrysotile_4_20: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0.0),
-            zo_chrysotile_5_65: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0.0),
-            zo_chrysotile_6_40: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0.0),
-            zo_cellulose: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cellulose')?.value) || 0.0),
-            zo_crushed_slate: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-crushed-slate')?.value) || 0.0),
-            zo_asbozurit: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asbozurit')?.value) || 0.0),
-            zo_fiberglass: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fiberglass')?.value) || 0.0),
-            zo_laprol: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-laprol')?.value) || 0.0),
-            zo_asbocarton: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asbocarton')?.value) || 0.0),
-            zo_asb_drain: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-drain')?.value) || 0.0),
-            zo_cem_drain: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-drain')?.value) || 0.0)
-        };
-    } else if (isDual) {
-        url = '/api/report/dual';
-        method = 'POST';
+        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0,
+        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0,
+        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0,
+        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0,
         
-        saveDualTabState(window.dualReportState.activeTab);
+        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0,
+        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('zo-chr-5-65-2')?.value) || 0.0,
+        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('zo-chr-5-65-3')?.value) || 0.0,
+        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('zo-chr-5-65-4')?.value) || 0.0,
         
-        const common = window.dualReportState.common || {};
-        if (!common.date || !common.shift_name || !common.line || isNaN(common.master_id) || !common.master_id || !common.batch_number) {
-            showNotification('error', 'Ошибка', 'Пожалуйста, заполните все обязательные поля заголовка смены (Дата, Смена, Линия, Мастер, Номер партии)!');
-            return;
-        }
+        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('zo-chr-6-40-1')?.value) || 0.0,
+        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('zo-chr-6-40-2')?.value) || 0.0,
+        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0,
+        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0,
         
-        const p1 = window.dualReportState.part1;
-        const p2 = window.dualReportState.part2;
-        if (!p1 || !p1.product_name) {
-            switchDualTab(1);
-            showNotification('error', 'Ошибка', 'В Части 1 перехода необходимо указать наименование продукции!');
-            return;
-        }
-        if (!p2 || !p2.product_name) {
-            switchDualTab(2);
-            showNotification('error', 'Ошибка', 'В Части 2 перехода необходимо указать наименование продукции!');
-            return;
-        }
+        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
+        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
+        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
         
-        const p1Prod = p1.product_name.trim().toLowerCase();
-        const p2Prod = p2.product_name.trim().toLowerCase();
-        const p1Exp = (p1.export_type || 'Эталон').trim().toLowerCase();
-        const p2Exp = (p2.export_type || 'Эталон').trim().toLowerCase();
-        if (p1Prod === p2Prod && p1Exp === p2Exp) {
-            showNotification('error', 'Ошибка', 'В режиме перехода Часть 1 и Часть 2 должны различаться наименованием продукции или типом поставки (Экспорт/Эталон)!');
-            return;
-        }
+        zo_cellulose_silo1: parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0,
+        zo_cellulose_silo2: parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0,
+        zo_cellulose_silo3: parseFloat(document.getElementById('zo-cel-3')?.value) || 0.0,
+        zo_cellulose_silo4: parseFloat(document.getElementById('zo-cel-4')?.value) || 0.0,
         
-        commonLine = common.line;
-        commonShiftName = common.shift_name;
+        zo_crushed_slate_silo1: parseFloat(document.getElementById('zo-csl-1')?.value) || 0.0,
+        zo_crushed_slate_silo2: parseFloat(document.getElementById('zo-csl-2')?.value) || 0.0,
+        zo_crushed_slate_silo3: parseFloat(document.getElementById('zo-csl-3')?.value) || 0.0,
+        zo_crushed_slate_silo4: parseFloat(document.getElementById('zo-csl-4')?.value) || 0.0,
         
-        const part1Payload = buildShiftPayloadFromPart(1);
-        const part2Payload = buildShiftPayloadFromPart(2);
+        zo_asbozurit_silo1: parseFloat(document.getElementById('zo-asb-1')?.value) || 0.0,
+        zo_asbozurit_silo2: parseFloat(document.getElementById('zo-asb-2')?.value) || 0.0,
+        zo_asbozurit_silo3: parseFloat(document.getElementById('zo-asb-3')?.value) || 0.0,
+        zo_asbozurit_silo4: parseFloat(document.getElementById('zo-asb-4')?.value) || 0.0,
         
-        payload = {
-            part1: part1Payload,
-            part2: part2Payload
-        };
-    } else {
-        // Standard full shift or GP-only shift
-        url = '/api/report';
-        method = 'POST';
+        zo_fiberglass_silo1: parseFloat(document.getElementById('zo-fib-1')?.value) || 0.0,
+        zo_fiberglass_silo2: parseFloat(document.getElementById('zo-fib-2')?.value) || 0.0,
+        zo_fiberglass_silo3: parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0,
+        zo_fiberglass_silo4: parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0,
         
-        const dateVal = document.getElementById('rep-date')?.value || '';
-        const shiftVal = document.getElementById('rep-shift')?.value || '';
-        const lineVal = document.getElementById('rep-line')?.value || '';
-        const masterVal = parseInt(document.getElementById('rep-master')?.value) || 0;
-        const batchVal = document.getElementById('rep-batch')?.value || '';
-        const prodVal = document.getElementById('rep-product')?.value || '';
-        const expVal = document.getElementById('rep-export-type')?.value || 'Эталон';
+        zo_laprol_silo1: parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
+        zo_laprol_silo2: parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0,
+        zo_laprol_silo3: parseFloat(document.getElementById('zo-lap-3')?.value) || 0.0,
+        zo_laprol_silo4: parseFloat(document.getElementById('zo-lap-4')?.value) || 0.0,
         
-        if (!dateVal || !shiftVal || !lineVal || isNaN(masterVal) || !masterVal || !prodVal) {
-            showNotification('error', 'Ошибка', "Пожалуйста, заполните все обязательные поля заголовка смены!");
-            return;
-        }
+        zo_asbocarton_silo1: parseFloat(document.getElementById('zo-car-1')?.value) || 0.0,
+        zo_asbocarton_silo2: parseFloat(document.getElementById('zo-car-2')?.value) || 0.0,
+        zo_asbocarton_silo3: parseFloat(document.getElementById('zo-car-3')?.value) || 0.0,
+        zo_asbocarton_silo4: parseFloat(document.getElementById('zo-car-4')?.value) || 0.0,
         
-        const whGpVal = parseInt(document.getElementById('rep-warehouse-gp')?.value) || 0;
-        const prevWhGpVal = parseInt(document.getElementById('rep-prev-warehouse-gp')?.value) || 0;
-        if (isGpOnly && (whGpVal + prevWhGpVal) <= 0) {
-            showNotification('error', 'Ошибка', 'В режиме «Только сдача ГП» необходимо указать количество сданных листов на склад ГП (текущая или предыдущая партия > 0)!');
-            return;
-        }
-        
-        commonLine = lineVal;
-        commonShiftName = shiftVal;
-        
-        payload = {
-            date: dateVal,
-            shift_name: shiftVal,
-            line: lineVal,
-            master_id: masterVal,
-            batch_number: batchVal,
-            product_name: prodVal,
-            export_type: expVal,
-            
-            lfm_sheets: isGpOnly ? 0 : (parseInt(document.getElementById('rep-sheets')?.value) || 0),
-            lfm_wind_resets: isGpOnly ? 0 : (parseInt(document.getElementById('rep-resets')?.value) || 0),
-            zo_batches: isGpOnly ? 0 : (parseInt(document.getElementById('rep-batches')?.value) || 0),
-            
-            warehouse_gp: whGpVal,
-            first_grade: parseInt(document.getElementById('rep-first-grade')?.value) || 0,
-            has_defect: document.getElementById('rep-has-defect')?.value || 'no',
-            
-            ds_defect_chip: parseInt(document.getElementById('def-chip')?.value) || 0,
-            ds_defect_scratch: parseInt(document.getElementById('def-scratch')?.value) || 0,
-            ds_defect_bad_cut: parseInt(document.getElementById('def-bad-cut')?.value) || 0,
-            ds_defect_stick_bottom: parseInt(document.getElementById('def-stick-bottom')?.value) || 0,
-            ds_defect_stick_top: parseInt(document.getElementById('def-stick-top')?.value) || 0,
-            ds_defect_broken: parseInt(document.getElementById('def-broken')?.value) || 0,
-            ds_defect_fell_box: parseInt(document.getElementById('def-fell')?.value) || 0,
-            ds_defect_dent: parseInt(document.getElementById('def-dent')?.value) || 0,
-            ds_defect_thickness: parseInt(document.getElementById('def-thickness')?.value) || 0,
-            ds_defect_delamination: parseInt(document.getElementById('def-delamination')?.value) || 0,
-            ds_defect_edge: parseInt(document.getElementById('def-edge')?.value) || 0,
+        zo_chrysotile_4_20: parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0.0,
+        zo_chrysotile_5_65: parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0.0,
+        zo_chrysotile_6_40: parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0.0,
+        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
+        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
+        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
+        zo_cellulose: parseFloat(document.getElementById('zo-cellulose')?.value) || 0.0,
+        zo_crushed_slate: parseFloat(document.getElementById('zo-crushed-slate')?.value) || 0.0,
+        zo_asbozurit: parseFloat(document.getElementById('zo-asbozurit')?.value) || 0.0,
+        zo_fiberglass: parseFloat(document.getElementById('zo-fiberglass')?.value) || 0.0,
+        zo_laprol: parseFloat(document.getElementById('zo-laprol')?.value) || 0.0,
+        zo_asbocarton: parseFloat(document.getElementById('zo-asbocarton')?.value) || 0.0,
+        zo_asb_drain: parseFloat(document.getElementById('zo-asb-drain')?.value) || 0.0,
+        zo_cem_drain: parseFloat(document.getElementById('zo-cem-drain')?.value) || 0.0
+    };
 
-            prev_condition: parseInt(document.getElementById('rep-prev-warehouse-gp')?.value) || 0,
-            prev_first_grade: parseInt(document.getElementById('rep-prev-first-grade')?.value) || 0,
-            prev_has_defect: document.getElementById('rep-prev-has-defect')?.value || 'no',
-            prev_defect_scratch: parseInt(document.getElementById('prev-def-scratch')?.value) || 0,
-            prev_defect_bad_cut: parseInt(document.getElementById('prev-def-bad-cut')?.value) || 0,
-            prev_defect_stick_top: parseInt(document.getElementById('prev-def-stick-top')?.value) || 0,
-            prev_defect_broken: parseInt(document.getElementById('prev-def-broken')?.value) || 0,
-            prev_defect_fell_box: parseInt(document.getElementById('prev-def-fell')?.value) || 0,
-            prev_defect_thickness: parseInt(document.getElementById('prev-def-thickness')?.value) || 0,
-            prev_defect_edge: parseInt(document.getElementById('prev-def-edge')?.value) || 0,
-            
-            qcd_defect: parseInt(document.getElementById('rep-qcd-defect')?.value) || 0,
-
-            zo_chrysotile_4_20_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0),
-            zo_chrysotile_4_20_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0),
-            zo_chrysotile_4_20_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0),
-            zo_chrysotile_4_20_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0),
-            
-            zo_chrysotile_5_65_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0),
-            zo_chrysotile_5_65_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-2')?.value) || 0.0),
-            zo_chrysotile_5_65_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-3')?.value) || 0.0),
-            zo_chrysotile_5_65_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65-4')?.value) || 0.0),
-            
-            zo_chrysotile_6_40_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-1')?.value) || 0.0),
-            zo_chrysotile_6_40_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-2')?.value) || 0.0),
-            zo_chrysotile_6_40_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0),
-            zo_chrysotile_6_40_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0),
-            
-            zo_cement_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0),
-            zo_cement_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0),
-            zo_cement_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0),
-            zo_cement_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0),
-            
-            zo_cellulose_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0),
-            zo_cellulose_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0),
-            zo_cellulose_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-3')?.value) || 0.0),
-            zo_cellulose_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cel-4')?.value) || 0.0),
-            
-            zo_crushed_slate_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-1')?.value) || 0.0),
-            zo_crushed_slate_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-2')?.value) || 0.0),
-            zo_crushed_slate_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-3')?.value) || 0.0),
-            zo_crushed_slate_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-csl-4')?.value) || 0.0),
-            
-            zo_asbozurit_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-1')?.value) || 0.0),
-            zo_asbozurit_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-2')?.value) || 0.0),
-            zo_asbozurit_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-3')?.value) || 0.0),
-            zo_asbozurit_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-4')?.value) || 0.0),
-            
-            zo_fiberglass_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-1')?.value) || 0.0),
-            zo_fiberglass_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-2')?.value) || 0.0),
-            zo_fiberglass_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0),
-            zo_fiberglass_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0),
-            
-            zo_laprol_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0),
-            zo_laprol_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0),
-            zo_laprol_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-3')?.value) || 0.0),
-            zo_laprol_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-lap-4')?.value) || 0.0),
-            
-            zo_asbocarton_silo1: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-1')?.value) || 0.0),
-            zo_asbocarton_silo2: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-2')?.value) || 0.0),
-            zo_asbocarton_silo3: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-3')?.value) || 0.0),
-            zo_asbocarton_silo4: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-car-4')?.value) || 0.0),
-            
-            zo_chrysotile_4_20: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0.0),
-            zo_chrysotile_5_65: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0.0),
-            zo_chrysotile_6_40: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0.0),
-            zo_cellulose: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cellulose')?.value) || 0.0),
-            zo_crushed_slate: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-crushed-slate')?.value) || 0.0),
-            zo_asbozurit: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asbozurit')?.value) || 0.0),
-            zo_fiberglass: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-fiberglass')?.value) || 0.0),
-            zo_laprol: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-laprol')?.value) || 0.0),
-            zo_asbocarton: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asbocarton')?.value) || 0.0),
-            zo_asb_drain: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-asb-drain')?.value) || 0.0),
-            zo_cem_drain: isGpOnly ? 0.0 : (parseFloat(document.getElementById('zo-cem-drain')?.value) || 0.0)
-        };
+    if (!data.date || !data.shift_name || !data.line || isNaN(data.master_id) || !data.product_name) {
+        showNotification('error', 'Ошибка', "Пожалуйста, заполните все обязательные поля заголовка смены!");
+        return;
     }
+
+    const isUpdating = !!window.editingShiftId;
+    const url = isUpdating ? `/api/report/${window.editingShiftId}` : '/api/report';
+    const method = isUpdating ? 'PUT' : 'POST';
 
     setButtonLoading('btn-submit-shift-report', true);
     try {
         const res = await fetch(url, {
             method: method,
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
+            body: JSON.stringify(data)
         });
         
         if (res.ok) {
             clearReportDraft();
-            if (commonLine && commonShiftName) {
-                saveLastLineAndShift(commonLine, commonShiftName);
-            }
+            saveLastLineAndShift(data.line, data.shift_name);
             
             if (isUpdating) {
                 cancelReportEdit();
-            } else {
-                resetReportForm();
             }
             
             const formContainer = document.getElementById('report-form-container');
@@ -2416,20 +1444,7 @@ async function submitShiftReport() {
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
             loadData();
-            
-            let successTitle = 'Смена отправлена!';
-            let successMsg = 'Данные рапорта смены успешно загружены в облако.';
-            if (isUpdating) {
-                successTitle = 'Рапорт обновлен!';
-                successMsg = 'Изменения в рапорте смены успешно сохранены.';
-            } else if (isDual) {
-                successTitle = 'Сдвоенный рапорт сохранен!';
-                successMsg = 'Обе части смены (переход на другой вид продукции) успешно зарегистрированы в облаке.';
-            } else if (isGpOnly) {
-                successTitle = 'Сдача ГП сохранена!';
-                successMsg = 'Сдача готовой продукции на склад успешно зарегистрирована.';
-            }
-            showNotification('success', successTitle, successMsg);
+            showNotification('success', isUpdating ? 'Рапорт обновлен!' : 'Смена отправлена!', isUpdating ? 'Изменения в рапорте смены успешно сохранены.' : 'Данные рапорта смены успешно загружены в облако.');
         } else {
             const err = await res.json();
             showNotification('error', 'Ошибка сохранения', err.detail || 'Неизвестная ошибка сервера');
@@ -2448,7 +1463,6 @@ async function submitShiftReport() {
 
 function resetReportForm() {
     window.currentLoadedShiftId = null;
-    window.editingShiftId = null;
     const dateEl = document.getElementById('rep-date');
     if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
     
@@ -2509,41 +1523,6 @@ function resetReportForm() {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-
-    // Reset report mode & transition state
-    setReportMode('full');
-    const transToggle = document.getElementById('rep-is-transition');
-    if (transToggle) transToggle.checked = false;
-    toggleTransitionMode(false);
-    
-    window.dualReportState = {
-        enabled: false,
-        activeTab: 1,
-        common: {},
-        part1: null,
-        part2: null
-    };
-    
-    const p1Label = document.getElementById('tab-part1-product-label');
-    const p2Label = document.getElementById('tab-part2-product-label');
-    if (p1Label) p1Label.textContent = 'Не выбран';
-    if (p2Label) p2Label.textContent = 'Не выбран';
-
-    const sumSheetsEl = document.getElementById('dual-sum-lfm-sheets');
-    if (sumSheetsEl) sumSheetsEl.textContent = '0';
-    const sumTonsEl = document.getElementById('dual-sum-lfm-tons');
-    if (sumTonsEl) sumTonsEl.textContent = '0.00';
-    const sumGpEl = document.getElementById('dual-sum-warehouse-gp');
-    if (sumGpEl) sumGpEl.textContent = '0';
-    const sumCemEl = document.getElementById('dual-sum-cement');
-    if (sumCemEl) sumCemEl.textContent = '0.00';
-    
-    const submitBtn = document.getElementById('btn-submit-shift-report');
-    if (submitBtn && !window.editingShiftId) {
-        submitBtn.innerHTML = '💾 Сохранить сменный рапорт →';
-        submitBtn.style.background = '';
-        submitBtn.style.boxShadow = '';
-    }
 }
 
 function showNewReportForm() {
@@ -2759,31 +1738,6 @@ function renderSummaryTable(rows) {
         return;
     }
 
-    // Identify dual shift pairs sharing date, shift_name, line, batch_number
-    const shiftPairs = {};
-    rows.forEach(r => {
-        if (r.batch_number) {
-            const key = `${r.date}|${r.shift_name}|${r.line}|${r.batch_number}`;
-            if (!shiftPairs[key]) shiftPairs[key] = [];
-            shiftPairs[key].push(r);
-        }
-    });
-
-    const dualBadgeMap = {};
-    Object.values(shiftPairs).forEach(pair => {
-        if (pair.length === 2) {
-            const p1 = pair[0];
-            const p2 = pair[1];
-            const diffProduct = (p1.product_name || '').trim().toLowerCase() !== (p2.product_name || '').trim().toLowerCase();
-            const diffExport = (p1.export_type || 'Эталон').trim().toLowerCase() !== (p2.export_type || 'Эталон').trim().toLowerCase();
-            if (diffProduct || diffExport) {
-                pair.sort((a, b) => a.shift_id - b.shift_id);
-                dualBadgeMap[pair[0].shift_id] = `<span class="stripe-badge" style="background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; margin-left: 5px; white-space: nowrap;">🔄 Часть 1/2</span>`;
-                dualBadgeMap[pair[1].shift_id] = `<span class="stripe-badge" style="background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; margin-left: 5px; white-space: nowrap;">🔄 Часть 2/2</span>`;
-            }
-        }
-    });
-
     rows.forEach(r => {
         const u = r.zo_usage || {};
         const chrys_4_20 = u.chrysotile_4_20 || 0;
@@ -2796,13 +1750,6 @@ function renderSummaryTable(rows) {
         const cem_3 = u.cement_silo3 || 0;
         const cem_4 = u.cement_silo4 || 0;
         const totalCement = cem_1 + cem_2 + cem_3 + cem_4;
-
-        let modeBadge = '';
-        if (dualBadgeMap[r.shift_id]) {
-            modeBadge = dualBadgeMap[r.shift_id];
-        } else if (r.lfm_sheets === 0 && ((r.warehouse_gp && r.warehouse_gp > 0) || (r.prev_condition && r.prev_condition > 0))) {
-            modeBadge = `<span class="stripe-badge" style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; margin-left: 5px; white-space: nowrap;">📦 Склад ГП</span>`;
-        }
 
         // Defect color: 0 is green, anything else is red
         const defectColor = r.defect === 0 ? 'var(--success-color)' : 'var(--danger-color)';
@@ -2850,19 +1797,19 @@ function renderSummaryTable(rows) {
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="white-space: nowrap;">${actionCell}</td>
                 <td>${r.date}</td>
-                <td>${r.batch_number}${modeBadge}</td>
+                <td>${r.batch_number}</td>
                 <td>${r.line}</td>
                 <td>${r.shift_name}</td>
                 <td style="font-weight: 500;">${r.master_name}</td>
                 <td>${r.product_name}</td>
                 <td>${exportBadge}</td>
-                <td>${r.zo_batches != null ? r.zo_batches : 0}</td>
-                <td style="font-weight: bold;">${r.lfm_sheets != null ? r.lfm_sheets : 0}</td>
-                <td>${(r.lfm_tons != null ? Number(r.lfm_tons) : 0).toFixed(2)}</td>
-                <td style="color: var(--success-color); font-weight: 500;">${r.warehouse_gp != null ? r.warehouse_gp : 0}</td>
-                <td>${r.first_grade != null ? r.first_grade : 0}</td>
-                <td style="color: ${defectColor}; font-weight: bold;">${r.defect != null ? r.defect : 0}</td>
-                <td>${r.lfm_wind_resets != null ? r.lfm_wind_resets : 0}</td>
+                <td>${r.zo_batches}</td>
+                <td style="font-weight: bold;">${r.lfm_sheets}</td>
+                <td>${r.lfm_tons.toFixed(2)}</td>
+                <td style="color: var(--success-color); font-weight: 500;">${r.warehouse_gp}</td>
+                <td>${r.first_grade}</td>
+                <td style="color: ${defectColor}; font-weight: bold;">${r.defect}</td>
+                <td>${r.lfm_wind_resets}</td>
                 <td>${(u.asb_drain || 0).toFixed(0)}</td>
                 <td>${(u.cem_drain || 0).toFixed(0)}</td>
                 <td>${chrys_4_20.toFixed(0)}</td>
@@ -2965,10 +1912,6 @@ async function editReport(shiftId) {
                 submitBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
                 submitBtn.style.boxShadow = '0 8px 25px rgba(245, 158, 11, 0.4)';
             }
-            
-            // Hide transition switch in edit mode
-            const transWrapper = document.getElementById('transition-switch-wrapper');
-            if (transWrapper) transWrapper.style.display = 'none';
             
             startReportEditTimer(shift.remaining_edit_seconds);
             
@@ -4749,7 +3692,6 @@ const REPORT_FIELDS = [
 let draftSaveTimeout = null;
 
 function saveReportDraft() {
-    if (window.editingShiftId) return; // Do not overwrite new shift draft when editing existing shift
     const draft = {};
     REPORT_FIELDS.forEach(id => {
         const el = document.getElementById(id);
@@ -4757,20 +3699,7 @@ function saveReportDraft() {
             draft[id] = el.value;
         }
     });
-    draft._mode = window.currentReportMode || 'full';
-    if (window.dualReportState && window.dualReportState.enabled) {
-        saveDualTabState(window.dualReportState.activeTab);
-        draft._dualReportState = window.dualReportState;
-    }
-    
-    // Save to mode- and batch-scoped key AND legacy key
-    const batchVal = document.getElementById('rep-batch')?.value?.trim() || '';
-    const key = getDraftStorageKey(draft._mode, batchVal);
-    const serialized = JSON.stringify(draft);
-    localStorage.setItem(key, serialized);
-    localStorage.setItem(`shift_draft_${draft._mode}_active`, serialized);
-    localStorage.setItem('shift_draft_last_key', key);
-    localStorage.setItem('shift_report_draft', serialized);
+    localStorage.setItem('shift_report_draft', JSON.stringify(draft));
     
     const indicator = document.getElementById('draft-indicator');
     if (indicator) {
@@ -4783,32 +3712,12 @@ function saveReportDraft() {
     }
 }
 
-function loadReportDraft(customKey) {
-    let key = customKey;
-    if (!key) {
-        const batchVal = document.getElementById('rep-batch')?.value?.trim() || '';
-        const mode = window.currentReportMode || 'full';
-        const candidateKey = getDraftStorageKey(mode, batchVal);
-        if (localStorage.getItem(candidateKey)) {
-            key = candidateKey;
-        } else if (localStorage.getItem(`shift_draft_${mode}_active`)) {
-            key = `shift_draft_${mode}_active`;
-        } else if (localStorage.getItem('shift_draft_last_key')) {
-            key = localStorage.getItem('shift_draft_last_key');
-        } else {
-            key = 'shift_report_draft';
-        }
-    }
-    const saved = localStorage.getItem(key);
+function loadReportDraft() {
+    const saved = localStorage.getItem('shift_report_draft');
     if (saved) {
         try {
             const draft = JSON.parse(saved);
             let hasData = false;
-            
-            if (draft._mode && !customKey) {
-                setReportMode(draft._mode);
-            }
-            
             REPORT_FIELDS.forEach(id => {
                 const el = document.getElementById(id);
                 if (el && draft[id] !== undefined && draft[id] !== '') {
@@ -4823,17 +3732,6 @@ function loadReportDraft(customKey) {
                     hasData = true;
                 }
             });
-            
-            if (draft._dualReportState && draft._dualReportState.enabled) {
-                window.dualReportState = JSON.parse(JSON.stringify(draft._dualReportState));
-                const transSwitch = document.getElementById('rep-is-transition');
-                if (transSwitch) transSwitch.checked = true;
-                toggleTransitionMode(true, true);
-                loadDualTabState(window.dualReportState.activeTab || 1);
-                switchDualTab(window.dualReportState.activeTab || 1);
-                hasData = true;
-            }
-            
             if (hasData) {
                 if (typeof recalcTonsAndGrades === 'function') recalcTonsAndGrades();
                 if (typeof recalcDefectTotal === 'function') recalcDefectTotal();
@@ -4842,7 +3740,6 @@ function loadReportDraft(customKey) {
                 if (typeof toggleDefectsGrid === 'function') toggleDefectsGrid();
                 if (typeof togglePrevDefectsGrid === 'function') togglePrevDefectsGrid();
                 if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
-                if (typeof updateDualSummary === 'function' && window.dualReportState?.enabled) updateDualSummary();
                 
                 const indicator = document.getElementById('draft-indicator');
                 if (indicator) {
@@ -4860,11 +3757,6 @@ function loadReportDraft(customKey) {
 }
 
 function clearReportDraft() {
-    const batchVal = document.getElementById('rep-batch')?.value?.trim() || '';
-    const mode = window.currentReportMode || 'full';
-    localStorage.removeItem(getDraftStorageKey(mode, batchVal));
-    localStorage.removeItem(`shift_draft_${mode}_active`);
-    localStorage.removeItem('shift_draft_last_key');
     localStorage.removeItem('shift_report_draft');
 }
 
@@ -4966,14 +3858,6 @@ async function init() {
     document.getElementById('rep-export-type')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
-    document.getElementById('rep-batch')?.addEventListener('input', function() {
-        if (window.currentReportMode === 'gp_only' && !window.editingShiftId) {
-            const submitBtn = document.getElementById('btn-submit-shift-report');
-            if (submitBtn) {
-                submitBtn.innerHTML = `💾 Сохранить сдачу ГП на склад (партия ${this.value.trim() || '—'})`;
-            }
-        }
-    });
 
     // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
     let cachedUser = window.__cachedUser;

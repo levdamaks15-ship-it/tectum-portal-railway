@@ -812,16 +812,7 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
     }
 
 
-def save_report_internal(
-    db: Session, 
-    shift: models.Shift, 
-    data: schemas.ShiftReportCreate, 
-    user_name: str, 
-    is_new: bool,
-    commit: bool = True,
-    send_tg_alert: bool = True,
-    sync_plan: bool = True
-):
+def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftReportCreate, user_name: str, is_new: bool):
     # Old values logging
     old_values = {}
     if not is_new:
@@ -1056,23 +1047,23 @@ def save_report_internal(
     
     # Calculate defect sum
     ds_defect_sum = (
-        (data.ds_defect_chip or 0) + (data.ds_defect_scratch or 0) + (data.ds_defect_bad_cut or 0) +
-        (data.ds_defect_stick_bottom or 0) + (data.ds_defect_stick_top or 0) + (data.ds_defect_broken or 0) +
-        (data.ds_defect_fell_box or 0) + (data.ds_defect_dent or 0) + (data.ds_defect_thickness or 0) +
-        (data.ds_defect_delamination or 0) + (data.ds_defect_edge or 0)
+        data.ds_defect_chip + data.ds_defect_scratch + data.ds_defect_bad_cut +
+        data.ds_defect_stick_bottom + data.ds_defect_stick_top + data.ds_defect_broken +
+        data.ds_defect_fell_box + data.ds_defect_dent + data.ds_defect_thickness +
+        data.ds_defect_delamination + data.ds_defect_edge
     )
     batch.ds_defect = ds_defect_sum
-    batch.ds_defect_chip = data.ds_defect_chip or 0
-    batch.ds_defect_scratch = data.ds_defect_scratch or 0
-    batch.ds_defect_bad_cut = data.ds_defect_bad_cut or 0
-    batch.ds_defect_stick_bottom = data.ds_defect_stick_bottom or 0
-    batch.ds_defect_stick_top = data.ds_defect_stick_top or 0
-    batch.ds_defect_broken = data.ds_defect_broken or 0
-    batch.ds_defect_fell_box = data.ds_defect_fell_box or 0
-    batch.ds_defect_dent = data.ds_defect_dent or 0
-    batch.ds_defect_thickness = data.ds_defect_thickness or 0
-    batch.ds_defect_delamination = data.ds_defect_delamination or 0
-    batch.ds_defect_edge = data.ds_defect_edge or 0
+    batch.ds_defect_chip = data.ds_defect_chip
+    batch.ds_defect_scratch = data.ds_defect_scratch
+    batch.ds_defect_bad_cut = data.ds_defect_bad_cut
+    batch.ds_defect_stick_bottom = data.ds_defect_stick_bottom
+    batch.ds_defect_stick_top = data.ds_defect_stick_top
+    batch.ds_defect_broken = data.ds_defect_broken
+    batch.ds_defect_fell_box = data.ds_defect_fell_box
+    batch.ds_defect_dent = data.ds_defect_dent
+    batch.ds_defect_thickness = data.ds_defect_thickness
+    batch.ds_defect_delamination = data.ds_defect_delamination
+    batch.ds_defect_edge = data.ds_defect_edge
 
     # Previous shift defects and warehouse GP
     prev_defect_sum = (
@@ -1093,24 +1084,19 @@ def save_report_internal(
     batch.prev_defect_edge = data.prev_defect_edge or 0
 
     batch.qcd_condition = total_warehouse_gp
-    batch.qcd_first_grade = (data.first_grade or 0) + (data.prev_first_grade or 0)
-    batch.qcd_defect = ds_defect_sum + prev_defect_sum
+    batch.qcd_first_grade = data.first_grade
+    batch.qcd_defect = ds_defect_sum
 
-    if commit:
-        db.commit()
+    db.commit()
 
-        # Export receipt data to Google Sheets (new sheet "Приход сырья")
-        try:
-            if google_sheets_integration:
-                google_sheets_integration.export_receipt_to_google_sheets(db)
-        except Exception as gs_err:
-            print(f"Ошибка экспорта прихода сырья в Google Sheets: {gs_err}")
+    # Export receipt data to Google Sheets (new sheet "Приход сырья")
+    try:
+        google_sheets_integration.export_receipt_to_google_sheets(db)
+    except Exception as gs_err:
+        print(f"Ошибка экспорта прихода сырья в Google Sheets: {gs_err}")
 
-        # Sync to MonthlyPlanBoard (which also writes AuditLog)
-        if sync_plan:
-            sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
-    else:
-        db.flush()
+    # Sync to MonthlyPlanBoard (which also writes AuditLog)
+    sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
 
     # Write AuditLog for the shift update
     if is_new:
@@ -1168,44 +1154,31 @@ def save_report_internal(
                 details=f"Обновлен рапорт мастера смены {shift.id}. Изменения: " + (", ".join(changes) if changes else "без критических числовых изменений"),
                 state_snapshot=snapshot_before
             ))
-    if commit:
-        db.commit()
-    else:
-        db.flush()
+    db.commit()
 
     # Проверка рапорта и отправка Telegram алерта в группу/руководству
-    if not send_tg_alert:
-        return
-
     try:
         tg_chat_id = os.getenv("TELEGRAM_ALERT_CHAT_ID", "").strip()
         if tg_chat_id:
             import telegram_service
             warnings = []
             
-            is_warehouse_only = (data.lfm_sheets or 0) == 0 and ((data.warehouse_gp or 0) > 0 or (data.prev_condition or 0) > 0)
-
             if not data.batch_number:
                 warnings.append("Не заполнен номер партии")
             if not data.product_name:
                 warnings.append("Не указано наименование продукции")
-
-            if is_warehouse_only:
-                # Для смен «Только сдача ГП на склад» не ругаемся на 0 листов, 0 цемента и 0 хризотила
-                pass
-            else:
-                if (data.lfm_sheets or 0) <= 0:
-                    warnings.append("Не указана выработка ЛФМ (0 листов)")
-                if (shift.zo_cement or 0) <= 0:
-                    warnings.append("Не заполнен расход цемента (0 т)")
-                if (shift.zo_chrysotile_4_20 or 0) + (shift.zo_chrysotile_5_65 or 0) + (shift.zo_chrysotile_6_40 or 0) <= 0:
-                    warnings.append("Не заполнен расход хризотила (все группы 0 т)")
-                    
-                # Проверка аномального брака дестакера (> 4%)
-                if data.lfm_sheets and data.lfm_sheets > 0:
-                    defect_pct = (ds_defect_sum / data.lfm_sheets) * 100.0
-                    if defect_pct > 4.0:
-                        warnings.append(f"Высокий процент брака Дестакера: {defect_pct:.1f}% ({ds_defect_sum} листов)")
+            if (data.lfm_sheets or 0) <= 0:
+                warnings.append("Не указана выработка ЛФМ (0 листов)")
+            if (shift.zo_cement or 0) <= 0:
+                warnings.append("Не заполнен расход цемента (0 т)")
+            if (shift.zo_chrysotile_4_20 or 0) + (shift.zo_chrysotile_5_65 or 0) + (shift.zo_chrysotile_6_40 or 0) <= 0:
+                warnings.append("Не заполнен расход хризотила (все группы 0 т)")
+                
+            # Проверка аномального брака дестакера (> 4%)
+            if data.lfm_sheets and data.lfm_sheets > 0:
+                defect_pct = (ds_defect_sum / data.lfm_sheets) * 100.0
+                if defect_pct > 4.0:
+                    warnings.append(f"Высокий процент брака Дестакера: {defect_pct:.1f}% ({ds_defect_sum} листов)")
                     
             master_name = shift.master.name if shift.master else user_name
             tons = ((data.lfm_sheets or 0) * (get_product_finished_weight_kg(db, data.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
@@ -1219,25 +1192,9 @@ def save_report_internal(
                 "tons": tons
             }
             
-            if is_warehouse_only:
-                if warnings:
-                    telegram_service.send_shift_quality_alert(tg_chat_id, shift_info, warnings, is_success=False)
-                else:
-                    warehouse_text = (
-                        f"📦 <b>Сдача ГП на склад (без формования ЛФМ)</b>\n\n"
-                        f"📅 <b>Смена:</b> <code>{shift.date}</code> ({shift.shift_name}, Линия {shift.line})\n"
-                        f"👨‍🔧 <b>Мастер:</b> <b>{master_name}</b>\n"
-                        f"🏷 <b>Партия:</b> {data.batch_number} | {data.product_name} ({data.export_type or 'Эталон'})\n"
-                        f"📦 <b>Сдано на склад:</b> <b>{total_warehouse_gp:,} листов</b>\n"
-                        f"  • 1-й сорт: {(data.first_grade or 0) + (data.prev_first_grade or 0):,} шт.\n"
-                        f"  • Брак: {ds_defect_sum + prev_defect_sum:,} шт.\n"
-                        f"ℹ️ Формование ЛФМ не велось (выработка 0 листов, сырье ЗО не списывалось)."
-                    )
-                    telegram_service.send_telegram_message(tg_chat_id, warehouse_text)
-            else:
-                # Отправляем алерт только если есть замечания (или отчет закрыт)
-                if warnings:
-                    telegram_service.send_shift_quality_alert(tg_chat_id, shift_info, warnings, is_success=False)
+            # Отправляем алерт только если есть замечания (или отчет закрыт)
+            if warnings:
+                telegram_service.send_shift_quality_alert(tg_chat_id, shift_info, warnings, is_success=False)
     except Exception as tg_alert_err:
         print(f"Error sending Telegram shift report alert: {tg_alert_err}")
 
@@ -1299,291 +1256,6 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
     background_tasks.add_task(sync_google_sheets_bg)
     
     return {"status": "success", "shift_id": shift.id}
-
-
-@router.post("/api/report/dual")
-def save_dual_shift_report(
-    data: schemas.ShiftReportDualCreate,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    user_id = request.session.get("user_id") or 9999
-    user_role = request.session.get("user_role") or "admin"
-    user_name = request.session.get("user_name") or "Админ"
-
-    if user_role not in ["master", "admin"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Доступ запрещен. Только мастера или администраторы могут сохранять рапорты."
-        )
-
-    p1 = data.part1
-    p2 = data.part2
-
-    # Master ID resolution and fallback
-    if not p1.master_id:
-        if user_role == "master" and user_id != 9999:
-            p1.master_id = user_id
-        else:
-            first_master = db.query(models.Master).filter(models.Master.role == "master").first()
-            p1.master_id = first_master.id if first_master else user_id
-    p2.master_id = p1.master_id
-
-    if p1.date != p2.date:
-        raise HTTPException(status_code=400, detail="Дата первой и второй части смены должны совпадать.")
-    if (p1.shift_name or "").strip().lower() != (p2.shift_name or "").strip().lower():
-        raise HTTPException(status_code=400, detail="Смена (День/Ночь) первой и второй части должна совпадать.")
-    if (p1.line or "").strip().lower() != (p2.line or "").strip().lower():
-        raise HTTPException(status_code=400, detail="Линия (Линия 1/Линия 2) первой и второй части должна совпадать.")
-    if (p1.batch_number or "").strip() != (p2.batch_number or "").strip():
-        raise HTTPException(status_code=400, detail="Номер партии первой и второй части должен совпадать.")
-
-    p1_prod = (p1.product_name or "").strip()
-    p2_prod = (p2.product_name or "").strip()
-    p1_export = (p1.export_type or "Эталон").strip()
-    p2_export = (p2.export_type or "Эталон").strip()
-
-    if not p1_prod or not p2_prod:
-        raise HTTPException(
-            status_code=400,
-            detail="В сдвоенном рапорте необходимо указать наименование продукции для обеих частей."
-        )
-
-    if p1_prod.casefold() == p2_prod.casefold() and p1_export.casefold() == p2_export.casefold():
-        raise HTTPException(
-            status_code=400,
-            detail="В сдвоенном рапорте части должны различаться наименованием продукции или типом поставки (Экспорт/Эталон)."
-        )
-
-    # Принудительное зануление полей prev_* во второй части (part2) для исключения задвоения разборки стоп прошлой смены
-    p2.prev_condition = 0
-    p2.prev_first_grade = 0
-    p2.prev_has_defect = "no"
-    p2.prev_defect_scratch = 0
-    p2.prev_defect_bad_cut = 0
-    p2.prev_defect_stick_top = 0
-    p2.prev_defect_broken = 0
-    p2.prev_defect_fell_box = 0
-    p2.prev_defect_thickness = 0
-    p2.prev_defect_edge = 0
-
-    # Проверка существующих смен
-    query1 = db.query(models.Shift).filter(
-        models.Shift.date == p1.date,
-        models.Shift.shift_name == p1.shift_name,
-        models.Shift.line == p1.line
-    )
-    if p1.product_name:
-        query1 = query1.filter(models.Shift.product_name == p1.product_name)
-    if p1.batch_number:
-        query1 = query1.filter(models.Shift.batch_number == p1.batch_number)
-    if p1.export_type:
-        query1 = query1.filter(models.Shift.export_type == p1.export_type)
-    shift1 = query1.first()
-
-    query2 = db.query(models.Shift).filter(
-        models.Shift.date == p2.date,
-        models.Shift.shift_name == p2.shift_name,
-        models.Shift.line == p2.line
-    )
-    if p2.product_name:
-        query2 = query2.filter(models.Shift.product_name == p2.product_name)
-    if p2.batch_number:
-        query2 = query2.filter(models.Shift.batch_number == p2.batch_number)
-    if p2.export_type:
-        query2 = query2.filter(models.Shift.export_type == p2.export_type)
-    if shift1:
-        query2 = query2.filter(models.Shift.id != shift1.id)
-    shift2 = query2.first()
-
-    if user_role != "admin":
-        for s in [shift1, shift2]:
-            if s and s.created_at:
-                time_diff = (datetime.utcnow() - s.created_at).total_seconds()
-                if time_diff > 1800:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Время на самостоятельное редактирование рапорта (30 мин) истекло. Для внесения правок обратитесь к администратору."
-                    )
-
-    is_new1 = False
-    if not shift1:
-        is_new1 = True
-        shift1 = models.Shift(
-            date=p1.date,
-            shift_name=p1.shift_name,
-            line=p1.line,
-            master_id=p1.master_id,
-            product_name=p1.product_name or "",
-            batch_number=p1.batch_number or "",
-            export_type=p1.export_type or "Эталон",
-            status="closed",
-            created_at=datetime.utcnow()
-        )
-        db.add(shift1)
-        db.flush()
-
-    is_new2 = False
-    if not shift2:
-        is_new2 = True
-        shift2 = models.Shift(
-            date=p2.date,
-            shift_name=p2.shift_name,
-            line=p2.line,
-            master_id=p2.master_id,
-            product_name=p2.product_name or "",
-            batch_number=p2.batch_number or "",
-            export_type=p2.export_type or "Эталон",
-            status="closed",
-            created_at=datetime.utcnow()
-        )
-        db.add(shift2)
-        db.flush()
-
-    try:
-        save_report_internal(db, shift1, p1, user_name, is_new1, commit=False, send_tg_alert=False, sync_plan=False)
-        save_report_internal(db, shift2, p2, user_name, is_new2, commit=False, send_tg_alert=False, sync_plan=False)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Ошибка сохранения сдвоенного рапорта: {str(e)}")
-
-    # Синхронизация выработки ЛФМ в план-борд с корректным суммированием
-    sync_lfm_to_plan_board(p1.date, p1.shift_name, p1.line, db, p1.master_id)
-
-    # Единый сводный Telegram-алерт по обеим частям смены
-    try:
-        tg_chat_id = os.getenv("TELEGRAM_ALERT_CHAT_ID", "").strip()
-        if tg_chat_id:
-            import telegram_service
-            warnings = []
-
-            total_sheets = (p1.lfm_sheets or 0) + (p2.lfm_sheets or 0)
-            total_wh_gp = ((p1.warehouse_gp or 0) + (p1.prev_condition or 0)) + ((p2.warehouse_gp or 0) + (p2.prev_condition or 0))
-            is_warehouse_only = total_sheets == 0 and total_wh_gp > 0
-
-            total_cement = (shift1.zo_cement or 0) + (shift2.zo_cement or 0)
-            total_chrysotile = (
-                (shift1.zo_chrysotile_4_20 or 0) + (shift1.zo_chrysotile_5_65 or 0) + (shift1.zo_chrysotile_6_40 or 0) +
-                (shift2.zo_chrysotile_4_20 or 0) + (shift2.zo_chrysotile_5_65 or 0) + (shift2.zo_chrysotile_6_40 or 0)
-            )
-
-            ds_defect1 = (
-                (p1.ds_defect_chip or 0) + (p1.ds_defect_scratch or 0) + (p1.ds_defect_bad_cut or 0) +
-                (p1.ds_defect_stick_bottom or 0) + (p1.ds_defect_stick_top or 0) + (p1.ds_defect_broken or 0) +
-                (p1.ds_defect_fell_box or 0) + (p1.ds_defect_dent or 0) + (p1.ds_defect_thickness or 0) +
-                (p1.ds_defect_delamination or 0) + (p1.ds_defect_edge or 0)
-            )
-            ds_defect2 = (
-                (p2.ds_defect_chip or 0) + (p2.ds_defect_scratch or 0) + (p2.ds_defect_bad_cut or 0) +
-                (p2.ds_defect_stick_bottom or 0) + (p2.ds_defect_stick_top or 0) + (p2.ds_defect_broken or 0) +
-                (p2.ds_defect_fell_box or 0) + (p2.ds_defect_dent or 0) + (p2.ds_defect_thickness or 0) +
-                (p2.ds_defect_delamination or 0) + (p2.ds_defect_edge or 0)
-            )
-            total_ds_defect = ds_defect1 + ds_defect2
-
-            prev_defect1 = (
-                (p1.prev_defect_scratch or 0) + (p1.prev_defect_bad_cut or 0) +
-                (p1.prev_defect_stick_top or 0) + (p1.prev_defect_broken or 0) +
-                (p1.prev_defect_fell_box or 0) + (p1.prev_defect_thickness or 0) +
-                (p1.prev_defect_edge or 0)
-            )
-            total_1st_grade = (p1.first_grade or 0) + (p1.prev_first_grade or 0) + (p2.first_grade or 0)
-            total_defects_all = total_ds_defect + prev_defect1
-
-            if not p1.batch_number:
-                warnings.append("Не заполнен номер партии")
-            if not p1.product_name or not p2.product_name:
-                warnings.append("Не указано наименование продукции")
-
-            if is_warehouse_only:
-                pass
-            else:
-                if total_sheets <= 0:
-                    warnings.append("Не указана суммарная выработка ЛФМ (0 листов)")
-                if total_cement <= 0:
-                    warnings.append("Не заполнен суммарный расход цемента (0 т)")
-                if total_chrysotile <= 0:
-                    warnings.append("Не заполнен суммарный расход хризотила (все группы 0 т)")
-                if total_sheets > 0:
-                    defect_pct = (total_ds_defect / total_sheets) * 100.0
-                    if defect_pct > 4.0:
-                        warnings.append(f"Высокий процент брака Дестакера: {defect_pct:.1f}% ({total_ds_defect} листов)")
-
-            if shift1.master:
-                master_name = shift1.master.name
-            elif shift1.master_id:
-                m = db.query(models.Master).filter(models.Master.id == shift1.master_id).first()
-                master_name = m.name if m else user_name
-            else:
-                master_name = user_name
-
-            tons1 = ((p1.lfm_sheets or 0) * (get_product_finished_weight_kg(db, p1.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
-            tons2 = ((p2.lfm_sheets or 0) * (get_product_finished_weight_kg(db, p2.product_name) if hasattr(db, 'query') else 19.6)) / 1000.0
-            total_tons = tons1 + tons2
-
-            if is_warehouse_only:
-                if warnings:
-                    shift_info = {
-                        "date": str(p1.date),
-                        "shift_name": p1.shift_name,
-                        "line": p1.line,
-                        "master_name": master_name,
-                        "sheets": 0,
-                        "tons": 0.0
-                    }
-                    telegram_service.send_shift_quality_alert(tg_chat_id, shift_info, warnings, is_success=False)
-                else:
-                    wh_msg = (
-                        f"📦 <b>Сдача ГП на склад (Сдвоенный рапорт, без формования)</b>\n\n"
-                        f"📅 <b>Смена:</b> <code>{p1.date}</code> ({p1.shift_name}, Линия {p1.line})\n"
-                        f"👨‍🔧 <b>Мастер:</b> <b>{master_name}</b>\n"
-                        f"🏷 <b>Партия:</b> {p1.batch_number}\n"
-                        f"  • Часть 1: {p1.product_name} ({p1.export_type or 'Эталон'})\n"
-                        f"  • Часть 2: {p2.product_name} ({p2.export_type or 'Эталон'})\n"
-                        f"📦 <b>Сдано на склад:</b> <b>{total_wh_gp:,} листов</b>\n"
-                        f"  • 1-й сорт: {total_1st_grade:,} шт.\n"
-                        f"  • Брак: {total_defects_all:,} шт.\n"
-                        f"ℹ️ Формование ЛФМ не велось (выработка 0 листов, сырье ЗО не списывалось)."
-                    )
-                    telegram_service.send_telegram_message(tg_chat_id, wh_msg)
-            else:
-                if warnings:
-                    shift_info = {
-                        "date": str(p1.date),
-                        "shift_name": p1.shift_name,
-                        "line": p1.line,
-                        "master_name": master_name,
-                        "sheets": total_sheets or 0,
-                        "tons": total_tons or 0.0
-                    }
-                    telegram_service.send_shift_quality_alert(tg_chat_id, shift_info, warnings, is_success=False)
-                else:
-                    summary_msg = (
-                        f"📊 <b>Сдвоенный сменный рапорт успешно сохранен!</b>\n\n"
-                        f"📅 <b>Смена:</b> <code>{p1.date}</code> ({p1.shift_name}, Линия {p1.line})\n"
-                        f"👨‍🔧 <b>Мастер:</b> <b>{master_name}</b>\n"
-                        f"🏷 <b>Партия:</b> {p1.batch_number}\n"
-                        f"  • Часть 1: {p1.product_name} ({p1.export_type or 'Эталон'}) — {(p1.lfm_sheets or 0):,} листов (~{tons1:.1f} т)\n"
-                        f"  • Часть 2: {p2.product_name} ({p2.export_type or 'Эталон'}) — {(p2.lfm_sheets or 0):,} листов (~{tons2:.1f} т)\n"
-                        f"📈 <b>Итого выработка:</b> <b>{total_sheets:,} листов</b> (~{total_tons:.1f} т)\n"
-                        f"📦 <b>Сдано на склад:</b> {total_wh_gp:,} листов (1 сорт: {total_1st_grade:,}, Брак: {total_defects_all:,})\n"
-                        f"✅ Все параметры и расход сырья заполнены корректно."
-                    )
-                    telegram_service.send_telegram_message(tg_chat_id, summary_msg)
-    except Exception as tg_alert_err:
-        print(f"Error sending Telegram dual shift report alert: {tg_alert_err}")
-
-    background_tasks.add_task(sync_google_sheets_bg)
-    background_tasks.add_task(sync_receipts_bg)
-
-    return {
-        "status": "success",
-        "shift_ids": [shift1.id, shift2.id],
-        "shift_id": shift1.id,
-        "message": "Сдвоенный рапорт успешно сохранен"
-    }
 
 
 @router.put("/api/report/{shift_id}")

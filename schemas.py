@@ -571,11 +571,6 @@ class ShiftReportCreate(ORMBaseModel):
     zo_cem_drain: float = 0.0
 
 
-class ShiftReportDualCreate(ORMBaseModel):
-    part1: ShiftReportCreate
-    part2: ShiftReportCreate
-
-
 class AdminShiftReportUpdate(ORMBaseModel):
     date: Optional[str] = None
     shift_name: Optional[str] = None

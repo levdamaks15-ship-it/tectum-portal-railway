@@ -132,22 +132,13 @@ def get_db():
 
 
 def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Session, master_id: int = None):
-    # Normalize shift_date to date object
-    if isinstance(shift_date, str):
-        try:
-            parsed_shift_date = datetime.strptime(shift_date, "%Y-%m-%d").date()
-        except Exception:
-            parsed_shift_date = shift_date
-    else:
-        parsed_shift_date = shift_date
-
     # Map shift line to plan board line
     is_line_1 = "1" in shift_line
     pb_line = "ЛФМ-1" if is_line_1 else "ЛФМ-2"
     
     # Find all shifts matching the date, name, and line
     matching_shifts = db.query(models.Shift).filter(
-        models.Shift.date == parsed_shift_date,
+        models.Shift.date == shift_date,
         models.Shift.shift_name == shift_name,
         models.Shift.line.like("%1%" if is_line_1 else "%2%")
     ).all()
@@ -165,8 +156,8 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
         ).filter(models.LFMReport.shift_id.in_(shift_ids)).first()
         
         batch_stats = db.query(
-            func.sum(func.coalesce(models.Batch.ds_first_grade, 0) + func.coalesce(models.Batch.prev_first_grade, 0)).label("total_1st"),
-            func.sum(func.coalesce(models.Batch.ds_defect, 0) + func.coalesce(models.Batch.prev_defect, 0)).label("total_defect")
+            func.sum(models.Batch.ds_first_grade).label("total_1st"),
+            func.sum(models.Batch.ds_defect).label("total_defect")
         ).filter(models.Batch.shift_id.in_(shift_ids)).first()
         
         total_sheets = int(lfm_stats.total_sheets or 0) if lfm_stats else 0
@@ -175,7 +166,7 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
     
     # Find corresponding MonthlyPlanBoard row
     pb_row = db.query(models.MonthlyPlanBoard).filter(
-        models.MonthlyPlanBoard.date == parsed_shift_date,
+        models.MonthlyPlanBoard.date == shift_date,
         models.MonthlyPlanBoard.shift_name == shift_name,
         models.MonthlyPlanBoard.line == pb_line
     ).first()
@@ -193,7 +184,7 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
             action="UPDATE",
             target_table="monthly_plan_board",
             target_id=pb_row.id,
-            details=f"Синхронизация {shift_line} {parsed_shift_date} {shift_name}. Факт обновлен: {old_fact} -> {total_sheets}. 1 сорт: {total_1st}, Брак: {total_defect}."
+            details=f"Синхронизация {shift_line} {shift_date} {shift_name}. Факт обновлен: {old_fact} -> {total_sheets}. 1 сорт: {total_1st}, Брак: {total_defect}."
         )
         db.add(log_entry)
     else:
@@ -202,13 +193,20 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
             return
             
         final_master_id = master_id if master_id is not None else (matching_shifts[0].master_id if matching_shifts else None)
-        is_monday = parsed_shift_date.weekday() == 0 if hasattr(parsed_shift_date, 'weekday') else False
+        if isinstance(shift_date, str):
+            try:
+                dt_obj = datetime.strptime(shift_date, "%Y-%m-%d").date()
+                is_monday = dt_obj.weekday() == 0
+            except:
+                is_monday = False
+        else:
+            is_monday = shift_date.weekday() == 0
             
         default_plan_sheets = 0 if is_monday and shift_name == "День" else (2700 if shift_name == "День" else 3300)
         
         # Create a new plan board row if it doesn't exist
         pb_row = models.MonthlyPlanBoard(
-            date=parsed_shift_date,
+            date=shift_date,
             shift_name=shift_name,
             line=pb_line,
             master_id=final_master_id,
