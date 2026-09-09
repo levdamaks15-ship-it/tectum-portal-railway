@@ -432,12 +432,8 @@ function toggleTransitionMode(enabled, isRestoring = false) {
         if (!isRestoring) {
             // Fresh user toggle: save current form into Part 1
             saveDualTabState(1);
-            if (!window.dualReportState.part2 || window.dualReportState.part2 === window.dualReportState.part1) {
+            if (!window.dualReportState.part2) {
                 window.dualReportState.part2 = createEmptyPartState();
-            }
-            // Ensure part2 is a clean independent object with empty product
-            if (!window.dualReportState.part2.product_name) {
-                window.dualReportState.part2.product_name = '';
             }
             switchDualTab(1);
         }
@@ -477,9 +473,7 @@ function switchDualTab(tabIndex) {
     if (!window.dualReportState || !window.dualReportState.enabled) return;
     
     const currentTab = window.dualReportState.activeTab;
-    if (currentTab && (currentTab === 1 || currentTab === 2)) {
-        saveDualTabState(currentTab);
-    }
+    saveDualTabState(currentTab);
     
     window.dualReportState.activeTab = tabIndex;
     
@@ -575,7 +569,7 @@ function createEmptyPartState() {
 }
 
 function saveDualTabState(tabIndex) {
-    if (!window.dualReportState || !tabIndex) return;
+    if (!window.dualReportState) return;
     
     // Save common fields
     window.dualReportState.common = {
@@ -661,21 +655,17 @@ function saveDualTabState(tabIndex) {
         partData.prev_defects = { scratch: 0, bad_cut: 0, stick_top: 0, broken: 0, fell: 0, thickness: 0, edge: 0 };
     }
     
-    // Deep clone to ensure total decoupling
-    window.dualReportState['part' + tabIndex] = JSON.parse(JSON.stringify(partData));
+    window.dualReportState['part' + tabIndex] = partData;
 }
 
 function loadDualTabState(tabIndex) {
     if (!window.dualReportState) return;
-    const rawPart = window.dualReportState['part' + tabIndex];
-    if (!rawPart) return;
-    const partData = JSON.parse(JSON.stringify(rawPart));
+    const partData = window.dualReportState['part' + tabIndex];
+    if (!partData) return;
     
     // Product & export type
     const prodEl = document.getElementById('rep-product');
-    if (prodEl) {
-        prodEl.value = partData.product_name || '';
-    }
+    if (prodEl) prodEl.value = partData.product_name || '';
     const expEl = document.getElementById('rep-export-type');
     if (expEl) expEl.value = partData.export_type || 'Эталон';
     
@@ -1067,16 +1057,8 @@ async function onProductChange(event) {
     if (window.dualReportState && window.dualReportState.enabled) {
         const currentTab = window.dualReportState.activeTab || 1;
         const prodName = document.getElementById('rep-product')?.value || '';
-        const expType = document.getElementById('rep-export-type')?.value || 'Эталон';
-        
-        if (!window.dualReportState['part' + currentTab]) {
-            window.dualReportState['part' + currentTab] = createEmptyPartState();
-        }
-        window.dualReportState['part' + currentTab].product_name = prodName;
-        window.dualReportState['part' + currentTab].export_type = expType;
-        
         const labelEl = document.getElementById(`tab-part${currentTab}-product-label`);
-        if (labelEl) labelEl.textContent = (expType && expType !== 'Эталон') ? `${prodName} (${expType})` : (prodName || 'Не выбран');
+        if (labelEl) labelEl.textContent = prodName || 'Не выбран';
         updateDualSummary();
         return;
     }
