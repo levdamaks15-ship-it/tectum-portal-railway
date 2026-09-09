@@ -4018,9 +4018,6 @@ function renderItrGrid() {
         "Туматов Д.": "Директор",
         "Левда М.": "Офис-менеджер БП"
     };
-        "Туматов Д.": "Директор",
-        "Левда М.": "Офис-менеджер БП"
-    };
 
     grid.innerHTML = filteredMasters.map(m => {
         let roleDisplay = titleMap[m.name] || m.role;
