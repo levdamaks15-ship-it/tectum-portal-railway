@@ -929,4 +929,38 @@ class QcdSortingResponse(ORMBaseModel):
         from_attributes = True
 
 
+# --- AI ASSISTANT SCHEMAS ---
+class AIChatMessageCreate(BaseModel):
+    conversation_id: Optional[int] = None
+    content: str
+
+
+class AIChatMessageOut(ORMBaseModel):
+    id: int
+    conversation_id: int
+    role: str
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AIChatConversationOut(ORMBaseModel):
+    id: int
+    user_id: Optional[int] = None
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class AIChatConversationDetailOut(AIChatConversationOut):
+    messages: list[AIChatMessageOut] = []
+
+
+
 

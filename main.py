@@ -1262,6 +1262,44 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
+    threading.Thread(target=bg_google_sync_init, daemon=True).start()
+
+    # Гарантия создания таблиц ИИ-ассистента (SQLite & PostgreSQL)
+    try:
+        models.AIChatConversation.__table__.create(bind=engine, checkfirst=True)
+        models.AIChatMessage.__table__.create(bind=engine, checkfirst=True)
+        db_ai = SessionLocal()
+        driver_ai = db_ai.bind.dialect.name if db_ai.bind else 'unknown'
+        if driver_ai == 'postgresql':
+            from sqlalchemy import text
+            try:
+                db_ai.execute(text("""
+                    CREATE TABLE IF NOT EXISTS ai_conversations (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES masters(id),
+                        title VARCHAR(255) DEFAULT 'Новый диалог',
+                        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+                        updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+                        is_active BOOLEAN DEFAULT TRUE
+                    );
+                """))
+                db_ai.execute(text("""
+                    CREATE TABLE IF NOT EXISTS ai_messages (
+                        id SERIAL PRIMARY KEY,
+                        conversation_id INTEGER REFERENCES ai_conversations(id) ON DELETE CASCADE,
+                        role VARCHAR(50) NOT NULL,
+                        content TEXT NOT NULL,
+                        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
+                    );
+                """))
+                db_ai.commit()
+            except Exception as pg_ai_err:
+                print(f"Warning PostgreSQL AI tables migration: {pg_ai_err}")
+                db_ai.rollback()
+        db_ai.close()
+    except Exception as ai_tbl_err:
+        print(f"Warning creating AI chat tables: {ai_tbl_err}")
+
     # Регистрация Telegram Webhook
     def bg_setup_telegram_webhook():
         try:
@@ -1287,6 +1325,7 @@ async def global_exception_handler(request, exc: Exception):
         status_code=500,
         content={"detail": str(exc), "traceback": _tb.format_exc()}
     )
+
 
 app.add_middleware(
     SessionMiddleware, 
@@ -1319,6 +1358,7 @@ from routers.admin import router as admin_router
 from routers.webhooks import router as webhooks_router
 from routers.system import router as system_router
 from routers.qcd_sorting import router as qcd_sorting_router
+from routers.ai_assistant import router as ai_assistant_router
 
 app.include_router(auth_router)
 app.include_router(shifts_router)
@@ -1331,6 +1371,7 @@ app.include_router(admin_router)
 app.include_router(webhooks_router)
 app.include_router(system_router)
 app.include_router(qcd_sorting_router)
+app.include_router(ai_assistant_router)
 
 # ==========================================
 # STATIC FILES & WEB PAGES

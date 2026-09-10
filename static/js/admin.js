@@ -138,6 +138,7 @@ function switchAdminTab(tabId) {
     const tabPasswords = document.getElementById('tab-passwords'); if (tabPasswords) tabPasswords.style.display = 'none';
     const tabChecklistEmps = document.getElementById('tab-checklist-emps'); if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
     const tabShiftSchedule = document.getElementById('tab-shift-schedule'); if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
+    const tabAiAssistant = document.getElementById('tab-ai-assistant'); if (tabAiAssistant) tabAiAssistant.style.display = 'none';
     
     const targetTab = document.getElementById('tab-' + tabId);
     if (targetTab) targetTab.style.display = 'block';
@@ -167,6 +168,10 @@ function switchAdminTab(tabId) {
         loadAdminChecklistEmployees();
     } else if (tabId === 'shift-schedule') {
         loadAdminShiftSchedule();
+    } else if (tabId === 'ai-assistant') {
+        if (typeof loadAiConversations === 'function') {
+            loadAiConversations();
+        }
     }
 }
 
