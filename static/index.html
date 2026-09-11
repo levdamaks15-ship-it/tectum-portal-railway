@@ -516,9 +516,16 @@
 
                     <!-- Accordion Section 1: Заголовок смены -->
                     <div class="glass-panel accordion-section" id="acc-header-section">
-                        <div class="accordion-header" onclick="toggleAccordion('sec-header')">
-                            <h3>📋 1. Параметры смены</h3>
-                            <span class="acc-toggle">▼</span>
+                        <div class="accordion-header" onclick="toggleAccordion('sec-header')" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h3>📋 1. Параметры смены</h3>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <button type="button" class="btn-secondary" onclick="event.stopPropagation(); if(confirm('Очистить форму и сбросить введенные данные?')) { resetReportForm(); showNotification('info', 'Форма очищена', 'Все поля сброшены для нового рапорта'); }" style="padding: 0.35rem 0.8rem; font-size: 0.8rem; border-radius: 8px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; background: #ffffff;">
+                                    🧹 Очистить форму
+                                </button>
+                                <span class="acc-toggle">▼</span>
+                            </div>
                         </div>
                         <div id="sec-header" class="accordion-content">
                             <div class="form-grid-three">
@@ -1176,12 +1183,16 @@
                             </script>
                         </div>
                     </div>
-                    <div style="margin: 2.5rem 0; text-align: center;">
+                    <div style="margin: 2.5rem 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px;">
                         <button id="btn-submit-shift-report" onclick="submitShiftReport()" class="btn-submit-huge"
                             style="font-size: 1.15rem; font-weight: 700; padding: 1.1rem 3.5rem; border-radius: 12px; max-width: 440px; width: 100%; letter-spacing: -0.01em; box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), var(--stripe-shadow-btn);">💾
                             Сохранить сменный рапорт →</button>
+                        <button type="button" onclick="if(confirm('Очистить форму и сбросить введенные данные?')) { resetReportForm(); showNotification('info', 'Форма очищена', 'Все поля сброшены для нового рапорта'); }" class="btn-secondary"
+                            style="width: auto; padding: 0.5rem 1.4rem; font-size: 0.85rem; border-radius: 8px; color: #64748b;">
+                            🧹 Сбросить форму (Новый рапорт)
+                        </button>
                         <div id="draft-indicator"
-                            style="margin-top: 12px; font-size: 0.88rem; font-weight: 600; color: #10b981; opacity: 0; transition: opacity 0.5s;">
+                            style="margin-top: 4px; font-size: 0.88rem; font-weight: 600; color: #10b981; opacity: 0; transition: opacity 0.5s;">
                             ✓ Черновик сохранен локально</div>
                     </div>
 

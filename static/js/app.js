@@ -310,52 +310,6 @@ function recalcTonsAndGrades() {
 
 async function onProductChange(event) {
     recalcTonsAndGrades();
-    
-    const date = document.getElementById('rep-date')?.value;
-    const shiftName = document.getElementById('rep-shift')?.value;
-    const line = document.getElementById('rep-line')?.value;
-    const productName = document.getElementById('rep-product')?.value;
-    const batchNumber = document.getElementById('rep-batch')?.value;
-    const exportType = document.getElementById('rep-export-type')?.value || "Эталон";
-    
-    if (date && shiftName && line && productName) {
-        try {
-            let url = `/api/shifts/by_params?date=${date}&shift_name=${encodeURIComponent(shiftName)}&line=${encodeURIComponent(line)}&product_name=${encodeURIComponent(productName)}&export_type=${encodeURIComponent(exportType)}`;
-            if (batchNumber) {
-                url += `&batch_number=${encodeURIComponent(batchNumber)}`;
-            }
-            const res = await fetch(url);
-            if (res.ok) {
-                const shift = await res.json();
-                window.currentLoadedShiftId = shift.id;
-                prefillReportForm(shift);
-            } else if (res.status === 404) {
-                // Not found.
-                // If we were viewing an already saved shift from the DB (currentLoadedShiftId != null),
-                // reset the form to create a clean new record for the other batch/product.
-                // But if user is just filling out a new draft (!window.currentLoadedShiftId),
-                // KEEP their entered numbers (sheets, ZOs, calculators) and just update calculation.
-                if (window.currentLoadedShiftId) {
-                    const masterId = document.getElementById('rep-master')?.value;
-                    const batchNum = document.getElementById('rep-batch')?.value;
-                    
-                    resetReportForm();
-                    
-                    if (document.getElementById('rep-date')) setDateInputValue('rep-date', date);
-                    if (document.getElementById('rep-shift')) document.getElementById('rep-shift').value = shiftName;
-                    if (document.getElementById('rep-line')) document.getElementById('rep-line').value = line;
-                    if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
-                    if (document.getElementById('rep-product')) document.getElementById('rep-product').value = productName;
-                    if (document.getElementById('rep-export-type')) document.getElementById('rep-export-type').value = exportType;
-                    if (document.getElementById('rep-master')) document.getElementById('rep-master').value = masterId || '';
-                    if (document.getElementById('rep-batch')) document.getElementById('rep-batch').value = batchNum || '';
-                }
-                recalcTonsAndGrades();
-            }
-        } catch(e) {
-            console.error(e);
-        }
-    }
 }
 
 function saveLastLineAndShift(line, shiftName) {
@@ -1468,14 +1422,30 @@ async function submitShiftReport() {
 
 function resetReportForm() {
     window.currentLoadedShiftId = null;
-    const dateEl = document.getElementById('rep-date');
-    if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+    clearReportDraft();
+    
+    if (typeof setDateInputValue === 'function') {
+        const today = new Date().toISOString().split('T')[0];
+        setDateInputValue('rep-date', today);
+    } else {
+        const dateEl = document.getElementById('rep-date');
+        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+    }
     
     const batchEl = document.getElementById('rep-batch');
     if (batchEl) batchEl.value = '';
     
     const productEl = document.getElementById('rep-product');
-    if (productEl) productEl.value = '';
+    if (productEl) {
+        productEl.value = '';
+        productEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    const exportTypeEl = document.getElementById('rep-export-type');
+    if (exportTypeEl) {
+        exportTypeEl.value = 'Эталон';
+        exportTypeEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     
     const numericIds = [
         'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade', 'rep-qcd-defect',
