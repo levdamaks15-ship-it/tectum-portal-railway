@@ -3333,7 +3333,7 @@ function updateBulkColumnsLayout() {
             header.style.gridTemplateColumns = "32px 1fr 130px 36px";
             if (headerAssignee) headerAssignee.style.display = "none";
         } else {
-            header.style.gridTemplateColumns = "32px 1fr 160px 130px 36px";
+            header.style.gridTemplateColumns = "32px 1fr 170px 135px 36px";
             if (headerAssignee) headerAssignee.style.display = "block";
         }
     }
@@ -3346,7 +3346,7 @@ function updateBulkColumnsLayout() {
             row.style.gridTemplateColumns = "32px 1fr 130px 36px";
             if (assigneeSel) assigneeSel.style.display = "none";
         } else {
-            row.style.gridTemplateColumns = "32px 1fr 160px 130px 36px";
+            row.style.gridTemplateColumns = "32px 1fr 170px 135px 36px";
             if (assigneeSel) assigneeSel.style.display = "block";
         }
     });
@@ -3566,6 +3566,72 @@ function parseDateToIso(dateStr) {
     return "";
 }
 
+function normalizeWordTableLines(rawText) {
+    // 1. Разбиваем на сырые строки
+    const rawLines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length === 0) return [];
+
+    const normalizedRows = [];
+    let currentRow = null;
+
+    for (const line of rawLines) {
+        // Пропускаем шапки таблиц
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes("содержание поручения") || 
+            lowerLine.includes("по результатам") || 
+            (lowerLine.startsWith("№") && lowerLine.includes("срок"))) {
+            continue;
+        }
+
+        // Строка таблицы с табуляцией: делим на столбцы
+        const tabCols = line.split("\t").map(c => c.trim());
+        const hasTabs = tabCols.length >= 2;
+        const startsWithItemNum = /^\d+[\.\)]?\s*(\t|\s{2,})/.test(line) || (/^\d+$/.test(tabCols[0]) && tabCols.length >= 2);
+
+        if (startsWithItemNum || (hasTabs && tabCols.length >= 3)) {
+            // Это новая полноценная строка таблицы
+            if (currentRow) {
+                normalizedRows.push(currentRow);
+            }
+            currentRow = tabCols;
+        } else if (hasTabs && currentRow) {
+            // Строка с табуляцией, но без номера пункта (например, несколько ответственных и дата)
+            // Присоединяем к существующей строке
+            tabCols.forEach((colVal, cIdx) => {
+                if (!colVal) return;
+                const targetIdx = currentRow.length - tabCols.length + cIdx;
+                if (targetIdx >= 0 && targetIdx < currentRow.length) {
+                    currentRow[targetIdx] = (currentRow[targetIdx] + " " + colVal).trim();
+                } else {
+                    currentRow.push(colVal);
+                }
+            });
+        } else if (currentRow) {
+            // Строка без табуляции: это перенос строки внутри одной из ячеек предыдущей строки!
+            // Проверяем: если это фамилия (например "Носиков Е.Г." или "Хохлов К.")
+            const isPersonLike = /^[А-Яа-яёЁ]+\s+[А-Яа-яёЁ]\.?/i.test(line);
+            if (isPersonLike && currentRow.length >= 3) {
+                // Добавляем к ячейке ответственного (предпоследней)
+                const respColIdx = currentRow.length - 2;
+                currentRow[respColIdx] = (currentRow[respColIdx] + " " + line).trim();
+            } else {
+                // Добавляем к тексту поручения
+                const titleColIdx = currentRow.length >= 4 ? 1 : 0;
+                currentRow[titleColIdx] = (currentRow[titleColIdx] + " " + line).trim();
+            }
+        } else {
+            // Обычная строка текста вне таблицы
+            normalizedRows.push([line]);
+        }
+    }
+
+    if (currentRow) {
+        normalizedRows.push(currentRow);
+    }
+
+    return normalizedRows;
+}
+
 function parseBulkTasksFromTextarea() {
     const pasteArea = document.getElementById("bulk-paste-textarea");
     if (!pasteArea) return;
@@ -3575,8 +3641,8 @@ function parseBulkTasksFromTextarea() {
         return;
     }
 
-    const rawLines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-    if (rawLines.length === 0) return;
+    const normalizedRows = normalizeWordTableLines(text);
+    if (normalizedRows.length === 0) return;
 
     const persons = getUniquePersons();
 
@@ -3594,46 +3660,27 @@ function parseBulkTasksFromTextarea() {
 
     let parsedCount = 0;
 
-    rawLines.forEach(line => {
-        // Пропускаем шапки таблиц (№, содержание, ответственный, срок и т.д.)
-        const lowerLine = line.toLowerCase();
-        if (lowerLine.includes("содержание поручения") || 
-            lowerLine.includes("по результатам") || 
-            (lowerLine.startsWith("№") && lowerLine.includes("срок"))) {
-            return;
-        }
-
-        // Проверяем, табличный ли это ввод (разделители табуляции \t или 2+ пробела)
-        let parts = line.split("\t").map(p => p.trim());
-        if (parts.length === 1 && line.includes("   ")) {
-            // Если скопировано без явных табуляций, но с длинными пробелами
-            parts = line.split(/\s{3,}/).map(p => p.trim());
-        }
-
+    normalizedRows.forEach(rowCols => {
         let taskTitle = "";
         let taskAssignee = "";
         let taskDueIso = "";
 
-        if (parts.length >= 3) {
-            // Потенциальная таблица вида:
-            // [0]: № или Номер
-            // [1]: Содержание поручения
-            // [2]: Ответственный (или Ответственный + Срок)
-            // [3]: Срок исполнения
+        if (rowCols.length >= 3) {
+            // Табличный формат:
+            // Вариант А (с номером): [0]=Номер, [1]=Текст, [2]=Ответственный, [3]=Срок
+            // Вариант Б (без номера): [0]=Текст, [1]=Ответственный, [2]=Срок
             let colIndex = 0;
-            if (/^\d+$/.test(parts[0])) {
-                // Первый столбец — порядковый номер (например "1", "2")
+            if (/^\d+[\.\)]?$/.test(rowCols[0].trim())) {
                 colIndex = 1;
             }
 
-            taskTitle = parts[colIndex] || "";
-            const rawAssignee = parts[colIndex + 1] || "";
-            const rawDue = parts[colIndex + 2] || "";
+            taskTitle = rowCols[colIndex] || "";
+            const rawAssignee = rowCols[colIndex + 1] || "";
+            const rawDue = rowCols[colIndex + 2] || "";
 
-            // Попытка извлечь дату из rawDue или rawAssignee
+            // Извлекаем срок
             taskDueIso = parseDateToIso(rawDue);
             if (!taskDueIso && rawAssignee) {
-                // Если дата попала в колонку ответственного
                 const dateInAssignee = rawAssignee.match(/(\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)/);
                 if (dateInAssignee) {
                     taskDueIso = parseDateToIso(dateInAssignee[1]);
@@ -3642,7 +3689,7 @@ function parseBulkTasksFromTextarea() {
 
             // Ищем ответственного
             if (rawAssignee) {
-                // Если указано несколько человек (например, через слэш, запятую или пробел: "Сазонов С. Носиков Е.Г.")
+                // Разделяем нескольких ответственных (переносы, запятые, слэши)
                 const peopleTokens = rawAssignee.split(/[\n\,\;\/]|(?<=[А-Яа-я]\.)\s+(?=[А-Я])/);
                 for (const tok of peopleTokens) {
                     const matched = matchPersonByName(tok, persons);
@@ -3653,18 +3700,16 @@ function parseBulkTasksFromTextarea() {
                 }
             }
         } else {
-            // Обычная строка текста
-            // Очищаем нумерацию вида "1. ", "1) ", "- ", "* "
-            let cleanLine = line.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
+            // Одиночная строка текста
+            let cleanLine = rowCols[0] || "";
+            cleanLine = cleanLine.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
 
-            // Пробуем найти дату в конце строки (например "до 11.09.2026" или "11.09.2026")
             const dateMatch = cleanLine.match(/(?:до\s+|срок\s+)?(\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)$/i);
             if (dateMatch) {
                 taskDueIso = parseDateToIso(dateMatch[1]);
                 cleanLine = cleanLine.replace(dateMatch[0], '').trim();
             }
 
-            // Пробуем найти фамилию сотрудника в строке
             for (const p of persons) {
                 const surname = p.split(" ")[0];
                 const re = new RegExp(`\\b${surname}(?:\\s+[А-Я]\\.?)?`, 'i');
@@ -3677,8 +3722,8 @@ function parseBulkTasksFromTextarea() {
             taskTitle = cleanLine;
         }
 
-        // Очистка задачи от ведущих номеров
-        taskTitle = taskTitle.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
+        // Окончательная очистка сути задачи от ведущей нумерации и лишних пробелов
+        taskTitle = taskTitle.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').replace(/\s+/g, ' ').trim();
 
         if (taskTitle) {
             addBulkTaskRow(taskTitle, taskAssignee, taskDueIso);
@@ -3690,6 +3735,12 @@ function parseBulkTasksFromTextarea() {
     toggleBulkQuickPaste();
     updateBulkTasksCountBadge();
     showToast(`Успешно распознано и добавлено строк: ${parsedCount} 🎯`);
+}
+
+function autoResizeBulkTextarea(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.max(38, el.scrollHeight) + 'px';
 }
 
 function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
@@ -3709,24 +3760,24 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     rowDiv.className = "bulk-task-row";
     rowDiv.id = rowId;
     rowDiv.style.display = "grid";
-    rowDiv.style.gridTemplateColumns = isServicePlan ? "32px 1fr 130px 36px" : "32px 1fr 160px 130px 36px";
+    rowDiv.style.gridTemplateColumns = isServicePlan ? "32px 1fr 130px 36px" : "32px 1fr 170px 135px 36px";
     rowDiv.style.gap = "0.5rem";
-    rowDiv.style.alignItems = "center";
+    rowDiv.style.alignItems = "start";
     rowDiv.style.background = "#f8fafc";
     rowDiv.style.border = "1px solid #e2e8f0";
-    rowDiv.style.borderRadius = "6px";
-    rowDiv.style.padding = "0.35rem 0.5rem";
+    rowDiv.style.borderRadius = "8px";
+    rowDiv.style.padding = "0.45rem 0.6rem";
 
     rowDiv.innerHTML = `
-        <span class="bulk-row-num" style="font-size: 0.78rem; font-weight: 700; color: #64748b; text-align: center;"></span>
-        <input type="text" class="form-input bulk-row-title" placeholder="Суть задачи... (#ОГЭ, #ППР, #Срочно, насос ЗО)" value="${escapeHtml(initTitle)}" style="font-size: 0.85rem; padding: 0.35rem 0.5rem;" onkeydown="handleBulkRowKeydown(event, '${rowId}')">
-        <select class="form-select bulk-row-assignee" style="font-size: 0.8rem; padding: 0.35rem 0.4rem; ${isServicePlan ? 'display: none;' : ''}">
+        <span class="bulk-row-num" style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-align: center; margin-top: 6px;"></span>
+        <textarea class="form-textarea bulk-row-title" rows="2" placeholder="Суть задачи... (#ОГЭ, #ППР, #Срочно)" style="font-size: 0.85rem; padding: 0.35rem 0.55rem; resize: vertical; line-height: 1.35; width: 100%; word-break: break-word; min-height: 38px;" oninput="autoResizeBulkTextarea(this)" onkeydown="handleBulkRowKeydown(event, '${rowId}')">${escapeHtml(initTitle)}</textarea>
+        <select class="form-select bulk-row-assignee" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px; ${isServicePlan ? 'display: none;' : ''}">
             <option value="">-- Исполнитель --</option>
             ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === initAssignee ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
         </select>
-        <input type="date" class="form-input bulk-row-due" value="${defDue}" style="font-size: 0.8rem; padding: 0.35rem 0.4rem;">
-        <button type="button" class="btn-icon-cell" onclick="removeBulkTaskRow('${rowId}')" title="Удалить строку" style="color: #ef4444; border-color: #fecaca; background: #fff;">
-            <i class="fa-solid fa-trash-can" style="font-size: 0.8rem;"></i>
+        <input type="date" class="form-input bulk-row-due" value="${defDue}" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px;">
+        <button type="button" class="btn-icon-cell" onclick="removeBulkTaskRow('${rowId}')" title="Удалить строку" style="color: #ef4444; border-color: #fecaca; background: #fff; margin-top: 3px;">
+            <i class="fa-solid fa-trash-can" style="font-size: 0.82rem;"></i>
         </button>
     `;
 
@@ -3734,10 +3785,10 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     renumberBulkRows();
     updateBulkTasksCountBadge();
 
-    // Фокусируемся на добавленной строке
-    const titleInput = rowDiv.querySelector(".bulk-row-title");
-    if (titleInput && !initTitle) {
-        titleInput.focus();
+    const titleArea = rowDiv.querySelector(".bulk-row-title");
+    if (titleArea) {
+        autoResizeBulkTextarea(titleArea);
+        if (!initTitle) titleArea.focus();
     }
 }
 
