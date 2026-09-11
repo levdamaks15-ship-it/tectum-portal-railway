@@ -1684,9 +1684,12 @@ function toggleSelectServiceTask(taskId, isChecked) {
     updateServicesBulkBar();
 }
 
+function isBulkHorizon() {
+    return ['services', 'tech_council', 'quality_day'].includes(currentHorizon);
+}
+
 function toggleSelectAllServices(isChecked) {
-    const isServicesMode = currentHorizon === 'services';
-    if (!isServicesMode) return;
+    if (!isBulkHorizon()) return;
 
     allTasks.forEach(t => {
         const isLocked = (t.status && (t.status.includes("Выполнено") || t.status.includes("Отменено")));
@@ -1716,7 +1719,7 @@ function updateServicesBulkBar() {
     if (countSpan) countSpan.textContent = count;
 
     if (bar) {
-        bar.style.display = (count > 0 && currentHorizon === 'services') ? 'flex' : 'none';
+        bar.style.display = (count > 0 && isBulkHorizon()) ? 'flex' : 'none';
     }
 
     if (masterCb) {
@@ -1837,7 +1840,7 @@ function renderTasksTable(tasks) {
     // Управление видимостью чекбокса в шапке
     const masterCb = document.getElementById("th-select-all-services");
     if (masterCb) {
-        masterCb.style.display = (currentHorizon === 'services') ? 'inline-block' : 'none';
+        masterCb.style.display = isBulkHorizon() ? 'inline-block' : 'none';
     }
     updateServicesBulkBar();
 
@@ -1975,9 +1978,9 @@ function renderTasksTable(tasks) {
             </div>
         ` : `<span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>`;
 
-        const isServicesMode = currentHorizon === 'services';
+        const isBulk = isBulkHorizon();
         const isChecked = selectedServiceTaskIds.has(t.id);
-        const checkboxHtml = isServicesMode ? `
+        const checkboxHtml = isBulk ? `
             <input type="checkbox" class="task-row-checkbox" ${isLocked ? 'disabled' : ''} ${isChecked ? 'checked' : ''} onchange="toggleSelectServiceTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; margin-right: 4px;" title="Выбрать задачу">
         ` : '';
 
@@ -2312,9 +2315,10 @@ async function quickUpdateStatus(taskId, newStatus) {
 
     // 1. Если выбрали "Выполнено":
     if (newStatus === "🟢 Выполнено") {
-        // Для служб (ОГЭ / ОГМ) — экспресс-завершение без бюрократии!
-        const isServiceTask = (task && task.task_type === 'service_plan') || (currentHorizon === 'services');
-        if (isServiceTask) {
+        // Для служб (ОГЭ / ОГМ), Техсовета и Дня качества — экспресс-завершение без бюрократии!
+        const isExpressTask = (task && (task.task_type === 'service_plan' || task.zone === 'Техсовет' || task.zone === 'День качества')) || 
+                              ['services', 'tech_council', 'quality_day'].includes(currentHorizon);
+        if (isExpressTask) {
             const requiredUser = task ? (task.assignee_name || task.author_name) : null;
             ensureUserAuthorized(requiredUser, async (authSession) => {
                 try {
@@ -2328,7 +2332,7 @@ async function quickUpdateStatus(taskId, newStatus) {
                         })
                     });
                     if (res.ok) {
-                        showToast("Задача службы выполнена! 🎯");
+                        showToast("Задача выполнена! 🎯");
                         loadTasks();
                     } else {
                         const err = await res.json();
