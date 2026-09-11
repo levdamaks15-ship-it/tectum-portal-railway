@@ -52,14 +52,34 @@ async function getOrFetchMasters() {
     return [];
 }
 
-function initAdminLogin() {
+async function initAdminLogin() {
     const pinInput = document.getElementById('admin-pin');
     if (pinInput) {
         pinInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') adminLogin();
         });
-        pinInput.focus();
     }
+
+    // Проверяем существующую сессию сервера (/api/me/) или сохраненный вход
+    try {
+        const meRes = await fetch('/api/me/');
+        if (meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.authenticated && meData.user && ['admin', 'director', 'technologist'].includes(meData.user.role)) {
+                currentAdmin = meData.user;
+                document.getElementById('admin-login-screen').style.display = 'none';
+                document.getElementById('admin-app').style.display = 'flex';
+                loadMasters();
+                loadNorms();
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn("Session check failed, falling back to login prompt:", e);
+    }
+
+    // Если нет активной серверной сессии — фокусируемся на поле ввода ПИН
+    if (pinInput) pinInput.focus();
 }
 
 async function adminLogin() {
@@ -90,6 +110,19 @@ async function adminLogin() {
             errEl.style.display = 'block';
         }
     }
+}
+
+async function adminLogout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+    } catch (e) {}
+    currentAdmin = null;
+    document.getElementById('admin-app').style.display = 'none';
+    const pinInput = document.getElementById('admin-pin');
+    if (pinInput) pinInput.value = '';
+    const loginScreen = document.getElementById('admin-login-screen');
+    if (loginScreen) loginScreen.style.display = 'flex';
+    if (pinInput) pinInput.focus();
 }
 
 // Call init on load
