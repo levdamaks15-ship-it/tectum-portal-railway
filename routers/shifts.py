@@ -2231,3 +2231,17 @@ def admin_rollback_shift(
 
     return {"status": "ok", "message": f"Смена успешно откачена к состоянию от {log_entry.timestamp}"}
 
+
+@router.get("/api/dashboard/google_sheet_bottom_link")
+def get_google_sheet_bottom_link(sheet_type: str = "summary", redirect: bool = False, db: Session = Depends(get_db)):
+    """
+    Возвращает URL Google Таблицы с фокусом на последней заполненной строке таблицы (&range=A{last_row}),
+    чтобы при открытии пользователю не требовалось прокручивать документ вниз.
+    """
+    if not google_sheets_integration:
+        raise HTTPException(500, "Google Sheets модуль недоступен")
+    url = google_sheets_integration.get_google_sheet_bottom_url(db, sheet_type=sheet_type)
+    if redirect:
+        return RedirectResponse(url=url)
+    return {"url": url}
+

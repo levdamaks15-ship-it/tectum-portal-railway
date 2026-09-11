@@ -332,26 +332,6 @@ def sync_report_to_google_sheets(db: Session):
         
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
-    # Полная очистка диапазона перед записью новых данных, чтобы избежать наложения и сдвига колонок
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:AZ2000"
-    ).execute()
-    
-    # Очищаем старые правила условного форматирования для этого листа
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    existing_rules = sheet_meta.get("conditionalFormats", [])
-    if existing_rules:
-        clear_requests = []
-        for idx in range(len(existing_rules) - 1, -1, -1):
-            clear_requests.append({
-                "deleteConditionalFormatRule": {
-                    "sheetId": sheet_id,
-                    "index": idx
-                }
-            })
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": clear_requests}).execute()
-        
     # Записываем шапку и все строки данных разом
     service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
@@ -509,18 +489,6 @@ def sync_report_to_google_sheets(db: Session):
                 }
             },
             "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-        }
-    })
-
-    # Автоподбор ширины столбцов
-    requests.append({
-        "autoResizeDimensions": {
-            "dimensions": {
-                "sheetId": sheet_id,
-                "dimension": "COLUMNS",
-                "startIndex": 0,
-                "endIndex": len(headers)
-            }
         }
     })
     
@@ -1479,12 +1447,17 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     
     from datetime import date
     from sqlalchemy import case, cast, Integer
+    from sqlalchemy.orm import selectinload
     # Фильтруем записи с 1 сентября 2026 года (начало нового формата ведения)
     # Сортируем строго хронологически: Дата -> Смена (День раньше Ночи) -> Номер партии (числовой) -> id
     start_filter_date = date(2026, 9, 1)
     batches = (
         db.query(models.Batch)
         .join(models.Shift)
+        .options(
+            selectinload(models.Batch.shift).selectinload(models.Shift.master),
+            selectinload(models.Batch.shift).selectinload(models.Shift.lfm_reports)
+        )
         .filter(models.Shift.date >= start_filter_date)
         .order_by(
             models.Shift.date.asc(),
@@ -1503,7 +1476,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     all_schedules = {e.date_str: e for e in db.query(models.ShiftScheduleEntry).all()}
     
     # Кэш всех смен в БД для поиска мастера сдавшей смены
-    all_shifts_list = db.query(models.Shift).all()
+    all_shifts_list = db.query(models.Shift).options(selectinload(models.Shift.master)).all()
     shifts_lookup = {}
     for s in all_shifts_list:
         if s.date:
@@ -1580,15 +1553,15 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         note_defect = ", ".join(def_parts)
 
         # 7 видов брака сдавшей смены
-        prev_parts = []
-        if b.prev_defect_scratch: prev_parts.append(f"Сдир ({b.prev_defect_scratch})")
-        if b.prev_defect_bad_cut: prev_parts.append(f"Плохой рез ({b.prev_defect_bad_cut})")
-        if b.prev_defect_stick_top: prev_parts.append(f"Налип сверху ({b.prev_defect_stick_top})")
-        if b.prev_defect_broken: prev_parts.append(f"Сломан ({b.prev_defect_broken})")
-        if b.prev_defect_fell_box: prev_parts.append(f"Упал коробки ({b.prev_defect_fell_box})")
-        if b.prev_defect_thickness: prev_parts.append(f"Не соотв. толщины ({b.prev_defect_thickness})")
-        if b.prev_defect_edge: prev_parts.append(f"Кромка ({b.prev_defect_edge})")
-        prev_note = ", ".join(prev_parts)
+        prev_def_parts = []
+        if b.prev_defect_scratch: prev_def_parts.append(f"Сдир ({b.prev_defect_scratch})")
+        if b.prev_defect_bad_cut: prev_def_parts.append(f"Плохой рез ({b.prev_defect_bad_cut})")
+        if b.prev_defect_stick_top: prev_def_parts.append(f"Налип сверху ({b.prev_defect_stick_top})")
+        if b.prev_defect_broken: prev_def_parts.append(f"Сломан ({b.prev_defect_broken})")
+        if b.prev_defect_fell_box: prev_def_parts.append(f"Упал коробки ({b.prev_defect_fell_box})")
+        if b.prev_defect_thickness: prev_def_parts.append(f"Не соотв. толщины ({b.prev_defect_thickness})")
+        if b.prev_defect_edge: prev_def_parts.append(f"Кромка ({b.prev_defect_edge})")
+        prev_note = ", ".join(prev_def_parts)
         
         total_gp_all = ds_gp + prev_gp
         total_first_all = ds_first + prev_f
@@ -1953,17 +1926,6 @@ def sync_qcd_reports_to_google_sheets(db: Session):
                     }
                 },
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Автоподбор ширины столбцов
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": total_cols
-                }
             }
         }
     ]
@@ -2535,16 +2497,6 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                     },
                     "fields": "gridProperties.frozenRowCount"
                 }
-            },
-            {
-                "autoResizeDimensions": {
-                    "dimensions": {
-                        "sheetId": sheet_id,
-                        "dimension": "COLUMNS",
-                        "startIndex": 0,
-                        "endIndex": len(headers)
-                    }
-                }
             }
         ]
         service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
@@ -2566,3 +2518,27 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                 db.commit()
 
 
+def get_google_sheet_bottom_url(db: Session, sheet_type: str = "summary") -> str:
+    """
+    Формирует прямую ссылку на Google Таблицу с автоматическим скроллом и фокусом на последней строке таблицы.
+    sheet_type: 'summary' (Сводный отчет), 'qcd' (Переборка СКК), 'destacker' (Переборка дестакера)
+    """
+    target_spreadsheet_id = SPREADSHEET_ID
+    if sheet_type == "qcd_dedicated":
+        target_spreadsheet_id = QCD_SPREADSHEET_ID
+        # Считаем количество отчетов СКК
+        count = db.query(models.QcdSortingReport).count()
+        last_row = max(count + 1, 2)
+        return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"
+
+    if sheet_type == "qcd":
+        from datetime import date
+        count = db.query(models.Batch).join(models.Shift).filter(models.Shift.date >= date(2026, 9, 1)).count()
+        last_row = max(count + 1, 2)
+        # Получаем gid для листа "Переборка" если возможно, иначе gid=0
+        return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"
+
+    # Default: 'summary' (Сводный отчет)
+    count = db.query(models.Shift).count()
+    last_row = max(count + 1, 2)
+    return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"

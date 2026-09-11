@@ -2210,13 +2210,21 @@ function downloadExcelLocal() {
 }
 
 async function syncGoogleSheetsManually() {
+    const btn = document.getElementById('btn-export-google-sheets');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...';
+    }
     try {
         const res = await fetch('/api/dashboard/sync_google_sheets_manual', {
             method: 'POST'
         });
         if (res.ok) {
             const data = await res.json();
-            alert(data.message || 'Синхронизация с Google Таблицами выполнена успешно!');
+            if (confirm((data.message || 'Синхронизация с Google Таблицами выполнена успешно!') + '\n\nОткрыть таблицу на последних строках?')) {
+                openGoogleSheetBottom();
+            }
         } else {
             const err = await res.json();
             alert('Ошибка: ' + (err.detail || 'Не удалось выполнить выгрузку в Google Таблицы'));
@@ -2224,7 +2232,29 @@ async function syncGoogleSheetsManually() {
     } catch(e) {
         console.error(e);
         alert('Ошибка сети или сервера при выгрузке');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+        }
     }
+}
+
+async function openGoogleSheetBottom(sheetType = 'summary') {
+    try {
+        const res = await fetch(`/api/dashboard/google_sheet_bottom_link?sheet_type=${sheetType}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.url) {
+                window.open(data.url, '_blank');
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Could not fetch bottom link, fallback:', e);
+    }
+    // Fallback direct link
+    window.open('/api/dashboard/google_sheet_bottom_link?redirect=true', '_blank');
 }
 
 async function loadDowntimesByParams() {
