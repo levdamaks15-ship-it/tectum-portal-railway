@@ -332,6 +332,12 @@ def sync_report_to_google_sheets(db: Session):
         
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
+    # Полная очистка диапазона перед записью новых данных, чтобы гарантированно стереть старые хвосты и дубли
+    service.spreadsheets().values().clear(
+        spreadsheetId=SPREADSHEET_ID,
+        range=f"'{sheet_name}'!A1:AZ2000"
+    ).execute()
+    
     # Записываем шапку и все строки данных разом
     service.spreadsheets().values().update(
         spreadsheetId=SPREADSHEET_ID,
@@ -673,23 +679,13 @@ def export_norms_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
-        # Автоподбор ширины столбцов
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": len(headers)
-                }
-            }
-        }
     ]
 
-    try:
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    except Exception as e:
-        print(f"Warning executing batch styling on {sheet_name}: {e}")
+    if requests:
+        try:
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+        except Exception as e:
+            print(f"Warning executing batch styling on {sheet_name}: {e}")
 
     # Устанавливаем автофильтр безопасным способом
     safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
@@ -1030,23 +1026,13 @@ def export_receipt_to_google_sheets(db: Session):
                 "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
             }
         },
-        # Автоподбор ширины столбцов
-        {
-            "autoResizeDimensions": {
-                "dimensions": {
-                    "sheetId": sheet_id,
-                    "dimension": "COLUMNS",
-                    "startIndex": 0,
-                    "endIndex": len(headers)
-                }
-            }
-        }
     ]
 
-    try:
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    except Exception as e:
-        print(f"Warning executing batch styling on {sheet_name}: {e}")
+    if requests:
+        try:
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+        except Exception as e:
+            print(f"Warning executing batch styling on {sheet_name}: {e}")
 
     # Устанавливаем автофильтр безопасным способом
     safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
@@ -1375,22 +1361,11 @@ def export_downtimes_to_google_sheets(db: Session):
         }
     })
 
-    # Авто-размер ширины колонок
-    requests.append({
-        "autoResizeDimensions": {
-            "dimensions": {
-                "sheetId": sheet_id,
-                "dimension": "COLUMNS",
-                "startIndex": 0,
-                "endIndex": len(headers)
-            }
-        }
-    })
-
-    try:
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    except Exception as e:
-        print(f"Warning executing batch styling on {sheet_name}: {e}")
+    if requests:
+        try:
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+        except Exception as e:
+            print(f"Warning executing batch styling on {sheet_name}: {e}")
 
     # Устанавливаем автофильтр безопасным способом
     safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, max(total_rows, 1), 0, len(headers))
@@ -2518,15 +2493,20 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                 db.commit()
 
 
+SHEET_GIDS = {
+    "summary": 1856988154,   # Лист "Сводный отчет" в рабочей таблице Tectum
+    "receipts": 0,          # Лист "Приход сырья"
+    "qcd": 0,               # Лист "Переборка"
+}
+
 def get_google_sheet_bottom_url(db: Session, sheet_type: str = "summary") -> str:
     """
-    Формирует прямую ссылку на Google Таблицу с автоматическим скроллом и фокусом на последней строке таблицы.
-    sheet_type: 'summary' (Сводный отчет), 'qcd' (Переборка СКК), 'destacker' (Переборка дестакера)
+    Формирует прямую ссылку на Google Таблицу с автоматическим переходом на нужную вкладку
+    и скроллом/фокусом на последней строке таблицы (&gid={gid}&range=A{last_row}).
     """
     target_spreadsheet_id = SPREADSHEET_ID
     if sheet_type == "qcd_dedicated":
         target_spreadsheet_id = QCD_SPREADSHEET_ID
-        # Считаем количество отчетов СКК
         count = db.query(models.QcdSortingReport).count()
         last_row = max(count + 1, 2)
         return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"
@@ -2535,10 +2515,26 @@ def get_google_sheet_bottom_url(db: Session, sheet_type: str = "summary") -> str
         from datetime import date
         count = db.query(models.Batch).join(models.Shift).filter(models.Shift.date >= date(2026, 9, 1)).count()
         last_row = max(count + 1, 2)
-        # Получаем gid для листа "Переборка" если возможно, иначе gid=0
-        return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"
+        gid = SHEET_GIDS.get("qcd", 0)
+        return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid={gid}&range=A{last_row}"
 
     # Default: 'summary' (Сводный отчет)
-    count = db.query(models.Shift).count()
-    last_row = max(count + 1, 2)
-    return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"
+    # Вычисляем точное количество строк с жадной загрузкой (selectinload) для мгновенного ответа
+    from sqlalchemy.orm import selectinload
+    shifts = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.batches)
+    ).all()
+    valid_count = 0
+    for s in shifts:
+        plan_sheets_check = s.plan_sheets or 0
+        formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
+        warehouse_gp_check = sum(b.qcd_condition for b in s.batches)
+        zo_batches_check = s.zo_batches or 0
+        if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
+            continue
+        valid_count += 1
+
+    last_row = max(valid_count + 1, 2)
+    gid = SHEET_GIDS.get("summary", 1856988154)
+    return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid={gid}&range=A{last_row}"

@@ -1089,12 +1089,6 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
 
     db.commit()
 
-    # Export receipt data to Google Sheets (new sheet "Приход сырья")
-    try:
-        google_sheets_integration.export_receipt_to_google_sheets(db)
-    except Exception as gs_err:
-        print(f"Ошибка экспорта прихода сырья в Google Sheets: {gs_err}")
-
     # Sync to MonthlyPlanBoard (which also writes AuditLog)
     sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
 
@@ -1254,6 +1248,7 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
     
     # Trigger background Google Sheets sync
     background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_receipts_bg)
     
     return {"status": "success", "shift_id": shift.id}
 
@@ -1282,6 +1277,7 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     
     # Trigger background Google Sheets sync
     background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_receipts_bg)
     
     return {"status": "success", "shift_id": shift.id}
 
