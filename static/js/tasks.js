@@ -118,6 +118,10 @@ function initPlannerSession() {
     updatePlannerUserBadge();
 }
 
+function isPlannerAdmin(user = currentPlannerUser) {
+    return user && user.name === "Левда М.";
+}
+
 function updatePlannerUserBadge() {
     const nameEl = document.getElementById("planner-user-name");
     const badgeEl = document.getElementById("planner-user-badge");
@@ -125,12 +129,17 @@ function updatePlannerUserBadge() {
     if (!nameEl || !badgeEl) return;
 
     if (currentPlannerUser && currentPlannerUser.name) {
-        nameEl.textContent = currentPlannerUser.name;
+        const isAdmin = isPlannerAdmin();
+        nameEl.innerHTML = isAdmin 
+            ? `<i class="fa-solid fa-crown" style="color: #eab308; margin-right: 4px;" title="Мастер-администратор"></i>${currentPlannerUser.name}` 
+            : currentPlannerUser.name;
         badgeEl.style.display = "flex";
-        badgeEl.style.background = "#eff6ff";
-        badgeEl.style.color = "#1d4ed8";
-        badgeEl.style.borderColor = "#bfdbfe";
-        badgeEl.title = `Авторизован: ${currentPlannerUser.name}. Нажмите для смены`;
+        badgeEl.style.background = isAdmin ? "#fefce8" : "#eff6ff";
+        badgeEl.style.color = isAdmin ? "#854d0e" : "#1d4ed8";
+        badgeEl.style.borderColor = isAdmin ? "#fef08a" : "#bfdbfe";
+        badgeEl.title = isAdmin 
+            ? `👑 Мастер-администратор: ${currentPlannerUser.name} (полные права). Нажмите для смены` 
+            : `Авторизован: ${currentPlannerUser.name}. Нажмите для смены`;
         if (logoutBtn) logoutBtn.style.display = "inline-block";
     } else {
         nameEl.textContent = "Войти (PIN)";
@@ -278,6 +287,12 @@ async function submitPinModal() {
 }
 
 function ensureUserAuthorized(requiredUser = null, onSuccess) {
+    // Если пользователь — мастер-администратор (Левда М.), он обладает абсолютными правами на любые действия
+    if (currentPlannerUser && isPlannerAdmin()) {
+        onSuccess(currentPlannerUser);
+        return;
+    }
+
     // Если уже есть сессия и она совпадает с требуемым пользователем (или пользователь не указан)
     if (currentPlannerUser && (!requiredUser || currentPlannerUser.name === requiredUser)) {
         onSuccess(currentPlannerUser);

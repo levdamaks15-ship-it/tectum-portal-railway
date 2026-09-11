@@ -50,6 +50,19 @@ def send_task_email_notification(to_email: str, subject: str, event_type: str, t
     except Exception as e:
         print(f"[Email Notification Warning] Failed to send email to {to_email}: {e}")
 
+# Имена суперпользователей/администраторов планнера с абсолютными правами
+PLANNER_ADMIN_NAMES = {"Левда М."}
+
+def is_admin_authorized(db: Session, pin: str) -> bool:
+    """Проверяет, совпадает ли введенный PIN с PIN-кодом любого из администраторов системы."""
+    if not pin:
+        return False
+    admin_emps = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name.in_(PLANNER_ADMIN_NAMES)).all()
+    for a in admin_emps:
+        if a.pin_code and a.pin_code.strip() == pin.strip():
+            return True
+    return False
+
 # --- PLANNER SETTINGS (EMPLOYEES & ZONES) ENDPOINTS ---
 
 @router.get("/api/planner/employees")
@@ -1161,8 +1174,8 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         author_name = (task_data.author_name or "").strip()
         pin = (task_data.pin_code or "").strip()
 
-        # Проверка PIN-кода автора
-        if author_name:
+        # Проверка PIN-кода автора (администратор может создавать от имени любого сотрудника)
+        if author_name and not is_admin_authorized(db, pin):
             emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
             if emp and emp.pin_code and emp.pin_code.strip():
                 if emp.pin_code.strip() != pin:
@@ -1269,8 +1282,8 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
         if not bulk_data.tasks or len(bulk_data.tasks) == 0:
             raise HTTPException(status_code=400, detail="Список задач пуст")
 
-        # Проверка PIN-кода автора
-        if author_name:
+        # Проверка PIN-кода автора (администратор может создавать от имени любого сотрудника)
+        if author_name and not is_admin_authorized(db, pin):
             emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
             if emp and emp.pin_code and emp.pin_code.strip():
                 if emp.pin_code.strip() != pin:
@@ -1610,16 +1623,20 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
         pin = (task_data.pin_code or "").strip()
         if pin:
-            author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
-            assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
-            
-            valid = False
-            if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
+            # Если действие выполняет суперпользователь/администратор — доступ безусловный
+            if is_admin_authorized(db, pin):
                 valid = True
-            if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
-                valid = True
-            if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
-                valid = True
+            else:
+                author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
+                assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
+                
+                valid = False
+                if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
+                    valid = True
+                if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
+                    valid = True
+                if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
+                    valid = True
 
         old_status = task.status
         old_assignee = task.assignee_name
