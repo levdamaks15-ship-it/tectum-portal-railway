@@ -558,6 +558,18 @@
             white-space: nowrap;
         }
 
+        .badge-zone-tech-council {
+            background: #f0f9ff !important;
+            color: #0369a1 !important;
+            border-color: #bae6fd !important;
+        }
+
+        .badge-zone-quality-day {
+            background: #fff7ed !important;
+            color: #c2410c !important;
+            border-color: #ffedd5 !important;
+        }
+
         /* Status Select in row */
         .select-status {
             appearance: none;
@@ -1671,6 +1683,14 @@
                 onclick="switchHorizon('services', event)">
                 <i class="fa-solid fa-wrench" style="color: #059669;"></i> <span>🔧 Службы ОГМ / ОГЭ</span>
             </a>
+            <a href="#tech_council" class="horizon-tab-btn" id="tab-horizon-tech_council"
+                onclick="switchHorizon('tech_council', event)">
+                <i class="fa-solid fa-microscope" style="color: #0284c7;"></i> <span>🔬 Техсовет</span>
+            </a>
+            <a href="#quality_day" class="horizon-tab-btn" id="tab-horizon-quality_day"
+                onclick="switchHorizon('quality_day', event)">
+                <i class="fa-solid fa-clipboard-check" style="color: #ea580c;"></i> <span>📋 День качества</span>
+            </a>
             <a href="#roadmaps" class="horizon-tab-btn" id="tab-horizon-roadmaps"
                 onclick="switchHorizon('roadmaps', event)">
                 <i class="fa-solid fa-map-location-dot" style="color: #7c3aed;"></i> <span>🗺️ Дорожные карты и
@@ -2178,6 +2198,9 @@
             <div class="form-row">
                 <label>Зона / Участок</label>
                 <select class="form-select" id="task-zone-input">
+                    <option value="Бережливое производство" selected>Бережливое производство</option>
+                    <option value="Техсовет">Техсовет</option>
+                    <option value="День качества">День качества</option>
                     <option value="Ремонт и зоны">Ремонт и зоны</option>
                     <option value="Инфостенды">Инфостенды</option>
                     <option value="Обучение">Обучение</option>
@@ -2190,7 +2213,6 @@
                     <option value="ЗО">ЗО</option>
                     <option value="Зона двигателей">Зона двигателей</option>
                     <option value="Слесарная мастерская">Слесарная мастерская</option>
-                    <option value="Бережливое производство" selected>Бережливое производство</option>
                 </select>
             </div>
 
@@ -2411,10 +2433,10 @@
                 style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">
                 <label
                     style="font-size: 0.78rem; font-weight: 600; color: #92400e; margin-bottom: 4px; display: block;">
-                    Вставьте список задач (каждая строка с новой строки):
+                    Вставьте список задач или скопируйте строки таблицы из Word / Excel:
                 </label>
-                <textarea class="form-textarea" id="bulk-paste-textarea" rows="4"
-                    placeholder="1. Проверить натяжение цепи #ОГМ&#10;2. Замена подшипника привода Дестакера #ОГМ&#10;3. Ревизия клеммной коробки #ОГЭ"
+                <textarea class="form-textarea" id="bulk-paste-textarea" rows="5"
+                    placeholder="Скопируйте строки таблицы прямо из Word / Excel и вставьте сюда.&#10;Парсер сам определит:&#10;• Текст поручения&#10;• Ответственного (Косумов, Курилова, Сазонов и др.)&#10;• Срок исполнения (например 11.09.2026)"
                     style="font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
                 <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
                     <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"

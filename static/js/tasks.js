@@ -733,6 +733,10 @@ function startTasksLiveSync() {
                 if (filterHasDocOnly) {
                     url += `&has_doc=true`;
                 }
+            } else if (currentHorizon === "tech_council") {
+                url += `&task_type=all&zone=${encodeURIComponent("Техсовет")}`;
+            } else if (currentHorizon === "quality_day") {
+                url += `&task_type=all&zone=${encodeURIComponent("День качества")}`;
             }
 
             // Хэштег
@@ -743,7 +747,7 @@ function startTasksLiveSync() {
             if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
                 url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
             } else {
-                if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
+                if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
                 if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
                 if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
             }
@@ -805,6 +809,10 @@ async function loadTasks() {
         if (filterHasDocOnly) {
             url += `&has_doc=true`;
         }
+    } else if (currentHorizon === "tech_council") {
+        url += `&task_type=all&zone=${encodeURIComponent("Техсовет")}`;
+    } else if (currentHorizon === "quality_day") {
+        url += `&task_type=all&zone=${encodeURIComponent("День качества")}`;
     }
 
     // Хэштег
@@ -815,7 +823,7 @@ async function loadTasks() {
     if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
         url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
     } else {
-        if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
+        if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
         if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
         if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
     }
@@ -886,6 +894,30 @@ function switchHorizon(horizon, event) {
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
         if (btnFilterHasDoc) btnFilterHasDoc.style.display = "inline-flex";
         if (printSubtitle) printSubtitle.textContent = "ПЛАНЫ СЛУЖБ ОГМ И ОГЭ (ППР И РЕВИЗИИ ОБОРУДОВАНИЯ)";
+        loadTasks();
+    } else if (horizon === "tech_council") {
+        if (tableWrapper) tableWrapper.style.display = "block";
+        if (roadmapsContainer) roadmapsContainer.style.display = "none";
+        if (filterWeek) filterWeek.style.display = "inline-block";
+        if (filterMonth) filterMonth.style.display = "inline-block";
+        if (filterQuarter) filterQuarter.style.display = "none";
+        if (btnBacklog) btnBacklog.style.display = "inline-flex";
+        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
+        if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ТЕХНИЧЕСКОГО СОВЕТА";
+        const zoneFilter = document.getElementById("table-filter-zone");
+        if (zoneFilter) zoneFilter.value = "all";
+        loadTasks();
+    } else if (horizon === "quality_day") {
+        if (tableWrapper) tableWrapper.style.display = "block";
+        if (roadmapsContainer) roadmapsContainer.style.display = "none";
+        if (filterWeek) filterWeek.style.display = "inline-block";
+        if (filterMonth) filterMonth.style.display = "inline-block";
+        if (filterQuarter) filterQuarter.style.display = "none";
+        if (btnBacklog) btnBacklog.style.display = "inline-flex";
+        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
+        if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ДНЯ КАЧЕСТВА";
+        const zoneFilter = document.getElementById("table-filter-zone");
+        if (zoneFilter) zoneFilter.value = "all";
         loadTasks();
     } else {
         // weekly
@@ -1512,6 +1544,8 @@ function getPlannerZones() {
     }
     return [
         "Бережливое производство",
+        "Техсовет",
+        "День качества",
         "Ремонт",
         "Уборка",
         "Производство",
@@ -1896,7 +1930,12 @@ function renderTasksTable(tasks) {
             </div>
         ` : '';
 
-        let zoneAndDeptHtml = `<span class="badge-zone">${escapeHtml(t.zone || 'Бережливое производство')}</span>`;
+        const zoneVal = t.zone || 'Бережливое производство';
+        let zoneClass = 'badge-zone';
+        if (zoneVal === 'Техсовет') zoneClass += ' badge-zone-tech-council';
+        else if (zoneVal === 'День качества') zoneClass += ' badge-zone-quality-day';
+
+        let zoneAndDeptHtml = `<span class="${zoneClass}">${escapeHtml(zoneVal)}</span>`;
         if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
             zoneAndDeptHtml += `
                 <div style="margin-top: 2px;">
@@ -2085,7 +2124,12 @@ function renderTasksCards(tasks) {
             </div>
         `;
 
-        let cardZoneHtml = `<span class="badge-zone">${escapeHtml(t.zone || 'Бережливое производство')}</span>`;
+        const cardZoneVal = t.zone || 'Бережливое производство';
+        let cardZoneClass = 'badge-zone';
+        if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
+        else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
+
+        let cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
         if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
             cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
         }
@@ -2980,6 +3024,18 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
         onTaskTypeChange(initType);
     }
 
+    // Зона по умолчанию
+    const zoneSelect = document.getElementById("task-zone-input");
+    if (zoneSelect) {
+        if (currentHorizon === 'tech_council') {
+            zoneSelect.value = "Техсовет";
+        } else if (currentHorizon === 'quality_day') {
+            zoneSelect.value = "День качества";
+        } else {
+            zoneSelect.value = "Бережливое производство";
+        }
+    }
+
     // Служба по умолчанию
     const deptSelect = document.getElementById("task-department-input");
     if (deptSelect) {
@@ -3352,6 +3408,18 @@ function openBulkTasksModal() {
         }
     }
 
+    // Подстановка зоны по умолчанию в зависимости от активного горизонта
+    const bulkZoneSelect = document.getElementById("bulk-zone-input");
+    if (bulkZoneSelect) {
+        if (currentHorizon === "tech_council") {
+            bulkZoneSelect.value = "Техсовет";
+        } else if (currentHorizon === "quality_day") {
+            bulkZoneSelect.value = "День качества";
+        } else {
+            bulkZoneSelect.value = "Бережливое производство";
+        }
+    }
+
     // Подстановка даты по умолчанию (сегодня)
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -3448,17 +3516,69 @@ function toggleBulkQuickPaste() {
     }
 }
 
+function matchPersonByName(rawText, personsList) {
+    if (!rawText) return "";
+    const cleanRaw = rawText.trim().toLowerCase();
+    
+    // 1. Точное совпадение
+    const exact = personsList.find(p => p.toLowerCase() === cleanRaw);
+    if (exact) return exact;
+
+    // 2. Извлекаем фамилию (первое слово)
+    const surnameMatch = cleanRaw.match(/^([а-яёa-z]+)/i);
+    if (surnameMatch) {
+        const surname = surnameMatch[1].toLowerCase();
+        // Ищем в списке сотрудников по началу фамилии
+        const matched = personsList.find(p => p.toLowerCase().startsWith(surname));
+        if (matched) return matched;
+    }
+
+    // 3. Поиск подстроки
+    for (const p of personsList) {
+        const pSurname = p.split(" ")[0].toLowerCase();
+        if (cleanRaw.includes(pSurname)) {
+            return p;
+        }
+    }
+    return "";
+}
+
+function parseDateToIso(dateStr) {
+    if (!dateStr) return "";
+    const clean = dateStr.trim();
+    // Формат DD.MM.YYYY или DD.MM
+    const ddmmyyyy = clean.match(/^(\d{1,2})[\.\/\-](\d{1,2})(?:[\.\/\-](\d{2,4}))?$/);
+    if (ddmmyyyy) {
+        const day = ddmmyyyy[1].padStart(2, '0');
+        const month = ddmmyyyy[2].padStart(2, '0');
+        let year = ddmmyyyy[3];
+        if (!year) {
+            year = new Date().getFullYear();
+        } else if (year.length === 2) {
+            year = "20" + year;
+        }
+        return `${year}-${month}-${day}`;
+    }
+    // Формат YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        return clean;
+    }
+    return "";
+}
+
 function parseBulkTasksFromTextarea() {
     const pasteArea = document.getElementById("bulk-paste-textarea");
     if (!pasteArea) return;
     const text = pasteArea.value.trim();
     if (!text) {
-        alert("Пожалуйста, вставьте текст со списком задач!");
+        alert("Пожалуйста, вставьте текст со списком задач или скопированную таблицу!");
         return;
     }
 
-    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-    if (lines.length === 0) return;
+    const rawLines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    if (rawLines.length === 0) return;
+
+    const persons = getUniquePersons();
 
     // Очищаем существующие пустые строки, если в них ничего не введено
     const container = document.getElementById("bulk-tasks-rows-container");
@@ -3472,18 +3592,104 @@ function parseBulkTasksFromTextarea() {
         });
     }
 
-    // Добавляем каждую строку как задачу, очищая нумерацию вида "1. ", "- ", "* "
-    lines.forEach(line => {
-        let cleanTitle = line.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
-        if (cleanTitle) {
-            addBulkTaskRow(cleanTitle);
+    let parsedCount = 0;
+
+    rawLines.forEach(line => {
+        // Пропускаем шапки таблиц (№, содержание, ответственный, срок и т.д.)
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes("содержание поручения") || 
+            lowerLine.includes("по результатам") || 
+            (lowerLine.startsWith("№") && lowerLine.includes("срок"))) {
+            return;
+        }
+
+        // Проверяем, табличный ли это ввод (разделители табуляции \t или 2+ пробела)
+        let parts = line.split("\t").map(p => p.trim());
+        if (parts.length === 1 && line.includes("   ")) {
+            // Если скопировано без явных табуляций, но с длинными пробелами
+            parts = line.split(/\s{3,}/).map(p => p.trim());
+        }
+
+        let taskTitle = "";
+        let taskAssignee = "";
+        let taskDueIso = "";
+
+        if (parts.length >= 3) {
+            // Потенциальная таблица вида:
+            // [0]: № или Номер
+            // [1]: Содержание поручения
+            // [2]: Ответственный (или Ответственный + Срок)
+            // [3]: Срок исполнения
+            let colIndex = 0;
+            if (/^\d+$/.test(parts[0])) {
+                // Первый столбец — порядковый номер (например "1", "2")
+                colIndex = 1;
+            }
+
+            taskTitle = parts[colIndex] || "";
+            const rawAssignee = parts[colIndex + 1] || "";
+            const rawDue = parts[colIndex + 2] || "";
+
+            // Попытка извлечь дату из rawDue или rawAssignee
+            taskDueIso = parseDateToIso(rawDue);
+            if (!taskDueIso && rawAssignee) {
+                // Если дата попала в колонку ответственного
+                const dateInAssignee = rawAssignee.match(/(\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)/);
+                if (dateInAssignee) {
+                    taskDueIso = parseDateToIso(dateInAssignee[1]);
+                }
+            }
+
+            // Ищем ответственного
+            if (rawAssignee) {
+                // Если указано несколько человек (например, через слэш, запятую или пробел: "Сазонов С. Носиков Е.Г.")
+                const peopleTokens = rawAssignee.split(/[\n\,\;\/]|(?<=[А-Яа-я]\.)\s+(?=[А-Я])/);
+                for (const tok of peopleTokens) {
+                    const matched = matchPersonByName(tok, persons);
+                    if (matched) {
+                        taskAssignee = matched;
+                        break;
+                    }
+                }
+            }
+        } else {
+            // Обычная строка текста
+            // Очищаем нумерацию вида "1. ", "1) ", "- ", "* "
+            let cleanLine = line.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
+
+            // Пробуем найти дату в конце строки (например "до 11.09.2026" или "11.09.2026")
+            const dateMatch = cleanLine.match(/(?:до\s+|срок\s+)?(\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)$/i);
+            if (dateMatch) {
+                taskDueIso = parseDateToIso(dateMatch[1]);
+                cleanLine = cleanLine.replace(dateMatch[0], '').trim();
+            }
+
+            // Пробуем найти фамилию сотрудника в строке
+            for (const p of persons) {
+                const surname = p.split(" ")[0];
+                const re = new RegExp(`\\b${surname}(?:\\s+[А-Я]\\.?)?`, 'i');
+                if (re.test(cleanLine)) {
+                    taskAssignee = p;
+                    break;
+                }
+            }
+
+            taskTitle = cleanLine;
+        }
+
+        // Очистка задачи от ведущих номеров
+        taskTitle = taskTitle.replace(/^\d+[\.\)\-]\s*/, '').replace(/^[\-\*\•]\s*/, '').trim();
+
+        if (taskTitle) {
+            addBulkTaskRow(taskTitle, taskAssignee, taskDueIso);
+            parsedCount++;
         }
     });
 
     pasteArea.value = "";
     toggleBulkQuickPaste();
     updateBulkTasksCountBadge();
-    showToast(`Добавлено строк: ${lines.length}`);
+    showToast(`Успешно распознано и добавлено строк: ${parsedCount} 🎯`);
 }
 
 function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {

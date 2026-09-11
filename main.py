@@ -1229,20 +1229,37 @@ async def lifespan(app: FastAPI):
         if db.query(models.PlannerZone).count() == 0:
             initial_zones = [
                 {"name": "Бережливое производство", "sort_order": 1},
-                {"name": "Ремонт", "sort_order": 2},
-                {"name": "Уборка", "sort_order": 3},
-                {"name": "Производство", "sort_order": 4},
-                {"name": "Отчетность", "sort_order": 5},
-                {"name": "Документация", "sort_order": 6},
-                {"name": "Цифровизация", "sort_order": 7},
-                {"name": "Обучение", "sort_order": 8},
-                {"name": "ОГЭ", "sort_order": 9},
-                {"name": "ОГМ", "sort_order": 10}
+                {"name": "Техсовет", "sort_order": 2},
+                {"name": "День качества", "sort_order": 3},
+                {"name": "Ремонт", "sort_order": 4},
+                {"name": "Уборка", "sort_order": 5},
+                {"name": "Производство", "sort_order": 6},
+                {"name": "Отчетность", "sort_order": 7},
+                {"name": "Документация", "sort_order": 8},
+                {"name": "Цифровизация", "sort_order": 9},
+                {"name": "Обучение", "sort_order": 10},
+                {"name": "ОГЭ", "sort_order": 11},
+                {"name": "ОГМ", "sort_order": 12}
             ]
             for zone_data in initial_zones:
                 db.add(models.PlannerZone(**zone_data))
             db.commit()
             print("Successfully seeded initial Planner Zones.")
+        else:
+            # Убеждаемся, что зоны "Техсовет" и "День качества" существуют в существующей БД
+            meeting_zones = [
+                {"name": "Техсовет", "sort_order": 2},
+                {"name": "День качества", "sort_order": 3}
+            ]
+            added_any = False
+            for mz in meeting_zones:
+                exists = db.query(models.PlannerZone).filter(models.PlannerZone.name == mz["name"]).first()
+                if not exists:
+                    db.add(models.PlannerZone(name=mz["name"], sort_order=mz["sort_order"], is_active=True))
+                    added_any = True
+            if added_any:
+                db.commit()
+                print("Added missing meeting zones (Техсовет, День качества).")
     except Exception as e:
         print(f"Error seeding planner settings: {e}")
         db.rollback()
