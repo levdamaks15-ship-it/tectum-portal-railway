@@ -1281,10 +1281,27 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
 
         created_tasks = []
         task_dicts_for_email = []
+        seen_titles_in_batch = set()
 
         for idx, item in enumerate(bulk_data.tasks):
             title_raw = (item.title or "").strip()
             if not title_raw:
+                continue
+
+            normalized_title = " ".join(title_raw.split()).lower()
+            if normalized_title in seen_titles_in_batch:
+                continue
+            seen_titles_in_batch.add(normalized_title)
+
+            # Проверка на существование такой же задачи в этой зоне и неделе (защита от двойного клика)
+            zone_candidate = item.zone or bulk_data.zone or "Бережливое производство"
+            week_candidate = bulk_data.week_label or "all"
+            existing_task = db.query(models.Task).filter(
+                models.Task.zone == zone_candidate,
+                models.Task.week_label == week_candidate,
+                func.lower(models.Task.title) == normalized_title
+            ).first()
+            if existing_task:
                 continue
 
             current_max_id += 1

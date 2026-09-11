@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("paste", (e) => {
         const modal = document.getElementById("bulk-tasks-modal");
         if (!modal || modal.style.display === "none") return;
+        if (window.isBulkOcrRunning) return;
 
         // Проверяем, вставлена ли картинка
         const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
@@ -3780,6 +3781,9 @@ async function processBulkOcrImage(fileOrBase64) {
     const btnOcr = document.getElementById("btn-bulk-ocr");
     const origHtml = btnOcr ? btnOcr.innerHTML : "";
 
+    if (window.isBulkOcrRunning) return;
+    window.isBulkOcrRunning = true;
+
     if (btnOcr) {
         btnOcr.disabled = true;
         btnOcr.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #16a34a;"></i> <span>Нейросеть распознаёт таблицу...</span>`;
@@ -3811,33 +3815,33 @@ async function processBulkOcrImage(fileOrBase64) {
             return;
         }
 
-        // Очищаем существующие пустые строки
+        // ПОЛНОСТЬЮ очищаем контейнер строк перед добавлением нового распознавания,
+        // чтобы исключить дублирование с предыдущими попытками
         const container = document.getElementById("bulk-tasks-rows-container");
         if (container) {
-            const existingRows = container.querySelectorAll(".bulk-task-row");
-            existingRows.forEach(r => {
-                const titleInp = r.querySelector(".bulk-row-title");
-                if (titleInp && !titleInp.value.trim()) {
-                    r.remove();
-                }
-            });
+            container.innerHTML = "";
+            bulkRowCounter = 0;
         }
 
-        // Добавляем распознанные задачи в строки
+        // Добавляем только уникальные задачи из ответа нейросети
+        const addedTitles = new Set();
         tasks.forEach(t => {
             const cleanTitle = (t.title || "").replace(/^\d+[\.\)\-]\s*/, '').replace(/\s+/g, ' ').trim();
-            if (cleanTitle) {
+            const lowerT = cleanTitle.toLowerCase();
+            if (cleanTitle && !addedTitles.has(lowerT)) {
+                addedTitles.add(lowerT);
                 addBulkTaskRow(cleanTitle, t.assignee_name || "", t.due_date || "");
             }
         });
 
         updateBulkTasksCountBadge();
-        showToast(`AI успешно распознал ${tasks.length} задач со скриншота! 🎯`);
+        showToast(`AI успешно распознал ${addedTitles.size} задач со скриншота! 🎯`);
 
     } catch (e) {
         console.error("Bulk OCR error:", e);
         alert("Ошибка распознавания: " + e.message);
     } finally {
+        window.isBulkOcrRunning = false;
         if (btnOcr) {
             btnOcr.disabled = false;
             btnOcr.innerHTML = origHtml;

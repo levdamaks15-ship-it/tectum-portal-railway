@@ -1260,6 +1260,27 @@ async def lifespan(app: FastAPI):
             if added_any:
                 db.commit()
                 print("Added missing meeting zones (Техсовет, День качества).")
+
+            # Однократная очистка дубликатов задач Техсовета (если накопились)
+            try:
+                tech_tasks = db.query(models.Task).filter(models.Task.zone == 'Техсовет').order_by(models.Task.id.asc()).all()
+                if len(tech_tasks) > 15:
+                    seen_t = set()
+                    del_tasks = []
+                    for t in tech_tasks:
+                        norm = " ".join(t.title.split()).lower()
+                        if norm in seen_t:
+                            del_tasks.append(t)
+                        else:
+                            seen_t.add(norm)
+                    if del_tasks:
+                        for d in del_tasks:
+                            db.delete(d)
+                        db.commit()
+                        print(f"Cleaned {len(del_tasks)} duplicate Tech Council tasks on Railway.")
+            except Exception as e_clean:
+                print(f"Error cleaning tech council duplicates: {e_clean}")
+                db.rollback()
     except Exception as e:
         print(f"Error seeding planner settings: {e}")
         db.rollback()
