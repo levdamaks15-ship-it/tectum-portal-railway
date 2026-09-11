@@ -1874,7 +1874,7 @@ function renderTasksTable(tasks) {
         let statusClass = "status-work";
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
-        const isLocked = isCompleted || isCancelled;
+        const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
 
         let rowExtraClass = "";
         if (isCompleted) {
@@ -2070,7 +2070,7 @@ function renderTasksCards(tasks) {
         let statusClass = "status-work";
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
-        const isLocked = isCompleted || isCancelled;
+        const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
 
         let cardExtraClass = "";
         if (isCompleted) {

@@ -1774,6 +1774,40 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         return {"status": "ok", "message": "Задача успешно удалена"}
     except HTTPException:
         raise
+
+@router.post("/api/tasks/bulk_delete")
+def delete_tasks_bulk(payload: dict, db: Session = Depends(get_db)):
+    """Массовое удаление задач из реестра администратора в единой транзакции."""
+    try:
+        task_ids = payload.get("task_ids") or []
+        if not task_ids:
+            raise HTTPException(status_code=400, detail="Список задач пуст")
+
+        tasks = db.query(models.Task).filter(models.Task.id.in_(task_ids)).all()
+        if not tasks:
+            raise HTTPException(status_code=404, detail="Задачи для удаления не найдены")
+
+        deleted_codes = [t.code or f"TSK-{t.id}" for t in tasks]
+        for t in tasks:
+            db.delete(t)
+
+        db.add(models.AuditLog(
+            user_name="Администратор",
+            action="DELETE",
+            target_table="tasks",
+            target_id=task_ids[0],
+            details=f"Администратор массово удалил {len(tasks)} задач ({', '.join(deleted_codes[:10])}{'...' if len(deleted_codes) > 10 else ''})"
+        ))
+
+        db.commit()
+        return {"status": "ok", "deleted_count": len(tasks)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error bulk deleting tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/tasks/{task_id}/move_next_week")
 def move_task_to_next_week(
     task_id: int, 

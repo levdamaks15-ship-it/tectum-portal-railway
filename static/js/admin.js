@@ -3069,12 +3069,176 @@ async function loadAdminTasksList() {
     }
 }
 
+let selectedAdminTaskIds = new Set();
+
+function toggleSelectAdminTask(taskId, isChecked) {
+    if (isChecked) {
+        selectedAdminTaskIds.add(taskId);
+    } else {
+        selectedAdminTaskIds.delete(taskId);
+    }
+    updateAdminTasksBulkBar();
+}
+
+function toggleSelectAllAdminTasks(isChecked) {
+    const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
+    const currentTasks = q ? adminAllTasks.filter(t => 
+        (t.title && t.title.toLowerCase().includes(q)) ||
+        (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
+        (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
+        (t.author_name && t.author_name.toLowerCase().includes(q)) ||
+        (t.zone && t.zone.toLowerCase().includes(q)) ||
+        (t.code && t.code.toLowerCase().includes(q)) ||
+        (t.month_label && t.month_label.toLowerCase().includes(q))
+    ) : adminAllTasks;
+
+    currentTasks.forEach(t => {
+        if (isChecked) {
+            selectedAdminTaskIds.add(t.id);
+        } else {
+            selectedAdminTaskIds.delete(t.id);
+        }
+    });
+
+    const checkboxes = document.querySelectorAll('.admin-task-row-cb');
+    checkboxes.forEach(cb => cb.checked = isChecked);
+    updateAdminTasksBulkBar();
+}
+
+function updateAdminTasksBulkBar() {
+    const bar = document.getElementById('admin-tasks-bulk-bar');
+    const countEl = document.getElementById('admin-tasks-selected-count');
+    const masterCb = document.getElementById('th-admin-select-all-tasks');
+
+    const count = selectedAdminTaskIds.size;
+    if (countEl) countEl.textContent = count;
+
+    if (bar) {
+        bar.style.display = count > 0 ? 'flex' : 'none';
+    }
+
+    if (masterCb) {
+        masterCb.checked = adminAllTasks.length > 0 && adminAllTasks.every(t => selectedAdminTaskIds.has(t.id));
+    }
+}
+
+function clearAdminTasksSelection() {
+    selectedAdminTaskIds.clear();
+    const checkboxes = document.querySelectorAll('.admin-task-row-cb');
+    checkboxes.forEach(cb => cb.checked = false);
+    const masterCb = document.getElementById('th-admin-select-all-tasks');
+    if (masterCb) masterCb.checked = false;
+    updateAdminTasksBulkBar();
+}
+
+async function executeAdminBulkStatus(newStatus) {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу");
+        return;
+    }
+
+    if (!confirm(`Изменить статус для ${taskIds.length} задач на «${newStatus}»?`)) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                task_ids: taskIds,
+                status: newStatus,
+                comment: newStatus.includes("Выполнено") ? "Выполнено администратором" : ""
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Успешно обновлено задач: ${data.updated_count}`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка обновления: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        console.error("Admin bulk status error:", e);
+        alert("Ошибка сети при массовом обновлении");
+    }
+}
+
+async function executeAdminBulkMove() {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу");
+        return;
+    }
+
+    const nextWeekStr = prompt("Введите неделю для переноса (например, «Неделя 2 (14.09 - 18.09)»):", "");
+    if (!nextWeekStr || !nextWeekStr.trim()) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                task_ids: taskIds,
+                status: "🔵 Перенесено",
+                comment: `Перенесено администратором на ${nextWeekStr.trim()}`,
+                move_to_next_week: true,
+                next_week_label: nextWeekStr.trim()
+            })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Задачи (${data.updated_count} шт.) успешно перенесены`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка переноса: " + (err.detail || "Не удалось сохранить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при переносе задач");
+    }
+}
+
+async function executeAdminBulkDelete() {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу");
+        return;
+    }
+
+    if (!confirm(`Вы действительно хотите БЕЗВОЗВРАТНО УДАЛИТЬ ${taskIds.length} задач? Это действие нельзя отменить!`)) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_ids: taskIds })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Успешно удалено задач: ${data.deleted_count}`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить задачи"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при массовом удалении задач");
+    }
+}
+
 function renderAdminTasksTable(tasks) {
     const tbody = document.getElementById('admin-tasks-table-body');
     if (!tbody) return;
 
     if (!tasks || tasks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
         return;
     }
 
@@ -3093,9 +3257,13 @@ function renderAdminTasksTable(tasks) {
 
         const titleRu = escapeHtml(t.title || '—');
         const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; font-style: italic; line-height: 1.25;">${escapeHtml(t.title_kz)}</div>` : '';
+        const isChecked = selectedAdminTaskIds.has(t.id);
 
         return `
-            <tr>
+            <tr id="admin-task-row-${t.id}">
+                <td style="text-align: center; white-space: nowrap;">
+                    <input type="checkbox" class="admin-task-row-cb" ${isChecked ? 'checked' : ''} onchange="toggleSelectAdminTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать задачу">
+                </td>
                 <td style="white-space: nowrap;">
                     <span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${escapeHtml(t.code || ('TSK-' + t.id))}</span>
                 </td>
@@ -3120,6 +3288,7 @@ function renderAdminTasksTable(tasks) {
             </tr>
         `;
     }).join('');
+    updateAdminTasksBulkBar();
 }
 
 function filterAdminTasksTable() {

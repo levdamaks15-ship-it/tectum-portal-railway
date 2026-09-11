@@ -2067,6 +2067,9 @@
                         <table class="tasks-registry-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 35px; text-align: center;">
+                                        <input type="checkbox" id="th-admin-select-all-tasks" onchange="toggleSelectAllAdminTasks(this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать все задачи">
+                                    </th>
                                     <th style="width: 85px;">ID / Код</th>
                                     <th style="width: 170px;">Период (Неделя)</th>
                                     <th style="width: 90px;">Зона</th>
@@ -2078,12 +2081,35 @@
                             </thead>
                             <tbody id="admin-tasks-table-body">
                                 <tr>
-                                    <td colspan="7"
+                                    <td colspan="8"
                                         style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
                                         Загрузка задач...</td>
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Панель массовых действий администратора над задачами -->
+                    <div id="admin-tasks-bulk-bar" style="display: none; margin-top: 0.75rem; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem; color: #fff;">
+                        <div style="font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-check-double" style="color: #38bdf8;"></i>
+                            <span>Выбрано задач: <span id="admin-tasks-selected-count" style="color: #38bdf8; font-weight: 700;">0</span></span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            <button type="button" onclick="executeAdminBulkStatus('🟡 В работе')" style="background: #eab308; color: #000; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-play"></i> В работу
+                            </button>
+                            <button type="button" onclick="executeAdminBulkStatus('🟢 Выполнено')" style="background: #10b981; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-check"></i> Выполнить
+                            </button>
+                            <button type="button" onclick="executeAdminBulkMove()" style="background: #3b82f6; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-arrow-right"></i> На след. неделю
+                            </button>
+                            <button type="button" onclick="executeAdminBulkDelete()" style="background: #ef4444; color: #fff; font-size: 0.78rem; font-weight: 700; padding: 5px 11px; border-radius: 6px; border: none; cursor: pointer;">
+                                <i class="fa-solid fa-trash"></i> Удалить выбранные
+                            </button>
+                            <button type="button" onclick="clearAdminTasksSelection()" style="background: transparent; color: #94a3b8; border: none; font-size: 1.1rem; cursor: pointer; padding: 0 4px;" title="Снять выделение">&times;</button>
+                        </div>
                     </div>
                 </div>
             </div>
