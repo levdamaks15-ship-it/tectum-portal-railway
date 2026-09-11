@@ -1387,6 +1387,133 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
         print(f"Error bulk creating tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/api/tasks/ocr_image")
+async def ocr_tasks_from_image(
+    file: Optional[UploadFile] = File(None),
+    image_base64: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """Распознавание таблиц поручений и задач со скриншота/фото через Gemini Multimodal Vision (3.8 Flash)."""
+    import base64
+    import urllib.request
+    import time
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY не настроен на сервере")
+
+    # Считываем байты изображения и MIME-тип
+    img_bytes = None
+    mime_type = "image/png"
+
+    if file and file.filename:
+        img_bytes = await file.read()
+        mime_type = file.content_type or "image/png"
+    elif image_base64:
+        raw_b64 = image_base64.strip()
+        if "," in raw_b64:
+            header, raw_b64 = raw_b64.split(",", 1)
+            if "image/jpeg" in header:
+                mime_type = "image/jpeg"
+            elif "image/webp" in header:
+                mime_type = "image/webp"
+        img_bytes = base64.b64decode(raw_b64)
+
+    if not img_bytes:
+        raise HTTPException(status_code=400, detail="Изображение не предоставлено")
+
+    # Формируем список сотрудников завода для точного сопоставления
+    employees = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.is_active != False).all()
+    emp_names = [e.name for e in employees] if employees else [
+        "Герлинг С.", "Булеханов К.", "Акжанбаев Ж.", "Курилова С.",
+        "Солонцов Ю.", "Сазонов С.", "Носиков Е.", "Хохлов К.",
+        "Зарина", "Косумов Р.", "Туматов Д.", "Левда М.", "Дауылбай М."
+    ]
+    emp_list_str = ", ".join(f'"{name}"' for name in emp_names)
+
+    # Мультимодальный промпт
+    b64_data = base64.b64encode(img_bytes).decode("utf-8")
+    
+    system_prompt = f"""Ты — интеллектуальный ассистент распознавания производственных протоколов и поручений завода Tectum.
+Твоя задача — внимательно изучить изображение (скриншот таблицы протокола, поручений совещания, техсовета или дня качества).
+
+Список официальных сотрудников завода для сопоставления:
+[{emp_list_str}]
+
+ИНСТРУКЦИИ:
+1. Найди в таблице строки с поручениями. Каждая строка — это отдельная задача.
+2. Игнорируй шапку таблицы (заголовки «№», «Содержание поручения», «Ответственный», «Срок исполнения»).
+3. Извлеки:
+   - "title": полный и точный текст поручения (без номера строки '1', '2.' в начале, без переносов строк внутри предложения).
+   - "assignee_name": точное имя сотрудника из списка выше (например, если написано "Косумов Р.Э." -> сопоставь с "Косумов Р.", "Курилова С.А." -> "Курилова С.", "Сазонов С." -> "Сазонов С."). Если в ячейке указано несколько человек (например "Сазонов С. Носиков Е.Г."), выбери первого основного из списка. Если нет совпадений, оставь пустым "".
+   - "due_date": срок в формате "YYYY-MM-DD" (например "08.09.2026" -> "2026-09-08", "11.09.2026" -> "2026-09-11"). Если года нет, используй 2026.
+
+Верни строго валидный JSON-массив объектов:
+[
+  {{
+    "title": "Определить геометрические размеры калибровочной гири...",
+    "assignee_name": "Косумов Р.",
+    "due_date": "2026-09-08"
+  }}
+]"""
+
+    candidate_models = [
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-flash-latest",
+        "gemini-3.5-flash"
+    ]
+
+    payload = {
+        "contents": [{
+            "parts": [
+                {"text": system_prompt},
+                {
+                    "inlineData": {
+                        "mimeType": mime_type,
+                        "data": b64_data
+                    }
+                }
+            ]
+        }],
+        "generationConfig": {
+            "temperature": 0.1,
+            "responseMimeType": "application/json"
+        }
+    }
+    encoded_payload = json.dumps(payload).encode("utf-8")
+
+    last_err = None
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        req = urllib.request.Request(
+            url,
+            data=encoded_payload,
+            headers={"Content-Type": "application/json"}
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=18.0) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                raw_json = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if raw_json.startswith("```"):
+                    raw_json = re.sub(r"^```(?:json)?\s*", "", raw_json)
+                    raw_json = re.sub(r"\s*```$", "", raw_json)
+                tasks_list = json.loads(raw_json)
+                if isinstance(tasks_list, list):
+                    return {
+                        "status": "ok",
+                        "model_used": model_name,
+                        "count": len(tasks_list),
+                        "tasks": tasks_list
+                    }
+        except Exception as e:
+            last_err = e
+            print(f"OCR model {model_name} failed: {e}")
+            continue
+
+    raise HTTPException(status_code=500, detail=f"Не удалось распознать изображение через Gemini: {last_err}")
+
 @router.post("/api/tasks/bulk_status")
 def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Массовое обновление статусов пачки задач (для служб ОГЭ / ОГМ) в одной транзакции."""

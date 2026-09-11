@@ -2415,16 +2415,22 @@
                 </div>
             </div>
 
-            <!-- Paste from Clipboard Helper (Collapsible) -->
+            <!-- Paste from Clipboard & OCR Helpers -->
             <div
                 style="margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"
-                    style="font-size: 0.78rem; padding: 4px 10px;">
-                    <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить списком из
-                        блокнота/буфера</span>
-                </button>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleBulkQuickPaste()"
+                        style="font-size: 0.78rem; padding: 4px 10px;">
+                        <i class="fa-solid fa-paste" style="color: #2563eb;"></i> <span>Вставить списком из Word/буфера</span>
+                    </button>
+                    <button type="button" class="btn-action" id="btn-bulk-ocr" onclick="triggerBulkOcrUpload()"
+                        style="font-size: 0.78rem; padding: 4px 11px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-weight: 600;">
+                        <i class="fa-solid fa-camera" style="color: #16a34a;"></i> <span>📷 Распознать скриншот / фото (AI)</span>
+                    </button>
+                    <input type="file" id="bulk-ocr-file-input" accept="image/*" style="display: none;" onchange="handleBulkOcrFileSelect(this)">
+                </div>
                 <div style="font-size: 0.75rem; color: #64748b;">
-                    💡 Нажимайте <b>Enter</b> в поле сути задачи для добавления новой строки
+                    💡 Вставьте скриншот через <b>Ctrl + V</b> или нажмите <b>Enter</b> для новой строки
                 </div>
             </div>
 

@@ -83,6 +83,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     await handleUrlDeepLinking();
     await loadTasks();
     startTasksLiveSync();
+
+    // Слушатель глобальной вставки скриншота (Ctrl+V) при открытом массовом вводе
+    window.addEventListener("paste", (e) => {
+        const modal = document.getElementById("bulk-tasks-modal");
+        if (!modal || modal.style.display === "none") return;
+
+        // Проверяем, вставлена ли картинка
+        const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    e.preventDefault();
+                    showToast("Скриншот обнаружен в буфере! Отправка на AI-распознавание... 📷");
+                    processBulkOcrImage(blob);
+                    break;
+                }
+            }
+        }
+    });
 });
 
 function initPlannerSession() {
@@ -3735,6 +3757,92 @@ function parseBulkTasksFromTextarea() {
     toggleBulkQuickPaste();
     updateBulkTasksCountBadge();
     showToast(`Успешно распознано и добавлено строк: ${parsedCount} 🎯`);
+}
+
+/* ==========================================================
+   OCR VIA GEMINI MULTIMODAL (3.8 FLASH)
+   ========================================================== */
+function triggerBulkOcrUpload() {
+    const fileInp = document.getElementById("bulk-ocr-file-input");
+    if (fileInp) {
+        fileInp.value = "";
+        fileInp.click();
+    }
+}
+
+function handleBulkOcrFileSelect(input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    processBulkOcrImage(file);
+}
+
+async function processBulkOcrImage(fileOrBase64) {
+    const btnOcr = document.getElementById("btn-bulk-ocr");
+    const origHtml = btnOcr ? btnOcr.innerHTML : "";
+
+    if (btnOcr) {
+        btnOcr.disabled = true;
+        btnOcr.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #16a34a;"></i> <span>Нейросеть распознаёт таблицу...</span>`;
+    }
+
+    try {
+        const formData = new FormData();
+        if (typeof fileOrBase64 === "string") {
+            formData.append("image_base64", fileOrBase64);
+        } else {
+            formData.append("file", fileOrBase64);
+        }
+
+        const res = await fetch("/api/tasks/ocr_image", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Сбой распознавания");
+        }
+
+        const data = await res.json();
+        const tasks = data.tasks || [];
+
+        if (tasks.length === 0) {
+            alert("Нейросеть не обнаружила строк с задачами на этом изображении");
+            return;
+        }
+
+        // Очищаем существующие пустые строки
+        const container = document.getElementById("bulk-tasks-rows-container");
+        if (container) {
+            const existingRows = container.querySelectorAll(".bulk-task-row");
+            existingRows.forEach(r => {
+                const titleInp = r.querySelector(".bulk-row-title");
+                if (titleInp && !titleInp.value.trim()) {
+                    r.remove();
+                }
+            });
+        }
+
+        // Добавляем распознанные задачи в строки
+        tasks.forEach(t => {
+            const cleanTitle = (t.title || "").replace(/^\d+[\.\)\-]\s*/, '').replace(/\s+/g, ' ').trim();
+            if (cleanTitle) {
+                addBulkTaskRow(cleanTitle, t.assignee_name || "", t.due_date || "");
+            }
+        });
+
+        updateBulkTasksCountBadge();
+        showToast(`AI успешно распознал ${tasks.length} задач со скриншота! 🎯`);
+
+    } catch (e) {
+        console.error("Bulk OCR error:", e);
+        alert("Ошибка распознавания: " + e.message);
+    } finally {
+        if (btnOcr) {
+            btnOcr.disabled = false;
+            btnOcr.innerHTML = origHtml;
+        }
+    }
 }
 
 function autoResizeBulkTextarea(el) {
