@@ -384,9 +384,11 @@ def get_daily_report(
             "line_2": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 0, "plan_tons": 0.0, "first_grade": 0, "defect": 0}} for i in range(num_days)}
         }
     else:
-        # Default initialization with standard norms
+        # Default initialization with standard norms:
+        # Линия 1 (ЛФМ-1): День = 800, Ночь = 1200 (кампания 40 000 листов)
+        # Линия 2 (ЛФМ-2): День = 2700 (0 в пн), Ночь = 3300
         data = {
-            "line_1": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)},
+            "line_1": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 and (sd + timedelta(days=i)) < date(2026, 9, 7) else 800), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 and (sd + timedelta(days=i)) < date(2026, 9, 7) else 800) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 1200, "plan_tons": 1200 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)},
             "line_2": {str(sd + timedelta(days=i)): {"День": {"sheets": 0, "tons": 0.0, "plan_sheets": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700), "plan_tons": (0 if (sd + timedelta(days=i)).weekday() == 0 else 2700) * 19.6 / 1000.0, "first_grade": 0, "defect": 0}, "Ночь": {"sheets": 0, "tons": 0.0, "plan_sheets": 3300, "plan_tons": 3300 * 19.6 / 1000.0, "first_grade": 0, "defect": 0}} for i in range(num_days)}
         }
     
@@ -549,9 +551,19 @@ def get_daily_report(
 
     if master_id is None and shift_number is None:
         if effective_range_type == "month" or num_days >= 28:
-            total_plan_sheets = 160000 * len(lines_to_include)
+            if line == "lfm1":
+                total_plan_sheets = 40000
+            elif line == "lfm2":
+                total_plan_sheets = 160000
+            else:
+                total_plan_sheets = 40000 + 160000
         elif effective_range_type == "week" and num_days == 7:
-            total_plan_sheets = 39000 * len(lines_to_include)
+            if line == "lfm1":
+                total_plan_sheets = 13000
+            elif line == "lfm2":
+                total_plan_sheets = 39000
+            else:
+                total_plan_sheets = 13000 + 39000
         else:
             total_plan_sheets = sum(d["plan_sheets"] for d in days_list)
     else:
@@ -573,6 +585,14 @@ def get_daily_report(
     lag_sheets = total_plan_sheets - total_fact_sheets
     lag_tons = round(total_plan_tons - total_fact_tons, 2)
     
+    # Определяем действующие нормы смены для выбранной линии
+    if line == "lfm1":
+        line_plan_norms = {"day": 800, "night": 1200}
+    elif line == "lfm2":
+        line_plan_norms = {"day": 2700, "night": 3300}
+    else:
+        line_plan_norms = {"day": 3500, "night": 4500}
+    
     return {
         "total_shifts": total_shifts,
         "total_fact_sheets": total_fact_sheets,
@@ -586,6 +606,7 @@ def get_daily_report(
         "total_defect": total_defect,
         "avg_plan_percent": avg_plan_percent,
         "defect_percent": defect_percent,
+        "line_plan_norms": line_plan_norms,
         "days": days_list
     }
 

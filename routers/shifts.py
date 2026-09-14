@@ -219,6 +219,7 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
         slot_products = defaultdict(list)
         slot_batches = defaultdict(list)
 
+        slot_lines = defaultdict(set)
         for s in shifts:
             lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == s.id).all()
             total_lfm = sum(r.lfm_sheets or 0 for r in lfm_reports)
@@ -235,6 +236,8 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
                 
             d_str = s.date.strftime("%Y-%m-%d") if hasattr(s.date, 'strftime') else str(s.date)
             slot_lfm[(d_str, s_name)] += total_lfm
+            if s.line:
+                slot_lines[(d_str, s_name)].add(s.line)
             
             if s.master_id:
                 m = db.query(models.Master).filter(models.Master.id == s.master_id).first()
@@ -275,9 +278,18 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
             is_past = d_date_str < current_today_str
             is_today = d_date_str == current_today_str
 
+            # Определение норматива для линии:
+            # Завод перешел на Линию 1 с 07.09.2026. Для Линии 1 норматив: День=800, Ночь=1200.
+            # Для Линии 2 (до 07.09.2026) норматив: День=2700, Ночь=3300.
+            lines_in_slot = slot_lines.get((d_date_str, 'День'), set()) | slot_lines.get((d_date_str, 'Ночь'), set())
+            is_line_1 = any("1" in ln for ln in lines_in_slot) if lines_in_slot else (d_date_str >= "2026-09-07")
+
             # Обрабатываем День и Ночь
             for s_name in ['День', 'Ночь']:
-                plan = 2700 if s_name == 'День' else 3300
+                if is_line_1:
+                    plan = 800 if s_name == 'День' else 1200
+                else:
+                    plan = 2700 if s_name == 'День' else 3300
                 fact_lfm = slot_lfm.get((d_date_str, s_name), 0)
                 active_masters = slot_prod_masters.get((d_date_str, s_name)) or slot_all_masters.get((d_date_str, s_name)) or set()
                 masters = ", ".join(sorted(list(active_masters)))

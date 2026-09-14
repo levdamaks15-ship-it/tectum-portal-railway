@@ -3134,16 +3134,23 @@ async function loadDailyReport() {
             document.getElementById('kpi-defect-detail').innerText = `Брак: ${(data.total_defect || 0).toLocaleString()} листов`;
 
             // Renders charts
-            renderDailyReportCharts(data.days);
+            renderDailyReportCharts(data.days, data.line_plan_norms);
         }
     } catch(e) {
         console.error(e);
     }
 }
 
-function renderDailyReportCharts(days) {
+function renderDailyReportCharts(days, planNorms) {
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     const textCol = isDark ? '#f8fafc' : '#1e293b';
+
+    // Определение динамических норм плана
+    const dayNorm = (planNorms && planNorms.day) ? planNorms.day : 2700;
+    const nightNorm = (planNorms && planNorms.night) ? planNorms.night : 3300;
+    const avgWeightKg = 19.6;
+    const dayTonsNorm = Number(((dayNorm * avgWeightKg) / 1000.0).toFixed(1));
+    const nightTonsNorm = Number(((nightNorm * avgWeightKg) / 1000.0).toFixed(1));
 
     // Two-line compact label: line 1 = day of month (e.g. "01"), line 2 = shift type ("Д" or "Н")
     const labels = days.map(d => {
@@ -3156,13 +3163,15 @@ function renderDailyReportCharts(days) {
     
     // Determine bar colors dynamically: Green for Plan Met, Red for Plan Not Met
     const sheetsColors = days.map(d => {
-        const met = d.fact_sheets >= d.plan_sheets;
+        const targetPlan = d.plan_sheets > 0 ? d.plan_sheets : (d.label && d.label.includes('(Д)') ? dayNorm : nightNorm);
+        const met = d.fact_sheets >= targetPlan;
         if (met && d.fact_sheets > 0) return '#22c55e'; // Green if plan is met
         return '#ef4444'; // Red if plan is not met
     });
 
     const tonsColors = days.map(d => {
-        const met = d.fact_tons >= d.plan_tons;
+        const targetTons = d.plan_tons > 0 ? d.plan_tons : (d.label && d.label.includes('(Д)') ? dayTonsNorm : nightTonsNorm);
+        const met = d.fact_tons >= targetTons;
         if (met && d.fact_tons > 0) return '#22c55e'; // Green if plan is met
         return '#ef4444'; // Red if plan is not met
     });
@@ -3176,8 +3185,8 @@ function renderDailyReportCharts(days) {
                     return [
                         { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
                         { text: 'Факт (невыполнение)', fillStyle: '#ef4444', strokeStyle: '#ef4444', lineWidth: 1 },
-                        { text: 'План День (2700)', fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
-                        { text: 'План Ночь (3300)', fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 2 }
+                        { text: `План День (${dayNorm})`, fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
+                        { text: `План Ночь (${nightNorm})`, fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 2 }
                     ];
                 }
             }
@@ -3239,8 +3248,8 @@ function renderDailyReportCharts(days) {
                     barPercentage: 0.95
                 },
                 {
-                    label: 'План День (2700)',
-                    data: Array(days.length).fill(2700),
+                    label: `План День (${dayNorm})`,
+                    data: Array(days.length).fill(dayNorm),
                     borderColor: '#ffc107', // Yellow
                     borderWidth: 2,
                     borderDash: [5, 5],
@@ -3249,8 +3258,8 @@ function renderDailyReportCharts(days) {
                     type: 'line'
                 },
                 {
-                    label: 'План Ночь (3300)',
-                    data: Array(days.length).fill(3300),
+                    label: `План Ночь (${nightNorm})`,
+                    data: Array(days.length).fill(nightNorm),
                     borderColor: '#8b5cf6', // Purple / Violet
                     borderWidth: 2,
                     borderDash: [5, 5],
@@ -3289,8 +3298,8 @@ function renderDailyReportCharts(days) {
                     barPercentage: 0.95
                 },
                 {
-                    label: 'План День (52.9 т)',
-                    data: Array(days.length).fill(52.92),
+                    label: `План День (${dayTonsNorm} т)`,
+                    data: Array(days.length).fill(dayTonsNorm),
                     borderColor: '#ffc107', // Yellow
                     borderWidth: 2,
                     borderDash: [5, 5],
@@ -3299,8 +3308,8 @@ function renderDailyReportCharts(days) {
                     type: 'line'
                 },
                 {
-                    label: 'План Ночь (64.7 т)',
-                    data: Array(days.length).fill(64.68),
+                    label: `План Ночь (${nightTonsNorm} т)`,
+                    data: Array(days.length).fill(nightTonsNorm),
                     borderColor: '#8b5cf6', // Purple / Violet
                     borderWidth: 2,
                     borderDash: [5, 5],
@@ -3323,8 +3332,8 @@ function renderDailyReportCharts(days) {
                             return [
                                 { text: 'Факт (выполнение)', fillStyle: '#22c55e', strokeStyle: '#22c55e', lineWidth: 1 },
                                 { text: 'Факт (невыполнение)', fillStyle: '#ef4444', strokeStyle: '#ef4444', lineWidth: 1 },
-                                { text: 'План День (52.9 т)', fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
-                                { text: 'План Ночь (64.7 т)', fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 2 }
+                                { text: `План День (${dayTonsNorm} т)`, fillStyle: '#ffc107', strokeStyle: '#ffc107', lineWidth: 2 },
+                                { text: `План Ночь (${nightTonsNorm} т)`, fillStyle: '#8b5cf6', strokeStyle: '#8b5cf6', lineWidth: 2 }
                             ];
                         }
                     }
