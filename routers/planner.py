@@ -1523,7 +1523,7 @@ async def ocr_tasks_from_image(
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=18.0) as resp:
+            with urllib.request.urlopen(req, timeout=45.0) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 raw_json = data["candidates"][0]["content"]["parts"][0]["text"].strip()
                 if raw_json.startswith("```"):

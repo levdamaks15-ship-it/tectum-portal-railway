@@ -48,6 +48,8 @@ let myTasksFilterActive = false;
 let liveSyncIntervalId = null;
 let lastTasksDataHash = "";
 let isModalOpen = false;
+let isInitialLoading = true;
+let tasksFetchSeq = 0;
 
 const CORE_NAMES = [
     "Герлинг С.",
@@ -81,6 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadPlannerDropdownData();
     await loadTaskTags();
     await handleUrlDeepLinking();
+    isInitialLoading = false;
     await loadTasks();
     startTasksLiveSync();
 
@@ -407,10 +410,11 @@ async function handleUrlDeepLinking() {
     }
 
     // 4. Horizon deep linking (hash or param)
+    const validHorizons = ['weekly', 'services', 'tech_council', 'quality_day', 'roadmaps'];
     const horizonHash = window.location.hash ? window.location.hash.replace('#', '') : '';
     const horizonParam = urlParams.get("horizon");
-    const targetHorizon = ['weekly', 'services', 'roadmaps'].includes(horizonHash) ? horizonHash : 
-                          (['weekly', 'services', 'roadmaps'].includes(horizonParam) ? horizonParam : null);
+    const targetHorizon = validHorizons.includes(horizonHash) ? horizonHash : 
+                          (validHorizons.includes(horizonParam) ? horizonParam : null);
     if (targetHorizon) {
         switchHorizon(targetHorizon);
     }
@@ -867,9 +871,16 @@ async function loadTasks() {
     }
     if (status !== "all") url += `&status=${encodeURIComponent(status)}`;
 
+    tasksFetchSeq++;
+    const thisFetchSeq = tasksFetchSeq;
+
     try {
         const res = await fetch(url);
         if (res.ok) {
+            // If another request was initiated while this fetch was in-flight, discard stale result
+            if (thisFetchSeq !== tasksFetchSeq) {
+                return;
+            }
             allTasks = await res.json();
             lastTasksDataHash = JSON.stringify(allTasks);
             renderTasksTable(allTasks);
@@ -878,6 +889,9 @@ async function loadTasks() {
             scrollToTargetTaskAfterRender();
         }
     } catch (e) {
+        if (thisFetchSeq !== tasksFetchSeq) {
+            return;
+        }
         console.error("Error loading tasks:", e);
         if (tableBody) tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
         if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</div>`;
@@ -1548,7 +1562,9 @@ function onMonthChange(forcedWeek = null) {
         weekSelect.value = chosenWeek;
         currentWeek = chosenWeek;
     }
-    loadTasks();
+    if (!isInitialLoading) {
+        loadTasks();
+    }
 }
 
 async function loadPlannerDropdownData() {
@@ -3818,7 +3834,8 @@ async function processBulkOcrImage(fileOrBase64) {
 
         const res = await fetch("/api/tasks/ocr_image", {
             method: "POST",
-            body: formData
+            body: formData,
+            timeoutMs: 60000
         });
 
         if (!res.ok) {

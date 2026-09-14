@@ -272,6 +272,20 @@
             return window.__NATIVE_FETCH__(url, options);
         }
 
+        // Heavy operations like AI OCR, DeepSeek chat or file uploads need more time (up to 60s)
+        const isHeavyAiCall = typeof url === 'string' && (
+            url.includes('/ocr_image') || 
+            url.includes('/ai_assistant') || 
+            url.includes('/sync_google') ||
+            url.includes('/import_from_google_sheets')
+        );
+        const effectiveTimeout = options.timeoutMs || (isHeavyAiCall ? 60000 : TIMEOUT_MS);
+
+        // For heavy operations or file uploads, do not repeat retries automatically to avoid payload duplicates
+        if (isHeavyAiCall && options.body instanceof FormData && retriesLeft > 0) {
+            retriesLeft = 0;
+        }
+
         const controller = new AbortController();
         const callerSignal = options.signal;
         let timeoutTriggered = false;
@@ -284,7 +298,7 @@
         const timeoutId = setTimeout(() => {
             timeoutTriggered = true;
             controller.abort();
-        }, TIMEOUT_MS);
+        }, effectiveTimeout);
 
         const fetchOptions = {
             ...options,
@@ -333,7 +347,8 @@
             renderPill();
 
             if (timeoutTriggered) {
-                throw new Error('Превышено время ожидания ответа сервера (12 сек). Слабый интернет-сигнал.');
+                const sec = Math.round(effectiveTimeout / 1000);
+                throw new Error(`Превышено время ожидания ответа сервера (${sec} сек). Слабый интернет-сигнал.`);
             } else if (err.message?.includes('Failed to fetch')) {
                 throw new Error('Сбой сети: сервер недоступен. Проверьте подключение к Wi-Fi или мобильному интернету.');
             }
