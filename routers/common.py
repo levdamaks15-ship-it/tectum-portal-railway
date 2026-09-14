@@ -202,7 +202,11 @@ def sync_lfm_to_plan_board(shift_date, shift_name: str, shift_line: str, db: Ses
         else:
             is_monday = shift_date.weekday() == 0
             
-        default_plan_sheets = 0 if is_monday and shift_name == "День" else (2700 if shift_name == "День" else 3300)
+        is_line_1 = (pb_line == "ЛФМ-1")
+        if is_line_1:
+            default_plan_sheets = 800 if shift_name == "День" else 1200
+        else:
+            default_plan_sheets = 0 if is_monday and shift_name == "День" else (2700 if shift_name == "День" else 3300)
         
         # Create a new plan board row if it doesn't exist
         pb_row = models.MonthlyPlanBoard(

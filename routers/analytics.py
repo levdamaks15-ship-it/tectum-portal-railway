@@ -402,8 +402,13 @@ def get_daily_report(
         if day_key in data[line_key] and s_name in ["День", "Ночь"]:
             if shift_number is not None and pb.shift_number != shift_number:
                 continue
-            data[line_key][day_key][s_name]["plan_sheets"] = pb.plan_sheets or 0
-            data[line_key][day_key][s_name]["plan_tons"] = (pb.plan_sheets or 0) * 19.6 / 1000.0
+            plan_to_set = pb.plan_sheets or 0
+            # Если это Линия 1 с 07.09.2026 и в базе остался старый норматив 2700/3300 — применяем актуальные нормы 800/1200
+            if pb.line == "ЛФМ-1" and pb.date and pb.date >= date(2026, 9, 7):
+                if plan_to_set in [2700, 3300, 0]:
+                    plan_to_set = 800 if s_name == "День" else 1200
+            data[line_key][day_key][s_name]["plan_sheets"] = plan_to_set
+            data[line_key][day_key][s_name]["plan_tons"] = plan_to_set * 19.6 / 1000.0
             
             # Записываем факт для всех
             if True:

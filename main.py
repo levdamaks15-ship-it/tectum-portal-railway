@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
         conn.close()
     except: pass
     
-    # Ensure indexes for documents & document_categories
+        # Ensure indexes for documents & document_categories
     try:
         db = SessionLocal()
         from sqlalchemy import text
@@ -96,10 +96,17 @@ async def lifespan(app: FastAPI):
         if driver == 'postgresql':
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_category_id ON documents (category_id);"))
             db.execute(text("CREATE INDEX IF NOT EXISTS idx_doc_categories_parent_id ON document_categories (parent_id);"))
+            # Актуализация нормативов Линии 1 в monthly_plan_board с 07.09.2026
+            db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
+            db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
+            db.commit()
+        elif driver == 'sqlite':
+            db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
+            db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
             db.commit()
         db.close()
     except Exception as e:
-        print(f"Warning: could not create document indexes: {e}")
+        print(f"Warning: could not update plan_board norms or indexes: {e}")
 
     # PG version - ensure master_id column exists
     try:
