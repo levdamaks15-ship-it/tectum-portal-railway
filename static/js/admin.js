@@ -1152,9 +1152,15 @@ function filterShifts() {
         const masterName = master ? master.name : `ID: ${s.master_id}`;
         
         const lfmSheets = (s.lfm_reports || []).reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
-        const warehouseGp = (s.batches || []).reduce((acc, b) => acc + (b.ds_condition || 0), 0);
-        const firstGrade = (s.batches || []).reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) ||
-                           (s.lfm_reports || []).reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const ownWarehouseGp = (s.batches || []).reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const prevWarehouseGp = (s.batches || []).reduce((acc, b) => acc + (b.prev_condition || 0), 0);
+        const warehouseGp = ownWarehouseGp + prevWarehouseGp;
+
+        const ownFirstGrade = (s.batches || []).reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) ||
+                              (s.lfm_reports || []).reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const prevFirstGrade = (s.batches || []).reduce((acc, b) => acc + (b.prev_first_grade || 0), 0);
+        const firstGrade = ownFirstGrade + prevFirstGrade;
+
         const destackerDefect = (s.batches || []).reduce((acc, b) => acc + (b.ds_defect || 0), 0);
         const qcdDefect = (s.batches || []).reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
 
@@ -1173,6 +1179,16 @@ function filterShifts() {
         const statusBadge = s.status === 'active' 
             ? `<span style="color: var(--success-color); font-size: 0.8rem;"><i class="fa-solid fa-circle-check"></i> active</span>`
             : `<span style="color: var(--text-secondary); font-size: 0.8rem;"><i class="fa-solid fa-lock"></i> closed</span>`;
+
+        let warehouseDisplay = `Склад: <b style="color: var(--success-color);">${ownWarehouseGp}</b>`;
+        if (prevWarehouseGp > 0) {
+            warehouseDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="Переборка прошлой смены">+${prevWarehouseGp} переборка</span>`;
+        }
+
+        let firstGradeDisplay = `1 сорт: <b>${ownFirstGrade}</b>`;
+        if (prevFirstGrade > 0) {
+            firstGradeDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="1 сорт прошлой смены">+${prevFirstGrade} переборка</span>`;
+        }
 
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s;">
@@ -1195,10 +1211,10 @@ function filterShifts() {
                     <div style="font-size: 0.85rem; color: var(--accent-color);">Партия: <b>${batchNum}</b></div>
                 </td>
                 <td>
-                    <div style="display: flex; gap: 0.8rem; font-size: 0.85rem;">
+                    <div style="display: flex; gap: 0.8rem; font-size: 0.85rem; align-items: center; flex-wrap: wrap;">
                         <div>ЛФМ: <b style="color: var(--primary-color);">${lfmSheets}</b></div>
-                        <div>Склад: <b style="color: var(--success-color);">${warehouseGp}</b></div>
-                        <div>1 сорт: <b>${firstGrade}</b></div>
+                        <div>${warehouseDisplay}</div>
+                        <div>${firstGradeDisplay}</div>
                     </div>
                 </td>
                 <td>
@@ -1230,6 +1246,18 @@ function updateAdminLineSiloHeaders() {
         }
     }
     calcAdminCem();
+}
+
+function calcAdminWarehouseTotals() {
+    const ownWh = parseInt(document.getElementById('uni-warehouse-gp')?.value) || 0;
+    const prevWh = parseInt(document.getElementById('uni-prev-warehouse-gp')?.value) || 0;
+    const totWhEl = document.getElementById('uni-warehouse-gp-total-readonly');
+    if (totWhEl) totWhEl.value = (ownWh + prevWh) > 0 ? (ownWh + prevWh) : '0';
+
+    const ownF = parseInt(document.getElementById('uni-first-grade')?.value) || 0;
+    const prevF = parseInt(document.getElementById('uni-prev-first-grade')?.value) || 0;
+    const totFEl = document.getElementById('uni-first-grade-total-readonly');
+    if (totFEl) totFEl.value = (ownF + prevF) > 0 ? (ownF + prevF) : '0';
 }
 
 function calcAdminSumRM(key) {
@@ -1334,16 +1362,21 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         // Tab 2: Production
         const lfmSheetsVal = lfm.reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
         const lfmWindVal = lfm.reduce((acc, r) => acc + (r.lfm_wind_resets || 0), 0);
-        const whGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0) + (b.prev_condition || 0), 0);
-        const firstGradeVal = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const ownWhGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0), 0);
+        const prevWhGpVal = batches.reduce((acc, b) => acc + (b.prev_condition || 0), 0);
+        const ownFirstGradeVal = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
+        const prevFirstGradeVal = batches.reduce((acc, b) => acc + (b.prev_first_grade || 0), 0);
         const qcdDefectVal = batches.reduce((acc, b) => acc + (b.qcd_defect || 0), 0);
 
         document.getElementById('uni-lfm-sheets').value = lfmSheetsVal;
         document.getElementById('uni-lfm-wind-resets').value = lfmWindVal;
         document.getElementById('uni-zo-batches').value = shift.zo_batches || 0;
-        document.getElementById('uni-warehouse-gp').value = whGpVal;
-        document.getElementById('uni-first-grade').value = firstGradeVal;
+        document.getElementById('uni-warehouse-gp').value = ownWhGpVal;
+        document.getElementById('uni-prev-warehouse-gp').value = prevWhGpVal;
+        document.getElementById('uni-first-grade').value = ownFirstGradeVal;
+        document.getElementById('uni-prev-first-grade').value = prevFirstGradeVal;
         document.getElementById('uni-qcd-defect').value = qcdDefectVal;
+        calcAdminWarehouseTotals();
 
         // Tab 3: Raw Materials & Silos Prefill
         updateAdminLineSiloHeaders();
@@ -1396,9 +1429,6 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         document.getElementById('uni-lfm-cem-drain').value = shift.lfm_cem_drain || 0;
 
         // Tab 4: Destacker Defects (Own shift and Previous shift)
-        const firstGradeValOwn = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
-        document.getElementById('uni-first-grade').value = firstGradeValOwn || '';
-        
         document.getElementById('uni-def-scratch').value = batches.reduce((acc, b) => acc + (b.ds_defect_scratch || 0), 0) || '';
         document.getElementById('uni-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.ds_defect_bad_cut || 0), 0) || '';
         document.getElementById('uni-def-stick-top').value = batches.reduce((acc, b) => acc + (b.ds_defect_stick_top || 0), 0) || '';
@@ -1408,9 +1438,6 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         document.getElementById('uni-def-edge').value = batches.reduce((acc, b) => acc + (b.ds_defect_edge || 0), 0) || '';
 
         // Previous shift defects
-        const prevFirstGradeVal = batches.reduce((acc, b) => acc + (b.prev_first_grade || 0), 0);
-        document.getElementById('uni-prev-first-grade').value = prevFirstGradeVal || '';
-
         document.getElementById('uni-prev-def-scratch').value = batches.reduce((acc, b) => acc + (b.prev_defect_scratch || 0), 0) || '';
         document.getElementById('uni-prev-def-bad-cut').value = batches.reduce((acc, b) => acc + (b.prev_defect_bad_cut || 0), 0) || '';
         document.getElementById('uni-prev-def-stick-top').value = batches.reduce((acc, b) => acc + (b.prev_defect_stick_top || 0), 0) || '';
@@ -1419,6 +1446,7 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         document.getElementById('uni-prev-def-thickness').value = batches.reduce((acc, b) => acc + (b.prev_defect_thickness || 0), 0) || '';
         document.getElementById('uni-prev-def-edge').value = batches.reduce((acc, b) => acc + (b.prev_defect_edge || 0), 0) || '';
 
+        calcAdminWarehouseTotals();
         calcAdminDefects();
 
         // Tab 5: Downtimes
@@ -1541,6 +1569,14 @@ async function saveUnifiedShiftReport() {
     const lineVal = document.getElementById('uni-line').value;
     const lineFormatted = lineVal.toLowerCase().includes('линия') ? lineVal : `Линия ${lineVal}`;
 
+    const saveBtn = document.getElementById('btn-save-unified-shift');
+    let originalBtnHtml = '';
+    if (saveBtn) {
+        originalBtnHtml = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+    }
+
     const payload = {
         date: document.getElementById('uni-date').value,
         shift_name: document.getElementById('uni-shift-name').value,
@@ -1555,7 +1591,9 @@ async function saveUnifiedShiftReport() {
         lfm_wind_resets: parseInt(document.getElementById('uni-lfm-wind-resets').value) || 0,
         zo_batches: parseInt(document.getElementById('uni-zo-batches').value) || 0,
         warehouse_gp: parseInt(document.getElementById('uni-warehouse-gp').value) || 0,
+        prev_condition: parseInt(document.getElementById('uni-prev-warehouse-gp')?.value) || 0,
         first_grade: parseInt(document.getElementById('uni-first-grade').value) || 0,
+        prev_first_grade: parseInt(document.getElementById('uni-prev-first-grade')?.value) || 0,
         qcd_defect: parseInt(document.getElementById('uni-qcd-defect').value) || 0,
 
         // Chrysotile Silos & Totals
@@ -1633,7 +1671,6 @@ async function saveUnifiedShiftReport() {
         zo_cem_drain: parseFloat(document.getElementById('uni-zo-cem-drain')?.value) || 0,
 
         // Destacker defect breakdown (Own shift)
-        first_grade: parseInt(document.getElementById('uni-first-grade')?.value) || 0,
         ds_defect_scratch: parseInt(document.getElementById('uni-def-scratch')?.value) || 0,
         ds_defect_bad_cut: parseInt(document.getElementById('uni-def-bad-cut')?.value) || 0,
         ds_defect_stick_top: parseInt(document.getElementById('uni-def-stick-top')?.value) || 0,
@@ -1643,7 +1680,6 @@ async function saveUnifiedShiftReport() {
         ds_defect_edge: parseInt(document.getElementById('uni-def-edge')?.value) || 0,
 
         // Destacker defect breakdown (Previous shift)
-        prev_first_grade: parseInt(document.getElementById('uni-prev-first-grade')?.value) || 0,
         prev_defect_scratch: parseInt(document.getElementById('uni-prev-def-scratch')?.value) || 0,
         prev_defect_bad_cut: parseInt(document.getElementById('uni-prev-def-bad-cut')?.value) || 0,
         prev_defect_stick_top: parseInt(document.getElementById('uni-prev-def-stick-top')?.value) || 0,
@@ -1670,6 +1706,11 @@ async function saveUnifiedShiftReport() {
     } catch (e) {
         console.error(e);
         alert("Ошибка сети при сохранении рапорта");
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalBtnHtml;
+        }
     }
 }
 

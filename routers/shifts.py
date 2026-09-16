@@ -937,6 +937,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
                     "ds_defect_thickness": b_prev.ds_defect_thickness if b_prev else 0,
                     "ds_defect_delamination": b_prev.ds_defect_delamination if b_prev else 0,
                     "ds_defect_edge": b_prev.ds_defect_edge if b_prev else 0,
+                    "prev_condition": b_prev.prev_condition if b_prev else 0,
                     "prev_first_grade": b_prev.prev_first_grade if b_prev else 0,
                     "prev_defect": b_prev.prev_defect if b_prev else 0,
                     "prev_defect_scratch": b_prev.prev_defect_scratch if b_prev else 0,
@@ -1042,7 +1043,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     lfm_report.formed_1st_grade = data.first_grade
     lfm_report.formed_defect = data.qcd_defect
     total_warehouse_gp = (data.warehouse_gp or 0) + (data.prev_condition or 0)
-    lfm_report.transferred_to_warehouse = total_warehouse_gp
+    lfm_report.transferred_to_warehouse = data.warehouse_gp or 0
 
     # Update Batch
     batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
@@ -1713,6 +1714,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
                 "ds_defect_thickness": b_prev.ds_defect_thickness if b_prev else 0,
                 "ds_defect_delamination": b_prev.ds_defect_delamination if b_prev else 0,
                 "ds_defect_edge": b_prev.ds_defect_edge if b_prev else 0,
+                "prev_condition": b_prev.prev_condition if b_prev else 0,
                 "prev_first_grade": b_prev.prev_first_grade if b_prev else 0,
                 "prev_defect": b_prev.prev_defect if b_prev else 0,
                 "prev_defect_scratch": b_prev.prev_defect_scratch if b_prev else 0,
@@ -1803,12 +1805,6 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         if data.lfm_wind_resets is not None and lfm_report.lfm_wind_resets != data.lfm_wind_resets:
             changes.append(f"lfm_wind_resets: {lfm_report.lfm_wind_resets} -> {data.lfm_wind_resets}")
             lfm_report.lfm_wind_resets = data.lfm_wind_resets
-        if data.warehouse_gp is not None and lfm_report.transferred_to_warehouse != data.warehouse_gp:
-            changes.append(f"transferred_to_warehouse: {lfm_report.transferred_to_warehouse} -> {data.warehouse_gp}")
-            lfm_report.transferred_to_warehouse = data.warehouse_gp
-        if data.first_grade is not None and lfm_report.formed_1st_grade != data.first_grade:
-            changes.append(f"formed_1st_grade: {lfm_report.formed_1st_grade} -> {data.first_grade}")
-            lfm_report.formed_1st_grade = data.first_grade
         if data.qcd_defect is not None and lfm_report.formed_defect != data.qcd_defect:
             changes.append(f"formed_defect: {lfm_report.formed_defect} -> {data.qcd_defect}")
             lfm_report.formed_defect = data.qcd_defect
@@ -1835,11 +1831,15 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         batch.export_type = shift.export_type or "Эталон"
         
     if data.warehouse_gp is not None:
-        batch.ds_condition = data.warehouse_gp
-        batch.qcd_condition = data.warehouse_gp
+        if batch.ds_condition != data.warehouse_gp:
+            changes.append(f"ds_condition: {batch.ds_condition} -> {data.warehouse_gp}")
+            batch.ds_condition = data.warehouse_gp
+
     if data.first_grade is not None:
-        batch.ds_first_grade = data.first_grade
-        batch.qcd_first_grade = data.first_grade
+        if batch.ds_first_grade != data.first_grade:
+            changes.append(f"ds_first_grade: {batch.ds_first_grade} -> {data.first_grade}")
+            batch.ds_first_grade = data.first_grade
+
     if data.qcd_defect is not None:
         batch.qcd_defect = data.qcd_defect
         
@@ -1868,12 +1868,15 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
             changes.append(f"prev_condition: {batch.prev_condition} -> {data.prev_condition}")
             batch.prev_condition = data.prev_condition
 
+    if data.prev_first_grade is not None:
+        if batch.prev_first_grade != data.prev_first_grade:
+            changes.append(f"prev_first_grade: {batch.prev_first_grade} -> {data.prev_first_grade}")
+            batch.prev_first_grade = data.prev_first_grade
+
     prev_defect_fields = [
         "prev_defect_scratch", "prev_defect_bad_cut", "prev_defect_stick_top",
         "prev_defect_broken", "prev_defect_fell_box", "prev_defect_thickness", "prev_defect_edge"
     ]
-    if data.prev_first_grade is not None:
-        batch.prev_first_grade = data.prev_first_grade
     total_prev_defect = 0
     for pf_name in prev_defect_fields:
         pval = getattr(data, pf_name, None)
@@ -1890,7 +1893,12 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     # Total warehouse GP in batch and lfm_report
     total_wh = (batch.ds_condition or 0) + (batch.prev_condition or 0)
     batch.qcd_condition = total_wh
-    lfm_report.transferred_to_warehouse = total_wh
+    lfm_report.transferred_to_warehouse = batch.ds_condition or 0
+
+    # Total 1st grade in batch and lfm_report
+    total_1st = (batch.ds_first_grade or 0) + (batch.prev_first_grade or 0)
+    batch.qcd_first_grade = total_1st
+    lfm_report.formed_1st_grade = batch.ds_first_grade or 0
     
     if changes or snapshot_before:
         log_entry = models.AuditLog(

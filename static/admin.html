@@ -2439,7 +2439,7 @@
                         class="fa-solid fa-cubes-stacked"></i> Сырье (ЗО)</button>
                 <button class="tab-btn" id="btn-tab-defect" onclick="switchUnifiedTab('defect')"
                     style="padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); width: auto;"><i
-                        class="fa-solid fa-triangle-exclamation"></i> Брак (Дестакер)</button>
+                        class="fa-solid fa-boxes-stacked"></i> Переборка и Брак</button>
                 <button class="tab-btn" id="btn-tab-downtimes" onclick="switchUnifiedTab('downtimes')"
                     style="padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(255,255,255,0.1); width: auto;"><i
                         class="fa-solid fa-clock"></i> Простои</button>
@@ -2499,7 +2499,7 @@
 
             <!-- Tab 2: Production -->
             <div id="unified-tab-prod" class="unified-tab-content" style="display: none;">
-                <h4 style="margin-bottom: 1rem; color: var(--text-secondary);">Показатели выработки продукции</h4>
+                <h4 style="margin-bottom: 1rem; color: var(--text-secondary);">Показатели выработки продукции (Формовка ЛФМ и ЗО)</h4>
                 <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
                     <div>
                         <label title="Всего сформованных листов">Формовка: Листов (ЛФМ)</label>
@@ -2512,14 +2512,6 @@
                     <div>
                         <label title="Количество замесов">Замесы ЗО (шт)</label>
                         <input type="number" id="uni-zo-batches" step="1" min="0">
-                    </div>
-                    <div>
-                        <label title="Передано на склад ГП (годных)">Разборка: Склад ГП (листы)</label>
-                        <input type="number" id="uni-warehouse-gp" step="1" min="0">
-                    </div>
-                    <div>
-                        <label title="В том числе 1 сорт">Разборка: 1 сорт (листы)</label>
-                        <input type="number" id="uni-first-grade" step="1" min="0">
                     </div>
                     <div>
                         <label title="Брак по данным ОТК (СКК)">Брак ОТК / СКК (листы)</label>
@@ -2842,33 +2834,33 @@
                 </div>
             </div>
 
-            <!-- Tab 4: Destacker Defects -->
+            <!-- Tab 4: Destacker Defects & Sorting (Переборка и Брак) -->
             <div id="unified-tab-defect" class="unified-tab-content" style="display: none;">
                 <!-- БЛОК 1: СВОЯ СМЕНА -->
                 <div
-                    style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border); margin-bottom: 1.2rem;">
+                    style="background: rgba(2, 132, 199, 0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(2, 132, 199, 0.25); margin-bottom: 1.2rem;">
                     <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                        <h4 style="margin: 0; color: var(--danger-color); font-size: 0.95rem; font-weight: 700;">🔹 Своя
-                            смена (Дестакер)</h4>
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="margin: 0; color: #0284c7; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            🔹 Своя смена</h4>
+                        <span style="background: rgba(2, 132, 199, 0.15); color: #0284c7; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">Текущая смена</span>
                     </div>
                     <div class="form-grid"
-                        style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; margin-bottom: 0.8rem;">
+                        style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>На склад ГП своей смены (листов)</label>
+                            <input type="number" id="uni-warehouse-gp" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
+                        </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>1 Сорт своей смены (листов)</label>
-                            <input type="number" id="uni-first-grade" step="1" min="0" placeholder="0">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Итого брака своей смены (авто)</label>
-                            <input type="number" id="uni-defect-total-readonly" readonly placeholder="0"
-                                style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--danger-color);">
+                            <input type="number" id="uni-first-grade" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
                         </div>
                     </div>
                     <div
-                        style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 600;">
-                        Детализация 7 дефектов Дестакера (своя смена):</div>
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem; font-weight: 600;">
+                        Детализация дефектов Дестакера (своя смена):</div>
                     <div class="form-grid"
-                        style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem;">
+                        style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem; margin-bottom: 0.8rem;">
                         <div class="form-group" style="margin-bottom:0;"><label>Сдир</label><input type="number"
                                 id="uni-def-scratch" step="1" min="0" oninput="calcAdminDefects()"></div>
                         <div class="form-group" style="margin-bottom:0;"><label>Плохой рез</label><input type="number"
@@ -2885,33 +2877,38 @@
                         <div class="form-group" style="margin-bottom:0;"><label>Кромка</label><input type="number"
                                 id="uni-def-edge" step="1" min="0" oninput="calcAdminDefects()"></div>
                     </div>
+                    <div class="form-group" style="margin-bottom:0; max-width: 280px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака своей смены (авто)</label>
+                        <input type="number" id="uni-defect-total-readonly" readonly placeholder="0"
+                            style="background: rgba(220, 38, 38, 0.08); font-weight: bold; color: var(--danger-color);">
+                    </div>
                 </div>
 
                 <!-- БЛОК 2: ПРЕДЫДУЩАЯ СМЕНА -->
                 <div
-                    style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    style="background: rgba(245, 158, 11, 0.05); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.25); margin-bottom: 1.2rem;">
                     <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                        <h4 style="margin: 0; color: #f59e0b; font-size: 0.95rem; font-weight: 700;">🔸 Предыдущая смена
-                            (из камеры твердения)</h4>
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="margin: 0; color: #f59e0b; font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            🔸 Предыдущая смена (из камеры твердения)</h4>
+                        <span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">Предыдущая смена</span>
                     </div>
                     <div class="form-grid"
-                        style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; margin-bottom: 0.8rem;">
+                        style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>На склад ГП прошлой смены (листов)</label>
+                            <input type="number" id="uni-prev-warehouse-gp" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
+                        </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label>1 Сорт прошлой смены (листов)</label>
-                            <input type="number" id="uni-prev-first-grade" step="1" min="0" placeholder="0">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label>Итого брака прошлой смены (авто)</label>
-                            <input type="number" id="uni-prev-defect-total-readonly" readonly placeholder="0"
-                                style="background: rgba(255,255,255,0.02); font-weight: bold; color: #f59e0b;">
+                            <input type="number" id="uni-prev-first-grade" step="1" min="0" placeholder="0" oninput="calcAdminWarehouseTotals()">
                         </div>
                     </div>
                     <div
-                        style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 600;">
-                        Детализация 7 дефектов Дестакера (прошлая смена):</div>
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem; font-weight: 600;">
+                        Детализация дефектов Дестакера (прошлая смена):</div>
                     <div class="form-grid"
-                        style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem;">
+                        style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem; margin-bottom: 0.8rem;">
                         <div class="form-group" style="margin-bottom:0;"><label>Сдир</label><input type="number"
                                 id="uni-prev-def-scratch" step="1" min="0" oninput="calcAdminDefects()"></div>
                         <div class="form-group" style="margin-bottom:0;"><label>Плохой рез</label><input type="number"
@@ -2927,6 +2924,33 @@
                         </div>
                         <div class="form-group" style="margin-bottom:0;"><label>Кромка</label><input type="number"
                                 id="uni-prev-def-edge" step="1" min="0" oninput="calcAdminDefects()"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; max-width: 280px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary);">Итого брака прошлой смены (авто)</label>
+                        <input type="number" id="uni-prev-defect-total-readonly" readonly placeholder="0"
+                            style="background: rgba(245, 158, 11, 0.08); font-weight: bold; color: #f59e0b;">
+                    </div>
+                </div>
+
+                <!-- ИТОГО НА СКЛАД ГП (АВТОМАТИЧЕСКАЯ СУММА ВНИЗУ БЛОКА КАК НА ПОРТАЛЕ) -->
+                <div
+                    style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="font-weight: 700; color: #10b981; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                            📦 Всего на склад ГП (авто)</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">Сумма своей и предыдущей смены</div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">1 Сорт (всего)</span>
+                            <input type="text" id="uni-first-grade-total-readonly" readonly placeholder="0"
+                                style="width: 110px; text-align: right; font-size: 1.15rem; font-weight: 800; color: var(--primary-color); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.4rem 0.75rem;">
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Склад ГП (всего)</span>
+                            <input type="text" id="uni-warehouse-gp-total-readonly" readonly placeholder="0"
+                                style="width: 130px; text-align: right; font-size: 1.25rem; font-weight: 800; color: #10b981; background: rgba(255,255,255,0.05); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 0.4rem 0.75rem;">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2957,7 +2981,7 @@
                 style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
                 <button type="button" onclick="closeModals()" class="btn-secondary"
                     style="width: auto; padding: 0.6rem 1.5rem;">Отмена</button>
-                <button onclick="saveUnifiedShiftReport()" class="btn-save"
+                <button id="btn-save-unified-shift" onclick="saveUnifiedShiftReport()" class="btn-save"
                     style="width: auto; padding: 0.6rem 2rem;"><i class="fa-solid fa-check"></i> Сохранить
                     изменения</button>
             </div>

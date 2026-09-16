@@ -489,9 +489,9 @@ def generate_full_backup_excel(db: Session) -> bytes:
         formovka_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
         formovka_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) for r in s.lfm_reports) / 1000.0
         
-        qcd_condition = sum(b.qcd_condition for b in s.batches)
-        qcd_first = sum(b.qcd_first_grade for b in s.batches)
-        qcd_defect = sum(b.qcd_defect for b in s.batches)
+        qcd_condition = sum(b.ds_condition for b in s.batches)
+        qcd_first = sum(b.ds_first_grade for b in s.batches)
+        qcd_defect = sum(b.ds_defect for b in s.batches)
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
         
         theory = {
