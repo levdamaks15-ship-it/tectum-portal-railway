@@ -1040,10 +1040,11 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     lfm_report.export_type = data.export_type or "Эталон"
     lfm_report.lfm_sheets = data.lfm_sheets
     lfm_report.lfm_wind_resets = data.lfm_wind_resets
-    lfm_report.formed_1st_grade = data.first_grade
-    lfm_report.formed_defect = data.qcd_defect
     total_warehouse_gp = (data.warehouse_gp or 0) + (data.prev_condition or 0)
-    lfm_report.transferred_to_warehouse = data.warehouse_gp or 0
+    total_first_grade = (data.first_grade or 0) + (data.prev_first_grade or 0)
+    lfm_report.formed_1st_grade = total_first_grade
+    lfm_report.formed_defect = data.qcd_defect
+    lfm_report.transferred_to_warehouse = total_warehouse_gp
 
     # Update Batch
     batch = db.query(models.Batch).filter(models.Batch.shift_id == shift.id).first()
@@ -1097,7 +1098,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     batch.prev_defect_edge = data.prev_defect_edge or 0
 
     batch.qcd_condition = total_warehouse_gp
-    batch.qcd_first_grade = data.first_grade
+    batch.qcd_first_grade = total_first_grade
     batch.qcd_defect = ds_defect_sum
 
     db.commit()
@@ -1893,12 +1894,12 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     # Total warehouse GP in batch and lfm_report
     total_wh = (batch.ds_condition or 0) + (batch.prev_condition or 0)
     batch.qcd_condition = total_wh
-    lfm_report.transferred_to_warehouse = batch.ds_condition or 0
+    lfm_report.transferred_to_warehouse = total_wh
 
     # Total 1st grade in batch and lfm_report
     total_1st = (batch.ds_first_grade or 0) + (batch.prev_first_grade or 0)
     batch.qcd_first_grade = total_1st
-    lfm_report.formed_1st_grade = batch.ds_first_grade or 0
+    lfm_report.formed_1st_grade = total_1st
     
     if changes or snapshot_before:
         log_entry = models.AuditLog(

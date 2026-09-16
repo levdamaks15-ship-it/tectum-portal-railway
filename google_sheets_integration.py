@@ -199,7 +199,7 @@ def sync_report_to_google_sheets(db: Session):
         # Проверяем, есть ли плановые или фактические показатели производства в смене
         plan_sheets_check = s.plan_sheets or 0
         formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
-        warehouse_gp_check = sum(b.ds_condition for b in s.batches)
+        warehouse_gp_check = sum(((b.ds_condition or 0) + (b.prev_condition or 0)) for b in s.batches)
         zo_batches_check = s.zo_batches or 0
         
         if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
@@ -215,7 +215,7 @@ def sync_report_to_google_sheets(db: Session):
         ) / 1000.0
         
         qcd_condition = warehouse_gp_check
-        qcd_first = sum(b.ds_first_grade for b in s.batches)
+        qcd_first = sum(((b.ds_first_grade or 0) + (b.prev_first_grade or 0)) for b in s.batches)
         qcd_defect = sum(b.ds_defect for b in s.batches)
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
         

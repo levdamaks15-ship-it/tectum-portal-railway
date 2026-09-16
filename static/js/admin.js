@@ -1180,14 +1180,14 @@ function filterShifts() {
             ? `<span style="color: var(--success-color); font-size: 0.8rem;"><i class="fa-solid fa-circle-check"></i> active</span>`
             : `<span style="color: var(--text-secondary); font-size: 0.8rem;"><i class="fa-solid fa-lock"></i> closed</span>`;
 
-        let warehouseDisplay = `Склад: <b style="color: var(--success-color);">${ownWarehouseGp}</b>`;
+        let warehouseDisplay = `Склад: <b style="color: var(--success-color);">${warehouseGp}</b>`;
         if (prevWarehouseGp > 0) {
-            warehouseDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="Переборка прошлой смены">+${prevWarehouseGp} переборка</span>`;
+            warehouseDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="Своя: ${ownWarehouseGp}, Прошлая: ${prevWarehouseGp}">(${ownWarehouseGp}+${prevWarehouseGp})</span>`;
         }
 
-        let firstGradeDisplay = `1 сорт: <b>${ownFirstGrade}</b>`;
+        let firstGradeDisplay = `1 сорт: <b>${firstGrade}</b>`;
         if (prevFirstGrade > 0) {
-            firstGradeDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="1 сорт прошлой смены">+${prevFirstGrade} переборка</span>`;
+            firstGradeDisplay += ` <span style="background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid rgba(255,255,255,0.12); padding: 1px 5px; border-radius: 4px; font-size: 0.72rem;" title="Своя: ${ownFirstGrade}, Прошлая: ${prevFirstGrade}">(${ownFirstGrade}+${prevFirstGrade})</span>`;
         }
 
         tbody.innerHTML += `
