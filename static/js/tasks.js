@@ -2461,8 +2461,8 @@ function initCardSwipeGestures() {
 /* ── Свайп шторок (Bottom Sheets) вниз для закрытия ──────────────────── */
 function initBottomSheetSwipeGestures() {
     const sheets = [
-        { sheetId: 'apple-filter-sheet', panelClass: '.apple-filter-panel', closeFn: toggleFilterSheet },
-        { sheetId: 'apple-date-sheet', panelClass: '.apple-date-panel', closeFn: typeof closeAppleDatePicker === 'function' ? closeAppleDatePicker : null }
+        { sheetId: 'apple-filter-sheet', panelClass: '.apple-filter-panel', closeFn: () => { if (typeof toggleFilterSheet === 'function') toggleFilterSheet(); } },
+        { sheetId: 'apple-date-sheet', panelClass: '.apple-date-panel', closeFn: () => { if (typeof closeAppleDatePicker === 'function') closeAppleDatePicker(); } }
     ];
 
     sheets.forEach(({ sheetId, panelClass, closeFn }) => {
@@ -2472,13 +2472,15 @@ function initBottomSheetSwipeGestures() {
         if (!panel) return;
 
         let startY = 0;
+        let startX = 0;
         let currentY = 0;
         let isDragging = false;
 
         panel.addEventListener('touchstart', (e) => {
             if (e.touches.length !== 1) return;
-            if (panel.scrollTop <= 0) {
+            if (panel.scrollTop <= 5) {
                 startY = e.touches[0].clientY;
+                startX = e.touches[0].clientX;
                 currentY = 0;
                 isDragging = true;
                 panel.style.transition = 'none';
@@ -2488,18 +2490,32 @@ function initBottomSheetSwipeGestures() {
         panel.addEventListener('touchmove', (e) => {
             if (!isDragging || e.touches.length !== 1) return;
             const dy = e.touches[0].clientY - startY;
+            const dx = e.touches[0].clientX - startX;
+
+            // Если тянем вниз от верха шторки
             if (dy > 0 && panel.scrollTop <= 0) {
+                // Блокируем системный pull-to-refresh браузера
+                if (e.cancelable && Math.abs(dy) > Math.abs(dx)) {
+                    e.preventDefault();
+                }
                 currentY = dy;
                 panel.style.transform = `translateY(${dy}px)`;
+            } else if (dy < 0 && panel.scrollTop <= 0) {
+                currentY = 0;
+                panel.style.transform = 'translateY(0)';
             }
-        }, { passive: true });
+        }, { passive: false });
 
         const endDrag = () => {
             if (!isDragging) return;
             isDragging = false;
             panel.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
-            if (currentY > 70) {
-                closeFn();
+            if (currentY > 50) {
+                panel.style.transform = 'translateY(100%)';
+                setTimeout(() => {
+                    closeFn();
+                    panel.style.transform = 'translateY(0)';
+                }, 280);
             } else {
                 panel.style.transform = 'translateY(0)';
             }

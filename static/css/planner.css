@@ -1742,3 +1742,17 @@ tr.task-row-backlog td:first-child {
     font-weight: 700 !important;
 }
 
+/* ── Prevent Mobile Pull-to-Refresh on Bottom Sheets ─────────── */
+#apple-filter-sheet,
+#apple-date-sheet {
+    overscroll-behavior: contain !important;
+    overscroll-behavior-y: contain !important;
+}
+
+.apple-filter-panel,
+.apple-date-panel {
+    overscroll-behavior: contain !important;
+    overscroll-behavior-y: contain !important;
+}
+
+
