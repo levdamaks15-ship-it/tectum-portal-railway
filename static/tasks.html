@@ -2165,16 +2165,16 @@
             <table class="planner-table">
                 <thead>
                     <tr>
-                        <th style="width: 75px;" id="th-col-id">
-                            <div style="display: flex; align-items: center; gap: 5px;">
+                        <th style="width: 60px;" id="th-col-id">
+                            <div style="display: flex; align-items: center; gap: 4px;">
                                 <input type="checkbox" id="th-select-all-services"
                                     onchange="toggleSelectAllServices(this.checked)"
-                                    style="display: none; cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;"
+                                    style="display: none; cursor: pointer; width: 14px; height: 14px; accent-color: #2563eb;"
                                     title="Выбрать все задачи">
                                 <span>ID</span>
                             </div>
                         </th>
-                        <th style="width: 150px;">
+                        <th style="width: 105px; min-width: 105px;">
                             <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
                             <select class="select-filter" id="table-filter-zone"
                                 onchange="syncDesktopFilter('zone', this.value)"
@@ -2182,10 +2182,10 @@
                                 <option value="all">📁 Все зоны</option>
                             </select>
                         </th>
-                        <th>Суть задачи (RU)</th>
-                        <th>Суть задачи (KZ)</th>
-                        <th style="width: 60px; text-align: center;">Фото</th>
-                        <th style="width: 130px;">
+                        <th style="width: 28%; min-width: 250px;">Суть задачи (RU)</th>
+                        <th style="width: 22%; min-width: 200px;">Суть задачи (KZ)</th>
+                        <th style="width: 40px; text-align: center;">Фото</th>
+                        <th style="width: 85px; min-width: 85px;">
                             <div class="th-title" style="margin-bottom: 4px;">Автор</div>
                             <select class="select-filter" id="table-filter-author"
                                 onchange="syncDesktopFilter('author', this.value)"
@@ -2193,7 +2193,7 @@
                                 <option value="all">✍️ Все авторы</option>
                             </select>
                         </th>
-                        <th style="width: 140px;">
+                        <th style="width: 95px; min-width: 95px;">
                             <div class="th-title" style="margin-bottom: 4px;">Исполнитель</div>
                             <select class="select-filter" id="table-filter-assignee"
                                 onchange="syncDesktopFilter('assignee', this.value)"
@@ -2201,8 +2201,8 @@
                                 <option value="all">👤 Все исполн.</option>
                             </select>
                         </th>
-                        <th style="width: 80px; white-space: nowrap;">Срок</th>
-                        <th style="width: 140px; min-width: 140px; text-align: center; white-space: nowrap;">
+                        <th style="width: 68px; white-space: nowrap; text-align: center;">Срок</th>
+                        <th style="width: 110px; min-width: 110px; text-align: center; white-space: nowrap;">
                             <div class="th-title" style="margin-bottom: 4px;">Статус</div>
                             <select class="select-filter" id="table-filter-status"
                                 onchange="syncDesktopFilter('status', this.value)"
@@ -2214,8 +2214,8 @@
                                 <option value="🔴 Отменено">🔴 Отменено</option>
                             </select>
                         </th>
-                        <th>Факт / Комментарий</th>
-                        <th style="width: 70px; text-align: center;">Действия</th>
+                        <th style="width: 12%; min-width: 110px;">Факт / Комментарий</th>
+                        <th style="width: 65px; text-align: center;">Действия</th>
                     </tr>
                 </thead>
                 <tbody id="tasks-table-body">
@@ -2980,7 +2980,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_swipe_physics_v2"></script>
+    <script src="/static/js/tasks.js?v=20260921_columns_width_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

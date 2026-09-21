@@ -2096,27 +2096,27 @@ function renderTasksTable(tasks) {
                 <td>
                     ${zoneAndDeptHtml}
                 </td>
-                <td class="${titleClass}" style="font-weight: 600; min-width: 170px; color: #0f172a;">
+                <td class="${titleClass}" style="font-weight: 600; min-width: 250px; color: #0f172a; line-height: 1.35; word-break: break-word;">
                     <div>${t.title || '—'}</div>
                     ${docBadge}
                     ${depBadge}
                     ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
                 </td>
-                <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 150px;">${t.title_kz || '—'}</td>
+                <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 200px; line-height: 1.35; word-break: break-word;">${t.title_kz || '—'}</td>
                 <td style="text-align: center;">${photoBtn}</td>
                 
                 <!-- Pure Text Author -->
-                <td style="font-size: 0.85rem; color: #475569; white-space: nowrap;">
+                <td style="font-size: 0.82rem; color: #475569; white-space: nowrap; max-width: 85px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.author_name || '')}">
                     ${t.author_name || '—'}
                 </td>
 
                 <!-- Pure Text Assignee -->
-                <td style="font-weight: 600; font-size: 0.85rem; color: #1d4ed8; white-space: nowrap;">
+                <td style="font-weight: 600; font-size: 0.82rem; color: #1d4ed8; white-space: nowrap; max-width: 95px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.assignee_name || '')}">
                     ${t.assignee_name || '—'}
                 </td>
 
-                <td>${dueDateCell}</td>
-                <td style="text-align: center; white-space: nowrap; min-width: 140px;">
+                <td style="text-align: center; white-space: nowrap;">${dueDateCell}</td>
+                <td style="text-align: center; white-space: nowrap; min-width: 110px;">
                     <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
                         <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                         <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
