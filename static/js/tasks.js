@@ -2461,7 +2461,7 @@ function initCardSwipeGestures() {
 /* ── Свайп шторок (Bottom Sheets) вниз для закрытия ──────────────────── */
 function initBottomSheetSwipeGestures() {
     const sheets = [
-        { sheetId: 'apple-filter-sheet', panelClass: '.apple-filter-panel', closeFn: () => { if (typeof toggleFilterSheet === 'function') toggleFilterSheet(); } },
+        { sheetId: 'apple-filter-sheet', panelClass: '.apple-filter-panel', closeFn: () => { if (typeof closeFilterSheet === 'function') closeFilterSheet(); else if (typeof toggleFilterSheet === 'function') toggleFilterSheet(); } },
         { sheetId: 'apple-date-sheet', panelClass: '.apple-date-panel', closeFn: () => { if (typeof closeAppleDatePicker === 'function') closeAppleDatePicker(); } }
     ];
 
@@ -2509,14 +2509,10 @@ function initBottomSheetSwipeGestures() {
         const endDrag = () => {
             if (!isDragging) return;
             isDragging = false;
-            panel.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
-            if (currentY > 50) {
-                panel.style.transform = 'translateY(100%)';
-                setTimeout(() => {
-                    closeFn();
-                    panel.style.transform = 'translateY(0)';
-                }, 280);
+            if (currentY > 60) {
+                closeFn();
             } else {
+                panel.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
                 panel.style.transform = 'translateY(0)';
             }
             currentY = 0;

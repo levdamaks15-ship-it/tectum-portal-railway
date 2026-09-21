@@ -2987,7 +2987,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_sheet_swipe_fix_v1"></script>
+    <script src="/static/js/tasks.js?v=20260921_sheet_bounce_fix_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
@@ -3099,16 +3099,45 @@
     </div>
 
     <script>
+    function openFilterSheet() {
+        const sheet = document.getElementById('apple-filter-sheet');
+        if (!sheet) return;
+        const panel = sheet.querySelector('.apple-filter-panel');
+        const backdrop = sheet.children[0];
+        if (typeof updateFilterSheetUI === 'function') updateFilterSheetUI();
+        sheet.style.display = 'block';
+        if (backdrop) backdrop.style.opacity = '1';
+        panel.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        panel.style.transform = 'translateY(100%)';
+        requestAnimationFrame(() => {
+            panel.style.transform = 'translateY(0)';
+        });
+    }
+
+    function closeFilterSheet() {
+        const sheet = document.getElementById('apple-filter-sheet');
+        if (!sheet) return;
+        const panel = sheet.querySelector('.apple-filter-panel');
+        const backdrop = sheet.children[0];
+        panel.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+        panel.style.transform = 'translateY(100%)';
+        if (backdrop) {
+            backdrop.style.transition = 'opacity 0.25s ease';
+            backdrop.style.opacity = '0';
+        }
+        setTimeout(() => {
+            sheet.style.display = 'none';
+            if (backdrop) backdrop.style.opacity = '1';
+        }, 260);
+    }
+
     function toggleFilterSheet() {
         const sheet = document.getElementById('apple-filter-sheet');
-        const panel = sheet.querySelector('.apple-filter-panel');
+        if (!sheet) return;
         if (sheet.style.display === 'none' || !sheet.style.display) {
-            if (typeof updateFilterSheetUI === 'function') updateFilterSheetUI();
-            sheet.style.display = 'block';
-            setTimeout(() => { panel.style.transform = 'translateY(0)'; }, 10);
+            openFilterSheet();
         } else {
-            panel.style.transform = 'translateY(100%)';
-            setTimeout(() => { sheet.style.display = 'none'; }, 320);
+            closeFilterSheet();
         }
     }
 
@@ -3118,17 +3147,34 @@
     function openAppleDatePicker(tab) {
         currentAppleDateTab = tab || 'month';
         const sheet = document.getElementById('apple-date-sheet');
+        if (!sheet) return;
         const panel = sheet.querySelector('.apple-date-panel');
+        const backdrop = sheet.children[0];
         renderAppleDateTab();
         sheet.style.display = 'block';
-        setTimeout(() => { panel.style.transform = 'translateY(0)'; }, 10);
+        if (backdrop) backdrop.style.opacity = '1';
+        panel.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        panel.style.transform = 'translateY(100%)';
+        requestAnimationFrame(() => {
+            panel.style.transform = 'translateY(0)';
+        });
     }
 
     function closeAppleDatePicker() {
         const sheet = document.getElementById('apple-date-sheet');
+        if (!sheet) return;
         const panel = sheet.querySelector('.apple-date-panel');
+        const backdrop = sheet.children[0];
+        panel.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
         panel.style.transform = 'translateY(100%)';
-        setTimeout(() => { sheet.style.display = 'none'; }, 320);
+        if (backdrop) {
+            backdrop.style.transition = 'opacity 0.25s ease';
+            backdrop.style.opacity = '0';
+        }
+        setTimeout(() => {
+            sheet.style.display = 'none';
+            if (backdrop) backdrop.style.opacity = '1';
+        }, 260);
     }
 
     function switchAppleDateTab(tab) {
