@@ -837,28 +837,22 @@ def get_tasks(
 
         # Парсим границы выбранной недели
         sel_week_start, sel_week_end = parse_week_label_range(week, month)
+        prev_week_start = (sel_week_start - timedelta(days=7)) if (sel_week_start and include_backlog) else None
+        prev_week_end = (sel_week_end - timedelta(days=7)) if (sel_week_end and include_backlog) else None
+        prev_patt = f"{prev_week_start.strftime('%d.%m')} - {prev_week_end.strftime('%d.%m')}" if (prev_week_start and prev_week_end) else None
 
-        # Если выбрана конкретная неделя: запрашиваем родные задачи + активные кандидаты на сквозные задачи
+        # Если выбрана конкретная неделя: запрашиваем родные задачи + кандидаты прошлой недели / сквозные
         if week and week != "all":
-            if include_backlog:
-                # Включая долги прошлых периодов
-                if month and month != "all":
-                    week_match = and_(models.Task.month_label == month, models.Task.week_label == week)
-                    backlog_match = and_(
-                        models.Task.status != "🟢 Выполнено",
-                        models.Task.status != "🔴 Отменено"
-                    )
-                    query = query.filter(or_(week_match, backlog_match))
-                else:
-                    week_match = (models.Task.week_label == week)
-                    backlog_match = and_(
-                        models.Task.status != "🟢 Выполнено",
-                        models.Task.status != "🔴 Отменено"
-                    )
-                    query = query.filter(or_(week_match, backlog_match))
+            week_match = and_(models.Task.month_label == month, models.Task.week_label == week) if (month and month != "all") else (models.Task.week_label == week)
+            if include_backlog and prev_patt:
+                prev_week_match = models.Task.week_label.ilike(f"%{prev_patt}%")
+                cross_candidate_match = and_(
+                    models.Task.status != "🔴 Отменено",
+                    models.Task.due_date_str.isnot(None),
+                    models.Task.due_date_str != ""
+                )
+                query = query.filter(or_(week_match, prev_week_match, cross_candidate_match))
             else:
-                # Выбираем задачи родной недели ИЛИ активные задачи с дедлайном для сквозного отображения
-                week_match = and_(models.Task.month_label == month, models.Task.week_label == week) if (month and month != "all") else (models.Task.week_label == week)
                 cross_candidate_match = and_(
                     models.Task.status != "🔴 Отменено",
                     models.Task.due_date_str.isnot(None),
@@ -871,7 +865,7 @@ def get_tasks(
 
         raw_tasks = query.order_by(models.Task.id.desc()).all()
 
-        # Фильтрация сквозных задач по временному диапазону
+        # Фильтрация задач по временному диапазону
         filtered_tasks = []
         for t in raw_tasks:
             # 1. Родная задача текущей недели
@@ -881,23 +875,32 @@ def get_tasks(
                 filtered_tasks.append(t)
                 continue
 
-            # 2. Если включен бэклог долгов
-            if include_backlog and t.status != "🟢 Выполнено" and t.status != "🔴 Отменено":
-                filtered_tasks.append(t)
-                continue
+            # 2. Если включен режим задач прошлой недели:
+            if include_backlog and prev_week_start and prev_week_end:
+                t_orig_start, _ = parse_week_label_range(t.week_label, t.month_label)
+                if not t_orig_start and t.created_at:
+                    t_orig_start = t.created_at.date()
+                
+                is_prev_week_task = False
+                if prev_patt and t.week_label and prev_patt in t.week_label:
+                    is_prev_week_task = True
+                elif t_orig_start and (prev_week_start <= t_orig_start <= prev_week_end):
+                    is_prev_week_task = True
+
+                if is_prev_week_task:
+                    # Включаем задачу прошлой недели СО ВСЕМИ СТАТУСАМИ (включая Выполнено и Отменено)
+                    filtered_tasks.append(t)
+                    continue
 
             # 3. Проверка сквозной активности по диапазону [start, due_date]
             if sel_week_start and sel_week_end:
                 t_due = parse_date_dm_or_full(t.due_date_str)
-                # Начало задачи: из created_at или начала родной недели задачи
                 t_orig_start, _ = parse_week_label_range(t.week_label, t.month_label)
                 if not t_orig_start and t.created_at:
                     t_orig_start = t.created_at.date()
 
                 if t_due and t_orig_start:
-                    # Задача активна на текущей неделе, если старт <= конец недели И дедлайн >= начало недели
                     if t_orig_start <= sel_week_end and t_due >= sel_week_start:
-                        # Если задача уже завершена, показываем ее только если она была завершена на этой неделе или дедлайн на этой неделе
                         if t.status == "🟢 Выполнено" and t.completed_at and t.completed_at.date() < sel_week_start:
                             continue
                         filtered_tasks.append(t)

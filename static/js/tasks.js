@@ -1973,8 +1973,8 @@ function renderTasksTable(tasks) {
 
         const backlogBadge = t.is_backlog ? `
             <div style="margin-top: 4px;">
-                <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
-                    <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Долг'}
+                <span class="badge-backlog" title="Задача прошлой недели: ${t.week_label || ''}" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label : 'Прошлая неделя'}
                 </span>
             </div>
         ` : '';
@@ -2162,8 +2162,8 @@ function renderTasksCards(tasks) {
         }
 
         const backlogBadge = t.is_backlog ? `
-            <span class="badge-backlog" title="Переходящая задача с прошлой недели: ${t.week_label || ''}">
-                <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Долг'}
+            <span class="badge-backlog" title="Задача прошлой недели: ${t.week_label || ''}" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600;">
+                <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label : 'Прошлая неделя'}
             </span>
         ` : '';
 
@@ -2382,10 +2382,12 @@ function toggleBacklog() {
     if (btn) {
         if (showBacklog) {
             btn.classList.add("btn-backlog-active");
-            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left" style="color: #fbbf24;"></i> <span>Долги включены</span>`;
+            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left" style="color: #fbbf24;"></i> <span>Прошлая нед. ✓</span>`;
+            showToast("Включены задачи прошлой недели (все статусы)");
         } else {
             btn.classList.remove("btn-backlog-active");
-            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span>Долги с прошлых недель</span>`;
+            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Прошлая неделя</span><span class="mobile-only">Прошлая нед.</span>`;
+            showToast("Показаны только задачи текущей недели");
         }
     }
     loadTasks();
