@@ -2336,27 +2336,26 @@ function initCardSwipeGestures() {
                 currentX = dx;
 
                 if (dx > 0) {
-                    const clamped = Math.min(dx, 120);
-                    card.style.transform = `translateX(${clamped}px)`;
+                    // Эластичное мягкое сопротивление после 100px
+                    const offset = dx > 100 ? (100 + (dx - 100) * 0.25) : dx;
+                    card.style.transform = `translateX(${Math.min(offset, 140)}px)`;
                 } else {
-                    const clamped = Math.max(dx, -220);
-                    card.style.transform = `translateX(${clamped}px)`;
+                    // Эластичное мягкое сопротивление после -204px
+                    const offset = dx < -204 ? (-204 + (dx + 204) * 0.25) : dx;
+                    card.style.transform = `translateX(${Math.max(offset, -240)}px)`;
                 }
             }
         }, { passive: true });
 
         const endOrCancel = () => {
             if (!isSwiping) return;
-            card.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+            card.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
 
-            if (currentX > 80) {
-                // СВАЙП ВПРАВО → Диалог подтверждения выполнения
-                card.style.transform = 'translateX(0)';
-                setTimeout(() => {
-                    quickUpdateStatus(taskId, '🟢 Выполнено');
-                }, 80);
-                activeSwipedCard = null;
-            } else if (currentX < -65) {
+            if (currentX > 50) {
+                // СВАЙП ВПРАВО → Мягко раскрыть зеленую кнопку «Выполнить» (+100px)
+                card.style.transform = 'translateX(100px)';
+                activeSwipedCard = card;
+            } else if (currentX < -55) {
                 // СВАЙП ВЛЕВО → Раскрыть 3 кнопки действий (-204px)
                 card.style.transform = 'translateX(-204px)';
                 activeSwipedCard = card;

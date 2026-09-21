@@ -626,8 +626,7 @@
         }
 
         .task-card-done {
-            opacity: 0.85;
-            background: #fafcfb !important;
+            background: #FFFFFF !important;
             border-color: #d1fae5 !important;
         }
 
@@ -637,8 +636,7 @@
         }
 
         .task-card-cancelled {
-            opacity: 0.78;
-            background: #fdfafb !important;
+            background: #FFFFFF !important;
             border-color: #fee2e2 !important;
         }
 
@@ -1821,8 +1819,8 @@
         <span class="apple-ghost-text">Новая задача...</span>
     </div>
 
-    <!-- Header Navigation (скрыт) -->
-    <header class="planner-header" style="display: none !important;">
+    <!-- Header Navigation -->
+    <header class="planner-header">
         <a href="/static/tasks.html" class="header-brand">
             <img src="/static/img/Logo.png" alt="Tectum Logo">
             <div>
@@ -2982,7 +2980,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_no_click_edit_v1"></script>
+    <script src="/static/js/tasks.js?v=20260921_swipe_physics_v2"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

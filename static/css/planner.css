@@ -1082,17 +1082,17 @@
    ========================================================================== */
 
 /* ── Phase Б: Глобально скрываем только визуальный мусор ────────────────── */
-.planner-header,
 .kpi-summary-bar,
 .quick-filters-bar,
 #tags-cloud-bar,
-.mobile-filters-panel,
-#planner-user-badge {
+.mobile-filters-panel {
     display: none !important;
 }
 
-/* ── Phase Б (мобиль): навигация скрыта только на ≤767px ─────────────────── */
+/* ── Phase Б (мобиль): навигация и шапка скрыты только на ≤767px ─────────── */
 @media (max-width: 767px) {
+    .planner-header,
+    #planner-user-badge,
     #main-toolbar,
     .toolbar:not(.print-toolbar),
     .horizon-nav-bar,
@@ -1101,8 +1101,10 @@
     }
 }
 
-/* ── Phase Б (десктоп): навигация явно восстановлена на ≥768px ────────────── */
+/* ── Phase Б (десктоп): шапка и навигация явно восстановлены на ≥768px ──── */
 @media (min-width: 768px) {
+    .planner-header   { display: flex !important; }
+    #planner-user-badge { display: flex !important; }
     .horizon-nav-bar  { display: flex !important; }
     #main-toolbar     { display: flex !important; }
 }
@@ -1361,18 +1363,33 @@
 }
 
 /* ── Карточка задачи поверх свайп-панели ─────────────────────────────────── */
-.apple-swipe-row .planner-card {
+.apple-swipe-row .planner-card,
+.apple-swipe-row .planner-card.task-card-done,
+.apple-swipe-row .planner-card.task-card-cancelled,
+.apple-swipe-row .planner-card.task-card-moved {
     position: relative;
     z-index: 2;
     background: #FFFFFF !important;
+    opacity: 1 !important;
     margin: 0 !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding: 10px 14px !important;
     cursor: pointer;
-    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.32s cubic-bezier(0.25, 1, 0.5, 1);
     touch-action: pan-y;
+}
+
+.apple-swipe-row .planner-card.task-card-done .planner-card-title,
+.apple-swipe-row .planner-card.task-card-done .planner-card-title-kz {
+    color: #8E8E93 !important;
+}
+
+.apple-swipe-row .planner-card.task-card-cancelled .planner-card-title,
+.apple-swipe-row .planner-card.task-card-cancelled .planner-card-title-kz {
+    color: #8E8E93 !important;
+    text-decoration: line-through;
 }
 
 /* ── Apple Status Badge (без эмодзи) ─────────────────────────────────────── */
