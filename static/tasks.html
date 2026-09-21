@@ -1940,6 +1940,12 @@
         </div>
 
         <div class="toolbar-group toolbar-group-actions">
+            <!-- My Tasks Filter Toggle (Desktop & Tablet) -->
+            <button class="btn-action btn-secondary-action" id="btn-toggle-my-tasks" onclick="toggleMyTasksFilter()"
+                title="Показать только мои задачи (автор или исполнитель)">
+                <i class="fa-solid fa-user-check" style="color: #2563eb;"></i> <span id="btn-my-tasks-label">Мои задачи</span>
+            </button>
+
             <!-- Previous Week Tasks Toggle -->
             <button class="btn-action btn-secondary-action" id="btn-toggle-backlog" onclick="toggleBacklog()"
                 title="Показать задачи прошлой недели (со всеми статусами: выполнено, в работе, перенесено)">
@@ -2981,7 +2987,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_backlog_highlight_v1"></script>
+    <script src="/static/js/tasks.js?v=20260921_my_tasks_week_fix_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

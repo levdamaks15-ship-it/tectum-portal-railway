@@ -345,18 +345,21 @@ function syncInitUrlAndFilters() {
         }
     }
 
+    const monthSelect = document.getElementById("filter-month");
     if (shouldApplyUrlDate && monthParam) {
         currentMonth = monthParam;
-        const monthSelect = document.getElementById("filter-month");
         if (monthSelect) monthSelect.value = monthParam;
 
         if (weekParam) {
             currentWeek = weekParam;
             onMonthChange(weekParam);
         } else {
-            onMonthChange();
+            onMonthChange(null);
         }
     } else {
+        if (monthSelect) {
+            monthSelect.value = currentMonth;
+        }
         onMonthChange(weekParam || null);
     }
 
@@ -697,6 +700,18 @@ function updateChipsVisualState() {
         if (chipMyLabel) {
             chipMyLabel.textContent = (currentPlannerUser && currentPlannerUser.name && myTasksFilterActive) 
                 ? `Мои (${currentPlannerUser.name})` 
+                : "Мои задачи";
+        }
+    }
+
+    // Toolbar My Tasks Button (Desktop)
+    const btnMyTasks = document.getElementById("btn-toggle-my-tasks");
+    const btnMyTasksLabel = document.getElementById("btn-my-tasks-label");
+    if (btnMyTasks) {
+        btnMyTasks.classList.toggle("btn-my-tasks-active", myTasksFilterActive);
+        if (btnMyTasksLabel) {
+            btnMyTasksLabel.textContent = (currentPlannerUser && currentPlannerUser.name && myTasksFilterActive) 
+                ? `Мои (${currentPlannerUser.name}) ✓` 
                 : "Мои задачи";
         }
     }
@@ -1499,21 +1514,29 @@ async function loadCalendarStructure() {
             
             // Populate Month selector with all 12 months + "all"
             const monthSelect = document.getElementById("filter-month");
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlMonth = urlParams.get("month");
+            const urlWeek = urlParams.get("week");
+
             if (monthSelect && data.months) {
                 const curVal = monthSelect.value;
                 monthSelect.innerHTML = `<option value="all">🌐 За всё время</option>` + 
                     data.months.map(m => `<option value="${m}">${m}</option>`).join('');
-                if (curVal && curVal !== "all" && data.months.includes(curVal)) {
+                
+                if (urlMonth && (urlMonth === "all" || data.months.includes(urlMonth))) {
+                    monthSelect.value = urlMonth;
+                    currentMonth = urlMonth;
+                } else if (curVal && curVal !== "all" && data.months.includes(curVal)) {
                     monthSelect.value = curVal;
-                } else if (data.default_month && (!curVal || curVal === "all")) {
+                    currentMonth = curVal;
+                } else if (data.default_month) {
                     monthSelect.value = data.default_month;
                     currentMonth = data.default_month;
                 }
             }
 
             // Only update week options if needed, preserving active selected week
-            const urlParams = new URLSearchParams(window.location.search);
-            const activeWeek = urlParams.get("week") || currentWeek || data.default_week;
+            const activeWeek = urlWeek || (currentWeek && currentWeek !== "all" ? currentWeek : null) || data.default_week || null;
             onMonthChange(activeWeek);
         }
     } catch (e) {
@@ -1573,6 +1596,7 @@ function onMonthChange(forcedWeek = null) {
         weekSelect.innerHTML = `<option value="all" selected>🌐 Все недели (за всё время)</option>`;
         weekSelect.value = "all";
         currentWeek = "all";
+        if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
         if (!isInitialLoading) {
             loadTasks();
         }
@@ -1606,13 +1630,13 @@ function onMonthChange(forcedWeek = null) {
                     const [sStr, eStr] = datesPart.split(' - ');
                     const [sd, sm] = sStr.trim().split('.').map(Number);
                     const [ed, em] = eStr.trim().split('.').map(Number);
-                    const wStart = new Date(year, sm - 1, sd);
+                    const wStart = new Date(year, sm - 1, sd, 0, 0, 0);
                     let endYear = year;
                     if (sm === 12 && em === 1) endYear = year + 1;
                     const wEnd = new Date(endYear, em - 1, ed, 23, 59, 59);
                     // Расширяем до конца воскресенья (еще +2 дня от пятницы)
                     const wSun = new Date(wEnd);
-                    wSun.setDate(wSun.getDate() + 2);
+                    wSun.setDate(wSun.getDate() + 2, 23, 59, 59);
                     if (today >= wStart && today <= wSun) {
                         detectedWeek = w;
                         break;
@@ -1627,6 +1651,7 @@ function onMonthChange(forcedWeek = null) {
         weekSelect.value = chosenWeek;
         currentWeek = chosenWeek;
     }
+    if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
     if (!isInitialLoading) {
         loadTasks();
     }
