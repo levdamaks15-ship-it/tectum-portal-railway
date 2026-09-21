@@ -70,6 +70,14 @@ const CORE_NAMES = [
     "Монаев С."
 ];
 
+// Local cache restoration for instant 0ms rendering
+try {
+    const cachedEmps = localStorage.getItem("tectum_planner_employees_cache");
+    if (cachedEmps) allPlannerEmployees = JSON.parse(cachedEmps);
+    const cachedZones = localStorage.getItem("tectum_planner_zones_cache");
+    if (cachedZones) allPlannerZones = JSON.parse(cachedZones);
+} catch (e) {}
+
 let targetHighlightTaskId = null;
 let currentPlannerUser = null; // { name: string, pin: string }
 let pendingAuthCallback = null;
@@ -77,15 +85,19 @@ let pendingAuthCallback = null;
 // Выделенные задачи в службах (Multi-Select)
 let selectedServiceTaskIds = new Set();
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
     initPlannerSession();
-    await loadCalendarStructure();
-    await loadPlannerDropdownData();
-    await loadTaskTags();
-    await handleUrlDeepLinking();
+    // 1. Мгновенная синхронная гидратация выпадающих списков (0 мс) из кэша / CORE_NAMES
+    populateDropdowns();
+    // 2. Мгновенный синхронный парсинг URL-фильтров и даты
+    syncInitUrlAndFilters();
+    // 3. Немедленный старт загрузки задач (первый параллельный запрос)
     isInitialLoading = false;
-    await loadTasks();
+    loadTasks();
     startTasksLiveSync();
+
+    // 4. Фоновая параллельная подгрузка актуальных справочников без блокировки UI
+    hydrateBackgroundData();
 
     // Слушатель глобальной вставки скриншота (Ctrl+V) при открытом массовом вводе
     window.addEventListener("paste", (e) => {
@@ -306,77 +318,49 @@ function ensureUserAuthorized(requiredUser = null, onSuccess) {
     openPinModal(requiredUser, onSuccess);
 }
 
-async function handleUrlDeepLinking() {
+function syncInitUrlAndFilters() {
     const urlParams = new URLSearchParams(window.location.search);
     
-    // 1. Task highlight & week auto-navigation
-    const taskIdParam = urlParams.get("task_id");
-    if (taskIdParam) {
-        const tId = parseInt(taskIdParam, 10);
-        if (tId) {
-            targetHighlightTaskId = tId;
-            try {
-                const res = await fetch(`/api/tasks/${tId}`);
-                if (res.ok) {
-                    const task = await res.json();
-                    if (task.month_label) {
-                        currentMonth = task.month_label;
-                        const monthSelect = document.getElementById("filter-month");
-                        if (monthSelect) monthSelect.value = task.month_label;
-                    }
-                    if (task.week_label) {
-                        currentWeek = task.week_label;
-                        onMonthChange(task.week_label);
-                    }
-                }
-            } catch (e) {
-                console.error("Deep link task fetch error:", e);
-            }
-        }
-    } else {
-        // 2. Read month and week from URL with smart validation (не перетирать текущий месяц/неделю устаревшими параметрами)
-        const monthParam = urlParams.get("month");
-        const weekParam = urlParams.get("week");
-        let shouldApplyUrlDate = false;
+    // 1. Read month and week from URL with smart validation
+    const monthParam = urlParams.get("month");
+    const weekParam = urlParams.get("week");
+    let shouldApplyUrlDate = false;
 
-        if (monthParam) {
-            // Проверяем, не является ли месяц в URL устаревшим прошлым месяцем
-            const monthsRu = [
-                "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-                "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-            ];
-            const today = new Date();
-            const curYear = today.getFullYear();
-            const curMonthIdx = today.getMonth(); // 0-11
+    if (monthParam) {
+        const monthsRu = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ];
+        const today = new Date();
+        const curYear = today.getFullYear();
+        const curMonthIdx = today.getMonth(); // 0-11
 
-            const [mName, mYearStr] = monthParam.split(' ');
-            const mYear = parseInt(mYearStr, 10) || curYear;
-            const mIdx = monthsRu.indexOf(mName);
+        const [mName, mYearStr] = monthParam.split(' ');
+        const mYear = parseInt(mYearStr, 10) || curYear;
+        const mIdx = monthsRu.indexOf(mName);
 
-            // Если дата из URL >= текущего месяца/года или это выбор "all", применяем её
-            if (monthParam === "all" || (mIdx !== -1 && (mYear > curYear || (mYear === curYear && mIdx >= curMonthIdx)))) {
-                shouldApplyUrlDate = true;
-            }
-        }
-
-        if (shouldApplyUrlDate && monthParam) {
-            currentMonth = monthParam;
-            const monthSelect = document.getElementById("filter-month");
-            if (monthSelect) monthSelect.value = monthParam;
-
-            if (weekParam) {
-                currentWeek = weekParam;
-                onMonthChange(weekParam);
-            } else {
-                onMonthChange();
-            }
-        } else if (monthParam || weekParam) {
-            // Если параметры URL были устаревшими (из прошлого), очищаем их из адресной строки без перезагрузки
-            updateUrlParams();
+        // Если дата из URL >= текущего месяца/года или это выбор "all", применяем её
+        if (monthParam === "all" || (mIdx !== -1 && (mYear > curYear || (mYear === curYear && mIdx >= curMonthIdx)))) {
+            shouldApplyUrlDate = true;
         }
     }
 
-    // 3. Read specific filter parameters from URL
+    if (shouldApplyUrlDate && monthParam) {
+        currentMonth = monthParam;
+        const monthSelect = document.getElementById("filter-month");
+        if (monthSelect) monthSelect.value = monthParam;
+
+        if (weekParam) {
+            currentWeek = weekParam;
+            onMonthChange(weekParam);
+        } else {
+            onMonthChange();
+        }
+    } else {
+        onMonthChange(weekParam || null);
+    }
+
+    // 2. Read specific filter parameters from URL
     const zoneParam = urlParams.get("zone");
     if (zoneParam) {
         setFilterValueDirect('zone', zoneParam);
@@ -409,7 +393,7 @@ async function handleUrlDeepLinking() {
         myTasksFilterActive = true;
     }
 
-    // 4. Horizon deep linking (hash or param)
+    // 3. Horizon deep linking (hash or param)
     const validHorizons = ['weekly', 'services', 'tech_council', 'quality_day', 'roadmaps'];
     const horizonHash = window.location.hash ? window.location.hash.replace('#', '') : '';
     const horizonParam = urlParams.get("horizon");
@@ -418,8 +402,50 @@ async function handleUrlDeepLinking() {
     if (targetHorizon) {
         switchHorizon(targetHorizon);
     }
+}
 
-    // 5. Quick Create Task from Knowledge Base Document Deep Link
+function hydrateBackgroundData() {
+    Promise.allSettled([
+        loadCalendarStructure(),
+        loadPlannerDropdownData(),
+        loadTaskTags(),
+        handleUrlDeepLinkingAsync()
+    ]).catch(err => {
+        console.warn("Background hydration warning:", err);
+    });
+}
+
+async function handleUrlDeepLinkingAsync() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // 1. Task highlight & week auto-navigation
+    const taskIdParam = urlParams.get("task_id");
+    if (taskIdParam) {
+        const tId = parseInt(taskIdParam, 10);
+        if (tId) {
+            targetHighlightTaskId = tId;
+            try {
+                const res = await fetch(`/api/tasks/${tId}`);
+                if (res.ok) {
+                    const task = await res.json();
+                    if (task.month_label) {
+                        currentMonth = task.month_label;
+                        const monthSelect = document.getElementById("filter-month");
+                        if (monthSelect) monthSelect.value = task.month_label;
+                    }
+                    if (task.week_label) {
+                        currentWeek = task.week_label;
+                        onMonthChange(task.week_label);
+                    }
+                    loadTasks();
+                }
+            } catch (e) {
+                console.error("Deep link task fetch error:", e);
+            }
+        }
+    }
+
+    // 2. Quick Create Task from Knowledge Base Document Deep Link
     const createDocId = urlParams.get("create_doc_id");
     const createDocTitle = urlParams.get("create_doc_title");
     if (createDocTitle || createDocId) {
@@ -1443,15 +1469,21 @@ async function loadCalendarStructure() {
             // Populate Month selector with all 12 months + "all"
             const monthSelect = document.getElementById("filter-month");
             if (monthSelect && data.months) {
+                const curVal = monthSelect.value;
                 monthSelect.innerHTML = `<option value="all">🌐 За всё время</option>` + 
                     data.months.map(m => `<option value="${m}">${m}</option>`).join('');
-                if (data.default_month) {
+                if (curVal && curVal !== "all" && data.months.includes(curVal)) {
+                    monthSelect.value = curVal;
+                } else if (data.default_month && (!curVal || curVal === "all")) {
                     monthSelect.value = data.default_month;
                     currentMonth = data.default_month;
                 }
             }
 
-            onMonthChange(data.default_week);
+            // Only update week options if needed, preserving active selected week
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeWeek = urlParams.get("week") || currentWeek || data.default_week;
+            onMonthChange(activeWeek);
         }
     } catch (e) {
         console.error("Error loading calendar structure:", e);
@@ -1510,7 +1542,9 @@ function onMonthChange(forcedWeek = null) {
         weekSelect.innerHTML = `<option value="all" selected>🌐 Все недели (за всё время)</option>`;
         weekSelect.value = "all";
         currentWeek = "all";
-        loadTasks();
+        if (!isInitialLoading) {
+            loadTasks();
+        }
         return;
     }
 
@@ -1575,9 +1609,15 @@ async function loadPlannerDropdownData() {
         ]);
         if (empRes.ok) {
             allPlannerEmployees = await empRes.json();
+            try {
+                localStorage.setItem("tectum_planner_employees_cache", JSON.stringify(allPlannerEmployees));
+            } catch (e) {}
         }
         if (zoneRes.ok) {
             allPlannerZones = await zoneRes.json();
+            try {
+                localStorage.setItem("tectum_planner_zones_cache", JSON.stringify(allPlannerZones));
+            } catch (e) {}
         }
     } catch (e) {
         console.error("Error loading planner settings:", e);
