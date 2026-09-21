@@ -277,7 +277,8 @@
             url.includes('/ocr_image') || 
             url.includes('/ai_assistant') || 
             url.includes('/sync_google') ||
-            url.includes('/import_from_google_sheets')
+            url.includes('/import_from_google_sheets') ||
+            url.includes('/tasks/bulk')
         );
         const effectiveTimeout = options.timeoutMs || (isHeavyAiCall ? 60000 : TIMEOUT_MS);
 

@@ -3963,6 +3963,20 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     const defDue = initDue || (document.getElementById("bulk-default-due-input") ? document.getElementById("bulk-default-due-input").value : "");
     const persons = getUniquePersons();
 
+    // Интеллектуальное сопоставление имени исполнителя из OCR (например, "Сазонов С.В." -> "Сазонов С.")
+    let matchedAssignee = "";
+    if (initAssignee) {
+        const rawA = initAssignee.trim().toLowerCase();
+        const found = persons.find(p => {
+            const lowP = p.toLowerCase();
+            if (lowP === rawA) return true;
+            const pSurname = lowP.split(' ')[0];
+            const aSurname = rawA.split(' ')[0];
+            return pSurname && aSurname && pSurname === aSurname && (lowP.includes(aSurname) || rawA.includes(pSurname));
+        });
+        if (found) matchedAssignee = found;
+    }
+
     const typeSelect = document.getElementById("bulk-type-input");
     const isServicePlan = typeSelect && typeSelect.value === "service_plan";
 
@@ -3978,12 +3992,14 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     rowDiv.style.borderRadius = "8px";
     rowDiv.style.padding = "0.45rem 0.6rem";
 
+    const selectedPerson = matchedAssignee || initAssignee;
+
     rowDiv.innerHTML = `
         <span class="bulk-row-num" style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-align: center; margin-top: 6px;"></span>
         <textarea class="form-textarea bulk-row-title" rows="2" placeholder="Суть задачи... (#ОГЭ, #ППР, #Срочно)" style="font-size: 0.85rem; padding: 0.35rem 0.55rem; resize: vertical; line-height: 1.35; width: 100%; word-break: break-word; min-height: 38px;" oninput="autoResizeBulkTextarea(this)" onkeydown="handleBulkRowKeydown(event, '${rowId}')">${escapeHtml(initTitle)}</textarea>
         <select class="form-select bulk-row-assignee" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px; ${isServicePlan ? 'display: none;' : ''}">
             <option value="">-- Исполнитель --</option>
-            ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === initAssignee ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
+            ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === selectedPerson ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
         </select>
         <input type="date" class="form-input bulk-row-due" value="${defDue}" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px;">
         <button type="button" class="btn-icon-cell" onclick="removeBulkTaskRow('${rowId}')" title="Удалить строку" style="color: #ef4444; border-color: #fecaca; background: #fff; margin-top: 3px;">
@@ -4111,13 +4127,19 @@ async function saveBulkTasksModal() {
             const res = await fetch("/api/tasks/bulk", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                timeoutMs: 60000
             });
 
             if (res.ok) {
                 const data = await res.json();
                 closeBulkTasksModal();
-                showToast(`Успешно создано задач: ${data.count} шт. 🚀`);
+                if (data.count === 0 && data.skipped_duplicates > 0) {
+                    showToast(data.message || `Все задачи уже присутствуют в текущей неделе (${data.skipped_duplicates} шт.)`, "warning");
+                } else {
+                    const dupText = (data.skipped_duplicates > 0) ? ` (пропущено дубликатов: ${data.skipped_duplicates})` : "";
+                    showToast(`Успешно создано задач: ${data.count} шт.${dupText} 🚀`);
+                }
                 loadTaskTags();
                 if (currentHorizon === "roadmaps") {
                     loadRoadmaps();
