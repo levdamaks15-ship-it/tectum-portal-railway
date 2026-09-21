@@ -597,6 +597,7 @@ function applyGlobalAllFilter() {
         btnBacklog.classList.remove("btn-backlog-active");
         btnBacklog.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых недель</span><span class="mobile-only">Долги</span>`;
     }
+    updateFilterSheetUI();
     updateChipsVisualState();
     updateFilterBadge();
     updateUrlParams();
@@ -779,6 +780,7 @@ function resetAllFilters() {
     const btnBacklog = document.getElementById("btn-toggle-backlog");
     if (btnBacklog) btnBacklog.classList.remove("btn-backlog-active");
 
+    updateFilterSheetUI();
     updateChipsVisualState();
     updateFilterBadge();
     updateUrlParams();
@@ -940,6 +942,7 @@ async function loadTasks() {
             renderTasksTable(allTasks);
             renderTasksCards(allTasks);
             renderKpiSummary(allTasks);
+            updateFilterSheetUI();
             scrollToTargetTaskAfterRender();
         }
     } catch (e) {
@@ -1973,6 +1976,10 @@ function renderTasksTable(tasks) {
             statusClass = "status-work";
         }
 
+        if (t.is_backlog) {
+            rowExtraClass += " task-row-backlog";
+        }
+
         const photoBtn = t.photo_link ? `
             <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer;" title="Просмотреть фото">
                 <i class="fa-solid fa-image"></i>
@@ -1981,8 +1988,8 @@ function renderTasksTable(tasks) {
 
         const backlogBadge = t.is_backlog ? `
             <div style="margin-top: 4px;">
-                <span class="badge-backlog" title="Задача прошлой недели: ${t.week_label || ''}" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600;">
-                    <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label : 'Прошлая неделя'}
+                <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label : 'Прошлая неделя'}
                 </span>
             </div>
         ` : '';
@@ -2170,9 +2177,13 @@ function renderTasksCards(tasks) {
             statusPill = `<span class="apple-card-status status-work"><span class="apple-status-dot"></span> В работе</span>`;
         }
 
+        if (t.is_backlog) {
+            cardExtraClass += " task-card-backlog";
+        }
+
         const backlogBadge = t.is_backlog ? `
-            <span class="badge-backlog" title="Задача прошлой недели: ${t.week_label || ''}" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-weight: 600;">
-                <i class="fa-solid fa-clock-rotate-left"></i> ${t.week_label ? t.week_label : 'Прошлая неделя'}
+            <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Прошлая нед.'}
             </span>
         ` : '';
 
@@ -2492,8 +2503,57 @@ function escapeHtml(str) {
 /* ==========================================================
    VIEW MODES & FILTERS
    ========================================================== */
+function updateFilterSheetUI() {
+    const dot = document.getElementById("apple-filter-indicator-dot");
+    const switchBadge = document.getElementById("backlog-filter-switch");
+    const rowBacklog = document.getElementById("filter-row-backlog");
+
+    if (dot) {
+        dot.style.display = showBacklog ? "block" : "none";
+    }
+    if (switchBadge) {
+        if (showBacklog) {
+            switchBadge.textContent = "ВКЛ";
+            switchBadge.style.background = "#FF9500";
+            switchBadge.style.color = "#FFFFFF";
+        } else {
+            switchBadge.textContent = "ВЫКЛ";
+            switchBadge.style.background = "#E5E5EA";
+            switchBadge.style.color = "#8E8E93";
+        }
+    }
+    if (rowBacklog) {
+        rowBacklog.style.background = showBacklog ? "rgba(255, 149, 0, 0.10)" : "transparent";
+    }
+}
+
+function toggleBacklogFilter() {
+    showBacklog = !showBacklog;
+    updateFilterSheetUI();
+    const btn = document.getElementById("btn-toggle-backlog");
+    if (btn) {
+        if (showBacklog) {
+            btn.classList.add("btn-backlog-active");
+            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left" style="color: #fbbf24;"></i> <span>Прошлая нед. ✓</span>`;
+        } else {
+            btn.classList.remove("btn-backlog-active");
+            btn.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Прошлая неделя</span><span class="mobile-only">Прошлая нед.</span>`;
+        }
+    }
+    if (showBacklog) {
+        showToast("Включены долги прошлых недель");
+    } else {
+        showToast("Показаны только задачи текущей недели");
+    }
+    loadTasks();
+    if (typeof toggleFilterSheet === 'function') {
+        toggleFilterSheet();
+    }
+}
+
 function toggleBacklog() {
     showBacklog = !showBacklog;
+    updateFilterSheetUI();
     const btn = document.getElementById("btn-toggle-backlog");
     if (btn) {
         if (showBacklog) {

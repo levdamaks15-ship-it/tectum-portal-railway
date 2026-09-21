@@ -1790,8 +1790,9 @@
     <!-- ══ APPLE LARGE TITLE HEADER (мобильный, 80px) ══════════════════════ -->
     <div class="apple-large-title-header" id="apple-large-title-header">
         <div class="apple-title-row1">
-            <div class="apple-title-hamburger" onclick="toggleFilterSheet()" title="Фильтры">
+            <div class="apple-title-hamburger" onclick="toggleFilterSheet()" title="Фильтры" style="position: relative;">
                 <i class="fa-solid fa-sliders"></i>
+                <span class="apple-filter-indicator-dot" id="apple-filter-indicator-dot" style="display: none;"></span>
             </div>
             <span class="apple-title-text" id="apple-title-section">Спринт</span>
             <div class="apple-title-avatar" id="apple-avatar-btn"
@@ -2980,7 +2981,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_columns_width_v1"></script>
+    <script src="/static/js/tasks.js?v=20260921_backlog_highlight_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
@@ -3062,11 +3063,12 @@
                 </div>
 
                 <!-- 7. Долги с прошлых недель -->
-                <div class="filter-row" onclick="showBacklog = !showBacklog; loadTasks(); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; cursor: pointer;">
-                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #AF52DE; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; flex-shrink: 0;">
+                <div class="filter-row" id="filter-row-backlog" onclick="toggleBacklogFilter();" style="display: flex; align-items: center; height: 50px; cursor: pointer; padding: 0 4px; border-radius: 10px; transition: background 0.2s ease;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #FF9500; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; flex-shrink: 0;">
                         <i class="fa-solid fa-clock-rotate-left"></i>
                     </div>
-                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Долги с прошлых недель</span>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Долги прошлых недель</span>
+                    <span id="backlog-filter-switch" style="font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 12px; background: #E5E5EA; color: #8E8E93; transition: all 0.2s ease;">ВЫКЛ</span>
                 </div>
             </div>
         </div>
@@ -3094,7 +3096,8 @@
     function toggleFilterSheet() {
         const sheet = document.getElementById('apple-filter-sheet');
         const panel = sheet.querySelector('.apple-filter-panel');
-        if (sheet.style.display === 'none') {
+        if (sheet.style.display === 'none' || !sheet.style.display) {
+            if (typeof updateFilterSheetUI === 'function') updateFilterSheetUI();
             sheet.style.display = 'block';
             setTimeout(() => { panel.style.transform = 'translateY(0)'; }, 10);
         } else {
