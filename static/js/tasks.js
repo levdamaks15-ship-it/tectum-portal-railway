@@ -2318,7 +2318,9 @@ let activeSwipedCard = null;
 
 function closeAllSwipeRows() {
     document.querySelectorAll('.apple-swipe-row .planner-card').forEach(c => {
+        c.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
         c.style.transform = 'translateX(0)';
+        c.dataset.swipeOffset = '0';
     });
     activeSwipedCard = null;
 }
@@ -2337,7 +2339,8 @@ function initCardSwipeGestures() {
 
         let startX = 0;
         let startY = 0;
-        let currentX = 0;
+        let initialOffset = 0;
+        let currentOffset = 0;
         let isSwiping = false;
         let isScrolling = false;
 
@@ -2346,11 +2349,13 @@ function initCardSwipeGestures() {
             const touch = e.touches[0];
             startX = touch.clientX;
             startY = touch.clientY;
-            currentX = 0;
+            initialOffset = parseFloat(card.dataset.swipeOffset || '0') || 0;
+            currentOffset = initialOffset;
             isSwiping = false;
             isScrolling = false;
             card.style.transition = 'none';
 
+            // Если открыта ДРУГАЯ карточка, закрываем ее
             if (activeSwipedCard && activeSwipedCard !== card) {
                 closeAllSwipeRows();
             }
@@ -2362,44 +2367,88 @@ function initCardSwipeGestures() {
             const dx = touch.clientX - startX;
             const dy = touch.clientY - startY;
 
+            // Вертикальный скролл страницы
             if (!isSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
                 isScrolling = true;
                 return;
             }
 
-            if (Math.abs(dx) > 10 && !isScrolling) {
+            // Горизонтальный свайп
+            if (Math.abs(dx) > 8 && !isScrolling) {
                 isSwiping = true;
-                currentX = dx;
+                let targetX = initialOffset + dx;
 
-                if (dx > 0) {
-                    // Эластичное мягкое сопротивление после 100px
-                    const offset = dx > 100 ? (100 + (dx - 100) * 0.25) : dx;
-                    card.style.transform = `translateX(${Math.min(offset, 140)}px)`;
+                // Ограничения и эластичность
+                if (targetX > 0) {
+                    // Тянем вправо (действие «Выполнить»)
+                    if (targetX > 100) {
+                        targetX = 100 + (targetX - 100) * 0.25;
+                    }
+                    targetX = Math.min(targetX, 140);
                 } else {
-                    // Эластичное мягкое сопротивление после -204px
-                    const offset = dx < -204 ? (-204 + (dx + 204) * 0.25) : dx;
-                    card.style.transform = `translateX(${Math.max(offset, -240)}px)`;
+                    // Тянем влево (действия «Перенести / Передать / Правка»)
+                    if (targetX < -204) {
+                        targetX = -204 + (targetX + 204) * 0.25;
+                    }
+                    targetX = Math.max(targetX, -240);
                 }
+
+                currentOffset = targetX;
+                card.style.transform = `translateX(${targetX}px)`;
             }
         }, { passive: true });
 
         const endOrCancel = () => {
             if (!isSwiping) return;
             card.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
+            const dx = currentOffset - initialOffset;
 
-            if (currentX > 50) {
-                // СВАЙП ВПРАВО → Мягко раскрыть зеленую кнопку «Выполнить» (+100px)
-                card.style.transform = 'translateX(100px)';
-                activeSwipedCard = card;
-            } else if (currentX < -55) {
-                // СВАЙП ВЛЕВО → Раскрыть 3 кнопки действий (-204px)
-                card.style.transform = 'translateX(-204px)';
-                activeSwipedCard = card;
+            if (initialOffset < 0) {
+                // Карточка была открыта влево (меню действий на -204px)
+                // Если пользователь свайпнул вправо (dx > 30 или currentOffset > -150) -> ЗАКРЫВАЕМ В ЦЕНТР
+                if (dx > 30 || currentOffset > -150) {
+                    card.style.transform = 'translateX(0)';
+                    card.dataset.swipeOffset = '0';
+                    if (activeSwipedCard === card) activeSwipedCard = null;
+                } else {
+                    // Оставляем открытым меню
+                    card.style.transform = 'translateX(-204px)';
+                    card.dataset.swipeOffset = '-204';
+                    activeSwipedCard = card;
+                }
+            } else if (initialOffset > 0) {
+                // Карточка была открыта вправо (кнопка «Выполнить» на +100px)
+                // Если пользователь свайпнул влево (dx < -30 или currentOffset < 70) -> ЗАКРЫВАЕМ В ЦЕНТР
+                if (dx < -30 || currentOffset < 70) {
+                    card.style.transform = 'translateX(0)';
+                    card.dataset.swipeOffset = '0';
+                    if (activeSwipedCard === card) activeSwipedCard = null;
+                } else {
+                    // Оставляем открытой кнопку
+                    card.style.transform = 'translateX(100px)';
+                    card.dataset.swipeOffset = '100';
+                    activeSwipedCard = card;
+                }
             } else {
-                // Возврат
-                card.style.transform = 'translateX(0)';
-                if (activeSwipedCard === card) activeSwipedCard = null;
+                // Карточка была закрыта (0px)
+                if (currentOffset > 50) {
+                    // СВАЙП ВПРАВО -> Раскрыть «Выполнить» (+100px)
+                    card.style.transform = 'translateX(100px)';
+                    card.dataset.swipeOffset = '100';
+                    activeSwipedCard = card;
+                } else if (currentOffset < -55) {
+                    // СВАЙП ВЛЕВО -> Раскрыть меню действий (-204px)
+                    card.style.transform = 'translateX(-204px)';
+                    card.dataset.swipeOffset = '-204';
+                    activeSwipedCard = card;
+                } else {
+                    // Возврат в 0
+                    card.style.transform = 'translateX(0)';
+                    card.dataset.swipeOffset = '0';
+                    if (activeSwipedCard === card) activeSwipedCard = null;
+                }
             }
+
             isSwiping = false;
             isScrolling = false;
         };
