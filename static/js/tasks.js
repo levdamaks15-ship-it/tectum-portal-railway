@@ -558,7 +558,7 @@ function toggleMyTasksFilter() {
             updateFilterBadge();
             updateUrlParams();
             loadTasks();
-            showToast(`Фильтр: ${user.name}`);
+            showToast(`Фильтр «Мои задачи»: ${user.name}`);
         });
         return;
     }
@@ -569,7 +569,7 @@ function toggleMyTasksFilter() {
         setFilterValueDirect('author', 'all');
         showToast(`Показаны задачи: ${currentPlannerUser.name}`);
     } else {
-        showToast("Показаны все задачи");
+        showToast("Показаны все задачи завода");
     }
 
     updateChipsVisualState();
@@ -578,75 +578,75 @@ function toggleMyTasksFilter() {
     loadTasks();
 }
 
+function applyGlobalAllFilter() {
+    myTasksFilterActive = false;
+    ['zone', 'author', 'assignee', 'status'].forEach(type => {
+        setFilterValueDirect(type, 'all');
+    });
+    showBacklog = false;
+    const btnBacklog = document.getElementById("btn-toggle-backlog");
+    if (btnBacklog) {
+        btnBacklog.classList.remove("btn-backlog-active");
+        btnBacklog.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых недель</span><span class="mobile-only">Долги</span>`;
+    }
+    updateChipsVisualState();
+    updateFilterBadge();
+    updateUrlParams();
+    loadTasks();
+    showToast("Показаны все задачи завода");
+}
+
+function toggleMonthScope() {
+    const weekSelect = document.getElementById("filter-week");
+    const monthSelect = document.getElementById("filter-month");
+    if (!weekSelect || !monthSelect) return;
+
+    if (weekSelect.value === "all") {
+        // Переключить на автоопределенную неделю
+        onMonthChange();
+        showToast("Период: Текущая неделя");
+    } else {
+        // Переключить на весь месяц
+        weekSelect.value = "all";
+        currentWeek = "all";
+        showToast("Период: Весь месяц (все недели)");
+    }
+    updateChipsVisualState();
+    updateUrlParams();
+    loadTasks();
+}
+
 function applyPresetFilter(presetType) {
     if (presetType === 'all') {
-        myTasksFilterActive = false;
-        ['zone', 'author', 'assignee', 'status'].forEach(type => {
-            setFilterValueDirect(type, 'all');
-        });
-        showBacklog = false;
-        const btnBacklog = document.getElementById("btn-toggle-backlog");
-        if (btnBacklog) {
-            btnBacklog.classList.remove("btn-backlog-active");
-            btnBacklog.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> <span class="hide-mobile">Долги с прошлых недель</span><span class="mobile-only">Долги</span>`;
-        }
-
-        updateChipsVisualState();
-        updateFilterBadge();
-        updateUrlParams();
-        loadTasks();
-        showToast("Показаны все задачи");
-        return;
-    }
-
-    if (presetType === 'in_work') {
-        const curStatus = document.getElementById("table-filter-status")?.value;
-        if (curStatus === "🟡 В работе") {
-            setFilterValueDirect('status', 'all');
-        } else {
-            setFilterValueDirect('status', '🟡 В работе');
+        // При клике на карточку «Всего задач» сбрасываем статус, но сохраняем пользователя, если активен режим «Мои задачи»
+        setFilterValueDirect('status', 'all');
+        if (!myTasksFilterActive) {
+            setFilterValueDirect('zone', 'all');
+            setFilterValueDirect('author', 'all');
+            setFilterValueDirect('assignee', 'all');
         }
         updateChipsVisualState();
         updateFilterBadge();
         updateUrlParams();
         loadTasks();
+        showToast(myTasksFilterActive ? `Все задачи: ${currentPlannerUser?.name || 'сотрудника'}` : "Показаны все задачи");
         return;
     }
 
-    if (presetType === 'done') {
-        const curStatus = document.getElementById("table-filter-status")?.value;
-        if (curStatus === "🟢 Выполнено") {
-            setFilterValueDirect('status', 'all');
-        } else {
-            setFilterValueDirect('status', '🟢 Выполнено');
-        }
-        updateChipsVisualState();
-        updateFilterBadge();
-        updateUrlParams();
-        loadTasks();
-        return;
-    }
+    const statusMap = {
+        'in_work': '🟡 В работе',
+        'done': '🟢 Выполнено',
+        'moved': '🔵 Перенесено',
+        'cancelled': '🔴 Отменено'
+    };
 
-    if (presetType === 'moved') {
+    const targetStatus = statusMap[presetType];
+    if (targetStatus) {
         const curStatus = document.getElementById("table-filter-status")?.value;
-        if (curStatus === "🔵 Перенесено") {
+        if (curStatus === targetStatus) {
             setFilterValueDirect('status', 'all');
         } else {
-            setFilterValueDirect('status', '🔵 Перенесено');
-        }
-        updateChipsVisualState();
-        updateFilterBadge();
-        updateUrlParams();
-        loadTasks();
-        return;
-    }
-
-    if (presetType === 'cancelled') {
-        const curStatus = document.getElementById("table-filter-status")?.value;
-        if (curStatus === "🔴 Отменено") {
-            setFilterValueDirect('status', 'all');
-        } else {
-            setFilterValueDirect('status', '🔴 Отменено');
+            setFilterValueDirect('status', targetStatus);
         }
         updateChipsVisualState();
         updateFilterBadge();
@@ -689,6 +689,18 @@ function updateChipsVisualState() {
             chipMyLabel.textContent = (currentPlannerUser && currentPlannerUser.name && myTasksFilterActive) 
                 ? `Мои (${currentPlannerUser.name})` 
                 : "Мои задачи";
+        }
+    }
+
+    // Chip Month Scope
+    const chipMonthScope = document.getElementById("chip-month-scope");
+    const chipMonthScopeLabel = document.getElementById("chip-month-scope-label");
+    const weekVal = document.getElementById("filter-week")?.value;
+    const isWholeMonth = (weekVal === "all");
+    if (chipMonthScope) {
+        chipMonthScope.classList.toggle("active", isWholeMonth);
+        if (chipMonthScopeLabel) {
+            chipMonthScopeLabel.textContent = isWholeMonth ? "Весь месяц ✓" : "Весь месяц";
         }
     }
 
@@ -867,7 +879,14 @@ async function loadTasks() {
     let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
     
     // Горизонт планирования
-    if (currentHorizon === "weekly") {
+    // Горизонт планирования
+    if (myTasksFilterActive) {
+        if (currentHorizon === "services" && currentDepartmentService !== "all") {
+            url += `&task_type=service_plan&department_service=${encodeURIComponent(currentDepartmentService)}`;
+        } else {
+            url += `&task_type=all`;
+        }
+    } else if (currentHorizon === "weekly") {
         url += `&task_type=weekly`;
     } else if (currentHorizon === "services") {
         url += `&task_type=service_plan`;
@@ -890,6 +909,7 @@ async function loadTasks() {
 
     if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
         url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+        if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
     } else {
         if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
         if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
@@ -4278,7 +4298,9 @@ function preparePrintMetaHeader() {
     }
 
     if (subtitleEl) {
-        if (currentHorizon === 'services') {
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            subtitleEl.textContent = `ПЕРСОНАЛЬНЫЙ ОТЧЕТ ПО ЗАДАЧАМ: ${currentPlannerUser.name.toUpperCase()}`;
+        } else if (currentHorizon === 'services') {
             const svcName = (currentDepartmentService && currentDepartmentService !== 'all') ? currentDepartmentService : "ОГМ / ОГЭ / ТЕХНОЛОГИ / ОТК";
             subtitleEl.textContent = `ПЛАН РАБОТ СЛУЖБЫ: ${svcName}`;
         } else if (currentHorizon === 'roadmaps') {
@@ -4298,15 +4320,17 @@ function preparePrintMetaHeader() {
     const status = document.getElementById("table-filter-status") ? document.getElementById("table-filter-status").value : "all";
 
     const filterDetails = [];
-    if (currentHorizon === 'services') {
+    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+        filterDetails.push(`Сотрудник: ${currentPlannerUser.name} (Автор / Исполнитель)`);
+    } else if (currentHorizon === 'services') {
         filterDetails.push(currentDepartmentService !== 'all' ? `Служба: ${currentDepartmentService}` : "Все службы (ОГМ / ОГЭ / Технологи / ОТК)");
     } else if (currentHorizon === 'weekly') {
         filterDetails.push("Бережливое производство");
     }
     if (showBacklog) filterDetails.push("⚡ Включая долги прошлых недель");
     if (zone !== "all") filterDetails.push(`Зона: ${zone}`);
-    if (author !== "all") filterDetails.push(`Автор: ${author}`);
-    if (assignee !== "all" && !isServiceMode) filterDetails.push(`Исполнитель: ${assignee}`);
+    if (author !== "all" && !myTasksFilterActive) filterDetails.push(`Автор: ${author}`);
+    if (assignee !== "all" && !isServiceMode && !myTasksFilterActive) filterDetails.push(`Исполнитель: ${assignee}`);
     if (status !== "all") filterDetails.push(`Статус: ${status}`);
 
     const filterText = filterDetails.length > 0 ? filterDetails.join(" • ") : "Все подразделения и статусы";
@@ -4314,7 +4338,7 @@ function preparePrintMetaHeader() {
     const nowStr = now.toLocaleDateString("ru-RU") + " " + now.toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' });
 
     metaContainer.innerHTML = `
-        <div style="font-weight: 700; font-size: 8.5pt; color: #0f172a;">${month} / ${week}</div>
+        <div style="font-weight: 700; font-size: 8.5pt; color: #0f172a;">${month} / ${week === 'all' ? 'Весь месяц (все недели)' : week}</div>
         <div style="font-size: 7.5pt; color: #334155; margin: 1px 0;">${filterText}</div>
         <div style="font-size: 7pt; color: #64748b;">Всего задач: ${allTasks.length} | Сформировано: ${nowStr}</div>
     `;

@@ -1845,13 +1845,17 @@
     <!-- Quick Presets & Service Chips Bar -->
     <div class="quick-filters-bar" id="quick-filters-bar">
         <div class="quick-chips-group" id="quick-chips-group">
-            <button type="button" class="filter-chip active" id="chip-all" onclick="applyPresetFilter('all')"
-                title="Показать все задачи">
+            <button type="button" class="filter-chip active" id="chip-all" onclick="applyGlobalAllFilter()"
+                title="Показать все задачи завода">
                 <i class="fa-solid fa-layer-group"></i> <span>Все задачи</span>
             </button>
             <button type="button" class="filter-chip" id="chip-my" onclick="toggleMyTasksFilter()"
                 title="Показать только мои задачи (автор или исполнитель)">
                 <i class="fa-solid fa-user-check"></i> <span id="chip-my-label">Мои задачи</span>
+            </button>
+            <button type="button" class="filter-chip" id="chip-month-scope" onclick="toggleMonthScope()"
+                title="Переключить диапазон: Текущая неделя / Весь месяц">
+                <i class="fa-solid fa-calendar-days" style="color: #0284c7;"></i> <span id="chip-month-scope-label">Весь месяц</span>
             </button>
             <button type="button" class="filter-chip" id="chip-inwork" onclick="applyPresetFilter('in_work')"
                 title="Задачи в работе">
@@ -2890,7 +2894,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/tasks.js?v=20260921_instant_hydration_v1"></script>
+    <script src="/static/js/tasks.js?v=20260921_my_tasks_reporting_v2"></script>
     <script src="/static/js/version_guard.js"></script>
 </body>
 
