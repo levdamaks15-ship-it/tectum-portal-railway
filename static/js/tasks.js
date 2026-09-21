@@ -547,6 +547,14 @@ function toggleMobileFilters() {
 }
 
 function toggleMyTasksFilter() {
+    const tableWrapper = document.getElementById("planner-table-wrapper");
+    const roadmapsContainer = document.getElementById("roadmaps-view-container");
+    if (tableWrapper) tableWrapper.style.display = "block";
+    if (roadmapsContainer) roadmapsContainer.style.display = "none";
+    if (typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+        currentHorizon = 'weekly';
+    }
+
     if (!currentPlannerUser || !currentPlannerUser.name) {
         openPinModal(null, (user) => {
             currentPlannerUser = user;
@@ -1165,7 +1173,7 @@ function renderRoadmaps(projects) {
                 <div class="roadmap-header">
                     <div>
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                            <span class="badge-code">${p.code || ('TSK-' + p.id)}</span>
+                            <span class="badge-code" style="font-size: 11px; color: #B5B5BA; font-family: monospace; letter-spacing: 0.2px; background: none; border: none; padding: 0;">${p.code || ('TSK-' + p.id)}</span>
                             <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">${p.target_quarter || 'Q3 2026'}</span>
                             ${p.department_service ? `<span class="badge-zone">${p.department_service}</span>` : ''}
                         </div>
@@ -2133,32 +2141,33 @@ function renderTasksCards(tasks) {
 
     if (!tasks || tasks.length === 0) {
         cardsContainer.innerHTML = `
-            <div style="text-align: center; padding: 2.5rem 1rem; color: #94a3b8; background: #ffffff; border-radius: 12px; border: 1px solid var(--tbl-border);">
-                <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
-                <div style="font-weight: 600; color: #475569; margin-bottom: 0.25rem;">Нет задач на эту неделю</div>
-                <div style="font-size: 0.85rem; color: #94a3b8;">Нажмите «+ Задача», чтобы добавить первую задачу</div>
+            <div style="text-align: center; padding: 2.5rem 1rem; color: #8E8E93; background: #ffffff; border-radius: 12px; border: 1px solid rgba(60,60,67,0.12); margin: 12px 16px;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-list-check" style="color: #C82323;"></i></div>
+                <div style="font-weight: 600; color: #1C1C1E; margin-bottom: 0.25rem;">Нет задач на эту неделю</div>
+                <div style="font-size: 0.85rem; color: #8E8E93;">Нажмите «+», чтобы добавить первую задачу</div>
             </div>
         `;
         return;
     }
 
     cardsContainer.innerHTML = tasks.map((t, idx) => {
-        let statusClass = "status-work";
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
-        const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
+        const isMoved = t.status && t.status.includes("Перенесено");
 
         let cardExtraClass = "";
+        let statusPill = "";
         if (isCompleted) {
-            statusClass = "status-done";
             cardExtraClass = "task-card-done";
+            statusPill = `<span class="apple-card-status status-done"><i class="fa-solid fa-check"></i> Выполнено</span>`;
         } else if (isCancelled) {
-            statusClass = "status-cancelled";
             cardExtraClass = "task-card-cancelled";
-        } else if (t.status && t.status.includes("Перенесено")) {
-            statusClass = "status-moved";
+            statusPill = `<span class="apple-card-status status-cancelled"><i class="fa-solid fa-xmark"></i> Отменено</span>`;
+        } else if (isMoved) {
+            cardExtraClass = "task-card-moved";
+            statusPill = `<span class="apple-card-status status-moved"><i class="fa-solid fa-arrow-right"></i> Перенесено</span>`;
         } else {
-            statusClass = "status-work";
+            statusPill = `<span class="apple-card-status status-work"><span class="apple-status-dot"></span> В работе</span>`;
         }
 
         const backlogBadge = t.is_backlog ? `
@@ -2169,77 +2178,9 @@ function renderTasksCards(tasks) {
 
         const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
             <span class="badge-cross-week" title="Сквозная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
-                <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная${t.origin_created_date ? ' (' + t.origin_created_date + ')' : ''}
+                <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная
             </span>
         ` : '';
-
-        const photoBtn = t.photo_link ? `
-            <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-action" style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; cursor: pointer; padding: 0.35rem 0.65rem; font-size: 0.78rem; border-radius: 6px; font-weight: 600;" title="Просмотреть прикрепленное фото">
-                <i class="fa-solid fa-image"></i> Фото
-            </button>
-        ` : '';
-
-        let commentBlock = '';
-        if (isLocked) {
-            commentBlock = t.comment ? `
-                <div class="card-comment-box" style="cursor: default;" title="${isCancelled ? 'Отменённая задача' : 'Завершённая задача'}">
-                    <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
-                    <div style="flex: 1;">${t.comment}</div>
-                </div>
-            ` : '';
-        } else {
-            commentBlock = t.comment ? `
-                <div class="card-comment-box" onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" title="Нажмите для редактирования">
-                    <i class="fa-regular fa-comment-dots" style="margin-top: 2px;"></i>
-                    <div style="flex: 1;">${t.comment}</div>
-                </div>
-            ` : `
-                <div class="card-add-comment-btn" onclick="inlineEditComment(${t.id}, '')">
-                    <i class="fa-solid fa-plus" style="font-size: 0.75rem; color: #2563eb;"></i>
-                    <span>Добавить факт / комментарий...</span>
-                </div>
-            `;
-        }
-
-        const titleClass = isCancelled ? 'task-cancelled-text' : '';
-        const titleKzBlock = t.title_kz ? `
-            <div class="planner-card-title-kz ${titleClass}">${t.title_kz}</div>
-        ` : '';
-
-        const docBadge = t.attached_doc ? `
-            <div style="margin-top: 6px;">
-                <a href="${t.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.78rem; font-weight: 600; color: #1d4ed8; text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Открыть документ: ${escapeHtml(t.attached_doc.title)}">
-                    <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
-                    <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.attached_doc.title)}</span>
-                </a>
-            </div>
-        ` : '';
-
-        const cardFooter = isLocked ? `
-            <div class="card-actions-footer">
-                <button class="btn-card-action" onclick="openTaskHistoryModal(${t.id})" title="История задачи">
-                    <i class="fa-solid fa-clock-rotate-left"></i> История
-                </button>
-                <button class="btn-card-action" disabled title="Заблокировано для изменений">
-                    <i class="fa-solid fa-lock" style="font-size: 0.8rem;"></i> Завершено
-                </button>
-            </div>
-        ` : `
-            <div class="card-actions-footer">
-                <button class="btn-card-action" onclick="openTaskHistoryModal(${t.id})" title="История задачи">
-                    <i class="fa-solid fa-clock-rotate-left"></i> История
-                </button>
-                <button class="btn-card-action" onclick="openReassignTaskModal(${t.id})" style="color: #4f46e5;" title="Переадресовать">
-                    <i class="fa-solid fa-share-nodes"></i> Передать
-                </button>
-                <button class="btn-card-action" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                    <i class="fa-solid fa-arrow-right"></i> Перенести
-                </button>
-                <button class="btn-card-action btn-card-action-primary" onclick="openEditTaskModal(${t.id})" title="Редактировать задачу">
-                    <i class="fa-solid fa-pen"></i> Редактировать
-                </button>
-            </div>
-        `;
 
         const cardZoneVal = t.zone || 'Бережливое производство';
         let cardZoneClass = 'badge-zone';
@@ -2259,55 +2200,231 @@ function renderTasksCards(tasks) {
             </div>
         ` : `
             <div class="card-meta-item">
-                <i class="fa-regular fa-calendar" style="color: #64748b;"></i>
+                <i class="fa-regular fa-calendar" style="color: #8E8E93;"></i>
                 <span>${t.due_date_str || 'В теч. недели'}</span>
             </div>
         `;
 
+        const titleClass = isCancelled ? 'task-cancelled-text' : (isCompleted ? 'task-done-text' : '');
+        const titleKzBlock = t.title_kz ? `
+            <div class="planner-card-title-kz ${titleClass}">${escapeHtml(t.title_kz)}</div>
+        ` : '';
+
+        const commentPreview = t.comment ? `
+            <div style="font-size: 13px; color: #636366; margin-top: 4px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <i class="fa-regular fa-comment-dots" style="color: #8E8E93; font-size: 12px; flex-shrink: 0;"></i>
+                <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.comment)}</span>
+            </div>
+        ` : '';
+
         return `
-            <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}">
-                <div class="planner-card-header">
-                    <div class="card-header-tags">
-                        <span class="badge-code">${t.code || ('TSK-' + (idx + 1))}</span>
-                        ${cardZoneHtml}
-                        ${backlogBadge}
-                        ${crossWeekBadge}
-                    </div>
-                    <div>
-                        <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`} style="font-size: 0.88rem; min-height: 38px; padding: 0.4rem 0.85rem; font-weight: 700;">
-                            <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
-                            <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
-                            <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
-                            <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
-                        </select>
-                    </div>
+            <div class="apple-swipe-row" id="swipe-row-${t.id}">
+                <!-- Фоновое действие при свайпе вправо (Выполнить) -->
+                <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
+                    <i class="fa-solid fa-check" style="font-size: 20px;"></i>
+                    <span>Выполнить</span>
                 </div>
 
-                <div class="planner-card-body">
-                    <div class="planner-card-title ${titleClass}">${t.title || '—'}</div>
-                    ${titleKzBlock}
+                <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
+                <div class="apple-swipe-action-right">
+                    <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
+                        <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
+                        <span>Перенести</span>
+                    </button>
+                    <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
+                        <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
+                        <span>Передать</span>
+                    </button>
+                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
+                        <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
+                        <span>Правка</span>
+                    </button>
                 </div>
 
-                <div class="planner-card-meta">
-                    <div class="card-meta-item assignee">
-                        <i class="fa-solid fa-user-check"></i>
-                        <span title="${t.assignee_name || 'Не назначен'}">${t.assignee_name || 'Не назначен'}</span>
+                <!-- Карточка задачи (передний план) -->
+                <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" onclick="handleCardClick(event, ${t.id})">
+                    <div class="planner-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span class="badge-code" style="font-size: 11px; color: #8E8E93; font-family: monospace; letter-spacing: 0.2px;">${t.code || ('TSK-' + (idx + 1))}</span>
+                            ${cardZoneHtml}
+                            ${backlogBadge}
+                            ${crossWeekBadge}
+                        </div>
+                        <div>
+                            ${statusPill}
+                        </div>
                     </div>
-                    ${cardDueDateItem}
-                    <div class="card-meta-item">
-                        <i class="fa-solid fa-pen-nib" style="color: #94a3b8; font-size: 0.75rem;"></i>
-                        <span title="${t.author_name || '—'}">${t.author_name || '—'}</span>
-                    </div>
-                    <div class="card-meta-item" style="justify-content: flex-end;">
-                        ${photoBtn}
-                    </div>
-                </div>
 
-                ${commentBlock}
-                ${cardFooter}
+                    <div class="planner-card-body">
+                        <div class="planner-card-title ${titleClass}" style="font-size: 16px; font-weight: 600; color: #1C1C1E; line-height: 1.35;">${escapeHtml(t.title || '—')}</div>
+                        ${titleKzBlock}
+                    </div>
+
+                    <div class="planner-card-meta" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: #636366;">
+                        <div class="card-meta-item assignee" style="display: flex; align-items: center; gap: 5px; color: #007AFF; font-weight: 600;">
+                            <i class="fa-solid fa-user-check" style="font-size: 12px;"></i>
+                            <span title="${escapeHtml(t.assignee_name || 'Не назначен')}">${escapeHtml(t.assignee_name || 'Не назначен')}</span>
+                        </div>
+                        ${cardDueDateItem}
+                    </div>
+
+                    ${commentPreview}
+                </div>
             </div>
         `;
     }).join('');
+
+    initCardSwipeGestures();
+}
+
+/* ── Нативные Apple-свайпы для карточек задач ───────────────────────── */
+let activeSwipedCard = null;
+
+function closeAllSwipeRows() {
+    document.querySelectorAll('.apple-swipe-row .planner-card').forEach(c => {
+        c.style.transform = 'translateX(0)';
+    });
+    activeSwipedCard = null;
+}
+
+function handleCardClick(e, taskId) {
+    closeAllSwipeRows();
+}
+
+function initCardSwipeGestures() {
+    const rows = document.querySelectorAll('.apple-swipe-row');
+    rows.forEach(row => {
+        const card = row.querySelector('.planner-card');
+        if (!card) return;
+        const taskId = parseInt(card.dataset.taskId, 10);
+        if (!taskId) return;
+
+        let startX = 0;
+        let startY = 0;
+        let currentX = 0;
+        let isSwiping = false;
+        let isScrolling = false;
+
+        card.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+            currentX = 0;
+            isSwiping = false;
+            isScrolling = false;
+            card.style.transition = 'none';
+
+            if (activeSwipedCard && activeSwipedCard !== card) {
+                closeAllSwipeRows();
+            }
+        }, { passive: true });
+
+        card.addEventListener('touchmove', (e) => {
+            if (e.touches.length !== 1 || isScrolling) return;
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+
+            if (!isSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
+                isScrolling = true;
+                return;
+            }
+
+            if (Math.abs(dx) > 10 && !isScrolling) {
+                isSwiping = true;
+                currentX = dx;
+
+                if (dx > 0) {
+                    const clamped = Math.min(dx, 120);
+                    card.style.transform = `translateX(${clamped}px)`;
+                } else {
+                    const clamped = Math.max(dx, -220);
+                    card.style.transform = `translateX(${clamped}px)`;
+                }
+            }
+        }, { passive: true });
+
+        const endOrCancel = () => {
+            if (!isSwiping) return;
+            card.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+
+            if (currentX > 80) {
+                // СВАЙП ВПРАВО → Диалог подтверждения выполнения
+                card.style.transform = 'translateX(0)';
+                setTimeout(() => {
+                    quickUpdateStatus(taskId, '🟢 Выполнено');
+                }, 80);
+                activeSwipedCard = null;
+            } else if (currentX < -65) {
+                // СВАЙП ВЛЕВО → Раскрыть 3 кнопки действий (-204px)
+                card.style.transform = 'translateX(-204px)';
+                activeSwipedCard = card;
+            } else {
+                // Возврат
+                card.style.transform = 'translateX(0)';
+                if (activeSwipedCard === card) activeSwipedCard = null;
+            }
+            isSwiping = false;
+            isScrolling = false;
+        };
+
+        card.addEventListener('touchend', endOrCancel, { passive: true });
+        card.addEventListener('touchcancel', endOrCancel, { passive: true });
+    });
+}
+
+/* ── Свайп шторок (Bottom Sheets) вниз для закрытия ──────────────────── */
+function initBottomSheetSwipeGestures() {
+    const sheets = [
+        { sheetId: 'apple-filter-sheet', panelClass: '.apple-filter-panel', closeFn: toggleFilterSheet },
+        { sheetId: 'apple-date-sheet', panelClass: '.apple-date-panel', closeFn: typeof closeAppleDatePicker === 'function' ? closeAppleDatePicker : null }
+    ];
+
+    sheets.forEach(({ sheetId, panelClass, closeFn }) => {
+        const sheet = document.getElementById(sheetId);
+        if (!sheet || !closeFn) return;
+        const panel = sheet.querySelector(panelClass);
+        if (!panel) return;
+
+        let startY = 0;
+        let currentY = 0;
+        let isDragging = false;
+
+        panel.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            if (panel.scrollTop <= 0) {
+                startY = e.touches[0].clientY;
+                currentY = 0;
+                isDragging = true;
+                panel.style.transition = 'none';
+            }
+        }, { passive: true });
+
+        panel.addEventListener('touchmove', (e) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const dy = e.touches[0].clientY - startY;
+            if (dy > 0 && panel.scrollTop <= 0) {
+                currentY = dy;
+                panel.style.transform = `translateY(${dy}px)`;
+            }
+        }, { passive: true });
+
+        const endDrag = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            panel.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+            if (currentY > 70) {
+                closeFn();
+            } else {
+                panel.style.transform = 'translateY(0)';
+            }
+            currentY = 0;
+        };
+
+        panel.addEventListener('touchend', endDrag, { passive: true });
+        panel.addEventListener('touchcancel', endDrag, { passive: true });
+    });
 }
 
 function scrollToTargetTaskAfterRender() {
@@ -3098,6 +3215,7 @@ function formatIsoToDisplayDate(isoStr) {
 async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId = null, defaultDependsId = null) {
     const parentSelect = document.getElementById("task-parent-input");
     const dependsSelect = document.getElementById("task-depends-input");
+    if (!parentSelect && !dependsSelect) return;
 
     try {
         const res = await fetch("/api/tasks?task_type=all&month=all");
@@ -3133,7 +3251,8 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     document.getElementById("task-id-input").value = "";
     document.getElementById("task-ru-input").value = "";
     document.getElementById("task-kz-input").value = "";
-    document.getElementById("task-tags-input").value = "";
+    const tagsInput = document.getElementById("task-tags-input");
+    if (tagsInput) tagsInput.value = "";
     document.getElementById("task-photo-input").value = "";
     
     // Тип задачи / Горизонт
@@ -3237,7 +3356,8 @@ async function openEditTaskModal(taskId) {
     document.getElementById("task-id-input").value = task.id;
     document.getElementById("task-ru-input").value = task.title || "";
     document.getElementById("task-kz-input").value = task.title_kz || "";
-    document.getElementById("task-tags-input").value = task.tags || "";
+    const tagsInput = document.getElementById("task-tags-input");
+    if (tagsInput) tagsInput.value = task.tags || "";
     document.getElementById("task-zone-input").value = task.zone || "Бережливое производство";
     document.getElementById("task-photo-input").value = task.photo_link || "";
     document.getElementById("task-author-input").value = task.author_name || "";
@@ -3996,7 +4116,7 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
 
     rowDiv.innerHTML = `
         <span class="bulk-row-num" style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-align: center; margin-top: 6px;"></span>
-        <textarea class="form-textarea bulk-row-title" rows="2" placeholder="Суть задачи... (#ОГЭ, #ППР, #Срочно)" style="font-size: 0.85rem; padding: 0.35rem 0.55rem; resize: vertical; line-height: 1.35; width: 100%; word-break: break-word; min-height: 38px;" oninput="autoResizeBulkTextarea(this)" onkeydown="handleBulkRowKeydown(event, '${rowId}')">${escapeHtml(initTitle)}</textarea>
+        <textarea class="form-textarea bulk-row-title" rows="2" placeholder="Суть задачи..." style="font-size: 0.85rem; padding: 0.35rem 0.55rem; resize: vertical; line-height: 1.35; width: 100%; word-break: break-word; min-height: 38px;" oninput="autoResizeBulkTextarea(this)" onkeydown="handleBulkRowKeydown(event, '${rowId}')">${escapeHtml(initTitle)}</textarea>
         <select class="form-select bulk-row-assignee" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px; ${isServicePlan ? 'display: none;' : ''}">
             <option value="">-- Исполнитель --</option>
             ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === selectedPerson ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}

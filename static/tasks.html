@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20260907_calendar_time_v1">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20260921_apple_v5">
 
     <style>
         :root {
@@ -1632,14 +1633,196 @@
                 font-size: 6.5pt !important;
                 padding: 0 3px !important;
             }
+
+        /* ================================================================
+           APPLE REDESIGN OVERRIDES
+           ================================================================ */
+
+        /* ── Глобально скрываем только настоящий мусор (оба режима) ──── */
+        .kpi-summary-bar                { display: none !important; }
+        .quick-filters-bar              { display: none !important; }
+        #tags-cloud-bar                 { display: none !important; }
+        .mobile-filters-panel           { display: none !important; }
+
+        /* ── Apple Large Title / Ghost Row: только мобиль ────────────── */
+        .apple-large-title-header,
+        .apple-ghost-row                { display: none; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           МОБИЛЬ (≤767px): Apple UI, скрываем старую навигацию
+           ═══════════════════════════════════════════════════════════════ */
+        @media (max-width: 767px) {
+
+            /* Показываем Apple-компоненты */
+            .apple-large-title-header   { display: flex !important; }
+            .apple-ghost-row            { display: flex !important; }
+            .apple-fab                  { display: flex !important; }
+            .apple-bottom-nav           { display: flex !important; }
+
+            /* Скрываем старую навигацию — только на мобиле */
+            .horizon-nav-bar            { display: none !important; }
+            #main-toolbar               { display: none !important; }
+
+            /* Показываем карточки, скрываем таблицу */
+            #planner-table-wrapper      { display: none !important; }
+            .planner-cards-container    { display: block !important; padding-bottom: 80px !important; }
+
+            /* Общий фон */
+            body                        { background: #F2F2F7 !important; }
+            .table-container            { padding: 0 !important; margin: 0 !important; }
+
+            /* ── planner-card: iOS-стиль ─────────────────────────────── */
+            .planner-cards-container .planner-card {
+                border-radius: 0 !important;
+                border: none !important;
+                border-top: 1px solid rgba(60,60,67,0.12) !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                background: #FFFFFF !important;
+                position: relative !important;
+                overflow: hidden !important;
+            }
+
+            /* Полоса приоритета 2px */
+            .planner-cards-container .planner-card::before {
+                content: '' !important;
+                position: absolute !important;
+                left: 0 !important; top: 0 !important; bottom: 0 !important;
+                width: 2px !important;
+                background: #FF9500 !important;
+                border-radius: 0 !important;
+            }
+
+            /* Заголовок карточки: без status-select */
+            .planner-cards-container .planner-card .planner-card-header {
+                flex-direction: column !important;
+                gap: 4px !important;
+                padding: 10px 16px 4px 12px !important;
+                border-bottom: none !important;
+            }
+            .planner-cards-container .planner-card .planner-card-header > div:last-child {
+                display: none !important;
+            }
+
+            /* TSK-код */
+            .planner-cards-container .planner-card .badge-code {
+                font-family: 'SF Mono', monospace !important;
+                font-size: 10px !important;
+                color: #B5B5BA !important;
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                font-weight: 400 !important;
+            }
+
+            /* Заголовок задачи */
+            .planner-cards-container .planner-card .planner-card-title {
+                font-size: 16px !important;
+                font-weight: 600 !important;
+                color: #1C1C1E !important;
+                line-height: 21px !important;
+                padding: 2px 16px 6px 12px !important;
+            }
+
+            /* Мета-блок (исполнитель, дата) */
+            .planner-cards-container .planner-card .planner-card-meta {
+                padding: 0 16px 8px 12px !important;
+                font-size: 13px !important;
+                color: #6B6B71 !important;
+            }
+
+            /* Иконка календаря перед датой — убрать */
+            .planner-cards-container .planner-card .card-meta-item i {
+                display: none !important;
+            }
+
+            /* Кнопки действий — убрать (История/Передать/Перенести/Редактировать) */
+            .planner-cards-container .planner-card .card-actions-footer {
+                display: none !important;
+            }
+
+            /* Комментарий — компактный */
+            .planner-cards-container .planner-card .card-comment-box {
+                font-size: 13px !important;
+                color: #6B6B71 !important;
+                padding: 0 16px 8px 12px !important;
+                background: transparent !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+            .planner-cards-container .planner-card .card-comment-box i {
+                display: none !important;
+            }
+
+            /* «Добавить факт...» — убрать */
+            .planner-cards-container .planner-card .card-add-comment-btn {
+                display: none !important;
+            }
+
+            /* Зона-бейдж — компактнее */
+            .planner-cards-container .planner-card .badge-zone {
+                font-size: 11px !important;
+                padding: 1px 6px !important;
+            }
         }
+
+        /* ═══════════════════════════════════════════════════════════════
+           ДЕСКТОП (≥768px): оригинальная таблица + компактные улучшения
+           ═══════════════════════════════════════════════════════════════ */
+        @media (min-width: 768px) {
+
+            /* FAB и Bottom Nav — только мобиль */
+            .apple-fab,
+            .apple-bottom-nav           { display: none !important; }
+
+            /* Таблица — показываем */
+            #planner-table-wrapper      { display: block !important; }
+            .planner-cards-container    { display: none !important; }
+
+            /* Навигация горизонтов — показываем */
+            .horizon-nav-bar            { display: flex !important; }
+            #main-toolbar               { display: flex !important; }
+        }
+
     </style>
 </head>
 
 <body>
 
-    <!-- Header Navigation -->
-    <header class="planner-header">
+    <!-- ══ APPLE LARGE TITLE HEADER (мобильный, 80px) ══════════════════════ -->
+    <div class="apple-large-title-header" id="apple-large-title-header">
+        <div class="apple-title-row1">
+            <div class="apple-title-hamburger" onclick="toggleFilterSheet()" title="Фильтры">
+                <i class="fa-solid fa-sliders"></i>
+            </div>
+            <span class="apple-title-text" id="apple-title-section">Спринт</span>
+            <div class="apple-title-avatar" id="apple-avatar-btn"
+                 onclick="promptChangePlannerUser()"
+                 title="Сменить пользователя / PIN">
+                <i class="fa-solid fa-user" style="font-size:13px;" id="apple-avatar-icon"></i>
+            </div>
+        </div>
+        <div class="apple-title-row2">
+            <button type="button" class="apple-title-chip" id="apple-title-month" onclick="openAppleDatePicker('month')" title="Выбрать месяц">
+                <span id="apple-title-month-text">Сентябрь 2026</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 4px; opacity: 0.7;"></i>
+            </button>
+            <span class="apple-title-sep">·</span>
+            <button type="button" class="apple-title-chip apple-title-chip-week" id="apple-title-week" onclick="openAppleDatePicker('week')" title="Выбрать неделю">
+                <span id="apple-title-week-text">Нед. 2</span>
+                <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 4px; opacity: 0.7;"></i>
+            </button>
+            <span class="apple-title-badge" id="apple-task-count">0</span>
+        </div>
+    </div>
+    <!-- ══ GHOST ROW «Новая задача» (мобильный) ════════════════════════════ -->
+    <div class="apple-ghost-row" onclick="openAddTaskModal()">
+        <div class="apple-ghost-circle"></div>
+        <span class="apple-ghost-text">Новая задача...</span>
+    </div>
+
+    <!-- Header Navigation (скрыт) -->
+    <header class="planner-header" style="display: none !important;">
         <a href="/static/tasks.html" class="header-brand">
             <img src="/static/img/Logo.png" alt="Tectum Logo">
             <div>
@@ -1803,7 +1986,7 @@
     </div>
 
     <!-- KPI Summary Dashboard Bar -->
-    <div class="kpi-summary-bar" id="kpi-summary-bar">
+    <div class="kpi-summary-bar" id="kpi-summary-bar" style="display: none !important;">
         <div class="kpi-card-chip" onclick="applyPresetFilter('all')" title="Показать все задачи">
             <i class="fa-solid fa-list-check" style="color: #2563eb; font-size: 0.9rem;"></i>
             <div>
@@ -1842,7 +2025,7 @@
     </div>
 
     <!-- Quick Presets & Service Chips Bar -->
-    <div class="quick-filters-bar" id="quick-filters-bar">
+    <div class="quick-filters-bar" id="quick-filters-bar" style="display: none !important;">
         <div class="quick-chips-group" id="quick-chips-group">
             <button type="button" class="filter-chip active" id="chip-all" onclick="applyGlobalAllFilter()"
                 title="Показать все задачи завода">
@@ -2075,7 +2258,7 @@
 
             <input type="hidden" id="task-id-input" value="">
 
-            <!-- Planning Horizon Selector (3 Levels) -->
+            <!-- Planning Horizon Selector (2 Levels) -->
             <div class="form-row"
                 style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem;">
                 <label style="margin-bottom: 0.35rem; font-weight: 700; color: #0f172a;"><i
@@ -2085,8 +2268,6 @@
                         style="font-weight: 600;">
                         <option value="weekly">⚡ Недельный спринт</option>
                         <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
-                        <option value="roadmap">🗺️ Дорожная карта (Проект)</option>
-                        <option value="milestone">📍 Этап / Подзадача проекта</option>
                     </select>
                     <select class="form-select" id="task-department-input" style="font-weight: 600;">
                         <option value="">-- Без привязки к службе --</option>
@@ -2095,44 +2276,6 @@
                         <option value="Технологи">🔬 Технологи</option>
                         <option value="ОТК">📋 ОТК / СКК</option>
                     </select>
-                </div>
-            </div>
-
-            <!-- Hierarchy & Dependencies (Parent Project & Blocker) -->
-            <div class="form-row" id="task-hierarchy-row"
-                style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                <div>
-                    <label id="task-parent-label">Родительский проект / Этап</label>
-                    <select class="form-select" id="task-parent-input">
-                        <option value="">-- Без родительского проекта --</option>
-                    </select>
-                </div>
-                <div>
-                    <label><i class="fa-solid fa-link" style="color: #f59e0b;"></i> Зависит от задачи (Блокер)</label>
-                    <select class="form-select" id="task-depends-input">
-                        <option value="">-- Нет блокирующих задач --</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Roadmap Specific Fields (Quarter & Progress) -->
-            <div class="form-row" id="task-roadmap-fields-row"
-                style="display: none; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.6rem 0.75rem;">
-                <div>
-                    <label style="color: #6d28d9; font-weight: 600;">Целевой квартал</label>
-                    <select class="form-select" id="task-quarter-input">
-                        <option value="Q1 2026">Q1 2026</option>
-                        <option value="Q2 2026">Q2 2026</option>
-                        <option value="Q3 2026" selected>Q3 2026</option>
-                        <option value="Q4 2026">Q4 2026</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="color: #6d28d9; font-weight: 600;">Прогресс выполнения: <span
-                            id="task-progress-display" style="font-weight: 700; color: #7c3aed;">0%</span></label>
-                    <input type="range" min="0" max="100" step="5" value="0" id="task-progress-input"
-                        oninput="document.getElementById('task-progress-display').textContent = this.value + '%'"
-                        style="width: 100%; accent-color: #7c3aed; margin-top: 6px;">
                 </div>
             </div>
 
@@ -2148,7 +2291,7 @@
                             style="display: none; font-size: 0.72rem; color: #64748b; font-weight: 500;"></span>
                     </div>
                     <textarea class="form-textarea" id="task-ru-input" rows="3"
-                        placeholder="Формулировка задачи... Используйте #хэштеги (#ОГМ #ППР #Срочно)"
+                        placeholder="Формулировка задачи..."
                         oninput="onTaskInputChanged('primary')" required
                         style="resize: vertical; min-height: 78px;"></textarea>
                 </div>
@@ -2167,33 +2310,6 @@
                     <textarea class="form-textarea" id="task-kz-input" rows="3" placeholder="Автоматический перевод..."
                         oninput="onTaskInputChanged('secondary')"
                         style="resize: vertical; min-height: 78px; background: #f8fafc; color: #334155;"></textarea>
-                </div>
-            </div>
-
-            <!-- Tags Field & Quick Chips -->
-            <div class="form-row">
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-tags" style="color: #2563eb;"></i> Хэштеги
-                        задачи</label>
-                    <span style="font-size: 0.72rem; color: #64748b;">(через запятую или кликните чип)</span>
-                </div>
-                <input type="text" class="form-input" id="task-tags-input" placeholder="#ОГМ, #ППР, #ЛФМ, #Закупки...">
-                <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px;">
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#ОГМ')">#ОГМ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#ОГЭ')">#ОГЭ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#ППР')">#ППР</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#ЛФМ')">#ЛФМ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#Дестакер')">#Дестакер</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#Закупки')">#Закупки</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px;"
-                        onclick="addTagToModalInput('#Срочно')">#Срочно</span>
                 </div>
             </div>
 
@@ -2249,32 +2365,6 @@
                 <div id="task-photo-preview-hint"
                     style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
                     <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
-                </div>
-            </div>
-
-            <!-- Document from Knowledge Base (Attachment) -->
-            <div class="form-row">
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
-                        Регламент / Документ из Базы Знаний</label>
-                    <button type="button" class="btn-action btn-secondary-action"
-                        style="font-size: 0.75rem; padding: 4px 10px;" onclick="openDocPickerModal()"
-                        title="Выбрать файл или регламент из Базы Знаний">
-                        <i class="fa-solid fa-folder-open"></i> <span>Выбрать из Базы Знаний</span>
-                    </button>
-                </div>
-                <input type="hidden" id="task-doc-id-input" value="">
-                <div id="task-doc-selected-box"
-                    style="display: none; align-items: center; justify-content: space-between; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.5rem 0.75rem;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; overflow: hidden;">
-                        <i class="fa-solid fa-paperclip" style="color: #2563eb;"></i>
-                        <span id="task-doc-name-display"
-                            style="font-weight: 600; font-size: 0.85rem; color: #1d4ed8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
-                    </div>
-                    <button type="button" onclick="clearSelectedDocAttachment()"
-                        style="background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.9rem;"
-                        title="Открепить документ">&times;</button>
                 </div>
             </div>
 
@@ -2370,7 +2460,6 @@
                             style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                             <option value="weekly">⚡ Недельный спринт</option>
                             <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
-                            <option value="roadmap">🗺️ Дорожная карта</option>
                         </select>
                     </div>
 
@@ -2463,7 +2552,7 @@
                 <div id="bulk-tasks-table-header"
                     style="display: grid; grid-template-columns: 32px 1fr 170px 135px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
                     <span>№</span>
-                    <span>Суть задачи (#теги) *</span>
+                    <span>Суть задачи *</span>
                     <span id="bulk-header-assignee">Исполнитель</span>
                     <span>Срок</span>
                     <span></span>
@@ -2893,8 +2982,345 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_bulk_tasks_fix_v4"></script>
+    <script src="/static/js/tasks.js?v=20260921_no_click_edit_v1"></script>
     <script src="/static/js/version_guard.js"></script>
+
+    <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
+        <i class="fa-solid fa-plus"></i>
+    </div>
+
+    <div class="apple-bottom-nav" style="height: 56px; background: rgba(255,255,255,0.88); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 -1px 0 rgba(60,60,67,0.12); position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0px); display: flex;" id="apple-bottom-nav">
+        <div class="apple-nav-item active" data-horizon="weekly"
+             style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #C82323;"
+             onclick="switchHorizon('weekly'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('weekly');">
+            <i class="fa-solid fa-bolt" style="font-size: 26px;"></i>
+            <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.1px;">Спринт</span>
+        </div>
+        <div class="apple-nav-item" data-horizon="services"
+             style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
+             onclick="switchHorizon('services'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('services');">
+            <i class="fa-solid fa-table-cells-large" style="font-size: 26px;"></i>
+            <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.1px;">Службы</span>
+        </div>
+        <div class="apple-nav-item" data-horizon="my"
+             style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
+             onclick="selectMyTasksFromNav();">
+            <i class="fa-regular fa-square-check" style="font-size: 26px;"></i>
+            <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.1px;">Мои</span>
+        </div>
+    </div>
+
+    <div id="apple-filter-sheet" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; display: none;">
+        <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);" onclick="toggleFilterSheet()"></div>
+        <div class="apple-filter-panel" style="position: absolute; bottom: 0; left: 0; right: 0; max-height: 60vh; background: #FFFFFF; border-radius: 20px 20px 0 0; transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.16,1,0.3,1); overflow-y: auto;">
+            <div style="width: 36px; height: 5px; background: #D1D1D6; border-radius: 3px; margin: 8px auto 16px;"></div>
+            <div style="padding: 0 16px 34px;">
+                <!-- 1. Все задачи -->
+                <div class="filter-row" onclick="applyPresetFilter('all'); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; border-bottom: 1px solid rgba(60,60,67,0.08); cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #8E8E93; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Все задачи</span>
+                </div>
+
+                <!-- 2. Мои задачи -->
+                <div class="filter-row" onclick="toggleMyTasksFilter(); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; border-bottom: 1px solid rgba(60,60,67,0.08); cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #007AFF; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Мои задачи</span>
+                </div>
+
+                <!-- 3. В работе -->
+                <div class="filter-row" onclick="applyPresetFilter('in_work'); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; border-bottom: 1px solid rgba(60,60,67,0.08); cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #FF9500; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">В работе</span>
+                </div>
+
+                <!-- 4. Выполненные -->
+                <div class="filter-row" onclick="applyPresetFilter('done'); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; border-bottom: 1px solid rgba(60,60,67,0.08); cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #34C759; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Выполненные</span>
+                </div>
+
+                <!-- 5. Перенесённые -->
+                <div class="filter-row" onclick="applyPresetFilter('moved'); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; border-bottom: 1px solid rgba(60,60,67,0.08); cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #5856D6; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Перенесённые</span>
+                </div>
+
+                <!-- 6. Отменённые -->
+                <div class="filter-row" onclick="applyPresetFilter('cancelled'); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; border-bottom: 1px solid rgba(60,60,67,0.08); cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #FF3B30; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 14px; flex-shrink: 0;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Отменённые</span>
+                </div>
+
+                <!-- 7. Долги с прошлых недель -->
+                <div class="filter-row" onclick="showBacklog = !showBacklog; loadTasks(); toggleFilterSheet();" style="display: flex; align-items: center; height: 50px; cursor: pointer;">
+                    <div style="width: 30px; height: 30px; border-radius: 8px; background: #AF52DE; display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; flex-shrink: 0;">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <span style="flex: 1; font-size: 16px; font-weight: 500; color: #1C1C1E; margin-left: 14px;">Долги с прошлых недель</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ APPLE DATE PICKER BOTTOM SHEET (мобильный выбор месяца/недели) ════ -->
+    <div id="apple-date-sheet" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 210; display: none;">
+        <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);" onclick="closeAppleDatePicker()"></div>
+        <div class="apple-date-panel" style="position: absolute; bottom: 0; left: 0; right: 0; max-height: 75vh; background: #FFFFFF; border-radius: 20px 20px 0 0; transform: translateY(100%); transition: transform 0.32s cubic-bezier(0.16,1,0.3,1); display: flex; flex-direction: column; overflow: hidden;">
+            <div style="width: 36px; height: 5px; background: #D1D1D6; border-radius: 3px; margin: 8px auto 8px; flex-shrink: 0;"></div>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 16px 12px; border-bottom: 1px solid rgba(60,60,67,0.12); flex-shrink: 0;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="apple-tab-pick-month" onclick="switchAppleDateTab('month')" style="padding: 6px 14px; border-radius: 16px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; background: #C82323; color: #fff;">Месяц</button>
+                    <button type="button" id="apple-tab-pick-week" onclick="switchAppleDateTab('week')" style="padding: 6px 14px; border-radius: 16px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; background: #F2F2F7; color: #1C1C1E;">Неделя</button>
+                </div>
+                <button type="button" onclick="closeAppleDatePicker()" style="background: none; border: none; font-size: 15px; font-weight: 600; color: #C82323; cursor: pointer;">Готово</button>
+            </div>
+            <div id="apple-date-picker-list" style="padding: 8px 16px 34px; overflow-y: auto; flex: 1;">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function toggleFilterSheet() {
+        const sheet = document.getElementById('apple-filter-sheet');
+        const panel = sheet.querySelector('.apple-filter-panel');
+        if (sheet.style.display === 'none') {
+            sheet.style.display = 'block';
+            setTimeout(() => { panel.style.transform = 'translateY(0)'; }, 10);
+        } else {
+            panel.style.transform = 'translateY(100%)';
+            setTimeout(() => { sheet.style.display = 'none'; }, 320);
+        }
+    }
+
+    /* ── Apple Date Picker Bottom Sheet (Месяц / Неделя) ─────────────────── */
+    let currentAppleDateTab = 'month';
+
+    function openAppleDatePicker(tab) {
+        currentAppleDateTab = tab || 'month';
+        const sheet = document.getElementById('apple-date-sheet');
+        const panel = sheet.querySelector('.apple-date-panel');
+        renderAppleDateTab();
+        sheet.style.display = 'block';
+        setTimeout(() => { panel.style.transform = 'translateY(0)'; }, 10);
+    }
+
+    function closeAppleDatePicker() {
+        const sheet = document.getElementById('apple-date-sheet');
+        const panel = sheet.querySelector('.apple-date-panel');
+        panel.style.transform = 'translateY(100%)';
+        setTimeout(() => { sheet.style.display = 'none'; }, 320);
+    }
+
+    function switchAppleDateTab(tab) {
+        currentAppleDateTab = tab;
+        renderAppleDateTab();
+    }
+
+    function renderAppleDateTab() {
+        const btnMonth = document.getElementById('apple-tab-pick-month');
+        const btnWeek  = document.getElementById('apple-tab-pick-week');
+        const list     = document.getElementById('apple-date-picker-list');
+        const monthSel = document.getElementById('filter-month');
+        const weekSel  = document.getElementById('filter-week');
+
+        if (currentAppleDateTab === 'month') {
+            btnMonth.style.background = '#C82323';
+            btnMonth.style.color = '#FFFFFF';
+            btnWeek.style.background = '#F2F2F7';
+            btnWeek.style.color = '#1C1C1E';
+
+            if (!monthSel) return;
+            const curVal = monthSel.value;
+            let html = '';
+            Array.from(monthSel.options).forEach(opt => {
+                const isSel = opt.value === curVal;
+                html += `
+                    <div onclick="selectAppleMonth('${opt.value}')" style="display: flex; align-items: center; justify-content: space-between; height: 48px; border-bottom: 1px solid rgba(60,60,67,0.1); cursor: pointer;">
+                        <span style="font-size: 16px; font-weight: ${isSel ? '700' : '400'}; color: ${isSel ? '#C82323' : '#1C1C1E'};">${opt.text}</span>
+                        ${isSel ? '<i class="fa-solid fa-check" style="color: #C82323; font-size: 15px;"></i>' : ''}
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        } else {
+            btnMonth.style.background = '#F2F2F7';
+            btnMonth.style.color = '#1C1C1E';
+            btnWeek.style.background = '#C82323';
+            btnWeek.style.color = '#FFFFFF';
+
+            if (!weekSel) return;
+            const curVal = weekSel.value;
+            let html = '';
+            Array.from(weekSel.options).forEach(opt => {
+                const isSel = opt.value === curVal;
+                html += `
+                    <div onclick="selectAppleWeek('${opt.value}')" style="display: flex; align-items: center; justify-content: space-between; height: 48px; border-bottom: 1px solid rgba(60,60,67,0.1); cursor: pointer;">
+                        <span style="font-size: 15px; font-weight: ${isSel ? '700' : '400'}; color: ${isSel ? '#C82323' : '#1C1C1E'};">${opt.text}</span>
+                        ${isSel ? '<i class="fa-solid fa-check" style="color: #C82323; font-size: 15px;"></i>' : ''}
+                    </div>
+                `;
+            });
+            list.innerHTML = html || '<div style="padding: 24px; text-align: center; color: #8E8E93;">Нет доступных недель для данного месяца</div>';
+        }
+    }
+
+    function selectAppleMonth(val) {
+        const monthSel = document.getElementById('filter-month');
+        if (monthSel) {
+            monthSel.value = val;
+            if (typeof onMonthChange === 'function') {
+                onMonthChange();
+            }
+        }
+        syncAppleTitleHeader();
+        // Переключаем на выбор недели после смены месяца, если не 'all'
+        if (val !== 'all') {
+            setTimeout(() => {
+                switchAppleDateTab('week');
+            }, 100);
+        } else {
+            closeAppleDatePicker();
+        }
+    }
+
+    function selectAppleWeek(val) {
+        const weekSel = document.getElementById('filter-week');
+        if (weekSel) {
+            weekSel.value = val;
+            if (typeof loadTasks === 'function') {
+                loadTasks();
+            }
+        }
+        syncAppleTitleHeader();
+        closeAppleDatePicker();
+    }
+
+    /* ── Переключение Bottom Nav: активный цвет + заголовок ─────────────── */
+    const HORIZON_LABELS = {
+        weekly: 'Спринт', services: 'Службы',
+        tech_council: 'Техсовет', quality_day: 'День качества',
+        roadmaps: 'Дорожные карты', my: 'Мои задачи'
+    };
+
+    function appleNavSwitch(key) {
+        document.querySelectorAll('#apple-bottom-nav .apple-nav-item').forEach(el => {
+            const isActive = el.dataset.horizon === key;
+            el.style.color = isActive ? '#C82323' : '#8E8E93';
+        });
+        const sectionEl = document.getElementById('apple-title-section');
+        if (sectionEl) sectionEl.textContent = HORIZON_LABELS[key] || 'Спринт';
+        setTimeout(syncAppleTitleHeader, 100);
+    }
+
+    function selectMyTasksFromNav() {
+        if (typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+            if (typeof switchHorizon === 'function') switchHorizon('weekly');
+        }
+        const tableWrapper = document.getElementById("planner-table-wrapper");
+        const roadmapsContainer = document.getElementById("roadmaps-view-container");
+        if (tableWrapper) tableWrapper.style.display = "block";
+        if (roadmapsContainer) roadmapsContainer.style.display = "none";
+
+        if (typeof myTasksFilterActive !== 'undefined' && !myTasksFilterActive) {
+            if (typeof toggleMyTasksFilter === 'function') toggleMyTasksFilter();
+        } else {
+            if (typeof loadTasks === 'function') loadTasks();
+        }
+        appleNavSwitch('my');
+    }
+
+    /* ── Синхронизация Apple Large Title Header ──────────────────────────── */
+    function syncAppleTitleHeader() {
+        try {
+            const monthSel   = document.getElementById('filter-month');
+            const weekSel    = document.getElementById('filter-week');
+            const monthTextEl = document.getElementById('apple-title-month-text');
+            const weekTextEl  = document.getElementById('apple-title-week-text');
+            const appleCount  = document.getElementById('apple-task-count');
+            const appleAvatar = document.getElementById('apple-avatar-btn');
+
+            // Месяц
+            if (monthSel && monthTextEl) {
+                const mv = monthSel.value;
+                monthTextEl.textContent = (mv === 'all' || !mv) ? 'Все задачи' : mv;
+            }
+
+            // Неделя
+            if (weekSel && weekTextEl) {
+                const wv = weekSel.value || '';
+                if (!wv || wv === 'all') {
+                    weekTextEl.textContent = 'Весь месяц';
+                } else {
+                    const clean = wv.replace(/^Неделя\s*/i, '');
+                    weekTextEl.textContent = 'Нед. ' + clean;
+                }
+            }
+
+            // Счётчик
+            if (appleCount) {
+                const cards = document.querySelectorAll('#tasks-cards-container .planner-card');
+                const rows  = document.querySelectorAll('#tasks-table-body tr[id^="task-row-"]');
+                appleCount.textContent = cards.length || rows.length || 0;
+            }
+
+            // Аватар
+            if (appleAvatar && typeof currentPlannerUser !== 'undefined' && currentPlannerUser && currentPlannerUser.name) {
+                const parts = currentPlannerUser.name.trim().split(' ').filter(Boolean);
+                const initials = parts.slice(0, 2).map(w => w[0]).join('').toUpperCase();
+                appleAvatar.innerHTML = `<span style="font-size:13px;font-weight:700;">${initials}</span>`;
+            }
+
+            // Заголовок раздела
+            const sectionEl = document.getElementById('apple-title-section');
+            if (sectionEl) {
+                if (typeof myTasksFilterActive !== 'undefined' && myTasksFilterActive) {
+                    sectionEl.textContent = 'Мои задачи';
+                } else {
+                    const activeTab = document.querySelector('.horizon-tab-btn.active');
+                    if (activeTab) {
+                        const tabText = activeTab.textContent.trim().replace(/^[^\w]*/, '').trim();
+                        const sectionMap = {
+                            'weekly': 'Спринт', 'services': 'Службы', 'tech_council': 'Техсовет',
+                            'quality_day': 'День качества', 'roadmaps': 'Дорожные карты'
+                        };
+                        const tabId = activeTab.id || '';
+                        const key = tabId.replace('tab-horizon-', '');
+                        sectionEl.textContent = sectionMap[key] || tabText.split(' ').slice(-1)[0] || 'Спринт';
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        syncAppleTitleHeader();
+        if (typeof initBottomSheetSwipeGestures === 'function') {
+            initBottomSheetSwipeGestures();
+        }
+        const cardsEl = document.getElementById('tasks-cards-container');
+        const tableEl = document.getElementById('tasks-table-body');
+        [cardsEl, tableEl].forEach(el => {
+            if (el) {
+                const obs = new MutationObserver(syncAppleTitleHeader);
+                obs.observe(el, { childList: true, subtree: false });
+            }
+        });
+    });
+    </script>
+    
 </body>
 
 </html>

@@ -711,6 +711,7 @@ class TaskBase(ORMBaseModel):
     tags: Optional[str] = ""
     target_quarter: Optional[str] = ""
     progress: Optional[int] = 0
+    order_index: Optional[int] = 0
     
     # Legacy / Compatibility fields
     description: Optional[str] = ""
@@ -787,6 +788,7 @@ class TaskUpdate(ORMBaseModel):
     tags: Optional[str] = None
     target_quarter: Optional[str] = None
     progress: Optional[int] = None
+    order_index: Optional[int] = None
     
     # Legacy
     description: Optional[str] = None
@@ -960,6 +962,59 @@ class AIChatConversationOut(ORMBaseModel):
 
 class AIChatConversationDetailOut(AIChatConversationOut):
     messages: list[AIChatMessageOut] = []
+
+# --- PLANNER TEAMS LITE SCHEMAS ---
+class TaskCommentBase(ORMBaseModel):
+    text: str
+    author_name: str
+    photo_url: Optional[str] = None
+    comment_type: Optional[str] = "message"
+
+class TaskCommentCreate(BaseModel):
+    text: str
+    author_name: Optional[str] = "Сотрудник"
+    photo_url: Optional[str] = None
+    comment_type: Optional[str] = "message"
+
+class TaskCommentOut(ORMBaseModel):
+    id: int
+    task_id: int
+    author_name: str
+    text: str
+    photo_url: Optional[str] = None
+    comment_type: str = "message"
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class UserPresenceHeartbeat(BaseModel):
+    user_name: str
+    channel: Optional[str] = "weekly"
+
+class UserPresenceOut(ORMBaseModel):
+    user_name: str
+    last_seen: datetime
+    current_channel: Optional[str] = None
+    is_online: bool = True
+
+    class Config:
+        from_attributes = True
+
+class TaskQuickCreate(BaseModel):
+    title: str
+    channel: Optional[str] = "weekly" # "weekly", "services-ogm", "services-oge", "tech_council", "quality_day", "roadmaps"
+    author_name: Optional[str] = None
+    assignee_name: Optional[str] = None
+    department_service: Optional[str] = None
+    zone: Optional[str] = None
+    due_date_str: Optional[str] = None
+    month: Optional[str] = None
+    week: Optional[str] = None
+    month_label: Optional[str] = None
+    week_label: Optional[str] = None
+    status: Optional[str] = "⚪ В очереди"
+
 
 
 

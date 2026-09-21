@@ -590,6 +590,72 @@ async def lifespan(app: FastAPI):
         if 'db' in locals() and db:
             db.close()
 
+    # Task order_index and Teams Lite tables migration (PostgreSQL & SQLite)
+    try:
+        db = SessionLocal()
+        driver = db.bind.dialect.name if db.bind else 'unknown'
+        if driver == 'postgresql':
+            from sqlalchemy import text
+            try:
+                db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;"))
+                db.execute(text("""
+                    CREATE TABLE IF NOT EXISTS task_comments (
+                        id SERIAL PRIMARY KEY,
+                        task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                        author_name VARCHAR(255) NOT NULL,
+                        comment_type VARCHAR(50) DEFAULT 'message',
+                        text TEXT NOT NULL,
+                        photo_url TEXT,
+                        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
+                    );
+                """))
+                db.execute(text("""
+                    CREATE TABLE IF NOT EXISTS user_presence (
+                        id SERIAL PRIMARY KEY,
+                        user_name VARCHAR(255) UNIQUE NOT NULL,
+                        last_seen TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+                        current_channel VARCHAR(100)
+                    );
+                """))
+                db.commit()
+            except Exception:
+                db.rollback()
+        elif driver == 'sqlite':
+            conn = sqlite3.connect("tectum.db")
+            try:
+                conn.execute("ALTER TABLE tasks ADD COLUMN order_index INTEGER DEFAULT 0")
+                conn.commit()
+            except Exception: pass
+            try:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS task_comments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        task_id INTEGER NOT NULL,
+                        author_name VARCHAR(255) NOT NULL,
+                        comment_type VARCHAR(50) DEFAULT 'message',
+                        text TEXT NOT NULL,
+                        photo_url TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+                    )
+                """)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS user_presence (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_name VARCHAR(255) UNIQUE NOT NULL,
+                        last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        current_channel VARCHAR(100)
+                    )
+                """)
+                conn.commit()
+            except Exception: pass
+            conn.close()
+    except Exception as e:
+        print(f"Task order_index and Teams Lite migration note: {e}")
+    finally:
+        if 'db' in locals() and db:
+            db.close()
+
     # Automatic deduplication of duplicate document folders on startup
     try:
         db = SessionLocal()
@@ -893,11 +959,47 @@ async def lifespan(app: FastAPI):
                 pass
         conn.commit()
         conn.close()
-    except:
+    except Exception:
         pass
 
+    # Teams Lite: task_comments and user_presence auto-migrations
+    try:
+        models.TaskComment.__table__.create(bind=engine, checkfirst=True)
+
+        models.UserPresence.__table__.create(bind=engine, checkfirst=True)
+        
+        if "postgresql" in engine.url.drivername or "postgres" in engine.url.drivername:
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS task_comments (
+                        id SERIAL PRIMARY KEY,
+                        task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                        author_name VARCHAR(255) NOT NULL,
+                        comment_type VARCHAR(50) DEFAULT 'message',
+                        text TEXT NOT NULL,
+                        photo_url TEXT,
+                        created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc')
+                    );
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_task_comments_created_at ON task_comments(created_at);"))
+                
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS user_presence (
+                        id SERIAL PRIMARY KEY,
+                        user_name VARCHAR(255) UNIQUE NOT NULL,
+                        last_seen TIMESTAMP WITHOUT TIME ZONE DEFAULT (NOW() AT TIME ZONE 'utc'),
+                        current_channel VARCHAR(100)
+                    );
+                """))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen ON user_presence(last_seen);"))
+                conn.commit()
+    except Exception as e_tl:
+        print(f"Warning: Teams Lite tables initialization: {e_tl}")
 
     db = SessionLocal()
+
 
     try:
         if not db.query(models.Master).filter(models.Master.role == "master").first():
@@ -1155,46 +1257,46 @@ async def lifespan(app: FastAPI):
 
 
         # Background auto-sync of folder structure and missing Google Drive URLs for existing documents
-        try:
-            from routers.documents import get_or_create_google_drive_folder_for_category
-            db_docs = SessionLocal()
+        def bg_google_drive_init():
             try:
-                # 1. Sync all folder categories to Google Drive
-                all_categories = db_docs.query(models.DocumentCategory).all()
-                print(f"[STARTUP] Starting auto-sync for {len(all_categories)} categories to Google Drive...")
-                for cat in all_categories:
-                    try:
-                        f_id = get_or_create_google_drive_folder_for_category(db_docs, cat.id)
-                        print(f"[STARTUP] Synced category #{cat.id} ('{cat.name}') -> Drive ID: {f_id}")
-                    except Exception as cat_sync_err:
-                        print(f"[STARTUP ERROR] Could not auto-sync folder category #{cat.id} ('{cat.name}') to Google Drive: {cat_sync_err}")
+                from routers.documents import get_or_create_google_drive_folder_for_category
+                db_docs = SessionLocal()
+                try:
+                    # 1. Sync all folder categories to Google Drive
+                    all_categories = db_docs.query(models.DocumentCategory).all()
+                    for cat in all_categories:
+                        try:
+                            get_or_create_google_drive_folder_for_category(db_docs, cat.id)
+                        except Exception:
+                            pass
 
-                # 2. Sync all documents missing Google Drive URLs
-                unmigrated_docs = db_docs.query(models.Document).filter(
-                    (models.Document.google_drive_url == None) | (models.Document.google_drive_url == "")
-                ).all()
-                print(f"[STARTUP] Found {len(unmigrated_docs)} unmigrated documents.")
-                if unmigrated_docs:
-                    import google_drive_integration
-                    for u_doc in unmigrated_docs:
-                        if u_doc.file_path and os.path.exists(u_doc.file_path):
-                            try:
-                                clean_t = u_doc.title or os.path.basename(u_doc.file_path)
-                                parent_drive_id = get_or_create_google_drive_folder_for_category(db_docs, u_doc.category_id)
-                                d_info = google_drive_integration.upload_file_to_drive(u_doc.file_path, clean_t, parent_drive_id=parent_drive_id)
-                                if d_info and d_info.get("id"):
-                                    u_doc.google_drive_id = d_info["id"]
-                                    u_doc.google_drive_url = d_info["url"]
-                                    db_docs.commit()
-                                    print(f"Auto-synced doc #{u_doc.id} ('{clean_t}') to Google Drive.")
-                            except Exception as sync_err:
-                                print(f"Could not auto-sync doc #{u_doc.id} on startup: {sync_err}")
-            finally:
-                db_docs.close()
-        except Exception as doc_mig_err:
-            print(f"Docs startup sync error: {doc_mig_err}")
+                    # 2. Sync all documents missing Google Drive URLs
+                    unmigrated_docs = db_docs.query(models.Document).filter(
+                        (models.Document.google_drive_url == None) | (models.Document.google_drive_url == "")
+                    ).all()
+                    if unmigrated_docs:
+                        import google_drive_integration
+                        for u_doc in unmigrated_docs:
+                            if u_doc.file_path and os.path.exists(u_doc.file_path):
+                                try:
+                                    clean_t = u_doc.title or os.path.basename(u_doc.file_path)
+                                    parent_drive_id = get_or_create_google_drive_folder_for_category(db_docs, u_doc.category_id)
+                                    d_info = google_drive_integration.upload_file_to_drive(u_doc.file_path, clean_t, parent_drive_id=parent_drive_id)
+                                    if d_info and d_info.get("id"):
+                                        u_doc.google_drive_id = d_info["id"]
+                                        u_doc.google_drive_url = d_info["url"]
+                                        db_docs.commit()
+                                except Exception:
+                                    pass
+                finally:
+                    db_docs.close()
+            except Exception as doc_mig_err:
+                print(f"Drive background sync note: {doc_mig_err}")
+
+        threading.Thread(target=bg_google_drive_init, daemon=True).start()
 
     threading.Thread(target=bg_cleanups_init, daemon=True).start()
+
 
 
     # Rename master

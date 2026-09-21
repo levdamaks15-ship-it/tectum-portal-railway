@@ -431,6 +431,7 @@ class Task(Base):
     tags = Column(String, nullable=True, index=True) # "#ОГМ, #ППР, #ЛФМ"
     target_quarter = Column(String, nullable=True, index=True) # "Q3 2026", "Q4 2026"
     progress = Column(Integer, default=0) # 0-100%
+    order_index = Column(Integer, default=0, nullable=True) # Порядковый номер для Kanban / ручной сортировки
     
     # Legacy / Compatibility fields
     description = Column(String, nullable=True)
@@ -451,6 +452,27 @@ class Task(Base):
     attached_document = relationship("Document", foreign_keys=[attached_document_id])
     parent = relationship("Task", remote_side=[id], backref="subtasks", foreign_keys=[parent_id])
     depends_on = relationship("Task", foreign_keys=[depends_on_id])
+    comments = relationship("TaskComment", back_populates="task", cascade="all, delete-orphan", order_by="TaskComment.created_at.asc()")
+
+class TaskComment(Base):
+    __tablename__ = "task_comments"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    author_name = Column(String(255), nullable=False, index=True)
+    comment_type = Column(String(50), default="message") # "message", "status_change", "reschedule", "completion_proof"
+    text = Column(Text, nullable=False) # TEXT unlimited length invariant
+    photo_url = Column(Text, nullable=True) # direct image link / uploads
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    task = relationship("Task", back_populates="comments")
+
+class UserPresence(Base):
+    __tablename__ = "user_presence"
+    id = Column(Integer, primary_key=True, index=True)
+    user_name = Column(String(255), unique=True, index=True, nullable=False)
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    current_channel = Column(String(100), nullable=True) # e.g. "weekly", "ОГМ", "ОГЭ"
+
 
 class ChecklistEmployee(Base):
     __tablename__ = "checklist_employees"

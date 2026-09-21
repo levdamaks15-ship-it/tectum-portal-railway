@@ -1,0 +1,1685 @@
+/* ==========================================================================
+   Tectum Portal — Modern Planner UI/UX Redesign
+   TickTick / MS To Do / Google Tasks Inspired Architecture
+   Corporate Blue Accent (#1976d2) + Priority & Status Color System
+   ========================================================================== */
+
+:root {
+    /* Apple iOS Light Mode Tokens */
+    --color-bg: #F2F2F7;
+    --color-surface: #FFFFFF;
+    --color-accent: #C82323;
+    --color-accent-muted: rgba(200,35,35,0.10);
+    --color-text-primary: #1C1C1E;
+    --color-text-secondary: rgba(60,60,67,0.6);
+    --color-text-muted: rgba(60,60,67,0.3);
+    --color-separator: rgba(60,60,67,0.12);
+    
+    --color-priority-high: #FF3B30;
+    --color-priority-medium: #FF9500;
+    --color-priority-low: #34C759;
+    
+    --color-status-done: #34C759;
+    --color-status-overdue: #FF3B30;
+
+    --space-2: 2px;
+    --space-4: 4px;
+    --space-8: 8px;
+    --space-12: 12px;
+    --space-16: 16px;
+    --space-20: 20px;
+    --space-24: 24px;
+    
+    /* Backwards compatibility */
+    --planner-primary: var(--color-accent);
+    --planner-primary-hover: #b01e1e;
+    --planner-primary-light: var(--color-accent-muted);
+    --planner-primary-border: var(--color-accent);
+    --planner-bg: var(--color-bg);
+    --planner-surface: var(--color-surface);
+    --planner-border: var(--color-separator);
+    --planner-border-subtle: var(--color-separator);
+    --planner-text-main: var(--color-text-primary);
+    --planner-text-secondary: var(--color-text-secondary);
+    --planner-text-muted: var(--color-text-muted);
+    --planner-radius: 12px;
+    
+    --priority-high: var(--color-priority-high);
+    --priority-medium: var(--color-priority-medium);
+    --priority-low: var(--color-priority-low);
+    
+    --planner-drawer-width: 440px;
+}
+
+/* ==========================================================================
+   1. Modern 3-Column Layout & Structure
+   ========================================================================== */
+.planner-app-container {
+    display: flex;
+    flex: 1;
+    height: calc(100vh - 54px);
+    max-height: calc(100vh - 54px);
+    position: relative;
+    overflow: hidden;
+    background: var(--planner-bg);
+}
+
+/* Left Navigation Sidebar */
+.planner-sidebar {
+    width: 250px;
+    min-width: 250px;
+    max-width: 250px;
+    background: var(--planner-surface);
+    border-right: 1px solid var(--planner-border);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    z-index: 50;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), width 0.2s ease;
+    user-select: none;
+}
+
+.planner-sidebar-header {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--planner-border);
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--planner-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    background: #ffffff;
+}
+
+.planner-sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.6rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.planner-sidebar-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--planner-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 0.65rem 0.25rem;
+}
+
+.planner-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    color: var(--planner-text-secondary);
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    position: relative;
+}
+
+.planner-nav-item:hover {
+    background: #f1f5f9;
+    color: var(--planner-text-main);
+}
+
+.planner-nav-item.active {
+    background: var(--planner-primary-light);
+    color: var(--planner-primary);
+    font-weight: 700;
+}
+
+.planner-nav-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3.5px;
+    background: var(--planner-primary);
+    border-radius: 0 4px 4px 0;
+}
+
+.planner-nav-item .nav-icon {
+    font-size: 0.95rem;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.planner-nav-item .nav-badge {
+    margin-left: auto;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px solid var(--planner-border);
+}
+
+.planner-nav-item.active .nav-badge {
+    background: #bbdefb;
+    color: #0d47a1;
+    border-color: #90caf9;
+}
+
+/* Sidebar Overlay for Mobile */
+.planner-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 1040;
+}
+
+.planner-sidebar-backdrop.active {
+    display: block;
+}
+
+/* Main Workspace */
+.planner-main-workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--planner-bg);
+}
+
+/* ==========================================================================
+   2. Modern Controls Toolbar & Quick Add Bar
+   ========================================================================== */
+.planner-top-toolbar {
+    background: #ffffff;
+    border-bottom: 1px solid var(--planner-border);
+    padding: 0.45rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 50px;
+    z-index: 30;
+    flex-wrap: wrap;
+}
+
+.planner-top-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.planner-top-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: nowrap;
+}
+
+/* Unified Quick Add Bar */
+.planner-quick-add-wrap {
+    background: #ffffff;
+    border-bottom: 1px solid var(--planner-border);
+    padding: 0.45rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.planner-quick-input-box {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 0.75rem;
+    height: 38px;
+    gap: 0.5rem;
+    transition: all 0.15s ease;
+}
+
+.planner-quick-input-box:focus-within {
+    border-color: var(--planner-primary);
+    box-shadow: 0 0 0 3px var(--planner-primary-glow);
+}
+
+.planner-quick-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: var(--planner-text-main);
+    background: transparent;
+    height: 100%;
+}
+
+.btn-planner-scan {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    height: 38px;
+    padding: 0 0.75rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn-planner-scan:hover {
+    background: #e2e8f0;
+    color: var(--planner-primary);
+    border-color: #94a3b8;
+}
+
+.btn-planner-add {
+    background: var(--planner-primary);
+    border: 1px solid var(--planner-primary-hover);
+    color: #ffffff;
+    height: 38px;
+    padding: 0 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(25, 118, 210, 0.3);
+}
+
+.btn-planner-add:hover {
+    background: var(--planner-primary-hover);
+}
+
+.btn-planner-add:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Quick Filter Chips Bar */
+.planner-chips-bar {
+    background: #ffffff;
+    border-bottom: 1px solid var(--planner-border);
+    padding: 0.4rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.planner-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--planner-text-secondary);
+    background: #f1f5f9;
+    border: 1px solid var(--planner-border);
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+}
+
+.planner-chip:hover {
+    background: #e2e8f0;
+    color: var(--planner-text-main);
+}
+
+.planner-chip.active {
+    background: var(--planner-primary);
+    color: #ffffff;
+    border-color: var(--planner-primary-hover);
+    box-shadow: 0 1px 3px rgba(25, 118, 210, 0.25);
+}
+
+.planner-chip-badge {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 0 5px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+}
+
+.planner-chip.active .planner-chip-badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   3. Modern List View (Flex-based rows)
+   ========================================================================== */
+.planner-list-container {
+    padding: 0.85rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    flex: 1;
+}
+
+.task-list-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--planner-surface);
+    border: 1px solid var(--planner-border);
+    border-radius: 10px;
+    padding:  11px 0; min-height: 60px; border-radius: 0; margin: 0; border-left: none; border-right: none; border-top: 1px solid var(--planner-border);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--planner-shadow-sm);
+    cursor: pointer;
+    user-select: none;
+}
+
+.task-list-row:hover {
+    border-color: #cbd5e1;
+    box-shadow: var(--planner-shadow-md);
+    transform: translateY(-1px);
+}
+
+/* Priority Stripe on Left Border */
+.task-list-row::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width:  2px;
+    background: #94a3b8; /* default neutral */
+}
+
+.task-list-row.priority-high::before { background: var(--priority-high); }
+.task-list-row.priority-medium::before { background: var(--priority-medium); }
+.task-list-row.priority-low::before { background: var(--priority-low); }
+
+/* Completed state */
+.task-list-row.is-done {
+    opacity: 0.72;
+    background: #f8fafc;
+}
+
+.task-list-row.is-done .task-row-title-ru {
+    text-decoration: line-through;
+    color: var(--planner-text-muted);
+}
+
+/* Checkbox control */
+.task-row-checkbox-btn {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius:  50%; width: 22px; height: 22px; margin: 0 12px;
+    border: 2px solid #94a3b8;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+    color: transparent;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.task-row-checkbox-btn:hover {
+    border-color: var(--planner-primary);
+    background: var(--planner-primary-light);
+}
+
+.task-list-row.is-done .task-row-checkbox-btn {
+    background: var(--status-done-text);
+    border-color: var(--status-done-text);
+    color: #ffffff;
+}
+
+/* Task Code badge */
+.task-row-code {
+    font-family: monospace;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--planner-primary);
+    background:  transparent;
+    border:  none; padding: 0;
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+/* Task Main Title Content */
+.task-row-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.task-row-title-ru {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--planner-text-main);
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.task-row-title-kz {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--planner-text-muted);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.task-row-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+    color: var(--planner-text-muted);
+    margin-top: 0.15rem;
+}
+
+.task-meta-tag {
+    background: #f1f5f9;
+    color: #2563eb;
+    border: 1px solid #e2e8f0;
+    padding: 1px 6px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.task-meta-doc {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    padding: 1px 6px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+}
+
+/* Assignee Pill */
+.task-row-assignee {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f8fafc;
+    border: 1px solid var(--planner-border);
+    padding: 2px 7px;
+    border-radius: 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+    flex-shrink: 0;
+}
+
+.task-assignee-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--planner-primary);
+    color: #ffffff;
+    font-size: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+/* Due Date Pill */
+.task-row-due {
+    width: 48px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6B6B71;
+    background: transparent;
+    padding: 0;
+    border: none;
+}
+
+.task-row-due.is-overdue {
+    color: #FF3B30;
+    background: transparent;
+    border: none;
+    font-weight: 500;
+}
+
+/* Status Chip Button */
+.task-row-status-chip {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.task-row-status-chip.status-work { background: var(--status-work-bg); color: var(--status-work-text); border-color: var(--status-work-border); }
+.task-row-status-chip.status-done { background: var(--status-done-bg); color: var(--status-done-text); border-color: var(--status-done-border); }
+.task-row-status-chip.status-queue { background: var(--status-queue-bg); color: var(--status-queue-text); border-color: var(--status-queue-border); }
+.task-row-status-chip.status-moved { background: var(--status-moved-bg); color: var(--status-moved-text); border-color: var(--status-moved-border); }
+.task-row-status-chip.status-cancelled { background: var(--status-cancelled-bg); color: var(--status-cancelled-text); border-color: var(--status-cancelled-border); }
+
+/* Quick Action Dots Button */
+.btn-task-row-actions {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    flex-shrink: 0;
+}
+
+.btn-task-row-actions:hover {
+    background: #f1f5f9;
+    color: var(--planner-text-main);
+}
+
+/* ==========================================================================
+   4. Right Drawer (Desktop) & Bottom Sheet (Mobile) Component
+   ========================================================================== */
+.task-drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.task-drawer-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.task-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--planner-drawer-width);
+    max-width: 90vw;
+    background: #ffffff;
+    box-shadow: -8px 0 32px rgba(15, 23, 42, 0.18);
+    z-index: 2010;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 1px solid var(--planner-border);
+}
+
+.task-drawer.open {
+    transform: translateX(0);
+}
+
+/* Drawer Mobile Bottom Sheet Variant */
+@media (max-width: 768px) {
+    .task-drawer {
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-width: 100vw;
+        height: calc(100% - 44px); max-height: calc(100% - 44px);
+        border-radius: 20px 20px 0 0;
+        border-left: none;
+        border-top: 1px solid var(--planner-border);
+        box-shadow: 0 -10px 35px rgba(15, 23, 42, 0.25);
+        transform: translateY(100%);
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .task-drawer.open {
+        transform: translateY(0); /* handled by .open */
+    }
+}
+
+.drawer-mobile-handle {
+    display: none;
+    width: 44px;
+    height: 5px;
+    background: #cbd5e1;
+    border-radius: 3px;
+    margin: 8px auto 2px;
+}
+
+@media (max-width: 768px) {
+    .drawer-mobile-handle {
+        display: block;
+    }
+}
+
+.task-drawer-header {
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--planner-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: #ffffff;
+}
+
+.task-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    word-break: break-word;
+}
+
+.task-drawer-footer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid var(--planner-border);
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+/* Drawer Section Cards */
+.drawer-section {
+    background: #f8fafc;
+    border: 1px solid var(--planner-border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.drawer-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--planner-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ==========================================================================
+   5. Kanban Board (Service Plan Horizon)
+   ========================================================================== */
+.planner-kanban-board {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    flex: 1;
+    min-height: 0;
+    align-items: flex-start;
+}
+
+@media (max-width: 768px) {
+    .planner-kanban-board {
+        scroll-snap-type: x mandatory;
+        padding: 0.75rem;
+        gap: 0.75rem;
+    }
+}
+
+.kanban-column {
+    flex: 1;
+    min-width: 280px;
+    max-width: 340px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+@media (max-width: 768px) {
+    .kanban-column {
+        min-width: 84vw;
+        max-width: 84vw;
+        scroll-snap-align: center;
+    }
+}
+
+.kanban-column.drag-over {
+    background: #eff6ff !important;
+    border: 2px dashed #3b82f6 !important;
+}
+
+.kanban-column-header {
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--planner-text-main);
+    position: sticky;
+    top: 0;
+    background: inherit;
+    border-radius: 12px 12px 0 0;
+    z-index: 10;
+}
+
+.kanban-col-count {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    color: #475569;
+}
+
+.kanban-cards-list {
+    padding: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 120px;
+}
+
+.kanban-card {
+    background: #ffffff;
+    border: 1px solid var(--planner-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    cursor: grab;
+    transition: all 0.15s ease;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+}
+
+.kanban-card:hover {
+    box-shadow: var(--planner-shadow-md);
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+}
+
+.kanban-card:active {
+    cursor: grabbing;
+}
+
+.kanban-card.is-dragging {
+    opacity: 0.45;
+    transform: scale(0.98);
+}
+
+.kanban-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #94a3b8;
+}
+
+.kanban-card.priority-high::before { background: var(--priority-high); }
+.kanban-card.priority-medium::before { background: var(--priority-medium); }
+.kanban-card.priority-low::before { background: var(--priority-low); }
+
+/* ==========================================================================
+   6. Tree View (Roadmaps Horizon Notion-style)
+   ========================================================================== */
+.planner-tree-container {
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.tree-project-node {
+    background: #ffffff;
+    border: 1px solid var(--planner-border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--planner-shadow-sm);
+}
+
+.tree-project-header {
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #ffffff;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    user-select: none;
+}
+
+.tree-project-header:hover {
+    background: #f8fafc;
+}
+
+.tree-chevron {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    transition: transform 0.2s ease;
+}
+
+.tree-project-node.open .tree-chevron {
+    transform: rotate(90deg);
+}
+
+.tree-progress-bar-wrap {
+    width: 100px;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-left: auto;
+}
+
+.tree-progress-fill {
+    height: 100%;
+    background: var(--planner-primary);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.tree-children-container {
+    display: none;
+    padding: 0.4rem 0.5rem 0.75rem 2.25rem;
+    border-top: 1px solid #f1f5f9;
+    background: #fafafa;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.tree-project-node.open .tree-children-container {
+    display: flex;
+}
+
+/* ==========================================================================
+   7. Mobile Bottom Navigation & Responsive Invariants
+   ========================================================================== */
+.planner-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: #ffffff;
+    border-top: 1px solid var(--planner-border);
+    z-index: 1000;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+    .planner-bottom-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+    }
+
+    .planner-app-container,
+    .teams-app-layout {
+        height: calc(100vh - 54px - 56px) !important;
+        max-height: calc(100vh - 54px - 56px) !important;
+    }
+
+    .planner-main-workspace,
+    .teams-workspace,
+    .table-container {
+        padding-bottom: 64px !important;
+    }
+}
+
+@media (min-width: 1025px) {
+    .channels-sidebar,
+    .planner-sidebar {
+        position: relative !important;
+        transform: translateX(0) !important;
+        height: 100% !important;
+        box-shadow: none !important;
+        flex-shrink: 0 !important;
+        transition: width 0.25s ease, transform 0.25s ease !important;
+    }
+    .channels-sidebar.collapsed,
+    .planner-sidebar.collapsed {
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        transform: translateX(-100%) !important;
+        overflow: hidden !important;
+        border-right: none !important;
+    }
+    .channels-sidebar-overlay,
+    .planner-sidebar-backdrop {
+        display: none !important;
+    }
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+    height: 100%;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.bottom-nav-item i {
+    font-size: 1.15rem;
+}
+
+.bottom-nav-item.active {
+    color: var(--planner-primary);
+    font-weight: 700;
+}
+
+/* Swipe action cues */
+.task-list-row {
+    touch-action: pan-y;
+}
+
+.task-list-row.swiped-left {
+    transform: translateX(-70px);
+    background: #ecfdf5 !important;
+}
+
+.task-list-row.swiped-right {
+    transform: translateX(70px);
+    background: #eff6ff !important;
+}
+
+/* Kanban Drag & Drop Enhancements */
+.kanban-card {
+    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.kanban-card:active {
+    cursor: grabbing;
+}
+
+.kanban-card.is-dragging {
+    opacity: 0.45;
+    transform: scale(0.97);
+    border: 2px dashed var(--planner-primary) !important;
+    box-shadow: 0 8px 20px rgba(25, 118, 210, 0.2);
+}
+
+.kanban-column.drag-over {
+    background: #e2e8f0;
+    border-color: var(--planner-primary);
+    box-shadow: 0 0 0 2px var(--planner-primary-light);
+}
+
+/* ==========================================================================
+   APPLE-LEVEL REDESIGN — Phase A-E Overrides
+   Executed: 2026-09-20 | Based on /grill-me interview
+   ========================================================================== */
+
+/* ── Phase Б: Глобально скрываем только визуальный мусор ────────────────── */
+.planner-header,
+.kpi-summary-bar,
+.quick-filters-bar,
+#tags-cloud-bar,
+.mobile-filters-panel,
+#planner-user-badge {
+    display: none !important;
+}
+
+/* ── Phase Б (мобиль): навигация скрыта только на ≤767px ─────────────────── */
+@media (max-width: 767px) {
+    #main-toolbar,
+    .toolbar:not(.print-toolbar),
+    .horizon-nav-bar,
+    .quick-add-bar {
+        display: none !important;
+    }
+}
+
+/* ── Phase Б (десктоп): навигация явно восстановлена на ≥768px ────────────── */
+@media (min-width: 768px) {
+    .horizon-nav-bar  { display: flex !important; }
+    #main-toolbar     { display: flex !important; }
+}
+
+/* ── Phase А: Контейнер — вся высота viewport без шапки ──────────────────── */
+.planner-app-container {
+    height: 100vh !important;
+    max-height: 100vh !important;
+}
+
+/* Отступ снизу под Bottom Nav + FAB */
+.planner-main-content,
+.planner-content-area,
+.planner-list-scroll,
+.planner-scroll {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 8px) !important;
+}
+
+/* ── Phase Г: Apple Large Title Header ───────────────────────────────────── */
+.apple-large-title-header {
+    background: #FFFFFF;
+    border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+    padding: 12px 16px 8px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.apple-title-row1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.apple-title-hamburger {
+    width: 24px;
+    height: 24px;
+    color: #C82323;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.apple-title-text {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1C1C1E;
+    letter-spacing: -0.4px;
+    line-height: 34px;
+    flex: 1;
+}
+
+.apple-title-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #C82323;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.apple-title-row2 {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-left: 32px; /* выравнивание с текстом заголовка */
+}
+
+.apple-title-chip {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 4px 6px;
+    margin: 0;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1C1C1E;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: opacity 0.15s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.apple-title-chip:hover {
+    cursor: pointer;
+    background: transparent !important;
+    color: #1C1C1E;
+    opacity: 0.75;
+}
+
+.apple-title-chip:active,
+.apple-title-chip:focus {
+    cursor: pointer;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    opacity: 0.55;
+}
+
+.apple-title-chip-week {
+    font-weight: 500;
+    color: #636366;
+}
+
+.apple-title-chip-week:hover {
+    color: #636366;
+}
+
+.apple-title-sep {
+    color: #C7C7CC;
+    margin: 0 4px;
+    font-size: 15px;
+}
+
+.apple-title-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background: #C82323;
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+}
+
+/* ── Phase Г: Ghost Row «Новая задача» ───────────────────────────────────── */
+.apple-ghost-row {
+    height: 44px;
+    background: #FFFFFF;
+    border-top: 1px solid rgba(60, 60, 67, 0.12);
+    border-bottom: 1px solid rgba(60, 60, 67, 0.12);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: text;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+    margin-bottom: 2px;
+}
+
+.apple-ghost-circle {
+    width: 22px;
+    height: 22px;
+    border: 2px solid #C82323;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.apple-ghost-text {
+    font-size: 17px;
+    color: #B5B5BA;
+    line-height: 1;
+}
+
+/* ── Apple Swipe Row Container ─────────────────────────────────────────── */
+.apple-swipe-row {
+    position: relative;
+    overflow: hidden;
+    background: #E5E5EA;
+    border-top: 1px solid rgba(60, 60, 67, 0.12);
+}
+
+.apple-swipe-row:first-child {
+    border-top: none;
+}
+
+.apple-swipe-action-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 100px;
+    background: #34C759;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.apple-swipe-action-right {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    background: #E5E5EA;
+    z-index: 1;
+}
+
+.apple-swipe-btn {
+    width: 68px;
+    height: 100%;
+    border: none;
+    outline: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.apple-swipe-btn:active {
+    opacity: 0.8;
+}
+
+.apple-swipe-btn.purple {
+    background: #5856D6; /* Перенести */
+}
+
+.apple-swipe-btn.blue {
+    background: #007AFF; /* Передать */
+}
+
+.apple-swipe-btn.gray {
+    background: #8E8E93; /* Редактировать */
+}
+
+/* ── Карточка задачи поверх свайп-панели ─────────────────────────────────── */
+.apple-swipe-row .planner-card {
+    position: relative;
+    z-index: 2;
+    background: #FFFFFF !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 10px 14px !important;
+    cursor: pointer;
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    touch-action: pan-y;
+}
+
+/* ── Apple Status Badge (без эмодзи) ─────────────────────────────────────── */
+.apple-card-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: -0.1px;
+}
+
+.apple-card-status.status-work {
+    background: rgba(255, 149, 0, 0.12);
+    color: #C97500;
+}
+
+.apple-card-status.status-work .apple-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #FF9500;
+}
+
+.apple-card-status.status-done {
+    background: rgba(52, 199, 89, 0.12);
+    color: #248A3D;
+}
+
+.apple-card-status.status-moved {
+    background: rgba(88, 86, 214, 0.12);
+    color: #5856D6;
+}
+
+.apple-card-status.status-cancelled {
+    background: rgba(255, 59, 48, 0.12);
+    color: #FF3B30;
+}
+
+/* ── Phase В: Строка задачи — точные токены ──────────────────────────────── */
+.task-list-row {
+    min-height: 60px !important;
+    padding: 11px 0 !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(60, 60, 67, 0.12) !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    background: #FFFFFF !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif !important;
+}
+
+.task-list-row:hover {
+    background: rgba(60, 60, 67, 0.06) !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+}
+
+/* Полоса приоритета — ровно 2px */
+.task-list-row::before {
+    width: 2px !important;
+}
+
+/* Округлый чекбокс */
+.task-row-checkbox-btn {
+    border-radius: 50% !important;
+    border: 2px solid #D1D1D6 !important;
+    margin: 0 12px !important;
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    flex-shrink: 0 !important;
+}
+
+.task-row-checkbox-btn:hover {
+    border-color: #C82323 !important;
+    background: rgba(200, 35, 35, 0.08) !important;
+}
+
+.task-list-row.is-done .task-row-checkbox-btn {
+    background: #34C759 !important;
+    border-color: #34C759 !important;
+    color: #FFFFFF !important;
+}
+
+/* TSK-код — серый monospace, без фона */
+.task-row-code {
+    font-family: 'SF Mono', 'Fira Code', 'Menlo', monospace !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    color: #B5B5BA !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    letter-spacing: 0.2px !important;
+}
+
+/* Заголовок задачи */
+.task-row-title-ru {
+    font-size: 17px !important;
+    font-weight: 600 !important;
+    color: #1C1C1E !important;
+    line-height: 22px !important;
+    letter-spacing: -0.2px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Зона/метадата */
+.task-row-title-kz,
+.task-row-meta {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    color: #6B6B71 !important;
+    line-height: 18px !important;
+}
+
+/* Дата — просто текст, без иконки и красного фона */
+.task-row-due {
+    width: 48px !important;
+    flex-shrink: 0 !important;
+    margin-right: 8px !important;
+    text-align: right !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #6B6B71 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+.task-row-due.is-overdue {
+    color: #FF3B30 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Скрыть бейдж статуса из строки (статус виден через полосу) */
+.task-row-status-chip {
+    display: none !important;
+}
+
+/* Chevron — светло-серый */
+.btn-task-row-actions {
+    color: #C7C7CC !important;
+    font-size: 14px !important;
+    margin-right: 8px !important;
+}
+
+/* Скрыть иконки геолокации в мета */
+.task-row-meta .fa-location-dot,
+.task-row-meta .fa-map-marker,
+.task-row-meta [class*="location"] {
+    display: none !important;
+}
+
+/* ── Phase Д: Bottom Nav — Frosted Glass, 56px ───────────────────────────── */
+.planner-bottom-nav {
+    height: 56px !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    box-shadow: 0 -1px 0 rgba(60, 60, 67, 0.12) !important;
+    border-top: none !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+.planner-bottom-nav .nav-item-label {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.1px !important;
+}
+
+.planner-bottom-nav .nav-item i {
+    font-size: 26px !important;
+}
+
+.planner-bottom-nav .nav-item.active,
+.planner-bottom-nav .nav-item.active span,
+.planner-bottom-nav .nav-item.active i {
+    color: #C82323 !important;
+}
+
+.planner-bottom-nav .nav-item:not(.active),
+.planner-bottom-nav .nav-item:not(.active) span,
+.planner-bottom-nav .nav-item:not(.active) i {
+    color: #8E8E93 !important;
+}
+
+/* ── Phase Д: Mobile Drawer — 100% высота снизу ──────────────────────────── */
+@media (max-width: 767px) {
+    .task-drawer {
+        top: 44px !important;
+        right: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        transform: translateY(100%) !important;
+        transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+        bottom: 0 !important;
+    }
+
+    .task-drawer.open {
+        transform: translateY(0) !important;
+    }
+
+    /* Drag handle для мобильной шторки */
+    .task-drawer::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 5px;
+        background: #D1D1D6;
+        border-radius: 3px;
+        margin: 8px auto 0;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    /* Drawer кнопка × — круглая, серая */
+    .btn-drawer-close {
+        width: 28px !important;
+        height: 28px !important;
+        border-radius: 50% !important;
+        background: #F2F2F7 !important;
+        color: #6B6B71 !important;
+        border: none !important;
+        font-size: 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    /* Кнопки в Drawer — 44px высота, 12px radius */
+    .btn-drawer-save,
+    .btn-drawer-complete,
+    .task-drawer .btn-primary-action,
+    .task-drawer .btn-complete-action {
+        height: 44px !important;
+        border-radius: 12px !important;
+        font-size: 17px !important;
+        font-weight: 600 !important;
+    }
+
+    /* Large Title Header — только на мобильном */
+    .apple-large-title-header {
+        display: flex;
+    }
+
+    /* Отступ для списка задач (под Large Title Header) */
+    .planner-list-container {
+        padding-top: 0 !important;
+    }
+}
+
+/* На десктопе — Large Title Header скрыт, toolbar остаётся скрытым */
+@media (min-width: 768px) {
+    .apple-large-title-header {
+        display: none;
+    }
+
+    .apple-ghost-row {
+        display: none;
+    }
+
+    /* FAB и Bottom Nav — только мобильный */
+    .apple-fab,
+    .apple-bottom-nav {
+        display: none !important;
+    }
+
+    /* Десктоп: плотная шапка на 52px вместо старой 56px+ */
+    .planner-app-container {
+        height: 100vh !important;
+        max-height: 100vh !important;
+    }
+}
+
+/* Фон страницы */
+body {
+    background: #F2F2F7 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif !important;
+}
+
+/* FAB анимация при нажатии */
+.apple-fab:active {
+    transform: scale(0.92) !important;
+    transition: transform 100ms ease-in-out !important;
+}
+
+/* Apple Filter Sheet — анимации */
+#apple-filter-sheet .apple-filter-panel {
+    transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Плавная анимация Bottom Nav иконок */
+.apple-bottom-nav div {
+    transition: color 150ms ease;
+}

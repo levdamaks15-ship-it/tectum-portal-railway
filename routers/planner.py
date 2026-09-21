@@ -2,7 +2,7 @@ import os
 import re
 import json
 from datetime import datetime, date, timedelta
-from typing import Optional, List
+from typing import Optional, List, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File, Form, Query, Body
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -2175,3 +2175,419 @@ def import_tasks_from_google_sheets(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/api/tasks/{task_id}")
+@router.patch("/api/planner/tasks/{task_id}")
+def patch_task(
+    task_id: int, 
+    background_tasks: BackgroundTasks,
+    payload: dict = Body(...), 
+    db: Session = Depends(get_db)
+):
+    """
+    Частичное обновление задачи (PATCH) для Kanban Drag&Drop, быстрых действий и изменения порядка (order_index).
+    """
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        old_status = task.status
+        old_assignee = task.assignee_name
+
+        # Маппинг due_date в due_date_str при строковом значении
+        if "due_date" in payload and ("due_date_str" not in payload or not payload.get("due_date_str")):
+            payload["due_date_str"] = payload.pop("due_date")
+
+        allowed_fields = {
+            "status", "order_index", "title", "title_kz", "comment", 
+            "assignee_name", "due_date_str", "progress", "tags", 
+            "department_service", "zone", "photo_link", "is_archived", "priority"
+        }
+
+        changes = []
+        for field, val in payload.items():
+            if field in allowed_fields and hasattr(task, field):
+                old_val = getattr(task, field)
+                if old_val != val:
+                    changes.append(f"{field}: '{old_val}' -> '{val}'")
+                    setattr(task, field, val)
+
+        task.updated_at = datetime.utcnow()
+        if changes:
+            db.add(models.AuditLog(
+                user_name=task.assignee_name or task.author_name or "Пользователь",
+                action="UPDATE",
+                target_table="tasks",
+                target_id=task.id,
+                details=f"PATCH задачи [{task.code}] «{task.title}»: {'; '.join(changes)}"
+            ))
+
+        db.commit()
+        db.refresh(task)
+
+        # Пересчет прогресса родителя при изменении статуса
+        if task.parent_id and "status" in payload:
+            recalculate_parent_task_progress(db, task.parent_id)
+
+        # Сборка полного DTO задачи
+        task_dict = {
+            "id": task.id,
+            "code": task.code,
+            "title": task.title,
+            "title_kz": task.title_kz,
+            "zone": task.zone,
+            "due_date": task.due_date,
+            "due_date_str": task.due_date_str,
+            "author_name": task.author_name,
+            "assignee_name": task.assignee_name,
+            "status": task.status,
+            "priority": task.priority,
+            "comment": task.comment,
+            "photo_link": task.photo_link,
+            "tags": task.tags,
+            "order_index": task.order_index or 0,
+            "month_label": task.month_label,
+            "week_label": task.week_label
+        }
+
+        # Уведомление при смене статуса на Выполнено
+        if "status" in payload and payload["status"] != old_status:
+            if task.status == "🟢 Выполнено" and task.author_name:
+                author_email = get_task_person_email(db, task.author_name)
+                if author_email:
+                    subject = f"🟢 Задача выполнена [{task.zone}]: {task.title}"
+                    background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача выполнена", task_dict)
+
+        return task_dict
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error in patch_task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/reorder")
+@router.post("/api/planner/tasks/reorder")
+def reorder_tasks(payload: Any = Body(...), db: Session = Depends(get_db)):
+    """
+    Массовое обновление порядка задач (order_index) при Kanban Drag & Drop.
+    Поддерживает форматы:
+    1. {"orders": [{"id": 1, "order_index": 0}, {"id": 2, "order_index": 1}]}
+    2. {"task_ids": [1, 2, 3]} (где позиция в массиве определяет order_index)
+    3. [{"id": 1, "order_index": 0}, ...] или [1, 2, 3] (сырой массив)
+    """
+    try:
+        updated_count = 0
+        if isinstance(payload, list):
+            for idx, item in enumerate(payload):
+                if isinstance(item, dict):
+                    t_id = item.get("id")
+                    o_idx = item.get("order_index", idx)
+                else:
+                    t_id = item
+                    o_idx = idx
+                if t_id is not None:
+                    db.query(models.Task).filter(models.Task.id == t_id).update({"order_index": o_idx})
+                    updated_count += 1
+        elif isinstance(payload, dict):
+            if "orders" in payload and isinstance(payload["orders"], list):
+                for item in payload["orders"]:
+                    t_id = item.get("id")
+                    idx = item.get("order_index")
+                    if t_id is not None and idx is not None:
+                        db.query(models.Task).filter(models.Task.id == t_id).update({"order_index": idx})
+                        updated_count += 1
+            elif "task_ids" in payload and isinstance(payload["task_ids"], list):
+                for idx, t_id in enumerate(payload["task_ids"]):
+                    if t_id is not None:
+                        db.query(models.Task).filter(models.Task.id == t_id).update({"order_index": idx})
+                        updated_count += 1
+
+        db.commit()
+        return {"status": "ok", "updated_count": updated_count}
+    except Exception as e:
+        db.rollback()
+        print(f"Error in reorder_tasks: {e}")
+
+
+# ==========================================================
+# 💬 TEAMS LITE: COMMENTS THREAD, PRESENCE & QUICK ADD API
+# ==========================================================
+
+@router.get("/api/tasks/{task_id}/comments", response_model=List[schemas.TaskCommentOut])
+def get_task_comments(task_id: int, db: Session = Depends(get_db)):
+    """Возвращает тред комментариев и истории выполнения конкретной задачи."""
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+    
+    comments = db.query(models.TaskComment).filter(
+        models.TaskComment.task_id == task_id
+    ).order_by(models.TaskComment.created_at.asc()).all()
+
+    # Если в таблице task_comments пусто, но у задачи есть историческое поле comment — сформируем первичное сообщение
+    if not comments and task.comment and task.comment.strip():
+        initial_comm = models.TaskComment(
+            task_id=task.id,
+            author_name=task.author_name or "Система",
+            comment_type="message",
+            text=task.comment.strip(),
+            created_at=task.created_at or datetime.utcnow()
+        )
+        db.add(initial_comm)
+        db.commit()
+        db.refresh(initial_comm)
+        comments = [initial_comm]
+
+    return comments
+
+@router.post("/api/tasks/{task_id}/comments", response_model=schemas.TaskCommentOut)
+def add_task_comment(
+    task_id: int, 
+    data: schemas.TaskCommentCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Добавляет сообщение в тред задачи. 
+    Поддерживает текстовые заметки, фото фиксации и системные уведомления.
+    При необходимости отправляет уведомление на email исполнителю/автору задачи.
+    """
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    text_clean = (data.text or "").strip()
+    if not text_clean and not data.photo_url:
+        raise HTTPException(status_code=400, detail="Текст комментария или фото не может быть пустым")
+
+    author = (data.author_name or "Сотрудник").strip()
+
+    new_comment = models.TaskComment(
+        task_id=task.id,
+        author_name=author,
+        comment_type=data.comment_type or "message",
+        text=text_clean,
+        photo_url=data.photo_url,
+        created_at=datetime.utcnow()
+    )
+    db.add(new_comment)
+    
+    # Также синхронизируем последнее сообщение в поле task.comment для совместимости с отчетами/экспортом
+    task.comment = text_clean
+    task.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(new_comment)
+
+    # Фоновое оповещение по email если комментатор не является исполнителем
+    try:
+        recipient_name = task.assignee_name if author != task.assignee_name else task.author_name
+        if recipient_name:
+            rec_email = get_task_person_email(db, recipient_name)
+            if rec_email:
+                background_tasks.add_task(
+                    send_task_email_notification,
+                    to_email=rec_email,
+                    subject=f"💬 Новый комментарий к задаче {task.code or f'TSK-{task.id}'}",
+                    event_type="Новый комментарий в треде",
+                    task_dict={
+                        "id": task.id,
+                        "code": task.code or f"TSK-{task.id:02d}",
+                        "title": task.title,
+                        "title_kz": task.title_kz or "",
+                        "zone": task.zone or "Общий",
+                        "due_date_str": task.due_date_str or "",
+                        "author_name": author,
+                        "assignee_name": task.assignee_name or "",
+                        "status": task.status,
+                        "comment": text_clean,
+                        "photo_link": data.photo_url or task.photo_link or "",
+                        "month_label": task.month_label or "",
+                        "week_label": task.week_label or ""
+                    }
+                )
+    except Exception as e_mail:
+        print(f"Comment email background notification error: {e_mail}")
+
+    return new_comment
+
+@router.delete("/api/tasks/comments/{comment_id}")
+def delete_task_comment(comment_id: int, request: Request, db: Session = Depends(get_db)):
+    """Удаляет комментарий из треда (только автором или администратором)."""
+    comm = db.query(models.TaskComment).filter(models.TaskComment.id == comment_id).first()
+    if not comm:
+        raise HTTPException(status_code=404, detail="Комментарий не найден")
+    
+    db.delete(comm)
+    db.commit()
+    return {"status": "ok", "message": "Комментарий удален"}
+
+@router.post("/api/planner/presence/heartbeat")
+def user_presence_heartbeat(data: schemas.UserPresenceHeartbeat, db: Session = Depends(get_db)):
+    """
+    Регистрирует присутствие пользователя в планнере (раз в 30-45 сек)
+    и возвращает список коллег, активных за последние 3 минуты.
+    """
+    user_name = (data.user_name or "").strip()
+    if not user_name:
+        return {"status": "ok", "online_users": []}
+
+    now_utc = datetime.utcnow()
+    existing = db.query(models.UserPresence).filter(models.UserPresence.user_name == user_name).first()
+    if existing:
+        existing.last_seen = now_utc
+        existing.current_channel = data.channel or "weekly"
+    else:
+        new_presence = models.UserPresence(
+            user_name=user_name,
+            last_seen=now_utc,
+            current_channel=data.channel or "weekly"
+        )
+        db.add(new_presence)
+    
+    db.commit()
+
+    cutoff = now_utc - timedelta(minutes=3)
+    active_presences = db.query(models.UserPresence).filter(
+        models.UserPresence.last_seen >= cutoff
+    ).order_by(models.UserPresence.last_seen.desc()).all()
+
+    online_users = [
+        {
+            "user_name": p.user_name,
+            "channel": p.current_channel or "weekly",
+            "last_seen_str": p.last_seen.strftime("%H:%M") if p.last_seen else ""
+        }
+        for p in active_presences
+    ]
+    return {"status": "ok", "online_users": online_users}
+
+@router.post("/api/tasks/quick_add")
+def quick_add_task(data: schemas.TaskQuickCreate, db: Session = Depends(get_db)):
+    """
+    Мгновенная постановка задачи через верхнюю строку ввода (Quick Add Bar).
+    Создает задачу за 1 секунду с автозаполнением зоны, канала, периода и кода.
+    """
+    title_clean = (data.title or "").strip()
+    if not title_clean:
+        raise HTTPException(status_code=400, detail="Суть задачи не может быть пустой")
+
+    now = datetime.utcnow()
+    
+    # Определение периода по умолчанию если не переданы
+    cur_structure = generate_calendar_structure_mon_fri(now.year)
+    default_m = data.month_label or data.month
+    default_w = data.week_label or data.week
+
+    if not default_m or not default_w or default_m == "all" or default_w == "all":
+        cal_meta = get_tasks_calendar_structure(db)
+        default_m = cal_meta.get("default_month") or f"Сентябрь {now.year}"
+        default_w = cal_meta.get("default_week") or "Неделя 1 (07.09 - 11.09)"
+
+    # Определение параметров службы по каналу или явным полям
+    ch = (data.channel or "weekly").strip()
+    task_type = "weekly"
+    department_service = data.department_service
+    zone = data.zone or "Бережливое производство"
+
+    if ch in ["services-ogm", "ОГМ"]:
+        task_type = "service_plan"
+        department_service = "ОГМ"
+        zone = data.zone or "ОГМ"
+    elif ch in ["services-oge", "ОГЭ"]:
+        task_type = "service_plan"
+        department_service = "ОГЭ"
+        zone = data.zone or "ОГЭ"
+    elif ch in ["tech_council", "Техсовет"]:
+        task_type = "weekly"
+        zone = data.zone or "Техсовет"
+    elif ch in ["quality_day", "День качества"]:
+        task_type = "weekly"
+        zone = data.zone or "День качества"
+    elif ch == "roadmaps":
+        task_type = "roadmap"
+        zone = data.zone or "Стратегия Q3/Q4"
+    elif department_service:
+        task_type = "service_plan"
+
+    # Автоматический расчет срока: пятница текущей недели если не указан
+    due_str = data.due_date_str
+    if not due_str:
+        try:
+            dates_part = default_w.split('(')[1].split(')')[0]
+            _, end_part = dates_part.split(' - ')
+            due_str = end_part.strip()
+        except Exception:
+            due_str = (now + timedelta(days=5)).strftime("%d.%m")
+
+    # Генерация кода TSK-NNN
+    max_id_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
+    next_id = (max_id_task.id + 1) if max_id_task else 1
+    code_val = f"TSK-{next_id:02d}"
+
+    # Парсинг хэштегов из заголовка
+    combined_tags = extract_hashtags_from_title(title_clean, None)
+
+    # Интеллектуальное выравнивание и автоперевод
+    trans_info = detect_and_translate_task_text(title_clean)
+    title_ru = trans_info.get("text_ru", title_clean)
+    title_kz = trans_info.get("text_kz", "")
+
+    # Определение order_index
+    max_order = db.query(func.max(models.Task.order_index)).filter(
+        models.Task.task_type == task_type,
+        models.Task.week_label == default_w
+    ).scalar()
+    new_order = (max_order + 1) if max_order is not None else 0
+
+    author = (data.author_name or "Левда М.").strip()
+    assignee = (data.assignee_name or "").strip()
+
+    new_task = models.Task(
+        code=code_val,
+        zone=zone,
+        title=title_ru,
+        title_kz=title_kz,
+        task_type=task_type,
+        department_service=department_service,
+        author_name=author,
+        assignee_name=assignee,
+        due_date_str=due_str,
+        tags=combined_tags,
+        order_index=new_order,
+        status=data.status or "⚪ В очереди",
+        comment="",
+        month_label=default_m,
+        week_label=default_w,
+        is_archived=False,
+        created_at=now,
+        updated_at=now
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+
+    return {
+        "status": "ok",
+        "task": {
+            "id": new_task.id,
+            "code": new_task.code,
+            "title": new_task.title,
+            "title_kz": new_task.title_kz,
+            "status": new_task.status,
+            "zone": new_task.zone,
+            "task_type": new_task.task_type,
+            "department_service": new_task.department_service,
+            "author_name": new_task.author_name,
+            "assignee_name": new_task.assignee_name,
+            "due_date_str": new_task.due_date_str,
+            "month_label": new_task.month_label,
+            "week_label": new_task.week_label,
+            "tags": new_task.tags or "",
+            "order_index": new_task.order_index or 0,
+            "comments_count": 0
+        }
+    }
