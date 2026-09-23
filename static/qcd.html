@@ -394,14 +394,16 @@
                 padding: 0;
                 border: none;
                 box-shadow: none;
-            }
+        }
+        
+        /* High-Density Lab Styles */
         .norm-tag {
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             font-weight: 700;
             color: #0284c7;
             background: #e0f2fe;
-            padding: 2px 6px;
-            border-radius: 6px;
+            padding: 1px 5px;
+            border-radius: 4px;
             white-space: nowrap;
         }
         .norm-warning {
@@ -414,72 +416,305 @@
             background: #fef2f2 !important;
             color: #b91c1c !important;
         }
-        .lab-grid-3 {
+        .lab-grid-dense-4 {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 8px;
         }
-        .lab-grid-4 {
+        .lab-grid-dense-3 {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
+            gap: 8px;
         }
+        .lab-dense-field {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .lab-dense-field label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #475569;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lab-dense-field input, .lab-dense-field select {
+            width: 100%;
+            height: 32px;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            border: 1px solid var(--qcd-border);
+            border-radius: 7px;
+            background: #f8fafc;
+            color: var(--qcd-navy);
+            box-sizing: border-box;
+            transition: all 0.15s;
+        }
+        .lab-dense-field input:focus, .lab-dense-field select:focus {
+            outline: none;
+            border-color: var(--qcd-blue);
+            background: #ffffff;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+        }
+        
+        /* 2. Raw Materials Grid */
+        .lab-raw-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 8px;
+        }
+        .lab-raw-card {
+            background: #f8fafc;
+            border: 1px solid var(--qcd-border);
+            border-radius: 8px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            transition: border-color 0.15s;
+        }
+        .lab-raw-card:focus-within {
+            border-color: #8b5cf6;
+            background: #ffffff;
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.12);
+        }
+        .lab-raw-card .raw-lbl {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #475569;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lab-raw-card input {
+            width: 100%;
+            height: 28px;
+            padding: 2px 6px;
+            font-size: 0.9rem;
+            font-weight: 800;
+            text-align: right;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
+            color: var(--qcd-navy);
+            box-sizing: border-box;
+        }
+
+        /* 3. Preparation 3-Columns Layout */
+        .lab-prep-3cols {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        @media (min-width: 992px) {
+            .lab-prep-3cols {
+                grid-template-columns: 1fr 1.15fr 1.05fr;
+            }
+        }
+        .prep-subcol {
+            background: #f8fafc;
+            border: 1px solid var(--qcd-border);
+            border-radius: 10px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .prep-subcol-title {
+            font-size: 0.78rem;
+            font-weight: 800;
+            color: var(--qcd-navy);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .prep-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            padding: 2px 0;
+            border-bottom: 1px dashed #edf2f7;
+        }
+        .prep-row:last-child {
+            border-bottom: none;
+        }
+        .prep-label {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: #334155;
+            line-height: 1.2;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        .prep-subcol input {
+            width: 72px;
+            height: 26px;
+            padding: 2px 5px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-align: right;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            background: #ffffff;
+            color: var(--qcd-navy);
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        /* Vats Matrix Mini-Table */
+        .lab-vats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.76rem;
+            margin-top: 2px;
+        }
+        .lab-vats-table th {
+            background: #e2e8f0;
+            color: var(--qcd-navy);
+            font-weight: 700;
+            padding: 4px 4px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            font-size: 0.72rem;
+        }
+        .lab-vats-table td {
+            padding: 3px 2px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            background: #ffffff;
+        }
+        .lab-vats-table input {
+            width: 100% !important;
+            height: 24px !important;
+            padding: 2px 3px !important;
+            font-size: 0.8rem !important;
+            text-align: center !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 4px !important;
+            box-sizing: border-box !important;
+        }
+
+        /* Bento 2-Col Grid for Tables 4 & 5 */
+        .lab-bento-2col {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 1.25rem;
+        }
+        @media (min-width: 960px) {
+            .lab-bento-2col {
+                grid-template-columns: 1fr 1.18fr;
+            }
+        }
+
+        /* High-Density Tables (Excel style) */
         .lab-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.85rem;
+            font-size: 0.78rem;
+            background: #ffffff;
         }
         .lab-table th {
             background: #f1f5f9;
             color: var(--qcd-navy);
             font-weight: 700;
-            padding: 8px 6px;
-            border: 1px solid #e2e8f0;
+            padding: 4px 3px;
+            border: 1px solid #cbd5e1;
             text-align: center;
+            font-size: 0.74rem;
+            line-height: 1.2;
         }
         .lab-table td {
-            padding: 6px 4px;
+            padding: 2px 2px;
             border: 1px solid #e2e8f0;
             vertical-align: middle;
+            text-align: center;
+            height: 28px;
+        }
+        .lab-table tr:nth-child(even) td {
+            background-color: #fafbfd;
         }
         .lab-table input {
             width: 100%;
-            padding: 6px;
+            height: 26px;
+            padding: 2px 3px;
             border: 1px solid #cbd5e1;
-            border-radius: 6px;
+            border-radius: 4px;
             box-sizing: border-box;
             font-family: inherit;
-            font-size: 0.85rem;
-            font-weight: 600;
+            font-size: 0.82rem;
+            font-weight: 700;
             text-align: center;
-        }
-        .lab-chip {
-            font-size: 0.72rem;
-            padding: 3px 8px;
-            border-radius: 6px;
-            border: 1px solid #cbd5e1;
             background: #ffffff;
+            color: var(--qcd-navy);
+        }
+        .lab-table input:focus, .lab-table select:focus {
+            border-color: var(--qcd-blue);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+            background: #ffffff;
+        }
+        .lab-table select.hourly-visual {
+            width: 100%;
+            height: 26px;
+            padding: 2px 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.76rem;
+            font-weight: 700;
+            background: #ffffff;
+            color: var(--qcd-navy);
             cursor: pointer;
-            font-weight: 600;
-            transition: 0.15s;
-            display: inline-block;
-            margin: 2px;
         }
-        .lab-chip:hover {
-            background: #e2e8f0;
-        }
-        .lab-btn-sm {
-            padding: 4px 8px;
-            font-size: 0.8rem;
-            border-radius: 6px;
+        .lab-del-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            border-radius: 4px;
             border: none;
             cursor: pointer;
             background: #fee2e2;
             color: #dc2626;
             font-weight: 700;
+            transition: all 0.15s;
         }
-        .lab-btn-sm:hover {
-            background: #fca5a5;
+        .lab-del-btn:hover {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        /* Sticky Action Footer */
+        .sticky-lab-bar {
+            position: sticky;
+            bottom: 12px;
+            z-index: 99;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 0.75rem 1.25rem;
+            border-radius: 14px;
+            border: 1px solid var(--qcd-border);
+            box-shadow: 0 6px 20px rgba(15, 39, 68, 0.12);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 1rem;
         }
     </style>
 </head>
@@ -823,29 +1058,29 @@
         <!-- TAB 3: QCD LAB ANALYSES (ЖУРНАЛ АНАЛИЗОВ СКК) -->
         <div id="qcd-tab-lab" style="display: none;">
             <!-- Active Draft Info & Quick Switch -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="stripe-badge" id="lab-active-status-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 0.85rem;">
+                    <span class="stripe-badge" id="lab-active-status-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 0.82rem;">
                         📝 Новый бланк смены (Черновик)
                     </span>
                     <span id="lab-current-id-display" style="font-size: 0.8rem; color: var(--qcd-subtext); font-weight: 600;"></span>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="qcd-btn-secondary" onclick="resetLabForm()" title="Очистить форму и начать новую смену">
+                <div style="display: flex; gap: 6px;">
+                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="resetLabForm()" title="Очистить форму и начать новую смену">
                         <i class="fa-solid fa-file-circle-plus"></i>
                         <span>Новый анализ</span>
                     </button>
-                    <button class="qcd-btn-secondary" onclick="switchQcdTab('lab-journal')">
+                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="switchQcdTab('lab-journal')">
                         <i class="fa-solid fa-list-check"></i>
                         <span>Все анализы месяца</span>
                     </button>
                 </div>
             </div>
 
-            <!-- 1. Параметры смены и запуска -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
+            <!-- 1. Параметры смены, линии и продукции (Компактный 4-колоночный Grid) -->
+            <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
+                <div class="bento-card-header" style="margin-bottom: 0.5rem; padding-bottom: 0.4rem;">
+                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
                         <i class="fa-solid fa-sliders" style="color: var(--qcd-blue);"></i>
                         1. Параметры смены, линии и продукции
                     </h3>
@@ -854,54 +1089,54 @@
 
                 <input type="hidden" id="lab-analysis-id" value="">
 
-                <div class="lab-grid-4">
-                    <div>
-                        <label class="compact-input-lbl">📅 Дата смены:</label>
-                        <input type="date" id="lab-report-date" class="qcd-num-input" style="width: 100%; text-align: left;" onchange="onLabHeaderChange()">
+                <div class="lab-grid-dense-4">
+                    <div class="lab-dense-field">
+                        <label>📅 Дата смены:</label>
+                        <input type="date" id="lab-report-date" onchange="onLabHeaderChange()">
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">☀️ Смена:</label>
-                        <select id="lab-shift-type" class="qcd-num-input" style="width: 100%; text-align: left; font-weight: 700;" onchange="onLabHeaderChange()">
-                            <option value="День">☀️ Дневная смена (08:00 - 20:00)</option>
-                            <option value="Ночь">🌙 Ночная смена (20:00 - 08:00)</option>
+                    <div class="lab-dense-field">
+                        <label>☀️ Смена:</label>
+                        <select id="lab-shift-type" onchange="onLabHeaderChange()">
+                            <option value="День">☀️ Дневная (08:00-20:00)</option>
+                            <option value="Ночь">🌙 Ночная (20:00-08:00)</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">🏭 Линия формовки:</label>
-                        <select id="lab-line-number" class="qcd-num-input" style="width: 100%; text-align: left; font-weight: 700;">
+                    <div class="lab-dense-field">
+                        <label>🏭 Линия формовки:</label>
+                        <select id="lab-line-number">
                             <option value="ЛФМ-1">ЛФМ-1</option>
                             <option value="ЛФМ-2">ЛФМ-2</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">🌊 Поток:</label>
-                        <input type="number" id="lab-flow-number" class="qcd-num-input" style="width: 100%;" value="1" min="1" max="4">
+                    <div class="lab-dense-field">
+                        <label>🌊 Поток:</label>
+                        <input type="number" id="lab-flow-number" value="1" min="1" max="4">
                     </div>
                 </div>
 
-                <div class="lab-grid-4" style="margin-top: 10px;">
-                    <div>
-                        <label class="compact-input-lbl">👷 Мастер смены:</label>
-                        <input type="text" id="lab-master-name" class="qcd-num-input" style="width: 100%; text-align: left;" placeholder="ФИО мастера">
+                <div class="lab-grid-dense-4" style="margin-top: 6px;">
+                    <div class="lab-dense-field">
+                        <label>👷 Мастер смены:</label>
+                        <input type="text" id="lab-master-name" placeholder="ФИО мастера">
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">⚙️ Машинист ЛФМ:</label>
-                        <input type="text" id="lab-machinist-name" class="qcd-num-input" style="width: 100%; text-align: left;" placeholder="ФИО машиниста">
+                    <div class="lab-dense-field">
+                        <label>⚙️ Машинист ЛФМ:</label>
+                        <input type="text" id="lab-machinist-name" placeholder="ФИО машиниста">
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">🔬 Специалист СКК:</label>
-                        <input type="text" id="lab-inspector-name" class="qcd-num-input" style="width: 100%; text-align: left;" value="Мусаилова З.">
+                    <div class="lab-dense-field">
+                        <label>🔬 Специалист СКК:</label>
+                        <input type="text" id="lab-inspector-name" value="Мусаилова З.">
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">⏰ Время запуска:</label>
-                        <input type="text" id="lab-start-time" class="qcd-num-input" style="width: 100%;" value="08:00" placeholder="08:00">
+                    <div class="lab-dense-field">
+                        <label>⏰ Время запуска:</label>
+                        <input type="text" id="lab-start-time" value="08:00" placeholder="08:00">
                     </div>
                 </div>
 
-                <div class="lab-grid-3" style="margin-top: 10px;">
-                    <div>
-                        <label class="compact-input-lbl">📦 Номенклатура / Продукция:</label>
-                        <select id="lab-product-name" class="qcd-num-input" style="width: 100%; text-align: left; font-weight: 700;">
+                <div class="lab-grid-dense-3" style="margin-top: 6px;">
+                    <div class="lab-dense-field">
+                        <label>📦 Номенклатура / Продукция:</label>
+                        <select id="lab-product-name" onchange="onLabProductChange()">
                             <option value="Шифер 8 волн серый">Шифер 8 волн серый</option>
                             <option value="Шифер 8 волн окрашенный">Шифер 8 волн окрашенный</option>
                             <option value="Шифер 8 волн рифленый">Шифер 8 волн рифленый</option>
@@ -911,313 +1146,281 @@
                             <option value="Плоский лист 1750х1200х10">Плоский лист 1750х1200х10</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">📏 Номинал толщины:</label>
-                        <input type="text" id="lab-thickness-spec" class="qcd-num-input" style="width: 100%;" value="5.8 мм" placeholder="5.8 мм">
+                    <div class="lab-dense-field">
+                        <label>📏 Номинал толщины:</label>
+                        <input type="text" id="lab-thickness-spec" value="5.8 мм" placeholder="5.8 мм">
                     </div>
-                    <div>
-                        <label class="compact-input-lbl">🏷️ Партия / №:</label>
-                        <input type="text" id="lab-batch-number" class="qcd-num-input" style="width: 100%;" placeholder="Партия 1">
+                    <div class="lab-dense-field">
+                        <label>🏷️ Партия / №:</label>
+                        <input type="text" id="lab-batch-number" placeholder="Партия 1">
                     </div>
                 </div>
             </div>
 
-            <!-- 2. Блок рецептуры и расхода сырья -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
+            <!-- 2. Блок рецептуры и расхода сырья (Плиточный 6-колоночный Grid) -->
+            <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
+                <div class="bento-card-header" style="margin-bottom: 0.5rem; padding-bottom: 0.4rem;">
+                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
                         <i class="fa-solid fa-cubes-stacked" style="color: #8b5cf6;"></i>
                         2. Рецептура и расход сырья (кг)
                     </h3>
                     <span class="stripe-badge" style="background: #f3e8ff; color: #7e22ce; font-weight: 800;" id="lab-raw-total-badge">Итого: 0 кг</span>
                 </div>
 
-                <div class="lab-grid-3">
-                    <div class="compact-input-row">
-                        <span class="compact-input-lbl">Асбест (кг):</span>
-                        <input type="number" step="0.1" id="lab-raw-asbestos" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                <div class="lab-raw-grid">
+                    <div class="lab-raw-card">
+                        <span class="raw-lbl">Асбест (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-asbestos" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
                     </div>
-                    <div class="compact-input-row">
-                        <span class="compact-input-lbl">Цемент (кг):</span>
-                        <input type="number" step="0.1" id="lab-raw-cement" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    <div class="lab-raw-card">
+                        <span class="raw-lbl">Цемент (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-cement" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
                     </div>
-                    <div class="compact-input-row">
-                        <span class="compact-input-lbl">Целлюлоза (кг):</span>
-                        <input type="number" step="0.1" id="lab-raw-cellulose" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    <div class="lab-raw-card">
+                        <span class="raw-lbl">Целлюлоза (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-cellulose" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
                     </div>
-                    <div class="compact-input-row">
-                        <span class="compact-input-lbl">Асбозурит (кг):</span>
-                        <input type="number" step="0.1" id="lab-raw-asbozurite" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    <div class="lab-raw-card">
+                        <span class="raw-lbl">Асбозурит (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-asbozurite" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
                     </div>
-                    <div class="compact-input-row">
-                        <span class="compact-input-lbl">Дробленый шифер (кг):</span>
-                        <input type="number" step="0.1" id="lab-raw-crushed-slate" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    <div class="lab-raw-card">
+                        <span class="raw-lbl">Дробл. шифер (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-crushed-slate" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
                     </div>
-                    <div class="compact-input-row">
-                        <span class="compact-input-lbl">Стекловолокно (кг):</span>
-                        <input type="number" step="0.1" id="lab-raw-fiberglass" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    <div class="lab-raw-card">
+                        <span class="raw-lbl">Стекловолокно (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-fiberglass" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
                     </div>
                 </div>
             </div>
 
-            <!-- 3. Технологические параметры подготовки массы -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
+            <!-- 3. Технологические параметры подготовки массы (3 параллельные колонки) -->
+            <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
+                <div class="bento-card-header" style="margin-bottom: 0.5rem; padding-bottom: 0.4rem;">
+                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
                         <i class="fa-solid fa-gears" style="color: #d97706;"></i>
                         3. Технологические параметры подготовки массы
                     </h3>
                     <span class="norm-tag">Контроль распушки, концентраций и температур</span>
                 </div>
 
-                <div class="defects-two-cols">
-                    <!-- Левая колонка: Бегун, Хризотил, Гидропушитель, Турбосмеситель -->
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-                            ⚙️ Обработка и гидропушение:
+                <div class="lab-prep-3cols">
+                    <!-- Колонка 1: Гидропушение и бегун -->
+                    <div class="prep-subcol">
+                        <div class="prep-subcol-title">
+                            ⚙️ Гидропушение и бегун
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">Бегун (время обработки, мин):</span>
-                            <input type="number" step="0.5" id="lab-begun-time" class="qcd-num-input" placeholder="10">
+                        <div class="prep-row">
+                            <span class="prep-label">Бегун (время, мин):</span>
+                            <input type="number" step="0.5" id="lab-begun-time" placeholder="10">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Влажн. хризотила (%):
-                                <span class="norm-tag">Норма: 29–35%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-chrysotile-moist" class="qcd-num-input" placeholder="32" oninput="validateNormInput(this, 29, 35)">
+                        <div class="prep-row">
+                            <span class="prep-label">Влажн. хризотила (%) <span class="norm-tag">29–35%</span></span>
+                            <input type="number" step="0.1" id="lab-chrysotile-moist" placeholder="32" oninput="validateNormInput(this, 29, 35)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Распушка (%):
-                                <span class="norm-tag">Норма: ≥ 30%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-fluffing" class="qcd-num-input" placeholder="32" oninput="validateNormInput(this, 30, 100)">
+                        <div class="prep-row">
+                            <span class="prep-label">Распушка (%) <span class="norm-tag">≥ 30%</span></span>
+                            <input type="number" step="0.1" id="lab-fluffing" placeholder="32" oninput="validateNormInput(this, 30, 100)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">Г/пушитель (время, мин):</span>
-                            <input type="number" step="0.5" id="lab-hydropulper-time" class="qcd-num-input" placeholder="15">
+                        <div class="prep-row">
+                            <span class="prep-label">Г/пушитель (время, мин):</span>
+                            <input type="number" step="0.5" id="lab-hydropulper-time" placeholder="15">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Конц. в г/пуш. (%):
-                                <span class="norm-tag">Норма: 3.5–4.5%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-hydropulper-conc" class="qcd-num-input" placeholder="4.0" oninput="validateNormInput(this, 3.5, 4.5)">
+                        <div class="prep-row">
+                            <span class="prep-label">Конц. в г/пуш. (%) <span class="norm-tag">3.5–4.5%</span></span>
+                            <input type="number" step="0.1" id="lab-hydropulper-conc" placeholder="4.0" oninput="validateNormInput(this, 3.5, 4.5)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Турбосмеситель (%):
-                                <span class="norm-tag">Норма: 21–26%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-turbomixer-conc" class="qcd-num-input" placeholder="23" oninput="validateNormInput(this, 21, 26)">
+                        <div class="prep-row">
+                            <span class="prep-label">Турбосмеситель (%) <span class="norm-tag">21–26%</span></span>
+                            <input type="number" step="0.1" id="lab-turbomixer-conc" placeholder="23" oninput="validateNormInput(this, 21, 26)">
                         </div>
                     </div>
 
-                    <!-- Правая колонка: Мешалки, Вода, Рекуперация, Бассейн, Целлюлоза -->
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
-                            🧪 Концентрации, температуры и бассейны:
+                    <!-- Колонка 2: Концентрации и температуры -->
+                    <div class="prep-subcol">
+                        <div class="prep-subcol-title">
+                            🧪 Концентрации и бассейны
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Ковшевая (%):
-                                <span class="norm-tag">Норма: 21–26%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-bucket-mixer" class="qcd-num-input" placeholder="24" oninput="validateNormInput(this, 21, 26)">
+                        <div class="prep-row">
+                            <span class="prep-label">Ковшевая (%) <span class="norm-tag">21–26%</span></span>
+                            <input type="number" step="0.1" id="lab-bucket-mixer" placeholder="24" oninput="validateNormInput(this, 21, 26)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Бракомешалка (%):
-                                <span class="norm-tag">Норма: 15–20%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-defective-mixer" class="qcd-num-input" placeholder="18" oninput="validateNormInput(this, 15, 20)">
+                        <div class="prep-row">
+                            <span class="prep-label">Бракомешалка (%) <span class="norm-tag">15–20%</span></span>
+                            <input type="number" step="0.1" id="lab-defective-mixer" placeholder="18" oninput="validateNormInput(this, 15, 20)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Вода на разжижение (%):
-                                <span class="norm-tag">Норма: ≤ 17%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-dilution-water" class="qcd-num-input" placeholder="15" oninput="validateNormInput(this, 0, 17)">
+                        <div class="prep-row">
+                            <span class="prep-label">Разжижение (%) <span class="norm-tag">≤ 17%</span></span>
+                            <input type="number" step="0.1" id="lab-dilution-water" placeholder="15" oninput="validateNormInput(this, 0, 17)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Конц-я в чист. рекуп. (%):
-                                <span class="norm-tag">Норма: ≤ 17%</span>
-                            </span>
-                            <input type="number" step="0.1" id="lab-clean-recuperator" class="qcd-num-input" placeholder="12" oninput="validateNormInput(this, 0, 17)">
+                        <div class="prep-row">
+                            <span class="prep-label">Чист. рекупер. (%) <span class="norm-tag">≤ 17%</span></span>
+                            <input type="number" step="0.1" id="lab-clean-recuperator" placeholder="12" oninput="validateNormInput(this, 0, 17)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Темп. воды в рекуператоре (°C):
-                                <span class="norm-tag">Норма: 35–45°C</span>
-                            </span>
-                            <input type="number" step="0.5" id="lab-recuperator-temp" class="qcd-num-input" placeholder="40" oninput="validateNormInput(this, 35, 45)">
+                        <div class="prep-row">
+                            <span class="prep-label">Темп. рекупер. (°C) <span class="norm-tag">35–45°C</span></span>
+                            <input type="number" step="0.5" id="lab-recuperator-temp" placeholder="40" oninput="validateNormInput(this, 35, 45)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">
-                                Темп. в бассейне (°C):
-                                <span class="norm-tag">Норма: ≥ 45°C</span>
-                            </span>
-                            <input type="number" step="0.5" id="lab-pool-temp" class="qcd-num-input" placeholder="46" oninput="validateNormInput(this, 45, 100)">
+                        <div class="prep-row">
+                            <span class="prep-label">Темп. бассейна (°C) <span class="norm-tag">≥ 45°C</span></span>
+                            <input type="number" step="0.5" id="lab-pool-temp" placeholder="46" oninput="validateNormInput(this, 45, 100)">
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">Целлюлоза (сухой ост.):</span>
-                            <input type="text" id="lab-cellulose-dry-residue" class="qcd-num-input" style="width: 110px; text-align: left;" placeholder="Значение">
+                        <div class="prep-row">
+                            <span class="prep-label">Целлюлоза (сух. ост.):</span>
+                            <input type="text" id="lab-cellulose-dry-residue" style="width: 85px; text-align: left;" placeholder="Значение">
                         </div>
                     </div>
-                </div>
 
-                <!-- Блок формовочных ванн (4 ванны) -->
-                <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--qcd-border);">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-                        <div>
-                            <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy);">
-                                🌊 Концентрация в ваннах <span class="norm-tag">Норма: 7–12%</span>:
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 1 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-1-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 2 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-2-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 3 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-3-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 4 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-4-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
-                            </div>
+                    <!-- Колонка 3: Формовочные ванны 1–4 (Матричная мини-таблица) -->
+                    <div class="prep-subcol">
+                        <div class="prep-subcol-title">
+                            🌊 Ванны 1–4
                         </div>
-
-                        <div>
-                            <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy);">
-                                💧 Содержание осадка отходящей воды <span class="norm-tag">Норма: ≤ 3%</span>:
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 1 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-1-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 2 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-2-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 3 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-3-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
-                            </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">Ванна 4 (%):</span>
-                                <input type="number" step="0.1" id="lab-vat-4-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
-                            </div>
-                        </div>
+                        <table class="lab-vats-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">Ванна</th>
+                                    <th>Конц. <span class="norm-tag">7–12%</span></th>
+                                    <th>Осадок <span class="norm-tag">≤ 3%</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>№ 1</b></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-1-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-1-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
+                                </tr>
+                                <tr>
+                                    <td><b>№ 2</b></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-2-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-2-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
+                                </tr>
+                                <tr>
+                                    <td><b>№ 3</b></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-3-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-3-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
+                                </tr>
+                                <tr>
+                                    <td><b>№ 4</b></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-4-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
+                                    <td><input type="number" step="0.1" id="lab-vat-4-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- 4. Таблица влажности пленки (Компактная эталонная структура) -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-droplet" style="color: #0284c7;"></i>
-                        4. Влажность пленки (%)
-                    </h3>
-                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="addLabFilmRow()">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Добавить замер</span>
-                    </button>
+            <!-- Bento 2-Col Grid: 4. Влажность пленки + 5. Объемный вес и влажность наката -->
+            <div class="lab-bento-2col">
+                <!-- 4. Влажность пленки -->
+                <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0;">
+                    <div class="bento-card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.35rem;">
+                        <h3 class="bento-card-title" style="font-size: 0.92rem;">
+                            <i class="fa-solid fa-droplet" style="color: #0284c7;"></i>
+                            4. Влажность пленки (%)
+                        </h3>
+                        <button class="qcd-btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="addLabFilmRow()">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Замер</span>
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="lab-table" id="lab-film-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="width: 58px;">Время</th>
+                                    <th colspan="2">До вакуума <span class="norm-tag">39–48%</span></th>
+                                    <th colspan="2">После вакуума <span class="norm-tag">32–35%</span></th>
+                                    <th rowspan="2" style="width: 26px;">✕</th>
+                                </tr>
+                                <tr>
+                                    <th style="width: 52px;">Лево</th>
+                                    <th style="width: 52px;">Право</th>
+                                    <th style="width: 52px;">Лево</th>
+                                    <th style="width: 52px;">Право</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lab-film-tbody">
+                                <!-- Динамические строки замеров -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div style="overflow-x: auto;">
-                    <table class="lab-table" id="lab-film-table">
-                        <thead>
-                            <tr>
-                                <th rowspan="2" style="width: 100px;">Время</th>
-                                <th colspan="2">До вакуум-коробки <span class="norm-tag">39–48%</span></th>
-                                <th colspan="2">После вакуум-коробки <span class="norm-tag">32–35%</span></th>
-                                <th rowspan="2" style="width: 50px;">Удал.</th>
-                            </tr>
-                            <tr>
-                                <th style="width: 130px;">Лево (%)</th>
-                                <th style="width: 130px;">Право (%)</th>
-                                <th style="width: 130px;">Лево (%)</th>
-                                <th style="width: 130px;">Право (%)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lab-film-tbody">
-                            <!-- Динамические строки замеров -->
-                        </tbody>
-                    </table>
+
+                <!-- 5. Объемный вес и влажность наката -->
+                <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0;">
+                    <div class="bento-card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.35rem;">
+                        <h3 class="bento-card-title" style="font-size: 0.92rem;">
+                            <i class="fa-solid fa-weight-hanging" style="color: #059669;"></i>
+                            5. Вес и влажность наката
+                        </h3>
+                        <button class="qcd-btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="addLabDensityRow()">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Замер</span>
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="lab-table" id="lab-density-table">
+                            <thead>
+                                <tr>
+                                    <th rowspan="2" style="width: 55px;">Время</th>
+                                    <th colspan="3">Объемный вес (г/см³) <span class="norm-tag">≥ 1.42</span></th>
+                                    <th colspan="3">Влажность (%) <span class="norm-tag">20–24%</span></th>
+                                    <th rowspan="2" style="width: 26px;">✕</th>
+                                </tr>
+                                <tr>
+                                    <th style="width: 46px;">Л</th>
+                                    <th style="width: 46px;">Ц</th>
+                                    <th style="width: 46px;">П</th>
+                                    <th style="width: 46px;">Л</th>
+                                    <th style="width: 46px;">Ц</th>
+                                    <th style="width: 46px;">П</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lab-density-tbody">
+                                <!-- Динамические строки замеров -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- 5. Таблица объемного веса и влажности наката -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-weight-hanging" style="color: #059669;"></i>
-                        5. Объемный вес и влажность наката
-                    </h3>
-                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="addLabDensityRow()">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Добавить замер</span>
-                    </button>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table class="lab-table" id="lab-density-table">
-                        <thead>
-                            <tr>
-                                <th rowspan="2" style="width: 100px;">Время</th>
-                                <th colspan="3">Объемный вес (г/см³) <span class="norm-tag">≥ 1.42</span></th>
-                                <th colspan="3">Влажность наката (%) <span class="norm-tag">20–24%</span></th>
-                                <th rowspan="2" style="width: 50px;">Удал.</th>
-                            </tr>
-                            <tr>
-                                <th style="width: 110px;">Лево</th>
-                                <th style="width: 110px;">Центр</th>
-                                <th style="width: 110px;">Право</th>
-                                <th style="width: 110px;">Лево (%)</th>
-                                <th style="width: 110px;">Центр (%)</th>
-                                <th style="width: 110px;">Право (%)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lab-density-tbody">
-                            <!-- Динамические строки замеров -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 6. Почасовой журнал контроля толщины и геометрии ГП -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
+            <!-- 6. Почасовой журнал контроля толщины и геометрии ГП (Компактный вид) -->
+            <div class="bento-card" style="padding: 0.85rem 1rem; margin-top: 0.85rem; margin-bottom: 0.85rem;">
+                <div class="bento-card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.35rem;">
+                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
                         <i class="fa-solid fa-ruler-combined" style="color: #7c3aed;"></i>
                         6. Почасовой журнал контроля толщины и геометрии ГП
                     </h3>
-                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="addLabHourlyRow()">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Добавить замер</span>
-                    </button>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="qcd-btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="fillAllHourlyAsNorm()" title="Установить статус 'Норма' для всех 12 часов">
+                            <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
+                            <span>Все: Норма</span>
+                        </button>
+                        <button class="qcd-btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="addLabHourlyRow()">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Добавить час</span>
+                        </button>
+                    </div>
                 </div>
                 <div style="overflow-x: auto;">
                     <table class="lab-table" id="lab-hourly-table">
                         <thead>
                             <tr>
-                                <th rowspan="2" style="width: 90px;">Время</th>
+                                <th rowspan="2" style="width: 65px;">Время</th>
                                 <th colspan="3">Толщина наката (мм)</th>
-                                <th rowspan="2" style="min-width: 200px;">Внешний вид листа (визуально)</th>
+                                <th rowspan="2" style="width: 145px;">Внешний вид листа</th>
                                 <th colspan="2">ГП пачки (мм)</th>
-                                <th rowspan="2" style="width: 50px;">Удал.</th>
+                                <th rowspan="2" style="width: 28px;">✕</th>
                             </tr>
                             <tr>
-                                <th style="width: 95px;">Лево</th>
-                                <th style="width: 95px;">Центр</th>
-                                <th style="width: 95px;">Право</th>
-                                <th style="width: 105px;">Длина</th>
-                                <th style="width: 105px;">Ширина</th>
+                                <th style="width: 58px;">Лево</th>
+                                <th style="width: 58px;">Центр</th>
+                                <th style="width: 58px;">Право</th>
+                                <th style="width: 65px;">Длина</th>
+                                <th style="width: 65px;">Ширина</th>
                             </tr>
                         </thead>
                         <tbody id="lab-hourly-tbody">
@@ -1228,27 +1431,27 @@
             </div>
 
             <!-- 7. Замечания и заключение СКК -->
-            <div class="bento-card">
-                <h3 class="bento-card-title" style="margin-bottom: 8px;">
+            <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
+                <h3 class="bento-card-title" style="margin-bottom: 6px; font-size: 0.92rem;">
                     📝 Замечания лаборанта / Специалиста СКК по смене:
                 </h3>
-                <textarea id="lab-notes" rows="3" style="width: 100%; border: 1px solid var(--qcd-border); border-radius: 10px; padding: 10px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; resize: vertical;" 
+                <textarea id="lab-notes" rows="2" style="width: 100%; border: 1px solid var(--qcd-border); border-radius: 8px; padding: 6px 10px; font-family: inherit; font-size: 0.85rem; box-sizing: border-box; resize: vertical;" 
                           placeholder="Укажите отклонения по температуре, плотности, распушке или рекомендации по корректировке дозировок..."></textarea>
             </div>
 
-            <!-- Action Bar -->
-            <div style="background: #ffffff; padding: 1.25rem; border-radius: 16px; border: 1px solid var(--qcd-border); box-shadow: 0 4px 15px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
+            <!-- Sticky Action Footer Bar -->
+            <div class="sticky-lab-bar">
+                <div style="display: flex; align-items: center; gap: 8px;">
                     <span id="lab-google-link-container"></span>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="qcd-btn-secondary" id="btn-save-lab-draft" onclick="saveLabAnalysisDraft()">
+                <div style="display: flex; gap: 8px;">
+                    <button class="qcd-btn-secondary" id="btn-save-lab-draft" style="padding: 8px 16px; font-size: 0.88rem;" onclick="saveLabAnalysisDraft()">
                         <i class="fa-solid fa-floppy-disk" style="color: #0284c7;"></i>
                         <span>Сохранить черновик</span>
                     </button>
-                    <button class="qcd-btn-primary" id="btn-submit-lab-complete" onclick="submitLabAnalysisComplete()">
+                    <button class="qcd-btn-primary" id="btn-submit-lab-complete" style="padding: 8px 18px; font-size: 0.88rem;" onclick="submitLabAnalysisComplete()">
                         <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <span>Завершить и выгрузить в Google Таблицу</span>
+                        <span>Завершить и выгрузить в Google</span>
                     </button>
                 </div>
             </div>

@@ -522,10 +522,41 @@ function generateDefaultHourlyRows() {
 }
 
 function onLabHeaderChange() {
-    // Реакция на изменение шапки
+    const hourlyTbody = document.getElementById('lab-hourly-tbody');
+    if (hourlyTbody) {
+        const rows = hourlyTbody.querySelectorAll('.lab-hourly-row');
+        if (rows.length === 12) {
+            const isDay = (document.getElementById('lab-shift-type')?.value || 'День') === 'День';
+            const hours = isDay 
+                ? ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+                : ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00'];
+            rows.forEach((r, idx) => {
+                const timeInp = r.querySelector('.hourly-time');
+                if (timeInp) timeInp.value = hours[idx] || '';
+            });
+        }
+    }
 }
 
-// 1. Динамические строки: Влажность пленки
+function onLabProductChange() {
+    const prod = document.getElementById('lab-product-name')?.value || '';
+    const thickInp = document.getElementById('lab-thickness-spec');
+    if (!thickInp) return;
+    
+    if (prod.includes('х6') || prod.includes('х 6')) {
+        thickInp.value = '6.0 мм';
+    } else if (prod.includes('х8') || prod.includes('х 8')) {
+        thickInp.value = '8.0 мм';
+    } else if (prod.includes('х10') || prod.includes('х 10')) {
+        thickInp.value = '10.0 мм';
+    } else if (prod.includes('7 волн')) {
+        thickInp.value = '5.2 мм';
+    } else {
+        thickInp.value = '5.8 мм';
+    }
+}
+
+// 1. Динамические строки: Влажность пленки (Компактный вид)
 function addLabFilmRow(data = {}) {
     const tbody = document.getElementById('lab-film-tbody');
     if (!tbody) return;
@@ -537,7 +568,7 @@ function addLabFilmRow(data = {}) {
         <td><input type="number" step="0.1" class="film-before-r" value="${data.before_vacuum_right ?? ''}" placeholder="43.0" oninput="validateNormInput(this, 39, 48)"></td>
         <td><input type="number" step="0.1" class="film-after-l" value="${data.after_vacuum_left ?? ''}" placeholder="33.5" oninput="validateNormInput(this, 32, 35)"></td>
         <td><input type="number" step="0.1" class="film-after-r" value="${data.after_vacuum_right ?? ''}" placeholder="34.0" oninput="validateNormInput(this, 32, 35)"></td>
-        <td style="text-align: center;"><button type="button" class="lab-btn-sm" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
     `;
     tbody.appendChild(tr);
 
@@ -547,7 +578,7 @@ function addLabFilmRow(data = {}) {
     ));
 }
 
-// 2. Динамические строки: Объемный вес и влажность наката
+// 2. Динамические строки: Объемный вес и влажность наката (Компактный вид)
 function addLabDensityRow(data = {}) {
     const tbody = document.getElementById('lab-density-tbody');
     if (!tbody) return;
@@ -561,7 +592,7 @@ function addLabDensityRow(data = {}) {
         <td><input type="number" step="0.1" class="moisture-l" value="${data.moisture_left ?? ''}" placeholder="22.0" oninput="validateNormInput(this, 20, 24)"></td>
         <td><input type="number" step="0.1" class="moisture-c" value="${data.moisture_center ?? ''}" placeholder="21.5" oninput="validateNormInput(this, 20, 24)"></td>
         <td><input type="number" step="0.1" class="moisture-r" value="${data.moisture_right ?? ''}" placeholder="22.2" oninput="validateNormInput(this, 20, 24)"></td>
-        <td style="text-align: center;"><button type="button" class="lab-btn-sm" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
     `;
     tbody.appendChild(tr);
 
@@ -574,7 +605,7 @@ function addLabDensityRow(data = {}) {
     });
 }
 
-// 3. Динамические строки: Почасовой контроль ГП
+// 3. Динамические строки: Почасовой контроль ГП (Ультракомпактный селект внешнего вида)
 function addLabHourlyRow(data = {}) {
     const tbody = document.getElementById('lab-hourly-tbody');
     if (!tbody) return;
@@ -582,6 +613,16 @@ function addLabHourlyRow(data = {}) {
     tr.className = 'lab-hourly-row';
     const rowId = 'hourly-row-' + Math.random().toString(36).substring(2, 8);
     tr.id = rowId;
+
+    const currentVal = data.visual_appearance || 'Норма';
+    const standardOptions = ['Норма', 'Ершение', 'Разнотолщинность', 'Тоньше нормы', 'Пятна/Полосы', 'Сколы/Трещины'];
+    let customOption = '';
+    if (currentVal && !standardOptions.includes(currentVal)) {
+        customOption = `<option value="${currentVal}" selected>${currentVal}</option>`;
+    }
+
+    const defaultLength = data.gp_length ?? 1750;
+    const defaultWidth = data.gp_width ?? 1130;
     
     tr.innerHTML = `
         <td><input type="text" class="hourly-time" value="${data.time || ''}" placeholder="08:00"></td>
@@ -589,30 +630,46 @@ function addLabHourlyRow(data = {}) {
         <td><input type="number" step="0.01" class="hourly-t-c" value="${data.thickness_center ?? ''}" placeholder="5.80"></td>
         <td><input type="number" step="0.01" class="hourly-t-r" value="${data.thickness_right ?? ''}" placeholder="5.80"></td>
         <td>
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-                <input type="text" class="hourly-visual" value="${data.visual_appearance || 'Норма'}" placeholder="Внешний вид">
-                <div style="display: flex; flex-wrap: wrap; gap: 2px;">
-                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Норма')">Норма</span>
-                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Ершение')">Ершение</span>
-                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Разнотолщинность')">Разнотолщ.</span>
-                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Тоньше нормы')">Тоньше</span>
-                </div>
-            </div>
+            <select class="hourly-visual">
+                <option value="Норма" ${currentVal === 'Норма' ? 'selected' : ''}>🟢 Норма</option>
+                <option value="Ершение" ${currentVal === 'Ершение' ? 'selected' : ''}>🟡 Ершение</option>
+                <option value="Разнотолщинность" ${currentVal === 'Разнотолщинность' ? 'selected' : ''}>🟠 Разнотолщ.</option>
+                <option value="Тоньше нормы" ${currentVal === 'Тоньше нормы' ? 'selected' : ''}>🔴 Тоньше</option>
+                <option value="Пятна/Полосы" ${currentVal === 'Пятна/Полосы' ? 'selected' : ''}>🟣 Пятна/Полосы</option>
+                <option value="Сколы/Трещины" ${currentVal === 'Сколы/Трещины' ? 'selected' : ''}>❌ Сколы/Трещ.</option>
+                ${customOption}
+            </select>
         </td>
-        <td><input type="number" class="hourly-gp-len" value="${data.gp_length ?? ''}" placeholder="1750"></td>
-        <td><input type="number" class="hourly-gp-wid" value="${data.gp_width ?? ''}" placeholder="1130"></td>
-        <td style="text-align: center;"><button type="button" class="lab-btn-sm" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+        <td><input type="number" class="hourly-gp-len" value="${defaultLength}" placeholder="1750"></td>
+        <td><input type="number" class="hourly-gp-wid" value="${defaultWidth}" placeholder="1130"></td>
+        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
     `;
     tbody.appendChild(tr);
 }
 
-function setHourlyVisual(rowId, text) {
-    const row = document.getElementById(rowId);
-    if (!row) return;
-    const inp = row.querySelector('.hourly-visual');
-    if (inp) {
-        inp.value = text;
-    }
+// Быстрое заполнение всех 12 строк почасового контроля нормой
+function fillAllHourlyAsNorm() {
+    const nominalStr = document.getElementById('lab-thickness-spec')?.value || '5.8';
+    const numNom = parseFloat(nominalStr.replace(',', '.'));
+    const defThick = (!isNaN(numNom) ? numNom.toFixed(2) : '5.80');
+
+    document.querySelectorAll('.lab-hourly-row').forEach(tr => {
+        const visualSel = tr.querySelector('.hourly-visual');
+        if (visualSel) visualSel.value = 'Норма';
+        
+        const lenInp = tr.querySelector('.hourly-gp-len');
+        if (lenInp && !lenInp.value) lenInp.value = 1750;
+
+        const widInp = tr.querySelector('.hourly-gp-wid');
+        if (widInp && !widInp.value) widInp.value = 1130;
+
+        const tl = tr.querySelector('.hourly-t-l');
+        const tc = tr.querySelector('.hourly-t-c');
+        const tr_inp = tr.querySelector('.hourly-t-r');
+        if (tl && !tl.value) tl.value = defThick;
+        if (tc && !tc.value) tc.value = defThick;
+        if (tr_inp && !tr_inp.value) tr_inp.value = defThick;
+    });
 }
 
 // Валидация норм в реальном времени с подсветкой
