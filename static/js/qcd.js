@@ -445,6 +445,7 @@ function showQcdModal(title, msg, type = 'success') {
     const titleEl = document.getElementById('qcd-alert-title');
     const msgEl = document.getElementById('qcd-alert-msg');
     const iconEl = document.getElementById('qcd-alert-icon');
+    const btnEl = document.getElementById('qcd-alert-ok-btn');
 
     if (!modal) return;
     titleEl.innerText = title;
@@ -461,8 +462,48 @@ function showQcdModal(title, msg, type = 'success') {
         iconEl.style.color = '#16a34a';
     }
 
+    // Сброс кнопки к обычному режиму (только «Понятно»)
+    if (btnEl) {
+        btnEl.textContent = 'Понятно';
+        btnEl.onclick = () => { modal.style.display = 'none'; };
+    }
+    const cancelBtnEl = document.getElementById('qcd-alert-cancel-btn');
+    if (cancelBtnEl) cancelBtnEl.style.display = 'none';
+
     modal.style.display = 'flex';
 }
+
+// П1.Г + П1.Д: Confirm-диалог через существующий модал
+function showQcdConfirm(title, msg, onConfirm) {
+    const modal = document.getElementById('qcd-alert-modal');
+    const titleEl = document.getElementById('qcd-alert-title');
+    const msgEl = document.getElementById('qcd-alert-msg');
+    const iconEl = document.getElementById('qcd-alert-icon');
+    const btnEl = document.getElementById('qcd-alert-ok-btn');
+    const cancelBtnEl = document.getElementById('qcd-alert-cancel-btn');
+
+    if (!modal) { if (confirm(`${title}\n${msg}`)) onConfirm(); return; }
+
+    titleEl.innerText = title;
+    msgEl.innerText = msg;
+    iconEl.innerText = '❓';
+    iconEl.style.color = '#d97706';
+
+    if (btnEl) {
+        btnEl.textContent = 'Да, продолжить';
+        btnEl.onclick = () => {
+            modal.style.display = 'none';
+            onConfirm();
+        };
+    }
+    if (cancelBtnEl) {
+        cancelBtnEl.style.display = 'inline-flex';
+        cancelBtnEl.onclick = () => { modal.style.display = 'none'; };
+    }
+    modal.style.display = 'flex';
+}
+
+
 
 // ==========================================
 // ЛАБОРАТОРНЫЙ КОНТРОЛЬ СКК (LAB ANALYSES)
@@ -506,8 +547,35 @@ function initLabFormIfNeeded() {
         generateDefaultHourlyRows();
     }
 
+    // П1.Б: Запрет перезаписи мастера при ручном редактировании
+    const masterField = document.getElementById('lab-master-name');
+    if (masterField) {
+        masterField.addEventListener('input', () => {
+            masterField.dataset.manuallyEdited = 'true';
+            masterField.style.background = '';
+            masterField.title = '';
+        });
+    }
+
+    // П1.В: IntersectionObserver — показываем sticky-бар при скролле мимо шапки
+    const headerCard = document.getElementById('lab-header-card');
+    const stickyBar = document.getElementById('lab-sticky-bar');
+    if (headerCard && stickyBar && window.IntersectionObserver) {
+        const obs = new IntersectionObserver(([entry]) => {
+            stickyBar.style.display = entry.isIntersecting ? 'none' : 'flex';
+        }, { threshold: 0, rootMargin: '-10px 0px 0px 0px' });
+        obs.observe(headerCard);
+    }
+
+    // Инициализируем контекст sticky-бара
+    updateStickyContext();
+
+    // Автозаполнение мастера при первой инициализации
+    _tryAutofillMaster();
+
     isLabFormInitialized = true;
 }
+
 
 function generateDefaultHourlyRows() {
     const isDay = (document.getElementById('lab-shift-type')?.value || 'День') === 'День';
@@ -536,6 +604,69 @@ function onLabHeaderChange() {
             });
         }
     }
+
+    // П1.Б: Автозаполнение мастера смены из API
+    _tryAutofillMaster();
+
+    // П1.В: Обновить sticky-контекст
+    updateStickyContext();
+}
+
+// П1.Б: Попытка автозаполнения мастера смены из активной смены
+async function _tryAutofillMaster() {
+    const date = document.getElementById('lab-report-date')?.value;
+    const shift = document.getElementById('lab-shift-type')?.value;
+    const line = document.getElementById('lab-line-number')?.value;
+    if (!date || !shift || !line) return;
+
+    const masterField = document.getElementById('lab-master-name');
+    if (!masterField || masterField.dataset.manuallyEdited === 'true') return;
+
+    try {
+        const shiftKey = shift === 'День' ? 'day' : 'night';
+        const resp = await fetch(`/api/shifts?date=${date}&limit=10`, { signal: AbortSignal.timeout(5000) });
+        if (!resp.ok) return;
+        const shifts = await resp.json();
+
+        // Ищем совпадение по дате, типу смены и линии
+        const match = shifts.find(s =>
+            s.report_date?.startsWith(date) &&
+            (s.shift_type === shift || s.shift_name === shift) &&
+            (s.line_number === line || s.equipment === line)
+        );
+        if (match?.master_name) {
+            masterField.value = match.master_name;
+            masterField.style.background = '#f0fdf4'; // зелёный — автозаполнено
+            masterField.title = 'Автозаполнено из смены';
+        }
+    } catch(e) {
+        // Сетевая ошибка — молча игнорируем, не блокируем форму
+    }
+}
+
+// П1.В: Обновить содержимое sticky-контекстной строки
+function updateStickyContext() {
+    const date = document.getElementById('lab-report-date')?.value;
+    const shift = document.getElementById('lab-shift-type')?.value;
+    const line = document.getElementById('lab-line-number')?.value;
+    const flow = document.getElementById('lab-flow-number')?.value;
+    const product = document.getElementById('lab-product-name')?.value;
+    const specialist = document.getElementById('lab-inspector-name')?.value;
+
+    const fmt = (v) => v || '—';
+    const dateDisp = date ? new Date(date + 'T12:00:00').toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
+    const ctxDate = document.getElementById('ctx-date');
+    const ctxShift = document.getElementById('ctx-shift');
+    const ctxLine = document.getElementById('ctx-line');
+    const ctxProduct = document.getElementById('ctx-product');
+    const ctxSpecialist = document.getElementById('ctx-specialist');
+
+    if (ctxDate) ctxDate.textContent = dateDisp;
+    if (ctxShift) ctxShift.textContent = shift === 'День' ? 'Дневная' : 'Ночная';
+    if (ctxLine) ctxLine.textContent = `${fmt(line)} / Поток ${fmt(flow)}`;
+    if (ctxProduct) ctxProduct.textContent = fmt(product);
+    if (ctxSpecialist) ctxSpecialist.textContent = fmt(specialist);
 }
 
 function onLabProductChange() {
@@ -556,19 +687,31 @@ function onLabProductChange() {
     }
 }
 
+// П1.Г: Удаление строки замера с confirm-диалогом
+function deleteLabRow(btn, label) {
+    const row = btn.closest('tr');
+    if (!row) return;
+    showQcdConfirm(
+        'Удалить замер?',
+        `Удалить строку замера ${label ? `(${label})` : ''}? Это действие нельзя отменить.`,
+        () => row.remove()
+    );
+}
+
 // 1. Динамические строки: Влажность пленки (Компактный вид)
 function addLabFilmRow(data = {}) {
     const tbody = document.getElementById('lab-film-tbody');
     if (!tbody) return;
     const tr = document.createElement('tr');
     tr.className = 'lab-film-row';
+    const timeVal = data.time || '';
     tr.innerHTML = `
-        <td><input type="text" class="film-time" value="${data.time || ''}" placeholder="09:00"></td>
+        <td><input type="text" class="film-time" value="${timeVal}" placeholder="09:00"></td>
         <td><input type="number" step="0.1" class="film-before-l" value="${data.before_vacuum_left ?? ''}" placeholder="42.5" oninput="validateNormInput(this, 39, 48)"></td>
         <td><input type="number" step="0.1" class="film-before-r" value="${data.before_vacuum_right ?? ''}" placeholder="43.0" oninput="validateNormInput(this, 39, 48)"></td>
         <td><input type="number" step="0.1" class="film-after-l" value="${data.after_vacuum_left ?? ''}" placeholder="33.5" oninput="validateNormInput(this, 32, 35)"></td>
         <td><input type="number" step="0.1" class="film-after-r" value="${data.after_vacuum_right ?? ''}" placeholder="34.0" oninput="validateNormInput(this, 32, 35)"></td>
-        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="deleteLabRow(this, '${timeVal}')" title="Удалить замер">✕</button></td>
     `;
     tbody.appendChild(tr);
 
@@ -578,21 +721,23 @@ function addLabFilmRow(data = {}) {
     ));
 }
 
+
 // 2. Динамические строки: Объемный вес и влажность наката (Компактный вид)
 function addLabDensityRow(data = {}) {
     const tbody = document.getElementById('lab-density-tbody');
     if (!tbody) return;
     const tr = document.createElement('tr');
     tr.className = 'lab-density-row';
+    const timeVal = data.time || '';
     tr.innerHTML = `
-        <td><input type="text" class="density-time" value="${data.time || ''}" placeholder="09:00"></td>
+        <td><input type="text" class="density-time" value="${timeVal}" placeholder="09:00"></td>
         <td><input type="number" step="0.01" class="density-l" value="${data.density_left ?? ''}" placeholder="1.45" oninput="validateNormInput(this, 1.42, 2.0)"></td>
         <td><input type="number" step="0.01" class="density-c" value="${data.density_center ?? ''}" placeholder="1.46" oninput="validateNormInput(this, 1.42, 2.0)"></td>
         <td><input type="number" step="0.01" class="density-r" value="${data.density_right ?? ''}" placeholder="1.44" oninput="validateNormInput(this, 1.42, 2.0)"></td>
         <td><input type="number" step="0.1" class="moisture-l" value="${data.moisture_left ?? ''}" placeholder="22.0" oninput="validateNormInput(this, 20, 24)"></td>
         <td><input type="number" step="0.1" class="moisture-c" value="${data.moisture_center ?? ''}" placeholder="21.5" oninput="validateNormInput(this, 20, 24)"></td>
         <td><input type="number" step="0.1" class="moisture-r" value="${data.moisture_right ?? ''}" placeholder="22.2" oninput="validateNormInput(this, 20, 24)"></td>
-        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="deleteLabRow(this, '${timeVal}')" title="Удалить замер">✕</button></td>
     `;
     tbody.appendChild(tr);
 
@@ -624,8 +769,9 @@ function addLabHourlyRow(data = {}) {
     const defaultLength = data.gp_length ?? 1750;
     const defaultWidth = data.gp_width ?? 1130;
     
+    const timeVal = data.time || '';
     tr.innerHTML = `
-        <td><input type="text" class="hourly-time" value="${data.time || ''}" placeholder="08:00"></td>
+        <td><input type="text" class="hourly-time" value="${timeVal}" placeholder="08:00"></td>
         <td><input type="number" step="0.01" class="hourly-t-l" value="${data.thickness_left ?? ''}" placeholder="5.80"></td>
         <td><input type="number" step="0.01" class="hourly-t-c" value="${data.thickness_center ?? ''}" placeholder="5.80"></td>
         <td><input type="number" step="0.01" class="hourly-t-r" value="${data.thickness_right ?? ''}" placeholder="5.80"></td>
@@ -642,7 +788,7 @@ function addLabHourlyRow(data = {}) {
         </td>
         <td><input type="number" class="hourly-gp-len" value="${defaultLength}" placeholder="1750"></td>
         <td><input type="number" class="hourly-gp-wid" value="${defaultWidth}" placeholder="1130"></td>
-        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+        <td style="text-align: center;"><button type="button" class="lab-del-btn" onclick="deleteLabRow(this, '${timeVal}')" title="Удалить замер">✕</button></td>
     `;
     tbody.appendChild(tr);
 }
@@ -863,11 +1009,20 @@ async function saveLabAnalysisDraft() {
     }
 }
 
-// Завершение смены и выгрузка в Google Sheets
-async function submitLabAnalysisComplete() {
+// Завершение смены и выгрузка в Google Sheets (с confirm-диалогом)
+function submitLabAnalysisComplete() {
+    showQcdConfirm(
+        'Завершить и выгрузить?',
+        'Анализ смены будет завершён и выгружен в Google Таблицу. Убедитесь, что все данные заполнены верно.',
+        _doSubmitLabAnalysisComplete
+    );
+}
+
+async function _doSubmitLabAnalysisComplete() {
     const btn = document.getElementById('btn-submit-lab-complete');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка в Google...';
+
 
     try {
         const payload = collectLabFormData('completed');
