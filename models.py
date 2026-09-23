@@ -574,7 +574,6 @@ class QcdSortingReport(Base):
     google_sync_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-
 class AIChatConversation(Base):
     __tablename__ = "ai_conversations"
 
@@ -598,5 +597,94 @@ class AIChatMessage(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     conversation = relationship("AIChatConversation", back_populates="messages")
+
+
+class QcdMonthlySpreadsheet(Base):
+    __tablename__ = "qcd_monthly_spreadsheets"
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, index=True, nullable=False)
+    month = Column(Integer, index=True, nullable=False)
+    spreadsheet_id = Column(String(100), nullable=False)
+    spreadsheet_url = Column(Text, nullable=True)
+    title = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class QcdLabAnalysis(Base):
+    __tablename__ = "qcd_lab_analyses"
+    id = Column(Integer, primary_key=True, index=True)
+    report_date = Column(Date, index=True, nullable=False)
+    shift_name = Column(String(50), default="День", index=True) # День / Ночь
+    shift_id = Column(Integer, ForeignKey("shifts.id", ondelete="SET NULL"), nullable=True)
+    equipment = Column(String(50), default="ЛФМ № 1") # ЛФМ № 1 / ЛФМ № 2
+    stream_line = Column(String(50), default="1 поток") # 1 поток / 1 линия / 2 линия
+    
+    master_name = Column(String(150), default="", nullable=True)
+    machinist_name = Column(String(150), default="", nullable=True)
+    specialist_name = Column(String(150), default="Мусаилова", nullable=True) # Специалист СКК / лаборант
+    
+    product_name = Column(String(100), default="Плоский 1800-1200", nullable=True)
+    thickness_nominal = Column(String(50), default="8 мм.", nullable=True)
+    batch_number = Column(String(50), default="", nullable=True)
+    launch_time = Column(String(50), default="", nullable=True)
+    launch_details = Column(Text, default="", nullable=True)
+    
+    # Расход сырья (кг)
+    asbestos_kg = Column(Float, default=0.0)
+    cement_kg = Column(Float, default=0.0)
+    cellulose_kg = Column(Float, default=0.0)
+    asbozurit_kg = Column(Float, default=0.0)
+    crushed_slate_kg = Column(Float, default=0.0)
+    fiberglass_kg = Column(Float, default=0.0)
+    raw_materials_total_kg = Column(Float, default=0.0)
+    
+    # Подготовка массы
+    begun_time_min = Column(Float, nullable=True)
+    chrysotile_moisture_pct = Column(Float, nullable=True) # норма 29-35%
+    fluffing_pct = Column(Float, nullable=True) # норма >=30%
+    hydropulper_time_min = Column(Float, nullable=True)
+    hydropulper_conc_pct = Column(Float, nullable=True) # норма 3.5-4.5%
+    turbomixer_time_min = Column(Float, nullable=True)
+    turbomixer_conc_pct = Column(Float, nullable=True) # норма 21-26%
+    bucket_mixer_conc_pct = Column(Float, nullable=True) # норма 21-26%
+    defective_mixer_conc_pct = Column(Float, nullable=True) # норма 15-20%
+    dilution_water_pct = Column(Float, nullable=True) # норма <=17%
+    clean_recuperator_conc_pct = Column(Float, nullable=True) # норма <=17%
+    recuperator_water_temp_c = Column(Float, nullable=True) # норма 35-45°C
+    pool_temp_c = Column(Float, nullable=True) # норма >=45°C
+    cellulose_dry_residue = Column(Text, default="", nullable=True)
+    asbozurit_dry_residue = Column(Text, default="", nullable=True)
+    
+    # Концентрация в ваннах и осадок
+    vat_1_conc = Column(Float, nullable=True) # норма 7-12%
+    vat_2_conc = Column(Float, nullable=True)
+    vat_3_conc = Column(Float, nullable=True)
+    vat_4_conc = Column(Float, nullable=True)
+    vat_1_sediment = Column(Float, nullable=True) # норма <=3%
+    vat_2_sediment = Column(Float, nullable=True)
+    vat_3_sediment = Column(Float, nullable=True)
+    vat_4_sediment = Column(Float, nullable=True)
+    
+    # Замеры (JSON Text)
+    # 1. Влажность пленки: [{"time": "10:00", "before_left": 42, "before_right": 43, "after_left": 34.5, "after_right": 34}]
+    film_moisture_data = Column(Text, default="[]", nullable=True)
+    
+    # 2. Объемный вес и влажность наката: [{"time": "09:45", "dens_left": 1.39, "dens_center": 1.38, "dens_right": 1.39, "moist_left": 24, "moist_center": 25, "moist_right": 24}]
+    density_moisture_data = Column(Text, default="[]", nullable=True)
+    
+    # 3. Почасовой журнал ГП: [{"time": "08:45", "th_left": 8.0, "th_center": 7.9, "th_right": 7.8, "visual_look": "ершение", "pack_num": "", "length": 1800, "width": 1200}]
+    hourly_gp_data = Column(Text, default="[]", nullable=True)
+    
+    # Статус и Google Sync
+    status = Column(String(30), default="draft", index=True) # draft / completed
+    notes = Column(Text, default="", nullable=True)
+    google_spreadsheet_id = Column(String(100), nullable=True)
+    google_sheet_title = Column(String(100), nullable=True)
+    google_synced = Column(Boolean, default=False)
+    google_sync_error = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    shift = relationship("Shift", foreign_keys=[shift_id], lazy="joined")
 
 

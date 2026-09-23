@@ -1142,9 +1142,11 @@ async def lifespan(app: FastAPI):
             musailova.pin = "0000"
             musailova.role = "qcd"
 
-        # Гарантия создания таблицы qcd_sorting_reports
+        # Гарантия создания таблицы qcd_sorting_reports, qcd_monthly_spreadsheets, qcd_lab_analyses
         try:
             models.QcdSortingReport.__table__.create(bind=engine, checkfirst=True)
+            models.QcdMonthlySpreadsheet.__table__.create(bind=engine, checkfirst=True)
+            models.QcdLabAnalysis.__table__.create(bind=engine, checkfirst=True)
         except Exception:
             pass
 
@@ -1506,6 +1508,7 @@ from routers.webhooks import router as webhooks_router
 from routers.system import router as system_router
 from routers.qcd_sorting import router as qcd_sorting_router
 from routers.ai_assistant import router as ai_assistant_router
+from routers.qcd_lab import router as qcd_lab_router
 
 app.include_router(auth_router)
 app.include_router(shifts_router)
@@ -1519,6 +1522,7 @@ app.include_router(webhooks_router)
 app.include_router(system_router)
 app.include_router(qcd_sorting_router)
 app.include_router(ai_assistant_router)
+app.include_router(qcd_lab_router)
 
 # ==========================================
 # STATIC FILES & WEB PAGES

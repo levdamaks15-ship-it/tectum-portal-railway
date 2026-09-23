@@ -395,9 +395,91 @@
                 border: none;
                 box-shadow: none;
             }
-            .no-print {
-                display: none !important;
-            }
+        .norm-tag {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #0284c7;
+            background: #e0f2fe;
+            padding: 2px 6px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .norm-warning {
+            border-color: #f59e0b !important;
+            background: #fffbeb !important;
+            color: #b45309 !important;
+        }
+        .norm-danger {
+            border-color: #ef4444 !important;
+            background: #fef2f2 !important;
+            color: #b91c1c !important;
+        }
+        .lab-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+        .lab-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        .lab-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .lab-table th {
+            background: #f1f5f9;
+            color: var(--qcd-navy);
+            font-weight: 700;
+            padding: 8px 6px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+        .lab-table td {
+            padding: 6px 4px;
+            border: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+        .lab-table input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+        }
+        .lab-chip {
+            font-size: 0.72rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.15s;
+            display: inline-block;
+            margin: 2px;
+        }
+        .lab-chip:hover {
+            background: #e2e8f0;
+        }
+        .lab-btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            background: #fee2e2;
+            color: #dc2626;
+            font-weight: 700;
+        }
+        .lab-btn-sm:hover {
+            background: #fca5a5;
         }
     </style>
 </head>
@@ -410,7 +492,7 @@
                 <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 44px;">
                 <div class="qcd-header-title">
                     <h1>TECTUM ENGINEERING</h1>
-                    <p>Кабинет СКК — Переборка и контроль качества</p>
+                    <p>Кабинет СКК — Переборка и лабораторные анализы</p>
                 </div>
             </div>
             <div class="qcd-header-right">
@@ -423,6 +505,11 @@
                     <i class="fa-solid fa-table" style="color: #16a34a;"></i>
                     <span>Таблица СКК</span>
                 </a>
+                <a href="https://drive.google.com/drive/u/0/folders/1zPFe5Oftca0wfQIZ-f-U6Ml3VdDz7MJe" 
+                   target="_blank" class="qcd-btn-secondary" title="Открыть папку 'Анализы СКК' на Google Диске">
+                    <i class="fa-brands fa-google-drive" style="color: #ea4335;"></i>
+                    <span>Папка СКК (Drive)</span>
+                </a>
                 <a href="/static/index.html" class="qcd-btn-secondary" title="Вернуться в общий портал">
                     <i class="fa-solid fa-arrow-left"></i>
                     <span>Портал</span>
@@ -434,13 +521,22 @@
         <div class="nav-tabs-qcd no-print">
             <button class="qcd-tab-btn active" id="tab-btn-create" onclick="switchQcdTab('create')">
                 <i class="fa-solid fa-pen-to-square"></i>
-                <span>Оформление переборки (Акт СКК)</span>
+                <span>Акт переборки</span>
             </button>
             <button class="qcd-tab-btn" id="tab-btn-journal" onclick="switchQcdTab('journal')">
                 <i class="fa-solid fa-book-open"></i>
-                <span>Журнал переборок СКК</span>
+                <span>Журнал переборок</span>
+            </button>
+            <button class="qcd-tab-btn" id="tab-btn-lab" onclick="switchQcdTab('lab')" style="border-left: 2px solid var(--qcd-border);">
+                <i class="fa-solid fa-flask-vial" style="color: #0284c7;"></i>
+                <span>Анализы СКК (Журнал)</span>
+            </button>
+            <button class="qcd-tab-btn" id="tab-btn-lab-journal" onclick="switchQcdTab('lab-journal')">
+                <i class="fa-solid fa-table-cells"></i>
+                <span>Реестр анализов & Google</span>
             </button>
         </div>
+
 
         <!-- TAB 1: CREATE ACT -->
         <div id="qcd-tab-create">
@@ -723,6 +819,511 @@
                 </div>
             </div>
         </div>
+
+        <!-- TAB 3: QCD LAB ANALYSES (ЖУРНАЛ АНАЛИЗОВ СКК) -->
+        <div id="qcd-tab-lab" style="display: none;">
+            <!-- Active Draft Info & Quick Switch -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="stripe-badge" id="lab-active-status-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 0.85rem;">
+                        📝 Новый бланк смены (Черновик)
+                    </span>
+                    <span id="lab-current-id-display" style="font-size: 0.8rem; color: var(--qcd-subtext); font-weight: 600;"></span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="qcd-btn-secondary" onclick="resetLabForm()" title="Очистить форму и начать новую смену">
+                        <i class="fa-solid fa-file-circle-plus"></i>
+                        <span>Новый анализ</span>
+                    </button>
+                    <button class="qcd-btn-secondary" onclick="switchQcdTab('lab-journal')">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span>Все анализы месяца</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 1. Параметры смены и запуска -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-sliders" style="color: var(--qcd-blue);"></i>
+                        1. Параметры смены, линии и продукции
+                    </h3>
+                    <span class="norm-tag">Лабораторный контроль СКК</span>
+                </div>
+
+                <input type="hidden" id="lab-analysis-id" value="">
+
+                <div class="lab-grid-4">
+                    <div>
+                        <label class="compact-input-lbl">📅 Дата смены:</label>
+                        <input type="date" id="lab-report-date" class="qcd-num-input" style="width: 100%; text-align: left;" onchange="onLabHeaderChange()">
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">☀️ Смена:</label>
+                        <select id="lab-shift-type" class="qcd-num-input" style="width: 100%; text-align: left; font-weight: 700;" onchange="onLabHeaderChange()">
+                            <option value="День">☀️ Дневная смена (08:00 - 20:00)</option>
+                            <option value="Ночь">🌙 Ночная смена (20:00 - 08:00)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">🏭 Линия формовки:</label>
+                        <select id="lab-line-number" class="qcd-num-input" style="width: 100%; text-align: left; font-weight: 700;">
+                            <option value="ЛФМ-1">ЛФМ-1</option>
+                            <option value="ЛФМ-2">ЛФМ-2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">🌊 Поток:</label>
+                        <input type="number" id="lab-flow-number" class="qcd-num-input" style="width: 100%;" value="1" min="1" max="4">
+                    </div>
+                </div>
+
+                <div class="lab-grid-4" style="margin-top: 10px;">
+                    <div>
+                        <label class="compact-input-lbl">👷 Мастер смены:</label>
+                        <input type="text" id="lab-master-name" class="qcd-num-input" style="width: 100%; text-align: left;" placeholder="ФИО мастера">
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">⚙️ Машинист ЛФМ:</label>
+                        <input type="text" id="lab-machinist-name" class="qcd-num-input" style="width: 100%; text-align: left;" placeholder="ФИО машиниста">
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">🔬 Специалист СКК:</label>
+                        <input type="text" id="lab-inspector-name" class="qcd-num-input" style="width: 100%; text-align: left;" value="Мусаилова З.">
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">⏰ Время запуска:</label>
+                        <input type="text" id="lab-start-time" class="qcd-num-input" style="width: 100%;" value="08:00" placeholder="08:00">
+                    </div>
+                </div>
+
+                <div class="lab-grid-3" style="margin-top: 10px;">
+                    <div>
+                        <label class="compact-input-lbl">📦 Номенклатура / Продукция:</label>
+                        <select id="lab-product-name" class="qcd-num-input" style="width: 100%; text-align: left; font-weight: 700;">
+                            <option value="Шифер 8 волн серый">Шифер 8 волн серый</option>
+                            <option value="Шифер 8 волн окрашенный">Шифер 8 волн окрашенный</option>
+                            <option value="Шифер 8 волн рифленый">Шифер 8 волн рифленый</option>
+                            <option value="Шифер 7 волн">Шифер 7 волн</option>
+                            <option value="Плоский лист 1750х1200х6">Плоский лист 1750х1200х6</option>
+                            <option value="Плоский лист 1750х1200х8">Плоский лист 1750х1200х8</option>
+                            <option value="Плоский лист 1750х1200х10">Плоский лист 1750х1200х10</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">📏 Номинал толщины:</label>
+                        <input type="text" id="lab-thickness-spec" class="qcd-num-input" style="width: 100%;" value="5.8 мм" placeholder="5.8 мм">
+                    </div>
+                    <div>
+                        <label class="compact-input-lbl">🏷️ Партия / №:</label>
+                        <input type="text" id="lab-batch-number" class="qcd-num-input" style="width: 100%;" placeholder="Партия 1">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Блок рецептуры и расхода сырья -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-cubes-stacked" style="color: #8b5cf6;"></i>
+                        2. Рецептура и расход сырья (кг)
+                    </h3>
+                    <span class="stripe-badge" style="background: #f3e8ff; color: #7e22ce; font-weight: 800;" id="lab-raw-total-badge">Итого: 0 кг</span>
+                </div>
+
+                <div class="lab-grid-3">
+                    <div class="compact-input-row">
+                        <span class="compact-input-lbl">Асбест (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-asbestos" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    </div>
+                    <div class="compact-input-row">
+                        <span class="compact-input-lbl">Цемент (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-cement" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    </div>
+                    <div class="compact-input-row">
+                        <span class="compact-input-lbl">Целлюлоза (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-cellulose" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    </div>
+                    <div class="compact-input-row">
+                        <span class="compact-input-lbl">Асбозурит (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-asbozurite" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    </div>
+                    <div class="compact-input-row">
+                        <span class="compact-input-lbl">Дробленый шифер (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-crushed-slate" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    </div>
+                    <div class="compact-input-row">
+                        <span class="compact-input-lbl">Стекловолокно (кг):</span>
+                        <input type="number" step="0.1" id="lab-raw-fiberglass" class="qcd-num-input lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Технологические параметры подготовки массы -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-gears" style="color: #d97706;"></i>
+                        3. Технологические параметры подготовки массы
+                    </h3>
+                    <span class="norm-tag">Контроль распушки, концентраций и температур</span>
+                </div>
+
+                <div class="defects-two-cols">
+                    <!-- Левая колонка: Бегун, Хризотил, Гидропушитель, Турбосмеситель -->
+                    <div>
+                        <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                            ⚙️ Обработка и гидропушение:
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">Бегун (время обработки, мин):</span>
+                            <input type="number" step="0.5" id="lab-begun-time" class="qcd-num-input" placeholder="10">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Влажн. хризотила (%):
+                                <span class="norm-tag">Норма: 29–35%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-chrysotile-moist" class="qcd-num-input" placeholder="32" oninput="validateNormInput(this, 29, 35)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Распушка (%):
+                                <span class="norm-tag">Норма: ≥ 30%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-fluffing" class="qcd-num-input" placeholder="32" oninput="validateNormInput(this, 30, 100)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">Г/пушитель (время, мин):</span>
+                            <input type="number" step="0.5" id="lab-hydropulper-time" class="qcd-num-input" placeholder="15">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Конц. в г/пуш. (%):
+                                <span class="norm-tag">Норма: 3.5–4.5%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-hydropulper-conc" class="qcd-num-input" placeholder="4.0" oninput="validateNormInput(this, 3.5, 4.5)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Турбосмеситель (%):
+                                <span class="norm-tag">Норма: 21–26%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-turbomixer-conc" class="qcd-num-input" placeholder="23" oninput="validateNormInput(this, 21, 26)">
+                        </div>
+                    </div>
+
+                    <!-- Правая колонка: Мешалки, Вода, Рекуперация, Бассейн, Целлюлоза -->
+                    <div>
+                        <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy); border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                            🧪 Концентрации, температуры и бассейны:
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Ковшевая (%):
+                                <span class="norm-tag">Норма: 21–26%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-bucket-mixer" class="qcd-num-input" placeholder="24" oninput="validateNormInput(this, 21, 26)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Бракомешалка (%):
+                                <span class="norm-tag">Норма: 15–20%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-defective-mixer" class="qcd-num-input" placeholder="18" oninput="validateNormInput(this, 15, 20)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Вода на разжижение (%):
+                                <span class="norm-tag">Норма: ≤ 17%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-dilution-water" class="qcd-num-input" placeholder="15" oninput="validateNormInput(this, 0, 17)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Конц-я в чист. рекуп. (%):
+                                <span class="norm-tag">Норма: ≤ 17%</span>
+                            </span>
+                            <input type="number" step="0.1" id="lab-clean-recuperator" class="qcd-num-input" placeholder="12" oninput="validateNormInput(this, 0, 17)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Темп. воды в рекуператоре (°C):
+                                <span class="norm-tag">Норма: 35–45°C</span>
+                            </span>
+                            <input type="number" step="0.5" id="lab-recuperator-temp" class="qcd-num-input" placeholder="40" oninput="validateNormInput(this, 35, 45)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">
+                                Темп. в бассейне (°C):
+                                <span class="norm-tag">Норма: ≥ 45°C</span>
+                            </span>
+                            <input type="number" step="0.5" id="lab-pool-temp" class="qcd-num-input" placeholder="46" oninput="validateNormInput(this, 45, 100)">
+                        </div>
+                        <div class="compact-input-row">
+                            <span class="compact-input-lbl">Целлюлоза (сухой ост.):</span>
+                            <input type="text" id="lab-cellulose-dry-residue" class="qcd-num-input" style="width: 110px; text-align: left;" placeholder="Значение">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Блок формовочных ванн (4 ванны) -->
+                <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--qcd-border);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy);">
+                                🌊 Концентрация в ваннах <span class="norm-tag">Норма: 7–12%</span>:
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 1 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-1-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 2 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-2-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 3 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-3-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 4 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-4-conc" class="qcd-num-input" placeholder="9.5" oninput="validateNormInput(this, 7, 12)">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; color: var(--qcd-navy);">
+                                💧 Содержание осадка отходящей воды <span class="norm-tag">Норма: ≤ 3%</span>:
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 1 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-1-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 2 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-2-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 3 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-3-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
+                            </div>
+                            <div class="compact-input-row">
+                                <span class="compact-input-lbl">Ванна 4 (%):</span>
+                                <input type="number" step="0.1" id="lab-vat-4-sediment" class="qcd-num-input" placeholder="2.0" oninput="validateNormInput(this, 0, 3)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Таблица влажности пленки (Компактная эталонная структура) -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-droplet" style="color: #0284c7;"></i>
+                        4. Влажность пленки (%)
+                    </h3>
+                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="addLabFilmRow()">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Добавить замер</span>
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="lab-table" id="lab-film-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="width: 100px;">Время</th>
+                                <th colspan="2">До вакуум-коробки <span class="norm-tag">39–48%</span></th>
+                                <th colspan="2">После вакуум-коробки <span class="norm-tag">32–35%</span></th>
+                                <th rowspan="2" style="width: 50px;">Удал.</th>
+                            </tr>
+                            <tr>
+                                <th style="width: 130px;">Лево (%)</th>
+                                <th style="width: 130px;">Право (%)</th>
+                                <th style="width: 130px;">Лево (%)</th>
+                                <th style="width: 130px;">Право (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lab-film-tbody">
+                            <!-- Динамические строки замеров -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 5. Таблица объемного веса и влажности наката -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-weight-hanging" style="color: #059669;"></i>
+                        5. Объемный вес и влажность наката
+                    </h3>
+                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="addLabDensityRow()">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Добавить замер</span>
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="lab-table" id="lab-density-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="width: 100px;">Время</th>
+                                <th colspan="3">Объемный вес (г/см³) <span class="norm-tag">≥ 1.42</span></th>
+                                <th colspan="3">Влажность наката (%) <span class="norm-tag">20–24%</span></th>
+                                <th rowspan="2" style="width: 50px;">Удал.</th>
+                            </tr>
+                            <tr>
+                                <th style="width: 110px;">Лево</th>
+                                <th style="width: 110px;">Центр</th>
+                                <th style="width: 110px;">Право</th>
+                                <th style="width: 110px;">Лево (%)</th>
+                                <th style="width: 110px;">Центр (%)</th>
+                                <th style="width: 110px;">Право (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lab-density-tbody">
+                            <!-- Динамические строки замеров -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 6. Почасовой журнал контроля толщины и геометрии ГП -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-ruler-combined" style="color: #7c3aed;"></i>
+                        6. Почасовой журнал контроля толщины и геометрии ГП
+                    </h3>
+                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="addLabHourlyRow()">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Добавить замер</span>
+                    </button>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="lab-table" id="lab-hourly-table">
+                        <thead>
+                            <tr>
+                                <th rowspan="2" style="width: 90px;">Время</th>
+                                <th colspan="3">Толщина наката (мм)</th>
+                                <th rowspan="2" style="min-width: 200px;">Внешний вид листа (визуально)</th>
+                                <th colspan="2">ГП пачки (мм)</th>
+                                <th rowspan="2" style="width: 50px;">Удал.</th>
+                            </tr>
+                            <tr>
+                                <th style="width: 95px;">Лево</th>
+                                <th style="width: 95px;">Центр</th>
+                                <th style="width: 95px;">Право</th>
+                                <th style="width: 105px;">Длина</th>
+                                <th style="width: 105px;">Ширина</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lab-hourly-tbody">
+                            <!-- Динамические строки замеров -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 7. Замечания и заключение СКК -->
+            <div class="bento-card">
+                <h3 class="bento-card-title" style="margin-bottom: 8px;">
+                    📝 Замечания лаборанта / Специалиста СКК по смене:
+                </h3>
+                <textarea id="lab-notes" rows="3" style="width: 100%; border: 1px solid var(--qcd-border); border-radius: 10px; padding: 10px; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; resize: vertical;" 
+                          placeholder="Укажите отклонения по температуре, плотности, распушке или рекомендации по корректировке дозировок..."></textarea>
+            </div>
+
+            <!-- Action Bar -->
+            <div style="background: #ffffff; padding: 1.25rem; border-radius: 16px; border: 1px solid var(--qcd-border); box-shadow: 0 4px 15px rgba(0,0,0,0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="lab-google-link-container"></span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="qcd-btn-secondary" id="btn-save-lab-draft" onclick="saveLabAnalysisDraft()">
+                        <i class="fa-solid fa-floppy-disk" style="color: #0284c7;"></i>
+                        <span>Сохранить черновик</span>
+                    </button>
+                    <button class="qcd-btn-primary" id="btn-submit-lab-complete" onclick="submitLabAnalysisComplete()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Завершить и выгрузить в Google Таблицу</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: REESTR / JOURNAL OF LAB ANALYSES -->
+        <div id="qcd-tab-lab-journal" style="display: none;">
+            <!-- Folder link card -->
+            <div class="bento-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-color: #bae6fd;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; color: var(--qcd-navy); font-weight: 800;">
+                            <i class="fa-brands fa-google-drive" style="color: #0284c7;"></i>
+                            Ежемесячные Google Таблицы «Анализы СКК»
+                        </h3>
+                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #334155;">
+                            Все лабораторные замеры автоматически сохраняются в отдельные листы внутри файлов месяцев на Google Диске.
+                        </p>
+                    </div>
+                    <a href="https://drive.google.com/drive/u/0/folders/1zPFe5Oftca0wfQIZ-f-U6Ml3VdDz7MJe" target="_blank" class="qcd-btn-primary" style="background: #0284c7;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Открыть папку СКК на Диске</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- List of monthly spreadsheets -->
+            <div class="bento-card" id="monthly-sheets-card" style="display: none;">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-folder-tree" style="color: var(--qcd-blue);"></i>
+                        Созданные Google Таблицы по месяцам
+                    </h3>
+                </div>
+                <div id="monthly-sheets-container" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+            </div>
+
+            <!-- Table of Lab Analyses -->
+            <div class="bento-card">
+                <div class="bento-card-header">
+                    <h3 class="bento-card-title">
+                        <i class="fa-solid fa-list-check" style="color: var(--qcd-navy);"></i>
+                        Реестр сменных лабораторных анализов
+                    </h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="qcd-btn-secondary" onclick="loadLabReportsJournal()">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Обновить</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="act-doc-table" id="lab-journal-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Смена</th>
+                                <th>Линия</th>
+                                <th>Мастер</th>
+                                <th>Лаборант СКК</th>
+                                <th>Продукция / Партия</th>
+                                <th style="text-align: center;">Замеров</th>
+                                <th style="text-align: center;">Статус</th>
+                                <th style="text-align: center;">Google Лист</th>
+                                <th style="text-align: center;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lab-journal-tbody">
+                            <tr><td colspan="10" style="text-align: center; color: var(--qcd-subtext); padding: 1.5rem;">Загрузка реестра анализов...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Notification Modal -->
@@ -735,6 +1336,6 @@
         </div>
     </div>
 
-    <script src="/static/js/qcd.js?v=20260909_qcd_v1"></script>
+    <script src="/static/js/qcd.js?v=20260909_qcd_v2"></script>
 </body>
 </html>

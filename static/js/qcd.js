@@ -30,20 +30,41 @@ async function initQcdCabinet() {
 function switchQcdTab(tabName) {
     const tabCreate = document.getElementById('qcd-tab-create');
     const tabJournal = document.getElementById('qcd-tab-journal');
+    const tabLab = document.getElementById('qcd-tab-lab');
+    const tabLabJournal = document.getElementById('qcd-tab-lab-journal');
+
     const btnCreate = document.getElementById('tab-btn-create');
     const btnJournal = document.getElementById('tab-btn-journal');
+    const btnLab = document.getElementById('tab-btn-lab');
+    const btnLabJournal = document.getElementById('tab-btn-lab-journal');
+
+    // Скрываем все вкладки
+    if (tabCreate) tabCreate.style.display = 'none';
+    if (tabJournal) tabJournal.style.display = 'none';
+    if (tabLab) tabLab.style.display = 'none';
+    if (tabLabJournal) tabLabJournal.style.display = 'none';
+
+    if (btnCreate) btnCreate.classList.remove('active');
+    if (btnJournal) btnJournal.classList.remove('active');
+    if (btnLab) btnLab.classList.remove('active');
+    if (btnLabJournal) btnLabJournal.classList.remove('active');
 
     if (tabName === 'create') {
-        tabCreate.style.display = 'block';
-        tabJournal.style.display = 'none';
-        btnCreate.classList.add('active');
-        btnJournal.classList.remove('active');
-    } else {
-        tabCreate.style.display = 'none';
-        tabJournal.style.display = 'block';
-        btnCreate.classList.remove('active');
-        btnJournal.classList.add('active');
+        if (tabCreate) tabCreate.style.display = 'block';
+        if (btnCreate) btnCreate.classList.add('active');
+    } else if (tabName === 'journal') {
+        if (tabJournal) tabJournal.style.display = 'block';
+        if (btnJournal) btnJournal.classList.add('active');
         loadQcdReportsJournal();
+    } else if (tabName === 'lab') {
+        if (tabLab) tabLab.style.display = 'block';
+        if (btnLab) btnLab.classList.add('active');
+        initLabFormIfNeeded();
+    } else if (tabName === 'lab-journal') {
+        if (tabLabJournal) tabLabJournal.style.display = 'block';
+        if (btnLabJournal) btnLabJournal.classList.add('active');
+        loadLabReportsJournal();
+        loadMonthlySpreadsheets();
     }
 }
 
@@ -441,4 +462,649 @@ function showQcdModal(title, msg, type = 'success') {
     }
 
     modal.style.display = 'flex';
+}
+
+// ==========================================
+// ЛАБОРАТОРНЫЙ КОНТРОЛЬ СКК (LAB ANALYSES)
+// ==========================================
+
+let isLabFormInitialized = false;
+
+function initLabFormIfNeeded() {
+    if (isLabFormInitialized) return;
+    
+    // Устанавливаем текущую дату в формате YYYY-MM-DD
+    const dateInp = document.getElementById('lab-report-date');
+    if (dateInp && !dateInp.value) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInp.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Автоматически определяем смену по текущему часу
+    const shiftSel = document.getElementById('lab-shift-type');
+    if (shiftSel && !shiftSel.value) {
+        const hours = new Date().getHours();
+        shiftSel.value = (hours >= 8 && hours < 20) ? 'День' : 'Ночь';
+    }
+
+    // Инициализируем строки по умолчанию, если они пусты
+    const filmTbody = document.getElementById('lab-film-tbody');
+    if (filmTbody && filmTbody.children.length === 0) {
+        ['09:00', '11:00', '13:00', '15:00', '17:00'].forEach(t => addLabFilmRow({ time: t }));
+    }
+
+    const densityTbody = document.getElementById('lab-density-tbody');
+    if (densityTbody && densityTbody.children.length === 0) {
+        ['09:00', '11:00', '13:00', '15:00', '17:00'].forEach(t => addLabDensityRow({ time: t }));
+    }
+
+    const hourlyTbody = document.getElementById('lab-hourly-tbody');
+    if (hourlyTbody && hourlyTbody.children.length === 0) {
+        generateDefaultHourlyRows();
+    }
+
+    isLabFormInitialized = true;
+}
+
+function generateDefaultHourlyRows() {
+    const isDay = (document.getElementById('lab-shift-type')?.value || 'День') === 'День';
+    const hours = isDay 
+        ? ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00']
+        : ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00', '06:00', '07:00'];
+    
+    const tbody = document.getElementById('lab-hourly-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    hours.forEach(h => addLabHourlyRow({ time: h, visual_appearance: 'Норма' }));
+}
+
+function onLabHeaderChange() {
+    // Реакция на изменение шапки
+}
+
+// 1. Динамические строки: Влажность пленки
+function addLabFilmRow(data = {}) {
+    const tbody = document.getElementById('lab-film-tbody');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.className = 'lab-film-row';
+    tr.innerHTML = `
+        <td><input type="text" class="film-time" value="${data.time || ''}" placeholder="09:00"></td>
+        <td><input type="number" step="0.1" class="film-before-l" value="${data.before_vacuum_left ?? ''}" placeholder="42.5" oninput="validateNormInput(this, 39, 48)"></td>
+        <td><input type="number" step="0.1" class="film-before-r" value="${data.before_vacuum_right ?? ''}" placeholder="43.0" oninput="validateNormInput(this, 39, 48)"></td>
+        <td><input type="number" step="0.1" class="film-after-l" value="${data.after_vacuum_left ?? ''}" placeholder="33.5" oninput="validateNormInput(this, 32, 35)"></td>
+        <td><input type="number" step="0.1" class="film-after-r" value="${data.after_vacuum_right ?? ''}" placeholder="34.0" oninput="validateNormInput(this, 32, 35)"></td>
+        <td style="text-align: center;"><button type="button" class="lab-btn-sm" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    tr.querySelectorAll('input[type="number"]').forEach(inp => validateNormInput(inp, 
+        inp.classList.contains('film-before-l') || inp.classList.contains('film-before-r') ? 39 : 32,
+        inp.classList.contains('film-before-l') || inp.classList.contains('film-before-r') ? 48 : 35
+    ));
+}
+
+// 2. Динамические строки: Объемный вес и влажность наката
+function addLabDensityRow(data = {}) {
+    const tbody = document.getElementById('lab-density-tbody');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.className = 'lab-density-row';
+    tr.innerHTML = `
+        <td><input type="text" class="density-time" value="${data.time || ''}" placeholder="09:00"></td>
+        <td><input type="number" step="0.01" class="density-l" value="${data.density_left ?? ''}" placeholder="1.45" oninput="validateNormInput(this, 1.42, 2.0)"></td>
+        <td><input type="number" step="0.01" class="density-c" value="${data.density_center ?? ''}" placeholder="1.46" oninput="validateNormInput(this, 1.42, 2.0)"></td>
+        <td><input type="number" step="0.01" class="density-r" value="${data.density_right ?? ''}" placeholder="1.44" oninput="validateNormInput(this, 1.42, 2.0)"></td>
+        <td><input type="number" step="0.1" class="moisture-l" value="${data.moisture_left ?? ''}" placeholder="22.0" oninput="validateNormInput(this, 20, 24)"></td>
+        <td><input type="number" step="0.1" class="moisture-c" value="${data.moisture_center ?? ''}" placeholder="21.5" oninput="validateNormInput(this, 20, 24)"></td>
+        <td><input type="number" step="0.1" class="moisture-r" value="${data.moisture_right ?? ''}" placeholder="22.2" oninput="validateNormInput(this, 20, 24)"></td>
+        <td style="text-align: center;"><button type="button" class="lab-btn-sm" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    tr.querySelectorAll('input[type="number"]').forEach(inp => {
+        if (inp.classList.contains('density-l') || inp.classList.contains('density-c') || inp.classList.contains('density-r')) {
+            validateNormInput(inp, 1.42, 2.0);
+        } else {
+            validateNormInput(inp, 20, 24);
+        }
+    });
+}
+
+// 3. Динамические строки: Почасовой контроль ГП
+function addLabHourlyRow(data = {}) {
+    const tbody = document.getElementById('lab-hourly-tbody');
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.className = 'lab-hourly-row';
+    const rowId = 'hourly-row-' + Math.random().toString(36).substring(2, 8);
+    tr.id = rowId;
+    
+    tr.innerHTML = `
+        <td><input type="text" class="hourly-time" value="${data.time || ''}" placeholder="08:00"></td>
+        <td><input type="number" step="0.01" class="hourly-t-l" value="${data.thickness_left ?? ''}" placeholder="5.80"></td>
+        <td><input type="number" step="0.01" class="hourly-t-c" value="${data.thickness_center ?? ''}" placeholder="5.80"></td>
+        <td><input type="number" step="0.01" class="hourly-t-r" value="${data.thickness_right ?? ''}" placeholder="5.80"></td>
+        <td>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <input type="text" class="hourly-visual" value="${data.visual_appearance || 'Норма'}" placeholder="Внешний вид">
+                <div style="display: flex; flex-wrap: wrap; gap: 2px;">
+                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Норма')">Норма</span>
+                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Ершение')">Ершение</span>
+                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Разнотолщинность')">Разнотолщ.</span>
+                    <span class="lab-chip" onclick="setHourlyVisual('${rowId}', 'Тоньше нормы')">Тоньше</span>
+                </div>
+            </div>
+        </td>
+        <td><input type="number" class="hourly-gp-len" value="${data.gp_length ?? ''}" placeholder="1750"></td>
+        <td><input type="number" class="hourly-gp-wid" value="${data.gp_width ?? ''}" placeholder="1130"></td>
+        <td style="text-align: center;"><button type="button" class="lab-btn-sm" onclick="this.closest('tr').remove()" title="Удалить строку">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function setHourlyVisual(rowId, text) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const inp = row.querySelector('.hourly-visual');
+    if (inp) {
+        inp.value = text;
+    }
+}
+
+// Валидация норм в реальном времени с подсветкой
+function validateNormInput(inputEl, minVal, maxVal) {
+    if (!inputEl) return;
+    const val = parseFloat(inputEl.value);
+    if (isNaN(val) || inputEl.value === '') {
+        inputEl.classList.remove('norm-danger', 'norm-warning');
+        return;
+    }
+
+    if (val < minVal || val > maxVal) {
+        inputEl.classList.add('norm-danger');
+        inputEl.classList.remove('norm-warning');
+        inputEl.title = `Отклонение от нормы (${minVal} - ${maxVal})!`;
+    } else {
+        inputEl.classList.remove('norm-danger', 'norm-warning');
+        inputEl.title = `В пределах нормы (${minVal} - ${maxVal})`;
+    }
+}
+
+// Автоподсчет суммы сырья
+function recalcLabRawMaterialsTotal() {
+    let total = 0;
+    document.querySelectorAll('.lab-raw-inp').forEach(inp => {
+        const val = parseFloat(inp.value);
+        if (!isNaN(val)) total += val;
+    });
+    const badge = document.getElementById('lab-raw-total-badge');
+    if (badge) {
+        badge.innerText = `Итого: ${total.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} кг`;
+    }
+}
+
+// Сбор данных формы
+function collectLabFormData(status = 'draft') {
+    const idVal = document.getElementById('lab-analysis-id')?.value;
+    const analysisId = idVal ? parseInt(idVal) : null;
+
+    // Влажность пленки
+    const filmData = [];
+    document.querySelectorAll('.lab-film-row').forEach(tr => {
+        const time = tr.querySelector('.film-time')?.value || '';
+        const b_l = parseFloat(tr.querySelector('.film-before-l')?.value);
+        const b_r = parseFloat(tr.querySelector('.film-before-r')?.value);
+        const a_l = parseFloat(tr.querySelector('.film-after-l')?.value);
+        const a_r = parseFloat(tr.querySelector('.film-after-r')?.value);
+        filmData.push({
+            time: time,
+            before_vacuum_left: isNaN(b_l) ? null : b_l,
+            before_vacuum_right: isNaN(b_r) ? null : b_r,
+            after_vacuum_left: isNaN(a_l) ? null : a_l,
+            after_vacuum_right: isNaN(a_r) ? null : a_r
+        });
+    });
+
+    // Объемный вес и влажность наката
+    const densityData = [];
+    document.querySelectorAll('.lab-density-row').forEach(tr => {
+        const time = tr.querySelector('.density-time')?.value || '';
+        const d_l = parseFloat(tr.querySelector('.density-l')?.value);
+        const d_c = parseFloat(tr.querySelector('.density-c')?.value);
+        const d_r = parseFloat(tr.querySelector('.density-r')?.value);
+        const m_l = parseFloat(tr.querySelector('.moisture-l')?.value);
+        const m_c = parseFloat(tr.querySelector('.moisture-c')?.value);
+        const m_r = parseFloat(tr.querySelector('.moisture-r')?.value);
+        densityData.push({
+            time: time,
+            density_left: isNaN(d_l) ? null : d_l,
+            density_center: isNaN(d_c) ? null : d_c,
+            density_right: isNaN(d_r) ? null : d_r,
+            moisture_left: isNaN(m_l) ? null : m_l,
+            moisture_center: isNaN(m_c) ? null : m_c,
+            moisture_right: isNaN(m_r) ? null : m_r
+        });
+    });
+
+    // Почасовой контроль ГП
+    const hourlyData = [];
+    document.querySelectorAll('.lab-hourly-row').forEach(tr => {
+        const time = tr.querySelector('.hourly-time')?.value || '';
+        const t_l = parseFloat(tr.querySelector('.hourly-t-l')?.value);
+        const t_c = parseFloat(tr.querySelector('.hourly-t-c')?.value);
+        const t_r = parseFloat(tr.querySelector('.hourly-t-r')?.value);
+        const visual = tr.querySelector('.hourly-visual')?.value || '';
+        const len = parseFloat(tr.querySelector('.hourly-gp-len')?.value);
+        const wid = parseFloat(tr.querySelector('.hourly-gp-wid')?.value);
+        hourlyData.push({
+            time: time,
+            thickness_left: isNaN(t_l) ? null : t_l,
+            thickness_center: isNaN(t_c) ? null : t_c,
+            thickness_right: isNaN(t_r) ? null : t_r,
+            visual_appearance: visual,
+            gp_length: isNaN(len) ? null : len,
+            gp_width: isNaN(wid) ? null : wid
+        });
+    });
+
+    const parseNum = (id) => {
+        const v = parseFloat(document.getElementById(id)?.value);
+        return isNaN(v) ? null : v;
+    };
+
+    return {
+        id: analysisId,
+        report_date: document.getElementById('lab-report-date')?.value || new Date().toISOString().split('T')[0],
+        shift_name: document.getElementById('lab-shift-type')?.value || 'День',
+        equipment: document.getElementById('lab-line-number')?.value || 'ЛФМ-1',
+        stream_line: document.getElementById('lab-flow-number')?.value || '1',
+        master_name: document.getElementById('lab-master-name')?.value || '',
+        machinist_name: document.getElementById('lab-machinist-name')?.value || '',
+        specialist_name: document.getElementById('lab-inspector-name')?.value || 'Мусаилова З.',
+        product_name: document.getElementById('lab-product-name')?.value || 'Шифер 8 волн серый',
+        thickness_nominal: document.getElementById('lab-thickness-spec')?.value || '5.8 мм',
+        batch_number: document.getElementById('lab-batch-number')?.value || '',
+        launch_time: document.getElementById('lab-start-time')?.value || '08:00',
+
+        asbestos_kg: parseNum('lab-raw-asbestos') || 0.0,
+        cement_kg: parseNum('lab-raw-cement') || 0.0,
+        cellulose_kg: parseNum('lab-raw-cellulose') || 0.0,
+        asbozurit_kg: parseNum('lab-raw-asbozurite') || 0.0,
+        crushed_slate_kg: parseNum('lab-raw-crushed-slate') || 0.0,
+        fiberglass_kg: parseNum('lab-raw-fiberglass') || 0.0,
+
+        begun_time_min: parseNum('lab-begun-time'),
+        chrysotile_moisture_pct: parseNum('lab-chrysotile-moist'),
+        fluffing_pct: parseNum('lab-fluffing') ?? parseNum('lab-runner-1'),
+        hydropulper_time_min: parseNum('lab-hydropulper-time'),
+        hydropulper_conc_pct: parseNum('lab-hydropulper-conc') ?? parseNum('lab-hydropulper-1'),
+        turbomixer_conc_pct: parseNum('lab-turbomixer-conc') ?? parseNum('lab-turbomixer-1'),
+        bucket_mixer_conc_pct: parseNum('lab-bucket-mixer'),
+        defective_mixer_conc_pct: parseNum('lab-defective-mixer') ?? parseNum('lab-pulper-waste'),
+        dilution_water_pct: parseNum('lab-dilution-water'),
+        clean_recuperator_conc_pct: parseNum('lab-clean-recuperator') ?? parseNum('lab-recuperator-1'),
+        recuperator_water_temp_c: parseNum('lab-recuperator-temp'),
+        pool_temp_c: parseNum('lab-pool-temp'),
+        cellulose_dry_residue: document.getElementById('lab-cellulose-dry-residue')?.value || '',
+
+        vat_1_conc: parseNum('lab-vat-1-conc'),
+        vat_2_conc: parseNum('lab-vat-2-conc'),
+        vat_3_conc: parseNum('lab-vat-3-conc'),
+        vat_4_conc: parseNum('lab-vat-4-conc'),
+        vat_1_sediment: parseNum('lab-vat-1-sediment') ?? parseNum('lab-bath-sieve-1'),
+        vat_2_sediment: parseNum('lab-vat-2-sediment') ?? parseNum('lab-bath-sieve-2'),
+        vat_3_sediment: parseNum('lab-vat-3-sediment') ?? parseNum('lab-bath-sieve-3'),
+        vat_4_sediment: parseNum('lab-vat-4-sediment') ?? parseNum('lab-bath-sieve-4'),
+
+        film_moisture_data: filmData,
+        density_moisture_data: densityData,
+        hourly_gp_data: hourlyData,
+        notes: document.getElementById('lab-notes')?.value || '',
+        status: status
+    };
+}
+
+// Сохранение черновика
+async function saveLabAnalysisDraft() {
+    const btn = document.getElementById('btn-save-lab-draft');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+
+    try {
+        const payload = collectLabFormData('draft');
+        const isUpdate = !!payload.id;
+        const url = isUpdate ? `/api/qcd/lab/reports/${payload.id}` : '/api/qcd/lab/reports';
+        const method = isUpdate ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Ошибка сохранения черновика');
+        }
+
+        const saved = await res.json();
+        document.getElementById('lab-analysis-id').value = saved.id;
+        document.getElementById('lab-active-status-badge').innerHTML = `📝 Черновик сохранен (#${saved.id})`;
+        document.getElementById('lab-active-status-badge').style.background = '#fef3c7';
+        document.getElementById('lab-active-status-badge').style.color = '#b45309';
+
+        showQcdModal('Черновик сохранен', `Лабораторный анализ за ${saved.report_date} (${saved.shift_type || saved.shift_name}) успешно сохранен в базе данных. Вы можете продолжать вносить замеры.`, 'success');
+    } catch(err) {
+        showQcdModal('Ошибка сохранения', err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk" style="color: #0284c7;"></i> <span>Сохранить черновик</span>';
+    }
+}
+
+// Завершение смены и выгрузка в Google Sheets
+async function submitLabAnalysisComplete() {
+    const btn = document.getElementById('btn-submit-lab-complete');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка в Google...';
+
+    try {
+        const payload = collectLabFormData('completed');
+        const isUpdate = !!payload.id;
+        const url = isUpdate ? `/api/qcd/lab/reports/${payload.id}` : '/api/qcd/lab/reports';
+        const method = isUpdate ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Ошибка сохранения анализа');
+        }
+
+        const saved = await res.json();
+        document.getElementById('lab-analysis-id').value = saved.id;
+
+        // Триггерим выгрузку в Google Таблицу
+        const syncRes = await fetch(`/api/qcd/lab/reports/${saved.id}/sync-google`, { method: 'POST' });
+        const syncData = syncRes.ok ? await syncRes.json() : null;
+
+        document.getElementById('lab-active-status-badge').innerHTML = `✓ Синхронизировано с Google (#${saved.id})`;
+        document.getElementById('lab-active-status-badge').style.background = '#dcfce7';
+        document.getElementById('lab-active-status-badge').style.color = '#15803d';
+
+        if (syncData && syncData.sheet_url) {
+            document.getElementById('lab-google-link-container').innerHTML = `
+                <a href="${syncData.sheet_url}" target="_blank" class="qcd-btn-secondary" style="color: #15803d; font-weight: 800;">
+                    <i class="fa-solid fa-table"></i>
+                    <span>Открыть лист в Google Таблице</span>
+                </a>
+            `;
+        }
+
+        showQcdModal('Успешно выгружено!', `Анализ СКК за смену ${saved.report_date} (${saved.shift_type || saved.shift_name}) сохранен и сформирован отдельный лист в Google Таблице месяца!`, 'success');
+    } catch(err) {
+        showQcdModal('Ошибка выгрузки', err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> <span>Завершить и выгрузить в Google Таблицу</span>';
+    }
+}
+
+// Очистка формы
+function resetLabForm() {
+    document.getElementById('lab-analysis-id').value = '';
+    document.getElementById('lab-active-status-badge').innerHTML = '📝 Новый бланк смены (Черновик)';
+    document.getElementById('lab-active-status-badge').style.background = '#e0f2fe';
+    document.getElementById('lab-active-status-badge').style.color = '#0369a1';
+    document.getElementById('lab-google-link-container').innerHTML = '';
+
+    // Сброс сырья
+    document.querySelectorAll('.lab-raw-inp').forEach(inp => inp.value = '');
+    recalcLabRawMaterialsTotal();
+
+    // Сброс подготовки массы
+    ['lab-begun-time', 'lab-chrysotile-moist', 'lab-fluffing', 'lab-hydropulper-time',
+     'lab-hydropulper-conc', 'lab-turbomixer-conc', 'lab-bucket-mixer', 'lab-defective-mixer',
+     'lab-dilution-water', 'lab-clean-recuperator', 'lab-recuperator-temp', 'lab-pool-temp',
+     'lab-cellulose-dry-residue', 'lab-vat-1-conc', 'lab-vat-2-conc', 'lab-vat-3-conc', 'lab-vat-4-conc',
+     'lab-vat-1-sediment', 'lab-vat-2-sediment', 'lab-vat-3-sediment', 'lab-vat-4-sediment'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = '';
+            el.classList.remove('norm-danger', 'norm-warning');
+        }
+    });
+
+    document.getElementById('lab-notes').value = '';
+
+    // Переинициализация таблиц
+    document.getElementById('lab-film-tbody').innerHTML = '';
+    document.getElementById('lab-density-tbody').innerHTML = '';
+    document.getElementById('lab-hourly-tbody').innerHTML = '';
+    isLabFormInitialized = false;
+    initLabFormIfNeeded();
+}
+
+// Загрузка анализа в форму для продолжения ввода
+async function editLabReport(id) {
+    try {
+        const res = await fetch(`/api/qcd/lab/reports/${id}`);
+        if (!res.ok) throw new Error('Ошибка загрузки данных анализа');
+        const data = await res.json();
+
+        switchQcdTab('lab');
+
+        document.getElementById('lab-analysis-id').value = data.id;
+        document.getElementById('lab-report-date').value = data.report_date;
+        document.getElementById('lab-shift-type').value = data.shift_name || data.shift_type || 'День';
+        document.getElementById('lab-line-number').value = data.equipment || data.line_number || 'ЛФМ-1';
+        document.getElementById('lab-flow-number').value = data.stream_line || data.flow_number || 1;
+        document.getElementById('lab-master-name').value = data.master_name || '';
+        document.getElementById('lab-machinist-name').value = data.machinist_name || '';
+        document.getElementById('lab-inspector-name').value = data.specialist_name || data.inspector_name || 'Мусаилова З.';
+        document.getElementById('lab-product-name').value = data.product_name || 'Шифер 8 волн серый';
+        document.getElementById('lab-thickness-spec').value = data.thickness_nominal || data.thickness_spec || '5.8 мм';
+        document.getElementById('lab-batch-number').value = data.batch_number || '';
+        document.getElementById('lab-start-time').value = data.launch_time || data.start_time || '08:00';
+
+        // Сырье
+        const setVal = (id, v) => {
+            const el = document.getElementById(id);
+            if (el) el.value = v ?? '';
+        };
+        setVal('lab-raw-asbestos', data.asbestos_kg ?? data.raw_asbestos);
+        setVal('lab-raw-cement', data.cement_kg ?? data.raw_cement);
+        setVal('lab-raw-cellulose', data.cellulose_kg ?? data.raw_cellulose);
+        setVal('lab-raw-asbozurite', data.asbozurit_kg ?? data.raw_asbozurite);
+        setVal('lab-raw-crushed-slate', data.crushed_slate_kg ?? data.raw_crushed_slate);
+        setVal('lab-raw-fiberglass', data.fiberglass_kg ?? data.raw_fiberglass);
+        recalcLabRawMaterialsTotal();
+
+        // Подготовка массы
+        setVal('lab-begun-time', data.begun_time_min);
+        setVal('lab-chrysotile-moist', data.chrysotile_moisture_pct);
+        setVal('lab-fluffing', data.fluffing_pct ?? data.runner_1);
+        setVal('lab-hydropulper-time', data.hydropulper_time_min);
+        setVal('lab-hydropulper-conc', data.hydropulper_conc_pct ?? data.hydropulper_1);
+        setVal('lab-turbomixer-conc', data.turbomixer_conc_pct ?? data.turbomixer_1);
+        setVal('lab-bucket-mixer', data.bucket_mixer_conc_pct ?? data.bucket_mixer);
+        setVal('lab-defective-mixer', data.defective_mixer_conc_pct ?? data.pulper_waste);
+        setVal('lab-dilution-water', data.dilution_water_pct);
+        setVal('lab-clean-recuperator', data.clean_recuperator_conc_pct ?? data.recuperator_1);
+        setVal('lab-recuperator-temp', data.recuperator_water_temp_c);
+        setVal('lab-pool-temp', data.pool_temp_c);
+        setVal('lab-cellulose-dry-residue', data.cellulose_dry_residue);
+
+        setVal('lab-vat-1-conc', data.vat_1_conc);
+        setVal('lab-vat-2-conc', data.vat_2_conc);
+        setVal('lab-vat-3-conc', data.vat_3_conc);
+        setVal('lab-vat-4-conc', data.vat_4_conc);
+        setVal('lab-vat-1-sediment', data.vat_1_sediment ?? data.bath_sieve_1);
+        setVal('lab-vat-2-sediment', data.vat_2_sediment ?? data.bath_sieve_2);
+        setVal('lab-vat-3-sediment', data.vat_3_sediment ?? data.bath_sieve_3);
+        setVal('lab-vat-4-sediment', data.vat_4_sediment ?? data.bath_sieve_4);
+
+        // Таблицы замеров
+        const filmTbody = document.getElementById('lab-film-tbody');
+        filmTbody.innerHTML = '';
+        (data.film_moisture_data || []).forEach(r => addLabFilmRow(r));
+
+        const densityTbody = document.getElementById('lab-density-tbody');
+        densityTbody.innerHTML = '';
+        (data.density_moisture_data || []).forEach(r => addLabDensityRow(r));
+
+        const hourlyTbody = document.getElementById('lab-hourly-tbody');
+        hourlyTbody.innerHTML = '';
+        (data.hourly_gp_data || []).forEach(r => addLabHourlyRow(r));
+
+        document.getElementById('lab-notes').value = data.notes || '';
+
+        // Статус
+        if (data.google_synced && data.google_sheet_url) {
+            document.getElementById('lab-active-status-badge').innerHTML = `✓ Синхронизировано с Google (#${data.id})`;
+            document.getElementById('lab-active-status-badge').style.background = '#dcfce7';
+            document.getElementById('lab-active-status-badge').style.color = '#15803d';
+            document.getElementById('lab-google-link-container').innerHTML = `
+                <a href="${data.google_sheet_url}" target="_blank" class="qcd-btn-secondary" style="color: #15803d; font-weight: 800;">
+                    <i class="fa-solid fa-table"></i>
+                    <span>Открыть лист в Google Таблице</span>
+                </a>
+            `;
+        } else {
+            document.getElementById('lab-active-status-badge').innerHTML = `📝 Редактирование черновика (#${data.id})`;
+            document.getElementById('lab-active-status-badge').style.background = '#fef3c7';
+            document.getElementById('lab-active-status-badge').style.color = '#b45309';
+            document.getElementById('lab-google-link-container').innerHTML = '';
+        }
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch(err) {
+        showQcdModal('Ошибка', err.message, 'error');
+    }
+}
+
+// Загрузка реестра анализов
+async function loadLabReportsJournal() {
+    const tbody = document.getElementById('lab-journal-tbody');
+    if (!tbody) return;
+
+    try {
+        const res = await fetch('/api/qcd/lab/reports?limit=50');
+        if (!res.ok) throw new Error('Ошибка загрузки реестра анализов');
+        const list = await res.json();
+
+        if (!list || list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: var(--qcd-subtext); padding: 1.5rem;">Анализов пока нет</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(r => {
+            const shiftName = r.shift_name || r.shift_type || 'День';
+            const isDay = shiftName.includes('День');
+            const shiftBadge = isDay 
+                ? '<span class="shift-badge badge-day">☀️ День</span>' 
+                : '<span class="shift-badge badge-night">🌙 Ночь</span>';
+
+            const equipName = r.equipment || r.line_number || 'ЛФМ-1';
+            const streamName = r.stream_line || r.flow_number || '1';
+            const inspectorName = r.specialist_name || r.inspector_name || 'Мусаилова З.';
+
+            const gStatus = r.google_synced && r.google_sheet_url
+                ? `<a href="${r.google_sheet_url}" target="_blank" class="stripe-badge" style="background: #dcfce7; color: #15803d; text-decoration: none; font-weight: 700;">✓ Открыть лист</a>`
+                : (r.google_synced ? '<span class="stripe-badge" style="background: #dcfce7; color: #15803d;">✓ Выгружен</span>'
+                   : `<button class="qcd-btn-secondary" style="padding: 3px 8px; font-size: 0.72rem;" onclick="retryLabGoogleSync(${r.id})">Выгрузить</button>`);
+
+            const statusBadge = r.status === 'completed'
+                ? '<span class="stripe-badge" style="background: #e0f2fe; color: #0369a1;">Завершен</span>'
+                : '<span class="stripe-badge" style="background: #fef3c7; color: #b45309;">Черновик</span>';
+
+            const totalSamples = (r.film_moisture_data?.length || 0) + (r.density_moisture_data?.length || 0) + (r.hourly_gp_data?.length || 0);
+
+            return `
+                <tr>
+                    <td style="font-weight: 800; color: var(--qcd-navy);">${r.report_date}</td>
+                    <td>${shiftBadge}</td>
+                    <td><strong>${equipName}</strong> (п. ${streamName})</td>
+                    <td>${r.master_name || '—'}</td>
+                    <td><strong>${inspectorName}</strong></td>
+                    <td style="font-size: 0.82rem;">${r.product_name} <span style="color: var(--qcd-subtext);">(${r.batch_number || 'Партия —'})</span></td>
+                    <td style="text-align: center; font-weight: 700;">${totalSamples} замеров</td>
+                    <td style="text-align: center;">${statusBadge}</td>
+                    <td style="text-align: center;">${gStatus}</td>
+                    <td style="text-align: center;">
+                        <div style="display: flex; gap: 4px; justify-content: center;">
+                            <button class="qcd-btn-secondary" style="padding: 4px 8px;" onclick="editLabReport(${r.id})" title="Редактировать / Продолжить ввод">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="lab-btn-sm" style="padding: 4px 8px;" onclick="deleteLabReport(${r.id})" title="Удалить">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch(err) {
+        tbody.innerHTML = `<tr><td colspan="10" style="color: red; padding: 1rem;">${err.message}</td></tr>`;
+    }
+}
+
+// Удаление анализа
+async function deleteLabReport(id) {
+    if (!confirm('Вы уверены, что хотите удалить этот анализ?')) return;
+
+    try {
+        const res = await fetch(`/api/qcd/lab/reports/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Ошибка удаления анализа');
+        showQcdModal('Удалено', 'Анализ успешно удален.', 'success');
+        loadLabReportsJournal();
+    } catch(err) {
+        showQcdModal('Ошибка', err.message, 'error');
+    }
+}
+
+// Повторная выгрузка в Google
+async function retryLabGoogleSync(id) {
+    try {
+        const res = await fetch(`/api/qcd/lab/reports/${id}/sync-google`, { method: 'POST' });
+        if (!res.ok) throw new Error('Ошибка отправки на синхронизацию');
+        showQcdModal('Запрос отправлен', 'Выгрузка анализа в Google Таблицу поставлена в очередь.', 'success');
+        setTimeout(loadLabReportsJournal, 2500);
+    } catch(err) {
+        showQcdModal('Ошибка', err.message, 'error');
+    }
+}
+
+// Загрузка списка Google Таблиц по месяцам
+async function loadMonthlySpreadsheets() {
+    const card = document.getElementById('monthly-sheets-card');
+    const container = document.getElementById('monthly-sheets-container');
+    if (!container) return;
+
+    try {
+        const res = await fetch('/api/qcd/lab/monthly-spreadsheets');
+        if (!res.ok) return;
+        const list = await res.json();
+
+        if (list && list.length > 0) {
+            card.style.display = 'block';
+            container.innerHTML = list.map(s => `
+                <a href="${s.spreadsheet_url}" target="_blank" class="user-chip" style="text-decoration: none; background: #ffffff; border-color: #0284c7; color: #0284c7;">
+                    <i class="fa-solid fa-file-excel" style="color: #107c41;"></i>
+                    <span>${s.title}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.75rem;"></i>
+                </a>
+            `).join('');
+        }
+    } catch(e) {
+        console.warn('Could not load monthly spreadsheets list:', e);
+    }
 }

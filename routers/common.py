@@ -434,3 +434,38 @@ def calculate_shift_deviations(db: Session, shift: models.Shift):
         "actual": actual,
         "deviations": deviations
     }
+
+
+def sync_qcd_lab_bg(analysis_id: int):
+    """
+    Фоновая выгрузка лабораторного анализа СКК в Google Таблицу соответствующего месяца.
+    """
+    from database import SessionLocal
+    import google_sheets_integration
+    db = SessionLocal()
+    try:
+        google_sheets_integration.sync_qcd_lab_analysis_to_google(db, analysis_id)
+        db.add(models.AuditLog(
+            user_name="Google Sync QCD Lab",
+            action="EXPORT",
+            target_table="qcd_lab_analyses",
+            target_id=analysis_id or 0,
+            details=f"Лабораторный анализ СКК ID {analysis_id} синхронизирован в Google Таблицы."
+        ))
+        db.commit()
+    except Exception as e:
+        print(f"Error syncing QCD Lab analysis to Google: {e}")
+        try:
+            db.add(models.AuditLog(
+                user_name="Google Sync QCD Lab",
+                action="ERROR",
+                target_table="qcd_lab_analyses",
+                target_id=analysis_id or 0,
+                details=f"Ошибка экспорта анализа СКК в Google Таблицы: {str(e)}"
+            ))
+            db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
+

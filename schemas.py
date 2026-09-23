@@ -927,10 +927,6 @@ class QcdSortingResponse(ORMBaseModel):
     google_sync_error: Optional[str] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
-
 # --- AI ASSISTANT SCHEMAS ---
 class AIChatMessageCreate(BaseModel):
     conversation_id: Optional[int] = None
@@ -943,6 +939,200 @@ class AIChatMessageOut(ORMBaseModel):
     role: str
     content: str
     created_at: datetime
+
+
+# ==========================================
+# QCD LAB ANALYSIS SCHEMAS (Кабинет СКК / Анализы1)
+# ==========================================
+
+class QcdLabAnalysisBase(BaseModel):
+    report_date: date
+    shift_name: str = "День" # День / Ночь
+    shift_id: Optional[int] = None
+    equipment: str = "ЛФМ № 1" # ЛФМ № 1 / ЛФМ № 2
+    stream_line: str = "1 поток" # 1 поток / 1 линия / 2 линия
+    
+    master_name: Optional[str] = ""
+    machinist_name: Optional[str] = ""
+    specialist_name: Optional[str] = "Мусаилова"
+    
+    product_name: Optional[str] = "Плоский 1800-1200"
+    thickness_nominal: Optional[str] = "8 мм."
+    batch_number: Optional[str] = ""
+    launch_time: Optional[str] = ""
+    launch_details: Optional[str] = ""
+    
+    # Расход сырья (кг)
+    asbestos_kg: Optional[float] = 0.0
+    cement_kg: Optional[float] = 0.0
+    cellulose_kg: Optional[float] = 0.0
+    asbozurit_kg: Optional[float] = 0.0
+    crushed_slate_kg: Optional[float] = 0.0
+    fiberglass_kg: Optional[float] = 0.0
+    raw_materials_total_kg: Optional[float] = 0.0
+    
+    # Подготовка массы
+    begun_time_min: Optional[float] = None
+    chrysotile_moisture_pct: Optional[float] = None
+    fluffing_pct: Optional[float] = None
+    hydropulper_time_min: Optional[float] = None
+    hydropulper_conc_pct: Optional[float] = None
+    turbomixer_time_min: Optional[float] = None
+    turbomixer_conc_pct: Optional[float] = None
+    bucket_mixer_conc_pct: Optional[float] = None
+    defective_mixer_conc_pct: Optional[float] = None
+    dilution_water_pct: Optional[float] = None
+    clean_recuperator_conc_pct: Optional[float] = None
+    recuperator_water_temp_c: Optional[float] = None
+    pool_temp_c: Optional[float] = None
+    cellulose_dry_residue: Optional[str] = ""
+    asbozurit_dry_residue: Optional[str] = ""
+    
+    # Концентрация в ваннах и осадок
+    vat_1_conc: Optional[float] = None
+    vat_2_conc: Optional[float] = None
+    vat_3_conc: Optional[float] = None
+    vat_4_conc: Optional[float] = None
+    vat_1_sediment: Optional[float] = None
+    vat_2_sediment: Optional[float] = None
+    vat_3_sediment: Optional[float] = None
+    vat_4_sediment: Optional[float] = None
+    
+    # Замеры (структурированные списки)
+    film_moisture_data: Optional[list[dict]] = []
+    density_moisture_data: Optional[list[dict]] = []
+    hourly_gp_data: Optional[list[dict]] = []
+    
+    status: str = "draft" # draft / completed
+    notes: Optional[str] = ""
+
+
+class QcdLabAnalysisCreate(QcdLabAnalysisBase):
+    pass
+
+
+class QcdLabAnalysisUpdate(BaseModel):
+    report_date: Optional[date] = None
+    shift_name: Optional[str] = None
+    shift_id: Optional[int] = None
+    equipment: Optional[str] = None
+    stream_line: Optional[str] = None
+    
+    master_name: Optional[str] = None
+    machinist_name: Optional[str] = None
+    specialist_name: Optional[str] = None
+    
+    product_name: Optional[str] = None
+    thickness_nominal: Optional[str] = None
+    batch_number: Optional[str] = None
+    launch_time: Optional[str] = None
+    launch_details: Optional[str] = None
+    
+    asbestos_kg: Optional[float] = None
+    cement_kg: Optional[float] = None
+    cellulose_kg: Optional[float] = None
+    asbozurit_kg: Optional[float] = None
+    crushed_slate_kg: Optional[float] = None
+    fiberglass_kg: Optional[float] = None
+    raw_materials_total_kg: Optional[float] = None
+    
+    begun_time_min: Optional[float] = None
+    chrysotile_moisture_pct: Optional[float] = None
+    fluffing_pct: Optional[float] = None
+    hydropulper_time_min: Optional[float] = None
+    hydropulper_conc_pct: Optional[float] = None
+    turbomixer_time_min: Optional[float] = None
+    turbomixer_conc_pct: Optional[float] = None
+    bucket_mixer_conc_pct: Optional[float] = None
+    defective_mixer_conc_pct: Optional[float] = None
+    dilution_water_pct: Optional[float] = None
+    clean_recuperator_conc_pct: Optional[float] = None
+    recuperator_water_temp_c: Optional[float] = None
+    pool_temp_c: Optional[float] = None
+    cellulose_dry_residue: Optional[str] = None
+    asbozurit_dry_residue: Optional[str] = None
+    
+    vat_1_conc: Optional[float] = None
+    vat_2_conc: Optional[float] = None
+    vat_3_conc: Optional[float] = None
+    vat_4_conc: Optional[float] = None
+    vat_1_sediment: Optional[float] = None
+    vat_2_sediment: Optional[float] = None
+    vat_3_sediment: Optional[float] = None
+    vat_4_sediment: Optional[float] = None
+    
+    film_moisture_data: Optional[list[dict]] = None
+    density_moisture_data: Optional[list[dict]] = None
+    hourly_gp_data: Optional[list[dict]] = None
+    
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class QcdLabAnalysisResponse(ORMBaseModel):
+    id: int
+    report_date: date
+    shift_name: str
+    shift_id: Optional[int] = None
+    equipment: str
+    stream_line: str
+    
+    master_name: Optional[str] = None
+    machinist_name: Optional[str] = None
+    specialist_name: Optional[str] = None
+    
+    product_name: Optional[str] = None
+    thickness_nominal: Optional[str] = None
+    batch_number: Optional[str] = None
+    launch_time: Optional[str] = None
+    launch_details: Optional[str] = None
+    
+    asbestos_kg: float = 0.0
+    cement_kg: float = 0.0
+    cellulose_kg: float = 0.0
+    asbozurit_kg: float = 0.0
+    crushed_slate_kg: float = 0.0
+    fiberglass_kg: float = 0.0
+    raw_materials_total_kg: float = 0.0
+    
+    begun_time_min: Optional[float] = None
+    chrysotile_moisture_pct: Optional[float] = None
+    fluffing_pct: Optional[float] = None
+    hydropulper_time_min: Optional[float] = None
+    hydropulper_conc_pct: Optional[float] = None
+    turbomixer_time_min: Optional[float] = None
+    turbomixer_conc_pct: Optional[float] = None
+    bucket_mixer_conc_pct: Optional[float] = None
+    defective_mixer_conc_pct: Optional[float] = None
+    dilution_water_pct: Optional[float] = None
+    clean_recuperator_conc_pct: Optional[float] = None
+    recuperator_water_temp_c: Optional[float] = None
+    pool_temp_c: Optional[float] = None
+    cellulose_dry_residue: Optional[str] = None
+    asbozurit_dry_residue: Optional[str] = None
+    
+    vat_1_conc: Optional[float] = None
+    vat_2_conc: Optional[float] = None
+    vat_3_conc: Optional[float] = None
+    vat_4_conc: Optional[float] = None
+    vat_1_sediment: Optional[float] = None
+    vat_2_sediment: Optional[float] = None
+    vat_3_sediment: Optional[float] = None
+    vat_4_sediment: Optional[float] = None
+    
+    film_moisture_data: Optional[str] = None
+    density_moisture_data: Optional[str] = None
+    hourly_gp_data: Optional[str] = None
+    
+    status: str = "draft"
+    notes: Optional[str] = None
+    google_spreadsheet_id: Optional[str] = None
+    google_sheet_title: Optional[str] = None
+    google_synced: bool = False
+    google_sync_error: Optional[str] = None
+    
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -1014,8 +1204,5 @@ class TaskQuickCreate(BaseModel):
     month_label: Optional[str] = None
     week_label: Optional[str] = None
     status: Optional[str] = "⚪ В очереди"
-
-
-
 
 

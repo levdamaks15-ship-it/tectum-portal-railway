@@ -2538,3 +2538,520 @@ def get_google_sheet_bottom_url(db: Session, sheet_type: str = "summary") -> str
     last_row = max(valid_count + 1, 2)
     gid = SHEET_GIDS.get("summary", 1856988154)
     return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid={gid}&range=A{last_row}"
+
+
+# =========================================================================
+# 5. СИНХРОНИЗАЦИЯ ЛАБОРАТОРНЫХ АНАЛИЗОВ СКК (ЕЖЕМЕСЯЧНЫЕ GOOGLE ТАБЛИЦЫ)
+# =========================================================================
+
+MONTH_NAMES_RU = {
+    1: "Январь", 2: "Февраль", 3: "Март", 4: "Апрель",
+    5: "Май", 6: "Июнь", 7: "Июль", 8: "Август",
+    9: "Сентябрь", 10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
+}
+
+def get_or_create_monthly_qcd_lab_spreadsheet(db: Session, target_date: date) -> tuple[str, str]:
+    """
+    Находит или создает Google Таблицу на указанный месяц в папке Google Drive (QCD_LAB_FOLDER_ID).
+    Возвращает кортеж (spreadsheet_id, spreadsheet_url).
+    """
+    year = target_date.year
+    month = target_date.month
+    month_name = MONTH_NAMES_RU.get(month, f"{month:02d}")
+    expected_title = f"Анализы СКК — {month_name} {year}"
+    
+    # 1. Проверяем наличие в базе данных
+    record = db.query(models.QcdMonthlySpreadsheet).filter_by(year=year, month=month).first()
+    if record and record.spreadsheet_id:
+        try:
+            service = get_sheets_service()
+            service.spreadsheets().get(spreadsheetId=record.spreadsheet_id).execute()
+            return record.spreadsheet_id, record.spreadsheet_url or f"https://docs.google.com/spreadsheets/d/{record.spreadsheet_id}/edit"
+        except Exception as check_err:
+            print(f"[Google Sheets] Ранее сохраненная таблица месяца недоступна ({check_err}), создаем заново...")
+            db.delete(record)
+            db.commit()
+
+    folder_id = os.getenv("QCD_LAB_FOLDER_ID", "1zPFe5Oftca0wfQIZ-f-U6Ml3VdDz7MJe")
+    spreadsheet_id = None
+    spreadsheet_url = None
+
+    # 2. Пробуем создать через Google Drive API в целевой папке
+    try:
+        import google_drive_integration
+        drive_service = google_drive_integration.get_drive_service()
+        file_metadata = {
+            'name': expected_title,
+            'mimeType': 'application/vnd.google-apps.spreadsheet'
+        }
+        if folder_id:
+            file_metadata['parents'] = [folder_id]
+            
+        created_file = drive_service.files().create(
+            body=file_metadata,
+            fields='id, webViewLink'
+        ).execute()
+        
+        spreadsheet_id = created_file.get('id')
+        spreadsheet_url = created_file.get('webViewLink') or f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit"
+        print(f"[Google Drive] Создана ежемесячная таблица '{expected_title}' в папке {folder_id} (ID: {spreadsheet_id})")
+    except Exception as drive_err:
+        print(f"[Google Drive Error] Не удалось создать через Drive API: {drive_err}. Пробуем напрямую через Sheets API...")
+        try:
+            service = get_sheets_service()
+            created_ss = service.spreadsheets().create(
+                body={'properties': {'title': expected_title}}
+            ).execute()
+            spreadsheet_id = created_ss.get('spreadsheetId')
+            spreadsheet_url = created_ss.get('spreadsheetUrl') or f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/edit"
+        except Exception as sheets_err:
+            raise RuntimeError(f"Не удалось создать Google Таблицу месяца: {sheets_err}")
+
+    # 3. Сохраняем в БД
+    new_record = models.QcdMonthlySpreadsheet(
+        year=year,
+        month=month,
+        spreadsheet_id=spreadsheet_id,
+        spreadsheet_url=spreadsheet_url,
+        title=expected_title
+    )
+    db.add(new_record)
+    db.commit()
+    db.refresh(new_record)
+    
+    return spreadsheet_id, spreadsheet_url
+
+
+def sync_qcd_lab_analysis_to_google(db: Session, analysis_id: int):
+    """
+    Выгружает сменный лабораторный анализ СКК в Google Таблицу соответствующего месяца.
+    Генерирует отдельный лист на смену с точной эталонной сеткой бланка СКК.
+    """
+    analysis = db.query(models.QcdLabAnalysis).get(analysis_id)
+    if not analysis:
+        return
+
+    try:
+        service = get_sheets_service()
+        spreadsheet_id, spreadsheet_url = get_or_create_monthly_qcd_lab_spreadsheet(db, analysis.report_date)
+        
+        # Название листа: например "22.09 День"
+        date_short = analysis.report_date.strftime("%d.%m")
+        shift_tag = analysis.shift_name or "День"
+        sheet_title = f"{date_short} {shift_tag}"
+
+        # 1. Получаем существующие листы
+        ss_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheets = ss_metadata.get("sheets", [])
+        sheet_id = None
+        
+        for s in sheets:
+            if s["properties"]["title"] == sheet_title:
+                sheet_id = s["properties"]["sheetId"]
+                break
+
+        if sheet_id is None:
+            # Если первый лист имеет дефолтное имя ("Sheet1" / "Лист1"), переименовываем его
+            first_sheet = sheets[0] if sheets else None
+            if first_sheet and first_sheet["properties"]["title"] in ["Лист1", "Sheet1", "Лист 1", "Sheet 1"] and len(sheets) == 1:
+                sheet_id = first_sheet["properties"]["sheetId"]
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body={"requests": [{"updateSheetProperties": {
+                        "properties": {"sheetId": sheet_id, "title": sheet_title},
+                        "fields": "title"
+                    }}]}
+                ).execute()
+            else:
+                add_res = service.spreadsheets().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body={"requests": [{"addSheet": {
+                        "properties": {"title": sheet_title}
+                    }}]}
+                ).execute()
+                sheet_id = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+        # 2. Распарсинг замеров из JSON
+        film_list = []
+        if analysis.film_moisture_data:
+            try:
+                film_list = json.loads(analysis.film_moisture_data) if isinstance(analysis.film_moisture_data, str) else analysis.film_moisture_data
+            except Exception:
+                film_list = []
+                
+        dens_list = []
+        if analysis.density_moisture_data:
+            try:
+                dens_list = json.loads(analysis.density_moisture_data) if isinstance(analysis.density_moisture_data, str) else analysis.density_moisture_data
+            except Exception:
+                dens_list = []
+                
+        hourly_list = []
+        if analysis.hourly_gp_data:
+            try:
+                hourly_list = json.loads(analysis.hourly_gp_data) if isinstance(analysis.hourly_gp_data, str) else analysis.hourly_gp_data
+            except Exception:
+                hourly_list = []
+
+        # 3. Построение матрицы значений (по эталону Анализы СКК.xlsx)
+        matrix = []
+        def fmt(val):
+            return "" if val is None else val
+
+        # 3. Построение матрицы значений (по эталону Анализы СКК.xlsx)
+        matrix = []
+        def fmt(val):
+            return "" if val is None else val
+
+        # Строка 1 (Row 1): Данные смены | Параметры продукции | Расход сырья
+        matrix.append(["Данные смены", "", "Параметры продукции", "", "Расход сырья", "", ""])
+        # Строка 2 (Row 2): Дата | Оборудование | Асбест
+        matrix.append(["Дата", f"{analysis.report_date.strftime('%d.%m.%Y')}", "Оборудование", fmt(analysis.equipment or "ЛФМ № 2"), "Асбест", fmt(analysis.asbestos_kg or 0), "кг"])
+        # Строка 3 (Row 3): Сменный мастер | Тип продукции | Цемент
+        matrix.append(["Сменный мастер", fmt(analysis.master_name), "Тип продукции", fmt(analysis.product_name or "8-волновой"), "Цемент", fmt(analysis.cement_kg or 0), "кг"])
+        # Строка 4 (Row 4): Машинист | Формат листа | Целлюлоза
+        matrix.append(["Машинист", fmt(analysis.machinist_name), "Формат листа", "1750×1130 мм", "Целлюлоза", fmt(analysis.cellulose_kg or 0), "кг"])
+        # Строка 5 (Row 5): Специалист | Толщина листа | Асбозурит
+        matrix.append(["Специалист", fmt(analysis.specialist_name), "Толщина листа", fmt(analysis.thickness_nominal or "5,4 мм"), "Асбозурит", fmt(analysis.asbozurit_kg or 0), "кг"])
+        # Строка 6 (Row 6): Время запуска | Партия продукции | Дробленый шифер
+        matrix.append(["Время запуска", fmt(analysis.launch_time or "08:00"), "Партия продукции", fmt(analysis.batch_number), "Дробленый шифер", fmt(analysis.crushed_slate_kg or 0), "кг"])
+        # Строка 7 (Row 7): Партия | Вид листа | Стекловолокно
+        matrix.append(["Партия", fmt(analysis.batch_number), "Вид листа", "рифленый", "Стекловолокно", fmt(analysis.fiberglass_kg or 0), "кг"])
+        # Строка 8 (Row 8): Смена | Примечание | ИТОГО | =SUM(F2:F7)
+        matrix.append(["Смена", fmt(analysis.shift_name or "1 смена"), "Примечание", "", "ИТОГО", "", "=SUM(F2:F7)"])
+        # Строка 9 (Row 9): 1 поток | 2 поток
+        matrix.append(["", fmt(analysis.stream_line or "1 поток"), "2 поток", "", "", "", ""])
+
+        # Блок подготовки массы (строки 10-17)
+        # Строка 10 (Row 10): [A10] Время обработки, мин | [E10] Ковшевая (21-26%)
+        matrix.append(["Время обработки, мин", "", "", "", "Ковшевая (21-26%)", "", fmt(analysis.bucket_mixer_conc_pct)])
+        # Строка 11 (Row 11): [A11] Бегун | [E11] Бракомешалка (15-20 %)
+        matrix.append(["Бегун", fmt(analysis.begun_time_min), "", "", "Бракомешалка (15-20 %)", "", fmt(analysis.defective_mixer_conc_pct)])
+        # Строка 12 (Row 12): [A12] Влажн. хризотила (29-35%) | [E12] Вода на разжижение не более 17%
+        matrix.append(["Влажн. хризотила (29-35%)", fmt(analysis.chrysotile_moisture_pct), "", "", "Вода на разжижение не более 17%", "", fmt(analysis.dilution_water_pct)])
+        # Строка 13 (Row 13): [A13] Распушка не менее 30% | [E13] Конц-я в чист. рекуп. не более 17%
+        matrix.append(["Распушка не менее 30%", fmt(analysis.fluffing_pct), "", "", "Конц-я в чист. рекуп. не более 17%", "", fmt(analysis.clean_recuperator_conc_pct)])
+        # Строка 14 (Row 14): [A14] Время обработки, мин | [E14] Темп. воды в рекуператоре 35-45°С
+        matrix.append(["Время обработки, мин", "", "", "", "Темп. воды в рекуператоре 35-45°С", "", fmt(analysis.recuperator_water_temp_c)])
+        # Строка 15 (Row 15): [A15] Г/ пушитель | [E15] Темп. в бассейне (не менее 45 С)
+        matrix.append(["Г/ пушитель", fmt(analysis.hydropulper_time_min), "", "", "Темп. в бассейне (не менее 45 С)", "", fmt(analysis.pool_temp_c)])
+        # Строка 16 (Row 16): [A16] Конц. в г/пуш. (3,5-4,5%) | [E16] Целлюлоза (сухой ост.)
+        matrix.append(["Конц. в г/пуш. (3,5-4,5%)", fmt(analysis.hydropulper_conc_pct), "", "", "Целлюлоза (сухой ост.)", fmt(analysis.cellulose_dry_residue), ""])
+        # Строка 17 (Row 17): [A17] Турбосмеситель (21-26%)
+        matrix.append(["Турбосмеситель (21-26%)", fmt(analysis.turbomixer_conc_pct), "", "", "", "", ""])
+
+        # Блок ванн (строки 18-22, 4 ванны)
+        # Строка 18 (Row 18): Концентрация в ваннах, 7-12% | Содержание осадка отходящей воды, до 3%
+        matrix.append(["Концентрация в ваннах, 7-12%", "", "", "", "Содержание осадка отходящей воды,  до 3%", "", ""])
+        # Строка 19 (Row 19): Ванна 1
+        matrix.append(["Ванна 1", fmt(analysis.vat_1_conc), "", "", "Ванна 1", "", fmt(analysis.vat_1_sediment)])
+        # Строка 20 (Row 20): Ванна 2
+        matrix.append(["Ванна 2", fmt(analysis.vat_2_conc), "", "", "Ванна 2", "", fmt(analysis.vat_2_sediment)])
+        # Строка 21 (Row 21): Ванна 3
+        matrix.append(["Ванна 3", fmt(analysis.vat_3_conc), "", "", "Ванна 3", "", fmt(analysis.vat_3_sediment)])
+        # Строка 22 (Row 22): Ванна 4
+        matrix.append(["Ванна 4", fmt(analysis.vat_4_conc), "", "", "Ванна 4", "", fmt(analysis.vat_4_sediment)])
+
+        # Блок влажности пленки (строки 23-27)
+        # Строка 23 (Row 23): Время замера | ВЛАЖНОСТЬ ПЛЕНКИ ДО ВАКУУМА | ПОСЛЕ ВАКУУМА
+        matrix.append(["Время замера", "ВЛАЖНОСТЬ ПЛЕНКИ ДО ВАКУУМА ( 39-48 %)", "", "", "ВЛАЖНОСТЬ ПЛЕНКИ ПОСЛЕ ВАКУУМА ( 32-35 %)", "", ""])
+        # Строка 24 (Row 24): подзаголовки сторон
+        matrix.append(["", "лево", "право", "", "лево", "", "право"])
+        
+        # Строки 25-27 (Row 25-27): замеры влажности пленки (3 строки)
+        default_film_times = ["10:00", "13:20", "15:40", "18:20"]
+        for i in range(3):
+            if i < len(film_list):
+                item = film_list[i]
+                t_val = item.get("time") or (default_film_times[i] if i < len(default_film_times) else "")
+                b_l = item.get("before_left") if "before_left" in item else item.get("before_vacuum_left")
+                b_r = item.get("before_right") if "before_right" in item else item.get("before_vacuum_right")
+                a_l = item.get("after_left") if "after_left" in item else item.get("after_vacuum_left")
+                a_r = item.get("after_right") if "after_right" in item else item.get("after_vacuum_right")
+                matrix.append([fmt(t_val), fmt(b_l), fmt(b_r), "", fmt(a_l), "", fmt(a_r)])
+            else:
+                t_val = default_film_times[i] if i < len(default_film_times) else ""
+                matrix.append([t_val, "", "", "", "", "", ""])
+
+        # Блок объемного веса и влажности наката (строки 28-32)
+        # Строка 28 (Row 28): Объемный вес и влажность наката
+        matrix.append(["Время замера", "Обьемный вес наката не менее 1,42 г/см2", "", "", "Влажность наката (20-24%)", "", ""])
+        # Строка 29 (Row 29): подзаголовки
+        matrix.append(["", "лево", "середина", "право", "лево", "середина", "право"])
+        
+        # Строки 30-32 (Row 30-32): замеры объемного веса (3 строки)
+        default_dens_times = ["09:45", "13:00", "17:30"]
+        for i in range(3):
+            if i < len(dens_list):
+                item = dens_list[i]
+                t_val = item.get("time") or (default_dens_times[i] if i < len(default_dens_times) else "")
+                d_l = item.get("dens_left") if "dens_left" in item else item.get("density_left")
+                d_c = item.get("dens_center") if "dens_center" in item else item.get("density_center")
+                d_r = item.get("dens_right") if "dens_right" in item else item.get("density_right")
+                m_l = item.get("moist_left") if "moist_left" in item else item.get("moisture_left")
+                m_c = item.get("moist_center") if "moist_center" in item else item.get("moisture_center")
+                m_r = item.get("moist_right") if "moist_right" in item else item.get("moisture_right")
+                matrix.append([fmt(t_val), fmt(d_l), fmt(d_c), fmt(d_r), fmt(m_l), fmt(m_c), fmt(m_r)])
+            else:
+                t_val = default_dens_times[i] if i < len(default_dens_times) else ""
+                matrix.append([t_val, "", "", "", "", "", ""])
+
+        # Блок почасового журнала ГП (строки 33-45)
+        # Строка 33 (Row 33): Почасовой журнал ГП
+        matrix.append(["Время замера", f"Толщина наката {fmt(analysis.thickness_nominal or '5,4 мм')}", "", "", "Внешний вид визуально", "ГП пачки", ""])
+        # Строка 34 (Row 34): подзаголовки
+        matrix.append(["", "лево", "середина", "право", "", "длина", "ширина"])
+        
+        # Строки 35-45 (11 почасовых замеров)
+        default_hourly_times = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"]
+        for i in range(11):
+            if i < len(hourly_list):
+                item = hourly_list[i]
+                t_val = item.get("time") or (default_hourly_times[i] if i < len(default_hourly_times) else "")
+                t_l = item.get("th_left") if "th_left" in item else item.get("thickness_left")
+                t_c = item.get("th_center") if "th_center" in item else item.get("thickness_center")
+                t_r = item.get("th_right") if "th_right" in item else item.get("thickness_right")
+                vis = item.get("visual_look") or item.get("visual_appearance") or item.get("notes")
+                l_val = item.get("length") if "length" in item else (item.get("gp_length") or item.get("pack_num"))
+                w_val = item.get("width") if "width" in item else item.get("gp_width")
+                matrix.append([fmt(t_val), fmt(t_l), fmt(t_c), fmt(t_r), fmt(vis), fmt(l_val), fmt(w_val)])
+            else:
+                t_val = default_hourly_times[i] if i < len(default_hourly_times) else ""
+                matrix.append([t_val, "", "", "", "", "", ""])
+
+        # 4. Очищаем старые данные и записываем матрицу (ровно 45 строк)
+        service.spreadsheets().values().clear(
+            spreadsheetId=spreadsheet_id,
+            range=f"'{sheet_title}'!A1:G150"
+        ).execute()
+
+        service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range=f"'{sheet_title}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": matrix}
+        ).execute()
+
+        # 5. Применяем форматирование, объединения ячеек, стили и ширину колонок
+        merges = [
+            # A1:B1 (Данные смены), C1:D1 (Параметры продукции), E1:G1 (Расход сырья)
+            {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 2},
+            {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 2, "endColumnIndex": 4},
+            {"startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 4, "endColumnIndex": 7},
+            # E8:F8 (ИТОГО)
+            {"startRowIndex": 7, "endRowIndex": 8, "startColumnIndex": 4, "endColumnIndex": 6},
+            
+            # A10:D10 (Время обработки, мин), E10:G10 (Ковшевая)
+            {"startRowIndex": 9, "endRowIndex": 10, "startColumnIndex": 0, "endColumnIndex": 4},
+            {"startRowIndex": 9, "endRowIndex": 10, "startColumnIndex": 4, "endColumnIndex": 7},
+            # E11:G11, E12:G12, E13:G13, E14:G14, E15:G15
+            {"startRowIndex": 10, "endRowIndex": 11, "startColumnIndex": 4, "endColumnIndex": 7},
+            {"startRowIndex": 11, "endRowIndex": 12, "startColumnIndex": 4, "endColumnIndex": 7},
+            {"startRowIndex": 12, "endRowIndex": 13, "startColumnIndex": 4, "endColumnIndex": 7},
+            {"startRowIndex": 13, "endRowIndex": 14, "startColumnIndex": 0, "endColumnIndex": 4},
+            {"startRowIndex": 13, "endRowIndex": 14, "startColumnIndex": 4, "endColumnIndex": 7},
+            {"startRowIndex": 14, "endRowIndex": 15, "startColumnIndex": 4, "endColumnIndex": 7},
+            {"startRowIndex": 15, "endRowIndex": 16, "startColumnIndex": 4, "endColumnIndex": 6},
+            {"startRowIndex": 16, "endRowIndex": 17, "startColumnIndex": 0, "endColumnIndex": 4},
+            
+            # A18:D18 (Концентрация в ваннах), E18:G18 (Содержание осадка)
+            {"startRowIndex": 17, "endRowIndex": 18, "startColumnIndex": 0, "endColumnIndex": 4},
+            {"startRowIndex": 17, "endRowIndex": 18, "startColumnIndex": 4, "endColumnIndex": 7},
+            # E19:F19, E20:F20, E21:F21, E22:F22 (Ванны 1-4)
+            {"startRowIndex": 18, "endRowIndex": 19, "startColumnIndex": 4, "endColumnIndex": 6},
+            {"startRowIndex": 19, "endRowIndex": 20, "startColumnIndex": 4, "endColumnIndex": 6},
+            {"startRowIndex": 20, "endRowIndex": 21, "startColumnIndex": 4, "endColumnIndex": 6},
+            {"startRowIndex": 21, "endRowIndex": 22, "startColumnIndex": 4, "endColumnIndex": 6},
+            
+            # B23:D23 (Влажность до вакуума), E23:G23 (Влажность после вакуума)
+            {"startRowIndex": 22, "endRowIndex": 23, "startColumnIndex": 1, "endColumnIndex": 4},
+            {"startRowIndex": 22, "endRowIndex": 23, "startColumnIndex": 4, "endColumnIndex": 7},
+            # C24:D24 (право), E24:F24 (лево)
+            {"startRowIndex": 23, "endRowIndex": 24, "startColumnIndex": 2, "endColumnIndex": 4},
+            {"startRowIndex": 23, "endRowIndex": 24, "startColumnIndex": 4, "endColumnIndex": 6},
+            # C25:D25, C26:D26, C27:D27
+            {"startRowIndex": 24, "endRowIndex": 25, "startColumnIndex": 2, "endColumnIndex": 4},
+            {"startRowIndex": 25, "endRowIndex": 26, "startColumnIndex": 2, "endColumnIndex": 4},
+            {"startRowIndex": 26, "endRowIndex": 27, "startColumnIndex": 2, "endColumnIndex": 4},
+            # E25:F25, E26:F26, E27:F27
+            {"startRowIndex": 24, "endRowIndex": 25, "startColumnIndex": 4, "endColumnIndex": 6},
+            {"startRowIndex": 25, "endRowIndex": 26, "startColumnIndex": 4, "endColumnIndex": 6},
+            {"startRowIndex": 26, "endRowIndex": 27, "startColumnIndex": 4, "endColumnIndex": 6},
+            
+            # B28:D28 (Объемный вес), E28:G28 (Влажность наката)
+            {"startRowIndex": 27, "endRowIndex": 28, "startColumnIndex": 1, "endColumnIndex": 4},
+            {"startRowIndex": 27, "endRowIndex": 28, "startColumnIndex": 4, "endColumnIndex": 7},
+            
+            # A33:A34 (Время замера почасового), B33:D33 (Толщина наката), E33:E34 (Внешний вид), F33:G33 (ГП пачки)
+            {"startRowIndex": 32, "endRowIndex": 34, "startColumnIndex": 0, "endColumnIndex": 1},
+            {"startRowIndex": 32, "endRowIndex": 33, "startColumnIndex": 1, "endColumnIndex": 4},
+            {"startRowIndex": 32, "endRowIndex": 34, "startColumnIndex": 4, "endColumnIndex": 5},
+            {"startRowIndex": 32, "endRowIndex": 33, "startColumnIndex": 5, "endColumnIndex": 7},
+        ]
+
+        blue_bg = {"red": 0.6, "green": 0.8, "blue": 1.0} # #99ccff
+        red_text = {"red": 1.0, "green": 0.0, "blue": 0.0}
+
+        style_requests = [
+            # 1. Снимаем старые объединения
+            {"unmergeCells": {"range": {"sheetId": sheet_id}}},
+            # 2. Устанавливаем ширину колонок по стандарту А4
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 0, "endIndex": 1},
+                "properties": {"pixelSize": 145},
+                "fields": "pixelSize"
+            }},
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 1, "endIndex": 2},
+                "properties": {"pixelSize": 80},
+                "fields": "pixelSize"
+            }},
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 2, "endIndex": 3},
+                "properties": {"pixelSize": 105},
+                "fields": "pixelSize"
+            }},
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 3, "endIndex": 4},
+                "properties": {"pixelSize": 88},
+                "fields": "pixelSize"
+            }},
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 4, "endIndex": 5},
+                "properties": {"pixelSize": 190},
+                "fields": "pixelSize"
+            }},
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 5, "endIndex": 6},
+                "properties": {"pixelSize": 75},
+                "fields": "pixelSize"
+            }},
+            {"updateDimensionProperties": {
+                "range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": 6, "endIndex": 7},
+                "properties": {"pixelSize": 85},
+                "fields": "pixelSize"
+            }},
+            # 3. Базовый шрифт и автоперенос для всего листа
+            {"repeatCell": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 45, "startColumnIndex": 0, "endColumnIndex": 7},
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {"fontFamily": "Calibri", "fontSize": 9},
+                        "verticalAlignment": "MIDDLE",
+                        "wrapStrategy": "WRAP"
+                    }
+                },
+                "fields": "userEnteredFormat(textFormat,verticalAlignment,wrapStrategy)"
+            }}
+        ]
+
+        # Добавляем запросы на объединение ячеек
+        for m in merges:
+            style_requests.append({
+                "mergeCells": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": m["startRowIndex"],
+                        "endRowIndex": m["endRowIndex"],
+                        "startColumnIndex": m["startColumnIndex"],
+                        "endColumnIndex": m["endColumnIndex"]
+                    },
+                    "mergeType": "MERGE_ALL"
+                }
+            })
+
+        # Добавляем рамки для всех заполненных ячеек
+        border_style = {"style": "SOLID", "color": {"red": 0.0, "green": 0.0, "blue": 0.0}}
+        style_requests.append({
+            "repeatCell": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 45, "startColumnIndex": 0, "endColumnIndex": 7},
+                "cell": {
+                    "userEnteredFormat": {
+                        "borders": {
+                            "top": border_style, "bottom": border_style,
+                            "left": border_style, "right": border_style
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.borders"
+            }
+        })
+
+        # Заливка синим цветом ключевых шапок (#99ccff)
+        blue_ranges = [
+            (0, 1, 0, 7),    # Row 1: Данные смены, Параметры, Расход
+            (9, 10, 0, 4),   # Row 10: Время обработки бегуна
+            (13, 14, 0, 4),  # Row 14: Время обработки г/пушителя
+            (17, 18, 0, 4),  # Row 18: Концентрация в ваннах
+            (17, 18, 4, 7),  # Row 18: Содержание осадка
+            (22, 23, 1, 4),  # Row 23: Влажность до вакуума
+            (22, 23, 4, 7),  # Row 23: Влажность после вакуума
+            (27, 28, 1, 4),  # Row 28: Объемный вес
+            (27, 28, 4, 7),  # Row 28: Влажность наката
+        ]
+        for r in blue_ranges:
+            style_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": r[0], "endRowIndex": r[1], "startColumnIndex": r[2], "endColumnIndex": r[3]},
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": blue_bg,
+                            "textFormat": {"bold": True},
+                            "horizontalAlignment": "CENTER"
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+                }
+            })
+
+        # Красный шрифт для меток сторон и времени замеров
+        red_ranges = [
+            (23, 24, 1, 7),  # Row 24: лево, право
+            (28, 29, 1, 7),  # Row 29: лево, середина, право
+            (33, 34, 1, 7),  # Row 34: лево, середина, право, длина, ширина
+        ]
+        for r in red_ranges:
+            style_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": r[0], "endRowIndex": r[1], "startColumnIndex": r[2], "endColumnIndex": r[3]},
+                    "cell": {
+                        "userEnteredFormat": {
+                            "textFormat": {"foregroundColor": red_text, "bold": True},
+                            "horizontalAlignment": "CENTER"
+                        }
+                    },
+                    "fields": "userEnteredFormat(textFormat,horizontalAlignment)"
+                }
+            })
+
+        # Высоты строк (pixelSize: 31 для высоких ~23pt, pixelSize: 22 для обычных ~16.5pt)
+        tall_rows_0indexed = {0, 2, 3, 4, 5, 7, 9, 11, 12, 13, 14, 15, 16, 17, 22, 27, 32, 33}
+        for r_idx in range(45):
+            h_px = 31 if r_idx in tall_rows_0indexed else 22
+            style_requests.append({
+                "updateDimensionProperties": {
+                    "range": {"sheetId": sheet_id, "dimension": "ROWS", "startIndex": r_idx, "endIndex": r_idx + 1},
+                    "properties": {"pixelSize": h_px},
+                    "fields": "pixelSize"
+                }
+            })
+
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={"requests": style_requests}
+        ).execute()
+
+        # 6. Обновляем статус анализа
+        analysis.google_spreadsheet_id = spreadsheet_id
+        analysis.google_sheet_title = sheet_title
+        analysis.google_synced = True
+        analysis.google_sync_error = None
+        db.commit()
+
+        print(f"[Google Sheets] Успешно синхронизирован анализ СКК ID {analysis.id} в таблицу '{spreadsheet_id}', лист '{sheet_title}'")
+    except Exception as e:
+        print(f"[Google Sheets Error] Ошибка выгрузки анализа СКК: {e}")
+        analysis.google_synced = False
+        analysis.google_sync_error = str(e)[:500]
+        db.commit()
+
