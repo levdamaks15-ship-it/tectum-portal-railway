@@ -5136,15 +5136,15 @@ function renderDocPickerList(docs) {
         if (m.includes('folder') || l.includes('folders') || t.includes('– google диск') || t.includes('— google диск') || t.includes('- google диск')) {
             iconClass = "fa-folder";
             iconColor = "#3b82f6";
-        } else if (d.doc_type === 'excel' || m.includes('spreadsheet') || l.includes('spreadsheets') || t.match(/\.(xlsx|xls|csv)$/i) || t.includes('таблиц')) {
-            iconClass = "fa-file-excel";
-            iconColor = "#10b981";
-        } else if (m.includes('presentation') || l.includes('presentation') || t.match(/\.(pptx|ppt)$/i) || t.includes('презентац')) {
-            iconClass = "fa-file-powerpoint";
-            iconColor = "#f97316";
         } else if (d.doc_type === 'pdf' || m.includes('pdf') || t.match(/\.pdf$/i)) {
             iconClass = "fa-file-pdf";
             iconColor = "#ef4444";
+        } else if (d.doc_type === 'excel' || m.includes('spreadsheet') || l.includes('spreadsheets') || t.match(/\.(xlsx|xls|csv)$/i) || (!t.includes('.') && t.includes('таблиц'))) {
+            iconClass = "fa-file-excel";
+            iconColor = "#10b981";
+        } else if (m.includes('presentation') || l.includes('presentation') || t.match(/\.(pptx|ppt)$/i) || (!t.includes('.') && t.includes('презентац'))) {
+            iconClass = "fa-file-powerpoint";
+            iconColor = "#f97316";
         } else if (d.doc_type === 'word' || m.includes('word') || m.includes('document') || l.includes('docs.google.com/document') || t.match(/\.(docx|doc)$/i)) {
             iconClass = "fa-file-word";
             iconColor = "#2563eb";

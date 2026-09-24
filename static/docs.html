@@ -2297,7 +2297,12 @@
                 return { icon: 'fas fa-folder', color: '#3b82f6', type: 'Папка' };
             }
 
-            // 2. Таблицы (Excel, Google Sheets, CSV, TSV, ODS)
+            // 2. PDF файлы (Строгий приоритет по расширению .pdf и MIME)
+            if (m.includes('pdf') || name.endsWith('.pdf') || url.endsWith('.pdf') || url.includes('.pdf')) {
+                return { icon: 'fas fa-file-pdf', color: '#ef4444', type: 'PDF Документ' };
+            }
+
+            // 3. Таблицы (Excel, Google Sheets, CSV, TSV, ODS)
             if (
                 m.includes('spreadsheet') ||
                 m.includes('excel') ||
@@ -2311,14 +2316,12 @@
                 name.endsWith('.csv') ||
                 name.endsWith('.xlsm') ||
                 name.endsWith('.ods') ||
-                name.includes('таблиц') ||
-                name.includes('реестр') ||
-                name.includes('ведомост')
+                (!name.includes('.') && (name.includes('таблиц') || name.includes('реестр') || name.includes('ведомост')))
             ) {
                 return { icon: 'fas fa-file-excel', color: '#10b981', type: 'Таблица' };
             }
 
-            // 3. Презентации (PowerPoint, Google Slides)
+            // 4. Презентации (PowerPoint, Google Slides)
             if (
                 m.includes('presentation') ||
                 m.includes('powerpoint') ||
@@ -2326,17 +2329,17 @@
                 name.endsWith('.pptx') ||
                 name.endsWith('.ppt') ||
                 name.endsWith('.odp') ||
-                name.includes('презентац')
+                (!name.includes('.') && name.includes('презентац'))
             ) {
                 return { icon: 'fas fa-file-powerpoint', color: '#f97316', type: 'Презентация' };
             }
 
-            // 4. Google Формы
+            // 5. Google Формы
             if (m.includes('form') || url.includes('docs.google.com/forms')) {
                 return { icon: 'fas fa-list-check', color: '#7c3aed', type: 'Google Форма' };
             }
 
-            // 5. Документы / Тексты (Word, Google Docs, TXT, ODT)
+            // 6. Документы / Тексты (Word, Google Docs, TXT, ODT)
             if (
                 m.includes('word') ||
                 m.includes('document') ||
@@ -2354,11 +2357,6 @@
                 name.includes('акт')
             ) {
                 return { icon: 'fas fa-file-word', color: '#2563eb', type: 'Документ' };
-            }
-
-            // 6. PDF файлы
-            if (m.includes('pdf') || name.endsWith('.pdf') || url.includes('.pdf')) {
-                return { icon: 'fas fa-file-pdf', color: '#ef4444', type: 'PDF Документ' };
             }
 
             // 7. Изображения / Фото / Чертежи
