@@ -4701,6 +4701,10 @@ function preparePrintMetaHeader() {
         } else if (currentHorizon === 'services') {
             const svcName = (currentDepartmentService && currentDepartmentService !== 'all') ? currentDepartmentService : "ОГМ / ОГЭ / ТЕХНОЛОГИ / ОТК";
             subtitleEl.textContent = `ПЛАН РАБОТ СЛУЖБЫ: ${svcName}`;
+        } else if (currentHorizon === 'tech_council') {
+            subtitleEl.textContent = "ПРОТОКОЛ ТЕХНИЧЕСКОГО СОВЕТА";
+        } else if (currentHorizon === 'quality_day') {
+            subtitleEl.textContent = "ПРОТОКОЛ ДНЯ КАЧЕСТВА";
         } else if (currentHorizon === 'roadmaps') {
             subtitleEl.textContent = "СТРАТЕГИЧЕСКИЙ ПЛАН / ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
         } else {
@@ -4722,6 +4726,10 @@ function preparePrintMetaHeader() {
         filterDetails.push(`Сотрудник: ${currentPlannerUser.name} (Автор / Исполнитель)`);
     } else if (currentHorizon === 'services') {
         filterDetails.push(currentDepartmentService !== 'all' ? `Служба: ${currentDepartmentService}` : "Все службы (ОГМ / ОГЭ / Технологи / ОТК)");
+    } else if (currentHorizon === 'tech_council') {
+        filterDetails.push("Технический совет");
+    } else if (currentHorizon === 'quality_day') {
+        filterDetails.push("День качества");
     } else if (currentHorizon === 'weekly') {
         filterDetails.push("Бережливое производство");
     }

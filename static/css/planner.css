@@ -1601,7 +1601,7 @@
 }
 
 /* ── Phase Д: Mobile Drawer — 100% высота снизу ──────────────────────────── */
-@media (max-width: 767px) {
+@media screen and (max-width: 767px) {
     .task-drawer {
         top: 44px !important;
         right: 0 !important;
@@ -1670,7 +1670,7 @@
 }
 
 /* На десктопе — Large Title Header скрыт, toolbar остаётся скрытым */
-@media (min-width: 768px) {
+@media screen and (min-width: 768px) {
     .apple-large-title-header {
         display: none;
     }
@@ -1689,6 +1689,18 @@
     .planner-app-container {
         height: 100vh !important;
         max-height: 100vh !important;
+    }
+}
+
+@media print {
+    .apple-large-title-header,
+    .apple-ghost-row,
+    .apple-fab,
+    .apple-bottom-nav,
+    .planner-bottom-nav,
+    .task-drawer,
+    .task-drawer-backdrop {
+        display: none !important;
     }
 }
 

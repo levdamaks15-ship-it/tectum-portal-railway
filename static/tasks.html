@@ -1252,7 +1252,7 @@
             font-weight: 700;
         }
 
-        @media (max-width: 768px) {
+        @media screen and (max-width: 768px) {
             .planner-header {
                 padding: 0.5rem 0.75rem;
                 gap: 0.5rem;
@@ -1360,7 +1360,7 @@
             }
         }
 
-        @media (min-width: 769px) {
+        @media screen and (min-width: 769px) {
             .mobile-only {
                 display: none !important;
             }
@@ -1386,7 +1386,7 @@
                 margin: 0 !important;
             }
 
-            /* Скрываем ВСЕ интерактивные панели интерфейса */
+            /* Скрываем ВСЕ мобильные и интерактивные панели интерфейса */
             header,
             nav,
             .planner-header,
@@ -1406,6 +1406,24 @@
             .hide-print,
             .mobile-filters-panel,
             .planner-cards-container,
+            #planner-mobile-cards,
+            .planner-card,
+            .apple-swipe-row,
+            .apple-large-title-header,
+            .apple-ghost-row,
+            .apple-fab,
+            .apple-bottom-nav,
+            .apple-filter-indicator-dot,
+            #apple-filter-sheet,
+            #apple-date-sheet,
+            #apple-toast,
+            #apple-filter-backdrop,
+            #apple-date-backdrop,
+            .planner-bottom-nav,
+            .mobile-only,
+            .btn-mobile-full,
+            .task-drawer,
+            .task-drawer-backdrop,
             #roadmaps-view-container,
             .btn-photo-link,
             .btn-action,
@@ -1420,6 +1438,12 @@
                 margin: 0 !important;
                 overflow: visible !important;
                 display: block !important;
+            }
+
+            #planner-table-wrapper {
+                display: block !important;
+                overflow: visible !important;
+                width: 100% !important;
             }
 
             .print-only-header {
@@ -1649,7 +1673,7 @@
         /* ═══════════════════════════════════════════════════════════════
            МОБИЛЬ (≤767px): Apple UI, скрываем старую навигацию
            ═══════════════════════════════════════════════════════════════ */
-        @media (max-width: 767px) {
+        @media screen and (max-width: 767px) {
 
             /* Показываем Apple-компоненты */
             .apple-large-title-header   { display: flex !important; }
@@ -1767,7 +1791,7 @@
         /* ═══════════════════════════════════════════════════════════════
            ДЕСКТОП (≥768px): оригинальная таблица + компактные улучшения
            ═══════════════════════════════════════════════════════════════ */
-        @media (min-width: 768px) {
+        @media screen and (min-width: 768px) {
 
             /* FAB и Bottom Nav — только мобиль */
             .apple-fab,
