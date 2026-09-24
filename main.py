@@ -128,18 +128,44 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
-    # Data migration: clean up document titles containing relative paths
+    # Data migration: clean up document titles containing relative paths or Google suffixes, and fix mime_types
     try:
         db = SessionLocal()
         docs = db.query(models.Document).all()
         cleaned_count = 0
+        from routers.documents import detect_external_mime_type
         for doc in docs:
+            changed = False
             if doc.title and ("/" in doc.title or "\\" in doc.title):
                 doc.title = os.path.basename(doc.title.replace("\\", "/"))
+                changed = True
+            if doc.title:
+                t = doc.title
+                for suffix in [
+                    " – Google Диск", " — Google Диск", " - Google Диск",
+                    " – Google Таблицы", " — Google Таблицы", " - Google Таблицы",
+                    " – Google Документы", " — Google Документы", " - Google Документы",
+                    " – Google Презентации", " — Google Презентации", " - Google Презентации",
+                    " – Google Формы", " — Google Формы", " - Google Формы",
+                    " – Google Drive", " — Google Drive", " - Google Drive",
+                    " – Google Sheets", " — Google Sheets", " - Google Sheets",
+                    " – Google Docs", " — Google Docs", " - Google Docs",
+                    " – OneDrive", " — OneDrive", " - OneDrive"
+                ]:
+                    if t.endswith(suffix):
+                        t = t[:-len(suffix)].strip()
+                        changed = True
+                doc.title = t
+            if doc.external_url:
+                correct_mime = detect_external_mime_type(doc.external_url)
+                if correct_mime and doc.mime_type != correct_mime:
+                    doc.mime_type = correct_mime
+                    changed = True
+            if changed:
                 cleaned_count += 1
         if cleaned_count > 0:
             db.commit()
-            print(f"Cleaned {cleaned_count} document titles.")
+            print(f"Cleaned/updated {cleaned_count} document titles and mime types.")
         db.close()
     except Exception as e:
         print(f"Warning: could not clean document titles: {e}")

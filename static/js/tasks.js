@@ -5129,19 +5129,29 @@ function renderDocPickerList(docs) {
     container.innerHTML = docs.map(d => {
         let iconClass = "fa-file-lines";
         let iconColor = "#2563eb";
-        if (d.doc_type === 'excel' || (d.title && d.title.match(/\.(xlsx|xls)$/i))) {
+        const m = (d.mime_type || '').toLowerCase();
+        const t = (d.title || '').toLowerCase();
+        const l = (d.link || '').toLowerCase();
+
+        if (m.includes('folder') || l.includes('folders') || t.includes('– google диск') || t.includes('— google диск') || t.includes('- google диск')) {
+            iconClass = "fa-folder";
+            iconColor = "#3b82f6";
+        } else if (d.doc_type === 'excel' || m.includes('spreadsheet') || l.includes('spreadsheets') || t.match(/\.(xlsx|xls|csv)$/i) || t.includes('таблиц')) {
             iconClass = "fa-file-excel";
             iconColor = "#10b981";
-        } else if (d.doc_type === 'word' || (d.title && d.title.match(/\.(docx|doc)$/i))) {
-            iconClass = "fa-file-word";
-            iconColor = "#2563eb";
-        } else if (d.doc_type === 'pdf' || (d.title && d.title.match(/\.pdf$/i))) {
+        } else if (m.includes('presentation') || l.includes('presentation') || t.match(/\.(pptx|ppt)$/i) || t.includes('презентац')) {
+            iconClass = "fa-file-powerpoint";
+            iconColor = "#f97316";
+        } else if (d.doc_type === 'pdf' || m.includes('pdf') || t.match(/\.pdf$/i)) {
             iconClass = "fa-file-pdf";
             iconColor = "#ef4444";
-        } else if (d.doc_type === 'google') {
+        } else if (d.doc_type === 'word' || m.includes('word') || m.includes('document') || l.includes('docs.google.com/document') || t.match(/\.(docx|doc)$/i)) {
+            iconClass = "fa-file-word";
+            iconColor = "#2563eb";
+        } else if (d.doc_type === 'google' || l.includes('google')) {
             iconClass = "fa-brands fa-google";
             iconColor = "#1a73e8";
-        } else if (d.doc_type === 'microsoft') {
+        } else if (d.doc_type === 'microsoft' || l.includes('1drv.ms') || l.includes('onedrive') || l.includes('sharepoint')) {
             iconClass = "fa-brands fa-microsoft";
             iconColor = "#0078d4";
         }

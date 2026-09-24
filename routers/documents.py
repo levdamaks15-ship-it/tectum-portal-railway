@@ -590,6 +590,31 @@ class AddExternalLinkRequest(BaseModel):
     parent_id: Optional[str] = None
     author_name: Optional[str] = "Сотрудник"
 
+def detect_external_mime_type(clean_url: str) -> str:
+    """Точно определяет MIME-тип внешнего ресурса по ссылке"""
+    low_url = (clean_url or "").lower().strip()
+    if "docs.google.com/spreadsheets" in low_url:
+        return "application/vnd.google-apps.spreadsheet"
+    elif "docs.google.com/document" in low_url:
+        return "application/vnd.google-apps.document"
+    elif "docs.google.com/presentation" in low_url:
+        return "application/vnd.google-apps.presentation"
+    elif "docs.google.com/forms" in low_url:
+        return "application/vnd.google-apps.form"
+    elif "drive.google.com" in low_url:
+        if "/file/" in low_url or "file/d/" in low_url:
+            return "application/vnd.google-apps.file"
+        return "application/vnd.google-apps.folder"
+    elif "1drv.ms" in low_url or "onedrive" in low_url or "sharepoint" in low_url:
+        if "excel" in low_url or ".xlsx" in low_url or ".xls" in low_url:
+            return "application/vnd.ms-excel"
+        elif "word" in low_url or ".docx" in low_url or ".doc" in low_url:
+            return "application/vnd.ms-word"
+        return "application/vnd.ms-onedrive"
+    elif "disk.yandex" in low_url or "yadi.sk" in low_url:
+        return "application/vnd.yandex-disk"
+    return "application/x-external-link"
+
 @router.post("/api/documents/add_link")
 def add_external_document_link(
     req: AddExternalLinkRequest,
@@ -614,22 +639,8 @@ def add_external_document_link(
         if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
             clean_url = "https://" + clean_url
 
-        # Определение типа иконки
         clean_title = req.title.strip()
-        mime_type = "application/x-external-link"
-        low_url = clean_url.lower()
-        if "1drv.ms" in low_url or "onedrive" in low_url or "sharepoint" in low_url:
-            mime_type = "application/vnd.ms-onedrive"
-        elif "docs.google" in low_url or "drive.google" in low_url:
-            mime_type = "application/vnd.google-apps.document"
-        elif "disk.yandex" in low_url or "yadi.sk" in low_url:
-            mime_type = "application/vnd.yandex-disk"
-        elif "docs.google.com/spreadsheets" in low_url:
-            mime_type = "application/vnd.google-apps.spreadsheet"
-        elif "docs.google.com/document" in low_url:
-            mime_type = "application/vnd.google-apps.document"
-        elif "docs.google.com/presentation" in low_url:
-            mime_type = "application/vnd.google-apps.presentation"
+        mime_type = detect_external_mime_type(clean_url)
 
         new_doc = models.Document(
             title=clean_title,
@@ -717,9 +728,20 @@ def extract_external_link_title_sync(clean_url: str) -> Optional[str]:
             if title:
                 title = py_html.unescape(title)
                 for suffix in [
-                    " - Google Таблицы", " - Google Документы", " - Google Презентации", 
-                    " - Google Диск", " - Google Sheets", " - Google Docs", " - Google Drive",
-                    " - OneDrive", " - Excel", " - Word", " - Microsoft OneDrive", " — Яндекс Диск"
+                    " – Google Диск", " — Google Диск", " - Google Диск",
+                    " – Google Таблицы", " — Google Таблицы", " - Google Таблицы",
+                    " – Google Документы", " — Google Документы", " - Google Документы",
+                    " – Google Презентации", " — Google Презентации", " - Google Презентации",
+                    " – Google Формы", " — Google Формы", " - Google Формы",
+                    " – Google Drive", " — Google Drive", " - Google Drive",
+                    " – Google Sheets", " — Google Sheets", " - Google Sheets",
+                    " – Google Docs", " — Google Docs", " - Google Docs",
+                    " – Google Slides", " — Google Slides", " - Google Slides",
+                    " – OneDrive", " — OneDrive", " - OneDrive",
+                    " – Excel", " — Excel", " - Excel",
+                    " – Word", " — Word", " - Word",
+                    " – Microsoft OneDrive", " — Microsoft OneDrive", " - Microsoft OneDrive",
+                    " — Яндекс Диск", " – Яндекс Диск", " - Яндекс Диск"
                 ]:
                     if title.endswith(suffix):
                         title = title[:-len(suffix)].strip()
@@ -746,7 +768,7 @@ def sync_external_documents_titles(
     db: Session = Depends(get_db)
 ):
     """
-    Фоновая синхронизация и актуализация названий документов по внешним облачным ссылкам
+    Фоновая синхронизация и актуализация названий и типов документов по внешним облачным ссылкам
     """
     try:
         cat_id = None
@@ -766,8 +788,15 @@ def sync_external_documents_titles(
             if not doc.external_url:
                 continue
             new_title = extract_external_link_title_sync(doc.external_url)
+            correct_mime = detect_external_mime_type(doc.external_url)
+            changed = False
             if new_title and new_title != doc.title:
                 doc.title = new_title
+                changed = True
+            if correct_mime and doc.mime_type != correct_mime:
+                doc.mime_type = correct_mime
+                changed = True
+            if changed:
                 updated_count += 1
                 
         if updated_count > 0:
