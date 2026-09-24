@@ -2524,10 +2524,15 @@
                         style="font-size: 0.78rem; padding: 4px 11px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-weight: 600;">
                         <i class="fa-solid fa-camera" style="color: #16a34a;"></i> <span>📷 Распознать скриншот / фото (AI)</span>
                     </button>
-                    <input type="file" id="bulk-ocr-file-input" accept="image/*" style="display: none;" onchange="handleBulkOcrFileSelect(this)">
+                    <input type="file" id="bulk-ocr-file-input" accept="image/*" multiple style="display: none;" onchange="handleBulkOcrFileSelect(this)">
+                    
+                    <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600; color: #475569; cursor: pointer; user-select: none; margin-left: 2px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px;" title="Если включено, новые фото дополняют список, не стирая уже добавленные задачи">
+                        <input type="checkbox" id="bulk-ocr-append-mode" checked style="accent-color: #16a34a; cursor: pointer;">
+                        <span>Дополнять список</span>
+                    </label>
                 </div>
                 <div style="font-size: 0.75rem; color: #64748b;">
-                    💡 Вставьте скриншот через <b>Ctrl + V</b> или нажмите <b>Enter</b> для новой строки
+                    💡 Вставьте скриншот через <b>Ctrl + V</b> или выберите сразу несколько фото
                 </div>
             </div>
 
@@ -2570,10 +2575,16 @@
             <!-- Add Row Button & Actions -->
             <div
                 style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="addBulkTaskRow()"
-                    style="font-size: 0.82rem; padding: 5px 12px;">
-                    <i class="fa-solid fa-plus" style="color: #2563eb;"></i> <span>Добавить строку</span>
-                </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="addBulkTaskRow()"
+                        style="font-size: 0.82rem; padding: 5px 12px;">
+                        <i class="fa-solid fa-plus" style="color: #2563eb;"></i> <span>Добавить строку</span>
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action" onclick="clearAllBulkTaskRows()"
+                        style="font-size: 0.82rem; padding: 5px 10px; color: #ef4444; border-color: #fecaca;" title="Очистить все строки">
+                        <i class="fa-solid fa-trash-can"></i> <span>Очистить все</span>
+                    </button>
+                </div>
 
                 <div style="display: flex; gap: 0.5rem;">
                     <button type="button" class="btn-action btn-secondary-action"

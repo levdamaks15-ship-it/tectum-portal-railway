@@ -4135,80 +4135,148 @@ function triggerBulkOcrUpload() {
 
 function handleBulkOcrFileSelect(input) {
     if (!input || !input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    processBulkOcrImage(file);
+    const files = Array.from(input.files);
+    processBulkOcrFiles(files);
 }
 
 async function processBulkOcrImage(fileOrBase64) {
+    return processBulkOcrFiles([fileOrBase64]);
+}
+
+async function processBulkOcrFiles(filesOrBlobs) {
+    if (!filesOrBlobs || filesOrBlobs.length === 0) return;
     const btnOcr = document.getElementById("btn-bulk-ocr");
     const origHtml = btnOcr ? btnOcr.innerHTML : "";
 
     if (window.isBulkOcrRunning) return;
     window.isBulkOcrRunning = true;
 
-    if (btnOcr) {
-        btnOcr.disabled = true;
-        btnOcr.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #16a34a;"></i> <span>Нейросеть распознаёт таблицу...</span>`;
-    }
+    const appendMode = document.getElementById("bulk-ocr-append-mode") ? document.getElementById("bulk-ocr-append-mode").checked : true;
+    const container = document.getElementById("bulk-tasks-rows-container");
 
-    try {
-        const formData = new FormData();
-        if (typeof fileOrBase64 === "string") {
-            formData.append("image_base64", fileOrBase64);
-        } else {
-            formData.append("file", fileOrBase64);
-        }
-
-        const res = await fetch("/api/tasks/ocr_image", {
-            method: "POST",
-            body: formData,
-            timeoutMs: 60000
-        });
-
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || "Сбой распознавания");
-        }
-
-        const data = await res.json();
-        const tasks = data.tasks || [];
-
-        if (tasks.length === 0) {
-            alert("Нейросеть не обнаружила строк с задачами на этом изображении");
-            return;
-        }
-
-        // ПОЛНОСТЬЮ очищаем контейнер строк перед добавлением нового распознавания,
-        // чтобы исключить дублирование с предыдущими попытками
-        const container = document.getElementById("bulk-tasks-rows-container");
-        if (container) {
+    if (container) {
+        if (!appendMode) {
+            // Если режим замены — полностью очищаем контейнер
             container.innerHTML = "";
             bulkRowCounter = 0;
+        } else {
+            // Если все текущие строки полностью пустые (например, 3 строки при открытии модалки), удаляем их
+            const allRows = Array.from(container.querySelectorAll(".bulk-task-row"));
+            const emptyRows = allRows.filter(r => {
+                const t = r.querySelector(".bulk-row-title");
+                return !t || !t.value.trim();
+            });
+            if (allRows.length > 0 && allRows.length === emptyRows.length) {
+                container.innerHTML = "";
+                bulkRowCounter = 0;
+            } else {
+                // Иначе удаляем только пустые "хвостовые" строки
+                emptyRows.forEach(r => r.remove());
+                renumberBulkRows();
+            }
+        }
+    }
+
+    // Собираем множество уже существующих названий задач для предотвращения дублей
+    const existingTitles = new Set();
+    if (container) {
+        container.querySelectorAll(".bulk-row-title").forEach(el => {
+            const val = el.value.replace(/^\d+[\.\)\-]\s*/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (val) existingTitles.add(val);
+        });
+    }
+
+    let totalAdded = 0;
+    const totalFiles = filesOrBlobs.length;
+
+    try {
+        for (let i = 0; i < totalFiles; i++) {
+            const fileItem = filesOrBlobs[i];
+            
+            if (btnOcr) {
+                btnOcr.disabled = true;
+                const fileLabel = totalFiles > 1 ? ` (${i + 1}/${totalFiles})` : "";
+                btnOcr.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #16a34a;"></i> <span>Распознавание фото${fileLabel}...</span>`;
+            }
+
+            try {
+                const formData = new FormData();
+                if (typeof fileItem === "string") {
+                    formData.append("image_base64", fileItem);
+                } else {
+                    formData.append("file", fileItem);
+                }
+
+                const res = await fetch("/api/tasks/ocr_image", {
+                    method: "POST",
+                    body: formData,
+                    timeoutMs: 60000
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ detail: "Сбой запроса" }));
+                    throw new Error(err.detail || `Ошибка распознавания фото #${i + 1}`);
+                }
+
+                const data = await res.json();
+                const tasks = data.tasks || [];
+
+                let fileAddedCount = 0;
+                tasks.forEach(t => {
+                    const cleanTitle = (t.title || "").replace(/^\d+[\.\)\-]\s*/, '').replace(/\s+/g, ' ').trim();
+                    const lowerT = cleanTitle.toLowerCase();
+                    if (cleanTitle && !existingTitles.has(lowerT)) {
+                        existingTitles.add(lowerT);
+                        addBulkTaskRow(cleanTitle, t.assignee_name || "", t.due_date || "");
+                        fileAddedCount++;
+                        totalAdded++;
+                    }
+                });
+
+                if (totalFiles > 1) {
+                    showToast(`Фото ${i + 1}/${totalFiles}: +${fileAddedCount} задач 📸`);
+                }
+            } catch (err) {
+                console.error(`Error recognizing file #${i + 1}:`, err);
+                if (totalFiles === 1) {
+                    alert("Ошибка распознавания: " + err.message);
+                } else {
+                    showToast(`⚠️ Ошибка фото ${i + 1}: ${err.message}`);
+                }
+            }
         }
 
-        // Добавляем только уникальные задачи из ответа нейросети
-        const addedTitles = new Set();
-        tasks.forEach(t => {
-            const cleanTitle = (t.title || "").replace(/^\d+[\.\)\-]\s*/, '').replace(/\s+/g, ' ').trim();
-            const lowerT = cleanTitle.toLowerCase();
-            if (cleanTitle && !addedTitles.has(lowerT)) {
-                addedTitles.add(lowerT);
-                addBulkTaskRow(cleanTitle, t.assignee_name || "", t.due_date || "");
-            }
-        });
-
         updateBulkTasksCountBadge();
-        showToast(`AI успешно распознал ${addedTitles.size} задач со скриншота! 🎯`);
+        if (totalAdded > 0) {
+            const summary = totalFiles > 1 
+                ? `AI успешно добавил ${totalAdded} задач с ${totalFiles} фото! 🎯` 
+                : `AI успешно распознал ${totalAdded} задач со скриншота! 🎯`;
+            showToast(summary);
+        } else {
+            showToast("Новых задач на предоставленных фото не обнаружено ℹ️");
+        }
 
-    } catch (e) {
-        console.error("Bulk OCR error:", e);
-        alert("Ошибка распознавания: " + e.message);
     } finally {
         window.isBulkOcrRunning = false;
         if (btnOcr) {
             btnOcr.disabled = false;
             btnOcr.innerHTML = origHtml;
         }
+    }
+}
+
+function clearAllBulkTaskRows() {
+    const container = document.getElementById("bulk-tasks-rows-container");
+    if (!container) return;
+    const rowCount = container.querySelectorAll(".bulk-task-row").length;
+    if (rowCount === 0) return;
+
+    if (confirm(`Очистить все строки (${rowCount})?`)) {
+        container.innerHTML = "";
+        bulkRowCounter = 0;
+        addBulkTaskRow();
+        updateBulkTasksCountBadge();
+        showToast("Список задач очищен 🗑️");
     }
 }
 
