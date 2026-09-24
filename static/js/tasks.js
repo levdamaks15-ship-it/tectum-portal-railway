@@ -3652,6 +3652,24 @@ async function saveTaskModal() {
 
         const docIdVal = document.getElementById("task-doc-id-input") ? parseInt(document.getElementById("task-doc-id-input").value, 10) : null;
 
+        let targetMonth = currentMonth;
+        let targetWeek = currentWeek;
+
+        if (rawDue) {
+            try {
+                const resW = await fetch(`/api/tasks/resolve_week?date_str=${encodeURIComponent(rawDue)}`);
+                if (resW.ok) {
+                    const dW = await resW.json();
+                    if (dW.status === 'ok' && dW.month_label && dW.week_label) {
+                        targetMonth = dW.month_label;
+                        targetWeek = dW.week_label;
+                    }
+                }
+            } catch (err) {
+                console.warn("Auto-resolve week on task save error:", err);
+            }
+        }
+
         const payload = {
             title: titleRu,
             title_kz: titleKz,
@@ -3669,8 +3687,8 @@ async function saveTaskModal() {
             due_date_str: due,
             status: status,
             comment: comment,
-            month_label: currentMonth,
-            week_label: currentWeek,
+            month_label: targetMonth,
+            week_label: targetWeek,
             attached_document_id: docIdVal || null,
             pin_code: authSession ? authSession.pin : ""
         };

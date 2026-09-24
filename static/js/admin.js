@@ -158,6 +158,7 @@ function switchAdminTab(tabId) {
     if (activeNav) activeNav.classList.add('active');
     
     const tabMasters = document.getElementById('tab-masters'); if (tabMasters) tabMasters.style.display = 'none';
+    const tabTasks = document.getElementById('tab-tasks'); if (tabTasks) tabTasks.style.display = 'none';
     const tabNorms = document.getElementById('tab-norms'); if (tabNorms) tabNorms.style.display = 'none';
     const tabPlanBoard = document.getElementById('tab-plan-board'); if (tabPlanBoard) tabPlanBoard.style.display = 'none';
     const tabShifts = document.getElementById('tab-shifts'); if (tabShifts) tabShifts.style.display = 'none';
@@ -181,7 +182,9 @@ function switchAdminTab(tabId) {
         toggleAdminSidebar(false);
     }
 
-    if (tabId === 'plan-board') {
+    if (tabId === 'tasks') {
+        loadAdminTasksTab();
+    } else if (tabId === 'plan-board') {
         loadPlanBoard();
     } else if (tabId === 'audit-logs') {
         loadAuditLogs();
@@ -210,6 +213,7 @@ function switchAdminTab(tabId) {
 
 function closeModals() {
     closePlannerModals();
+    closeAdminTaskModal();
     const clEmpModal = document.getElementById('checklist-emp-modal');
     if (clEmpModal) clEmpModal.style.display = 'none';
     const schedModal = document.getElementById('shift-schedule-modal');
@@ -3123,23 +3127,548 @@ function closePlannerModals() {
 }
 
 /* ==========================================================
-   ADMIN TASKS REGISTRY & DELETION
+   ADMIN TASKS REGISTRY, FULL CRUD & SMART WEEK MANAGEMENT
    ========================================================== */
+let adminCalendarStructure = {};
+let adminTranslateTimer = null;
+
+function closeAdminTaskModal() {
+    const modal = document.getElementById('admin-task-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function loadAdminTasksTab() {
+    await Promise.all([
+        hydrateAdminCalendarStructure(),
+        hydrateAdminDropdowns(),
+        loadAdminTasksList()
+    ]);
+}
+
+async function hydrateAdminCalendarStructure() {
+    try {
+        const res = await fetch('/api/tasks/weeks');
+        if (res.ok) {
+            const data = await res.json();
+            adminCalendarStructure = data.structure || {};
+            
+            // Заполнение выпадающих списков месяцев
+            const filterMonth = document.getElementById('admin-filter-month');
+            const modalMonth = document.getElementById('admin-modal-month');
+            const months = data.months || Object.keys(adminCalendarStructure);
+
+            if (filterMonth && months.length > 0) {
+                const curVal = filterMonth.value;
+                filterMonth.innerHTML = `<option value="all">🌐 За всё время</option>` +
+                    months.map(m => `<option value="${m}">${m}</option>`).join('');
+                if (curVal && months.includes(curVal)) filterMonth.value = curVal;
+                else if (data.default_month) filterMonth.value = data.default_month;
+                onAdminFilterMonthChange();
+            }
+
+            if (modalMonth && months.length > 0) {
+                const curVal = modalMonth.value;
+                modalMonth.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join('');
+                if (curVal && months.includes(curVal)) modalMonth.value = curVal;
+                else if (data.default_month) modalMonth.value = data.default_month;
+                onAdminModalMonthChange();
+            }
+        }
+    } catch (e) {
+        console.error("Error hydrating admin calendar structure:", e);
+    }
+}
+
+async function hydrateAdminDropdowns() {
+    try {
+        const [zonesRes, empsRes] = await Promise.all([
+            fetch('/api/planner/zones'),
+            fetch('/api/planner/employees')
+        ]);
+
+        if (zonesRes.ok) {
+            adminPlannerZones = await zonesRes.json();
+            const filterZone = document.getElementById('admin-filter-zone');
+            const modalZone = document.getElementById('admin-modal-zone');
+
+            if (filterZone) {
+                const curVal = filterZone.value;
+                filterZone.innerHTML = `<option value="all">Все зоны</option>` +
+                    adminPlannerZones.map(z => `<option value="${z.name}">${z.name}</option>`).join('');
+                if (curVal) filterZone.value = curVal;
+            }
+
+            if (modalZone) {
+                modalZone.innerHTML = adminPlannerZones.map(z => `<option value="${z.name}">${z.name}</option>`).join('');
+                if (!modalZone.value && adminPlannerZones.length > 0) {
+                    modalZone.value = adminPlannerZones[0].name;
+                }
+            }
+        }
+
+        if (empsRes.ok) {
+            adminPlannerEmployees = await empsRes.json();
+            const modalAuthor = document.getElementById('admin-modal-author');
+            const modalAssignee = document.getElementById('admin-modal-assignee');
+
+            const empOptions = adminPlannerEmployees.map(e => `<option value="${e.name}">${e.name}</option>`).join('');
+
+            if (modalAuthor) {
+                modalAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + empOptions;
+            }
+            if (modalAssignee) {
+                modalAssignee.innerHTML = `<option value="">-- Не назначен --</option>` + empOptions;
+            }
+        }
+    } catch (e) {
+        console.error("Error hydrating admin dropdowns:", e);
+    }
+}
+
+function onAdminFilterMonthChange() {
+    const monthSelect = document.getElementById('admin-filter-month');
+    const weekSelect = document.getElementById('admin-filter-week');
+    if (!monthSelect || !weekSelect) return;
+
+    const selMonth = monthSelect.value;
+    if (selMonth === 'all') {
+        weekSelect.innerHTML = `<option value="all">🌐 Все недели</option>`;
+    } else {
+        const weeks = adminCalendarStructure[selMonth] || [];
+        weekSelect.innerHTML = `<option value="all">🌐 Все недели месяца</option>` +
+            weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+    }
+    filterAdminTasksTable();
+}
+
+function onAdminModalMonthChange() {
+    const monthSelect = document.getElementById('admin-modal-month');
+    const weekSelect = document.getElementById('admin-modal-week');
+    if (!monthSelect || !weekSelect) return;
+
+    const selMonth = monthSelect.value;
+    const weeks = adminCalendarStructure[selMonth] || [];
+    const curVal = weekSelect.value;
+
+    weekSelect.innerHTML = weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+    if (curVal && weeks.includes(curVal)) {
+        weekSelect.value = curVal;
+    } else if (weeks.length > 0) {
+        weekSelect.value = weeks[0];
+    }
+}
+
+async function onAdminTaskModalDueDateChange() {
+    const dateInput = document.getElementById('admin-modal-due-date');
+    if (!dateInput || !dateInput.value) return;
+
+    try {
+        const res = await fetch(`/api/tasks/resolve_week?date_str=${encodeURIComponent(dateInput.value)}`);
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'ok' && data.month_label && data.week_label) {
+                const monthSelect = document.getElementById('admin-modal-month');
+                const weekSelect = document.getElementById('admin-modal-week');
+
+                if (monthSelect) {
+                    monthSelect.value = data.month_label;
+                    onAdminModalMonthChange();
+                }
+                if (weekSelect) {
+                    weekSelect.value = data.week_label;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error resolving week by date in admin modal:", e);
+    }
+}
+
+function onAdminTaskRuInput() {
+    const ruInput = document.getElementById('admin-modal-title-ru');
+    const kzInput = document.getElementById('admin-modal-title-kz');
+    const badge = document.getElementById('admin-kz-translate-status');
+    if (!ruInput || !kzInput) return;
+
+    if (adminTranslateTimer) clearTimeout(adminTranslateTimer);
+
+    const text = ruInput.value.trim();
+    if (!text) return;
+
+    if (badge) badge.textContent = "(Перевод...)";
+
+    adminTranslateTimer = setTimeout(async () => {
+        try {
+            const res = await fetch('/api/tasks/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.text_kz && (!kzInput.value.trim() || kzInput.dataset.autoFilled === "true")) {
+                    kzInput.value = data.text_kz;
+                    kzInput.dataset.autoFilled = "true";
+                }
+                if (badge) badge.textContent = "(Автоперевод)";
+            }
+        } catch (e) {
+            if (badge) badge.textContent = "(Ошибка)";
+        }
+    }, 600);
+}
+
 async function loadAdminTasksList() {
     const tbody = document.getElementById('admin-tasks-table-body');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...</td></tr>`;
 
     try {
         const res = await fetch('/api/tasks?month=all');
         if (res.ok) {
             adminAllTasks = await res.json();
-            renderAdminTasksTable(adminAllTasks);
+            filterAdminTasksTable();
         } else {
-            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">Не удалось загрузить задачи</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Не удалось загрузить задачи</td></tr>`;
         }
     } catch (e) {
         console.error("Error loading admin tasks:", e);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger-color);">Ошибка сети</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Ошибка сети</td></tr>`;
+    }
+}
+
+function filterAdminTasksTable() {
+    const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
+    const selMonth = document.getElementById('admin-filter-month')?.value || 'all';
+    const selWeek = document.getElementById('admin-filter-week')?.value || 'all';
+    const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
+    const selStatus = document.getElementById('admin-filter-status')?.value || 'all';
+
+    let filtered = adminAllTasks;
+
+    if (selMonth !== 'all') {
+        filtered = filtered.filter(t => t.month_label === selMonth);
+    }
+    if (selWeek !== 'all') {
+        filtered = filtered.filter(t => t.week_label === selWeek);
+    }
+    if (selZone !== 'all') {
+        filtered = filtered.filter(t => t.zone === selZone || t.department_service === selZone);
+    }
+    if (selStatus !== 'all') {
+        filtered = filtered.filter(t => t.status === selStatus);
+    }
+    if (q) {
+        filtered = filtered.filter(t =>
+            (t.title && t.title.toLowerCase().includes(q)) ||
+            (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
+            (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
+            (t.author_name && t.author_name.toLowerCase().includes(q)) ||
+            (t.zone && t.zone.toLowerCase().includes(q)) ||
+            (t.code && t.code.toLowerCase().includes(q)) ||
+            (t.comment && t.comment.toLowerCase().includes(q)) ||
+            (t.month_label && t.month_label.toLowerCase().includes(q)) ||
+            (t.week_label && t.week_label.toLowerCase().includes(q))
+        );
+    }
+
+    renderAdminTasksTable(filtered);
+}
+
+function resetAdminTasksFilters() {
+    const filterMonth = document.getElementById('admin-filter-month');
+    const filterWeek = document.getElementById('admin-filter-week');
+    const filterZone = document.getElementById('admin-filter-zone');
+    const filterStatus = document.getElementById('admin-filter-status');
+    const searchInput = document.getElementById('admin-task-search');
+
+    if (filterMonth) filterMonth.value = 'all';
+    if (filterWeek) filterWeek.value = 'all';
+    if (filterZone) filterZone.value = 'all';
+    if (filterStatus) filterStatus.value = 'all';
+    if (searchInput) searchInput.value = '';
+
+    onAdminFilterMonthChange();
+}
+
+function renderAdminTasksTable(tasks) {
+    const tbody = document.getElementById('admin-tasks-table-body');
+    if (!tbody) return;
+
+    if (!tasks || tasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = tasks.map(t => {
+        let statusBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${escapeHtml(t.status || '—')}</span>`;
+        const st = t.status || '';
+        if (st.includes('Выполнено')) {
+            statusBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
+        } else if (st.includes('В работе')) {
+            statusBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
+        } else if (st.includes('Перенесено')) {
+            statusBadge = `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrow-right-arrow-left"></i> Перенесено</span>`;
+        } else if (st.includes('Отменено')) {
+            statusBadge = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-xmark"></i> Отменено</span>`;
+        } else if (st.includes('В очереди')) {
+            statusBadge = `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> В очереди</span>`;
+        }
+
+        const titleRu = escapeHtml(t.title || '—');
+        const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #64748b; margin-top: 3px; font-style: italic; line-height: 1.25;">${escapeHtml(t.title_kz)}</div>` : '';
+        const isChecked = selectedAdminTaskIds.has(t.id);
+
+        let zoneBadge = `<span style="background: #f1f5f9; padding: 2px 6px; border-radius: 5px; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; font-size: 0.76rem; white-space: nowrap;">${escapeHtml(t.zone || '—')}</span>`;
+        if (t.department_service && t.department_service !== t.zone) {
+            zoneBadge += `<div style="margin-top: 2px;"><span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 1px 5px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">${escapeHtml(t.department_service)}</span></div>`;
+        }
+
+        const authorInfo = t.author_name ? `<div style="font-size: 0.72rem; color: #64748b;">Автор: ${escapeHtml(t.author_name)}</div>` : '';
+        const assigneeInfo = `<div style="font-size: 0.8rem; color: #1d4ed8; font-weight: 600;">${escapeHtml(t.assignee_name || '—')}</div>`;
+        const commentPreview = t.comment ? `<div style="font-size: 0.75rem; color: #475569; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(t.comment)}">${escapeHtml(t.comment)}</div>` : '<span style="color: #cbd5e1;">—</span>';
+
+        return `
+            <tr id="admin-task-row-${t.id}">
+                <td style="text-align: center; white-space: nowrap;">
+                    <input type="checkbox" class="admin-task-row-cb" ${isChecked ? 'checked' : ''} onchange="toggleSelectAdminTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать задачу">
+                </td>
+                <td style="white-space: nowrap;">
+                    <span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px; font-size: 0.78rem;">${escapeHtml(t.code || ('TSK-' + t.id))}</span>
+                </td>
+                <td style="white-space: nowrap; font-size: 0.76rem;">
+                    <div style="font-weight: 600; color: #0f172a;">${escapeHtml(t.month_label || '—')}</div>
+                    <div style="color: #64748b; font-size: 0.72rem; margin-top: 2px;">${escapeHtml(t.week_label || '—')}</div>
+                </td>
+                <td style="white-space: nowrap;">
+                    ${zoneBadge}
+                </td>
+                <td style="min-width: 260px; max-width: 440px; white-space: normal; word-break: break-word; line-height: 1.35; padding: 0.55rem 0.75rem;">
+                    <div style="font-weight: 500; color: #0f172a; font-size: 0.84rem;">${titleRu}</div>
+                    ${titleKz}
+                </td>
+                <td style="white-space: nowrap;">
+                    ${assigneeInfo}
+                    ${authorInfo}
+                </td>
+                <td style="white-space: nowrap; font-size: 0.78rem; font-weight: 600; color: #334155;">
+                    ${escapeHtml(t.due_date_str || '—')}
+                </td>
+                <td style="white-space: nowrap;">${statusBadge}</td>
+                <td style="white-space: nowrap;">${commentPreview}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button onclick="openAdminTaskModal(${t.id})" class="action-btn btn-edit" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; margin-right: 4px;" title="Редактировать задачу">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" style="padding: 0.25rem 0.5rem !important;" title="Удалить задачу навсегда">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    updateAdminTasksBulkBar();
+}
+
+async function openAdminTaskModal(taskId = null) {
+    await hydrateAdminDropdowns();
+    if (Object.keys(adminCalendarStructure).length === 0) {
+        await hydrateAdminCalendarStructure();
+    }
+
+    const titleEl = document.getElementById('admin-task-modal-title');
+    const idInput = document.getElementById('admin-modal-task-id');
+    const ruInput = document.getElementById('admin-modal-title-ru');
+    const kzInput = document.getElementById('admin-modal-title-kz');
+    const typeSelect = document.getElementById('admin-modal-task-type');
+    const zoneSelect = document.getElementById('admin-modal-zone');
+    const deptSelect = document.getElementById('admin-modal-dept');
+    const authorSelect = document.getElementById('admin-modal-author');
+    const assigneeSelect = document.getElementById('admin-modal-assignee');
+    const dueDateInput = document.getElementById('admin-modal-due-date');
+    const monthSelect = document.getElementById('admin-modal-month');
+    const weekSelect = document.getElementById('admin-modal-week');
+    const statusSelect = document.getElementById('admin-modal-status');
+    const commentInput = document.getElementById('admin-modal-comment');
+    const saveBtn = document.getElementById('btn-save-admin-task');
+
+    if (saveBtn) saveBtn.disabled = false;
+    if (kzInput) delete kzInput.dataset.autoFilled;
+
+    if (taskId) {
+        let task = adminAllTasks.find(t => t.id === taskId);
+        if (!task) {
+            try {
+                const res = await fetch(`/api/tasks/${taskId}`);
+                if (res.ok) task = await res.json();
+            } catch (e) {}
+        }
+        if (!task) {
+            alert("Задача не найдена");
+            return;
+        }
+
+        if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-pen"></i> Редактирование задачи [${escapeHtml(task.code || ('TSK-' + task.id))}]`;
+        if (idInput) idInput.value = task.id;
+        if (ruInput) ruInput.value = task.title || '';
+        if (kzInput) kzInput.value = task.title_kz || '';
+        if (typeSelect) typeSelect.value = task.task_type || 'weekly';
+        if (zoneSelect) zoneSelect.value = task.zone || (adminPlannerZones[0]?.name || 'Бережливое производство');
+        if (deptSelect) deptSelect.value = task.department_service || '';
+        if (authorSelect) authorSelect.value = task.author_name || '';
+        if (assigneeSelect) assigneeSelect.value = task.assignee_name || '';
+
+        // Дата срока
+        if (dueDateInput) {
+            dueDateInput.value = parseDateToIso(task.due_date_str);
+        }
+
+        if (monthSelect) {
+            monthSelect.value = task.month_label || Object.keys(adminCalendarStructure)[0] || '';
+            onAdminModalMonthChange();
+        }
+        if (weekSelect) {
+            weekSelect.value = task.week_label || '';
+        }
+
+        if (statusSelect) statusSelect.value = task.status || '🟡 В работе';
+        if (commentInput) commentInput.value = task.comment || '';
+    } else {
+        if (titleEl) titleEl.innerHTML = `<i class="fa-solid fa-plus"></i> Новая задача планнера`;
+        if (idInput) idInput.value = '';
+        if (ruInput) ruInput.value = '';
+        if (kzInput) kzInput.value = '';
+        if (typeSelect) typeSelect.value = 'weekly';
+        if (zoneSelect && adminPlannerZones.length > 0) zoneSelect.value = adminPlannerZones[0].name;
+        if (deptSelect) deptSelect.value = '';
+
+        // По умолчанию автор — текущий вошедший пользователь или первый сотрудник
+        if (authorSelect) {
+            if (currentAdmin && currentAdmin.name) {
+                authorSelect.value = currentAdmin.name;
+            } else if (adminPlannerEmployees.length > 0) {
+                authorSelect.value = adminPlannerEmployees[0].name;
+            }
+        }
+        if (assigneeSelect) assigneeSelect.value = '';
+
+        // По умолчанию сегодня
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const isoToday = `${yyyy}-${mm}-${dd}`;
+        if (dueDateInput) dueDateInput.value = isoToday;
+
+        onAdminTaskModalDueDateChange();
+
+        if (statusSelect) statusSelect.value = '🟡 В работе';
+        if (commentInput) commentInput.value = '';
+    }
+
+    const modal = document.getElementById('admin-task-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function parseDateToIso(dateStr) {
+    if (!dateStr) return '';
+    const clean = String(dateStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+    
+    // Форматы: "18.09", "18.09 (Пт)", "18.09.2026"
+    const mFull = clean.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (mFull) {
+        return `${mFull[3]}-${mFull[2].padStart(2, '0')}-${mFull[1].padStart(2, '0')}`;
+    }
+    const mDm = clean.match(/(\d{1,2})\.(\d{1,2})/);
+    if (mDm) {
+        const yr = new Date().getFullYear();
+        return `${yr}-${mDm[2].padStart(2, '0')}-${mDm[1].padStart(2, '0')}`;
+    }
+    return '';
+}
+
+function formatIsoToRuDueDate(isoStr) {
+    if (!isoStr) return '';
+    const parts = isoStr.split('-');
+    if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        const dayNames = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+        const dayOfWeek = dayNames[d.getDay()] || "";
+        return `${parts[2]}.${parts[1]} (${dayOfWeek})`;
+    }
+    return isoStr;
+}
+
+async function saveAdminTask() {
+    const taskId = document.getElementById('admin-modal-task-id')?.value;
+    const titleRu = document.getElementById('admin-modal-title-ru')?.value.trim();
+    const titleKz = document.getElementById('admin-modal-title-kz')?.value.trim();
+    const taskType = document.getElementById('admin-modal-task-type')?.value || 'weekly';
+    const zone = document.getElementById('admin-modal-zone')?.value || 'Бережливое производство';
+    const dept = document.getElementById('admin-modal-dept')?.value || '';
+    const author = document.getElementById('admin-modal-author')?.value;
+    const assignee = document.getElementById('admin-modal-assignee')?.value || '';
+    const rawDue = document.getElementById('admin-modal-due-date')?.value;
+    const month = document.getElementById('admin-modal-month')?.value;
+    const week = document.getElementById('admin-modal-week')?.value;
+    const status = document.getElementById('admin-modal-status')?.value || '🟡 В работе';
+    const comment = document.getElementById('admin-modal-comment')?.value.trim() || '';
+
+    if (!titleRu && !titleKz) {
+        alert("Пожалуйста, введите суть задачи!");
+        document.getElementById('admin-modal-title-ru')?.focus();
+        return;
+    }
+    if (!author) {
+        alert("Пожалуйста, укажите автора задачи!");
+        document.getElementById('admin-modal-author')?.focus();
+        return;
+    }
+
+    const saveBtn = document.getElementById('btn-save-admin-task');
+    if (saveBtn) saveBtn.disabled = true;
+
+    const formattedDue = formatIsoToRuDueDate(rawDue);
+
+    const payload = {
+        title: titleRu || titleKz,
+        title_kz: titleKz || titleRu,
+        task_type: taskType,
+        zone: zone,
+        department_service: dept || null,
+        author_name: author,
+        assignee_name: assignee,
+        due_date_str: formattedDue,
+        month_label: month,
+        week_label: week,
+        status: status,
+        comment: comment,
+        pin_code: "1509" // Master Admin PIN override
+    };
+
+    try {
+        const url = taskId ? `/api/tasks/${taskId}` : '/api/tasks';
+        const method = taskId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            closeAdminTaskModal();
+            alert(taskId ? "Задача успешно обновлена!" : "Задача успешно создана!");
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка сохранения задачи: " + (err.detail || "Не удалось сохранить"));
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    } catch (e) {
+        console.error("Error saving admin task:", e);
+        alert("Произошла ошибка сети при сохранении задачи");
+        if (saveBtn) saveBtn.disabled = false;
     }
 }
 
@@ -3156,15 +3685,27 @@ function toggleSelectAdminTask(taskId, isChecked) {
 
 function toggleSelectAllAdminTasks(isChecked) {
     const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
-    const currentTasks = q ? adminAllTasks.filter(t => 
-        (t.title && t.title.toLowerCase().includes(q)) ||
-        (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
-        (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
-        (t.author_name && t.author_name.toLowerCase().includes(q)) ||
-        (t.zone && t.zone.toLowerCase().includes(q)) ||
-        (t.code && t.code.toLowerCase().includes(q)) ||
-        (t.month_label && t.month_label.toLowerCase().includes(q))
-    ) : adminAllTasks;
+    const selMonth = document.getElementById('admin-filter-month')?.value || 'all';
+    const selWeek = document.getElementById('admin-filter-week')?.value || 'all';
+    const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
+    const selStatus = document.getElementById('admin-filter-status')?.value || 'all';
+
+    let currentTasks = adminAllTasks;
+    if (selMonth !== 'all') currentTasks = currentTasks.filter(t => t.month_label === selMonth);
+    if (selWeek !== 'all') currentTasks = currentTasks.filter(t => t.week_label === selWeek);
+    if (selZone !== 'all') currentTasks = currentTasks.filter(t => t.zone === selZone || t.department_service === selZone);
+    if (selStatus !== 'all') currentTasks = currentTasks.filter(t => t.status === selStatus);
+    if (q) {
+        currentTasks = currentTasks.filter(t => 
+            (t.title && t.title.toLowerCase().includes(q)) ||
+            (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
+            (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
+            (t.author_name && t.author_name.toLowerCase().includes(q)) ||
+            (t.zone && t.zone.toLowerCase().includes(q)) ||
+            (t.code && t.code.toLowerCase().includes(q)) ||
+            (t.month_label && t.month_label.toLowerCase().includes(q))
+        );
+    }
 
     currentTasks.forEach(t => {
         if (isChecked) {
@@ -3305,82 +3846,6 @@ async function executeAdminBulkDelete() {
     } catch (e) {
         alert("Ошибка сети при массовом удалении задач");
     }
-}
-
-function renderAdminTasksTable(tasks) {
-    const tbody = document.getElementById('admin-tasks-table-body');
-    if (!tbody) return;
-
-    if (!tasks || tasks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
-        return;
-    }
-
-    tbody.innerHTML = tasks.map(t => {
-        let statusBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${escapeHtml(t.status || '—')}</span>`;
-        const st = t.status || '';
-        if (st.includes('Выполнено')) {
-            statusBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
-        } else if (st.includes('В работе')) {
-            statusBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
-        } else if (st.includes('Перенесено')) {
-            statusBadge = `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-arrow-right-arrow-left"></i> Перенесено</span>`;
-        } else if (st.includes('В очереди')) {
-            statusBadge = `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-regular fa-clock"></i> В очереди</span>`;
-        }
-
-        const titleRu = escapeHtml(t.title || '—');
-        const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #64748b; margin-top: 4px; font-style: italic; line-height: 1.25;">${escapeHtml(t.title_kz)}</div>` : '';
-        const isChecked = selectedAdminTaskIds.has(t.id);
-
-        return `
-            <tr id="admin-task-row-${t.id}">
-                <td style="text-align: center; white-space: nowrap;">
-                    <input type="checkbox" class="admin-task-row-cb" ${isChecked ? 'checked' : ''} onchange="toggleSelectAdminTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать задачу">
-                </td>
-                <td style="white-space: nowrap;">
-                    <span style="font-family: monospace; font-weight: 700; color: #1d4ed8; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${escapeHtml(t.code || ('TSK-' + t.id))}</span>
-                </td>
-                <td style="white-space: nowrap; font-size: 0.78rem;">
-                    <div style="font-weight: 600; color: #0f172a;">${escapeHtml(t.month_label || '—')}</div>
-                    <div style="color: #64748b; font-size: 0.74rem; margin-top: 2px;">${escapeHtml(t.week_label || '—')}</div>
-                </td>
-                <td style="white-space: nowrap;">
-                    <span style="background: #f1f5f9; padding: 3px 8px; border-radius: 6px; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; font-size: 0.78rem;">${escapeHtml(t.zone || '—')}</span>
-                </td>
-                <td style="min-width: 280px; max-width: 460px; white-space: normal; word-break: break-word; line-height: 1.35; padding: 0.55rem 0.75rem;">
-                    <div style="font-weight: 500; color: #0f172a; font-size: 0.84rem;">${titleRu}</div>
-                    ${titleKz}
-                </td>
-                <td style="font-size: 0.82rem; color: #1d4ed8; font-weight: 600; white-space: nowrap;">${escapeHtml(t.assignee_name || '—')}</td>
-                <td style="white-space: nowrap;">${statusBadge}</td>
-                <td style="text-align: right; white-space: nowrap;">
-                    <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" title="Удалить задачу навсегда">
-                        <i class="fa-solid fa-trash"></i> Удалить
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-    updateAdminTasksBulkBar();
-}
-
-function filterAdminTasksTable() {
-    const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
-    if (!q) {
-        renderAdminTasksTable(adminAllTasks);
-        return;
-    }
-    const filtered = adminAllTasks.filter(t => 
-        (t.title && t.title.toLowerCase().includes(q)) ||
-        (t.title_kz && t.title_kz.toLowerCase().includes(q)) ||
-        (t.assignee_name && t.assignee_name.toLowerCase().includes(q)) ||
-        (t.author_name && t.author_name.toLowerCase().includes(q)) ||
-        (t.zone && t.zone.toLowerCase().includes(q)) ||
-        (t.code && t.code.toLowerCase().includes(q)) ||
-        (t.month_label && t.month_label.toLowerCase().includes(q))
-    );
-    renderAdminTasksTable(filtered);
 }
 
 async function deleteTaskFromAdmin(taskId, taskTitle) {

@@ -804,6 +804,33 @@ def parse_week_label_range(week_label: Optional[str], month_label: Optional[str]
     e_date = parse_date_dm_or_full(m.group(2), default_year)
     return s_date, e_date
 
+def find_week_and_month_for_date(d_str: Optional[str], default_year: int = 2026):
+    """Находит month_label и week_label для переданной даты (строка или date)."""
+    if not d_str:
+        return None, None
+    parsed_date = parse_date_dm_or_full(d_str, default_year)
+    if not parsed_date:
+        return None, None
+    year = parsed_date.year
+    structure = generate_calendar_structure_mon_fri(year)
+    for m_name, month_weeks in structure.items():
+        for w in month_weeks:
+            s_date, e_date = parse_week_label_range(w, m_name, year)
+            if s_date and e_date:
+                # Охват всей календарной недели с понедельника по воскресенье (+2 дня после пятницы)
+                w_end = e_date + timedelta(days=2)
+                if s_date <= parsed_date <= w_end:
+                    return m_name, w
+    return None, None
+
+@router.get("/api/tasks/resolve_week")
+def resolve_week_by_date(date_str: str = Query(...)):
+    """Определяет месяц и рабочую неделю по переданной дате."""
+    m_label, w_label = find_week_and_month_for_date(date_str)
+    if m_label and w_label:
+        return {"status": "ok", "month_label": m_label, "week_label": w_label}
+    return {"status": "fallback", "month_label": None, "week_label": None}
+
 @router.get("/api/tasks")
 def get_tasks(
     month: Optional[str] = None,
@@ -1257,6 +1284,14 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             title_ru = trans_info.get("text_ru", "")
             title_kz = trans_info.get("text_kz", title_kz)
 
+        task_month = task_data.month_label or "Сентябрь 2026"
+        task_week = task_data.week_label or "Неделя 3 (21.09 - 25.09)"
+        if task_data.due_date_str:
+            res_m, res_w = find_week_and_month_for_date(task_data.due_date_str)
+            if res_m and res_w:
+                task_month = res_m
+                task_week = res_w
+
         new_task = models.Task(
             code=code_str,
             zone=task_data.zone or "Бережливое производство",
@@ -1275,8 +1310,8 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             due_date_str=task_data.due_date_str or "",
             status=task_data.status or "🟡 В работе",
             comment=task_data.comment or "",
-            month_label=task_data.month_label or "Август 2026",
-            week_label=task_data.week_label or "Неделя 4 (24.08 - 28.08)",
+            month_label=task_month,
+            week_label=task_week,
             attached_document_id=task_data.attached_document_id,
             is_archived=False
         )
@@ -1406,6 +1441,14 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
             # Определение срока задачи
             due_date = item.due_date_str or bulk_data.default_due_date_str or ""
 
+            item_month = target_month
+            item_week = target_week
+            if due_date:
+                res_m, res_w = find_week_and_month_for_date(due_date)
+                if res_m and res_w:
+                    item_month = res_m
+                    item_week = res_w
+
             # Определение зоны
             zone_val = item.zone or bulk_data.zone or "Бережливое производство"
 
@@ -1425,8 +1468,8 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 due_date_str=due_date,
                 status="🟡 В работе",
                 comment="",
-                month_label=target_month,
-                week_label=target_week,
+                month_label=item_month,
+                week_label=item_week,
                 attached_document_id=item.attached_document_id,
                 is_archived=False
             )
@@ -1740,6 +1783,12 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         if "title" in update_dict:
             curr_tags = update_dict.get("tags") if "tags" in update_dict else task.tags
             update_dict["tags"] = extract_hashtags_from_title(update_dict["title"], curr_tags)
+
+        if "due_date_str" in update_dict and update_dict.get("due_date_str") and "week_label" not in update_dict:
+            res_m, res_w = find_week_and_month_for_date(update_dict["due_date_str"])
+            if res_m and res_w:
+                update_dict["month_label"] = res_m
+                update_dict["week_label"] = res_w
 
         changes = []
         for key, val in update_dict.items():
