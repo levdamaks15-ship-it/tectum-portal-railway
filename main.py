@@ -1049,6 +1049,17 @@ async def lifespan(app: FastAPI):
                 db_sync.close()
         threading.Thread(target=bg_sync_startup_reports, daemon=True).start()
 
+        def bg_backfill_task_translations():
+            db_sync = SessionLocal()
+            try:
+                from routers.planner import backfill_missing_task_translations
+                backfill_missing_task_translations(db_sync)
+            except Exception as tr_e:
+                print(f"Startup task translations backfill warning: {tr_e}")
+            finally:
+                db_sync.close()
+        threading.Thread(target=bg_backfill_task_translations, daemon=True).start()
+
         if not db.query(models.Master).filter(models.Master.role == "director").first():
             db.add(models.Master(name="Технический директор", pin="7777", role="director"))
             db.commit()

@@ -729,6 +729,7 @@ class TaskCreate(TaskBase):
 
 class BulkTaskItem(ORMBaseModel):
     title: str
+    title_kz: Optional[str] = ""
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
     zone: Optional[str] = None

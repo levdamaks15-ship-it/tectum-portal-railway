@@ -493,7 +493,7 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
 
         if is_kz:
             # Исходный текст - казахский. Переводим на русский
-            trans_ru = _fetch_translation_api(clean_text, "kk", "ru") or clean_text if not fast_mode else clean_text
+            trans_ru = _fetch_translation_api(clean_text, "kk", "ru") or clean_text
             return {
                 "status": "ok",
                 "detected_lang": "kk",
@@ -502,7 +502,7 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
             }
         else:
             # Исходный текст - русский. Переводим на казахский
-            trans_kz = _fetch_translation_api(clean_text, "ru", "kk") or clean_text if not fast_mode else ""
+            trans_kz = _fetch_translation_api(clean_text, "ru", "kk") or ""
             return {
                 "status": "ok",
                 "detected_lang": "ru",
@@ -517,6 +517,42 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
             "text_ru": clean_text,
             "text_kz": ""
         }
+
+def backfill_missing_task_translations(db: Session, limit: int = 150) -> int:
+    """
+    Фоновый воркер для автоматического перевода задач с отсутствующим title_kz.
+    Находит все задачи без казахского перевода, переводит и сохраняет в БД.
+    """
+    try:
+        tasks_to_translate = db.query(models.Task).filter(
+            (models.Task.title_kz.is_(None) | (models.Task.title_kz == "")),
+            models.Task.title.isnot(None),
+            models.Task.title != "",
+            models.Task.is_archived == False
+        ).order_by(models.Task.id.desc()).limit(limit).all()
+
+        if not tasks_to_translate:
+            return 0
+
+        translated_count = 0
+        for task in tasks_to_translate:
+            raw_title = (task.title or "").strip()
+            if not raw_title:
+                continue
+            trans_res = detect_and_translate_task_text(raw_title)
+            kz_text = trans_res.get("text_kz", "")
+            if kz_text:
+                task.title_kz = kz_text
+                translated_count += 1
+
+        if translated_count > 0:
+            db.commit()
+            print(f"[Planner Auto-Translate] Successfully backfilled KZ translations for {translated_count} tasks.")
+        return translated_count
+    except Exception as e:
+        db.rollback()
+        print(f"[Planner Auto-Translate] Error backfilling task translations: {e}")
+        return 0
 
 def auto_translate_text_internal(text: str) -> str:
     """Внутренний хелпер для автоперевода RU -> KZ."""
@@ -1357,10 +1393,15 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
             # Парсинг хэштегов из названия
             combined_tags = extract_hashtags_from_title(title_raw, item.tags)
 
-            # Перевод названия (в режиме fast_mode=True, исключая внешние сетевые задержки в цикле)
-            trans_info = detect_and_translate_task_text(title_raw, fast_mode=True)
-            title_ru = trans_info.get("text_ru", title_raw)
-            title_kz = trans_info.get("text_kz", "")
+            # Автоматический интеллектуальный перевод названия (RU <-> KZ)
+            title_kz_candidate = (item.title_kz or "").strip()
+            if title_kz_candidate:
+                title_ru = title_raw
+                title_kz = title_kz_candidate
+            else:
+                trans_info = detect_and_translate_task_text(title_raw)
+                title_ru = trans_info.get("text_ru", title_raw)
+                title_kz = trans_info.get("text_kz", "")
 
             # Определение срока задачи
             due_date = item.due_date_str or bulk_data.default_due_date_str or ""
@@ -1396,6 +1437,7 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 "id": new_task.id,
                 "code": new_task.code,
                 "title": new_task.title,
+                "title_kz": new_task.title_kz,
                 "assignee_name": new_task.assignee_name
             })
 
@@ -1459,6 +1501,12 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
         db.rollback()
         print(f"Error bulk creating tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/backfill_translations")
+def trigger_backfill_translations(db: Session = Depends(get_db)):
+    """Принудительный запуск фонового автоперевода для всех задач с отсутствующим переводом."""
+    count = backfill_missing_task_translations(db, limit=200)
+    return {"status": "ok", "translated_count": count}
 
 @router.post("/api/tasks/ocr_image")
 async def ocr_tasks_from_image(
