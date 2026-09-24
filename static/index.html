@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tectum Enterprise Portal</title>
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
-    <link rel="stylesheet" href="/static/css/style.css?v=20260907_simple_calendar_v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260924_mobile_font_fix">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -829,19 +829,38 @@
                         </div>
                         <div id="sec-raw" class="accordion-content">
                             <style>
+                                .rm-table-wrapper {
+                                    width: 100%;
+                                    overflow-x: auto;
+                                    -webkit-overflow-scrolling: touch;
+                                    padding-bottom: 8px;
+                                    margin-bottom: 1rem;
+                                    scrollbar-width: thin;
+                                }
+
+                                .rm-table-wrapper::-webkit-scrollbar {
+                                    height: 6px;
+                                }
+
+                                .rm-table-wrapper::-webkit-scrollbar-thumb {
+                                    background: #cbd5e1;
+                                    border-radius: 4px;
+                                }
+
                                 .rm-grid {
                                     display: grid;
                                     grid-template-columns: minmax(130px, 1.8fr) repeat(4, minmax(60px, 1fr)) minmax(70px, 1fr);
                                     gap: 0.5rem;
                                     align-items: center;
-                                    margin-bottom: 1.5rem;
                                     padding: 0.5rem 0;
+                                    min-width: 500px;
                                 }
 
-                                @media (max-width: 768px) {
+                                @media screen and (max-width: 768px) {
                                     .rm-grid {
-                                        grid-template-columns: minmax(90px, 1.4fr) repeat(4, minmax(50px, 1fr)) minmax(65px, 1.1fr);
+                                        grid-template-columns: minmax(110px, 1.4fr) repeat(4, minmax(55px, 1fr)) minmax(65px, 1fr);
                                         gap: 0.35rem;
+                                        min-width: 460px;
                                     }
 
                                     .rm-header {
@@ -856,9 +875,8 @@
                                     .rm-grid input[type="number"],
                                     .rm-grid input[type="text"] {
                                         padding: 0.45rem 0.25rem;
-                                        font-size: 16px !important;
-                                        /* Prevents auto-zoom on iOS */
-                                        min-height: 44px;
+                                        font-size: 0.95rem !important;
+                                        min-height: 42px;
                                     }
                                 }
 
@@ -873,6 +891,7 @@
 
                                 .rm-grid .form-group {
                                     margin-bottom: 0;
+                                    min-width: 0;
                                 }
 
                                 .rm-grid input[type="number"],
@@ -887,6 +906,7 @@
                                     color: var(--text-primary);
                                     box-shadow: var(--shadow-xs);
                                     transition: all 0.15s ease;
+                                    box-sizing: border-box;
                                 }
 
                                 .rm-grid input[type="number"]:focus,
@@ -900,10 +920,11 @@
                                     font-size: 0.9rem;
                                     color: var(--text-primary);
                                     font-weight: 500;
+                                    word-break: break-word;
                                 }
                             </style>
 
-                            <div>
+                            <div class="rm-table-wrapper">
                                 <div class="rm-grid" id="rm-calculator-grid">
                                     <div class="rm-header" style="text-align: left;">Материал</div>
                                     <div class="rm-header" id="rm-header-silo1">Силос 1</div>

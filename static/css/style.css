@@ -898,7 +898,7 @@ button.btn-cancel:hover {
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
 
     #materials-dashboards-panel,
     #raw-materials-management-card {
@@ -1148,9 +1148,11 @@ button.btn-cancel:hover {
     .form-grid-two,
     .form-grid-three {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0.75rem !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.65rem !important;
         align-items: stretch !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .form-grid-two .form-group,
@@ -1159,6 +1161,10 @@ button.btn-cancel:hover {
         flex-direction: column !important;
         justify-content: flex-end !important;
         height: 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .form-grid-two .form-group label,
@@ -1166,16 +1172,24 @@ button.btn-cancel:hover {
         flex: 1 1 auto !important;
         display: flex !important;
         align-items: flex-end !important;
-        font-size: 0.82rem !important;
+        font-size: 0.8rem !important;
         line-height: 1.25 !important;
-        margin-bottom: 6px !important;
+        margin-bottom: 5px !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
     }
 
     .form-grid-two .form-group input,
     .form-grid-three .form-group input,
+    .form-grid-two .form-group select,
+    .form-grid-three .form-group select,
     .form-grid-two .form-group .custom-select-wrapper,
     .form-grid-three .form-group .custom-select-wrapper {
         margin-top: auto !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     /* Wide inputs in 2-col grids span 2 columns if specified or for odd batches */
@@ -1185,8 +1199,50 @@ button.btn-cancel:hover {
 
     .form-grid-four {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0.6rem !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.55rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .form-grid-four .form-group {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .form-grid-four .form-group input {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Accordion mobile optimizations */
+    .accordion-section {
+        margin-bottom: 1rem !important;
+        border-radius: 14px !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: clip !important;
+    }
+
+    .accordion-header {
+        padding: 0.85rem 0.9rem !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .accordion-header h3 {
+        font-size: 0.95rem !important;
+        word-break: break-word !important;
+    }
+
+    .accordion-content {
+        padding: 0.85rem 0.75rem !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     /* Ensure all text-like inputs and custom-select triggers have exact same height & border-radius */
@@ -1195,12 +1251,15 @@ button.btn-cancel:hover {
     .custom-select-trigger {
         min-height: 42px !important;
         height: 42px !important;
-        padding: 0.55rem 0.95rem !important;
+        padding: 0.5rem 0.75rem !important;
         border-radius: 12px !important;
-        font-size: 0.9rem !important;
+        font-size: 0.88rem !important;
         box-sizing: border-box !important;
         display: flex !important;
         align-items: center !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     /* Strictly hide all hidden inputs and unstyled checkboxes */
@@ -1212,31 +1271,42 @@ button.btn-cancel:hover {
     select:not([data-custom-select-initialized="true"]) {
         min-height: 42px !important;
         height: 42px !important;
-        padding: 0.55rem 2rem 0.55rem 0.95rem !important;
+        padding: 0.5rem 1.8rem 0.5rem 0.75rem !important;
         border-radius: 12px !important;
-        font-size: 0.9rem !important;
+        font-size: 0.88rem !important;
         box-sizing: border-box !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     /* Receipt Section 5 Mobile 2-Column Grid & Group Boxes */
     .receipt-meta-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0.75rem !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.65rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .receipt-meta-grid .form-group {
-        display: flex;
-        flex-direction: column;
+        display: flex !important;
+        flex-direction: column !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .rm-section-box {
         background: #ffffff;
         border: 1px solid var(--stripe-border);
         border-radius: 14px;
-        padding: 1rem;
+        padding: 0.85rem 0.75rem !important;
         margin-bottom: 1rem;
         box-shadow: var(--stripe-shadow-sm);
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .rm-box-chrysotile {
@@ -1277,44 +1347,55 @@ button.btn-cancel:hover {
     }
 
     .rm-inputs-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 0.65rem !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.55rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .rm-inputs-grid .form-group {
-        margin-bottom: 0;
+        margin-bottom: 0 !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .rm-inputs-grid label {
-        font-size: 0.78rem !important;
-        font-weight: 600;
-        margin-bottom: 4px;
-        line-height: 1.2;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
+        font-size: 0.76rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 3px !important;
+        line-height: 1.2 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 2px !important;
+        word-break: break-word !important;
     }
 
     .unit-tag {
-        font-size: 0.7rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-        display: inline-block;
+        font-size: 0.68rem !important;
+        font-weight: 500 !important;
+        color: var(--text-secondary) !important;
+        display: inline-block !important;
     }
 
     .rm-inputs-grid input[type="number"] {
-        padding: 0.5rem 0.6rem !important;
-        font-size: 1rem !important;
-        font-weight: 600;
-        min-height: 42px;
-        border-radius: 8px;
+        padding: 0.45rem 0.5rem !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        min-height: 42px !important;
+        border-radius: 8px !important;
         background: #ffffff !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 }
 
 /* Mobile Forms & Grids Extra */
-@media (max-width: 576px) {
+@media screen and (max-width: 576px) {
     .two-col-grid {
         grid-template-columns: 1fr !important;
     }
@@ -1425,7 +1506,7 @@ button.btn-cancel:hover {
     margin-top: 0.5rem;
 }
 
-@media (max-width: 480px) {
+@media screen and (max-width: 480px) {
 
     html,
     body {
@@ -1452,8 +1533,11 @@ button.btn-cancel:hover {
     input,
     select,
     button {
-        padding: 0.5rem 0.75rem !important;
+        padding: 0.5rem 0.65rem !important;
         font-size: 0.85rem !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .header-title {
@@ -1465,12 +1549,13 @@ button.btn-cancel:hover {
     }
 
     .btn-submit-huge {
-        padding: 1rem;
-        font-size: 1.1rem;
+        padding: 0.9rem !important;
+        font-size: 1rem !important;
+        max-width: 100% !important;
     }
 
     .mobile-form label {
-        font-size: 0.9rem;
+        font-size: 0.88rem;
     }
 
     .grid-kpi-two-col {
@@ -1797,8 +1882,11 @@ select[data-custom-select-initialized="true"] {
 .custom-select-wrapper {
     position: relative;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     user-select: none;
     font-family: inherit;
+    box-sizing: border-box;
 }
 
 .custom-select-trigger {
@@ -1806,8 +1894,10 @@ select[data-custom-select-initialized="true"] {
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: 42px;
-    padding: 0.6rem 0.95rem;
+    padding: 0.6rem 0.75rem;
     background: #ffffff;
     border: 1px solid var(--stripe-border);
     border-radius: 12px;
@@ -1832,10 +1922,12 @@ select[data-custom-select-initialized="true"] {
 }
 
 .custom-select-trigger-text {
+    min-width: 0;
+    flex: 1 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding-right: 8px;
+    padding-right: 6px;
 }
 
 .custom-select-trigger-text.placeholder {
