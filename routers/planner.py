@@ -793,7 +793,10 @@ def get_tasks(
         # 1. Фильтрация по типу задачи / горизонту
         if task_type == "weekly":
             query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
-            query = query.filter(models.Task.task_type != "service_plan", models.Task.task_type != "roadmap", models.Task.task_type != "milestone")
+            query = query.filter(
+                models.Task.task_type.notin_(["service_plan", "roadmap", "milestone", "tech_council", "quality_day"]),
+                models.Task.zone.notin_(["Техсовет", "День качества"])
+            )
         elif task_type == "service_plan":
             query = query.filter(
                 (models.Task.task_type == "service_plan") |
@@ -807,6 +810,10 @@ def get_tasks(
                     or_(models.Task.department_service.is_(None), models.Task.department_service.in_(["", "Общий"]))
                 )
             )
+        elif task_type == "tech_council":
+            query = query.filter((models.Task.task_type == "tech_council") | (models.Task.zone == "Техсовет"))
+        elif task_type == "quality_day":
+            query = query.filter((models.Task.task_type == "quality_day") | (models.Task.zone == "День качества"))
         elif task_type and task_type != "all":
             query = query.filter(models.Task.task_type == task_type)
 

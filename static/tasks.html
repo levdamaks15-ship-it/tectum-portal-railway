@@ -2273,6 +2273,9 @@
                         style="font-weight: 600;">
                         <option value="weekly">⚡ Недельный спринт</option>
                         <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
+                        <option value="tech_council">🏛️ Техсовет</option>
+                        <option value="quality_day">📋 День качества</option>
+                        <option value="roadmap">🗺️ Дорожная карта</option>
                     </select>
                     <select class="form-select" id="task-department-input" style="font-weight: 600;">
                         <option value="">-- Без привязки к службе --</option>
@@ -2465,6 +2468,9 @@
                             style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
                             <option value="weekly">⚡ Недельный спринт</option>
                             <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
+                            <option value="tech_council">🏛️ Техсовет</option>
+                            <option value="quality_day">📋 День качества</option>
+                            <option value="roadmap">🗺️ Дорожные карты и проекты</option>
                         </select>
                     </div>
 
@@ -3009,20 +3015,32 @@
         <div class="apple-nav-item active" data-horizon="weekly"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #C82323;"
              onclick="switchHorizon('weekly'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('weekly');">
-            <i class="fa-solid fa-bolt" style="font-size: 26px;"></i>
-            <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.1px;">Спринт</span>
+            <i class="fa-solid fa-bolt" style="font-size: 21px;"></i>
+            <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Спринт</span>
         </div>
         <div class="apple-nav-item" data-horizon="services"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
              onclick="switchHorizon('services'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('services');">
-            <i class="fa-solid fa-table-cells-large" style="font-size: 26px;"></i>
-            <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.1px;">Службы</span>
+            <i class="fa-solid fa-wrench" style="font-size: 21px;"></i>
+            <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Службы</span>
+        </div>
+        <div class="apple-nav-item" data-horizon="tech_council"
+             style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
+             onclick="switchHorizon('tech_council'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('tech_council');">
+            <i class="fa-solid fa-microscope" style="font-size: 21px;"></i>
+            <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Техсовет</span>
+        </div>
+        <div class="apple-nav-item" data-horizon="quality_day"
+             style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
+             onclick="switchHorizon('quality_day'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('quality_day');">
+            <i class="fa-solid fa-clipboard-check" style="font-size: 21px;"></i>
+            <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Качество</span>
         </div>
         <div class="apple-nav-item" data-horizon="my"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
              onclick="selectMyTasksFromNav();">
-            <i class="fa-regular fa-square-check" style="font-size: 26px;"></i>
-            <span style="font-size: 10px; font-weight: 500; letter-spacing: 0.1px;">Мои</span>
+            <i class="fa-regular fa-square-check" style="font-size: 21px;"></i>
+            <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Мои</span>
         </div>
     </div>
 

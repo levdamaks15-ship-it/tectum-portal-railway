@@ -839,9 +839,9 @@ function startTasksLiveSync() {
                     url += `&has_doc=true`;
                 }
             } else if (currentHorizon === "tech_council") {
-                url += `&task_type=all&zone=${encodeURIComponent("Техсовет")}`;
+                url += `&task_type=tech_council&zone=${encodeURIComponent("Техсовет")}`;
             } else if (currentHorizon === "quality_day") {
-                url += `&task_type=all&zone=${encodeURIComponent("День качества")}`;
+                url += `&task_type=quality_day&zone=${encodeURIComponent("День качества")}`;
             }
 
             // Хэштег
@@ -922,9 +922,9 @@ async function loadTasks() {
             url += `&has_doc=true`;
         }
     } else if (currentHorizon === "tech_council") {
-        url += `&task_type=all&zone=${encodeURIComponent("Техсовет")}`;
+        url += `&task_type=tech_council&zone=${encodeURIComponent("Техсовет")}`;
     } else if (currentHorizon === "quality_day") {
-        url += `&task_type=all&zone=${encodeURIComponent("День качества")}`;
+        url += `&task_type=quality_day&zone=${encodeURIComponent("День качества")}`;
     }
 
     // Хэштег
@@ -988,6 +988,10 @@ function switchHorizon(horizon, event) {
     document.querySelectorAll(".horizon-tab-btn").forEach(btn => btn.classList.remove("active"));
     const activeBtn = document.getElementById(`tab-horizon-${horizon}`);
     if (activeBtn) activeBtn.classList.add("active");
+
+    if (typeof appleNavSwitch === "function") {
+        appleNavSwitch(horizon);
+    }
 
     const tableWrapper = document.getElementById("planner-table-wrapper");
     const roadmapsContainer = document.getElementById("roadmaps-view-container");
@@ -3402,7 +3406,12 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     
     // Тип задачи / Горизонт
     const typeSelect = document.getElementById("task-type-input");
-    const initType = forcedType || (currentHorizon === 'roadmaps' ? 'roadmap' : (currentHorizon === 'services' ? 'service_plan' : 'weekly'));
+    const initType = forcedType || (
+        currentHorizon === 'roadmaps' ? 'roadmap' :
+        currentHorizon === 'services' ? 'service_plan' :
+        currentHorizon === 'tech_council' ? 'tech_council' :
+        currentHorizon === 'quality_day' ? 'quality_day' : 'weekly'
+    );
     if (typeSelect) {
         typeSelect.value = initType;
         onTaskTypeChange(initType);
@@ -3411,9 +3420,9 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     // Зона по умолчанию
     const zoneSelect = document.getElementById("task-zone-input");
     if (zoneSelect) {
-        if (currentHorizon === 'tech_council') {
+        if (currentHorizon === 'tech_council' || initType === 'tech_council') {
             zoneSelect.value = "Техсовет";
-        } else if (currentHorizon === 'quality_day') {
+        } else if (currentHorizon === 'quality_day' || initType === 'quality_day') {
             zoneSelect.value = "День качества";
         } else {
             zoneSelect.value = "Бережливое производство";
@@ -3755,6 +3764,10 @@ function openBulkTasksModal() {
     if (typeSelect) {
         if (currentHorizon === "services") {
             typeSelect.value = "service_plan";
+        } else if (currentHorizon === "tech_council") {
+            typeSelect.value = "tech_council";
+        } else if (currentHorizon === "quality_day") {
+            typeSelect.value = "quality_day";
         } else if (currentHorizon === "roadmaps") {
             typeSelect.value = "roadmap";
         } else {
@@ -3841,9 +3854,27 @@ function closeBulkTasksModal() {
     if (modal) modal.style.display = "none";
 }
 
+function onTaskTypeChange(typeVal) {
+    const deptSelect = document.getElementById("task-department-input");
+    const zoneSelect = document.getElementById("task-zone-input");
+    if (typeVal === "service_plan") {
+        if (deptSelect && !deptSelect.value) deptSelect.value = "ОГМ";
+        if (zoneSelect) zoneSelect.value = (deptSelect && deptSelect.value) ? deptSelect.value : "ОГМ";
+    } else if (typeVal === "tech_council") {
+        if (zoneSelect) zoneSelect.value = "Техсовет";
+    } else if (typeVal === "quality_day") {
+        if (zoneSelect) zoneSelect.value = "День качества";
+    } else if (typeVal === "weekly") {
+        if (zoneSelect && (zoneSelect.value === "Техсовет" || zoneSelect.value === "День качества")) {
+            zoneSelect.value = "Бережливое производство";
+        }
+    }
+}
+
 function onBulkTypeChange(typeVal) {
     const deptSelect = document.getElementById("bulk-department-input");
     const authorSelect = document.getElementById("bulk-author-input");
+    const zoneSelect = document.getElementById("bulk-zone-input");
 
     if (typeVal === "service_plan") {
         if (deptSelect && !deptSelect.value) {
@@ -3851,6 +3882,15 @@ function onBulkTypeChange(typeVal) {
         }
         if (deptSelect && deptSelect.value === "ОГЭ" && authorSelect && !authorSelect.value) {
             authorSelect.value = "Курилова С.";
+        }
+        if (zoneSelect) zoneSelect.value = (deptSelect && deptSelect.value) ? deptSelect.value : "ОГМ";
+    } else if (typeVal === "tech_council") {
+        if (zoneSelect) zoneSelect.value = "Техсовет";
+    } else if (typeVal === "quality_day") {
+        if (zoneSelect) zoneSelect.value = "День качества";
+    } else if (typeVal === "weekly") {
+        if (zoneSelect && (zoneSelect.value === "Техсовет" || zoneSelect.value === "День качества")) {
+            zoneSelect.value = "Бережливое производство";
         }
     }
     updateBulkColumnsLayout();
@@ -3879,14 +3919,15 @@ function onBulkDepartmentChange(deptVal) {
 }
 
 function onBulkDefaultDueChanged(newIsoDate) {
-    // Обновляем даты в строках, если они пустые или совпадали со старой
+    if (!newIsoDate) return;
     const rows = document.querySelectorAll(".bulk-task-row");
     rows.forEach(row => {
         const dueInput = row.querySelector(".bulk-row-due");
-        if (dueInput && !dueInput.value) {
+        if (dueInput) {
             dueInput.value = newIsoDate;
         }
     });
+    showToast(`Срок для всех строк обновлён на ${formatIsoToDisplayDate(newIsoDate)} 📅`);
 }
 
 function toggleBulkQuickPaste() {
