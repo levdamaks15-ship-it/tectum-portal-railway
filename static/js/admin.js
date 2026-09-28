@@ -3325,8 +3325,10 @@ function onAdminTaskRuInput() {
 }
 
 async function loadAdminTasksList() {
-    const tbody = document.getElementById('admin-tasks-table-body');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...</td></tr>`;
+    const tbodies = document.querySelectorAll('#admin-tasks-table-body, [id="admin-tasks-table-body"]');
+    tbodies.forEach(tbody => {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...</td></tr>`;
+    });
 
     try {
         const res = await fetch('/api/tasks?month=all');
@@ -3334,16 +3336,25 @@ async function loadAdminTasksList() {
             adminAllTasks = await res.json();
             filterAdminTasksTable();
         } else {
-            if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Не удалось загрузить задачи</td></tr>`;
+            tbodies.forEach(tbody => {
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Не удалось загрузить задачи</td></tr>`;
+            });
         }
     } catch (e) {
         console.error("Error loading admin tasks:", e);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Ошибка сети</td></tr>`;
+        tbodies.forEach(tbody => {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Ошибка сети</td></tr>`;
+        });
     }
 }
 
 function filterAdminTasksTable() {
-    const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
+    let q = '';
+    const searchInputs = document.querySelectorAll('#admin-task-search, [id="admin-task-search"]');
+    searchInputs.forEach(inp => {
+        if (inp.value && inp.value.trim()) q = inp.value.toLowerCase().trim();
+    });
+
     const selMonth = document.getElementById('admin-filter-month')?.value || 'all';
     const selWeek = document.getElementById('admin-filter-week')?.value || 'all';
     const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
@@ -3385,27 +3396,29 @@ function resetAdminTasksFilters() {
     const filterWeek = document.getElementById('admin-filter-week');
     const filterZone = document.getElementById('admin-filter-zone');
     const filterStatus = document.getElementById('admin-filter-status');
-    const searchInput = document.getElementById('admin-task-search');
+    const searchInputs = document.querySelectorAll('#admin-task-search, [id="admin-task-search"]');
 
     if (filterMonth) filterMonth.value = 'all';
     if (filterWeek) filterWeek.value = 'all';
     if (filterZone) filterZone.value = 'all';
     if (filterStatus) filterStatus.value = 'all';
-    if (searchInput) searchInput.value = '';
+    searchInputs.forEach(inp => { inp.value = ''; });
 
     onAdminFilterMonthChange();
 }
 
 function renderAdminTasksTable(tasks) {
-    const tbody = document.getElementById('admin-tasks-table-body');
-    if (!tbody) return;
+    const tbodies = document.querySelectorAll('#admin-tasks-table-body, [id="admin-tasks-table-body"]');
+    if (!tbodies || tbodies.length === 0) return;
 
     if (!tasks || tasks.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
+        tbodies.forEach(tbody => {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
+        });
         return;
     }
 
-    tbody.innerHTML = tasks.map(t => {
+    const html = tasks.map(t => {
         let statusBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${escapeHtml(t.status || '—')}</span>`;
         const st = t.status || '';
         if (st.includes('Выполнено')) {
@@ -3472,6 +3485,11 @@ function renderAdminTasksTable(tasks) {
             </tr>
         `;
     }).join('');
+
+    tbodies.forEach(tbody => {
+        tbody.innerHTML = html;
+    });
+
     updateAdminTasksBulkBar();
 }
 
@@ -3688,7 +3706,12 @@ function toggleSelectAdminTask(taskId, isChecked) {
 }
 
 function toggleSelectAllAdminTasks(isChecked) {
-    const q = (document.getElementById('admin-task-search')?.value || '').toLowerCase().trim();
+    let q = '';
+    const searchInputs = document.querySelectorAll('#admin-task-search, [id="admin-task-search"]');
+    searchInputs.forEach(inp => {
+        if (inp.value && inp.value.trim()) q = inp.value.toLowerCase().trim();
+    });
+
     const selMonth = document.getElementById('admin-filter-month')?.value || 'all';
     const selWeek = document.getElementById('admin-filter-week')?.value || 'all';
     const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
@@ -3725,28 +3748,33 @@ function toggleSelectAllAdminTasks(isChecked) {
 }
 
 function updateAdminTasksBulkBar() {
-    const bar = document.getElementById('admin-tasks-bulk-bar');
-    const countEl = document.getElementById('admin-tasks-selected-count');
-    const masterCb = document.getElementById('th-admin-select-all-tasks');
+    const bars = document.querySelectorAll('#admin-tasks-bulk-bar, [id="admin-tasks-bulk-bar"]');
+    const countEls = document.querySelectorAll('#admin-tasks-selected-count, [id="admin-tasks-selected-count"]');
+    const masterCbs = document.querySelectorAll('#th-admin-select-all-tasks, [id="th-admin-select-all-tasks"]');
 
     const count = selectedAdminTaskIds.size;
-    if (countEl) countEl.textContent = count;
+    countEls.forEach(countEl => {
+        countEl.textContent = count;
+    });
 
-    if (bar) {
+    bars.forEach(bar => {
         bar.style.display = count > 0 ? 'flex' : 'none';
-    }
+    });
 
-    if (masterCb) {
-        masterCb.checked = adminAllTasks.length > 0 && adminAllTasks.every(t => selectedAdminTaskIds.has(t.id));
-    }
+    const allSelected = adminAllTasks.length > 0 && adminAllTasks.every(t => selectedAdminTaskIds.has(t.id));
+    masterCbs.forEach(masterCb => {
+        masterCb.checked = allSelected;
+    });
 }
 
 function clearAdminTasksSelection() {
     selectedAdminTaskIds.clear();
     const checkboxes = document.querySelectorAll('.admin-task-row-cb');
     checkboxes.forEach(cb => cb.checked = false);
-    const masterCb = document.getElementById('th-admin-select-all-tasks');
-    if (masterCb) masterCb.checked = false;
+    const masterCbs = document.querySelectorAll('#th-admin-select-all-tasks, [id="th-admin-select-all-tasks"]');
+    masterCbs.forEach(masterCb => {
+        masterCb.checked = false;
+    });
     updateAdminTasksBulkBar();
 }
 
