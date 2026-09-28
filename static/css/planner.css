@@ -2017,4 +2017,212 @@ tr.week-divider-row td {
     margin-top: 4px;
 }
 
+/* ==========================================================================
+   WEEK NAV SEGMENT — Единый инлайн-контрол навигации по неделям
+   ========================================================================== */
 
+/* Обёртка даты-навигации — одна строка без переноса */
+.toolbar-group-dates {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+}
+
+/* Сегментированная кнопочная группа [◀][Неделя ▾][▶] */
+.week-nav-segment {
+    display: inline-flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: box-shadow 0.15s ease;
+}
+
+.week-nav-segment:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+/* Стрелки ◀ / ▶ */
+.btn-week-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    min-width: 32px;
+    height: 34px;
+    background: #f8fafc;
+    border: none;
+    border-radius: 0;
+    color: #64748b;
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.12s ease, color 0.12s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-week-step:hover {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.btn-week-step:active {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+#btn-week-prev {
+    border-right: 1px solid #e2e8f0;
+}
+
+#btn-week-next {
+    border-left: 1px solid #e2e8f0;
+}
+
+/* Инлайн-селектор недель внутри сегмента */
+.week-select-inline {
+    appearance: auto;
+    -webkit-appearance: auto;
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 8px !important;
+    height: 34px;
+    min-height: 34px;
+    font-size: 0.83rem !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    cursor: pointer;
+    min-width: 120px;
+    max-width: 240px;
+    outline: none !important;
+}
+
+.week-select-inline:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Кнопка «Сегодня» — тихий ghost-чип */
+.btn-today-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 11px;
+    height: 34px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.12s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    font-family: inherit;
+}
+
+.btn-today-chip:hover {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #93c5fd;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.12);
+}
+
+.btn-today-chip:active {
+    transform: scale(0.97);
+}
+
+.btn-today-chip i {
+    font-size: 0.77rem;
+}
+
+/* Компактный и единообразный стиль для select месяца */
+#filter-month {
+    height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 0.83rem !important;
+    font-weight: 700 !important;
+    border-radius: 9px !important;
+    min-width: 130px;
+    flex-shrink: 0;
+    border: 1px solid #93c5fd !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+}
+
+/* Делители недель в таблице задач */
+.week-divider-row td {
+    background: linear-gradient(90deg, #f1f5f9 0%, #f8fafc 100%) !important;
+    border-top: 2px solid #e2e8f0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 5px 12px !important;
+    pointer-events: none;
+}
+
+.week-divider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Заголовок-разделитель для мобильных карточек */
+.week-divider-card-heading {
+    padding: 8px 12px 4px;
+    font-size: 0.73rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 4px;
+}
+
+/* Адаптация тулбара на мобильных */
+@media screen and (max-width: 768px) {
+    .toolbar-group-dates {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+    }
+
+    .week-nav-segment {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .week-select-inline {
+        flex: 1;
+        min-width: 0;
+        max-width: none;
+    }
+
+    #filter-month {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 100% !important;
+    }
+
+    .btn-today-chip span {
+        display: none;
+    }
+
+    .btn-today-chip {
+        width: 34px;
+        padding: 0;
+        justify-content: center;
+    }
+}

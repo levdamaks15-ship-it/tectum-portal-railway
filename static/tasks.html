@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20260907_calendar_time_v1">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20260921_apple_v5">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20260928_weeknav_v1">
 
     <style>
         :root {
@@ -1927,10 +1927,9 @@
 
     <!-- Toolbar: Month/Week Selector & Action Buttons -->
     <div class="toolbar" id="main-toolbar">
-        <div class="toolbar-group toolbar-group-dates" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <div class="toolbar-group toolbar-group-dates">
             <!-- Month Selector -->
-            <select class="select-filter" id="filter-month" onchange="onMonthChange()"
-                style="font-weight: 700; color: #2563eb; border-color: #93c5fd; background: #eff6ff;">
+            <select class="select-filter" id="filter-month" onchange="onMonthChange()">
                 <option value="all">🌐 За всё время</option>
                 <option value="Январь 2026">Январь 2026</option>
                 <option value="Февраль 2026">Февраль 2026</option>
@@ -1961,7 +1960,7 @@
 
             <!-- Quick Reset to Current Week / Today -->
             <button type="button" class="btn-today-chip" id="btn-nav-today" onclick="resetToCurrentWeek()" title="Вернуться к текущей неделе">
-                <i class="fa-solid fa-calendar-day" style="color: #2563eb;"></i> <span>Сегодня</span>
+                <i class="fa-solid fa-calendar-day"></i> <span>Сегодня</span>
             </button>
 
             <!-- Quarter Selector for Roadmaps (Hidden by default) -->
