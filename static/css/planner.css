@@ -1746,11 +1746,12 @@ tr.task-row-backlog td:first-child {
 }
 
 /* ── My Tasks Active Button State ────────────────────────────── */
-.btn-my-tasks-active {
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+.btn-my-tasks-active,
+#btn-toggle-my-tasks.btn-my-tasks-active {
+    background: #ffffff !important;
+    color: #2563eb !important;
+    border: 1.5px solid #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22) !important;
     font-weight: 700 !important;
 }
 

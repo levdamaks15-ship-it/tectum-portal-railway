@@ -992,7 +992,6 @@ function switchHorizon(horizon, event) {
     const filterMonth = document.getElementById("filter-month");
     const filterQuarter = document.getElementById("filter-quarter");
     const btnBacklog = document.getElementById("btn-toggle-backlog");
-    const btnFilterHasDoc = document.getElementById("btn-filter-hasdoc");
     const quickChips = document.getElementById("quick-chips-group");
     const printSubtitle = document.getElementById("print-header-subtitle");
 
@@ -1003,7 +1002,6 @@ function switchHorizon(horizon, event) {
         if (filterMonth) filterMonth.style.display = "none";
         if (filterQuarter) filterQuarter.style.display = "inline-block";
         if (btnBacklog) btnBacklog.style.display = "none";
-        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
         if (printSubtitle) printSubtitle.textContent = "СТРАТЕГИЧЕСКИЕ ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
         loadRoadmaps();
     } else if (horizon === "services") {
@@ -1013,7 +1011,6 @@ function switchHorizon(horizon, event) {
         if (filterMonth) filterMonth.style.display = "inline-block";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "inline-flex";
         if (printSubtitle) printSubtitle.textContent = "ПЛАНЫ СЛУЖБ ОГМ И ОГЭ (ППР И РЕВИЗИИ ОБОРУДОВАНИЯ)";
         loadTasks();
     } else if (horizon === "tech_council") {
@@ -1023,7 +1020,6 @@ function switchHorizon(horizon, event) {
         if (filterMonth) filterMonth.style.display = "inline-block";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
         if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ТЕХНИЧЕСКОГО СОВЕТА";
         const zoneFilter = document.getElementById("table-filter-zone");
         if (zoneFilter) zoneFilter.value = "all";
@@ -1035,7 +1031,6 @@ function switchHorizon(horizon, event) {
         if (filterMonth) filterMonth.style.display = "inline-block";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
         if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ДНЯ КАЧЕСТВА";
         const zoneFilter = document.getElementById("table-filter-zone");
         if (zoneFilter) zoneFilter.value = "all";
@@ -4890,9 +4885,14 @@ async function saveBulkTasksModal() {
         const dueInput = r.querySelector(".bulk-row-due");
 
         const title = titleInput ? titleInput.value.trim() : "";
-        const assignee = assigneeSelect ? assigneeSelect.value.trim() : "";
+        let assignee = assigneeSelect ? assigneeSelect.value.trim() : "";
         const dueRaw = dueInput ? dueInput.value.trim() : "";
         const due = formatIsoToDisplayDate(dueRaw) || defDueFormatted;
+
+        // В службах для массового ввода автор = исполнитель
+        if (taskType === "service_plan" || (currentHorizon === "services" && !assignee)) {
+            assignee = author;
+        }
 
         if (title) {
             tasksItems.push({

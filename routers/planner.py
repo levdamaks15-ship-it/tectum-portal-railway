@@ -1605,6 +1605,11 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
             # Определение зоны
             zone_val = item.zone or bulk_data.zone or "Бережливое производство"
 
+            # Определение исполнителя (для служб по умолчанию автор = исполнитель)
+            assignee_val = (item.assignee_name or "").strip()
+            if not assignee_val and (bulk_data.task_type == "service_plan" or bulk_data.department_service in ("ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК")):
+                assignee_val = author_name
+
             new_task = models.Task(
                 code=code_str,
                 zone=zone_val,
@@ -1617,7 +1622,7 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 progress=0,
                 photo_link=item.photo_link or "",
                 author_name=author_name,
-                assignee_name=(item.assignee_name or "").strip(),
+                assignee_name=assignee_val,
                 due_date_str=due_date,
                 status="🟡 В работе",
                 comment="",
