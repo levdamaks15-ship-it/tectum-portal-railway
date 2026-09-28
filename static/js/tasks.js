@@ -1615,9 +1615,21 @@ function onMonthChange(forcedWeek = null) {
     ` + weeks.map(w => `<option value="${w}">${w}</option>`).join('');
 
     weekSelect.innerHTML = optionsHtml;
-    if (forcedWeek && (['all', 'open_active', 'next_2_weeks'].includes(forcedWeek) || weeks.includes(forcedWeek))) {
-        weekSelect.value = forcedWeek;
-        currentWeek = forcedWeek;
+    let targetWeek = null;
+    if (forcedWeek) {
+        if (['all', 'open_active', 'next_2_weeks'].includes(forcedWeek) || weeks.includes(forcedWeek)) {
+            targetWeek = forcedWeek;
+        } else {
+            const forcedDates = forcedWeek.split('(')[1]?.split(')')[0];
+            if (forcedDates) {
+                targetWeek = weeks.find(w => w.includes(forcedDates.trim()));
+            }
+        }
+    }
+
+    if (targetWeek) {
+        weekSelect.value = targetWeek;
+        currentWeek = targetWeek;
     } else {
         // Пытаемся найти неделю, соответствующую сегодняшнему дню
         let detectedWeek = null;

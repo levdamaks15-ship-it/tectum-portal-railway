@@ -2018,10 +2018,22 @@ tr.week-divider-row td {
 }
 
 /* ==========================================================================
-   WEEK NAV SEGMENT & FAST PRESETS — Единая инлайн-навигация по датам
+   DATE NAVIGATION & FAST PRESETS — Единая инлайн-навигация по датам
    ========================================================================== */
 
-/* Обёртка даты-навигации — одна строка без переноса */
+/* Обёртка тулбара — одна сплошная аккуратная строка */
+.toolbar {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 0.55rem 1.5rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
+}
+
+/* Обёртка группы дат — единая строка, элементы одной высоты 34px */
 .toolbar-group-dates {
     display: flex !important;
     align-items: center !important;
@@ -2030,156 +2042,52 @@ tr.week-divider-row td {
     flex-shrink: 0 !important;
 }
 
-/* 1. Компактный и единообразный стиль для select месяца (без растягивания) */
-#filter-month {
+/* 1. Селекторы месяца и недели — чистые pill-кнопки */
+.date-pill-select {
     height: 34px !important;
+    min-height: 34px !important;
     padding: 0 24px 0 10px !important;
-    font-size: 0.83rem !important;
-    font-weight: 700 !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
     border-radius: 8px !important;
     border: 1px solid #cbd5e1 !important;
     background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' fill='%2364748b'%3E%3Cpath d='M0 0l4 4 4-4z'/%3E%3C/svg%3E") no-repeat right 8px center !important;
-    color: #1e293b !important;
-    width: auto !important;
-    min-width: 130px !important;
-    max-width: 155px !important;
-    flex: 0 0 auto !important;
+    color: #0f172a !important;
     appearance: none !important;
     -webkit-appearance: none !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
     cursor: pointer !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
     transition: border-color 0.15s ease, background 0.15s ease !important;
+    font-family: inherit !important;
+    outline: none !important;
 }
 
-#filter-month:hover {
+#filter-month.date-pill-select {
+    width: auto !important;
+    min-width: 130px !important;
+    max-width: 150px !important;
+    flex: 0 0 auto !important;
+}
+
+#filter-week.date-pill-select {
+    width: auto !important;
+    min-width: 180px !important;
+    max-width: 250px !important;
+    flex: 0 0 auto !important;
+}
+
+.date-pill-select:hover {
     border-color: #94a3b8 !important;
     background-color: #f8fafc !important;
 }
 
-#filter-month:focus {
+.date-pill-select:focus {
     border-color: #2563eb !important;
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
     outline: none !important;
 }
 
-/* 2. Сегментированная кнопочная группа [◀][Неделя ▾][▶] */
-.week-nav-segment {
-    display: inline-flex !important;
-    align-items: stretch !important;
-    flex-shrink: 0 !important;
-    background: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
-}
-
-.week-nav-segment:hover {
-    border-color: #94a3b8 !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.07) !important;
-}
-
-/* Стрелки ◀ / ▶ */
-.btn-week-step {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 30px !important;
-    min-width: 30px !important;
-    height: 32px !important;
-    background: #f8fafc !important;
-    border: none !important;
-    border-radius: 0 !important;
-    color: #64748b !important;
-    font-size: 0.75rem !important;
-    cursor: pointer !important;
-    padding: 0 !important;
-    transition: background 0.12s ease, color 0.12s ease !important;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.btn-week-step:hover {
-    background: #eff6ff !important;
-    color: #2563eb !important;
-}
-
-.btn-week-step:active {
-    background: #dbeafe !important;
-    color: #1d4ed8 !important;
-}
-
-#btn-week-prev {
-    border-right: 1px solid #e2e8f0 !important;
-}
-
-#btn-week-next {
-    border-left: 1px solid #e2e8f0 !important;
-}
-
-/* Инлайн-селектор недель внутри сегмента */
-.week-select-inline {
-    appearance: auto !important;
-    -webkit-appearance: auto !important;
-    background: #ffffff !important;
-    border: none !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 0 8px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    font-size: 0.83rem !important;
-    font-weight: 600 !important;
-    color: #0f172a !important;
-    cursor: pointer !important;
-    min-width: 140px !important;
-    max-width: 250px !important;
-    outline: none !important;
-}
-
-.week-select-inline:focus {
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-/* 3. Кнопка «Сегодня» — аккуратный ghost-чип */
-.btn-today-chip {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 5px !important;
-    padding: 0 10px !important;
-    height: 34px !important;
-    background: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
-    font-size: 0.80rem !important;
-    font-weight: 600 !important;
-    color: #475569 !important;
-    cursor: pointer !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
-    transition: all 0.12s ease !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
-    font-family: inherit !important;
-}
-
-.btn-today-chip:hover {
-    background: #eff6ff !important;
-    color: #2563eb !important;
-    border-color: #93c5fd !important;
-    box-shadow: 0 2px 6px rgba(37,99,235,0.12) !important;
-}
-
-.btn-today-chip:active {
-    transform: scale(0.97) !important;
-}
-
-.btn-today-chip i {
-    font-size: 0.77rem !important;
-    color: #3b82f6 !important;
-}
-
-/* Вертикальный разделитель */
+/* 2. Вертикальный разделитель */
 .toolbar-divider-v {
     width: 1px;
     height: 22px;
@@ -2188,11 +2096,11 @@ tr.week-divider-row td {
     flex-shrink: 0;
 }
 
-/* 4. Блок быстрых пресетов (Эта нед., След. нед., 2 недели, Весь месяц) */
+/* 3. Блок быстрых пресетов (Сегодня, Эта нед., След. нед., 2 недели, Весь месяц) */
 .week-presets-bar {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 4px !important;
+    gap: 5px !important;
     flex-wrap: nowrap !important;
     flex-shrink: 0 !important;
 }
@@ -2201,19 +2109,19 @@ tr.week-divider-row td {
     display: inline-flex !important;
     align-items: center !important;
     gap: 5px !important;
-    height: 32px !important;
-    padding: 0 9px !important;
-    font-size: 0.76rem !important;
+    height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 0.78rem !important;
     font-weight: 600 !important;
     color: #475569 !important;
-    background: #f8fafc !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 7px !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
     cursor: pointer !important;
     white-space: nowrap !important;
     transition: all 0.12s ease !important;
     font-family: inherit !important;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
 }
 
 .btn-preset-chip:hover {
@@ -2228,6 +2136,23 @@ tr.week-divider-row td {
     border-color: #93c5fd !important;
     font-weight: 700 !important;
     box-shadow: 0 1px 3px rgba(37,99,235,0.12) !important;
+}
+
+/* 4. Правая группа кнопок действий */
+.toolbar-group-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+.toolbar-group-actions .btn-action {
+    height: 34px !important;
+    padding: 0 12px !important;
+    font-size: 0.82rem !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
 }
 
 /* Делители недель в таблице задач */
