@@ -3137,8 +3137,6 @@ function closePlannerModals() {
 /* ==========================================================
    ADMIN TASKS REGISTRY, FULL CRUD & SMART WEEK MANAGEMENT
    ========================================================== */
-let adminCalendarStructure = {};
-let adminTranslateTimer = null;
 
 function closeAdminTaskModal() {
     const modal = document.getElementById('admin-task-modal');
