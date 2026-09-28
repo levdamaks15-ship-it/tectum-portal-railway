@@ -413,10 +413,13 @@ def query_gemini_flash(text: str, db=None):
 }}"""
 
     candidate_models = [
+        "gemini-3.6-flash",
+        "gemini-3.8-flash",
         "gemini-3.5-flash-lite",
-        "gemini-flash-lite-latest",
-        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
         "gemini-3.7-flash",
+        "gemini-3.5-flash",
+        "gemini-flash-lite-latest",
         "gemini-flash-latest"
     ]
     
@@ -437,21 +440,22 @@ def query_gemini_flash(text: str, db=None):
             headers={"Content-Type": "application/json"}
         )
 
-        t_start = time.time()
-        try:
-            with urllib.request.urlopen(req, timeout=3.0) as resp:
-                elapsed = time.time() - t_start
-                data = json.loads(resp.read().decode("utf-8"))
-                raw_json = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                if raw_json.startswith("```"):
-                    raw_json = re.sub(r"^```(?:json)?\s*", "", raw_json)
-                    raw_json = re.sub(r"\s*```$", "", raw_json)
-                parsed = json.loads(raw_json)
-                
-                # Валидация категории
-                cat = parsed.get("category")
-                if cat not in VALID_CATEGORIES:
-                    cat = refine_category_rule_based(text, "Механические")
+        for attempt in range(2):
+            t_start = time.time()
+            try:
+                with urllib.request.urlopen(req, timeout=4.0) as resp:
+                    elapsed = time.time() - t_start
+                    data = json.loads(resp.read().decode("utf-8"))
+                    raw_json = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    if raw_json.startswith("```"):
+                        raw_json = re.sub(r"^```(?:json)?\s*", "", raw_json)
+                        raw_json = re.sub(r"\s*```$", "", raw_json)
+                    parsed = json.loads(raw_json)
+                    
+                    # Валидация категории
+                    cat = parsed.get("category")
+                    if cat not in VALID_CATEGORIES:
+                        cat = refine_category_rule_based(text, "Механические")
                     
                 dept = parsed.get("department")
                 if dept not in tree and dept not in VALID_DEPARTMENTS:
@@ -467,8 +471,10 @@ def query_gemini_flash(text: str, db=None):
                     "category": cat,
                     "is_equipment_downtime": is_equip
                 }
-        except Exception:
-            continue
+            except Exception:
+                if attempt == 0:
+                    time.sleep(0.3)
+                continue
             
     return None
 

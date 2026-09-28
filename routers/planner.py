@@ -831,6 +831,83 @@ def resolve_week_by_date(date_str: str = Query(...)):
         return {"status": "ok", "month_label": m_label, "week_label": w_label}
     return {"status": "fallback", "month_label": None, "week_label": None}
 
+@router.get("/api/tasks/weeks_summary")
+def get_tasks_weeks_summary(
+    month: Optional[str] = None,
+    task_type: Optional[str] = None,
+    department_service: Optional[str] = None,
+    my_person: Optional[str] = None,
+    my_all_horizons: bool = False,
+    db: Session = Depends(get_db)
+):
+    """Возвращает агрегированную статистику задач по неделям для выбранного месяца/горизонта/человека."""
+    try:
+        query = db.query(models.Task).filter(models.Task.is_archived == False)
+
+        if not (my_all_horizons and my_person):
+            if task_type == "weekly":
+                query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
+                query = query.filter(
+                    models.Task.task_type.notin_(["service_plan", "roadmap", "milestone", "tech_council", "quality_day"]),
+                    models.Task.zone.notin_(["Техсовет", "День качества"])
+                )
+            elif task_type == "service_plan":
+                query = query.filter(
+                    (models.Task.task_type == "service_plan") |
+                    (models.Task.department_service.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"])) |
+                    (models.Task.zone.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"]))
+                )
+            elif task_type == "tech_council":
+                query = query.filter((models.Task.task_type == "tech_council") | (models.Task.zone == "Техсовет"))
+            elif task_type == "quality_day":
+                query = query.filter((models.Task.task_type == "quality_day") | (models.Task.zone == "День качества"))
+
+            if department_service and department_service != "all":
+                query = query.filter((models.Task.department_service == department_service) | (models.Task.zone == department_service))
+
+        if my_person and my_person != "all":
+            query = query.filter(or_(models.Task.assignee_name == my_person, models.Task.author_name == my_person))
+
+        if month and month != "all":
+            query = query.filter(models.Task.month_label == month)
+
+        tasks = query.all()
+
+        summary = {}
+        total_active = 0
+        total_done = 0
+
+        for t in tasks:
+            w_key = t.week_label or "Без недели"
+            if w_key not in summary:
+                summary[w_key] = {"total": 0, "active": 0, "done": 0, "moved": 0, "cancelled": 0}
+            
+            summary[w_key]["total"] += 1
+            if t.status == "🟢 Выполнено":
+                summary[w_key]["done"] += 1
+                total_done += 1
+            elif t.status == "🔵 Перенесено":
+                summary[w_key]["moved"] += 1
+                summary[w_key]["active"] += 1
+                total_active += 1
+            elif t.status == "🔴 Отменено":
+                summary[w_key]["cancelled"] += 1
+            else:
+                summary[w_key]["active"] += 1
+                total_active += 1
+
+        return {
+            "status": "ok",
+            "month": month,
+            "weeks": summary,
+            "total_active": total_active,
+            "total_done": total_done,
+            "total_tasks": len(tasks)
+        }
+    except Exception as e:
+        print(f"Error getting weeks summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/api/tasks")
 def get_tasks(
     month: Optional[str] = None,
@@ -845,6 +922,7 @@ def get_tasks(
     zone: Optional[str] = None,
     status: Optional[str] = None,
     my_person: Optional[str] = None,
+    my_all_horizons: bool = False,
     include_backlog: bool = False,
     is_archived: bool = False,
     db: Session = Depends(get_db)
@@ -853,36 +931,37 @@ def get_tasks(
     try:
         query = db.query(models.Task).filter(models.Task.is_archived == False)
 
-        # 1. Фильтрация по типу задачи / горизонту
-        if task_type == "weekly":
-            query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
-            query = query.filter(
-                models.Task.task_type.notin_(["service_plan", "roadmap", "milestone", "tech_council", "quality_day"]),
-                models.Task.zone.notin_(["Техсовет", "День качества"])
-            )
-        elif task_type == "service_plan":
-            query = query.filter(
-                (models.Task.task_type == "service_plan") |
-                (models.Task.department_service.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"])) |
-                (models.Task.zone.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"]))
-            )
-            query = query.filter(
-                ~and_(
-                    models.Task.task_type == "weekly",
-                    models.Task.zone == "Бережливое производство",
-                    or_(models.Task.department_service.is_(None), models.Task.department_service.in_(["", "Общий"]))
+        # 1. Фильтрация по типу задачи / горизонту (если не включен сквозной режим «Мои задачи»)
+        if not (my_all_horizons and my_person):
+            if task_type == "weekly":
+                query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
+                query = query.filter(
+                    models.Task.task_type.notin_(["service_plan", "roadmap", "milestone", "tech_council", "quality_day"]),
+                    models.Task.zone.notin_(["Техсовет", "День качества"])
                 )
-            )
-        elif task_type == "tech_council":
-            query = query.filter((models.Task.task_type == "tech_council") | (models.Task.zone == "Техсовет"))
-        elif task_type == "quality_day":
-            query = query.filter((models.Task.task_type == "quality_day") | (models.Task.zone == "День качества"))
-        elif task_type and task_type != "all":
-            query = query.filter(models.Task.task_type == task_type)
+            elif task_type == "service_plan":
+                query = query.filter(
+                    (models.Task.task_type == "service_plan") |
+                    (models.Task.department_service.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"])) |
+                    (models.Task.zone.in_(["ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"]))
+                )
+                query = query.filter(
+                    ~and_(
+                        models.Task.task_type == "weekly",
+                        models.Task.zone == "Бережливое производство",
+                        or_(models.Task.department_service.is_(None), models.Task.department_service.in_(["", "Общий"]))
+                    )
+                )
+            elif task_type == "tech_council":
+                query = query.filter((models.Task.task_type == "tech_council") | (models.Task.zone == "Техсовет"))
+            elif task_type == "quality_day":
+                query = query.filter((models.Task.task_type == "quality_day") | (models.Task.zone == "День качества"))
+            elif task_type and task_type != "all":
+                query = query.filter(models.Task.task_type == task_type)
 
-        # 2. Фильтрация по службам ОГМ/ОГЭ/Технологи
-        if department_service and department_service != "all":
-            query = query.filter((models.Task.department_service == department_service) | (models.Task.zone == department_service))
+            # 2. Фильтрация по службам ОГМ/ОГЭ/Технологи
+            if department_service and department_service != "all":
+                query = query.filter((models.Task.department_service == department_service) | (models.Task.zone == department_service))
 
         # 3. Фильтрация по хэштегам
         if tag and tag != "all":
@@ -910,19 +989,41 @@ def get_tasks(
             if author and author != "all":
                 query = query.filter(models.Task.author_name == author)
                 
-        if zone and zone != "all":
+        if zone and zone != "all" and not (my_all_horizons and my_person):
             query = query.filter(models.Task.zone == zone)
         if status and status != "all":
             query = query.filter(models.Task.status == status)
 
-        # Парсим границы выбранной недели
-        sel_week_start, sel_week_end = parse_week_label_range(week, month)
-        prev_week_start = (sel_week_start - timedelta(days=7)) if (sel_week_start and include_backlog) else None
-        prev_week_end = (sel_week_end - timedelta(days=7)) if (sel_week_end and include_backlog) else None
-        prev_patt = f"{prev_week_start.strftime('%d.%m')} - {prev_week_end.strftime('%d.%m')}" if (prev_week_start and prev_week_end) else None
+        # 7. Фильтрация по неделям и диапазонам
+        is_open_active_mode = (week == "open_active")
+        is_next_2_weeks_mode = (week == "next_2_weeks")
 
-        # Если выбрана конкретная неделя: запрашиваем родные задачи + кандидаты прошлой недели / сквозные
-        if week and week != "all":
+        sel_week_start, sel_week_end = None, None
+        prev_week_start, prev_week_end = None, None
+        prev_patt = None
+        two_weeks_start, two_weeks_end = None, None
+
+        if is_open_active_mode:
+            # Все активные задачи (в работе, перенесено, в очереди)
+            query = query.filter(models.Task.status.in_(["🟡 В работе", "🔵 Перенесено", "⚪ В очереди"]))
+            if month and month != "all":
+                query = query.filter(models.Task.month_label == month)
+        elif is_next_2_weeks_mode:
+            # 2 недели: текущая + следующая неделя
+            today = date.today()
+            # Понедельник текущей недели
+            cur_monday = today - timedelta(days=today.weekday())
+            # Воскресенье следующей недели (13 дней от понедельника)
+            two_weeks_end = cur_monday + timedelta(days=13)
+            two_weeks_start = cur_monday
+            if month and month != "all":
+                query = query.filter(or_(models.Task.month_label == month, models.Task.due_date_str.isnot(None)))
+        elif week and week != "all":
+            sel_week_start, sel_week_end = parse_week_label_range(week, month)
+            prev_week_start = (sel_week_start - timedelta(days=7)) if (sel_week_start and include_backlog) else None
+            prev_week_end = (sel_week_end - timedelta(days=7)) if (sel_week_end and include_backlog) else None
+            prev_patt = f"{prev_week_start.strftime('%d.%m')} - {prev_week_end.strftime('%d.%m')}" if (prev_week_start and prev_week_end) else None
+
             week_match = and_(models.Task.month_label == month, models.Task.week_label == week) if (month and month != "all") else (models.Task.week_label == week)
             if include_backlog and prev_patt:
                 prev_week_match = models.Task.week_label.ilike(f"%{prev_patt}%")
@@ -945,13 +1046,34 @@ def get_tasks(
 
         raw_tasks = query.order_by(models.Task.id.desc()).all()
 
-        # Фильтрация задач по временному диапазону
+        # Фильтрация задач по временному диапазону в памяти
         filtered_tasks = []
         for t in raw_tasks:
+            if is_open_active_mode or not week or week == "all":
+                filtered_tasks.append(t)
+                continue
+
+            if is_next_2_weeks_mode and two_weeks_start and two_weeks_end:
+                t_due = parse_date_dm_or_full(t.due_date_str)
+                t_orig_start, t_orig_end = parse_week_label_range(t.week_label, t.month_label)
+                if not t_orig_start and t.created_at:
+                    t_orig_start = t.created_at.date()
+
+                is_in_2w = False
+                if t_due and (two_weeks_start <= t_due <= two_weeks_end):
+                    is_in_2w = True
+                elif t_orig_start and (two_weeks_start <= t_orig_start <= two_weeks_end):
+                    is_in_2w = True
+                elif t_orig_start and t_due and (t_orig_start <= two_weeks_end and t_due >= two_weeks_start):
+                    is_in_2w = True
+
+                if is_in_2w:
+                    filtered_tasks.append(t)
+                continue
+
             # 1. Родная задача текущей недели
             is_native_week = (week and week != "all" and t.week_label == week and (not month or month == "all" or t.month_label == month))
-            
-            if not week or week == "all" or is_native_week:
+            if is_native_week:
                 filtered_tasks.append(t)
                 continue
 
@@ -968,7 +1090,6 @@ def get_tasks(
                     is_prev_week_task = True
 
                 if is_prev_week_task:
-                    # Включаем задачу прошлой недели СО ВСЕМИ СТАТУСАМИ (включая Выполнено и Отменено)
                     filtered_tasks.append(t)
                     continue
 
@@ -1041,7 +1162,7 @@ def get_tasks(
             is_deadline_week = False
             origin_created_date = ""
             
-            if week and week != "all":
+            if week and week not in ("all", "open_active", "next_2_weeks"):
                 if t.week_label != week or (month and month != "all" and t.month_label != month):
                     is_cross_week = True
                     t_orig_start, _ = parse_week_label_range(t.week_label, t.month_label)
@@ -1054,6 +1175,36 @@ def get_tasks(
                     t_due = parse_date_dm_or_full(t.due_date_str)
                     if t_due and (sel_week_start <= t_due <= sel_week_end):
                         is_deadline_week = True
+
+            # Определение человекопонятного бейджа горизонта
+            h_label = "⚡ Спринт"
+            h_badge_class = "horizon-sprint"
+            if t.task_type == "tech_council" or t.zone == "Техсовет":
+                h_label = "🔬 Техсовет"
+                h_badge_class = "horizon-tech"
+            elif t.task_type == "quality_day" or t.zone == "День качества":
+                h_label = "📋 День качества"
+                h_badge_class = "horizon-quality"
+            elif t.task_type == "service_plan" or t.department_service in ("ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК") or t.zone in ("ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК"):
+                dept = t.department_service or t.zone or "Служба"
+                if dept == "ОГЭ":
+                    h_label = "⚡ ОГЭ"
+                    h_badge_class = "horizon-oge"
+                elif dept == "ОГМ":
+                    h_label = "🔧 ОГМ"
+                    h_badge_class = "horizon-ogm"
+                elif dept == "Технологи":
+                    h_label = "🔬 Технологи"
+                    h_badge_class = "horizon-tech"
+                elif dept in ("ОТК", "СКК"):
+                    h_label = "📋 СКК"
+                    h_badge_class = "horizon-quality"
+                else:
+                    h_label = f"🔧 {dept}"
+                    h_badge_class = "horizon-service"
+            elif t.task_type == "roadmap":
+                h_label = "🗺️ Дорожная карта"
+                h_badge_class = "horizon-roadmap"
 
             doc_info = doc_map.get(t.attached_document_id) if t.attached_document_id else None
             parent_info = ref_map.get(t.parent_id) if t.parent_id else None
@@ -1070,6 +1221,8 @@ def get_tasks(
                 "title_kz": t.title_kz or "",
                 "task_type": t.task_type or "weekly",
                 "department_service": t.department_service or "",
+                "horizon_label": h_label,
+                "horizon_badge_class": h_badge_class,
                 "parent_id": t.parent_id,
                 "parent_title": parent_info["title"] if parent_info else "",
                 "depends_on_id": t.depends_on_id,
@@ -1551,20 +1704,41 @@ def trigger_backfill_translations(db: Session = Depends(get_db)):
     count = backfill_missing_task_translations(db, limit=200)
     return {"status": "ok", "translated_count": count}
 
+def optimize_image_for_ocr(img_bytes: bytes, max_dim: int = 2048) -> tuple[bytes, str]:
+    """Масштабирует изображение до разумного разрешения для быстрого OCR и переводит в JPEG."""
+    try:
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(img_bytes)) as img:
+            if img.mode in ("RGBA", "P", "LA"):
+                img = img.convert("RGB")
+            w, h = img.size
+            if max(w, h) > max_dim:
+                scale = max_dim / float(max(w, h))
+                new_w, new_h = int(w * scale), int(h * scale)
+                img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=85, optimize=True)
+            return buf.getvalue(), "image/jpeg"
+    except Exception as e:
+        print(f"Image optimization note: {e}")
+        return img_bytes, "image/png"
+
 @router.post("/api/tasks/ocr_image")
 async def ocr_tasks_from_image(
     file: Optional[UploadFile] = File(None),
     image_base64: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Распознавание таблиц поручений и задач со скриншота/фото через Gemini Multimodal Vision (3.8 Flash)."""
+    """Распознавание таблиц поручений и задач со скриншота/фото через DeepSeek Multimodal Vision API."""
     import base64
     import urllib.request
+    import urllib.error
     import time
 
-    api_key = os.getenv("GEMINI_API_KEY")
+    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
     if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY не настроен на сервере")
+        raise HTTPException(status_code=500, detail="DEEPSEEK_API_KEY не настроен в переменных окружения сервера")
 
     # Считываем байты изображения и MIME-тип
     img_bytes = None
@@ -1581,10 +1755,17 @@ async def ocr_tasks_from_image(
                 mime_type = "image/jpeg"
             elif "image/webp" in header:
                 mime_type = "image/webp"
-        img_bytes = base64.b64decode(raw_b64)
+        try:
+            img_bytes = base64.b64decode(raw_b64)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Некорректный base64 формат изображения")
 
     if not img_bytes:
         raise HTTPException(status_code=400, detail="Изображение не предоставлено")
+
+    # Оптимизируем размер изображения для быстрой передачи
+    img_bytes, mime_type = optimize_image_for_ocr(img_bytes, max_dim=2048)
+    b64_data = base64.b64encode(img_bytes).decode("utf-8")
 
     # Формируем список сотрудников завода для точного сопоставления
     employees = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.is_active != False).all()
@@ -1596,8 +1777,6 @@ async def ocr_tasks_from_image(
     emp_list_str = ", ".join(f'"{name}"' for name in emp_names)
 
     # Мультимодальный промпт
-    b64_data = base64.b64encode(img_bytes).decode("utf-8")
-    
     system_prompt = f"""Ты — интеллектуальный ассистент распознавания производственных протоколов и поручений завода Tectum.
 Твоя задача — внимательно изучить изображение (скриншот таблицы протокола, поручений совещания, техсовета или дня качества).
 
@@ -1612,7 +1791,7 @@ async def ocr_tasks_from_image(
    - "assignee_name": точное имя сотрудника из списка выше (например, если написано "Косумов Р.Э." -> сопоставь с "Косумов Р.", "Курилова С.А." -> "Курилова С.", "Сазонов С." -> "Сазонов С."). Если в ячейке указано несколько человек (например "Сазонов С. Носиков Е.Г."), выбери первого основного из списка. Если нет совпадений, оставь пустым "".
    - "due_date": срок в формате "YYYY-MM-DD" (например "08.09.2026" -> "2026-09-08", "11.09.2026" -> "2026-09-11"). Если года нет, используй 2026.
 
-Верни строго валидный JSON-массив объектов:
+Верни СТРОГО валидный JSON-массив объектов без лишних слов:
 [
   {{
     "title": "Определить геометрические размеры калибровочной гири...",
@@ -1622,61 +1801,87 @@ async def ocr_tasks_from_image(
 ]"""
 
     candidate_models = [
-        "gemini-3.8-flash",
-        "gemini-3.7-flash",
-        "gemini-flash-latest",
-        "gemini-3.5-flash"
+        "deepseek-v4-flash",
+        "deepseek-flash",
+        "deepseek-v4-pro",
+        "deepseek-chat"
     ]
 
-    payload = {
-        "contents": [{
-            "parts": [
-                {"text": system_prompt},
-                {
-                    "inlineData": {
-                        "mimeType": mime_type,
-                        "data": b64_data
-                    }
-                }
-            ]
-        }],
-        "generationConfig": {
-            "temperature": 0.1,
-            "responseMimeType": "application/json"
-        }
-    }
-    encoded_payload = json.dumps(payload).encode("utf-8")
-
     last_err = None
+    url = "https://api.deepseek.com/chat/completions"
+
     for model_name in candidate_models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        payload = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": system_prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{b64_data}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "temperature": 0.1,
+            "max_tokens": 4096
+        }
+        encoded_payload = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             url,
             data=encoded_payload,
-            headers={"Content-Type": "application/json"}
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
         )
 
-        try:
-            with urllib.request.urlopen(req, timeout=45.0) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                raw_json = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                if raw_json.startswith("```"):
-                    raw_json = re.sub(r"^```(?:json)?\s*", "", raw_json)
-                    raw_json = re.sub(r"\s*```$", "", raw_json)
-                tasks_list = json.loads(raw_json)
-                if isinstance(tasks_list, list):
-                    return {
-                        "status": "ok",
-                        "model_used": model_name,
-                        "count": len(tasks_list),
-                        "tasks": tasks_list
-                    }
-        except Exception as e:
-            last_err = e
-            print(f"OCR model {model_name} failed: {e}")
-            continue
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=50.0) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    raw_content = resp_data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                    if "```" in raw_content:
+                        raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content)
+                        raw_content = re.sub(r"\s*```$", "", raw_content)
+                    parsed_json = json.loads(raw_content)
+                    tasks_list = []
+                    if isinstance(parsed_json, list):
+                        tasks_list = parsed_json
+                    elif isinstance(parsed_json, dict):
+                        tasks_list = parsed_json.get("tasks") or parsed_json.get("items") or [parsed_json]
 
-    raise HTTPException(status_code=500, detail=f"Не удалось распознать изображение через Gemini: {last_err}")
+                    if isinstance(tasks_list, list):
+                        print(f"OCR successfully processed using DeepSeek {model_name} (attempt {attempt + 1}), extracted {len(tasks_list)} tasks")
+                        return {
+                            "status": "ok",
+                            "model_used": f"deepseek:{model_name}",
+                            "count": len(tasks_list),
+                            "tasks": tasks_list
+                        }
+            except urllib.error.HTTPError as e:
+                last_err = f"HTTP {e.code}: {e.reason}"
+                print(f"DeepSeek model {model_name} attempt {attempt + 1} HTTP {e.code}: {e.reason}")
+                if e.code in (503, 429, 500) and attempt == 0:
+                    time.sleep(1.0)
+                    continue
+                break
+            except Exception as e:
+                last_err = str(e)
+                print(f"DeepSeek model {model_name} attempt {attempt + 1} failed: {e}")
+                if attempt == 0:
+                    time.sleep(0.5)
+                    continue
+                break
+
+    raise HTTPException(
+        status_code=500,
+        detail=f"Сервис DeepSeek временно перегружен или недоступен ({last_err}). Пожалуйста, повторите попытку через несколько секунд."
+    )
 
 @router.post("/api/tasks/bulk_status")
 def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):

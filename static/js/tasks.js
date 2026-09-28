@@ -850,7 +850,7 @@ function startTasksLiveSync() {
             }
 
             if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-                url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+                url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}&my_all_horizons=true`;
             } else {
                 if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
                 if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
@@ -904,41 +904,34 @@ async function loadTasks() {
     let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
     
     // Горизонт планирования
-    // Горизонт планирования
-    if (myTasksFilterActive) {
-        if (currentHorizon === "services" && currentDepartmentService !== "all") {
-            url += `&task_type=service_plan&department_service=${encodeURIComponent(currentDepartmentService)}`;
-        } else {
-            url += `&task_type=all`;
+    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+        url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}&my_all_horizons=true`;
+        if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
+    } else {
+        if (currentHorizon === "weekly") {
+            url += `&task_type=weekly`;
+        } else if (currentHorizon === "services") {
+            url += `&task_type=service_plan`;
+            if (currentDepartmentService !== "all") {
+                url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
+            }
+            if (filterHasDocOnly) {
+                url += `&has_doc=true`;
+            }
+        } else if (currentHorizon === "tech_council") {
+            url += `&task_type=tech_council&zone=${encodeURIComponent("Техсовет")}`;
+        } else if (currentHorizon === "quality_day") {
+            url += `&task_type=quality_day&zone=${encodeURIComponent("День качества")}`;
         }
-    } else if (currentHorizon === "weekly") {
-        url += `&task_type=weekly`;
-    } else if (currentHorizon === "services") {
-        url += `&task_type=service_plan`;
-        if (currentDepartmentService !== "all") {
-            url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
-        }
-        if (filterHasDocOnly) {
-            url += `&has_doc=true`;
-        }
-    } else if (currentHorizon === "tech_council") {
-        url += `&task_type=tech_council&zone=${encodeURIComponent("Техсовет")}`;
-    } else if (currentHorizon === "quality_day") {
-        url += `&task_type=quality_day&zone=${encodeURIComponent("День качества")}`;
+
+        if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
+        if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
+        if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
     }
 
     // Хэштег
     if (currentTagFilter && currentTagFilter !== "all") {
         url += `&tag=${encodeURIComponent(currentTagFilter)}`;
-    }
-
-    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-        url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
-        if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
-    } else {
-        if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
-        if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
-        if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
     }
     if (status !== "all") url += `&status=${encodeURIComponent(status)}`;
 
@@ -1614,12 +1607,15 @@ function onMonthChange(forcedWeek = null) {
         weeks = generateClientFallbackWeeks(currentMonth);
     }
     
-    // В начало списка добавляем «Весь месяц»
-    let optionsHtml = `<option value="all">📅 Весь месяц (все недели)</option>` + 
-        weeks.map(w => `<option value="${w}">${w}</option>`).join('');
+    // В начало списка добавляем пресеты: «Все активные», «Ближайшие 2 недели», «Весь месяц»
+    let optionsHtml = `
+        <option value="open_active">🌐 Все активные (в работе и перенесенные)</option>
+        <option value="next_2_weeks">📆 Ближайшие 2 недели</option>
+        <option value="all">📅 Весь месяц (все недели)</option>
+    ` + weeks.map(w => `<option value="${w}">${w}</option>`).join('');
 
     weekSelect.innerHTML = optionsHtml;
-    if (forcedWeek && (forcedWeek === "all" || weeks.includes(forcedWeek))) {
+    if (forcedWeek && (['all', 'open_active', 'next_2_weeks'].includes(forcedWeek) || weeks.includes(forcedWeek))) {
         weekSelect.value = forcedWeek;
         currentWeek = forcedWeek;
     } else {
@@ -1658,6 +1654,185 @@ function onMonthChange(forcedWeek = null) {
     if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
     if (!isInitialLoading) {
         loadTasks();
+    }
+    // Асинхронно подтягиваем статистику задач по неделям
+    loadWeeksSummaryData();
+}
+
+async function loadWeeksSummaryData() {
+    const weekSelect = document.getElementById("filter-week");
+    if (!weekSelect || currentMonth === "all") return;
+
+    try {
+        let url = `/api/tasks/weeks_summary?month=${encodeURIComponent(currentMonth)}`;
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}&my_all_horizons=true`;
+        } else {
+            if (currentHorizon === "weekly") {
+                url += `&task_type=weekly`;
+            } else if (currentHorizon === "services") {
+                url += `&task_type=service_plan`;
+                if (currentDepartmentService !== "all") {
+                    url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
+                }
+            } else if (currentHorizon === "tech_council") {
+                url += `&task_type=tech_council`;
+            } else if (currentHorizon === "quality_day") {
+                url += `&task_type=quality_day`;
+            }
+        }
+
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const weeksSummary = data.weeks || {};
+
+        Array.from(weekSelect.options).forEach(opt => {
+            const rawVal = opt.value;
+            if (rawVal === "all") {
+                const totalM = data.total_tasks || 0;
+                opt.textContent = `📅 Весь месяц (${totalM} задач)`;
+            } else if (rawVal === "open_active") {
+                const totalAct = data.total_active || 0;
+                opt.textContent = `🌐 Все активные (${totalAct} задач)`;
+            } else if (rawVal === "next_2_weeks") {
+                opt.textContent = `📆 Ближайшие 2 недели`;
+            } else if (weeksSummary[rawVal]) {
+                const st = weeksSummary[rawVal];
+                const actCount = st.active || 0;
+                const totCount = st.total || 0;
+                opt.textContent = `${rawVal} · ${totCount} зад. (${actCount} акт.)`;
+            }
+        });
+    } catch (e) {
+        console.warn("Weeks summary load error:", e);
+    }
+}
+
+function onWeekSelectChange(val) {
+    currentWeek = val;
+    const weekSelect = document.getElementById("filter-week");
+    if (weekSelect) weekSelect.value = val;
+    updateChipsVisualState();
+    updateUrlParams();
+    if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
+    loadTasks();
+}
+
+function prevWeek() {
+    const weekSelect = document.getElementById("filter-week");
+    const monthSelect = document.getElementById("filter-month");
+    if (!weekSelect || !monthSelect) return;
+
+    const actualWeekOptions = Array.from(weekSelect.options).filter(o => !['all', 'open_active', 'next_2_weeks'].includes(o.value));
+    if (actualWeekOptions.length === 0) return;
+
+    const currentVal = weekSelect.value;
+    const curIdx = actualWeekOptions.findIndex(o => o.value === currentVal);
+
+    if (curIdx > 0) {
+        const prevW = actualWeekOptions[curIdx - 1].value;
+        onWeekSelectChange(prevW);
+    } else if (curIdx === 0 || curIdx === -1) {
+        const monthsRu = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ];
+        const curMVal = monthSelect.value;
+        const [mName, mYearStr] = curMVal.split(' ');
+        let mYear = parseInt(mYearStr, 10) || 2026;
+        let mIdx = monthsRu.indexOf(mName);
+        if (mIdx !== -1) {
+            let prevMIdx = mIdx - 1;
+            let prevYear = mYear;
+            if (prevMIdx < 0) {
+                prevMIdx = 11;
+                prevYear -= 1;
+            }
+            const prevMonthName = `${monthsRu[prevMIdx]} ${prevYear}`;
+            if (allWeeksStructure[prevMonthName] || Array.from(monthSelect.options).some(o => o.value === prevMonthName)) {
+                monthSelect.value = prevMonthName;
+                currentMonth = prevMonthName;
+                const prevMonthWeeks = allWeeksStructure[prevMonthName] || generateClientFallbackWeeks(prevMonthName);
+                const targetW = prevMonthWeeks.length > 0 ? prevMonthWeeks[prevMonthWeeks.length - 1] : "all";
+                onMonthChange(targetW);
+                showToast(`Переключено на ${prevMonthName}`);
+            }
+        }
+    }
+}
+
+function nextWeek() {
+    const weekSelect = document.getElementById("filter-week");
+    const monthSelect = document.getElementById("filter-month");
+    if (!weekSelect || !monthSelect) return;
+
+    const actualWeekOptions = Array.from(weekSelect.options).filter(o => !['all', 'open_active', 'next_2_weeks'].includes(o.value));
+    if (actualWeekOptions.length === 0) return;
+
+    const currentVal = weekSelect.value;
+    const curIdx = actualWeekOptions.findIndex(o => o.value === currentVal);
+
+    if (curIdx >= 0 && curIdx < actualWeekOptions.length - 1) {
+        const nextW = actualWeekOptions[curIdx + 1].value;
+        onWeekSelectChange(nextW);
+    } else if (curIdx === actualWeekOptions.length - 1 || curIdx === -1) {
+        const monthsRu = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ];
+        const curMVal = monthSelect.value;
+        const [mName, mYearStr] = curMVal.split(' ');
+        let mYear = parseInt(mYearStr, 10) || 2026;
+        let mIdx = monthsRu.indexOf(mName);
+        if (mIdx !== -1) {
+            let nextMIdx = mIdx + 1;
+            let nextYear = mYear;
+            if (nextMIdx > 11) {
+                nextMIdx = 0;
+                nextYear += 1;
+            }
+            const nextMonthName = `${monthsRu[nextMIdx]} ${nextYear}`;
+            if (allWeeksStructure[nextMonthName] || Array.from(monthSelect.options).some(o => o.value === nextMonthName)) {
+                monthSelect.value = nextMonthName;
+                currentMonth = nextMonthName;
+                const nextMonthWeeks = allWeeksStructure[nextMonthName] || generateClientFallbackWeeks(nextMonthName);
+                const targetW = nextMonthWeeks.length > 0 ? nextMonthWeeks[0] : "all";
+                onMonthChange(targetW);
+                showToast(`Переключено на ${nextMonthName}`);
+            }
+        }
+    }
+}
+
+function resetToCurrentWeek() {
+    const today = new Date();
+    const monthsRu = [
+        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+    const curCalMonth = `${monthsRu[today.getMonth()]} ${today.getFullYear()}`;
+    const monthSelect = document.getElementById("filter-month");
+    if (monthSelect) {
+        monthSelect.value = curCalMonth;
+        currentMonth = curCalMonth;
+    }
+    onMonthChange(null);
+    showToast("⚡ Переключено на текущую неделю");
+}
+
+function setWeekScopePreset(preset) {
+    if (preset === 'whole_month') {
+        onWeekSelectChange('all');
+    } else if (preset === 'all_active') {
+        onWeekSelectChange('open_active');
+    } else if (preset === 'next_2_weeks') {
+        onWeekSelectChange('next_2_weeks');
+    } else if (preset === 'this_week') {
+        resetToCurrentWeek();
+    } else if (preset === 'next_week') {
+        resetToCurrentWeek();
+        setTimeout(() => nextWeek(), 100);
     }
 }
 
@@ -1881,7 +2056,6 @@ async function executeServicesBulkStatus(newStatus) {
     const confirmAction = confirm(`Вы уверены, что хотите ${actionTitle} ${taskIds.length} задач?`);
     if (!confirmAction) return;
 
-    // Определяем автора для проверки PIN (если необходимо)
     const firstTask = allTasks.find(t => t.id === taskIds[0]);
     const authorUser = firstTask ? (firstTask.author_name || firstTask.assignee_name) : null;
 
@@ -1979,14 +2153,44 @@ function renderTasksTable(tasks) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="11" style="text-align: center; padding: 2.5rem; color: #94a3b8; font-size: 0.95rem;">
-                    ✨ Нет задач на выбранную неделю. Нажмите «+ Добавить задачу»!
+                    ✨ Нет задач на выбранный период. Нажмите «+ Добавить задачу»!
                 </td>
             </tr>
         `;
         return;
     }
 
-    tableBody.innerHTML = tasks.map((t, idx) => {
+    // Подсчет задач по неделям для отображения разделителей
+    const weekCounts = {};
+    tasks.forEach(t => {
+        const wk = t.week_label || 'Без недели';
+        weekCounts[wk] = (weekCounts[wk] || 0) + 1;
+    });
+    const hasMultipleWeeks = Object.keys(weekCounts).length > 1 || ['all', 'open_active', 'next_2_weeks'].includes(currentWeek) || myTasksFilterActive;
+
+    let lastWeekGroup = null;
+    let rowsHtml = '';
+
+    tasks.forEach((t, idx) => {
+        const currentWeekGroup = t.week_label || 'Без недели';
+        
+        // Вставляем визуальный разделитель недели
+        if (hasMultipleWeeks && currentWeekGroup !== lastWeekGroup) {
+            lastWeekGroup = currentWeekGroup;
+            const countInWeek = weekCounts[currentWeekGroup] || 1;
+            rowsHtml += `
+                <tr class="week-divider-row">
+                    <td colspan="11">
+                        <div class="week-divider-badge">
+                            <i class="fa-solid fa-calendar-week"></i>
+                            <span>${escapeHtml(currentWeekGroup)}</span>
+                            <span style="opacity: 0.8; font-weight: 500; font-size: 0.72rem; margin-left: 6px;">(${countInWeek} зад.)</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
         let statusClass = "status-work";
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
@@ -2029,6 +2233,10 @@ function renderTasksTable(tasks) {
                     <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная${t.origin_created_date ? ' (' + t.origin_created_date + ')' : ''}
                 </span>
             </div>
+        ` : '';
+
+        const horizonBadge = t.horizon_label ? `
+            <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" title="Горизонт: ${escapeHtml(t.horizon_label)}">${escapeHtml(t.horizon_label)}</span>
         ` : '';
 
         const titleClass = isCancelled ? 'task-cancelled-text' : '';
@@ -2119,12 +2327,13 @@ function renderTasksTable(tasks) {
             <input type="checkbox" class="task-row-checkbox" ${isLocked ? 'disabled' : ''} ${isChecked ? 'checked' : ''} onchange="toggleSelectServiceTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; margin-right: 4px;" title="Выбрать задачу">
         ` : '';
 
-        return `
+        rowsHtml += `
             <tr id="task-row-${t.id}" class="${rowExtraClass} ${isChecked ? 'task-row-selected' : ''}">
                 <td style="white-space: nowrap;">
-                    <div style="display: flex; align-items: center; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
                         ${checkboxHtml}
                         <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
+                        ${horizonBadge}
                     </div>
                     ${backlogBadge}
                     ${crossWeekBadge}
@@ -2168,7 +2377,9 @@ function renderTasksTable(tasks) {
                 </td>
             </tr>
         `;
-    }).join('');
+    });
+
+    tableBody.innerHTML = rowsHtml;
 }
 
 function renderTasksCards(tasks) {
@@ -2179,14 +2390,37 @@ function renderTasksCards(tasks) {
         cardsContainer.innerHTML = `
             <div style="text-align: center; padding: 2.5rem 1rem; color: #8E8E93; background: #ffffff; border-radius: 12px; border: 1px solid rgba(60,60,67,0.12); margin: 12px 16px;">
                 <div style="font-size: 2rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-list-check" style="color: #C82323;"></i></div>
-                <div style="font-weight: 600; color: #1C1C1E; margin-bottom: 0.25rem;">Нет задач на эту неделю</div>
+                <div style="font-weight: 600; color: #1C1C1E; margin-bottom: 0.25rem;">Нет задач на выбранный период</div>
                 <div style="font-size: 0.85rem; color: #8E8E93;">Нажмите «+», чтобы добавить первую задачу</div>
             </div>
         `;
         return;
     }
 
-    cardsContainer.innerHTML = tasks.map((t, idx) => {
+    const weekCounts = {};
+    tasks.forEach(t => {
+        const wk = t.week_label || 'Без недели';
+        weekCounts[wk] = (weekCounts[wk] || 0) + 1;
+    });
+    const hasMultipleWeeks = Object.keys(weekCounts).length > 1 || ['all', 'open_active', 'next_2_weeks'].includes(currentWeek) || myTasksFilterActive;
+
+    let lastWeekGroup = null;
+    let cardsHtml = '';
+
+    tasks.forEach((t, idx) => {
+        const currentWeekGroup = t.week_label || 'Без недели';
+
+        if (hasMultipleWeeks && currentWeekGroup !== lastWeekGroup) {
+            lastWeekGroup = currentWeekGroup;
+            const countInWeek = weekCounts[currentWeekGroup] || 1;
+            cardsHtml += `
+                <div class="week-divider-card-heading">
+                    <i class="fa-solid fa-calendar-week"></i>
+                    <span>${escapeHtml(currentWeekGroup)} (${countInWeek})</span>
+                </div>
+            `;
+        }
+
         const isCompleted = t.status && t.status.includes("Выполнено");
         const isCancelled = t.status && t.status.includes("Отменено");
         const isMoved = t.status && t.status.includes("Перенесено");
@@ -2222,8 +2456,106 @@ function renderTasksCards(tasks) {
             </span>
         ` : '';
 
+        const horizonBadge = t.horizon_label ? `
+            <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" style="font-size: 10px;">${escapeHtml(t.horizon_label)}</span>
+        ` : '';
+
         const cardZoneVal = t.zone || 'Бережливое производство';
         let cardZoneClass = 'badge-zone';
+        if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
+        else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
+
+        let cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
+        if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+            cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
+        }
+
+        const cardDueDateItem = t.is_deadline_week ? `
+            <div class="card-meta-item">
+                <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str}">
+                    <i class="fa-solid fa-bullseye"></i> ${t.due_date_str}
+                </span>
+            </div>
+        ` : `
+            <div class="card-meta-item">
+                <i class="fa-regular fa-calendar" style="color: #8E8E93;"></i>
+                <span>${t.due_date_str || 'В теч. недели'}</span>
+            </div>
+        `;
+
+        const titleClass = isCancelled ? 'task-cancelled-text' : (isCompleted ? 'task-done-text' : '');
+        const titleKzBlock = t.title_kz ? `
+            <div class="planner-card-title-kz ${titleClass}">${escapeHtml(t.title_kz)}</div>
+        ` : '';
+
+        const commentPreview = t.comment ? `
+            <div style="font-size: 13px; color: #636366; margin-top: 4px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <i class="fa-regular fa-comment-dots" style="color: #8E8E93; font-size: 12px; flex-shrink: 0;"></i>
+                <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.comment)}</span>
+            </div>
+        ` : '';
+
+        cardsHtml += `
+            <div class="apple-swipe-row" id="swipe-row-${t.id}">
+                <!-- Фоновое действие при свайпе вправо (Выполнить) -->
+                <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
+                    <i class="fa-solid fa-check" style="font-size: 20px;"></i>
+                    <span>Выполнить</span>
+                </div>
+
+                <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
+                <div class="apple-swipe-action-right">
+                    <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
+                        <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
+                        <span>Перенести</span>
+                    </button>
+                    <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
+                        <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
+                        <span>Передать</span>
+                    </button>
+                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
+                        <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
+                        <span>Правка</span>
+                    </button>
+                </div>
+
+                <!-- Карточка задачи (передний план) -->
+                <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" onclick="handleCardClick(event, ${t.id})">
+                    <div class="planner-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span class="badge-code" style="font-size: 11px; color: #8E8E93; font-family: monospace; letter-spacing: 0.2px;">${t.code || ('TSK-' + (idx + 1))}</span>
+                            ${horizonBadge}
+                            ${cardZoneHtml}
+                            ${backlogBadge}
+                            ${crossWeekBadge}
+                        </div>
+                        <div>
+                            ${statusPill}
+                        </div>
+                    </div>
+
+                    <div class="planner-card-body">
+                        <div class="planner-card-title ${titleClass}" style="font-size: 16px; font-weight: 600; color: #1C1C1E; line-height: 1.35;">${escapeHtml(t.title || '—')}</div>
+                        ${titleKzBlock}
+                    </div>
+
+                    <div class="planner-card-meta" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: #636366;">
+                        <div class="card-meta-item assignee" style="display: flex; align-items: center; gap: 5px; color: #007AFF; font-weight: 600;">
+                            <i class="fa-solid fa-user-check" style="font-size: 12px;"></i>
+                            <span title="${escapeHtml(t.assignee_name || 'Не назначен')}">${escapeHtml(t.assignee_name || 'Не назначен')}</span>
+                        </div>
+                        ${cardDueDateItem}
+                    </div>
+
+                    ${commentPreview}
+                </div>
+            </div>
+        `;
+    });
+
+    cardsContainer.innerHTML = cardsHtml;
+    initCardSwipeGestures();
+}badge-zone';
         if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
         else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
 
@@ -3328,7 +3660,7 @@ function debounceAutoTranslateModal() {
 }
 
 /* ==========================================================
-   DATE HELPERS
+   DATE HELPERS & PRESETS
    ========================================================== */
 function parseDateToIso(str) {
     if (!str) return "";
@@ -3353,6 +3685,77 @@ function formatIsoToDisplayDate(isoStr) {
         return `${parts[2]}.${parts[1]} (${dayName})`;
     }
     return isoStr;
+}
+
+function setDuePreset(preset) {
+    const d = new Date();
+    if (preset === 'today') {
+        // Today
+    } else if (preset === 'this_fri') {
+        const day = d.getDay(); // 0 Sun, 1 Mon ... 5 Fri, 6 Sat
+        const isoDay = day === 0 ? 7 : day;
+        const diff = 5 - isoDay;
+        d.setDate(d.getDate() + diff);
+    } else if (preset === 'next_fri') {
+        const day = d.getDay();
+        const isoDay = day === 0 ? 7 : day;
+        const diff = (5 - isoDay) + 7;
+        d.setDate(d.getDate() + diff);
+    } else if (preset === 'plus_2w') {
+        d.setDate(d.getDate() + 14);
+    } else if (preset === 'month_end') {
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        d.setDate(lastDay.getDate());
+    }
+
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const isoVal = `${yyyy}-${mm}-${dd}`;
+
+    const dueInput = document.getElementById("task-due-input");
+    if (dueInput) {
+        dueInput.value = isoVal;
+        onDueDateInputChanged(isoVal);
+    }
+}
+
+let _dueResolveAbort = null;
+async function onDueDateInputChanged(dateVal) {
+    const badge = document.getElementById("task-due-target-badge");
+    if (!badge) return;
+
+    if (!dateVal) {
+        badge.style.display = "none";
+        badge.innerHTML = "";
+        return;
+    }
+
+    const dispDate = formatIsoToDisplayDate(dateVal);
+    badge.style.display = "inline-flex";
+    badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size: 10px;"></i> <span>Определение недели...</span>`;
+
+    try {
+        if (_dueResolveAbort) _dueResolveAbort.abort();
+        _dueResolveAbort = new AbortController();
+
+        const res = await fetch(`/api/tasks/resolve_week?date_str=${encodeURIComponent(dispDate)}`, {
+            signal: _dueResolveAbort.signal
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === "ok" && data.month_label && data.week_label) {
+                badge.innerHTML = `<i class="fa-solid fa-crosshairs" style="color: #2563eb;"></i> <span>Попадёт в: <b>${data.month_label} · ${data.week_label}</b></span>`;
+                badge.className = "due-date-target-badge";
+            } else {
+                badge.innerHTML = `<i class="fa-solid fa-calendar" style="color: #64748b;"></i> <span>Срок: <b>${dispDate}</b></span>`;
+            }
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            badge.innerHTML = `<i class="fa-solid fa-calendar" style="color: #64748b;"></i> <span>Срок: <b>${dispDate}</b></span>`;
+        }
+    }
 }
 
 /* ==========================================================
@@ -3460,7 +3863,9 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
-    document.getElementById("task-due-input").value = `${yyyy}-${mm}-${dd}`;
+    const todayIso = `${yyyy}-${mm}-${dd}`;
+    document.getElementById("task-due-input").value = todayIso;
+    onDueDateInputChanged(todayIso);
     
     // По умолчанию статус «В работе» и пустой факт
     document.getElementById("task-status-input").value = "🟡 В работе";
@@ -3537,7 +3942,9 @@ async function openEditTaskModal(taskId) {
     if (progDisp) progDisp.textContent = `${task.progress || 0}%`;
 
     // Синхронизируем дату в календарь (input type="date")
-    document.getElementById("task-due-input").value = parseDateToIso(task.due_date_str);
+    const editDueIso = parseDateToIso(task.due_date_str);
+    document.getElementById("task-due-input").value = editDueIso;
+    onDueDateInputChanged(editDueIso);
     
     // Отображаем блоки Статуса и Факта при редактировании существующей задачи
     const statusContainer = document.getElementById("task-status-container");
@@ -4182,8 +4589,52 @@ function parseBulkTasksFromTextarea() {
 }
 
 /* ==========================================================
-   OCR VIA GEMINI MULTIMODAL (3.8 FLASH)
+   OCR VIA DEEPSEEK MULTIMODAL VISION
    ========================================================== */
+async function compressImageForOcr(fileOrBlob, maxDim = 2048) {
+    if (typeof fileOrBlob === "string") return fileOrBlob;
+    if (!(fileOrBlob instanceof Blob)) return fileOrBlob;
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(fileOrBlob);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let { width, height } = img;
+            if (width <= maxDim && height <= maxDim && fileOrBlob.size < 1.5 * 1024 * 1024) {
+                resolve(fileOrBlob);
+                return;
+            }
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+                (blob) => {
+                    resolve(blob || fileOrBlob);
+                },
+                "image/jpeg",
+                0.88
+            );
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(fileOrBlob);
+        };
+        img.src = url;
+    });
+}
+
 function triggerBulkOcrUpload() {
     const fileInp = document.getElementById("bulk-ocr-file-input");
     if (fileInp) {
@@ -4250,15 +4701,16 @@ async function processBulkOcrFiles(filesOrBlobs) {
 
     try {
         for (let i = 0; i < totalFiles; i++) {
-            const fileItem = filesOrBlobs[i];
+            const rawFileItem = filesOrBlobs[i];
             
             if (btnOcr) {
                 btnOcr.disabled = true;
                 const fileLabel = totalFiles > 1 ? ` (${i + 1}/${totalFiles})` : "";
-                btnOcr.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #16a34a;"></i> <span>Распознавание фото${fileLabel}...</span>`;
+                btnOcr.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color: #16a34a;"></i> <span>Распознавание DeepSeek${fileLabel}...</span>`;
             }
 
             try {
+                const fileItem = await compressImageForOcr(rawFileItem);
                 const formData = new FormData();
                 if (typeof fileItem === "string") {
                     formData.append("image_base64", fileItem);
@@ -4266,11 +4718,15 @@ async function processBulkOcrFiles(filesOrBlobs) {
                     formData.append("file", fileItem);
                 }
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
                 const res = await fetch("/api/tasks/ocr_image", {
                     method: "POST",
                     body: formData,
-                    timeoutMs: 60000
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
 
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({ detail: "Сбой запроса" }));
@@ -4297,11 +4753,10 @@ async function processBulkOcrFiles(filesOrBlobs) {
                 }
             } catch (err) {
                 console.error(`Error recognizing file #${i + 1}:`, err);
-                if (totalFiles === 1) {
-                    alert("Ошибка распознавания: " + err.message);
-                } else {
-                    showToast(`⚠️ Ошибка фото ${i + 1}: ${err.message}`);
-                }
+                const errMsg = err.name === "AbortError" 
+                    ? "Превышено время ожидания ответа AI (таймаут 60с)" 
+                    : (err.message || "Ошибка распознавания");
+                showToast(`⚠️ ${errMsg}`);
             }
         }
 

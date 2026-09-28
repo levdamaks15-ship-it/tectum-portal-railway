@@ -1767,4 +1767,254 @@ tr.task-row-backlog td:first-child {
     overscroll-behavior-y: contain !important;
 }
 
+/* ==========================================================================
+   📅 Modern Week & Date Navigation Ergonomics System
+   ========================================================================== */
+
+/* Week Nav Segment (Arrows + Selector + Today button) */
+.week-nav-segment {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 2px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    gap: 2px;
+}
+
+.btn-week-step {
+    background: transparent;
+    border: none;
+    color: #475569;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.15s ease;
+}
+
+.btn-week-step:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.btn-week-step:active {
+    background: #e2e8f0;
+    transform: scale(0.95);
+}
+
+.week-select-inline {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-weight: 700 !important;
+    font-size: 0.82rem !important;
+    color: #0f172a !important;
+    padding: 3px 6px !important;
+    cursor: pointer;
+    outline: none !important;
+}
+
+.btn-today-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.btn-today-chip:hover {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #bfdbfe;
+}
+
+.btn-today-chip.is-current {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #93c5fd;
+}
+
+/* Week Dividers in Tables */
+tr.week-divider-row {
+    background: #f8fafc !important;
+}
+
+tr.week-divider-row td {
+    padding: 0.55rem 0.75rem !important;
+    border-top: 1.5px solid #e2e8f0 !important;
+    border-bottom: 1.5px solid #e2e8f0 !important;
+    background: #f8fafc !important;
+}
+
+.week-divider-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #334155;
+    background: #ffffff;
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.week-divider-badge.is-current-week {
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    background: #eff6ff;
+}
+
+.week-divider-badge.is-next-week {
+    border-color: #c7d2fe;
+    color: #4338ca;
+    background: #eef2ff;
+}
+
+.week-divider-badge .week-count-pill {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+}
+
+.week-divider-badge.is-current-week .week-count-pill {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.week-divider-badge.is-next-week .week-count-pill {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+/* Week Divider in Mobile Cards View */
+.week-divider-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.25rem 0.35rem 0.25rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Horizon Badges for Cross-Horizon My Tasks */
+.badge-horizon {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+
+.badge-horizon.horizon-sprint {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.badge-horizon.horizon-ogm {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #bbf7d0;
+}
+
+.badge-horizon.horizon-oge {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
+}
+
+.badge-horizon.horizon-tech {
+    background: #f0f9ff;
+    color: #0369a1;
+    border-color: #bae6fd;
+}
+
+.badge-horizon.horizon-quality {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+}
+
+.badge-horizon.horizon-roadmap {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border-color: #ddd6fe;
+}
+
+.badge-horizon.horizon-service {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+/* Quick Due Date Presets in Modal */
+.due-presets-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 5px;
+}
+
+.btn-due-preset {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+}
+
+.btn-due-preset:hover {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #93c5fd;
+}
+
+.btn-due-preset:active {
+    transform: scale(0.96);
+}
+
+.due-date-target-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: #15803d;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 2px 7px;
+    border-radius: 5px;
+    margin-top: 4px;
+}
+
 
