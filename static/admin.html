@@ -2183,13 +2183,16 @@
                             <span style="font-size: 0.75rem; color: var(--text-secondary);">Удаление задач разрешено
                                 исключительно из панели администратора</span>
                         </div>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
                             <input type="text" id="admin-task-search" placeholder="Поиск по сути, исполнителю, ID..."
                                 oninput="filterAdminTasksTable()"
-                                style="padding: 0.35rem 0.65rem; font-size: 0.82rem; border-radius: 6px; width: 240px; background: rgba(0,0,0,0.2); color: var(--text-primary); border: 1px solid var(--border-color);">
+                                style="padding: 0.35rem 0.65rem; font-size: 0.82rem; border-radius: 6px; width: 220px; background: rgba(0,0,0,0.2); color: var(--text-primary); border: 1px solid var(--border-color);">
                             <button onclick="loadAdminTasksList()"
                                 style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.82rem; background: var(--bg-tertiary);"
                                 title="Обновить список"><i class="fa-solid fa-arrows-rotate"></i></button>
+                            <button onclick="openAdminTaskModal()" class="btn-primary"
+                                style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 4px;"
+                                title="Создать задачу планнера"><i class="fa-solid fa-plus"></i> Новая задача</button>
                         </div>
                     </div>
                     <div
@@ -2201,17 +2204,19 @@
                                         <input type="checkbox" id="th-admin-select-all-tasks" onchange="toggleSelectAllAdminTasks(this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb;" title="Выбрать все задачи">
                                     </th>
                                     <th style="width: 85px;">ID / Код</th>
-                                    <th style="width: 170px;">Период (Неделя)</th>
+                                    <th style="width: 150px;">Период (Неделя)</th>
                                     <th style="width: 90px;">Зона</th>
-                                    <th style="min-width: 280px;">Суть задачи (RU / KZ)</th>
+                                    <th style="min-width: 260px;">Суть задачи (RU / KZ)</th>
                                     <th style="width: 130px;">Исполнитель</th>
-                                    <th style="width: 130px;">Статус</th>
-                                    <th style="text-align: right; width: 100px;">Действия</th>
+                                    <th style="width: 100px;">Срок</th>
+                                    <th style="width: 120px;">Статус</th>
+                                    <th style="width: 120px;">Примечание</th>
+                                    <th style="text-align: right; width: 90px;">Действия</th>
                                 </tr>
                             </thead>
                             <tbody id="admin-tasks-table-body">
                                 <tr>
-                                    <td colspan="8"
+                                    <td colspan="10"
                                         style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
                                         Загрузка задач...</td>
                                 </tr>
@@ -3524,6 +3529,100 @@
                     style="width: auto; padding: 0.45rem 1rem;">Отмена</button>
                 <button onclick="savePlannerZone()" class="btn-save" style="width: auto; padding: 0.45rem 1.25rem;"><i
                         class="fa-solid fa-check"></i> Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Task Modal (Edit/Create Task in Admin Panel) -->
+    <div id="admin-task-modal" class="modal" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 640px; max-height: 85vh; overflow-y: auto; word-break: break-word;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.6rem;">
+                <h3 id="admin-task-modal-title" style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">
+                    <i class="fa-solid fa-pen"></i> Редактирование задачи
+                </h3>
+                <span onclick="closeAdminTaskModal()" style="cursor: pointer; font-size: 1.5rem; color: var(--text-secondary); line-height: 1;">&times;</span>
+            </div>
+            <input type="hidden" id="admin-modal-task-id">
+
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Суть задачи (на русском) *</label>
+                <textarea id="admin-modal-title-ru" rows="3" oninput="onAdminTaskRuInput()" placeholder="Опишите суть производственной задачи..." required style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.88rem; background: #fff; color: #0f172a; resize: vertical;"></textarea>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0.8rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">Суть задачи (на казахском / қазақша)</label>
+                    <span id="admin-kz-translate-status" style="font-size: 0.74rem; color: #16a34a; font-weight: 600;"></span>
+                </div>
+                <textarea id="admin-modal-title-kz" rows="2" placeholder="Тапсырманың мазмұны қазақ тілінде..." style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.88rem; background: #fff; color: #0f172a; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Зона / Подразделение *</label>
+                    <select id="admin-modal-zone" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Доп. цех / участок</label>
+                    <input type="text" id="admin-modal-dept" placeholder="например: Цех ХЦИ, ЛФМ-1" style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Автор задачи *</label>
+                    <select id="admin-modal-author" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Исполнитель</label>
+                    <select id="admin-modal-assignee" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;"></select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Срок (Дедлайн)</label>
+                    <input type="date" id="admin-modal-due-date" onchange="onAdminTaskModalDueDateChange()" style="width: 100%; box-sizing: border-box; padding: 0.45rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.82rem;">
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Месяц планнера</label>
+                    <select id="admin-modal-month" onchange="onAdminModalMonthChange()" style="width: 100%; padding: 0.45rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.82rem;"></select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.8rem; font-weight: 600; color: var(--text-primary);">Неделя</label>
+                    <select id="admin-modal-week" style="width: 100%; padding: 0.45rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.82rem;"></select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.8rem;">
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Статус *</label>
+                    <select id="admin-modal-status" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem; font-weight: 600;">
+                        <option value="🟡 В работе">🟡 В работе</option>
+                        <option value="🟢 Выполнено">🟢 Выполнено</option>
+                        <option value="🔵 Перенесено">🔵 Перенесено</option>
+                        <option value="🔴 Отменено">🔴 Отменено</option>
+                        <option value="⚪ В очереди">⚪ В очереди</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Тип горизонта</label>
+                    <select id="admin-modal-task-type" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;">
+                        <option value="weekly">Недельная задача</option>
+                        <option value="backlog">Бэклог / Очередь</option>
+                        <option value="strategic">Стратегическая (Дорожная карта)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label style="display: block; margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--text-primary);">Комментарий / примечание</label>
+                <input type="text" id="admin-modal-comment" placeholder="Примечание к задаче..." style="width: 100%; box-sizing: border-box; padding: 0.5rem; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 0.85rem;">
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                <button type="button" onclick="closeAdminTaskModal()" class="btn-secondary" style="width: auto; padding: 0.5rem 1.2rem;">Отмена</button>
+                <button id="btn-save-admin-task" onclick="saveAdminTask()" class="btn-save" style="width: auto; padding: 0.5rem 1.5rem;"><i class="fa-solid fa-check"></i> Сохранить задачу</button>
             </div>
         </div>
     </div>

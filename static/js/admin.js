@@ -2928,9 +2928,17 @@ async function saveShiftScheduleDay() {
 let adminPlannerEmployees = [];
 let adminPlannerZones = [];
 let adminAllTasks = [];
+let selectedAdminTaskIds = new Set();
+let adminCalendarStructure = {};
+let adminTranslateTimer = null;
 
 async function loadPlannerSettings() {
-    await Promise.all([loadPlannerEmployees(), loadPlannerZones(), loadAdminTasksList()]);
+    await Promise.all([
+        hydrateAdminCalendarStructure(),
+        loadPlannerEmployees(),
+        loadPlannerZones(),
+        loadAdminTasksList()
+    ]);
 }
 
 async function loadPlannerEmployees() {
@@ -3643,7 +3651,7 @@ async function saveAdminTask() {
         week_label: week,
         status: status,
         comment: comment,
-        pin_code: "1509" // Master Admin PIN override
+        pin_code: (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : "6282"
     };
 
     try {
@@ -3671,8 +3679,6 @@ async function saveAdminTask() {
         if (saveBtn) saveBtn.disabled = false;
     }
 }
-
-let selectedAdminTaskIds = new Set();
 
 function toggleSelectAdminTask(taskId, isChecked) {
     if (isChecked) {
