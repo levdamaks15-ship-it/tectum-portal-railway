@@ -2018,7 +2018,7 @@ tr.week-divider-row td {
 }
 
 /* ==========================================================================
-   WEEK NAV SEGMENT — Единый инлайн-контрол навигации по неделям
+   WEEK NAV SEGMENT & FAST PRESETS — Единая инлайн-навигация по датам
    ========================================================================== */
 
 /* Обёртка даты-навигации — одна строка без переноса */
@@ -2027,79 +2027,113 @@ tr.week-divider-row td {
     align-items: center !important;
     gap: 6px !important;
     flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
 }
 
-/* Сегментированная кнопочная группа [◀][Неделя ▾][▶] */
+/* 1. Компактный и единообразный стиль для select месяца (без растягивания) */
+#filter-month {
+    height: 34px !important;
+    padding: 0 24px 0 10px !important;
+    font-size: 0.83rem !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' fill='%2364748b'%3E%3Cpath d='M0 0l4 4 4-4z'/%3E%3C/svg%3E") no-repeat right 8px center !important;
+    color: #1e293b !important;
+    width: auto !important;
+    min-width: 130px !important;
+    max-width: 155px !important;
+    flex: 0 0 auto !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    cursor: pointer !important;
+    transition: border-color 0.15s ease, background 0.15s ease !important;
+}
+
+#filter-month:hover {
+    border-color: #94a3b8 !important;
+    background-color: #f8fafc !important;
+}
+
+#filter-month:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
+    outline: none !important;
+}
+
+/* 2. Сегментированная кнопочная группа [◀][Неделя ▾][▶] */
 .week-nav-segment {
-    display: inline-flex;
-    align-items: stretch;
-    flex-shrink: 0;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 9px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: box-shadow 0.15s ease;
+    display: inline-flex !important;
+    align-items: stretch !important;
+    flex-shrink: 0 !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .week-nav-segment:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    border-color: #94a3b8 !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07) !important;
 }
 
 /* Стрелки ◀ / ▶ */
 .btn-week-step {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    min-width: 32px;
-    height: 34px;
-    background: #f8fafc;
-    border: none;
-    border-radius: 0;
-    color: #64748b;
-    font-size: 0.78rem;
-    cursor: pointer;
-    padding: 0;
-    transition: background 0.12s ease, color 0.12s ease;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 32px !important;
+    background: #f8fafc !important;
+    border: none !important;
+    border-radius: 0 !important;
+    color: #64748b !important;
+    font-size: 0.75rem !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    transition: background 0.12s ease, color 0.12s ease !important;
     -webkit-tap-highlight-color: transparent;
 }
 
 .btn-week-step:hover {
-    background: #eff6ff;
-    color: #2563eb;
+    background: #eff6ff !important;
+    color: #2563eb !important;
 }
 
 .btn-week-step:active {
-    background: #dbeafe;
-    color: #1d4ed8;
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
 }
 
 #btn-week-prev {
-    border-right: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0 !important;
 }
 
 #btn-week-next {
-    border-left: 1px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0 !important;
 }
 
 /* Инлайн-селектор недель внутри сегмента */
 .week-select-inline {
-    appearance: auto;
-    -webkit-appearance: auto;
+    appearance: auto !important;
+    -webkit-appearance: auto !important;
     background: #ffffff !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding: 0 8px !important;
-    height: 34px;
-    min-height: 34px;
+    height: 32px !important;
+    min-height: 32px !important;
     font-size: 0.83rem !important;
     font-weight: 600 !important;
     color: #0f172a !important;
-    cursor: pointer;
-    min-width: 120px;
-    max-width: 240px;
+    cursor: pointer !important;
+    min-width: 140px !important;
+    max-width: 250px !important;
     outline: none !important;
 }
 
@@ -2108,54 +2142,92 @@ tr.week-divider-row td {
     box-shadow: none !important;
 }
 
-/* Кнопка «Сегодня» — тихий ghost-чип */
+/* 3. Кнопка «Сегодня» — аккуратный ghost-чип */
 .btn-today-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0 11px;
-    height: 34px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 9px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: all 0.12s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    font-family: inherit;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 0 10px !important;
+    height: 34px !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-size: 0.80rem !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    transition: all 0.12s ease !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+    font-family: inherit !important;
 }
 
 .btn-today-chip:hover {
-    background: #eff6ff;
-    color: #2563eb;
-    border-color: #93c5fd;
-    box-shadow: 0 2px 6px rgba(37,99,235,0.12);
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border-color: #93c5fd !important;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.12) !important;
 }
 
 .btn-today-chip:active {
-    transform: scale(0.97);
+    transform: scale(0.97) !important;
 }
 
 .btn-today-chip i {
-    font-size: 0.77rem;
+    font-size: 0.77rem !important;
+    color: #3b82f6 !important;
 }
 
-/* Компактный и единообразный стиль для select месяца */
-#filter-month {
-    height: 34px !important;
-    padding: 0 10px !important;
-    font-size: 0.83rem !important;
-    font-weight: 700 !important;
-    border-radius: 9px !important;
-    min-width: 130px;
+/* Вертикальный разделитель */
+.toolbar-divider-v {
+    width: 1px;
+    height: 22px;
+    background: #e2e8f0;
+    margin: 0 4px;
     flex-shrink: 0;
-    border: 1px solid #93c5fd !important;
+}
+
+/* 4. Блок быстрых пресетов (Эта нед., След. нед., 2 недели, Весь месяц) */
+.week-presets-bar {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+.btn-preset-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    height: 32px !important;
+    padding: 0 9px !important;
+    font-size: 0.76rem !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 7px !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    transition: all 0.12s ease !important;
+    font-family: inherit !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+}
+
+.btn-preset-chip:hover {
     background: #eff6ff !important;
     color: #1d4ed8 !important;
+    border-color: #bfdbfe !important;
+}
+
+.btn-preset-chip.active {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border-color: #93c5fd !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 3px rgba(37,99,235,0.12) !important;
 }
 
 /* Делители недель в таблице задач */
@@ -2192,7 +2264,7 @@ tr.week-divider-row td {
     margin-bottom: 4px;
 }
 
-/* Адаптация тулбара на мобильных */
+/* Адаптация тулбара на экранах мобильных */
 @media screen and (max-width: 768px) {
     .toolbar-group-dates {
         flex-wrap: wrap !important;

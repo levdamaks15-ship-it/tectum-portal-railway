@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20260907_calendar_time_v1">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20260928_weeknav_v1">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20260928_weeknav_v3">
 
     <style>
         :root {
@@ -1940,7 +1940,7 @@
                 <option value="Июль 2026">Июль 2026</option>
                 <option value="Август 2026">Август 2026</option>
                 <option value="Сентябрь 2026">Сентябрь 2026</option>
-                <option value="Октябрь 2026">Октябрь 2026</option>
+                <option value="Октябрь 2026" selected>Октябрь 2026</option>
                 <option value="Ноябрь 2026">Ноябрь 2026</option>
                 <option value="Декабрь 2026">Декабрь 2026</option>
             </select>
@@ -1959,9 +1959,28 @@
             </div>
 
             <!-- Quick Reset to Current Week / Today -->
-            <button type="button" class="btn-today-chip" id="btn-nav-today" onclick="resetToCurrentWeek()" title="Вернуться к текущей неделе">
+            <button type="button" class="btn-today-chip" id="btn-nav-today" onclick="resetToCurrentWeek()" title="Вернуться к сегодняшнему дню">
                 <i class="fa-solid fa-calendar-day"></i> <span>Сегодня</span>
             </button>
+
+            <!-- Vertical divider -->
+            <div class="toolbar-divider-v hide-mobile"></div>
+
+            <!-- Fast Presets Bar: Эта нед. / След. нед. / 2 недели / Весь месяц -->
+            <div class="week-presets-bar hide-mobile" id="week-presets-container">
+                <button type="button" class="btn-preset-chip" id="btn-preset-this-week" onclick="setWeekScopePreset('this_week')" title="Показать задачи текущей недели">
+                    <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> <span>Эта неделя</span>
+                </button>
+                <button type="button" class="btn-preset-chip" id="btn-preset-next-week" onclick="setWeekScopePreset('next_week')" title="Показать задачи следующей недели">
+                    <i class="fa-solid fa-forward" style="color: #3b82f6;"></i> <span>След. неделя</span>
+                </button>
+                <button type="button" class="btn-preset-chip" id="btn-preset-2-weeks" onclick="setWeekScopePreset('next_2_weeks')" title="Показать текущую и следующую недели вместе">
+                    <i class="fa-solid fa-calendar-week" style="color: #6366f1;"></i> <span>2 недели</span>
+                </button>
+                <button type="button" class="btn-preset-chip" id="btn-preset-month" onclick="setWeekScopePreset('whole_month')" title="Показать все недели выбранного месяца">
+                    <i class="fa-solid fa-calendar" style="color: #10b981;"></i> <span>Весь месяц</span>
+                </button>
+            </div>
 
             <!-- Quarter Selector for Roadmaps (Hidden by default) -->
             <select class="select-filter" id="filter-quarter" onchange="loadRoadmaps()"
@@ -3049,7 +3068,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260921_sheet_bounce_fix_v1"></script>
+    <script src="/static/js/tasks.js?v=20260928_presets_v3"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

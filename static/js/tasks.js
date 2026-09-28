@@ -1652,6 +1652,7 @@ function onMonthChange(forcedWeek = null) {
         currentWeek = chosenWeek;
     }
     if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
+    updateChipsVisualState();
     if (!isInitialLoading) {
         loadTasks();
     }
@@ -1833,6 +1834,45 @@ function setWeekScopePreset(preset) {
     } else if (preset === 'next_week') {
         resetToCurrentWeek();
         setTimeout(() => nextWeek(), 100);
+    }
+}
+
+function updateChipsVisualState() {
+    const curW = currentWeek || '';
+    const btnThisWeek = document.getElementById('btn-preset-this-week');
+    const btnNextWeek = document.getElementById('btn-preset-next-week');
+    const btn2Weeks = document.getElementById('btn-preset-2-weeks');
+    const btnMonth = document.getElementById('btn-preset-month');
+
+    [btnThisWeek, btnNextWeek, btn2Weeks, btnMonth].forEach(btn => {
+        if (btn) btn.classList.remove('active');
+    });
+
+    if (curW === 'all') {
+        if (btnMonth) btnMonth.classList.add('active');
+    } else if (curW === 'next_2_weeks') {
+        if (btn2Weeks) btn2Weeks.classList.add('active');
+    } else {
+        try {
+            const today = new Date();
+            const year = today.getFullYear();
+            const datesPart = curW.split('(')[1]?.split(')')[0];
+            if (datesPart) {
+                const [sStr, eStr] = datesPart.split(' - ');
+                const [sd, sm] = sStr.trim().split('.').map(Number);
+                const [ed, em] = eStr.trim().split('.').map(Number);
+                const wStart = new Date(year, sm - 1, sd, 0, 0, 0);
+                let endYear = year;
+                if (sm === 12 && em === 1) endYear = year + 1;
+                const wEnd = new Date(endYear, em - 1, ed, 23, 59, 59);
+                const wSun = new Date(wEnd);
+                wSun.setDate(wSun.getDate() + 2, 23, 59, 59);
+
+                if (today >= wStart && today <= wSun) {
+                    if (btnThisWeek) btnThisWeek.classList.add('active');
+                }
+            }
+        } catch (e) {}
     }
 }
 
