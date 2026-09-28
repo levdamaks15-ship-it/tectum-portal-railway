@@ -1043,7 +1043,6 @@ function switchHorizon(horizon, event) {
         if (filterMonth) filterMonth.style.display = "inline-block";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (btnFilterHasDoc) btnFilterHasDoc.style.display = "none";
         if (printSubtitle) printSubtitle.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО";
         loadTasks();
     }
