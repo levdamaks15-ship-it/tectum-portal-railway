@@ -746,6 +746,10 @@ function updateChipsVisualState() {
             btn.classList.toggle("active", zone === zName);
         }
     });
+
+    if (typeof updateWeekPresetButtonsState === 'function') {
+        updateWeekPresetButtonsState();
+    }
 }
 
 function updateFilterBadge() {
@@ -1464,20 +1468,33 @@ function toggleDocFilter() {
 function onTaskTypeChange(taskType) {
     const deptInput = document.getElementById("task-department-input");
     const roadmapRow = document.getElementById("task-roadmap-fields-row");
-    const hierarchyRow = document.getElementById("task-hierarchy-row");
+    const zoneSelect = document.getElementById("task-zone-input");
 
     if (taskType === "roadmap") {
         if (roadmapRow) roadmapRow.style.display = "grid";
         if (deptInput) deptInput.style.display = "block";
     } else if (taskType === "service_plan") {
         if (roadmapRow) roadmapRow.style.display = "none";
-        if (deptInput) deptInput.style.display = "block";
+        if (deptInput) {
+            deptInput.style.display = "block";
+            if (!deptInput.value) deptInput.value = "ОГМ";
+        }
+        if (zoneSelect) zoneSelect.value = (deptInput && deptInput.value) ? deptInput.value : "ОГМ";
+    } else if (taskType === "tech_council") {
+        if (roadmapRow) roadmapRow.style.display = "none";
+        if (zoneSelect) zoneSelect.value = "Техсовет";
+    } else if (taskType === "quality_day") {
+        if (roadmapRow) roadmapRow.style.display = "none";
+        if (zoneSelect) zoneSelect.value = "День качества";
     } else if (taskType === "milestone") {
         if (roadmapRow) roadmapRow.style.display = "none";
         if (deptInput) deptInput.style.display = "block";
     } else {
         // weekly
         if (roadmapRow) roadmapRow.style.display = "none";
+        if (zoneSelect && (zoneSelect.value === "Техсовет" || zoneSelect.value === "День качества")) {
+            zoneSelect.value = "Бережливое производство";
+        }
     }
 }
 
@@ -1843,7 +1860,7 @@ function setWeekScopePreset(preset) {
     }
 }
 
-function updateChipsVisualState() {
+function updateWeekPresetButtonsState() {
     const curW = currentWeek || '';
     const btnThisWeek = document.getElementById('btn-preset-this-week');
     const btnNextWeek = document.getElementById('btn-preset-next-week');
@@ -3670,15 +3687,25 @@ function debounceAutoTranslateModal() {
 /* ==========================================================
    DATE HELPERS & PRESETS
    ========================================================== */
-function parseDateToIso(str) {
-    if (!str) return "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-    const parts = str.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/);
-    if (parts) {
-        const day = parts[1].padStart(2, '0');
-        const month = parts[2].padStart(2, '0');
-        const year = parts[3] || "2026";
+function parseDateToIso(dateStr) {
+    if (!dateStr) return "";
+    const clean = dateStr.trim();
+    // Формат DD.MM.YYYY или DD.MM
+    const ddmmyyyy = clean.match(/^(\d{1,2})[\.\/\-](\d{1,2})(?:[\.\/\-](\d{2,4}))?$/);
+    if (ddmmyyyy) {
+        const day = ddmmyyyy[1].padStart(2, '0');
+        const month = ddmmyyyy[2].padStart(2, '0');
+        let year = ddmmyyyy[3];
+        if (!year) {
+            year = new Date().getFullYear();
+        } else if (year.length === 2) {
+            year = "20" + year;
+        }
         return `${year}-${month}-${day}`;
+    }
+    // Формат YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        return clean;
     }
     return "";
 }
@@ -4287,22 +4314,6 @@ function closeBulkTasksModal() {
     if (modal) modal.style.display = "none";
 }
 
-function onTaskTypeChange(typeVal) {
-    const deptSelect = document.getElementById("task-department-input");
-    const zoneSelect = document.getElementById("task-zone-input");
-    if (typeVal === "service_plan") {
-        if (deptSelect && !deptSelect.value) deptSelect.value = "ОГМ";
-        if (zoneSelect) zoneSelect.value = (deptSelect && deptSelect.value) ? deptSelect.value : "ОГМ";
-    } else if (typeVal === "tech_council") {
-        if (zoneSelect) zoneSelect.value = "Техсовет";
-    } else if (typeVal === "quality_day") {
-        if (zoneSelect) zoneSelect.value = "День качества";
-    } else if (typeVal === "weekly") {
-        if (zoneSelect && (zoneSelect.value === "Техсовет" || zoneSelect.value === "День качества")) {
-            zoneSelect.value = "Бережливое производство";
-        }
-    }
-}
 
 function onBulkTypeChange(typeVal) {
     const deptSelect = document.getElementById("bulk-department-input");
@@ -4402,28 +4413,6 @@ function matchPersonByName(rawText, personsList) {
     return "";
 }
 
-function parseDateToIso(dateStr) {
-    if (!dateStr) return "";
-    const clean = dateStr.trim();
-    // Формат DD.MM.YYYY или DD.MM
-    const ddmmyyyy = clean.match(/^(\d{1,2})[\.\/\-](\d{1,2})(?:[\.\/\-](\d{2,4}))?$/);
-    if (ddmmyyyy) {
-        const day = ddmmyyyy[1].padStart(2, '0');
-        const month = ddmmyyyy[2].padStart(2, '0');
-        let year = ddmmyyyy[3];
-        if (!year) {
-            year = new Date().getFullYear();
-        } else if (year.length === 2) {
-            year = "20" + year;
-        }
-        return `${year}-${month}-${day}`;
-    }
-    // Формат YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
-        return clean;
-    }
-    return "";
-}
 
 function normalizeWordTableLines(rawText) {
     // 1. Разбиваем на сырые строки
