@@ -2244,12 +2244,12 @@ function groupTasksByWeekChronologically(tasks) {
         groupsMap.get(weekLabel).tasks.push(t);
     });
 
-    // Сортируем группы недель строго по хронологии (sortKey)
-    const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => a.sortKey - b.sortKey);
+    // Сортируем группы недель ОТ НОВЫХ К СТАРЫМ (самые актуальные/свежие недели вверху)
+    const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => b.sortKey - a.sortKey);
 
-    // Внутри каждой группы сортируем задачи по ID
+    // Внутри каждой группы сортируем задачи от новых к старым (по ID DESC)
     sortedGroups.forEach(group => {
-        group.tasks.sort((a, b) => (a.id || 0) - (b.id || 0));
+        group.tasks.sort((a, b) => (b.id || 0) - (a.id || 0));
     });
 
     return sortedGroups;
