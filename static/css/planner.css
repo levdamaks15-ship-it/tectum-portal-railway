@@ -2159,9 +2159,10 @@ tr.week-divider-row td {
 /* Делители недель в таблице задач */
 .week-divider-row td {
     background: linear-gradient(90deg, #f1f5f9 0%, #f8fafc 100%) !important;
-    border-top: 2px solid #e2e8f0 !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    padding: 5px 12px !important;
+    border-top: 2px solid #cbd5e1 !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    border-right: none !important;
+    padding: 6px 12px !important;
     pointer-events: none;
 }
 
@@ -2171,9 +2172,57 @@ tr.week-divider-row td {
     gap: 6px;
     font-size: 0.75rem;
     font-weight: 700;
-    color: #475569;
+    color: #334155;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Вертикальные разделители колонок таблицы (как в полноценных таблицах) */
+.planner-table th {
+    border-right: 1px solid #e2e8f0 !important;
+    padding: 0.55rem 0.55rem !important;
+}
+
+.planner-table th:last-child {
+    border-right: none !important;
+}
+
+.planner-table td {
+    border-right: 1px solid #e2e8f0 !important;
+    padding: 0.55rem 0.55rem !important;
+}
+
+.planner-table td:last-child {
+    border-right: none !important;
+}
+
+.planner-table tr.week-divider-row td {
+    border-right: none !important;
+}
+
+/* Компактные и аккуратные фильтры в шапке таблицы */
+.planner-table th .select-filter {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    padding: 2px 4px !important;
+    border-radius: 6px !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    height: 24px !important;
+    outline: none !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
+    transition: all 0.15s ease !important;
+}
+
+.planner-table th .select-filter:hover {
+    border-color: #94a3b8 !important;
+    background: #f8fafc !important;
+}
+
+.planner-table th .select-filter:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
 }
 
 /* Заголовок-разделитель для мобильных карточек */
@@ -2181,7 +2230,7 @@ tr.week-divider-row td {
     padding: 8px 12px 4px;
     font-size: 0.73rem;
     font-weight: 700;
-    color: #64748b;
+    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     background: #f8fafc;

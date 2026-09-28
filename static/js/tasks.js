@@ -2184,6 +2184,77 @@ async function executeServicesBulkMove() {
     });
 }
 
+/**
+ * Вычисляет числовой ключ сортировки для календарной недели/даты (YYYYMMDD)
+ */
+function getWeekSortKey(weekLabel, monthLabel) {
+    if (!weekLabel || weekLabel === 'Без недели') return 99999999;
+    
+    // 1. Извлекаем год из месяца (например, "Сентябрь 2026" -> 2026)
+    let year = 2026;
+    if (monthLabel) {
+        const yearMatch = monthLabel.match(/\b(20\d{2})\b/);
+        if (yearMatch) year = parseInt(yearMatch[1], 10);
+    }
+
+    // 2. Ищем дату начала недели в формате "дд.мм" (например, "Неделя 4 (28.09 - 02.10)")
+    const dateMatch = weekLabel.match(/(\d{1,2})\.(\d{1,2})/);
+    if (dateMatch) {
+        const day = parseInt(dateMatch[1], 10);
+        const month = parseInt(dateMatch[2], 10);
+        
+        let effYear = year;
+        if (month === 12 && monthLabel && monthLabel.toLowerCase().includes("январ")) {
+            effYear = year - 1;
+        } else if (month === 1 && monthLabel && monthLabel.toLowerCase().includes("декабр")) {
+            effYear = year + 1;
+        }
+        return effYear * 10000 + month * 100 + day;
+    }
+
+    // 3. Fallback: если указан только номер недели
+    const weekNumMatch = weekLabel.match(/недел[яи]\s*(\d+)/i);
+    if (weekNumMatch) {
+        const weekNum = parseInt(weekNumMatch[1], 10);
+        return year * 10000 + weekNum * 100;
+    }
+
+    return 99999999;
+}
+
+/**
+ * Группирует и сортирует задачи в строгом хронологическом порядке по календарным блокам недель.
+ * Возвращает массив объектов: [{ weekLabel, sortKey, tasks: [...] }]
+ */
+function groupTasksByWeekChronologically(tasks) {
+    if (!tasks || tasks.length === 0) return [];
+
+    const groupsMap = new Map();
+
+    tasks.forEach(t => {
+        const weekLabel = t.week_label || 'Без недели';
+        if (!groupsMap.has(weekLabel)) {
+            const sortKey = getWeekSortKey(weekLabel, t.month_label);
+            groupsMap.set(weekLabel, {
+                weekLabel: weekLabel,
+                sortKey: sortKey,
+                tasks: []
+            });
+        }
+        groupsMap.get(weekLabel).tasks.push(t);
+    });
+
+    // Сортируем группы недель строго по хронологии (sortKey)
+    const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => a.sortKey - b.sortKey);
+
+    // Внутри каждой группы сортируем задачи по ID
+    sortedGroups.forEach(group => {
+        group.tasks.sort((a, b) => (a.id || 0) - (b.id || 0));
+    });
+
+    return sortedGroups;
+}
+
 function renderTasksTable(tasks) {
     const tableBody = document.getElementById("tasks-table-body");
     if (!tableBody) return;
@@ -2206,223 +2277,214 @@ function renderTasksTable(tasks) {
         return;
     }
 
-    // Подсчет задач по неделям для отображения разделителей
-    const weekCounts = {};
-    tasks.forEach(t => {
-        const wk = t.week_label || 'Без недели';
-        weekCounts[wk] = (weekCounts[wk] || 0) + 1;
-    });
-    const hasMultipleWeeks = Object.keys(weekCounts).length > 1 || ['all', 'open_active', 'next_2_weeks'].includes(currentWeek) || myTasksFilterActive;
-
-    let lastWeekGroup = null;
+    const weekGroups = groupTasksByWeekChronologically(tasks);
     let rowsHtml = '';
 
-    tasks.forEach((t, idx) => {
-        const currentWeekGroup = t.week_label || 'Без недели';
-        
-        // Вставляем визуальный разделитель недели
-        if (hasMultipleWeeks && currentWeekGroup !== lastWeekGroup) {
-            lastWeekGroup = currentWeekGroup;
-            const countInWeek = weekCounts[currentWeekGroup] || 1;
-            rowsHtml += `
-                <tr class="week-divider-row">
-                    <td colspan="11">
-                        <div class="week-divider-badge">
-                            <i class="fa-solid fa-calendar-week"></i>
-                            <span>${escapeHtml(currentWeekGroup)}</span>
-                            <span style="opacity: 0.8; font-weight: 500; font-size: 0.72rem; margin-left: 6px;">(${countInWeek} зад.)</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }
+    weekGroups.forEach(group => {
+        const currentWeekGroup = group.weekLabel;
+        const countInWeek = group.tasks.length;
 
-        let statusClass = "status-work";
-        const isCompleted = t.status && t.status.includes("Выполнено");
-        const isCancelled = t.status && t.status.includes("Отменено");
-        const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
-
-        let rowExtraClass = "";
-        if (isCompleted) {
-            statusClass = "status-done";
-            rowExtraClass = "task-row-done";
-        } else if (isCancelled) {
-            statusClass = "status-cancelled";
-            rowExtraClass = "task-row-cancelled";
-        } else if (t.status && t.status.includes("Перенесено")) {
-            statusClass = "status-moved";
-        } else {
-            statusClass = "status-work";
-        }
-
-        if (t.is_backlog) {
-            rowExtraClass += " task-row-backlog";
-        }
-
-        const photoBtn = t.photo_link ? `
-            <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer;" title="Просмотреть фото">
-                <i class="fa-solid fa-image"></i>
-            </button>
-        ` : `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
-
-        const backlogBadge = t.is_backlog ? `
-            <div style="margin-top: 4px;">
-                <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label : 'Прошлая неделя'}
-                </span>
-            </div>
-        ` : '';
-
-        const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
-            <div style="margin-top: 4px;">
-                <span class="badge-cross-week" title="Сквозная долгосрочная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
-                    <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная${t.origin_created_date ? ' (' + t.origin_created_date + ')' : ''}
-                </span>
-            </div>
-        ` : '';
-
-        const horizonBadge = t.horizon_label ? `
-            <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" title="Горизонт: ${escapeHtml(t.horizon_label)}">${escapeHtml(t.horizon_label)}</span>
-        ` : '';
-
-        const titleClass = isCancelled ? 'task-cancelled-text' : '';
-
-        const commentCell = isLocked ? `
-            <span class="comment-locked" title="${isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована'}">
-                ${t.comment || '—'}
-            </span>
-        ` : `
-            <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
-                ${t.comment || '—'}
-            </span>
-        `;
-
-        const actionButtons = isLocked ? `
-            <div class="row-actions">
-                <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
-                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
-                </button>
-                <button class="btn-icon-cell" disabled title="Заблокировано">
-                    <i class="fa-solid fa-lock" style="font-size: 0.75rem;"></i>
-                </button>
-            </div>
-        ` : `
-            <div class="row-actions">
-                <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
-                    <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
-                </button>
-                <button class="btn-icon-cell" onclick="openReassignTaskModal(${t.id})" title="Переадресовать задачу другому исполнителю">
-                    <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i>
-                </button>
-                <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-                <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
-                    <i class="fa-solid fa-pen"></i>
-                </button>
-            </div>
-        `;
-
-        const docBadge = t.attached_doc ? `
-            <div style="margin-top: 4px;">
-                <a href="${t.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: #1d4ed8; text-decoration: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Открыть документ из Базы Знаний: ${escapeHtml(t.attached_doc.title)}">
-                    <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
-                    <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.attached_doc.title)}</span>
-                </a>
-            </div>
-        ` : '';
-
-        const tagsHtml = (t.tags || '').split(',').filter(x => x.trim()).map(tagStr => {
-            const cleanT = tagStr.trim();
-            return `<span class="tag-pill" onclick="filterByTag('${cleanT}')">${cleanT}</span>`;
-        }).join('');
-
-        const depBadge = t.depends_on ? `
-            <div style="margin-top: 3px;">
-                <span class="dep-blocker-badge" title="Заблокировано задачей ${t.depends_on.code}: ${escapeHtml(t.depends_on.title)}">
-                    <i class="fa-solid fa-lock"></i> Блокер: ${t.depends_on.code}
-                </span>
-            </div>
-        ` : '';
-
-        const zoneVal = t.zone || 'Бережливое производство';
-        let zoneClass = 'badge-zone';
-        if (zoneVal === 'Техсовет') zoneClass += ' badge-zone-tech-council';
-        else if (zoneVal === 'День качества') zoneClass += ' badge-zone-quality-day';
-
-        let zoneAndDeptHtml = `<span class="${zoneClass}">${escapeHtml(zoneVal)}</span>`;
-        if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
-            zoneAndDeptHtml += `
-                <div style="margin-top: 2px;">
-                    <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>
-                </div>
-            `;
-        }
-
-        const dueDateCell = t.is_deadline_week ? `
-            <div>
-                <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str || ''}">
-                    <i class="fa-solid fa-bullseye"></i> ${t.due_date_str || 'Дедлайн'}
-                </span>
-            </div>
-        ` : `<span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>`;
-
-        const isBulk = isBulkHorizon();
-        const isChecked = selectedServiceTaskIds.has(t.id);
-        const checkboxHtml = isBulk ? `
-            <input type="checkbox" class="task-row-checkbox" ${isLocked ? 'disabled' : ''} ${isChecked ? 'checked' : ''} onchange="toggleSelectServiceTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; margin-right: 4px;" title="Выбрать задачу">
-        ` : '';
-
+        // Вставляем визуальный разделитель недели (ровно один раз на блок)
         rowsHtml += `
-            <tr id="task-row-${t.id}" class="${rowExtraClass} ${isChecked ? 'task-row-selected' : ''}">
-                <td style="white-space: nowrap;">
-                    <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        ${checkboxHtml}
-                        <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
-                        ${horizonBadge}
+            <tr class="week-divider-row">
+                <td colspan="11">
+                    <div class="week-divider-badge">
+                        <i class="fa-solid fa-calendar-week"></i>
+                        <span>${escapeHtml(currentWeekGroup)}</span>
+                        <span style="opacity: 0.8; font-weight: 500; font-size: 0.72rem; margin-left: 6px;">(${countInWeek} зад.)</span>
                     </div>
-                    ${backlogBadge}
-                    ${crossWeekBadge}
-                </td>
-                <td>
-                    ${zoneAndDeptHtml}
-                </td>
-                <td class="${titleClass}" style="font-weight: 600; min-width: 250px; color: #0f172a; line-height: 1.35; word-break: break-word;">
-                    <div>${t.title || '—'}</div>
-                    ${docBadge}
-                    ${depBadge}
-                    ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
-                </td>
-                <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 200px; line-height: 1.35; word-break: break-word;">${t.title_kz || '—'}</td>
-                <td style="text-align: center;">${photoBtn}</td>
-                
-                <!-- Pure Text Author -->
-                <td style="font-size: 0.82rem; color: #475569; white-space: nowrap; max-width: 85px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.author_name || '')}">
-                    ${t.author_name || '—'}
-                </td>
-
-                <!-- Pure Text Assignee -->
-                <td style="font-weight: 600; font-size: 0.82rem; color: #1d4ed8; white-space: nowrap; max-width: 95px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.assignee_name || '')}">
-                    ${t.assignee_name || '—'}
-                </td>
-
-                <td style="text-align: center; white-space: nowrap;">${dueDateCell}</td>
-                <td style="text-align: center; white-space: nowrap; min-width: 110px;">
-                    <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
-                        <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
-                        <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
-                        <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
-                        <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
-                    </select>
-                </td>
-                <td style="font-size: 0.82rem; color: #334155; max-width: 180px;">
-                    ${commentCell}
-                </td>
-                <td style="text-align: center;">
-                    ${actionButtons}
                 </td>
             </tr>
         `;
+
+        group.tasks.forEach(t => {
+            let statusClass = "status-work";
+            const isCompleted = t.status && t.status.includes("Выполнено");
+            const isCancelled = t.status && t.status.includes("Отменено");
+            const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
+
+            let rowExtraClass = "";
+            if (isCompleted) {
+                statusClass = "status-done";
+                rowExtraClass = "task-row-done";
+            } else if (isCancelled) {
+                statusClass = "status-cancelled";
+                rowExtraClass = "task-row-cancelled";
+            } else if (t.status && t.status.includes("Перенесено")) {
+                statusClass = "status-moved";
+            } else {
+                statusClass = "status-work";
+            }
+
+            if (t.is_backlog) {
+                rowExtraClass += " task-row-backlog";
+            }
+
+            const photoBtn = t.photo_link ? `
+                <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer;" title="Просмотреть фото">
+                    <i class="fa-solid fa-image"></i>
+                </button>
+            ` : `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
+
+            const backlogBadge = t.is_backlog ? `
+                <div style="margin-top: 4px;">
+                    <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label : 'Прошлая неделя'}
+                    </span>
+                </div>
+            ` : '';
+
+            const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
+                <div style="margin-top: 4px;">
+                    <span class="badge-cross-week" title="Сквозная долгосрочная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
+                        <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная${t.origin_created_date ? ' (' + t.origin_created_date + ')' : ''}
+                    </span>
+                </div>
+            ` : '';
+
+            const horizonBadge = t.horizon_label ? `
+                <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" title="Горизонт: ${escapeHtml(t.horizon_label)}">${escapeHtml(t.horizon_label)}</span>
+            ` : '';
+
+            const titleClass = isCancelled ? 'task-cancelled-text' : '';
+
+            const commentCell = isLocked ? `
+                <span class="comment-locked" title="${isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована'}">
+                    ${t.comment || '—'}
+                </span>
+            ` : `
+                <span onclick="inlineEditComment(${t.id}, '${escapeHtml(t.comment || '')}')" style="cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.25);" title="Кликните для редактирования">
+                    ${t.comment || '—'}
+                </span>
+            `;
+
+            const actionButtons = isLocked ? `
+                <div class="row-actions">
+                    <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                    </button>
+                    <button class="btn-icon-cell" disabled title="Заблокировано">
+                        <i class="fa-solid fa-lock" style="font-size: 0.75rem;"></i>
+                    </button>
+                </div>
+            ` : `
+                <div class="row-actions">
+                    <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                    </button>
+                    <button class="btn-icon-cell" onclick="openReassignTaskModal(${t.id})" title="Переадресовать задачу другому исполнителю">
+                        <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i>
+                    </button>
+                    <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                </div>
+            `;
+
+            const docBadge = t.attached_doc ? `
+                <div style="margin-top: 4px;">
+                    <a href="${t.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: #1d4ed8; text-decoration: none; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Открыть документ из Базы Знаний: ${escapeHtml(t.attached_doc.title)}">
+                        <i class="fa-solid fa-file-lines" style="color: #2563eb;"></i>
+                        <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.attached_doc.title)}</span>
+                    </a>
+                </div>
+            ` : '';
+
+            const tagsHtml = (t.tags || '').split(',').filter(x => x.trim()).map(tagStr => {
+                const cleanT = tagStr.trim();
+                return `<span class="tag-pill" onclick="filterByTag('${cleanT}')">${cleanT}</span>`;
+            }).join('');
+
+            const depBadge = t.depends_on ? `
+                <div style="margin-top: 3px;">
+                    <span class="dep-blocker-badge" title="Заблокировано задачей ${t.depends_on.code}: ${escapeHtml(t.depends_on.title)}">
+                        <i class="fa-solid fa-lock"></i> Блокер: ${t.depends_on.code}
+                    </span>
+                </div>
+            ` : '';
+
+            const zoneVal = t.zone || 'Бережливое производство';
+            let zoneClass = 'badge-zone';
+            if (zoneVal === 'Техсовет') zoneClass += ' badge-zone-tech-council';
+            else if (zoneVal === 'День качества') zoneClass += ' badge-zone-quality-day';
+
+            let zoneAndDeptHtml = `<span class="${zoneClass}">${escapeHtml(zoneVal)}</span>`;
+            if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+                zoneAndDeptHtml += `
+                    <div style="margin-top: 2px;">
+                        <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>
+                    </div>
+                `;
+            }
+
+            const dueDateCell = t.is_deadline_week ? `
+                <div>
+                    <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str || ''}">
+                        <i class="fa-solid fa-bullseye"></i> ${t.due_date_str || 'Дедлайн'}
+                    </span>
+                </div>
+            ` : `<span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>`;
+
+            const isBulk = isBulkHorizon();
+            const isChecked = selectedServiceTaskIds.has(t.id);
+            const checkboxHtml = isBulk ? `
+                <input type="checkbox" class="task-row-checkbox" ${isLocked ? 'disabled' : ''} ${isChecked ? 'checked' : ''} onchange="toggleSelectServiceTask(${t.id}, this.checked)" style="cursor: pointer; width: 15px; height: 15px; accent-color: #2563eb; margin-right: 4px;" title="Выбрать задачу">
+            ` : '';
+
+            rowsHtml += `
+                <tr id="task-row-${t.id}" class="${rowExtraClass} ${isChecked ? 'task-row-selected' : ''}">
+                    <td style="white-space: nowrap;">
+                        <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                            ${checkboxHtml}
+                            <span class="badge-code" onclick="openTaskHistoryModal(${t.id})" style="cursor: pointer;" title="Нажмите для просмотра истории">${t.code || ('TSK-' + t.id)}</span>
+                            ${horizonBadge}
+                        </div>
+                        ${backlogBadge}
+                        ${crossWeekBadge}
+                    </td>
+                    <td>
+                        ${zoneAndDeptHtml}
+                    </td>
+                    <td class="${titleClass}" style="font-weight: 600; min-width: 250px; color: #0f172a; line-height: 1.35; word-break: break-word;">
+                        <div>${t.title || '—'}</div>
+                        ${docBadge}
+                        ${depBadge}
+                        ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
+                    </td>
+                    <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 200px; line-height: 1.35; word-break: break-word;">${t.title_kz || '—'}</td>
+                    <td style="text-align: center;">${photoBtn}</td>
+                    
+                    <!-- Pure Text Author -->
+                    <td style="font-size: 0.82rem; color: #475569; white-space: nowrap; max-width: 85px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.author_name || '')}">
+                        ${t.author_name || '—'}
+                    </td>
+
+                    <!-- Pure Text Assignee -->
+                    <td style="font-weight: 600; font-size: 0.82rem; color: #1d4ed8; white-space: nowrap; max-width: 95px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.assignee_name || '')}">
+                        ${t.assignee_name || '—'}
+                    </td>
+
+                    <td style="text-align: center; white-space: nowrap;">${dueDateCell}</td>
+                    <td style="text-align: center; white-space: nowrap; min-width: 110px;">
+                        <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
+                            <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
+                            <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
+                            <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
+                            <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
+                        </select>
+                    </td>
+                    <td style="font-size: 0.82rem; color: #334155; max-width: 180px;">
+                        ${commentCell}
+                    </td>
+                    <td style="text-align: center;">
+                        ${actionButtons}
+                    </td>
+                </tr>
+            `;
+        });
     });
 
     tableBody.innerHTML = rowsHtml;
@@ -2443,160 +2505,152 @@ function renderTasksCards(tasks) {
         return;
     }
 
-    const weekCounts = {};
-    tasks.forEach(t => {
-        const wk = t.week_label || 'Без недели';
-        weekCounts[wk] = (weekCounts[wk] || 0) + 1;
-    });
-    const hasMultipleWeeks = Object.keys(weekCounts).length > 1 || ['all', 'open_active', 'next_2_weeks'].includes(currentWeek) || myTasksFilterActive;
-
-    let lastWeekGroup = null;
+    const weekGroups = groupTasksByWeekChronologically(tasks);
     let cardsHtml = '';
 
-    tasks.forEach((t, idx) => {
-        const currentWeekGroup = t.week_label || 'Без недели';
-
-        if (hasMultipleWeeks && currentWeekGroup !== lastWeekGroup) {
-            lastWeekGroup = currentWeekGroup;
-            const countInWeek = weekCounts[currentWeekGroup] || 1;
-            cardsHtml += `
-                <div class="week-divider-card-heading">
-                    <i class="fa-solid fa-calendar-week"></i>
-                    <span>${escapeHtml(currentWeekGroup)} (${countInWeek})</span>
-                </div>
-            `;
-        }
-
-        const isCompleted = t.status && t.status.includes("Выполнено");
-        const isCancelled = t.status && t.status.includes("Отменено");
-        const isMoved = t.status && t.status.includes("Перенесено");
-
-        let cardExtraClass = "";
-        let statusPill = "";
-        if (isCompleted) {
-            cardExtraClass = "task-card-done";
-            statusPill = `<span class="apple-card-status status-done"><i class="fa-solid fa-check"></i> Выполнено</span>`;
-        } else if (isCancelled) {
-            cardExtraClass = "task-card-cancelled";
-            statusPill = `<span class="apple-card-status status-cancelled"><i class="fa-solid fa-xmark"></i> Отменено</span>`;
-        } else if (isMoved) {
-            cardExtraClass = "task-card-moved";
-            statusPill = `<span class="apple-card-status status-moved"><i class="fa-solid fa-arrow-right"></i> Перенесено</span>`;
-        } else {
-            statusPill = `<span class="apple-card-status status-work"><span class="apple-status-dot"></span> В работе</span>`;
-        }
-
-        if (t.is_backlog) {
-            cardExtraClass += " task-card-backlog";
-        }
-
-        const backlogBadge = t.is_backlog ? `
-            <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
-                <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Прошлая нед.'}
-            </span>
-        ` : '';
-
-        const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
-            <span class="badge-cross-week" title="Сквозная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
-                <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная
-            </span>
-        ` : '';
-
-        const horizonBadge = t.horizon_label ? `
-            <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" style="font-size: 10px;">${escapeHtml(t.horizon_label)}</span>
-        ` : '';
-
-        const cardZoneVal = t.zone || 'Бережливое производство';
-        let cardZoneClass = 'badge-zone';
-        if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
-        else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
-
-        let cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
-        if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
-            cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
-        }
-
-        const cardDueDateItem = t.is_deadline_week ? `
-            <div class="card-meta-item">
-                <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str}">
-                    <i class="fa-solid fa-bullseye"></i> ${t.due_date_str}
-                </span>
-            </div>
-        ` : `
-            <div class="card-meta-item">
-                <i class="fa-regular fa-calendar" style="color: #8E8E93;"></i>
-                <span>${t.due_date_str || 'В теч. недели'}</span>
-            </div>
-        `;
-
-        const titleClass = isCancelled ? 'task-cancelled-text' : (isCompleted ? 'task-done-text' : '');
-        const titleKzBlock = t.title_kz ? `
-            <div class="planner-card-title-kz ${titleClass}">${escapeHtml(t.title_kz)}</div>
-        ` : '';
-
-        const commentPreview = t.comment ? `
-            <div style="font-size: 13px; color: #636366; margin-top: 4px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                <i class="fa-regular fa-comment-dots" style="color: #8E8E93; font-size: 12px; flex-shrink: 0;"></i>
-                <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.comment)}</span>
-            </div>
-        ` : '';
+    weekGroups.forEach(group => {
+        const currentWeekGroup = group.weekLabel;
+        const countInWeek = group.tasks.length;
 
         cardsHtml += `
-            <div class="apple-swipe-row" id="swipe-row-${t.id}">
-                <!-- Фоновое действие при свайпе вправо (Выполнить) -->
-                <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
-                    <i class="fa-solid fa-check" style="font-size: 20px;"></i>
-                    <span>Выполнить</span>
-                </div>
-
-                <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
-                <div class="apple-swipe-action-right">
-                    <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
-                        <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
-                        <span>Перенести</span>
-                    </button>
-                    <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
-                        <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
-                        <span>Передать</span>
-                    </button>
-                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
-                        <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
-                        <span>Правка</span>
-                    </button>
-                </div>
-
-                <!-- Карточка задачи (передний план) -->
-                <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" onclick="handleCardClick(event, ${t.id})">
-                    <div class="planner-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                        <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <span class="badge-code" style="font-size: 11px; color: #8E8E93; font-family: monospace; letter-spacing: 0.2px;">${t.code || ('TSK-' + (idx + 1))}</span>
-                            ${horizonBadge}
-                            ${cardZoneHtml}
-                            ${backlogBadge}
-                            ${crossWeekBadge}
-                        </div>
-                        <div>
-                            ${statusPill}
-                        </div>
-                    </div>
-
-                    <div class="planner-card-body">
-                        <div class="planner-card-title ${titleClass}" style="font-size: 16px; font-weight: 600; color: #1C1C1E; line-height: 1.35;">${escapeHtml(t.title || '—')}</div>
-                        ${titleKzBlock}
-                    </div>
-
-                    <div class="planner-card-meta" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: #636366;">
-                        <div class="card-meta-item assignee" style="display: flex; align-items: center; gap: 5px; color: #007AFF; font-weight: 600;">
-                            <i class="fa-solid fa-user-check" style="font-size: 12px;"></i>
-                            <span title="${escapeHtml(t.assignee_name || 'Не назначен')}">${escapeHtml(t.assignee_name || 'Не назначен')}</span>
-                        </div>
-                        ${cardDueDateItem}
-                    </div>
-
-                    ${commentPreview}
-                </div>
+            <div class="week-divider-card-heading">
+                <i class="fa-solid fa-calendar-week" style="color: #2563eb; margin-right: 4px;"></i>
+                <span>${escapeHtml(currentWeekGroup)} (${countInWeek} зад.)</span>
             </div>
         `;
+
+        group.tasks.forEach((t, idx) => {
+            const isCompleted = t.status && t.status.includes("Выполнено");
+            const isCancelled = t.status && t.status.includes("Отменено");
+            const isMoved = t.status && t.status.includes("Перенесено");
+
+            let cardExtraClass = "";
+            let statusPill = "";
+            if (isCompleted) {
+                cardExtraClass = "task-card-done";
+                statusPill = `<span class="apple-card-status status-done"><i class="fa-solid fa-check"></i> Выполнено</span>`;
+            } else if (isCancelled) {
+                cardExtraClass = "task-card-cancelled";
+                statusPill = `<span class="apple-card-status status-cancelled"><i class="fa-solid fa-xmark"></i> Отменено</span>`;
+            } else if (isMoved) {
+                cardExtraClass = "task-card-moved";
+                statusPill = `<span class="apple-card-status status-moved"><i class="fa-solid fa-arrow-right"></i> Перенесено</span>`;
+            } else {
+                statusPill = `<span class="apple-card-status status-work"><span class="apple-status-dot"></span> В работе</span>`;
+            }
+
+            if (t.is_backlog) {
+                cardExtraClass += " task-card-backlog";
+            }
+
+            const backlogBadge = t.is_backlog ? `
+                <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Прошлая нед.'}
+                </span>
+            ` : '';
+
+            const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
+                <span class="badge-cross-week" title="Сквозная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
+                    <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная
+                </span>
+            ` : '';
+
+            const horizonBadge = t.horizon_label ? `
+                <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" style="font-size: 10px;">${escapeHtml(t.horizon_label)}</span>
+            ` : '';
+
+            const cardZoneVal = t.zone || 'Бережливое производство';
+            let cardZoneClass = 'badge-zone';
+            if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
+            else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
+
+            let cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
+            if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+                cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
+            }
+
+            const cardDueDateItem = t.is_deadline_week ? `
+                <div class="card-meta-item">
+                    <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str}">
+                        <i class="fa-solid fa-bullseye"></i> ${t.due_date_str}
+                    </span>
+                </div>
+            ` : `
+                <div class="card-meta-item">
+                    <i class="fa-regular fa-calendar" style="color: #8E8E93;"></i>
+                    <span>${t.due_date_str || 'В теч. недели'}</span>
+                </div>
+            `;
+
+            const titleClass = isCancelled ? 'task-cancelled-text' : (isCompleted ? 'task-done-text' : '');
+            const titleKzBlock = t.title_kz ? `
+                <div class="planner-card-title-kz ${titleClass}">${escapeHtml(t.title_kz)}</div>
+            ` : '';
+
+            const commentPreview = t.comment ? `
+                <div style="font-size: 13px; color: #636366; margin-top: 4px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <i class="fa-regular fa-comment-dots" style="color: #8E8E93; font-size: 12px; flex-shrink: 0;"></i>
+                    <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.comment)}</span>
+                </div>
+            ` : '';
+
+            cardsHtml += `
+                <div class="apple-swipe-row" id="swipe-row-${t.id}">
+                    <!-- Фоновое действие при свайпе вправо (Выполнить) -->
+                    <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
+                        <i class="fa-solid fa-check" style="font-size: 20px;"></i>
+                        <span>Выполнить</span>
+                    </div>
+
+                    <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
+                    <div class="apple-swipe-action-right">
+                        <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
+                            <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
+                            <span>Перенести</span>
+                        </button>
+                        <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
+                            <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
+                            <span>Передать</span>
+                        </button>
+                        <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
+                            <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
+                            <span>Правка</span>
+                        </button>
+                    </div>
+
+                    <!-- Карточка задачи (передний план) -->
+                    <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" onclick="handleCardClick(event, ${t.id})">
+                        <div class="planner-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="badge-code" style="font-size: 11px; color: #8E8E93; font-family: monospace; letter-spacing: 0.2px;">${t.code || ('TSK-' + (idx + 1))}</span>
+                                ${horizonBadge}
+                                ${cardZoneHtml}
+                                ${backlogBadge}
+                                ${crossWeekBadge}
+                            </div>
+                            <div>
+                                ${statusPill}
+                            </div>
+                        </div>
+
+                        <div class="planner-card-body">
+                            <div class="planner-card-title ${titleClass}" style="font-size: 16px; font-weight: 600; color: #1C1C1E; line-height: 1.35;">${escapeHtml(t.title || '—')}</div>
+                            ${titleKzBlock}
+                        </div>
+
+                        <div class="planner-card-meta" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: #636366;">
+                            <div class="card-meta-item assignee" style="display: flex; align-items: center; gap: 5px; color: #007AFF; font-weight: 600;">
+                                <i class="fa-solid fa-user-check" style="font-size: 12px;"></i>
+                                <span title="${escapeHtml(t.assignee_name || 'Не назначен')}">${escapeHtml(t.assignee_name || 'Не назначен')}</span>
+                            </div>
+                            ${cardDueDateItem}
+                        </div>
+
+                        ${commentPreview}
+                    </div>
+                </div>
+            `;
+        });
     });
 
     cardsContainer.innerHTML = cardsHtml;

@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20260907_calendar_time_v1">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20260928_weeknav_v5">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20260928_grid_v1">
 
     <style>
         :root {
@@ -526,18 +526,28 @@
             color: #475569;
             font-weight: 600;
             text-align: left;
-            padding: 0.75rem 0.6rem;
+            padding: 0.55rem 0.55rem;
             border-bottom: 2px solid var(--tbl-border);
+            border-right: 1px solid var(--tbl-border);
             font-size: 0.8rem;
             letter-spacing: 0.3px;
             white-space: nowrap;
         }
 
+        .planner-table th:last-child {
+            border-right: none;
+        }
+
         .planner-table td {
-            padding: 0.65rem 0.6rem;
+            padding: 0.55rem 0.55rem;
             border-bottom: 1px solid var(--tbl-border);
+            border-right: 1px solid var(--tbl-border);
             color: #1e293b;
             vertical-align: middle;
+        }
+
+        .planner-table td:last-child {
+            border-right: none;
         }
 
         .planner-table tr:hover td {
@@ -3051,7 +3061,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260928_presets_v7"></script>
+    <script src="/static/js/tasks.js?v=20260928_grid_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
