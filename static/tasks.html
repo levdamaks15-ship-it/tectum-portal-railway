@@ -1555,42 +1555,44 @@
                 word-break: normal !important;
             }
 
-            /* Скрываем столбец Фото (5-й) и Действия (последний), а также чекбоксы и тулбар */
+            /* Скрываем столбцы Фото (5-й), Факт/Комментарий (10-й) и Действия (последний), а также чекбоксы и тулбар */
             #services-bulk-bar,
             #th-select-all-services,
             .task-row-checkbox,
             .planner-table th:nth-child(5),
             .planner-table td:nth-child(5),
+            .planner-table th:nth-child(10),
+            .planner-table td:nth-child(10),
             .planner-table th:last-child,
             .planner-table td:last-child {
                 display: none !important;
             }
 
-            /* Пропорциональные ширины столбцов под А4 Landscape */
+            /* Пропорциональные ширины столбцов под А4 Landscape (заканчивается на Статусе) */
             .planner-table th:nth-child(1),
             .planner-table td:nth-child(1) {
-                width: 50px !important;
+                width: 55px !important;
                 white-space: nowrap !important;
             }
 
             .planner-table th:nth-child(2),
             .planner-table td:nth-child(2) {
-                width: 110px !important;
+                width: 115px !important;
             }
 
             .planner-table th:nth-child(3),
             .planner-table td:nth-child(3) {
-                width: 28% !important;
+                width: 32% !important;
             }
 
             .planner-table th:nth-child(4),
             .planner-table td:nth-child(4) {
-                width: 20% !important;
+                width: 25% !important;
             }
 
             .planner-table th:nth-child(6),
             .planner-table td:nth-child(6) {
-                width: 110px !important;
+                width: 100px !important;
             }
 
             .planner-table th:nth-child(7),
@@ -1600,20 +1602,16 @@
 
             .planner-table th:nth-child(8),
             .planner-table td:nth-child(8) {
-                width: 70px !important;
-                white-space: nowrap !important;
-            }
-
-            .planner-table th:nth-child(9),
-            .planner-table td:nth-child(9) {
-                width: 90px !important;
+                width: 75px !important;
                 white-space: nowrap !important;
                 text-align: center !important;
             }
 
-            .planner-table th:nth-child(10),
-            .planner-table td:nth-child(10) {
-                width: auto !important;
+            .planner-table th:nth-child(9),
+            .planner-table td:nth-child(9) {
+                width: 95px !important;
+                white-space: nowrap !important;
+                text-align: center !important;
             }
 
             /* При печати планов служб (ОГЭ / ОГМ) скрываем пустую колонку Исполнителя */
@@ -1624,7 +1622,12 @@
 
             body.print-hide-assignee .planner-table th:nth-child(3),
             body.print-hide-assignee .planner-table td:nth-child(3) {
-                width: 35% !important;
+                width: 38% !important;
+            }
+
+            body.print-hide-assignee .planner-table th:nth-child(4),
+            body.print-hide-assignee .planner-table td:nth-child(4) {
+                width: 30% !important;
             }
 
             .select-status {
