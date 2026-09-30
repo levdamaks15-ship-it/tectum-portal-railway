@@ -407,6 +407,18 @@ async def lifespan(app: FastAPI):
                     db.commit()
                 except Exception:
                     db.rollback()
+            for l_col in ["zo_laprol_under_machine", "zo_laprol_pushitel"]:
+                try:
+                    db.execute(text(f"ALTER TABLE shifts ADD COLUMN IF NOT EXISTS {l_col} FLOAT DEFAULT 0;"))
+                    db.commit()
+                except Exception:
+                    db.rollback()
+            try:
+                db.execute(text("UPDATE shifts SET zo_laprol_under_machine = zo_laprol_silo1 WHERE (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol_silo1 > 0;"))
+                db.execute(text("UPDATE shifts SET zo_laprol_pushitel = zo_laprol_silo2 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND zo_laprol_silo2 > 0;"))
+                db.commit()
+            except Exception:
+                db.rollback()
             for col, col_type in [
                 ("r2_key", "VARCHAR(512)"), 
                 ("docspace_file_id", "INTEGER"), 
