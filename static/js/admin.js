@@ -1457,8 +1457,10 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
 
         const lapTotalTarget = document.getElementById('uni-zo-laprol');
         if (lapTotalTarget) {
-            const totalLap = shift.zo_laprol || ((parseFloat(lapMachineVal) || 0) + (parseFloat(lapPushitel) || 0));
-            lapTotalTarget.value = totalLap > 0 ? totalLap : '';
+            const mVal = parseFloat(lapMachineVal) || 0;
+            const pVal = parseFloat(lapPushitelVal) || 0;
+            const totalLap = (mVal > 0 || pVal > 0) ? (mVal + pVal) : (parseFloat(shift.zo_laprol) || 0);
+            lapTotalTarget.value = totalLap > 0 ? (Number.isInteger(totalLap) ? totalLap : totalLap.toFixed(1)) : '';
         }
         if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = lapMachineVal || '0';
         if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = lapPushitelVal || '0';

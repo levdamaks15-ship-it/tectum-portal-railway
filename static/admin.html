@@ -3072,6 +3072,18 @@
                     <div class="form-group"><input type="number" id="uni-lfm-cem-drain" placeholder="0" step="0.1">
                     </div>
                 </div>
+                <script>
+                    function calcAdminLaprol() {
+                        const s1 = parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || 0;
+                        const s2 = parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || 0;
+                        const total = s1 + s2;
+                        const target = document.getElementById('uni-zo-laprol');
+                        if (target) target.value = total > 0 ? (Number.isInteger(total) ? total : total.toFixed(1)) : '';
+
+                        if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = s1 > 0 ? s1 : '0';
+                        if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = s2 > 0 ? s2 : '0';
+                    }
+                </script>
             </div>
 
             <!-- Tab 4: Destacker Defects & Sorting (Переборка и Брак) -->
@@ -3627,7 +3639,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/admin.js?v=20260928_tasks_v6"></script>
+    <script src="/static/js/admin.js?v=20260930_laprol_v3"></script>
     <script src="/static/js/ai_assistant.js?v=20260910_ai_v2"></script>
     <script src="/static/js/version_guard.js"></script>
 </body>
