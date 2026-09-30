@@ -1183,12 +1183,17 @@ function prefillReportForm(shift) {
     });
 
     // Специальная обработка Лапрола (Под машину + В Г/Пушитель)
-    const lapMachineVal = shift.zo_laprol_under_machine !== undefined && shift.zo_laprol_under_machine !== null && shift.zo_laprol_under_machine > 0
+    let lapMachineVal = shift.zo_laprol_under_machine !== undefined && shift.zo_laprol_under_machine !== null && shift.zo_laprol_under_machine > 0
         ? shift.zo_laprol_under_machine
         : (shift.zo_laprol_silo1 > 0 ? shift.zo_laprol_silo1 : '');
-    const lapPushitelVal = shift.zo_laprol_pushitel !== undefined && shift.zo_laprol_pushitel !== null && shift.zo_laprol_pushitel > 0
+    let lapPushitelVal = shift.zo_laprol_pushitel !== undefined && shift.zo_laprol_pushitel !== null && shift.zo_laprol_pushitel > 0
         ? shift.zo_laprol_pushitel
         : (shift.zo_laprol_silo2 > 0 ? shift.zo_laprol_silo2 : '');
+
+    // Если оба поля пустые, но есть общий исторический расход zo_laprol -> направляем всё в Г/Пушитель
+    if (!lapMachineVal && !lapPushitelVal && (shift.zo_laprol > 0)) {
+        lapPushitelVal = shift.zo_laprol;
+    }
 
     const lapMachineInput = document.getElementById('calc-laprol-machine');
     if (lapMachineInput) lapMachineInput.value = lapMachineVal;

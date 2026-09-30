@@ -1492,7 +1492,7 @@ def get_report_summary(
                     "asbozurit": shift.zo_asbozurit if not is_other_master else 0.0,
                     "fiberglass": shift.zo_fiberglass if not is_other_master else 0.0,
                     "laprol_under_machine": (shift.zo_laprol_under_machine or shift.zo_laprol_silo1 or 0.0) if not is_other_master else 0.0,
-                    "laprol_pushitel": (shift.zo_laprol_pushitel or shift.zo_laprol_silo2 or 0.0) if not is_other_master else 0.0,
+                    "laprol_pushitel": ((shift.zo_laprol_pushitel or shift.zo_laprol_silo2 or 0.0) if ((shift.zo_laprol_pushitel or 0.0) > 0 or (shift.zo_laprol_silo2 or 0.0) > 0 or (shift.zo_laprol_under_machine or 0.0) > 0 or (shift.zo_laprol_silo1 or 0.0) > 0) else (shift.zo_laprol or 0.0)) if not is_other_master else 0.0,
                     "laprol": (shift.zo_laprol or ((shift.zo_laprol_under_machine or 0.0) + (shift.zo_laprol_pushitel or 0.0))) if not is_other_master else 0.0,
                     "asbocarton": shift.zo_asbocarton if not is_other_master else 0.0,
                     "asb_drain": shift.zo_asb_drain if not is_other_master else 0.0,

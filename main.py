@@ -416,6 +416,7 @@ async def lifespan(app: FastAPI):
             try:
                 db.execute(text("UPDATE shifts SET zo_laprol_under_machine = zo_laprol_silo1 WHERE (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol_silo1 > 0;"))
                 db.execute(text("UPDATE shifts SET zo_laprol_pushitel = zo_laprol_silo2 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND zo_laprol_silo2 > 0;"))
+                db.execute(text("UPDATE shifts SET zo_laprol_pushitel = zo_laprol, zo_laprol_under_machine = 0 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol > 0;"))
                 db.commit()
             except Exception:
                 db.rollback()
@@ -556,6 +557,7 @@ async def lifespan(app: FastAPI):
             try:
                 db.execute(text("UPDATE shifts SET zo_laprol_under_machine = zo_laprol_silo1 WHERE (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol_silo1 > 0;"))
                 db.execute(text("UPDATE shifts SET zo_laprol_pushitel = zo_laprol_silo2 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND zo_laprol_silo2 > 0;"))
+                db.execute(text("UPDATE shifts SET zo_laprol_pushitel = zo_laprol, zo_laprol_under_machine = 0 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol > 0;"))
                 db.commit()
             except Exception:
                 db.rollback()
@@ -570,6 +572,7 @@ async def lifespan(app: FastAPI):
             try:
                 conn.execute("UPDATE shifts SET zo_laprol_under_machine = zo_laprol_silo1 WHERE (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol_silo1 > 0")
                 conn.execute("UPDATE shifts SET zo_laprol_pushitel = zo_laprol_silo2 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND zo_laprol_silo2 > 0")
+                conn.execute("UPDATE shifts SET zo_laprol_pushitel = zo_laprol, zo_laprol_under_machine = 0 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol > 0")
                 conn.commit()
             except Exception:
                 pass

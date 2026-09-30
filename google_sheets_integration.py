@@ -256,7 +256,9 @@ def sync_report_to_google_sheets(db: Session):
         
         laprol_under_machine = s.zo_laprol_under_machine or s.zo_laprol_silo1 or 0.0
         laprol_pushitel = s.zo_laprol_pushitel or s.zo_laprol_silo2 or 0.0
-        laprol_total = s.zo_laprol or (laprol_under_machine + laprol_pushitel)
+        if laprol_under_machine == 0.0 and laprol_pushitel == 0.0 and (s.zo_laprol or 0.0) > 0:
+            laprol_pushitel = s.zo_laprol or 0.0
+        laprol_total = (laprol_under_machine + laprol_pushitel) if (laprol_under_machine > 0 or laprol_pushitel > 0) else (s.zo_laprol or 0.0)
         
         total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
         total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
