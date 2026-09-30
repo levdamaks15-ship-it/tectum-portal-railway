@@ -521,6 +521,8 @@ async def lifespan(app: FastAPI):
             ("zo_laprol_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
             ("zo_laprol_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
             ("zo_laprol_silo4", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_laprol_under_machine", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
+            ("zo_laprol_pushitel", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
             ("zo_asbocarton_silo1", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
             ("zo_asbocarton_silo2", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
             ("zo_asbocarton_silo3", "DOUBLE PRECISION DEFAULT 0" if driver == 'postgresql' else "REAL DEFAULT 0"),
@@ -539,6 +541,12 @@ async def lifespan(app: FastAPI):
                     db.commit()
                 except Exception:
                     db.rollback()
+            try:
+                db.execute(text("UPDATE shifts SET zo_laprol_under_machine = zo_laprol_silo1 WHERE (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol_silo1 > 0;"))
+                db.execute(text("UPDATE shifts SET zo_laprol_pushitel = zo_laprol_silo2 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND zo_laprol_silo2 > 0;"))
+                db.commit()
+            except Exception:
+                db.rollback()
         elif driver == 'sqlite':
             conn = sqlite3.connect("tectum.db")
             for col_name, col_type in shift_cols:
@@ -547,6 +555,12 @@ async def lifespan(app: FastAPI):
                     conn.commit()
                 except Exception:
                     pass
+            try:
+                conn.execute("UPDATE shifts SET zo_laprol_under_machine = zo_laprol_silo1 WHERE (zo_laprol_under_machine IS NULL OR zo_laprol_under_machine = 0) AND zo_laprol_silo1 > 0")
+                conn.execute("UPDATE shifts SET zo_laprol_pushitel = zo_laprol_silo2 WHERE (zo_laprol_pushitel IS NULL OR zo_laprol_pushitel = 0) AND zo_laprol_silo2 > 0")
+                conn.commit()
+            except Exception:
+                pass
             conn.close()
     except Exception as e:
         print(f"Shifts silos migration note: {e}")

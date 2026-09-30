@@ -3012,17 +3012,16 @@
                     </div>
 
                     <!-- Лапрол -->
-                    <div class="uni-rm-label-row">Лапрол (кг)</div>
-                    <div class="form-group"><input type="number" id="uni-calc-laprol-1"
-                            oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-laprol-2"
-                            oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-laprol-3"
-                            oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
-                    <div class="form-group"><input type="number" id="uni-calc-laprol-4"
-                            oninput="calcAdminSumRM('laprol')" placeholder="0" step="0.1"></div>
+                    <div class="uni-rm-label-row">Лапрол (мл)</div>
+                    <div class="form-group" style="grid-column: span 2;"><input type="number" id="uni-calc-laprol-machine"
+                            oninput="calcAdminLaprol()" placeholder="Под машину (мл)"
+                            title="Расход лапрола: Под машину (мл)" step="0.1"></div>
+                    <div class="form-group" style="grid-column: span 2;"><input type="number" id="uni-calc-laprol-pushitel"
+                            oninput="calcAdminLaprol()" placeholder="В Г/Пушитель (мл)"
+                            title="Расход лапрола: В Г/Пушитель (мл)" step="0.1"></div>
                     <div class="form-group"><input type="number" id="uni-zo-laprol" readonly
-                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"
+                            placeholder="0" title="Общий расход лапрола (мл)">
                     </div>
 
                     <!-- Асбокартон -->

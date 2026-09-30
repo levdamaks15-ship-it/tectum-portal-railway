@@ -1289,6 +1289,17 @@ function calcAdminSumRM(key) {
     }
 }
 
+function calcAdminLaprol() {
+    const s1 = parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || 0;
+    const s2 = parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || 0;
+    const total = s1 + s2;
+    const target = document.getElementById('uni-zo-laprol');
+    if (target) target.value = total > 0 ? (Number.isInteger(total) ? total : total.toFixed(1)) : '';
+
+    if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = s1 > 0 ? s1 : '0';
+    if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = s2 > 0 ? s2 : '0';
+}
+
 function calcAdminCem() {
     const s1 = parseFloat(document.getElementById('uni-calc-cem-1')?.value) || 0;
     const s2 = parseFloat(document.getElementById('uni-calc-cem-2')?.value) || 0;
@@ -1395,7 +1406,6 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
             {dbKey: 'zo_crushed_slate', uiKey: 'crushed-slate', hiddenKey: 'uni-zo-csl'},
             {dbKey: 'zo_asbozurit', uiKey: 'asbozurit', hiddenKey: 'uni-zo-asb'},
             {dbKey: 'zo_fiberglass', uiKey: 'fiberglass', hiddenKey: 'uni-zo-fib'},
-            {dbKey: 'zo_laprol', uiKey: 'laprol', hiddenKey: 'uni-zo-lap'},
             {dbKey: 'zo_asbocarton', uiKey: 'asbocarton', hiddenKey: 'uni-zo-car'}
         ];
 
@@ -1425,6 +1435,28 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
                 }
             }
         });
+
+        // Специальная обработка Лапрола (Под машину + В Г/Пушитель)
+        const lapMachineVal = shift.zo_laprol_under_machine !== undefined && shift.zo_laprol_under_machine !== null && shift.zo_laprol_under_machine > 0
+            ? shift.zo_laprol_under_machine
+            : (shift.zo_laprol_silo1 > 0 ? shift.zo_laprol_silo1 : '');
+        const lapPushitelVal = shift.zo_laprol_pushitel !== undefined && shift.zo_laprol_pushitel !== null && shift.zo_laprol_pushitel > 0
+            ? shift.zo_laprol_pushitel
+            : (shift.zo_laprol_silo2 > 0 ? shift.zo_laprol_silo2 : '');
+
+        const lapMachineInput = document.getElementById('uni-calc-laprol-machine');
+        if (lapMachineInput) lapMachineInput.value = lapMachineVal;
+
+        const lapPushitelInput = document.getElementById('uni-calc-laprol-pushitel');
+        if (lapPushitelInput) lapPushitelInput.value = lapPushitelVal;
+
+        const lapTotalTarget = document.getElementById('uni-zo-laprol');
+        if (lapTotalTarget) {
+            const totalLap = shift.zo_laprol || ((parseFloat(lapMachineVal) || 0) + (parseFloat(lapPushitel) || 0));
+            lapTotalTarget.value = totalLap > 0 ? totalLap : '';
+        }
+        if (document.getElementById('uni-zo-lap-1')) document.getElementById('uni-zo-lap-1').value = lapMachineVal || '0';
+        if (document.getElementById('uni-zo-lap-2')) document.getElementById('uni-zo-lap-2').value = lapPushitelVal || '0';
 
         // Simple drains
         document.getElementById('uni-zo-asb-drain').value = shift.zo_asb_drain || 0;
@@ -1655,10 +1687,12 @@ async function saveUnifiedShiftReport() {
         zo_fiberglass: parseFloat(document.getElementById('uni-zo-fiberglass')?.value) || 0,
 
         // Laprol
-        zo_laprol_silo1: parseFloat(document.getElementById('uni-zo-lap-1')?.value) || 0,
-        zo_laprol_silo2: parseFloat(document.getElementById('uni-zo-lap-2')?.value) || 0,
-        zo_laprol_silo3: parseFloat(document.getElementById('uni-zo-lap-3')?.value) || 0,
-        zo_laprol_silo4: parseFloat(document.getElementById('uni-zo-lap-4')?.value) || 0,
+        zo_laprol_under_machine: parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || parseFloat(document.getElementById('uni-zo-lap-1')?.value) || 0,
+        zo_laprol_pushitel: parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('uni-zo-lap-2')?.value) || 0,
+        zo_laprol_silo1: parseFloat(document.getElementById('uni-calc-laprol-machine')?.value) || parseFloat(document.getElementById('uni-zo-lap-1')?.value) || 0,
+        zo_laprol_silo2: parseFloat(document.getElementById('uni-calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('uni-zo-lap-2')?.value) || 0,
+        zo_laprol_silo3: 0,
+        zo_laprol_silo4: 0,
         zo_laprol: parseFloat(document.getElementById('uni-zo-laprol')?.value) || 0,
 
         // Asbocarton

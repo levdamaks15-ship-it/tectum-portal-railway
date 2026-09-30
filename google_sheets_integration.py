@@ -182,7 +182,9 @@ def sync_report_to_google_sheets(db: Session):
         "Слив асб. (кг)", "Слив цем. (кг)",
         "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
         "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
-        "Расход Асбокартона (кг)", "Расход Лапрола (кг)", "Расход Целлюлозы (кг)", "Расход Стекловолокна (кг)",
+        "Расход Асбокартона (кг)",
+        "Расход Лапрола под машину (мл)", "Расход Лапрола в Г/Пушитель (мл)", "Расход Лапрола общ. (мл)",
+        "Расход Целлюлозы (кг)", "Расход Стекловолокна (кг)",
         "Расход Дробленого шифера (кг)", "Расход Асбозурита (кг)",
         "Отклонение Хризотила 4-20 (%)", "Отклонение Хризотила 5-65 (%)", "Отклонение Хризотила 6-40 (%)", "Отклонение Хризотила общ. (%)",
         "Отклонение Цемента общ. (%)", "Отклонение Асбокартона (%)", "Отклонение Лапрола (%)", "Отклонение Целлюлозы (%)",
@@ -252,6 +254,10 @@ def sync_report_to_google_sheets(db: Session):
             "asbozurit": s.zo_asbozurit or 0.0,
         }
         
+        laprol_under_machine = s.zo_laprol_under_machine or s.zo_laprol_silo1 or 0.0
+        laprol_pushitel = s.zo_laprol_pushitel or s.zo_laprol_silo2 or 0.0
+        laprol_total = s.zo_laprol or (laprol_under_machine + laprol_pushitel)
+        
         total_fact_asbestos = fact["chrysotile_4_20"] + fact["chrysotile_5_65"] + fact["chrysotile_6_40"]
         total_theo_asbestos = theory["chrysotile_4_20"] + theory["chrysotile_5_65"] + theory["chrysotile_6_40"]
         total_fact_cement = fact["cement_silo1"] + fact["cement_silo2"] + fact["cement_silo3"] + fact["cement_silo4"]
@@ -285,7 +291,9 @@ def sync_report_to_google_sheets(db: Session):
             fact["cement_silo4"],
             total_fact_cement,
             fact["asbocarton"],
-            fact["laprol"],
+            laprol_under_machine,
+            laprol_pushitel,
+            laprol_total,
             fact["cellulose"],
             fact["fiberglass"],
             fact["crushed_slate"],
@@ -297,16 +305,18 @@ def sync_report_to_google_sheets(db: Session):
             get_pct_deviation(total_fact_asbestos, total_theo_asbestos) / 100.0,
             get_pct_deviation(total_fact_cement, theory_cement) / 100.0,
             get_pct_deviation(fact["asbocarton"], 0.0) / 100.0, # no theory for carton/laprol
-            get_pct_deviation(fact["laprol"], 0.0) / 100.0,
+            get_pct_deviation(laprol_total, 0.0) / 100.0,
             get_pct_deviation(fact["cellulose"], theory["cellulose"]) / 100.0,
             get_pct_deviation(fact["fiberglass"], theory["fiberglass"]) / 100.0,
             get_pct_deviation(fact["crushed_slate"], theory["crushed_slate"]) / 100.0,
             get_pct_deviation(fact["asbozurit"], theory["asbozurit"]) / 100.0
         ]
+        assert len(row_data) == len(headers), f"Длина строки ({len(row_data)}) не совпадает с шапкой ({len(headers)})!"
         rows_data.append(row_data)
 
     # 2. Выгружаем данные на лист "Сводный отчет"
     sheet_name = "Сводный отчет"
+    target_col_count = max(50, len(headers) + 5)
     
     # Проверим, существует ли лист, если нет - создадим
     spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
@@ -320,7 +330,7 @@ def sync_report_to_google_sheets(db: Session):
                         "title": sheet_name,
                         "gridProperties": {
                             "rowCount": 1000,
-                            "columnCount": 45
+                            "columnCount": target_col_count
                         }
                     }
                 }
@@ -335,7 +345,7 @@ def sync_report_to_google_sheets(db: Session):
     # Полная очистка диапазона перед записью новых данных, чтобы гарантированно стереть старые хвосты и дубли
     service.spreadsheets().values().clear(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:AZ2000"
+        range=f"'{sheet_name}'!A1:ZZ5000"
     ).execute()
     
     # Записываем шапку и все строки данных разом
@@ -350,16 +360,17 @@ def sync_report_to_google_sheets(db: Session):
     total_rows = len(rows_data)
     requests = []
 
-    # Закрепление верхней строки заголовка
+    # Закрепление верхней строки заголовка и расширение колонок при необходимости
     requests.append({
         "updateSheetProperties": {
             "properties": {
                 "sheetId": sheet_id,
                 "gridProperties": {
-                    "frozenRowCount": 1
+                    "frozenRowCount": 1,
+                    "columnCount": target_col_count
                 }
             },
-            "fields": "gridProperties.frozenRowCount"
+            "fields": "gridProperties.frozenRowCount,gridProperties.columnCount"
         }
     })
 
@@ -441,7 +452,7 @@ def sync_report_to_google_sheets(db: Session):
                 "startRowIndex": 1,
                 "endRowIndex": total_rows,
                 "startColumnIndex": 1,
-                "endColumnIndex": 4
+                "endColumnIndex": 7
             },
             "cell": {
                 "userEnteredFormat": {
@@ -452,15 +463,17 @@ def sync_report_to_google_sheets(db: Session):
         }
     })
 
-    # Числовой формат для колонок данных (4-30: обычные числа)
+    dev_start_idx = headers.index("Отклонение Хризотила 4-20 (%)")
+
+    # Числовой формат для колонок данных (от индекса 7 до колонок отклонений)
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": total_rows,
-                "startColumnIndex": 4,
-                "endColumnIndex": 31
+                "startColumnIndex": 7,
+                "endColumnIndex": dev_start_idx
             },
             "cell": {
                 "userEnteredFormat": {
@@ -475,15 +488,15 @@ def sync_report_to_google_sheets(db: Session):
         }
     })
 
-    # Форматирование отклонений (колонки AF-AP, индексы 31-42) как проценты (+0.00% / -0.00%)
+    # Форматирование отклонений (от dev_start_idx до конца шапки) как проценты (+0.00% / -0.00%)
     requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": 1,
                 "endRowIndex": total_rows,
-                "startColumnIndex": 31,
-                "endColumnIndex": 42
+                "startColumnIndex": dev_start_idx,
+                "endColumnIndex": len(headers)
             },
             "cell": {
                 "userEnteredFormat": {

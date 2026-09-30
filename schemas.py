@@ -226,6 +226,8 @@ class ShiftBase(ORMBaseModel):
     zo_fiberglass_silo4: Optional[float] = 0
     
     zo_laprol: Optional[float] = 0
+    zo_laprol_under_machine: Optional[float] = 0
+    zo_laprol_pushitel: Optional[float] = 0
     zo_laprol_silo1: Optional[float] = 0
     zo_laprol_silo2: Optional[float] = 0
     zo_laprol_silo3: Optional[float] = 0
@@ -556,6 +558,8 @@ class ShiftReportCreate(ORMBaseModel):
     zo_fiberglass_silo4: float = 0.0
     
     zo_laprol: float = 0.0
+    zo_laprol_under_machine: float = 0.0
+    zo_laprol_pushitel: float = 0.0
     zo_laprol_silo1: float = 0.0
     zo_laprol_silo2: float = 0.0
     zo_laprol_silo3: float = 0.0
@@ -669,6 +673,8 @@ class AdminShiftReportUpdate(ORMBaseModel):
     zo_fiberglass_silo4: Optional[float] = None
     
     zo_laprol: Optional[float] = None
+    zo_laprol_under_machine: Optional[float] = None
+    zo_laprol_pushitel: Optional[float] = None
     zo_laprol_silo1: Optional[float] = None
     zo_laprol_silo2: Optional[float] = None
     zo_laprol_silo3: Optional[float] = None

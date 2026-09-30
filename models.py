@@ -82,6 +82,8 @@ class Shift(Base):
     zo_fiberglass_silo4 = Column(Float, default=0)
     
     zo_laprol = Column(Float, default=0)
+    zo_laprol_under_machine = Column(Float, default=0)
+    zo_laprol_pushitel = Column(Float, default=0)
     zo_laprol_silo1 = Column(Float, default=0)
     zo_laprol_silo2 = Column(Float, default=0)
     zo_laprol_silo3 = Column(Float, default=0)

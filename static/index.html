@@ -1098,17 +1098,16 @@
                                     </div>
 
                                     <!-- Лапрол -->
-                                    <div class="rm-label-row">Лапрол (кг)</div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-1"
-                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-2"
-                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-3"
-                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
-                                    <div class="form-group"><input type="number" id="calc-laprol-4"
-                                            oninput="calcSumRM('laprol')" placeholder="0"></div>
+                                    <div class="rm-label-row">Лапрол (мл)</div>
+                                    <div class="form-group" style="grid-column: span 2;"><input type="number" id="calc-laprol-machine"
+                                            oninput="calcLaprol()" placeholder="Под машину (мл)"
+                                            title="Расход лапрола: Под машину (мл)" step="0.1"></div>
+                                    <div class="form-group" style="grid-column: span 2;"><input type="number" id="calc-laprol-pushitel"
+                                            oninput="calcLaprol()" placeholder="В Г/Пушитель (мл)"
+                                            title="Расход лапрола: В Г/Пушитель (мл)" step="0.1"></div>
                                     <div class="form-group"><input type="number" id="zo-laprol" readonly
-                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);">
+                                            style="background: rgba(255,255,255,0.02); font-weight: bold; color: var(--accent-color);"
+                                            placeholder="0" title="Общий расход лапрола (мл)">
                                     </div>
 
                                     <!-- Асбокартон -->
@@ -1172,6 +1171,21 @@
 
                                     if (key.startsWith('chr-')) {
                                         if (typeof recalcChrTotal === 'function') recalcChrTotal();
+                                    }
+                                }
+
+                                function calcLaprol() {
+                                    const s1 = parseFloat(document.getElementById('calc-laprol-machine')?.value) || 0;
+                                    const s2 = parseFloat(document.getElementById('calc-laprol-pushitel')?.value) || 0;
+                                    const total = s1 + s2;
+                                    const target = document.getElementById('zo-laprol');
+                                    if (target) target.value = total > 0 ? (Number.isInteger(total) ? total : total.toFixed(1)) : '';
+
+                                    if (document.getElementById('zo-lap-1')) {
+                                        document.getElementById('zo-lap-1').value = s1 > 0 ? s1 : '0';
+                                    }
+                                    if (document.getElementById('zo-lap-2')) {
+                                        document.getElementById('zo-lap-2').value = s2 > 0 ? s2 : '0';
                                     }
                                 }
 
@@ -1461,9 +1475,6 @@
                     <button onclick="openGoogleSheetBottom()" class="btn-secondary"
                         style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #1b8755; color: white; border: none;" title="Открыть Google Таблицу на последних строках">📑
                         Открыть Google Таблицу</button>
-                    <button onclick="downloadExcelLocal()" class="btn-secondary"
-                        style="height: 38px; width: auto; padding: 0 1rem; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; background: #107c41; color: white; border: none;">📊
-                        Скачать в Excel</button>
                 </div>
 
                 <!-- Table display -->
@@ -1500,7 +1511,9 @@
                                     <th>Расход<br>цем. С4 (кг)</th>
                                     <th>Расход<br>цем. общ. (кг)</th>
                                     <th>Расход<br>асбокарт. (кг)</th>
-                                    <th>Расход<br>лапрол (кг)</th>
+                                    <th>Расход<br>лапрол под машину (мл)</th>
+                                    <th>Расход<br>лапрол Г/пушитель (мл)</th>
+                                    <th>Расход<br>лапрол общ. (мл)</th>
                                     <th>Расход<br>целлюл. (кг)</th>
                                     <th>Расход<br>стекловол. (кг)</th>
                                     <th>Расход<br>дроб.шиф. (кг)</th>
@@ -1520,7 +1533,7 @@
                             </thead>
                             <tbody id="summary-table-body">
                                 <tr>
-                                    <td colspan="42" style="text-align: center; color: var(--text-secondary);">Выберите
+                                    <td colspan="44" style="text-align: center; color: var(--text-secondary);">Выберите
                                         фильтры и нажмите "Применить"</td>
                                 </tr>
                             </tbody>

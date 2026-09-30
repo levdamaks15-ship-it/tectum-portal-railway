@@ -1156,7 +1156,6 @@ function prefillReportForm(shift) {
         {dbKey: 'zo_crushed_slate', uiKey: 'crushed-slate', hiddenKey: 'zo-csl'},
         {dbKey: 'zo_asbozurit', uiKey: 'asbozurit', hiddenKey: 'zo-asb'},
         {dbKey: 'zo_fiberglass', uiKey: 'fiberglass', hiddenKey: 'zo-fib'},
-        {dbKey: 'zo_laprol', uiKey: 'laprol', hiddenKey: 'zo-lap'},
         {dbKey: 'zo_asbocarton', uiKey: 'asbocarton', hiddenKey: 'zo-car'}
     ];
     
@@ -1182,6 +1181,28 @@ function prefillReportForm(shift) {
             }
         }
     });
+
+    // Специальная обработка Лапрола (Под машину + В Г/Пушитель)
+    const lapMachineVal = shift.zo_laprol_under_machine !== undefined && shift.zo_laprol_under_machine !== null && shift.zo_laprol_under_machine > 0
+        ? shift.zo_laprol_under_machine
+        : (shift.zo_laprol_silo1 > 0 ? shift.zo_laprol_silo1 : '');
+    const lapPushitelVal = shift.zo_laprol_pushitel !== undefined && shift.zo_laprol_pushitel !== null && shift.zo_laprol_pushitel > 0
+        ? shift.zo_laprol_pushitel
+        : (shift.zo_laprol_silo2 > 0 ? shift.zo_laprol_silo2 : '');
+
+    const lapMachineInput = document.getElementById('calc-laprol-machine');
+    if (lapMachineInput) lapMachineInput.value = lapMachineVal;
+
+    const lapPushitelInput = document.getElementById('calc-laprol-pushitel');
+    if (lapPushitelInput) lapPushitelInput.value = lapPushitelVal;
+
+    const lapTotalTarget = document.getElementById('zo-laprol');
+    if (lapTotalTarget) {
+        const totalLap = shift.zo_laprol || ((parseFloat(lapMachineVal) || 0) + (parseFloat(lapPushitel) || 0));
+        lapTotalTarget.value = totalLap > 0 ? totalLap : '';
+    }
+    if (document.getElementById('zo-lap-1')) document.getElementById('zo-lap-1').value = lapMachineVal || '0';
+    if (document.getElementById('zo-lap-2')) document.getElementById('zo-lap-2').value = lapPushitelVal || '0';
 
     const simpleRMs = [
         {dbKey: 'zo_asb_drain', uiKey: 'asb-drain'},
@@ -1344,10 +1365,12 @@ async function submitShiftReport() {
         zo_fiberglass_silo3: parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0,
         zo_fiberglass_silo4: parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0,
         
-        zo_laprol_silo1: parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
-        zo_laprol_silo2: parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0,
-        zo_laprol_silo3: parseFloat(document.getElementById('zo-lap-3')?.value) || 0.0,
-        zo_laprol_silo4: parseFloat(document.getElementById('zo-lap-4')?.value) || 0.0,
+        zo_laprol_under_machine: parseFloat(document.getElementById('calc-laprol-machine')?.value) || parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
+        zo_laprol_pushitel: parseFloat(document.getElementById('calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0,
+        zo_laprol_silo1: parseFloat(document.getElementById('calc-laprol-machine')?.value) || parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
+        zo_laprol_silo2: parseFloat(document.getElementById('calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0,
+        zo_laprol_silo3: 0.0,
+        zo_laprol_silo4: 0.0,
         
         zo_asbocarton_silo1: parseFloat(document.getElementById('zo-car-1')?.value) || 0.0,
         zo_asbocarton_silo2: parseFloat(document.getElementById('zo-car-2')?.value) || 0.0,
@@ -1709,7 +1732,7 @@ function renderSummaryTable(rows) {
     tbody.innerHTML = '';
     
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="43" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="45" style="text-align: center; color: var(--text-secondary);">Нет данных за выбранный период</td></tr>';
         return;
     }
 
@@ -1797,6 +1820,8 @@ function renderSummaryTable(rows) {
                 <td>${cem_4.toFixed(0)}</td>
                 <td style="font-weight: 500;">${totalCement.toFixed(0)}</td>
                 <td>${(u.asbocarton || 0).toFixed(0)}</td>
+                <td>${(u.laprol_under_machine !== undefined && u.laprol_under_machine !== null ? u.laprol_under_machine : (u.zo_laprol_silo1 || 0)).toFixed(0)}</td>
+                <td>${(u.laprol_pushitel !== undefined && u.laprol_pushitel !== null ? u.laprol_pushitel : (u.zo_laprol_silo2 || 0)).toFixed(0)}</td>
                 <td>${(u.laprol || 0).toFixed(0)}</td>
                 <td>${(u.cellulose || 0).toFixed(0)}</td>
                 <td>${(u.fiberglass || 0).toFixed(0)}</td>

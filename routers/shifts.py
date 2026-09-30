@@ -688,7 +688,11 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, background
     shift.zo_crushed_slate = data.crushed_slate
     shift.zo_asbozurit = data.asbozurit
     shift.zo_fiberglass = data.fiberglass
-    shift.zo_laprol = data.laprol
+    shift.zo_laprol_under_machine = getattr(data, 'zo_laprol_under_machine', None) or getattr(data, 'zo_laprol_silo1', 0.0) or 0.0
+    shift.zo_laprol_pushitel = getattr(data, 'zo_laprol_pushitel', None) or getattr(data, 'zo_laprol_silo2', 0.0) or 0.0
+    shift.zo_laprol_silo1 = shift.zo_laprol_under_machine
+    shift.zo_laprol_silo2 = shift.zo_laprol_pushitel
+    shift.zo_laprol = data.laprol or ((shift.zo_laprol_under_machine or 0.0) + (shift.zo_laprol_pushitel or 0.0))
     shift.zo_asbocarton = data.asbocarton
     shift.zo_asb_drain = data.asb_drain
     shift.zo_cem_drain = data.cem_drain
@@ -755,7 +759,11 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
     shift.zo_crushed_slate = data.zo_crushed_slate
     shift.zo_asbozurit = data.zo_asbozurit
     shift.zo_fiberglass = data.zo_fiberglass
-    shift.zo_laprol = data.zo_laprol
+    shift.zo_laprol_under_machine = getattr(data, 'zo_laprol_under_machine', None) if getattr(data, 'zo_laprol_under_machine', None) is not None else (data.zo_laprol_silo1 or 0.0)
+    shift.zo_laprol_pushitel = getattr(data, 'zo_laprol_pushitel', None) if getattr(data, 'zo_laprol_pushitel', None) is not None else (data.zo_laprol_silo2 or 0.0)
+    shift.zo_laprol_silo1 = shift.zo_laprol_under_machine
+    shift.zo_laprol_silo2 = shift.zo_laprol_pushitel
+    shift.zo_laprol = (shift.zo_laprol_under_machine or 0.0) + (shift.zo_laprol_pushitel or 0.0)
     shift.zo_asbocarton = data.zo_asbocarton
     shift.zo_asb_drain = data.zo_asb_drain
     shift.zo_cem_drain = data.zo_cem_drain
@@ -845,6 +853,8 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             "zo_asbozurit": shift.zo_asbozurit,
             "zo_fiberglass": shift.zo_fiberglass,
             "zo_laprol": shift.zo_laprol,
+            "zo_laprol_under_machine": shift.zo_laprol_under_machine or shift.zo_laprol_silo1 or 0.0,
+            "zo_laprol_pushitel": shift.zo_laprol_pushitel or shift.zo_laprol_silo2 or 0.0,
             "zo_asbocarton": shift.zo_asbocarton,
             "zo_asb_drain": shift.zo_asb_drain,
             "zo_cem_drain": shift.zo_cem_drain
@@ -900,6 +910,9 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
                     "zo_laprol_silo2": shift.zo_laprol_silo2,
                     "zo_laprol_silo3": shift.zo_laprol_silo3,
                     "zo_laprol_silo4": shift.zo_laprol_silo4,
+                    "zo_laprol_under_machine": shift.zo_laprol_under_machine,
+                    "zo_laprol_pushitel": shift.zo_laprol_pushitel,
+                    "zo_laprol": shift.zo_laprol,
                     "zo_asbocarton_silo1": shift.zo_asbocarton_silo1,
                     "zo_asbocarton_silo2": shift.zo_asbocarton_silo2,
                     "zo_asbocarton_silo3": shift.zo_asbocarton_silo3,
@@ -1012,11 +1025,13 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     shift.zo_fiberglass_silo4 = data.zo_fiberglass_silo4
     shift.zo_fiberglass = (data.zo_fiberglass_silo1 or 0) + (data.zo_fiberglass_silo2 or 0) + (data.zo_fiberglass_silo3 or 0) + (data.zo_fiberglass_silo4 or 0)
     
-    shift.zo_laprol_silo1 = data.zo_laprol_silo1
-    shift.zo_laprol_silo2 = data.zo_laprol_silo2
-    shift.zo_laprol_silo3 = data.zo_laprol_silo3
-    shift.zo_laprol_silo4 = data.zo_laprol_silo4
-    shift.zo_laprol = (data.zo_laprol_silo1 or 0) + (data.zo_laprol_silo2 or 0) + (data.zo_laprol_silo3 or 0) + (data.zo_laprol_silo4 or 0)
+    shift.zo_laprol_under_machine = getattr(data, 'zo_laprol_under_machine', None) if getattr(data, 'zo_laprol_under_machine', None) is not None else (data.zo_laprol_silo1 or 0.0)
+    shift.zo_laprol_pushitel = getattr(data, 'zo_laprol_pushitel', None) if getattr(data, 'zo_laprol_pushitel', None) is not None else (data.zo_laprol_silo2 or 0.0)
+    shift.zo_laprol_silo1 = shift.zo_laprol_under_machine
+    shift.zo_laprol_silo2 = shift.zo_laprol_pushitel
+    shift.zo_laprol_silo3 = 0.0
+    shift.zo_laprol_silo4 = 0.0
+    shift.zo_laprol = (shift.zo_laprol_under_machine or 0.0) + (shift.zo_laprol_pushitel or 0.0)
     
     shift.zo_asbocarton_silo1 = data.zo_asbocarton_silo1
     shift.zo_asbocarton_silo2 = data.zo_asbocarton_silo2
@@ -1678,6 +1693,9 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
                 "zo_laprol_silo2": shift.zo_laprol_silo2,
                 "zo_laprol_silo3": shift.zo_laprol_silo3,
                 "zo_laprol_silo4": shift.zo_laprol_silo4,
+                "zo_laprol_under_machine": shift.zo_laprol_under_machine,
+                "zo_laprol_pushitel": shift.zo_laprol_pushitel,
+                "zo_laprol": shift.zo_laprol,
                 "zo_asbocarton_silo1": shift.zo_asbocarton_silo1,
                 "zo_asbocarton_silo2": shift.zo_asbocarton_silo2,
                 "zo_asbocarton_silo3": shift.zo_asbocarton_silo3,
@@ -1772,7 +1790,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         "zo_crushed_slate", "zo_crushed_slate_silo1", "zo_crushed_slate_silo2", "zo_crushed_slate_silo3", "zo_crushed_slate_silo4",
         "zo_asbozurit", "zo_asbozurit_silo1", "zo_asbozurit_silo2", "zo_asbozurit_silo3", "zo_asbozurit_silo4",
         "zo_fiberglass", "zo_fiberglass_silo1", "zo_fiberglass_silo2", "zo_fiberglass_silo3", "zo_fiberglass_silo4",
-        "zo_laprol", "zo_laprol_silo1", "zo_laprol_silo2", "zo_laprol_silo3", "zo_laprol_silo4",
+        "zo_laprol", "zo_laprol_under_machine", "zo_laprol_pushitel", "zo_laprol_silo1", "zo_laprol_silo2", "zo_laprol_silo3", "zo_laprol_silo4",
         "zo_asbocarton", "zo_asbocarton_silo1", "zo_asbocarton_silo2", "zo_asbocarton_silo3", "zo_asbocarton_silo4",
         "lfm_asb_drain", "lfm_cem_drain", "zo_asb_drain", "zo_cem_drain"
     ]
