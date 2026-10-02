@@ -3233,6 +3233,14 @@ async function quickUpdateStatus(taskId, newStatus) {
     const oldStatus = task ? (task.status || "⚪ В очереди") : "⚪ В очереди";
     previousTaskStatus[taskId] = oldStatus;
 
+    // 🔒 ЗАЩИТА: Завершенные ("🟢 Выполнено") и отмененные ("🔴 Отменено") задачи заблокированы от изменений для обычных сотрудников
+    const isAlreadyFinished = oldStatus && (oldStatus.includes("Выполнено") || oldStatus.includes("Отменено"));
+    if (isAlreadyFinished && !isPlannerAdmin()) {
+        showToast("🔒 Завершенные и отмененные задачи заблокированы от изменений", "error");
+        restoreSelectValue(taskId);
+        return;
+    }
+
     // 1. Если выбрали "Выполнено":
     if (newStatus === "🟢 Выполнено") {
         // Для служб (ОГЭ / ОГМ), Техсовета и Дня качества — экспресс-завершение без бюрократии!
@@ -3647,6 +3655,12 @@ function openReassignTaskModal(taskId) {
     const task = allTasks.find(t => t.id === taskId);
     if (!task) return;
 
+    const isLocked = !isPlannerAdmin() && (task && task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено")));
+    if (isLocked) {
+        showToast("🔒 Завершенные и отмененные задачи заблокированы от переадресации", "warning");
+        return;
+    }
+
     pendingReassignTaskId = taskId;
 
     document.getElementById("reassign-task-id").value = taskId;
@@ -3769,6 +3783,11 @@ async function submitReassignModal() {
 
 async function inlineEditComment(taskId, currentComment) {
     const task = allTasks.find(t => t.id === taskId);
+    const isLocked = !isPlannerAdmin() && (task && task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено")));
+    if (isLocked) {
+        showToast("🔒 Нельзя редактировать комментарий завершенной или отмененной задачи", "warning");
+        return;
+    }
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
     ensureUserAuthorized(requiredUser, async (authSession) => {
@@ -4155,7 +4174,65 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     const btnReassign = document.getElementById("btn-modal-reassign-task");
     if (btnReassign) btnReassign.style.display = "none";
 
+    setTaskModalLockState(false);
+    document.getElementById("modal-title").textContent = "Новая задача";
+
     document.getElementById("task-modal").style.display = "flex";
+}
+
+function setTaskModalLockState(isLocked, taskStatus = "") {
+    const lockBanner = document.getElementById("task-modal-lock-banner");
+    const saveBtn = document.querySelector("#task-modal .btn-primary-action");
+    const inputs = [
+        "task-type-input", "task-department-input", "task-quarter-input", "task-progress-input",
+        "task-ru-input", "task-kz-input", "task-tags-input", "task-zone-input",
+        "task-photo-input", "task-photo-after-input", "task-author-input", "task-assignee-input",
+        "task-due-input", "task-status-input", "task-comment-input"
+    ];
+
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.readOnly = isLocked;
+            }
+            if (el.tagName === 'SELECT' || el.type === 'date') {
+                el.disabled = isLocked;
+            }
+        }
+    });
+
+    const photoGalleryBtns = document.querySelectorAll("#task-modal button[onclick*='gallery']");
+    photoGalleryBtns.forEach(btn => btn.style.display = isLocked ? "none" : "inline-flex");
+
+    const duePresetBtns = document.querySelectorAll("#task-modal .due-presets-bar button");
+    duePresetBtns.forEach(btn => btn.style.display = isLocked ? "none" : "inline-block");
+
+    if (saveBtn) {
+        saveBtn.style.display = isLocked ? "none" : "inline-block";
+    }
+
+    if (isLocked) {
+        const isCancelled = taskStatus && taskStatus.includes("Отменено");
+        const statusText = isCancelled ? "отменена" : "завершена";
+        if (!lockBanner) {
+            const banner = document.createElement("div");
+            banner.id = "task-modal-lock-banner";
+            banner.style.cssText = "background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;";
+            banner.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Задача ${statusText} и защищена от изменений. Редактирование доступно только администратору.</span>`;
+            const header = document.querySelector("#task-modal .modal-header");
+            if (header && header.nextSibling) {
+                header.parentNode.insertBefore(banner, header.nextSibling);
+            }
+        } else {
+            lockBanner.style.display = "flex";
+            lockBanner.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Задача ${statusText} и защищена от изменений. Редактирование доступно только администратору.</span>`;
+        }
+    } else {
+        if (lockBanner) {
+            lockBanner.style.display = "none";
+        }
+    }
 }
 
 async function openEditTaskModal(taskId) {
@@ -4172,7 +4249,17 @@ async function openEditTaskModal(taskId) {
 
     await populateHierarchyDropdowns(task.id, task.parent_id, task.depends_on_id);
 
-    document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code || ('TSK-' + task.id)}]`;
+    const isCompleted = task.status && task.status.includes("Выполнено");
+    const isCancelled = task.status && task.status.includes("Отменено");
+    const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
+
+    setTaskModalLockState(isLocked, task.status || "");
+
+    if (isLocked) {
+        document.getElementById("modal-title").innerHTML = `<i class="fa-solid fa-lock" style="color: #ef4444; margin-right: 6px;"></i>Просмотр задачи [${task.code || ('TSK-' + task.id)}]`;
+    } else {
+        document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code || ('TSK-' + task.id)}]`;
+    }
     document.getElementById("task-id-input").value = task.id;
     document.getElementById("task-ru-input").value = task.title || "";
     document.getElementById("task-kz-input").value = task.title_kz || "";
@@ -4240,14 +4327,13 @@ async function openEditTaskModal(taskId) {
     if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
 
     // Если нет KZ перевода - запускаем фоновый перевод
-    if (!task.title_kz && task.title) {
+    if (!task.title_kz && task.title && !isLocked) {
         onTaskInputChanged('primary');
     }
 
-    // Показываем кнопку переадресации при редактировании активной задачи
+    // Показываем кнопку переадресации только при редактировании незаблокированной активной задачи
     const btnReassign = document.getElementById("btn-modal-reassign-task");
     if (btnReassign) {
-        const isLocked = (task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено")));
         btnReassign.style.display = isLocked ? "none" : "inline-flex";
     }
 
@@ -4260,6 +4346,14 @@ function closeTaskModal() {
 
 async function saveTaskModal() {
     const taskId = document.getElementById("task-id-input").value;
+    if (taskId) {
+        const existing = allTasks.find(t => t.id == taskId);
+        const isLocked = !isPlannerAdmin() && existing && existing.status && (existing.status.includes("Выполнено") || existing.status.includes("Отменено"));
+        if (isLocked) {
+            showToast("🔒 Завершенные и отмененные задачи защищены от изменений", "error");
+            return;
+        }
+    }
     let titleRu = document.getElementById("task-ru-input").value.trim();
     let titleKz = document.getElementById("task-kz-input").value.trim();
     const taskType = document.getElementById("task-type-input") ? document.getElementById("task-type-input").value : "weekly";
@@ -5288,6 +5382,11 @@ function getNextCalendarWeek(task = null) {
 
 async function moveTaskToNextWeekModal(taskId) {
     const task = allTasks.find(t => t.id === taskId);
+    const isLocked = !isPlannerAdmin() && (task && task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено")));
+    if (isLocked) {
+        showToast("🔒 Завершенные и отмененные задачи заблокированы от переноса", "warning");
+        return;
+    }
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
     ensureUserAuthorized(requiredUser, async (authSession) => {

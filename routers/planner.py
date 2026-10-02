@@ -1925,8 +1925,18 @@ def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_t
             raise HTTPException(status_code=400, detail="Список задач пуст")
 
         tasks = db.query(models.Task).filter(models.Task.id.in_(task_ids)).all()
-        if not tasks:
-            raise HTTPException(status_code=404, detail="Задачи не найдены")
+        pin = (payload.pin_code or "").strip()
+        is_admin = is_admin_authorized(db, pin)
+
+        # 🔒 ЗАЩИТА: Если в пачке есть уже завершенные или отмененные задачи, а пользователь не админ — блокируем
+        if not is_admin:
+            locked_tasks = [t for t in tasks if t.status in ["🟢 Выполнено", "🔴 Отменено"]]
+            if locked_tasks:
+                codes_str = ", ".join([t.code or f"TSK-{t.id}" for t in locked_tasks[:5]])
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Задачи ({codes_str}) уже завершены или отменены и заблокированы от изменений. Изменение доступно только администратору."
+                )
 
         new_status = payload.status
         comment_text = (payload.comment or "").strip()
@@ -1993,26 +2003,33 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
-        pin = (task_data.pin_code or "").strip()
-        if pin:
-            # Если действие выполняет суперпользователь/администратор — доступ безусловный
-            if is_admin_authorized(db, pin):
-                valid = True
-            else:
-                author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
-                assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
-                
-                valid = False
-                if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
-                    valid = True
-                if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
-                    valid = True
-                if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
-                    valid = True
-
         old_status = task.status
         old_assignee = task.assignee_name
         old_parent_id = task.parent_id
+
+        pin = (task_data.pin_code or "").strip()
+        is_admin = is_admin_authorized(db, pin)
+
+        # 🔒 ЗАЩИТА: Завершенные ("🟢 Выполнено") и отмененные ("🔴 Отменено") задачи заблокированы от любых изменений для обычных сотрудников
+        if old_status in ["🟢 Выполнено", "🔴 Отменено"] and not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Завершенные и отмененные задачи заблокированы от изменений. Редактирование доступно только администратору."
+            )
+
+        if pin and not is_admin:
+            author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
+            assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
+            
+            valid = False
+            if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
+                valid = True
+            if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
+                valid = True
+            if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
+                valid = True
+            if not valid:
+                raise HTTPException(status_code=403, detail="Неверный PIN-код сотрудника")
 
         # Автоматическое извлечение хэштегов из заголовка при обновлении
         update_dict = task_data.dict(exclude_unset=True)
@@ -2226,6 +2243,12 @@ def move_task_to_next_week(
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
+        if task.status in ["🟢 Выполнено", "🔴 Отменено"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Завершенные и отмененные задачи заблокированы от переноса."
+            )
+
         old_week = task.week_label or ""
         old_month = task.month_label or ""
         task.week_label = next_week
@@ -2295,6 +2318,8 @@ def move_task_to_next_week(
                 background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача перенесена", task_dict)
 
         return {"status": "ok", "message": f"Задача перенесена на {next_week}"}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -2317,6 +2342,14 @@ def reassign_task(
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        pin = (payload.pin_code or "").strip()
+        is_admin = is_admin_authorized(db, pin)
+        if task.status in ["🟢 Выполнено", "🔴 Отменено"] and not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Завершенные и отмененные задачи заблокированы от переадресации."
+            )
 
         new_assignee = (payload.new_assignee or "").strip()
         reason = (payload.reason or "").strip()
@@ -2666,6 +2699,16 @@ def patch_task(
 
         old_status = task.status
         old_assignee = task.assignee_name
+
+        pin = str(payload.get("pin_code", "")).strip() if payload.get("pin_code") else ""
+        is_admin = is_admin_authorized(db, pin)
+
+        # 🔒 ЗАЩИТА: Завершенные ("🟢 Выполнено") и отмененные ("🔴 Отменено") задачи заблокированы от изменений для обычных сотрудников
+        if old_status in ["🟢 Выполнено", "🔴 Отменено"] and not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Завершенные и отмененные задачи заблокированы от изменений. Редактирование доступно только администратору."
+            )
 
         # Маппинг due_date в due_date_str при строковом значении
         if "due_date" in payload and ("due_date_str" not in payload or not payload.get("due_date_str")):
