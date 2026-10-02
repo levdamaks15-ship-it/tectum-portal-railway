@@ -943,7 +943,7 @@ def get_tasks(
 ):
     """Возвращает список задач с поддержкой 3 горизонтов, сквозных долгосрочных задач (cross-week), служб, хэштегов и регламентов."""
     try:
-        query = db.query(models.Task).filter(models.Task.is_archived == False)
+        query = db.query(models.Task).filter(models.Task.is_archived == is_archived)
 
         # 1. Фильтрация по типу задачи / горизонту (если не включен сквозной режим «Мои задачи»)
         if not (my_all_horizons and my_person):
@@ -1266,7 +1266,7 @@ def get_tasks(
                 "week_label": t.week_label or "",
                 "attached_document_id": t.attached_document_id,
                 "attached_doc": doc_info,
-                "is_archived": False,
+                "is_archived": bool(t.is_archived),
                 "is_backlog": is_cross_week and include_backlog,
                 "is_cross_week": is_cross_week,
                 "origin_week_label": t.week_label or "",
@@ -2131,14 +2131,36 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
 @router.delete("/api/tasks/{task_id}")
 def delete_task(task_id: int, db: Session = Depends(get_db)):
-    """Удаляет задачу (доступно только из панели администратора)."""
+    """Удаляет задачу в Корзину / Архив (Soft Delete с полным JSON-снимком в AuditLog)."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
         
         task_info = f"ID: {task.id}, Код: {task.code}, Заголовок: {task.title}, Зона: {task.zone}, Период: {task.month_label}/{task.week_label}"
-        db.delete(task)
+        
+        # Soft delete: не вызываем db.delete(task), а переносим в архив/корзину
+        task.is_archived = True
+        
+        # Сохраняем полный JSON-снимок задачи для 100% гарантии восстановления
+        snapshot = {
+            "id": task.id,
+            "code": task.code,
+            "title": task.title,
+            "title_kz": task.title_kz,
+            "zone": task.zone,
+            "author_name": task.author_name,
+            "assignee_name": task.assignee_name,
+            "due_date_str": task.due_date_str,
+            "status": task.status,
+            "comment": task.comment,
+            "month_label": task.month_label,
+            "week_label": task.week_label,
+            "task_type": task.task_type,
+            "department_service": task.department_service,
+            "tags": task.tags,
+            "progress": task.progress
+        }
         
         # Логирование в аудит
         db.add(models.AuditLog(
@@ -2146,17 +2168,20 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
             action="DELETE",
             target_table="tasks",
             target_id=task_id,
-            details=f"Администратор удалил задачу [{task_info}]"
+            details=f"Администратор переместил задачу в Корзину [{task_info}] | Снимок: {json.dumps(snapshot, ensure_ascii=False)}"
         ))
         
         db.commit()
-        return {"status": "ok", "message": "Задача успешно удалена"}
+        return {"status": "ok", "message": "Задача успешно перемещена в Корзину"}
     except HTTPException:
         raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/bulk_delete")
 def delete_tasks_bulk(payload: dict, db: Session = Depends(get_db)):
-    """Массовое удаление задач из реестра администратора в единой транзакции."""
+    """Массовое перемещение задач в Корзину (Soft Delete) из реестра администратора в единой транзакции."""
     try:
         task_ids = payload.get("task_ids") or []
         if not task_ids:
@@ -2168,18 +2193,18 @@ def delete_tasks_bulk(payload: dict, db: Session = Depends(get_db)):
 
         deleted_codes = [t.code or f"TSK-{t.id}" for t in tasks]
         for t in tasks:
-            db.delete(t)
+            t.is_archived = True
 
         db.add(models.AuditLog(
             user_name="Администратор",
             action="DELETE",
             target_table="tasks",
             target_id=task_ids[0],
-            details=f"Администратор массово удалил {len(tasks)} задач ({', '.join(deleted_codes[:10])}{'...' if len(deleted_codes) > 10 else ''})"
+            details=f"Администратор переместил в Корзину {len(tasks)} задач ({', '.join(deleted_codes[:10])}{'...' if len(deleted_codes) > 10 else ''})"
         ))
 
         db.commit()
-        return {"status": "ok", "deleted_count": len(tasks)}
+        return {"status": "ok", "deleted_count": len(tasks), "message": f"{len(tasks)} задач перемещено в Корзину"}
     except HTTPException:
         raise
     except Exception as e:
@@ -2195,16 +2220,39 @@ def move_task_to_next_week(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
-    """Переносит отдельную задачу на следующую неделю (и при необходимости в следующий месяц) со статусом Перенесено."""
+    """Переносит отдельную задачу на следующую неделю (с гарантированным авторезолвом месяца) со статусом Перенесено."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
         old_week = task.week_label or ""
+        old_month = task.month_label or ""
         task.week_label = next_week
-        if next_month:
-            task.month_label = next_month
+
+        # Защита от month_label = 'all' или пустых значений при переносе
+        resolved_month = None
+        if next_month and next_month != "all":
+            resolved_month = next_month
+        else:
+            # 1. Пробуем определить месяц по датам недели next_week (напр. 'Неделя 1 (05.10 - 09.10)')
+            s_date, _ = parse_week_label_range(next_week)
+            if s_date:
+                m_label, _ = find_week_and_month_for_date(s_date.strftime("%d.%m.%Y"))
+                if m_label:
+                    resolved_month = m_label
+            # 2. Если не удалось, пробуем определить по due_date_str
+            if not resolved_month and task.due_date_str:
+                m_label, _ = find_week_and_month_for_date(task.due_date_str)
+                if m_label:
+                    resolved_month = m_label
+            # 3. Если все еще не определен, сохраняем текущий месяц задачи (если он валидный)
+            if not resolved_month and old_month and old_month != "all":
+                resolved_month = old_month
+
+        if resolved_month:
+            task.month_label = resolved_month
+
         task.status = "🔵 Перенесено"
         
         prev_comment = task.comment or ""
@@ -2217,7 +2265,7 @@ def move_task_to_next_week(
             action="UPDATE",
             target_table="tasks",
             target_id=task.id,
-            details=f"Перенос задачи [{task.code}] «{task.title}» с «{old_week}» на «{next_week}»"
+            details=f"Перенос задачи [{task.code}] «{task.title}» с «{old_week}» ({old_month}) на «{next_week}» ({task.month_label})"
         ))
 
         db.commit()
@@ -2403,8 +2451,13 @@ def archive_week_tasks(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/{task_id}/restore")
-def restore_task_from_archive(task_id: int, target_week: Optional[str] = None, db: Session = Depends(get_db)):
-    """Восстанавливает задачу из Архива обратно в активный план."""
+def restore_task_from_archive(
+    task_id: int, 
+    target_week: Optional[str] = None, 
+    target_month: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """Восстанавливает задачу из Архива / Корзины обратно в активный реестр планнера."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
@@ -2413,11 +2466,84 @@ def restore_task_from_archive(task_id: int, target_week: Optional[str] = None, d
         task.is_archived = False
         if target_week:
             task.week_label = target_week
-        task.status = "⚪ В очереди"
+        if target_month and target_month != "all":
+            task.month_label = target_month
+        elif not task.month_label or task.month_label == "all":
+            # Авторезолв месяца по неделе или сроку
+            if task.week_label:
+                s_date, _ = parse_week_label_range(task.week_label)
+                if s_date:
+                    m_label, _ = find_week_and_month_for_date(s_date.strftime("%d.%m.%Y"))
+                    if m_label:
+                        task.month_label = m_label
+            if not task.month_label or task.month_label == "all":
+                if task.due_date_str:
+                    m_label, w_label = find_week_and_month_for_date(task.due_date_str)
+                    if m_label:
+                        task.month_label = m_label
+                    if w_label and not task.week_label:
+                        task.week_label = w_label
+
+        if task.status in ["🔴 Отменено", None, ""]:
+            task.status = "⚪ В очереди"
+
+        db.add(models.AuditLog(
+            user_name="Администратор",
+            action="RESTORE",
+            target_table="tasks",
+            target_id=task.id,
+            details=f"Администратор восстановил задачу [{task.code or f'TSK-{task.id}'}] «{task.title}» из Корзины в активный план"
+        ))
+
         db.commit()
-        return {"status": "ok", "message": "Задача возвращена в план"}
+        return {"status": "ok", "message": "Задача успешно восстановлена из Корзины"}
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/bulk_restore")
+def restore_tasks_bulk(payload: dict, db: Session = Depends(get_db)):
+    """Массовое восстановление задач из Корзины в единой транзакции."""
+    try:
+        task_ids = payload.get("task_ids") or []
+        if not task_ids:
+            raise HTTPException(status_code=400, detail="Список задач пуст")
+
+        tasks = db.query(models.Task).filter(models.Task.id.in_(task_ids)).all()
+        if not tasks:
+            raise HTTPException(status_code=404, detail="Задачи для восстановления не найдены")
+
+        restored_codes = []
+        for t in tasks:
+            t.is_archived = False
+            if not t.month_label or t.month_label == "all":
+                if t.week_label:
+                    s_date, _ = parse_week_label_range(t.week_label)
+                    if s_date:
+                        m_label, _ = find_week_and_month_for_date(s_date.strftime("%d.%m.%Y"))
+                        if m_label:
+                            t.month_label = m_label
+            if t.status in ["🔴 Отменено", None, ""]:
+                t.status = "⚪ В очереди"
+            restored_codes.append(t.code or f"TSK-{t.id}")
+
+        db.add(models.AuditLog(
+            user_name="Администратор",
+            action="RESTORE",
+            target_table="tasks",
+            target_id=task_ids[0],
+            details=f"Администратор массово восстановил из Корзины {len(tasks)} задач ({', '.join(restored_codes[:10])}{'...' if len(restored_codes) > 10 else ''})"
+        ))
+
+        db.commit()
+        return {"status": "ok", "restored_count": len(tasks), "message": f"{len(tasks)} задач успешно восстановлено"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error bulk restoring tasks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/translate")

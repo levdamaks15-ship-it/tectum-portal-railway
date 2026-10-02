@@ -2969,6 +2969,8 @@ async function saveShiftScheduleDay() {
 let adminPlannerEmployees = [];
 let adminPlannerZones = [];
 let adminAllTasks = [];
+let adminTrashTasks = [];
+let adminTasksCurrentView = 'active'; // 'active' | 'trash'
 let selectedAdminTaskIds = new Set();
 let adminCalendarStructure = {};
 let adminTranslateTimer = null;
@@ -3372,21 +3374,79 @@ async function loadAdminTasksList() {
     });
 
     try {
-        const res = await fetch('/api/tasks?month=all');
-        if (res.ok) {
-            adminAllTasks = await res.json();
-            filterAdminTasksTable();
+        const [activeRes, trashRes] = await Promise.all([
+            fetch('/api/tasks?month=all&is_archived=false'),
+            fetch('/api/tasks?month=all&is_archived=true')
+        ]);
+
+        if (activeRes.ok) {
+            adminAllTasks = await activeRes.json();
         } else {
-            tbodies.forEach(tbody => {
-                tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Не удалось загрузить задачи</td></tr>`;
-            });
+            adminAllTasks = [];
         }
+
+        if (trashRes.ok) {
+            adminTrashTasks = await trashRes.json();
+        } else {
+            adminTrashTasks = [];
+        }
+
+        // Обновляем счетчики на переключателе
+        const activeCntEl = document.getElementById('admin-tasks-active-cnt');
+        const trashCntEl = document.getElementById('admin-tasks-trash-cnt');
+        if (activeCntEl) activeCntEl.textContent = adminAllTasks.length;
+        if (trashCntEl) trashCntEl.textContent = adminTrashTasks.length;
+
+        filterAdminTasksTable();
     } catch (e) {
         console.error("Error loading admin tasks:", e);
         tbodies.forEach(tbody => {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Ошибка сети</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-color); padding: 1.5rem;">Ошибка сети при загрузке задач</td></tr>`;
         });
     }
+}
+
+function switchAdminTasksView(viewMode) {
+    adminTasksCurrentView = viewMode; // 'active' or 'trash'
+    clearAdminTasksSelection();
+
+    const btnActive = document.getElementById('btn-admin-tasks-view-active');
+    const btnTrash = document.getElementById('btn-admin-tasks-view-trash');
+    const bulkActive = document.getElementById('admin-tasks-bulk-actions-active');
+    const bulkTrash = document.getElementById('admin-tasks-bulk-actions-trash');
+    const hintEl = document.getElementById('admin-tasks-view-hint');
+
+    if (viewMode === 'active') {
+        if (btnActive) {
+            btnActive.style.background = '#ffffff';
+            btnActive.style.color = '#0f172a';
+            btnActive.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        }
+        if (btnTrash) {
+            btnTrash.style.background = 'transparent';
+            btnTrash.style.color = '#64748b';
+            btnTrash.style.boxShadow = 'none';
+        }
+        if (bulkActive) bulkActive.style.display = 'flex';
+        if (bulkTrash) bulkTrash.style.display = 'none';
+        if (hintEl) hintEl.textContent = '(Активные задачи всех горизонтов)';
+    } else {
+        if (btnActive) {
+            btnActive.style.background = 'transparent';
+            btnActive.style.color = '#64748b';
+            btnActive.style.boxShadow = 'none';
+        }
+        if (btnTrash) {
+            btnTrash.style.background = '#ffffff';
+            btnTrash.style.color = '#b91c1c';
+            btnTrash.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        }
+        if (bulkActive) bulkActive.style.display = 'none';
+        if (bulkTrash) bulkTrash.style.display = 'flex';
+        if (hintEl) hintEl.textContent = '(Удаленные и архивные задачи. Нажмите «Восстановить» для возврата в план)';
+    }
+
+    filterAdminTasksTable();
 }
 
 function filterAdminTasksTable() {
@@ -3401,7 +3461,8 @@ function filterAdminTasksTable() {
     const selZone = document.getElementById('admin-filter-zone')?.value || 'all';
     const selStatus = document.getElementById('admin-filter-status')?.value || 'all';
 
-    let filtered = adminAllTasks;
+    let currentPool = (adminTasksCurrentView === 'trash') ? adminTrashTasks : adminAllTasks;
+    let filtered = currentPool;
 
     if (selMonth !== 'all') {
         filtered = filtered.filter(t => t.month_label === selMonth);
@@ -3453,16 +3514,21 @@ function renderAdminTasksTable(tasks) {
     if (!tbodies || tbodies.length === 0) return;
 
     if (!tasks || tasks.length === 0) {
+        const emptyMsg = adminTasksCurrentView === 'trash' ? 'В корзине нет удаленных задач' : 'Задач не найдено';
         tbodies.forEach(tbody => {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Задач не найдено</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">${emptyMsg}</td></tr>`;
         });
         return;
     }
 
+    const isTrashMode = (adminTasksCurrentView === 'trash');
+
     const html = tasks.map(t => {
         let statusBadge = `<span style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 500; display: inline-block;">${escapeHtml(t.status || '—')}</span>`;
         const st = t.status || '';
-        if (st.includes('Выполнено')) {
+        if (isTrashMode) {
+            statusBadge = `<span style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-trash-can"></i> В корзине</span>`;
+        } else if (st.includes('Выполнено')) {
             statusBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-circle-check"></i> Выполнено</span>`;
         } else if (st.includes('В работе')) {
             statusBadge = `<span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 2px 7px; border-radius: 6px; font-size: 0.76rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-spinner fa-spin-pulse"></i> В работе</span>`;
@@ -3486,6 +3552,24 @@ function renderAdminTasksTable(tasks) {
         const authorInfo = t.author_name ? `<div style="font-size: 0.72rem; color: #64748b;">Автор: ${escapeHtml(t.author_name)}</div>` : '';
         const assigneeInfo = `<div style="font-size: 0.8rem; color: #1d4ed8; font-weight: 600;">${escapeHtml(t.assignee_name || '—')}</div>`;
         const commentPreview = t.comment ? `<div style="font-size: 0.75rem; color: #475569; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(t.comment)}">${escapeHtml(t.comment)}</div>` : '<span style="color: #cbd5e1;">—</span>';
+
+        let actionButtonsHtml = '';
+        if (isTrashMode) {
+            actionButtonsHtml = `
+                <button onclick="restoreAdminTask(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="action-btn" style="width: auto !important; padding: 4px 10px !important; font-size: 0.78rem; font-weight: 600; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Восстановить задачу обратно в активный план">
+                    <i class="fa-solid fa-rotate-left"></i> Восстановить
+                </button>
+            `;
+        } else {
+            actionButtonsHtml = `
+                <button onclick="openAdminTaskModal(${t.id})" class="action-btn btn-edit" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; margin-right: 4px;" title="Редактировать задачу">
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" style="padding: 0.25rem 0.5rem !important;" title="Переместить задачу в корзину">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            `;
+        }
 
         return `
             <tr id="admin-task-row-${t.id}">
@@ -3516,12 +3600,7 @@ function renderAdminTasksTable(tasks) {
                 <td style="white-space: nowrap;">${statusBadge}</td>
                 <td style="white-space: nowrap;">${commentPreview}</td>
                 <td style="text-align: right; white-space: nowrap;">
-                    <button onclick="openAdminTaskModal(${t.id})" class="action-btn btn-edit" style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; margin-right: 4px;" title="Редактировать задачу">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button onclick="deleteTaskFromAdmin(${t.id}, '${(t.title || '').replace(/'/g, "\\'")}')" class="btn-delete-task" style="padding: 0.25rem 0.5rem !important;" title="Удалить задачу навсегда">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                    ${actionButtonsHtml}
                 </td>
             </tr>
         `;
@@ -3898,7 +3977,7 @@ async function executeAdminBulkDelete() {
         return;
     }
 
-    if (!confirm(`Вы действительно хотите БЕЗВОЗВРАТНО УДАЛИТЬ ${taskIds.length} задач? Это действие нельзя отменить!`)) return;
+    if (!confirm(`Переместить ${taskIds.length} выбранных задач в Корзину?\n\nВы сможете восстановить их в любой момент из вкладки «Корзина».`)) return;
 
     try {
         const res = await fetch("/api/tasks/bulk_delete", {
@@ -3909,7 +3988,7 @@ async function executeAdminBulkDelete() {
 
         if (res.ok) {
             const data = await res.json();
-            alert(`Успешно удалено задач: ${data.deleted_count}`);
+            alert(`✅ ${data.message || `Задач перемещено в Корзину: ${data.deleted_count}`}`);
             clearAdminTasksSelection();
             loadAdminTasksList();
         } else {
@@ -3917,24 +3996,71 @@ async function executeAdminBulkDelete() {
             alert("Ошибка удаления: " + (err.detail || "Не удалось удалить задачи"));
         }
     } catch (e) {
-        alert("Ошибка сети при массовом удалении задач");
+        alert("Ошибка сети при массовом перемещении задач в Корзину");
     }
 }
 
 async function deleteTaskFromAdmin(taskId, taskTitle) {
-    if (!confirm(`Вы действительно хотите БЕЗВОЗВРАТНО удалить задачу ID ${taskId} («${taskTitle}»)?`)) return;
+    if (!confirm(`Переместить задачу ID ${taskId} («${taskTitle || ''}») в Корзину?\n\nВы сможете восстановить её в любой момент из вкладки «Корзина».`)) return;
 
     try {
         const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
         if (res.ok) {
-            alert("Задача успешно удалена");
+            alert("✅ Задача успешно перемещена в Корзину");
             loadAdminTasksList();
         } else {
             const err = await res.json();
-            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
+            alert("Ошибка удаления: " + (err.detail || "Не удалось переместить в Корзину"));
         }
     } catch (e) {
-        alert("Ошибка сети при удалении");
+        alert("Ошибка сети при удалении задачи");
+    }
+}
+
+async function restoreAdminTask(taskId, taskTitle) {
+    if (!confirm(`Восстановить задачу ID ${taskId} («${taskTitle || ''}») из Корзины обратно в активный план?`)) return;
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}/restore`, { method: 'POST' });
+        if (res.ok) {
+            alert("✅ Задача успешно восстановлена в активный план!");
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка восстановления: " + (err.detail || "Не удалось восстановить"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при восстановлении задачи");
+    }
+}
+
+async function executeAdminBulkRestore() {
+    const taskIds = Array.from(selectedAdminTaskIds);
+    if (taskIds.length === 0) {
+        alert("Выберите хотя бы одну задачу для восстановления");
+        return;
+    }
+
+    if (!confirm(`Восстановить ${taskIds.length} задач из Корзины обратно в активный план?`)) return;
+
+    try {
+        const res = await fetch("/api/tasks/bulk_restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_ids: taskIds })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`✅ ${data.message || `Успешно восстановлено задач: ${data.restored_count}`}`);
+            clearAdminTasksSelection();
+            loadAdminTasksList();
+        } else {
+            const err = await res.json();
+            alert("Ошибка восстановления: " + (err.detail || "Не удалось восстановить задачи"));
+        }
+    } catch (e) {
+        alert("Ошибка сети при массовом восстановлении задач");
     }
 }
 

@@ -5246,17 +5246,35 @@ async function saveBulkTasksModal() {
 /* ==========================================================
    MOVE TO NEXT WEEK & ARCHIVE (1-CLICK NO PROMPTS)
    ========================================================== */
-function getNextCalendarWeek() {
-    const weeks = allWeeksStructure[currentMonth] || [];
-    const currentIdx = weeks.indexOf(currentWeek);
+function getNextCalendarWeek(task = null) {
+    let baseMonth = currentMonth;
+    let baseWeek = currentWeek;
+
+    // Если в текущем фильтре 'all' (За всё время / Все недели), берем месяц и неделю самой задачи
+    if ((baseMonth === 'all' || !baseMonth || !allWeeksStructure[baseMonth]) && task) {
+        if (task.month_label && allWeeksStructure[task.month_label]) {
+            baseMonth = task.month_label;
+            baseWeek = task.week_label || '';
+        }
+    }
+
+    const months = Object.keys(allWeeksStructure);
+    if (!baseMonth || baseMonth === 'all' || !allWeeksStructure[baseMonth]) {
+        // Фоллбэк: текущий календарный месяц из структуры
+        const now = new Date();
+        const curMName = `${_monthsRuInit[now.getMonth()]} ${now.getFullYear()}`;
+        baseMonth = (months.includes(curMName)) ? curMName : (months.length > 0 ? months[0] : "Октябрь 2026");
+    }
+
+    const weeks = allWeeksStructure[baseMonth] || [];
+    const currentIdx = weeks.indexOf(baseWeek);
     
     if (currentIdx >= 0 && currentIdx < weeks.length - 1) {
-        return { month: currentMonth, week: weeks[currentIdx + 1] };
+        return { month: baseMonth, week: weeks[currentIdx + 1] };
     }
     
     // Если это последняя неделя текущего месяца -> переходим на первую неделю следующего месяца
-    const months = Object.keys(allWeeksStructure);
-    const monthIdx = months.indexOf(currentMonth);
+    const monthIdx = months.indexOf(baseMonth);
     if (monthIdx >= 0 && monthIdx < months.length - 1) {
         const nextMonth = months[monthIdx + 1];
         const nextMonthWeeks = allWeeksStructure[nextMonth] || [];
@@ -5265,7 +5283,7 @@ function getNextCalendarWeek() {
         }
     }
     
-    return { month: currentMonth, week: `Неделя 1` };
+    return { month: baseMonth, week: weeks[0] || `Неделя 1` };
 }
 
 async function moveTaskToNextWeekModal(taskId) {
@@ -5273,7 +5291,7 @@ async function moveTaskToNextWeekModal(taskId) {
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
     ensureUserAuthorized(requiredUser, async (authSession) => {
-        const next = getNextCalendarWeek();
+        const next = getNextCalendarWeek(task);
         const confirmMove = confirm(`Перенести задачу на «${next.week}» (${next.month}) со статусом «🔵 Перенесено»?`);
         if (!confirmMove) return;
 
@@ -5285,15 +5303,15 @@ async function moveTaskToNextWeekModal(taskId) {
                 showToast(`Задача перенесена на ${next.week}`);
                 
                 // Если перешли в другой месяц - переключаем фильтр месяца
-                if (next.month !== currentMonth) {
+                if (next.month !== currentMonth && currentMonth !== 'all') {
                     const monthSelect = document.getElementById("filter-month");
                     if (monthSelect) monthSelect.value = next.month;
                     currentMonth = next.month;
                     onMonthChange(next.week);
                 } else {
                     const weekSelect = document.getElementById("filter-week");
-                    if (weekSelect) weekSelect.value = next.week;
-                    currentWeek = next.week;
+                    if (weekSelect && currentWeek !== 'all') weekSelect.value = next.week;
+                    if (currentWeek !== 'all') currentWeek = next.week;
                     loadTasks();
                 }
             } else {
