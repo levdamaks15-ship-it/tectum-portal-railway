@@ -169,13 +169,59 @@
     }
 
     /**
-     * Performs a fresh reload with cache-busting parameters.
+     * Performs a fresh reload with cache-busting parameters, CacheStorage purge, and script pre-revalidation.
      */
-    function triggerReload(targetVer) {
+    async function triggerReload(targetVer) {
         saveActiveFormDraft();
+        const ver = targetVer || newVersionDetected || Date.now().toString();
+
+        // 1. Purge modern browser CacheStorage (PWA / Service Worker caches)
+        try {
+            if (typeof window !== 'undefined' && 'caches' in window) {
+                const keys = await window.caches.keys();
+                await Promise.all(keys.map(k => window.caches.delete(k)));
+                console.log('[DeploymentGuard] Purged browser CacheStorage.');
+            }
+        } catch (e) {
+            console.warn('[DeploymentGuard] Cache purge skipped:', e);
+        }
+
+        // 2. Pre-fetch currently loaded scripts and styles with { cache: 'reload' } to bypass browser disk cache
+        try {
+            const staticElements = document.querySelectorAll('script[src], link[rel="stylesheet"]');
+            const preloads = [];
+            staticElements.forEach(el => {
+                const src = el.src || el.href;
+                if (src && (src.includes('/static/') || src.includes('.js') || src.includes('.css'))) {
+                    try {
+                        const assetUrl = new URL(src, window.location.origin);
+                        assetUrl.searchParams.set('v', ver);
+                        assetUrl.searchParams.set('_t', Date.now().toString());
+                        preloads.push(
+                            fetch(assetUrl.toString(), {
+                                method: 'GET',
+                                cache: 'reload',
+                                headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+                            }).catch(() => {})
+                        );
+                    } catch (_) {}
+                }
+            });
+            if (preloads.length > 0) {
+                // Wait up to 600ms for background revalidation
+                await Promise.race([
+                    Promise.all(preloads),
+                    new Promise(resolve => setTimeout(resolve, 600))
+                ]);
+            }
+        } catch (e) {
+            console.warn('[DeploymentGuard] Preload cache bypass skipped:', e);
+        }
+
+        // 3. Final Hard Navigation via window.location.replace with version and timestamp
         try {
             const url = new URL(window.location.href);
-            url.searchParams.set('v', targetVer || newVersionDetected || Date.now().toString());
+            url.searchParams.set('v', ver);
             url.searchParams.set('_deploy', Date.now().toString());
             window.location.replace(url.toString());
         } catch (e) {

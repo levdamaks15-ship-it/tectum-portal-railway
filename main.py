@@ -1555,10 +1555,19 @@ app.add_middleware(
 @app.middleware("http")
 async def add_no_cache_headers(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path.startswith("/api/"):
+    path = request.url.path
+    if path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+    elif path.endswith(".html") or path in ("/", "/admin", "/analytics", "/tasks", "/planner", "/docs", "/checklists", "/qcd"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    elif path.startswith("/static/"):
+        if path.endswith((".js", ".css")):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
     return response
 
 # ==========================================
@@ -1606,7 +1615,7 @@ if not os.path.exists("static"):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 HTML_NO_CACHE_HEADERS = {
-    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
     "Pragma": "no-cache",
     "Expires": "0"
 }
@@ -1634,6 +1643,18 @@ def serve_tasks():
 @app.get("/planner")
 def serve_planner():
     return FileResponse("static/tasks.html", headers=HTML_NO_CACHE_HEADERS)
+
+@app.get("/docs")
+def serve_docs():
+    return FileResponse("static/docs.html", headers=HTML_NO_CACHE_HEADERS)
+
+@app.get("/checklists")
+def serve_checklists():
+    return FileResponse("static/checklists.html", headers=HTML_NO_CACHE_HEADERS)
+
+@app.get("/qcd")
+def serve_qcd():
+    return FileResponse("static/qcd.html", headers=HTML_NO_CACHE_HEADERS)
 
 
 if __name__ == "__main__":
