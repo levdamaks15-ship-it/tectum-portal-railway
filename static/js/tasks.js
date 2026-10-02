@@ -2641,6 +2641,7 @@ function renderTasksCards(tasks) {
             const isCompleted = t.status && t.status.includes("Выполнено");
             const isCancelled = t.status && t.status.includes("Отменено");
             const isMoved = t.status && t.status.includes("Перенесено");
+            const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
 
             let cardExtraClass = "";
             let statusPill = "";
@@ -2655,6 +2656,10 @@ function renderTasksCards(tasks) {
                 statusPill = `<span class="apple-card-status status-moved"><i class="fa-solid fa-arrow-right"></i> Перенесено</span>`;
             } else {
                 statusPill = `<span class="apple-card-status status-work"><span class="apple-status-dot"></span> В работе</span>`;
+            }
+
+            if (isLocked) {
+                cardExtraClass += " task-card-locked";
             }
 
             if (t.is_backlog) {
@@ -2714,7 +2719,6 @@ function renderTasksCards(tasks) {
 
             const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim());
             const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim());
-            let mobilePhotoChips = '';
             let mobilePhotoPreviewStrip = '';
 
             if (hasPhotoBefore || hasPhotoAfter) {
@@ -2740,59 +2744,48 @@ function renderTasksCards(tasks) {
                 `;
             }
 
-            if (hasPhotoBefore && hasPhotoAfter) {
-                mobilePhotoChips = `
-                    <div style="display: inline-flex; gap: 3px; align-items: center;">
-                        <button type="button" class="btn-photo-chip before" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'before')" title="Фото ДО"><i class="fa-solid fa-camera"></i> ДО</button>
-                        <button type="button" class="btn-photo-chip after" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'after')" title="Фото ПОСЛЕ"><i class="fa-solid fa-circle-check"></i> ПОСЛЕ</button>
-                    </div>
-                `;
-            } else if (hasPhotoBefore) {
-                mobilePhotoChips = `
-                    <button type="button" class="btn-photo-chip before" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '', 'before')" title="Фото ДО"><i class="fa-solid fa-camera"></i> ДО</button>
-                `;
-            } else if (hasPhotoAfter) {
-                mobilePhotoChips = `
-                    <button type="button" class="btn-photo-chip after" onclick="event.stopPropagation(); openPhotoViewerModal('', '${t.photo_link_after}', 'after')" title="Фото ПОСЛЕ"><i class="fa-solid fa-circle-check"></i> ПОСЛЕ</button>
-                `;
-            }
+            const swipeLeftActionHtml = isLocked ? '' : `
+                <!-- Фоновое действие при свайпе вправо (Выполнить) -->
+                <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
+                    <i class="fa-solid fa-check" style="font-size: 20px;"></i>
+                    <span>Выполнить</span>
+                </div>
+            `;
+
+            const swipeRightActionsHtml = isLocked ? '' : `
+                <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
+                <div class="apple-swipe-action-right">
+                    <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
+                        <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
+                        <span>Перенести</span>
+                    </button>
+                    <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
+                        <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
+                        <span>Передать</span>
+                    </button>
+                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
+                        <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
+                        <span>Правка</span>
+                    </button>
+                </div>
+            `;
 
             cardsHtml += `
-                <div class="apple-swipe-row" id="swipe-row-${t.id}">
-                    <!-- Фоновое действие при свайпе вправо (Выполнить) -->
-                    <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
-                        <i class="fa-solid fa-check" style="font-size: 20px;"></i>
-                        <span>Выполнить</span>
-                    </div>
-
-                    <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
-                    <div class="apple-swipe-action-right">
-                        <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
-                            <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
-                            <span>Перенести</span>
-                        </button>
-                        <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
-                            <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
-                            <span>Передать</span>
-                        </button>
-                        <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
-                            <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
-                            <span>Правка</span>
-                        </button>
-                    </div>
+                <div class="apple-swipe-row ${isLocked ? 'apple-swipe-row-locked' : ''}" id="swipe-row-${t.id}">
+                    ${swipeLeftActionHtml}
+                    ${swipeRightActionsHtml}
 
                     <!-- Карточка задачи (передний план) -->
-                    <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" onclick="handleCardClick(event, ${t.id})">
-                        <div class="planner-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                            <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" data-locked="${isLocked ? 'true' : 'false'}" onclick="handleCardClick(event, ${t.id})">
+                        <div class="planner-card-header" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
+                            <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0;">
                                 <span class="badge-code" style="font-size: 11px; color: #8E8E93; font-family: monospace; letter-spacing: 0.2px;">${t.code || ('TSK-' + (idx + 1))}</span>
                                 ${horizonBadge}
                                 ${cardZoneHtml}
                                 ${backlogBadge}
                                 ${crossWeekBadge}
-                                ${mobilePhotoChips}
                             </div>
-                            <div>
+                            <div style="flex-shrink: 0; margin-left: auto;">
                                 ${statusPill}
                             </div>
                         </div>
@@ -2843,6 +2836,7 @@ function initCardSwipeGestures() {
     rows.forEach(row => {
         const card = row.querySelector('.planner-card');
         if (!card) return;
+        if (card.dataset.locked === 'true') return;
         const taskId = parseInt(card.dataset.taskId, 10);
         if (!taskId) return;
 
