@@ -2715,6 +2715,31 @@ function renderTasksCards(tasks) {
             const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim());
             const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim());
             let mobilePhotoChips = '';
+            let mobilePhotoPreviewStrip = '';
+
+            if (hasPhotoBefore || hasPhotoAfter) {
+                mobilePhotoPreviewStrip = `
+                    <div class="apple-card-photos-strip">
+                        ${hasPhotoBefore ? `
+                            <div class="apple-photo-card" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after || ''}', 'before')" title="Фото ДО (нажмите для просмотра)">
+                                <img src="${t.photo_link}" alt="Фото ДО" loading="lazy">
+                                <span class="apple-photo-tag before">
+                                    <i class="fa-solid fa-camera"></i> ДО
+                                </span>
+                            </div>
+                        ` : ''}
+                        ${hasPhotoAfter ? `
+                            <div class="apple-photo-card" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link || ''}', '${t.photo_link_after}', 'after')" title="Фото ПОСЛЕ (нажмите для просмотра)">
+                                <img src="${t.photo_link_after}" alt="Фото ПОСЛЕ" loading="lazy">
+                                <span class="apple-photo-tag after">
+                                    <i class="fa-solid fa-circle-check"></i> ПОСЛЕ
+                                </span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
             if (hasPhotoBefore && hasPhotoAfter) {
                 mobilePhotoChips = `
                     <div style="display: inline-flex; gap: 3px; align-items: center;">
@@ -2775,6 +2800,7 @@ function renderTasksCards(tasks) {
                         <div class="planner-card-body">
                             <div class="planner-card-title ${titleClass}" style="font-size: 16px; font-weight: 600; color: #1C1C1E; line-height: 1.35;">${escapeHtml(t.title || '—')}</div>
                             ${titleKzBlock}
+                            ${mobilePhotoPreviewStrip}
                         </div>
 
                         <div class="planner-card-meta" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: #636366;">

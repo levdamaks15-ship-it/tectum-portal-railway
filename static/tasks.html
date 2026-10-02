@@ -1449,6 +1449,9 @@
             .task-drawer-backdrop,
             #roadmaps-view-container,
             .btn-photo-link,
+            .btn-photo-chip,
+            .photo-dual-group,
+            .apple-card-photos-strip,
             .btn-action,
             .select-filter,
             .filter-chip,
@@ -3031,29 +3034,27 @@
         </div>
     </div>
 
-    <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) WITH BEFORE / AFTER TABS -->
+    <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) WITH APPLE DESIGN TABS -->
     <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()"
-        style="z-index: 6000; background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px);">
-        <div style="position: relative; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;"
-            onclick="event.stopPropagation()">
-            <button type="button" onclick="closePhotoViewerModal()"
-                style="position: absolute; top: -45px; right: 0; background: rgba(255,255,255,0.2); border: none; color: #ffffff; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
+        style="z-index: 6000; background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
+        <div class="apple-photo-viewer-box" onclick="event.stopPropagation()">
+            <button type="button" class="apple-lightbox-close-btn" onclick="closePhotoViewerModal()" title="Закрыть">&times;</button>
             
-            <!-- BEFORE / AFTER SWITCHER TABS -->
-            <div id="photo-viewer-tabs" style="display: none; gap: 8px; margin-bottom: 12px; z-index: 10;">
+            <!-- BEFORE / AFTER APPLE SEGMENTED CONTROL -->
+            <div id="photo-viewer-tabs" class="apple-segmented-control" style="display: none; z-index: 10;">
                 <button type="button" id="tab-photo-before" class="btn-action photo-tab-btn active" onclick="switchLightboxTab('before')">
-                    <i class="fa-solid fa-camera"></i> Фото ДО (Исходное)
+                    <i class="fa-solid fa-camera"></i> Фото ДО
                 </button>
                 <button type="button" id="tab-photo-after" class="btn-action photo-tab-btn" onclick="switchLightboxTab('after')">
-                    <i class="fa-solid fa-circle-check"></i> Фото ПОСЛЕ (Факт)
+                    <i class="fa-solid fa-circle-check"></i> Фото ПОСЛЕ
                 </button>
             </div>
 
             <img id="photo-viewer-img" src="" alt="Фото задачи"
-                style="max-width: 100%; max-height: 76vh; border-radius: 8px; object-fit: contain; box-shadow: 0 20px 40px rgba(0,0,0,0.5); transition: opacity 0.15s ease;">
-            <div style="margin-top: 10px; display: flex; gap: 8px;">
+                style="max-width: 95vw; max-height: 76vh; border-radius: 12px; object-fit: contain; box-shadow: 0 24px 48px rgba(0,0,0,0.6); transition: opacity 0.18s ease;">
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
                 <a id="photo-viewer-direct-link" href="#" target="_blank" class="btn-action btn-secondary-action"
-                    style="font-size: 0.8rem; background: rgba(255,255,255,0.9);">
+                    style="font-size: 0.8rem; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-radius: 20px; padding: 6px 14px;">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Открыть оригинал
                 </a>
             </div>
