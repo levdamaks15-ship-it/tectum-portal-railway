@@ -577,14 +577,6 @@ function toggleMobileFilters() {
 }
 
 function toggleMyTasksFilter() {
-    const tableWrapper = document.getElementById("planner-table-wrapper");
-    const roadmapsContainer = document.getElementById("roadmaps-view-container");
-    if (tableWrapper) tableWrapper.style.display = "block";
-    if (roadmapsContainer) roadmapsContainer.style.display = "none";
-    if (typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
-        currentHorizon = 'weekly';
-    }
-
     if (!currentPlannerUser || !currentPlannerUser.name) {
         openPinModal(null, (user) => {
             currentPlannerUser = user;
@@ -595,7 +587,11 @@ function toggleMyTasksFilter() {
             updateChipsVisualState();
             updateFilterBadge();
             updateUrlParams();
-            loadTasks();
+            if (currentHorizon === 'roadmaps') {
+                loadRoadmaps();
+            } else {
+                loadTasks();
+            }
             showToast(`Фильтр «Мои задачи»: ${user.name}`);
         });
         return;
@@ -613,7 +609,11 @@ function toggleMyTasksFilter() {
     updateChipsVisualState();
     updateFilterBadge();
     updateUrlParams();
-    loadTasks();
+    if (currentHorizon === 'roadmaps') {
+        loadRoadmaps();
+    } else {
+        loadTasks();
+    }
 }
 
 function applyGlobalAllFilter() {
@@ -881,11 +881,13 @@ function startTasksLiveSync() {
             }
 
             if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-                url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}&my_all_horizons=true`;
+                url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
             } else {
-                if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
                 if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
                 if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
+            }
+            if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") {
+                url += `&zone=${encodeURIComponent(zone)}`;
             }
             if (status !== "all") url += `&status=${encodeURIComponent(status)}`;
 
@@ -935,29 +937,31 @@ async function loadTasks() {
     let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
     
     // Горизонт планирования
-    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-        url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}&my_all_horizons=true`;
-        if (zone !== "all") url += `&zone=${encodeURIComponent(zone)}`;
-    } else {
-        if (currentHorizon === "weekly") {
-            url += `&task_type=weekly`;
-        } else if (currentHorizon === "services") {
-            url += `&task_type=service_plan`;
-            if (currentDepartmentService !== "all") {
-                url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
-            }
-            if (filterHasDocOnly) {
-                url += `&has_doc=true`;
-            }
-        } else if (currentHorizon === "tech_council") {
-            url += `&task_type=tech_council&zone=${encodeURIComponent("Техсовет")}`;
-        } else if (currentHorizon === "quality_day") {
-            url += `&task_type=quality_day&zone=${encodeURIComponent("День качества")}`;
+    if (currentHorizon === "weekly") {
+        url += `&task_type=weekly`;
+    } else if (currentHorizon === "services") {
+        url += `&task_type=service_plan`;
+        if (currentDepartmentService !== "all") {
+            url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
         }
+        if (filterHasDocOnly) {
+            url += `&has_doc=true`;
+        }
+    } else if (currentHorizon === "tech_council") {
+        url += `&task_type=tech_council&zone=${encodeURIComponent("Техсовет")}`;
+    } else if (currentHorizon === "quality_day") {
+        url += `&task_type=quality_day&zone=${encodeURIComponent("День качества")}`;
+    }
 
-        if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") url += `&zone=${encodeURIComponent(zone)}`;
+    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+        url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+    } else {
         if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
         if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
+    }
+
+    if (zone !== "all" && currentHorizon !== "tech_council" && currentHorizon !== "quality_day") {
+        url += `&zone=${encodeURIComponent(zone)}`;
     }
 
     // Хэштег
@@ -1089,7 +1093,11 @@ async function loadRoadmaps() {
     grid.innerHTML = `<div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...</div>`;
 
     try {
-        const res = await fetch(`/api/tasks/roadmaps?quarter=${encodeURIComponent(qVal)}`);
+        let url = `/api/tasks/roadmaps?quarter=${encodeURIComponent(qVal)}`;
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+        }
+        const res = await fetch(url);
         if (res.ok) {
             allRoadmaps = await res.json();
             renderRoadmaps(allRoadmaps);
@@ -1107,6 +1115,22 @@ function renderRoadmaps(projects) {
     if (!grid) return;
 
     if (!projects || projects.length === 0) {
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            grid.innerHTML = `
+                <div style="text-align: center; padding: 3rem; background: #ffffff; border-radius: 12px; border: 1px solid var(--tbl-border); grid-column: 1 / -1;">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👤</div>
+                    <h3 style="color: #0f172a; margin-bottom: 0.5rem;">У вас пока нет задач в дорожных картах на этот период</h3>
+                    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.25rem;">Вы можете посмотреть все общие проекты завода или выбрать другой квартал.</p>
+                    <button class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" style="margin-right: 8px;">
+                        <i class="fa-solid fa-users"></i> Показать все дорожные карты
+                    </button>
+                    <button class="btn-action btn-primary-action" onclick="openAddTaskModal('roadmap')">
+                        <i class="fa-solid fa-plus"></i> Создать проект Дорожной карты
+                    </button>
+                </div>
+            `;
+            return;
+        }
         grid.innerHTML = `
             <div style="text-align: center; padding: 3rem; background: #ffffff; border-radius: 12px; border: 1px solid var(--tbl-border); grid-column: 1 / -1;">
                 <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🗺️</div>
@@ -1717,21 +1741,21 @@ async function loadWeeksSummaryData() {
 
     try {
         let url = `/api/tasks/weeks_summary?month=${encodeURIComponent(currentMonth)}`;
-        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-            url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}&my_all_horizons=true`;
-        } else {
-            if (currentHorizon === "weekly") {
-                url += `&task_type=weekly`;
-            } else if (currentHorizon === "services") {
-                url += `&task_type=service_plan`;
-                if (currentDepartmentService !== "all") {
-                    url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
-                }
-            } else if (currentHorizon === "tech_council") {
-                url += `&task_type=tech_council`;
-            } else if (currentHorizon === "quality_day") {
-                url += `&task_type=quality_day`;
+        if (currentHorizon === "weekly") {
+            url += `&task_type=weekly`;
+        } else if (currentHorizon === "services") {
+            url += `&task_type=service_plan`;
+            if (currentDepartmentService !== "all") {
+                url += `&department_service=${encodeURIComponent(currentDepartmentService)}`;
             }
+        } else if (currentHorizon === "tech_council") {
+            url += `&task_type=tech_council`;
+        } else if (currentHorizon === "quality_day") {
+            url += `&task_type=quality_day`;
+        }
+
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
         }
 
         const res = await fetch(url);
@@ -2362,6 +2386,28 @@ function renderTasksTable(tasks) {
     updateServicesBulkBar();
 
     if (!tasks || tasks.length === 0) {
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 3rem 1.5rem; color: #64748b; font-size: 0.95rem;">
+                        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">👤</div>
+                        <div style="font-weight: 700; font-size: 1.05rem; color: #1e293b; margin-bottom: 0.35rem;">
+                            Нет назначенных задач для ${escapeHtml(currentPlannerUser.name)} на этот период
+                        </div>
+                        <div style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.25rem;">
+                            В этом разделе за выбранный период для вас пока нет задач.
+                        </div>
+                        <button type="button" class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;">
+                            <i class="fa-solid fa-users"></i> Показать все задачи раздела
+                        </button>
+                        <button type="button" class="btn-action btn-primary-action" onclick="openAddTaskModal()">
+                            <i class="fa-solid fa-plus"></i> Добавить задачу
+                        </button>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
         tableBody.innerHTML = `
             <tr>
                 <td colspan="11" style="text-align: center; padding: 2.5rem; color: #94a3b8; font-size: 0.95rem;">
@@ -2613,6 +2659,22 @@ function renderTasksCards(tasks) {
     if (!cardsContainer) return;
 
     if (!tasks || tasks.length === 0) {
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            cardsContainer.innerHTML = `
+                <div style="text-align: center; padding: 2.5rem 1rem; color: #8E8E93; background: #ffffff; border-radius: 12px; border: 1px solid rgba(60,60,67,0.12); margin: 12px 16px;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">👤</div>
+                    <div style="font-weight: 600; color: #1C1C1E; margin-bottom: 0.25rem;">Нет назначенных задач для ${escapeHtml(currentPlannerUser.name)}</div>
+                    <div style="font-size: 0.85rem; color: #8E8E93; margin-bottom: 1rem;">В этом разделе за выбранный период задач нет</div>
+                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" style="font-size: 0.85rem; padding: 6px 12px; margin-right: 6px;">
+                        <i class="fa-solid fa-users"></i> Все задачи
+                    </button>
+                    <button type="button" class="btn-action btn-primary-action" onclick="openAddTaskModal()" style="font-size: 0.85rem; padding: 6px 12px;">
+                        <i class="fa-solid fa-plus"></i> Добавить
+                    </button>
+                </div>
+            `;
+            return;
+        }
         cardsContainer.innerHTML = `
             <div style="text-align: center; padding: 2.5rem 1rem; color: #8E8E93; background: #ffffff; border-radius: 12px; border: 1px solid rgba(60,60,67,0.12); margin: 12px 16px;">
                 <div style="font-size: 2rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-list-check" style="color: #C82323;"></i></div>

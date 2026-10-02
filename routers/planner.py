@@ -603,8 +603,12 @@ def get_task_tags(db: Session = Depends(get_db)):
         return []
 
 @router.get("/api/tasks/roadmaps")
-def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_db)):
-    """Возвращает иерархическое дерево Дорожных карт: Проекты -> Этапы -> Подзадачи."""
+def get_roadmaps_tree(
+    quarter: Optional[str] = None,
+    my_person: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Возвращает иерархическое дерево Дорожных карт: Проекты -> Этапы -> Подзадачи с поддержкой персонального фильтра."""
     try:
         query = db.query(models.Task).filter(
             models.Task.task_type == "roadmap",
@@ -665,6 +669,10 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
         def serialize_item(item):
             doc_info = doc_map.get(item.attached_document_id) if item.attached_document_id else None
             dep_info = dep_map.get(item.depends_on_id) if item.depends_on_id else None
+            is_my_item = bool(my_person and my_person != "all" and (
+                (item.assignee_name and my_person.lower() in item.assignee_name.lower()) or 
+                (item.author_name and my_person.lower() in item.author_name.lower())
+            ))
             return {
                 "id": item.id,
                 "code": item.code or f"TSK-{item.id:02d}",
@@ -683,6 +691,7 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
                 "comment": item.comment or "",
                 "attached_doc": doc_info,
                 "depends_on": dep_info,
+                "is_my": is_my_item,
                 "created_at": item.created_at.strftime("%d.%m.%Y %H:%M") if item.created_at else ""
             }
 
@@ -695,11 +704,17 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
             total_items = 0
             done_items = 0
             milestones_list = []
+            has_my_in_project = p_dict["is_my"]
             
             for m in p_children:
                 m_dict = serialize_item(m)
                 m_subs = [s for s in sub_children if s.parent_id == m.id]
-                m_dict["subtasks"] = [serialize_item(s) for s in m_subs]
+                m_sub_dicts = [serialize_item(s) for s in m_subs]
+                m_dict["subtasks"] = m_sub_dicts
+                
+                # Проверка принадлежности вехи или подзадач
+                if m_dict["is_my"] or any(s["is_my"] for s in m_sub_dicts):
+                    has_my_in_project = True
                 
                 # Подсчет прогресса вехи
                 m_total = len(m_subs)
@@ -718,6 +733,11 @@ def get_roadmaps_tree(quarter: Optional[str] = None, db: Session = Depends(get_d
             p_dict["calculated_progress"] = p_calc_prog
             p_dict["total_elements"] = total_items
             p_dict["done_elements"] = done_items
+
+            # Если включен персональный фильтр my_person, включаем только релевантные проекты
+            if my_person and my_person != "all" and not has_my_in_project:
+                continue
+
             tree.append(p_dict)
 
         return tree
@@ -854,7 +874,13 @@ def get_tasks_weeks_summary(
                 query = query.filter((models.Task.department_service == department_service) | (models.Task.zone == department_service))
 
         if my_person and my_person != "all":
-            query = query.filter(or_(models.Task.assignee_name == my_person, models.Task.author_name == my_person))
+            clean_person = my_person.strip()
+            query = query.filter(
+                or_(
+                    models.Task.assignee_name.ilike(f"%{clean_person}%"),
+                    models.Task.author_name.ilike(f"%{clean_person}%")
+                )
+            )
 
         if month and month != "all":
             query = query.filter(models.Task.month_label == month)
@@ -970,12 +996,20 @@ def get_tasks(
 
         # 6. Фильтрация по персоналу, зоне, статусу
         if my_person and my_person != "all":
-            query = query.filter(or_(models.Task.assignee_name == my_person, models.Task.author_name == my_person))
+            clean_person = my_person.strip()
+            query = query.filter(
+                or_(
+                    models.Task.assignee_name.ilike(f"%{clean_person}%"),
+                    models.Task.author_name.ilike(f"%{clean_person}%")
+                )
+            )
         else:
             if assignee and assignee != "all":
-                query = query.filter(models.Task.assignee_name == assignee)
+                clean_assignee = assignee.strip()
+                query = query.filter(models.Task.assignee_name.ilike(f"%{clean_assignee}%"))
             if author and author != "all":
-                query = query.filter(models.Task.author_name == author)
+                clean_author = author.strip()
+                query = query.filter(models.Task.author_name.ilike(f"%{clean_author}%"))
                 
         if zone and zone != "all" and not (my_all_horizons and my_person):
             query = query.filter(models.Task.zone == zone)

@@ -3141,25 +3141,25 @@
     <div class="apple-bottom-nav" style="height: 56px; background: rgba(255,255,255,0.88); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); box-shadow: 0 -1px 0 rgba(60,60,67,0.12); position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; padding-bottom: env(safe-area-inset-bottom, 0px); display: flex;" id="apple-bottom-nav">
         <div class="apple-nav-item active" data-horizon="weekly"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #C82323;"
-             onclick="switchHorizon('weekly'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('weekly');">
+             onclick="switchHorizon('weekly'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; appleNavSwitch('weekly');">
             <i class="fa-solid fa-bolt" style="font-size: 21px;"></i>
             <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Спринт</span>
         </div>
         <div class="apple-nav-item" data-horizon="services"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
-             onclick="switchHorizon('services'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('services');">
+             onclick="switchHorizon('services'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; appleNavSwitch('services');">
             <i class="fa-solid fa-wrench" style="font-size: 21px;"></i>
             <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Службы</span>
         </div>
         <div class="apple-nav-item" data-horizon="tech_council"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
-             onclick="switchHorizon('tech_council'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('tech_council');">
+             onclick="switchHorizon('tech_council'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; appleNavSwitch('tech_council');">
             <i class="fa-solid fa-microscope" style="font-size: 21px;"></i>
             <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Техсовет</span>
         </div>
         <div class="apple-nav-item" data-horizon="quality_day"
              style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #8E8E93;"
-             onclick="switchHorizon('quality_day'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; if (typeof loadTasks === 'function') loadTasks(); appleNavSwitch('quality_day');">
+             onclick="switchHorizon('quality_day'); if (typeof myTasksFilterActive !== 'undefined') myTasksFilterActive = false; appleNavSwitch('quality_day');">
             <i class="fa-solid fa-clipboard-check" style="font-size: 21px;"></i>
             <span style="font-size: 9.5px; font-weight: 600; letter-spacing: 0.1px;">Качество</span>
         </div>
@@ -3435,18 +3435,14 @@
     }
 
     function selectMyTasksFromNav() {
-        if (typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
-            if (typeof switchHorizon === 'function') switchHorizon('weekly');
-        }
-        const tableWrapper = document.getElementById("planner-table-wrapper");
-        const roadmapsContainer = document.getElementById("roadmaps-view-container");
-        if (tableWrapper) tableWrapper.style.display = "block";
-        if (roadmapsContainer) roadmapsContainer.style.display = "none";
-
         if (typeof myTasksFilterActive !== 'undefined' && !myTasksFilterActive) {
             if (typeof toggleMyTasksFilter === 'function') toggleMyTasksFilter();
         } else {
-            if (typeof loadTasks === 'function') loadTasks();
+            if (typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+                if (typeof loadRoadmaps === 'function') loadRoadmaps();
+            } else {
+                if (typeof loadTasks === 'function') loadTasks();
+            }
         }
         appleNavSwitch('my');
     }
