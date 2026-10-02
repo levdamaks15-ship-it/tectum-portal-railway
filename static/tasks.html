@@ -2397,36 +2397,71 @@
                 </select>
             </div>
 
-            <!-- Photo Link with single Gallery / File upload -->
+            <!-- Photo BEFORE (Исходное состояние / Дефект) -->
             <div class="form-row">
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #2563eb;"></i> Фото
-                        задачи</label>
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото ДО
+                        <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(исходное состояние / проблема)</span></label>
                     <div style="display: flex; gap: 6px;">
                         <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;"
-                            onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn')">
-                        <button type="button" class="btn-action btn-primary-action"
+                            onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container')">
+                        <button type="button" class="btn-action btn-secondary-action"
                             style="font-size: 0.75rem; padding: 4px 10px;"
                             onclick="document.getElementById('task-photo-gallery').click()"
                             title="Выбрать фото из галереи или файлов">
-                            <i class="fa-solid fa-images"></i> <span>Выбрать фото</span>
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото ДО</span>
                         </button>
                     </div>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
                     <input type="url" class="form-input" id="task-photo-input"
-                        placeholder="Ссылка на фото или загрузите через кнопку выше..."
-                        oninput="onPhotoInputChanged('task-photo-input')" style="padding-right: 85px;">
+                        placeholder="Ссылка на фото ДО или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container')" style="padding-right: 85px;">
                     <button type="button" id="task-photo-preview-btn" class="btn-action btn-secondary-action"
                         style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
-                        onclick="openPhotoViewerModal(document.getElementById('task-photo-input').value)">
+                        onclick="openPhotoViewerModal(document.getElementById('task-photo-input').value, document.getElementById('task-photo-after-input')?.value, 'before')">
                         <i class="fa-solid fa-eye"></i> Просмотр
                     </button>
                 </div>
+                <div id="task-photo-thumb-container" style="display: none; margin-top: 6px; align-items: center; gap: 8px;"></div>
                 <div id="task-photo-preview-hint"
                     style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото ДО прикреплено</span>
+                </div>
+            </div>
+
+            <!-- Photo AFTER (Факт выполнения / Результат) -->
+            <div class="form-row" id="task-photo-after-row">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-circle-check" style="color: #10b981;"></i> Фото ПОСЛЕ
+                        <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(факт выполнения / результат)</span></label>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="file" id="task-photo-after-gallery" accept="image/*" style="display: none;"
+                            onchange="handlePhotoFileUpload(this, 'task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container')">
+                        <button type="button" class="btn-action btn-secondary-action"
+                            style="font-size: 0.75rem; padding: 4px 10px;"
+                            onclick="document.getElementById('task-photo-after-gallery').click()"
+                            title="Выбрать фото из галереи или файлов">
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото ПОСЛЕ</span>
+                        </button>
+                    </div>
+                </div>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="url" class="form-input" id="task-photo-after-input"
+                        placeholder="Ссылка на фото ПОСЛЕ или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container')" style="padding-right: 85px;">
+                    <button type="button" id="task-photo-after-preview-btn" class="btn-action btn-secondary-action"
+                        style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
+                        onclick="openPhotoViewerModal(document.getElementById('task-photo-input')?.value, document.getElementById('task-photo-after-input').value, 'after')">
+                        <i class="fa-solid fa-eye"></i> Просмотр
+                    </button>
+                </div>
+                <div id="task-photo-after-thumb-container" style="display: none; margin-top: 6px; align-items: center; gap: 8px;"></div>
+                <div id="task-photo-after-preview-hint"
+                    style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото ПОСЛЕ прикреплено</span>
                 </div>
             </div>
 
@@ -2697,36 +2732,52 @@
                     required></textarea>
             </div>
 
+            <!-- Блок отображения Фото ДО (если есть у задачи) -->
+            <div id="complete-before-photo-block" style="display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="font-size: 0.75rem; font-weight: 700; color: #1e40af;"><i class="fa-solid fa-camera"></i> Исходное фото ДО:</span>
+                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.7rem; padding: 2px 7px;" onclick="openPhotoViewerModal(document.getElementById('complete-task-before-photo').value, document.getElementById('complete-task-photo').value, 'before')">
+                        <i class="fa-solid fa-eye"></i> Открыть ДО
+                    </button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <img id="complete-before-photo-thumb" src="" alt="Фото ДО" style="width: 48px; height: 48px; border-radius: 6px; object-fit: cover; border: 1px solid #93c5fd; cursor: pointer;" onclick="openPhotoViewerModal(document.getElementById('complete-task-before-photo').value, document.getElementById('complete-task-photo').value, 'before')">
+                    <span style="font-size: 0.75rem; color: #3b82f6;">Зафиксировано при постановке задачи</span>
+                    <input type="hidden" id="complete-task-before-photo" value="">
+                </div>
+            </div>
+
             <div class="form-row">
                 <div
                     style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-image" style="color: #10b981;"></i>
-                        Подтверждающее фото <span
-                            style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(необязательно)</span></label>
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+                        Подтверждающее фото ПОСЛЕ <span
+                            style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(факт / результат)</span></label>
                     <div style="display: flex; gap: 6px;">
                         <input type="file" id="complete-photo-gallery" accept="image/*" style="display: none;"
-                            onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn')">
+                            onchange="handlePhotoFileUpload(this, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn', 'complete-photo-thumb-container')">
                         <button type="button" class="btn-action"
                             style="background: #10b981; color: #ffffff; font-size: 0.75rem; padding: 4px 10px;"
                             onclick="document.getElementById('complete-photo-gallery').click()"
                             title="Выбрать фото из галереи или файлов">
-                            <i class="fa-solid fa-images"></i> <span>Выбрать фото</span>
+                            <i class="fa-solid fa-images"></i> <span>Выбрать фото ПОСЛЕ</span>
                         </button>
                     </div>
                 </div>
                 <div style="position: relative; display: flex; align-items: center;">
                     <input type="url" class="form-input" id="complete-task-photo"
-                        placeholder="Ссылка на фото или загрузите через кнопку выше..."
-                        oninput="onPhotoInputChanged('complete-task-photo')" style="padding-right: 85px;">
+                        placeholder="Ссылка на фото ПОСЛЕ или загрузите через кнопку выше..."
+                        oninput="onPhotoInputChanged('complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn', 'complete-photo-thumb-container')" style="padding-right: 85px;">
                     <button type="button" id="complete-photo-preview-btn" class="btn-action btn-secondary-action"
                         style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
-                        onclick="openPhotoViewerModal(document.getElementById('complete-task-photo').value)">
+                        onclick="openPhotoViewerModal(document.getElementById('complete-task-before-photo')?.value, document.getElementById('complete-task-photo').value, 'after')">
                         <i class="fa-solid fa-eye"></i> Просмотр
                     </button>
                 </div>
+                <div id="complete-photo-thumb-container" style="display: none; margin-top: 6px; align-items: center; gap: 8px;"></div>
                 <div id="complete-photo-preview-hint"
                     style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-circle-check"></i> <span>Фото успешно прикреплено</span>
+                    <i class="fa-solid fa-circle-check"></i> <span>Фото ПОСЛЕ прикреплено</span>
                 </div>
             </div>
 
@@ -2980,15 +3031,26 @@
         </div>
     </div>
 
-    <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) -->
+    <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) WITH BEFORE / AFTER TABS -->
     <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()"
         style="z-index: 6000; background: rgba(0, 0, 0, 0.88); backdrop-filter: blur(8px);">
         <div style="position: relative; max-width: 92vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center;"
             onclick="event.stopPropagation()">
             <button type="button" onclick="closePhotoViewerModal()"
                 style="position: absolute; top: -45px; right: 0; background: rgba(255,255,255,0.2); border: none; color: #ffffff; font-size: 1.5rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">&times;</button>
+            
+            <!-- BEFORE / AFTER SWITCHER TABS -->
+            <div id="photo-viewer-tabs" style="display: none; gap: 8px; margin-bottom: 12px; z-index: 10;">
+                <button type="button" id="tab-photo-before" class="btn-action photo-tab-btn active" onclick="switchLightboxTab('before')">
+                    <i class="fa-solid fa-camera"></i> Фото ДО (Исходное)
+                </button>
+                <button type="button" id="tab-photo-after" class="btn-action photo-tab-btn" onclick="switchLightboxTab('after')">
+                    <i class="fa-solid fa-circle-check"></i> Фото ПОСЛЕ (Факт)
+                </button>
+            </div>
+
             <img id="photo-viewer-img" src="" alt="Фото задачи"
-                style="max-width: 100%; max-height: 82vh; border-radius: 8px; object-fit: contain; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                style="max-width: 100%; max-height: 76vh; border-radius: 8px; object-fit: contain; box-shadow: 0 20px 40px rgba(0,0,0,0.5); transition: opacity 0.15s ease;">
             <div style="margin-top: 10px; display: flex; gap: 8px;">
                 <a id="photo-viewer-direct-link" href="#" target="_blank" class="btn-action btn-secondary-action"
                     style="font-size: 0.8rem; background: rgba(255,255,255,0.9);">

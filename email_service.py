@@ -105,6 +105,7 @@ def _build_plain_text(event_type: str, d: Dict[str, Any]) -> str:
     status = d.get("status", "—")
     comment = d.get("comment", "")
     photo = d.get("photo_link", "")
+    photo_after = d.get("photo_link_after", "")
     week = d.get("week_label", "")
     month = d.get("month_label", "")
 
@@ -130,7 +131,9 @@ def _build_plain_text(event_type: str, d: Dict[str, Any]) -> str:
     if comment:
         lines.append(f"Факт / Результат: {comment}")
     if photo:
-        lines.append(f"Фото: {photo}")
+        lines.append(f"Фото ДО: {photo}")
+    if photo_after:
+        lines.append(f"Фото ПОСЛЕ: {photo_after}")
     lines.extend([
         f"--------------------------------------------------",
         f"Открыть задачу в Планнере: {task_url}"
@@ -171,6 +174,7 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
     status = d.get("status", "—")
     comment = d.get("comment", "")
     photo = d.get("photo_link", "")
+    photo_after = d.get("photo_link_after", "")
     week = d.get("week_label", "")
     month = d.get("month_label", "")
     task_id = d.get("id")
@@ -291,9 +295,13 @@ def _build_html_template(event_type: str, d: Dict[str, Any]) -> str:
                   <td style="padding:6px 0; font-weight:600; color:{comment_color}; background-color:{comment_bg}; padding:8px 10px; border-radius:6px;">{comment}</td>
                 </tr>''' if comment else ''}
                 {f'''<tr>
-                  <td style="padding:6px 0; color:#64748b;">Фото фиксация:</td>
-                  <td style="padding:6px 0;"><a href="{photo}" target="_blank" style="color:#2563eb; text-decoration:underline; font-weight:600;">📷 Просмотреть прикреплённое фото</a></td>
+                  <td style="padding:6px 0; color:#64748b;">Фото ДО (исходное):</td>
+                  <td style="padding:6px 0;"><a href="{photo}" target="_blank" style="color:#2563eb; text-decoration:underline; font-weight:600;">📷 Просмотреть фото ДО</a></td>
                 </tr>''' if photo else ''}
+                {f'''<tr>
+                  <td style="padding:6px 0; color:#64748b;">Фото ПОСЛЕ (факт):</td>
+                  <td style="padding:6px 0;"><a href="{photo_after}" target="_blank" style="color:#16a34a; text-decoration:underline; font-weight:600;">🏁 Просмотреть фото ПОСЛЕ</a></td>
+                </tr>''' if photo_after else ''}
               </table>
 
               <!-- Call to Action Button -->

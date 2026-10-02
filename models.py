@@ -415,7 +415,8 @@ class Task(Base):
     zone = Column(String, nullable=True) # Зона / Служба
     title = Column(String, nullable=False) # Суть задачи (RU)
     title_kz = Column(String, nullable=True) # Суть задачи (KZ)
-    photo_link = Column(String, nullable=True) # Ссылка на Google Drive / Google Photo
+    photo_link = Column(String, nullable=True) # Ссылка на Google Drive / Google Photo (Фото ДО)
+    photo_link_after = Column(Text, nullable=True) # Подтверждающее фото выполнения (Фото ПОСЛЕ)
     author_name = Column(String, nullable=True) # Автор
     assignee_name = Column(String, nullable=True) # Исполнитель
     due_date_str = Column(String, nullable=True) # Срок (строка, напр. "28.08")

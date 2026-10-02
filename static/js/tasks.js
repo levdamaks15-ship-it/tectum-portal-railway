@@ -99,26 +99,53 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Фоновая параллельная подгрузка актуальных справочников без блокировки UI
     hydrateBackgroundData();
 
-    // Слушатель глобальной вставки скриншота (Ctrl+V) при открытом массовом вводе
-    window.addEventListener("paste", (e) => {
-        const modal = document.getElementById("bulk-tasks-modal");
-        if (!modal || modal.style.display === "none") return;
-        if (window.isBulkOcrRunning) return;
+    // Слушатель глобальной вставки скриншота/фото (Ctrl+V)
+    window.addEventListener("paste", async (e) => {
+        const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+        if (!items || items.length === 0) return;
 
-        // Проверяем, вставлена ли картинка
-        const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
-        if (!items) return;
-
+        let imageFile = null;
         for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf("image") !== -1) {
-                const blob = items[i].getAsFile();
-                if (blob) {
-                    e.preventDefault();
-                    showToast("Скриншот обнаружен в буфере! Отправка на AI-распознавание... 📷");
-                    processBulkOcrImage(blob);
-                    break;
-                }
+            if (items[i].type && items[i].type.indexOf("image") !== -1) {
+                imageFile = items[i].getAsFile();
+                break;
             }
+        }
+        if (!imageFile) return;
+
+        // 1. При открытом массовом вводе -> AI OCR
+        const bulkModal = document.getElementById("bulk-tasks-modal");
+        if (bulkModal && bulkModal.style.display !== "none") {
+            if (window.isBulkOcrRunning) return;
+            e.preventDefault();
+            showToast("Скриншот обнаружен в буфере! Отправка на AI-распознавание... 📷");
+            processBulkOcrImage(imageFile);
+            return;
+        }
+
+        // 2. При открытом модальном окне выполнения задачи -> Фото ПОСЛЕ
+        const completeModal = document.getElementById("complete-task-modal");
+        if (completeModal && completeModal.style.display !== "none") {
+            e.preventDefault();
+            showToast("Вставка фото ПОСЛЕ из буфера... 📷");
+            await uploadPhotoBlobDirectly(imageFile, 'complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn', 'complete-photo-thumb-container');
+            return;
+        }
+
+        // 3. При открытом модальном окне создания / редактирования задачи
+        const taskModal = document.getElementById("task-modal");
+        if (taskModal && taskModal.style.display !== "none") {
+            e.preventDefault();
+            const afterInput = document.getElementById("task-photo-after-input");
+            const isAfterFocused = afterInput && (document.activeElement === afterInput);
+            if (isAfterFocused) {
+                showToast("Вставка фото ПОСЛЕ из буфера... 📷");
+                await uploadPhotoBlobDirectly(imageFile, 'task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container');
+            } else {
+                showToast("Вставка фото ДО из буфера... 📷");
+                await uploadPhotoBlobDirectly(imageFile, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container');
+            }
+            return;
         }
     });
 });
@@ -2388,11 +2415,34 @@ function renderTasksTable(tasks) {
                 rowExtraClass += " task-row-backlog";
             }
 
-            const photoBtn = t.photo_link ? `
-                <button type="button" onclick="openPhotoViewerModal('${t.photo_link}')" class="btn-photo-link" style="border: none; cursor: pointer;" title="Просмотреть фото">
-                    <i class="fa-solid fa-image"></i>
-                </button>
-            ` : `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
+            const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim());
+            const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim());
+
+            let photoBtn = `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
+            if (hasPhotoBefore && hasPhotoAfter) {
+                photoBtn = `
+                    <div class="photo-dual-group" style="display: inline-flex; gap: 4px; align-items: center;">
+                        <button type="button" onclick="openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'before')" class="btn-photo-chip before" title="Фото ДО (Исходное)">
+                            <i class="fa-solid fa-camera"></i> ДО
+                        </button>
+                        <button type="button" onclick="openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'after')" class="btn-photo-chip after" title="Фото ПОСЛЕ (Факт)">
+                            <i class="fa-solid fa-circle-check"></i> ПОСЛЕ
+                        </button>
+                    </div>
+                `;
+            } else if (hasPhotoBefore) {
+                photoBtn = `
+                    <button type="button" onclick="openPhotoViewerModal('${t.photo_link}', '', 'before')" class="btn-photo-chip before" title="Фото ДО (Исходное)">
+                        <i class="fa-solid fa-camera"></i> ДО
+                    </button>
+                `;
+            } else if (hasPhotoAfter) {
+                photoBtn = `
+                    <button type="button" onclick="openPhotoViewerModal('', '${t.photo_link_after}', 'after')" class="btn-photo-chip after" title="Фото ПОСЛЕ (Факт)">
+                        <i class="fa-solid fa-circle-check"></i> ПОСЛЕ
+                    </button>
+                `;
+            }
 
             const backlogBadge = t.is_backlog ? `
                 <div style="margin-top: 4px;">
@@ -2662,6 +2712,26 @@ function renderTasksCards(tasks) {
                 </div>
             ` : '';
 
+            const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim());
+            const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim());
+            let mobilePhotoChips = '';
+            if (hasPhotoBefore && hasPhotoAfter) {
+                mobilePhotoChips = `
+                    <div style="display: inline-flex; gap: 3px; align-items: center;">
+                        <button type="button" class="btn-photo-chip before" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'before')" title="Фото ДО"><i class="fa-solid fa-camera"></i> ДО</button>
+                        <button type="button" class="btn-photo-chip after" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'after')" title="Фото ПОСЛЕ"><i class="fa-solid fa-circle-check"></i> ПОСЛЕ</button>
+                    </div>
+                `;
+            } else if (hasPhotoBefore) {
+                mobilePhotoChips = `
+                    <button type="button" class="btn-photo-chip before" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '', 'before')" title="Фото ДО"><i class="fa-solid fa-camera"></i> ДО</button>
+                `;
+            } else if (hasPhotoAfter) {
+                mobilePhotoChips = `
+                    <button type="button" class="btn-photo-chip after" onclick="event.stopPropagation(); openPhotoViewerModal('', '${t.photo_link_after}', 'after')" title="Фото ПОСЛЕ"><i class="fa-solid fa-circle-check"></i> ПОСЛЕ</button>
+                `;
+            }
+
             cardsHtml += `
                 <div class="apple-swipe-row" id="swipe-row-${t.id}">
                     <!-- Фоновое действие при свайпе вправо (Выполнить) -->
@@ -2695,6 +2765,7 @@ function renderTasksCards(tasks) {
                                 ${cardZoneHtml}
                                 ${backlogBadge}
                                 ${crossWeekBadge}
+                                ${mobilePhotoChips}
                             </div>
                             <div>
                                 ${statusPill}
@@ -3182,8 +3253,23 @@ function openCompleteTaskModal(taskId) {
     document.getElementById("complete-task-code").textContent = task.code || `TSK-${task.id}`;
     document.getElementById("complete-task-title").textContent = task.title || "—";
     document.getElementById("complete-task-fact").value = task.comment || "";
-    document.getElementById("complete-task-photo").value = task.photo_link || "";
-    onPhotoInputChanged('complete-task-photo');
+
+    // Блок исходного Фото ДО (если прикреплено к задаче)
+    const beforeBlock = document.getElementById("complete-before-photo-block");
+    const beforeInput = document.getElementById("complete-task-before-photo");
+    const beforeThumb = document.getElementById("complete-before-photo-thumb");
+    if (task.photo_link && task.photo_link.trim()) {
+        if (beforeBlock) beforeBlock.style.display = "block";
+        if (beforeInput) beforeInput.value = task.photo_link;
+        if (beforeThumb) beforeThumb.src = task.photo_link;
+    } else {
+        if (beforeBlock) beforeBlock.style.display = "none";
+        if (beforeInput) beforeInput.value = "";
+    }
+
+    // Фото ПОСЛЕ (факт выполнения)
+    document.getElementById("complete-task-photo").value = task.photo_link_after || "";
+    onPhotoInputChanged('complete-task-photo', 'complete-photo-preview-hint', 'complete-photo-preview-btn', 'complete-photo-thumb-container');
 
     document.getElementById("complete-task-modal").style.display = "flex";
     setTimeout(() => {
@@ -3204,7 +3290,7 @@ function closeCompleteModal() {
 async function submitCompleteModal() {
     const taskId = document.getElementById("complete-task-id").value;
     const factText = document.getElementById("complete-task-fact").value.trim();
-    const photoLink = document.getElementById("complete-task-photo").value.trim();
+    const photoLinkAfter = document.getElementById("complete-task-photo").value.trim();
     const task = allTasks.find(t => t.id == taskId);
 
     if (!factText) {
@@ -3220,7 +3306,7 @@ async function submitCompleteModal() {
             const payload = {
                 status: "🟢 Выполнено",
                 comment: factText,
-                photo_link: photoLink,
+                photo_link_after: photoLinkAfter,
                 pin_code: authSession ? authSession.pin : ""
             };
 
@@ -3892,6 +3978,13 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     const tagsInput = document.getElementById("task-tags-input");
     if (tagsInput) tagsInput.value = "";
     document.getElementById("task-photo-input").value = "";
+    if (document.getElementById("task-photo-after-input")) document.getElementById("task-photo-after-input").value = "";
+    onPhotoInputChanged('task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container');
+    onPhotoInputChanged('task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container');
+
+    // Скрываем Фото ПОСЛЕ при создании новой задачи
+    const photoAfterRow = document.getElementById("task-photo-after-row");
+    if (photoAfterRow) photoAfterRow.style.display = "none";
     
     // Тип задачи / Горизонт
     const typeSelect = document.getElementById("task-type-input");
@@ -4005,6 +4098,9 @@ async function openEditTaskModal(taskId) {
     if (tagsInput) tagsInput.value = task.tags || "";
     document.getElementById("task-zone-input").value = task.zone || "Бережливое производство";
     document.getElementById("task-photo-input").value = task.photo_link || "";
+    if (document.getElementById("task-photo-after-input")) document.getElementById("task-photo-after-input").value = task.photo_link_after || "";
+    const photoAfterRow = document.getElementById("task-photo-after-row");
+    if (photoAfterRow) photoAfterRow.style.display = "block";
     document.getElementById("task-author-input").value = task.author_name || "";
     document.getElementById("task-assignee-input").value = task.assignee_name || "";
     
@@ -4042,7 +4138,8 @@ async function openEditTaskModal(taskId) {
 
     document.getElementById("task-status-input").value = task.status || "⚪ В очереди";
     document.getElementById("task-comment-input").value = task.comment || "";
-    onPhotoInputChanged('task-photo-input');
+    onPhotoInputChanged('task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container');
+    onPhotoInputChanged('task-photo-after-input', 'task-photo-after-preview-hint', 'task-photo-after-preview-btn', 'task-photo-after-thumb-container');
 
     // Прикрепленный документ
     if (task.attached_doc) {
@@ -4093,6 +4190,7 @@ async function saveTaskModal() {
 
     const zone = document.getElementById("task-zone-input").value;
     const photoLink = document.getElementById("task-photo-input").value.trim();
+    const photoLinkAfter = document.getElementById("task-photo-after-input") ? document.getElementById("task-photo-after-input").value.trim() : "";
     const author = document.getElementById("task-author-input").value;
     const assignee = document.getElementById("task-assignee-input").value;
     
@@ -4175,6 +4273,7 @@ async function saveTaskModal() {
             target_quarter: quarterVal,
             progress: progressVal,
             photo_link: photoLink,
+            photo_link_after: photoLinkAfter,
             author_name: author,
             assignee_name: assignee,
             due_date_str: due,
@@ -5279,20 +5378,22 @@ function preparePrintMetaHeader() {
 /* ==========================================================
    PHOTO UPLOAD & CLIENT-SIDE WEBP COMPRESSOR
    ========================================================== */
-async function handlePhotoFileUpload(fileInput, targetInputId, hintId, previewBtnId) {
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) return;
-    const file = fileInput.files[0];
+async function uploadPhotoBlobDirectly(blob, targetInputId, hintId, previewBtnId, thumbContainerId) {
     const targetInput = document.getElementById(targetInputId);
-    const hintEl = document.getElementById(hintId);
-    const previewBtn = document.getElementById(previewBtnId);
+    const hintEl = hintId ? document.getElementById(hintId) : null;
+    const previewBtn = previewBtnId ? document.getElementById(previewBtnId) : null;
 
     showToast("Сжатие и загрузка фото... ⏳");
 
     try {
-        // 1. Сжимаем фото на клиенте в WebP (макс 1600px, 82% качество)
-        const compressedBlob = await compressImageToWebp(file, 1600, 0.82);
-        
-        // 2. Отправляем на сервер
+        let compressedBlob;
+        try {
+            compressedBlob = await compressImageToWebp(blob, 1600, 0.82);
+        } catch (compErr) {
+            console.warn("Canvas WebP compression failed, fallback to raw blob:", compErr);
+            compressedBlob = blob;
+        }
+
         const formData = new FormData();
         formData.append("file", compressedBlob, "task_photo.webp");
 
@@ -5306,21 +5407,30 @@ async function handlePhotoFileUpload(fileInput, targetInputId, hintId, previewBt
             if (targetInput) {
                 targetInput.value = data.url;
             }
+            onPhotoInputChanged(targetInputId, hintId, previewBtnId, thumbContainerId);
             if (hintEl) {
-                const origKb = Math.round(file.size / 1024);
-                const compKb = Math.round(compressedBlob.size / 1024);
+                const origKb = Math.round((blob.size || 0) / 1024);
+                const compKb = Math.round((compressedBlob.size || 0) / 1024);
                 hintEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Фото сжато (${origKb} Кб ➔ ${compKb} Кб) и прикреплено</span>`;
                 hintEl.style.display = "inline-flex";
             }
             if (previewBtn) previewBtn.style.display = "inline-flex";
-            showToast("Фото успешно загружено! 📸");
+            showToast("Фото успешно прикреплено! 📸");
         } else {
             const err = await res.json();
             alert("Ошибка загрузки фото: " + (err.detail || "Не удалось сохранить фото"));
         }
     } catch (e) {
-        console.error("Photo upload error:", e);
+        console.error("Direct photo upload error:", e);
         alert("Ошибка при обработке фото: " + e.message);
+    }
+}
+
+async function handlePhotoFileUpload(fileInput, targetInputId, hintId, previewBtnId, thumbContainerId) {
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) return;
+    const file = fileInput.files[0];
+    try {
+        await uploadPhotoBlobDirectly(file, targetInputId, hintId, previewBtnId, thumbContainerId);
     } finally {
         fileInput.value = "";
     }
@@ -5351,13 +5461,21 @@ function compressImageToWebp(file, maxDimension = 1600, quality = 0.82) {
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0, width, height);
 
-                // Пытаемся сохранить в webp, если браузер поддерживает, иначе jpeg
+                // Пытаемся сохранить в webp, если браузер поддерживает, иначе jpeg fallback
                 canvas.toBlob(
                     (blob) => {
                         if (blob) {
                             resolve(blob);
                         } else {
-                            reject(new Error("Не удалось сжать изображение"));
+                            // Fallback to jpeg if webp blob creation returned null
+                            canvas.toBlob(
+                                (jpegBlob) => {
+                                    if (jpegBlob) resolve(jpegBlob);
+                                    else reject(new Error("Не удалось сжать изображение"));
+                                },
+                                "image/jpeg",
+                                quality
+                            );
                         }
                     },
                     "image/webp",
@@ -5372,34 +5490,132 @@ function compressImageToWebp(file, maxDimension = 1600, quality = 0.82) {
     });
 }
 
-function onPhotoInputChanged(inputId) {
+function removeAttachedPhoto(inputId, hintId, previewBtnId, thumbContainerId) {
+    const inputEl = document.getElementById(inputId);
+    if (inputEl) inputEl.value = "";
+    onPhotoInputChanged(inputId, hintId, previewBtnId, thumbContainerId);
+    showToast("Фото удалено 🗑️");
+}
+
+function onPhotoInputChanged(inputId, hintId, previewBtnId, thumbContainerId) {
     const inputEl = document.getElementById(inputId);
     if (!inputEl) return;
 
-    const val = inputEl.value.trim();
-    const isModal1 = (inputId === 'task-photo-input');
-    const previewBtn = document.getElementById(isModal1 ? 'task-photo-preview-btn' : 'complete-photo-preview-btn');
-    const hintEl = document.getElementById(isModal1 ? 'task-photo-preview-hint' : 'complete-photo-preview-hint');
+    // Fallback auto-detection if IDs not passed directly
+    let hint = hintId ? document.getElementById(hintId) : null;
+    let previewBtn = previewBtnId ? document.getElementById(previewBtnId) : null;
+    let thumbContainer = thumbContainerId ? document.getElementById(thumbContainerId) : null;
 
-    if (val && (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/static/") || val.startsWith("/uploads/"))) {
+    if (!hint) {
+        if (inputId === 'task-photo-input') hint = document.getElementById('task-photo-preview-hint');
+        else if (inputId === 'task-photo-after-input') hint = document.getElementById('task-photo-after-preview-hint');
+        else if (inputId === 'complete-task-photo') hint = document.getElementById('complete-photo-preview-hint');
+    }
+    if (!previewBtn) {
+        if (inputId === 'task-photo-input') previewBtn = document.getElementById('task-photo-preview-btn');
+        else if (inputId === 'task-photo-after-input') previewBtn = document.getElementById('task-photo-after-preview-btn');
+        else if (inputId === 'complete-task-photo') previewBtn = document.getElementById('complete-photo-preview-btn');
+    }
+    if (!thumbContainer) {
+        if (inputId === 'task-photo-input') thumbContainer = document.getElementById('task-photo-thumb-container');
+        else if (inputId === 'task-photo-after-input') thumbContainer = document.getElementById('task-photo-after-thumb-container');
+        else if (inputId === 'complete-task-photo') thumbContainer = document.getElementById('complete-photo-thumb-container');
+    }
+
+    const val = inputEl.value.trim();
+    const isValidUrl = val && (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/static/") || val.startsWith("/uploads/"));
+
+    if (isValidUrl) {
         if (previewBtn) previewBtn.style.display = "inline-flex";
-        if (hintEl) hintEl.style.display = "inline-flex";
+        if (hint) hint.style.display = "inline-flex";
+        if (thumbContainer) {
+            thumbContainer.style.display = "flex";
+            thumbContainer.innerHTML = `
+                <div class="photo-thumb-card">
+                    <img src="${val}" alt="Превью" onclick="openPhotoViewerModal('${val}')" title="Кликните для просмотра в полном размере">
+                    <button type="button" class="photo-thumb-del" onclick="removeAttachedPhoto('${inputId}', '${hintId || ''}', '${previewBtnId || ''}', '${thumbContainerId || ''}')" title="Удалить прикрепленное фото">&times;</button>
+                </div>
+            `;
+        }
     } else {
         if (previewBtn) previewBtn.style.display = "none";
-        if (hintEl) hintEl.style.display = "none";
+        if (hint) hint.style.display = "none";
+        if (thumbContainer) {
+            thumbContainer.style.display = "none";
+            thumbContainer.innerHTML = "";
+        }
     }
 }
 
-function openPhotoViewerModal(url) {
-    if (!url) return;
+/* ── Lightbox Viewer with ДО / ПОСЛЕ Tabs ───────────────────────── */
+let currentViewerPhotoBefore = "";
+let currentViewerPhotoAfter = "";
+let currentViewerActiveTab = "before";
+
+function openPhotoViewerModal(urlBefore, urlAfter, activeTab = 'before') {
+    currentViewerPhotoBefore = (urlBefore && typeof urlBefore === 'string') ? urlBefore.trim() : "";
+    currentViewerPhotoAfter = (urlAfter && typeof urlAfter === 'string') ? urlAfter.trim() : "";
+
+    // If only after photo is provided
+    if (!currentViewerPhotoBefore && currentViewerPhotoAfter) {
+        currentViewerActiveTab = 'after';
+    } else if (currentViewerPhotoBefore && !currentViewerPhotoAfter) {
+        currentViewerActiveTab = 'before';
+    } else {
+        currentViewerActiveTab = activeTab || 'before';
+    }
+
     const modal = document.getElementById("photo-viewer-modal");
+    const tabsContainer = document.getElementById("photo-viewer-tabs");
+    const tabBeforeBtn = document.getElementById("tab-photo-before");
+    const tabAfterBtn = document.getElementById("tab-photo-after");
+
+    if (!modal) return;
+
+    // Show/hide switcher tabs depending on whether both photos exist
+    if (currentViewerPhotoBefore && currentViewerPhotoAfter) {
+        if (tabsContainer) tabsContainer.style.display = "flex";
+        if (tabBeforeBtn) tabBeforeBtn.style.display = "inline-flex";
+        if (tabAfterBtn) tabAfterBtn.style.display = "inline-flex";
+    } else {
+        if (tabsContainer) tabsContainer.style.display = "none";
+    }
+
+    updateLightboxImage();
+    modal.classList.add("active");
+}
+
+function switchLightboxTab(tab) {
+    currentViewerActiveTab = tab;
+    updateLightboxImage();
+}
+
+function updateLightboxImage() {
     const img = document.getElementById("photo-viewer-img");
     const directLink = document.getElementById("photo-viewer-direct-link");
-    if (!modal || !img) return;
+    const tabBeforeBtn = document.getElementById("tab-photo-before");
+    const tabAfterBtn = document.getElementById("tab-photo-after");
 
-    img.src = url;
-    if (directLink) directLink.href = url;
-    modal.classList.add("active");
+    const targetUrl = (currentViewerActiveTab === 'after') ? currentViewerPhotoAfter : currentViewerPhotoBefore;
+
+    if (tabBeforeBtn && tabAfterBtn) {
+        if (currentViewerActiveTab === 'after') {
+            tabAfterBtn.classList.add("active");
+            tabBeforeBtn.classList.remove("active");
+        } else {
+            tabBeforeBtn.classList.add("active");
+            tabAfterBtn.classList.remove("active");
+        }
+    }
+
+    if (img) {
+        img.style.opacity = "0.4";
+        img.src = targetUrl || "";
+        img.onload = () => { img.style.opacity = "1"; };
+    }
+    if (directLink) {
+        directLink.href = targetUrl || "#";
+    }
 }
 
 function closePhotoViewerModal() {
@@ -5407,6 +5623,8 @@ function closePhotoViewerModal() {
     const img = document.getElementById("photo-viewer-img");
     if (modal) modal.classList.remove("active");
     if (img) img.src = "";
+    currentViewerPhotoBefore = "";
+    currentViewerPhotoAfter = "";
 }
 
 /* ==========================================================

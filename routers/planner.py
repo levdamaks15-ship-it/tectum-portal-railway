@@ -1222,6 +1222,7 @@ def get_tasks(
                 "subtasks_count": subs_data["total"],
                 "subtasks_done_count": subs_data["done"],
                 "photo_link": t.photo_link or "",
+                "photo_link_after": t.photo_link_after or "",
                 "author_name": t.author_name or "",
                 "assignee_name": t.assignee_name or "",
                 "due_date_str": t.due_date_str or "",
@@ -1338,6 +1339,7 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "calculated_progress": calc_prog,
         "subtasks": subtasks_list,
         "photo_link": task.photo_link or "",
+        "photo_link_after": task.photo_link_after or "",
         "author_name": task.author_name or "",
         "assignee_name": task.assignee_name or "",
         "due_date_str": task.due_date_str or "",
@@ -1446,6 +1448,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             target_quarter=task_data.target_quarter or "",
             progress=task_data.progress or 0,
             photo_link=task_data.photo_link or "",
+            photo_link_after=task_data.photo_link_after or "",
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
             due_date_str=task_data.due_date_str or "",
@@ -1491,6 +1494,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
                     "status": new_task.status,
                     "comment": new_task.comment,
                     "photo_link": new_task.photo_link,
+                    "photo_link_after": new_task.photo_link_after or "",
                     "month_label": new_task.month_label,
                     "week_label": new_task.week_label
                 }
@@ -1609,6 +1613,7 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 target_quarter=bulk_data.target_quarter or "",
                 progress=0,
                 photo_link=item.photo_link or "",
+                photo_link_after=item.photo_link_after or "",
                 author_name=author_name,
                 assignee_name=assignee_val,
                 due_date_str=due_date,
@@ -1646,6 +1651,7 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                         "status": new_task.status,
                         "comment": new_task.comment,
                         "photo_link": new_task.photo_link,
+                        "photo_link_after": new_task.photo_link_after or "",
                         "month_label": new_task.month_label,
                         "week_label": new_task.week_label
                     }))
@@ -2028,6 +2034,7 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
             "status": task.status,
             "comment": task.comment,
             "photo_link": task.photo_link,
+            "photo_link_after": task.photo_link_after or "",
             "month_label": task.month_label,
             "week_label": task.week_label
         }
@@ -2195,6 +2202,7 @@ def move_task_to_next_week(
             "status": task.status,
             "comment": task.comment,
             "photo_link": task.photo_link,
+            "photo_link_after": task.photo_link_after or "",
             "month_label": task.month_label,
             "week_label": task.week_label
         }
@@ -2274,6 +2282,7 @@ def reassign_task(
             "status": task.status,
             "comment": task.comment,
             "photo_link": task.photo_link,
+            "photo_link_after": task.photo_link_after or "",
             "month_label": task.month_label,
             "week_label": task.week_label
         }
@@ -2505,7 +2514,7 @@ def patch_task(
         allowed_fields = {
             "status", "order_index", "title", "title_kz", "comment", 
             "assignee_name", "due_date_str", "progress", "tags", 
-            "department_service", "zone", "photo_link", "is_archived", "priority"
+            "department_service", "zone", "photo_link", "photo_link_after", "is_archived", "priority"
         }
 
         changes = []
@@ -2548,6 +2557,7 @@ def patch_task(
             "priority": task.priority,
             "comment": task.comment,
             "photo_link": task.photo_link,
+            "photo_link_after": task.photo_link_after or "",
             "tags": task.tags,
             "order_index": task.order_index or 0,
             "month_label": task.month_label,

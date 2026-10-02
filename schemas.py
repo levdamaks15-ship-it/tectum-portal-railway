@@ -699,6 +699,7 @@ class TaskBase(ORMBaseModel):
     title: str
     title_kz: Optional[str] = ""
     photo_link: Optional[str] = ""
+    photo_link_after: Optional[str] = ""
     author_name: Optional[str] = ""
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
@@ -741,6 +742,7 @@ class BulkTaskItem(ORMBaseModel):
     zone: Optional[str] = None
     tags: Optional[str] = ""
     photo_link: Optional[str] = ""
+    photo_link_after: Optional[str] = ""
     attached_document_id: Optional[int] = None
 
 class BulkTasksCreate(ORMBaseModel):
@@ -777,6 +779,7 @@ class TaskUpdate(ORMBaseModel):
     title: Optional[str] = None
     title_kz: Optional[str] = None
     photo_link: Optional[str] = None
+    photo_link_after: Optional[str] = None
     author_name: Optional[str] = None
     assignee_name: Optional[str] = None
     due_date_str: Optional[str] = None
