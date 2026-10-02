@@ -1677,6 +1677,7 @@ function onMonthChange(forcedWeek = null) {
     if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
     updateChipsVisualState();
     if (!isInitialLoading) {
+        updateUrlParams();
         loadTasks();
     }
     // Асинхронно подтягиваем статистику задач по неделям
@@ -1831,17 +1832,67 @@ function nextWeek() {
 
 function resetToCurrentWeek() {
     const today = new Date();
-    const monthsRu = [
-        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-    ];
-    const curCalMonth = `${monthsRu[today.getMonth()]} ${today.getFullYear()}`;
+    const year = today.getFullYear();
+    let targetMonth = null;
+    let targetWeek = null;
+
+    // Сквозной поиск по всей структуре года (все месяцы и недели)
+    const structure = (allWeeksStructure && Object.keys(allWeeksStructure).length > 0)
+        ? allWeeksStructure
+        : {};
+
+    for (const [mName, weeksList] of Object.entries(structure)) {
+        if (!Array.isArray(weeksList)) continue;
+        const parts = mName.split(' ');
+        const mYear = parseInt(parts[1], 10) || year;
+
+        for (const w of weeksList) {
+            try {
+                const datesPart = w.split('(')[1]?.split(')')[0];
+                if (!datesPart) continue;
+                const [sStr, eStr] = datesPart.split(' - ');
+                const [sd, sm] = sStr.trim().split('.').map(Number);
+                const [ed, em] = eStr.trim().split('.').map(Number);
+
+                let startYear = mYear;
+                let endYear = mYear;
+                if (sm === 12 && em === 1) endYear = mYear + 1;
+
+                const wStart = new Date(startYear, sm - 1, sd, 0, 0, 0);
+                const wEnd = new Date(endYear, em - 1, ed, 23, 59, 59);
+                // Расширяем до конца воскресенья (+2 дня от пятницы)
+                const wSun = new Date(wEnd);
+                wSun.setDate(wSun.getDate() + 2);
+                wSun.setHours(23, 59, 59, 999);
+
+                if (today >= wStart && today <= wSun) {
+                    targetMonth = mName;
+                    targetWeek = w;
+                    break;
+                }
+            } catch (e) {
+                // ignore parsing error
+            }
+        }
+        if (targetMonth && targetWeek) break;
+    }
+
+    // Фоллбэк, если не найдено по точным датам
+    if (!targetMonth) {
+        const monthsRu = [
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+        ];
+        targetMonth = `${monthsRu[today.getMonth()]} ${year}`;
+    }
+
     const monthSelect = document.getElementById("filter-month");
     if (monthSelect) {
-        monthSelect.value = curCalMonth;
-        currentMonth = curCalMonth;
+        monthSelect.value = targetMonth;
+        currentMonth = targetMonth;
     }
-    onMonthChange(null);
+    onMonthChange(targetWeek);
+    updateUrlParams();
     showToast("⚡ Переключено на текущую неделю");
 }
 

@@ -354,18 +354,6 @@ def get_tasks_calendar_structure(db: Session = Depends(get_db)):
             if default_month and default_week:
                 break
 
-        # Если сегодня уже следующий месяц, а текущая неделя началась в конце предыдущего,
-        # отдаем приоритет названию месяца, в котором мы находимся сейчас
-        months_ru = [
-            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-        ]
-        curr_calendar_month_name = f"{months_ru[today.month - 1]} {year}"
-        if default_month and default_month != curr_calendar_month_name and curr_calendar_month_name in structure:
-            # Если сегодня уже наступил новый месяц (например, 06.09), переключаем на текущий месяц
-            default_month = curr_calendar_month_name
-            if structure[default_month]:
-                default_week = structure[default_month][0]
 
         # Фоллбэк: если не нашли по точному диапазону дат, берем текущий календарный месяц
         if not default_month:
