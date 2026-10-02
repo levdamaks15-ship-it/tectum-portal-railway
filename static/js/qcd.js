@@ -3,6 +3,22 @@ let shiftsWindowData = [];
 let selectedShiftIds = new Set();
 let currentReportsList = [];
 
+// Universal Click-to-Open Picker for all Date, Month and Time inputs in QCD
+document.addEventListener('click', function (e) {
+    const input = e.target.closest('input');
+    if (!input) return;
+    if (input._flatpickr) {
+        if (!input._flatpickr.isOpen) input._flatpickr.open();
+        return;
+    }
+    const pickerTypes = ['date', 'month', 'time', 'datetime-local', 'week'];
+    if (pickerTypes.includes(input.type)) {
+        if (typeof input.showPicker === 'function') {
+            try { input.showPicker(); } catch (err) {}
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     initQcdCabinet();
 });

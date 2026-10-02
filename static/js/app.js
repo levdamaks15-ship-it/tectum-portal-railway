@@ -492,6 +492,7 @@ function setupTimePickers() {
                 locale: "ru",
                 allowInput: true,
                 minuteIncrement: 1,
+                disableMobile: true,
                 onChange: function(selectedDates, dateStr, instance) {
                     if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
                         calcJournalDowntimeDuration();
@@ -550,7 +551,8 @@ function setupTimePickers() {
         altInputClass: "flatpickr-input date-input-modern",
         monthSelectorType: "static",
         locale: "ru",
-        allowInput: false
+        allowInput: false,
+        disableMobile: true
     };
     
     // 2. Production Shift Date (Рапорт мастера)
