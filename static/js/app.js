@@ -1290,6 +1290,16 @@ function prefillReportForm(shift) {
 }
 
 async function submitShiftReport() {
+    // Force sync all raw material calculation fields before collecting data
+    const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+    rmKeys.forEach(k => {
+        if (typeof calcSumRM === 'function') calcSumRM(k);
+    });
+    if (typeof calcCem === 'function') calcCem();
+    if (typeof calcLaprol === 'function') calcLaprol();
+    if (typeof recalcChrTotal === 'function') recalcChrTotal();
+    if (typeof recalcCemTotal === 'function') recalcCemTotal();
+
     const data = {
         date: document.getElementById('rep-date')?.value || '',
         shift_name: document.getElementById('rep-shift')?.value || '',
@@ -1333,47 +1343,55 @@ async function submitShiftReport() {
         
         qcd_defect: parseInt(document.getElementById('rep-qcd-defect')?.value) || 0,
 
-
-        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0,
-        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0,
-        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0,
-        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0,
+        // Хризотил 4-20
+        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('calc-chr-4-20-1')?.value) || parseFloat(document.getElementById('zo-chr-4-20-1')?.value) || 0.0,
+        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('calc-chr-4-20-2')?.value) || parseFloat(document.getElementById('zo-chr-4-20-2')?.value) || 0.0,
+        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('calc-chr-4-20-3')?.value) || parseFloat(document.getElementById('zo-chr-4-20-3')?.value) || 0.0,
+        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('calc-chr-4-20-4')?.value) || parseFloat(document.getElementById('zo-chr-4-20-4')?.value) || 0.0,
         
-        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0,
-        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('zo-chr-5-65-2')?.value) || 0.0,
-        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('zo-chr-5-65-3')?.value) || 0.0,
-        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('zo-chr-5-65-4')?.value) || 0.0,
+        // Хризотил 5-65
+        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('calc-chr-5-65-1')?.value) || parseFloat(document.getElementById('zo-chr-5-65-1')?.value) || 0.0,
+        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('calc-chr-5-65-2')?.value) || parseFloat(document.getElementById('zo-chr-5-65-2')?.value) || 0.0,
+        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('calc-chr-5-65-3')?.value) || parseFloat(document.getElementById('zo-chr-5-65-3')?.value) || 0.0,
+        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('calc-chr-5-65-4')?.value) || parseFloat(document.getElementById('zo-chr-5-65-4')?.value) || 0.0,
         
-        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('zo-chr-6-40-1')?.value) || 0.0,
-        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('zo-chr-6-40-2')?.value) || 0.0,
-        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0,
-        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0,
+        // Хризотил 6-40
+        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('calc-chr-6-40-1')?.value) || parseFloat(document.getElementById('zo-chr-6-40-1')?.value) || 0.0,
+        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('calc-chr-6-40-2')?.value) || parseFloat(document.getElementById('zo-chr-6-40-2')?.value) || 0.0,
+        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('calc-chr-6-40-3')?.value) || parseFloat(document.getElementById('zo-chr-6-40-3')?.value) || 0.0,
+        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('calc-chr-6-40-4')?.value) || parseFloat(document.getElementById('zo-chr-6-40-4')?.value) || 0.0,
         
-        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
-        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
-        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
-        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
+        // Цемент
+        zo_cement_silo1: parseFloat(document.getElementById('calc-cem-1')?.value) || parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
+        zo_cement_silo2: parseFloat(document.getElementById('calc-cem-2')?.value) || parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
+        zo_cement_silo3: parseFloat(document.getElementById('calc-cem-3')?.value) || parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
+        zo_cement_silo4: parseFloat(document.getElementById('calc-cem-4')?.value) || parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
         
-        zo_cellulose_silo1: parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0,
-        zo_cellulose_silo2: parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0,
-        zo_cellulose_silo3: parseFloat(document.getElementById('zo-cel-3')?.value) || 0.0,
-        zo_cellulose_silo4: parseFloat(document.getElementById('zo-cel-4')?.value) || 0.0,
+        // Целлюлоза
+        zo_cellulose_silo1: parseFloat(document.getElementById('calc-cellulose-1')?.value) || parseFloat(document.getElementById('zo-cel-1')?.value) || 0.0,
+        zo_cellulose_silo2: parseFloat(document.getElementById('calc-cellulose-2')?.value) || parseFloat(document.getElementById('zo-cel-2')?.value) || 0.0,
+        zo_cellulose_silo3: parseFloat(document.getElementById('calc-cellulose-3')?.value) || parseFloat(document.getElementById('zo-cel-3')?.value) || 0.0,
+        zo_cellulose_silo4: parseFloat(document.getElementById('calc-cellulose-4')?.value) || parseFloat(document.getElementById('zo-cel-4')?.value) || 0.0,
         
-        zo_crushed_slate_silo1: parseFloat(document.getElementById('zo-csl-1')?.value) || 0.0,
-        zo_crushed_slate_silo2: parseFloat(document.getElementById('zo-csl-2')?.value) || 0.0,
-        zo_crushed_slate_silo3: parseFloat(document.getElementById('zo-csl-3')?.value) || 0.0,
-        zo_crushed_slate_silo4: parseFloat(document.getElementById('zo-csl-4')?.value) || 0.0,
+        // Дробленый шифер
+        zo_crushed_slate_silo1: parseFloat(document.getElementById('calc-crushed-slate-1')?.value) || parseFloat(document.getElementById('zo-csl-1')?.value) || 0.0,
+        zo_crushed_slate_silo2: parseFloat(document.getElementById('calc-crushed-slate-2')?.value) || parseFloat(document.getElementById('zo-csl-2')?.value) || 0.0,
+        zo_crushed_slate_silo3: parseFloat(document.getElementById('calc-crushed-slate-3')?.value) || parseFloat(document.getElementById('zo-csl-3')?.value) || 0.0,
+        zo_crushed_slate_silo4: parseFloat(document.getElementById('calc-crushed-slate-4')?.value) || parseFloat(document.getElementById('zo-csl-4')?.value) || 0.0,
         
-        zo_asbozurit_silo1: parseFloat(document.getElementById('zo-asb-1')?.value) || 0.0,
-        zo_asbozurit_silo2: parseFloat(document.getElementById('zo-asb-2')?.value) || 0.0,
-        zo_asbozurit_silo3: parseFloat(document.getElementById('zo-asb-3')?.value) || 0.0,
-        zo_asbozurit_silo4: parseFloat(document.getElementById('zo-asb-4')?.value) || 0.0,
+        // Асбозурит
+        zo_asbozurit_silo1: parseFloat(document.getElementById('calc-asbozurit-1')?.value) || parseFloat(document.getElementById('zo-asb-1')?.value) || 0.0,
+        zo_asbozurit_silo2: parseFloat(document.getElementById('calc-asbozurit-2')?.value) || parseFloat(document.getElementById('zo-asb-2')?.value) || 0.0,
+        zo_asbozurit_silo3: parseFloat(document.getElementById('calc-asbozurit-3')?.value) || parseFloat(document.getElementById('zo-asb-3')?.value) || 0.0,
+        zo_asbozurit_silo4: parseFloat(document.getElementById('calc-asbozurit-4')?.value) || parseFloat(document.getElementById('zo-asb-4')?.value) || 0.0,
         
-        zo_fiberglass_silo1: parseFloat(document.getElementById('zo-fib-1')?.value) || 0.0,
-        zo_fiberglass_silo2: parseFloat(document.getElementById('zo-fib-2')?.value) || 0.0,
-        zo_fiberglass_silo3: parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0,
-        zo_fiberglass_silo4: parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0,
+        // Стекловолокно
+        zo_fiberglass_silo1: parseFloat(document.getElementById('calc-fiberglass-1')?.value) || parseFloat(document.getElementById('zo-fib-1')?.value) || 0.0,
+        zo_fiberglass_silo2: parseFloat(document.getElementById('calc-fiberglass-2')?.value) || parseFloat(document.getElementById('zo-fib-2')?.value) || 0.0,
+        zo_fiberglass_silo3: parseFloat(document.getElementById('calc-fiberglass-3')?.value) || parseFloat(document.getElementById('zo-fib-3')?.value) || 0.0,
+        zo_fiberglass_silo4: parseFloat(document.getElementById('calc-fiberglass-4')?.value) || parseFloat(document.getElementById('zo-fib-4')?.value) || 0.0,
         
+        // Лапрол
         zo_laprol_under_machine: parseFloat(document.getElementById('calc-laprol-machine')?.value) || parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
         zo_laprol_pushitel: parseFloat(document.getElementById('calc-laprol-pushitel')?.value) || parseFloat(document.getElementById('zo-lap-2')?.value) || 0.0,
         zo_laprol_silo1: parseFloat(document.getElementById('calc-laprol-machine')?.value) || parseFloat(document.getElementById('zo-lap-1')?.value) || 0.0,
@@ -1381,18 +1399,17 @@ async function submitShiftReport() {
         zo_laprol_silo3: 0.0,
         zo_laprol_silo4: 0.0,
         
-        zo_asbocarton_silo1: parseFloat(document.getElementById('zo-car-1')?.value) || 0.0,
-        zo_asbocarton_silo2: parseFloat(document.getElementById('zo-car-2')?.value) || 0.0,
-        zo_asbocarton_silo3: parseFloat(document.getElementById('zo-car-3')?.value) || 0.0,
-        zo_asbocarton_silo4: parseFloat(document.getElementById('zo-car-4')?.value) || 0.0,
+        // Асбокартон
+        zo_asbocarton_silo1: parseFloat(document.getElementById('calc-asbocarton-1')?.value) || parseFloat(document.getElementById('zo-car-1')?.value) || 0.0,
+        zo_asbocarton_silo2: parseFloat(document.getElementById('calc-asbocarton-2')?.value) || parseFloat(document.getElementById('zo-car-2')?.value) || 0.0,
+        zo_asbocarton_silo3: parseFloat(document.getElementById('calc-asbocarton-3')?.value) || parseFloat(document.getElementById('zo-car-3')?.value) || 0.0,
+        zo_asbocarton_silo4: parseFloat(document.getElementById('calc-asbocarton-4')?.value) || parseFloat(document.getElementById('zo-car-4')?.value) || 0.0,
         
+        // Итоги
         zo_chrysotile_4_20: parseFloat(document.getElementById('zo-chr-4-20')?.value) || 0.0,
         zo_chrysotile_5_65: parseFloat(document.getElementById('zo-chr-5-65')?.value) || 0.0,
         zo_chrysotile_6_40: parseFloat(document.getElementById('zo-chr-6-40')?.value) || 0.0,
-        zo_cement_silo1: parseFloat(document.getElementById('zo-cem-1')?.value) || 0.0,
-        zo_cement_silo2: parseFloat(document.getElementById('zo-cem-2')?.value) || 0.0,
-        zo_cement_silo3: parseFloat(document.getElementById('zo-cem-3')?.value) || 0.0,
-        zo_cement_silo4: parseFloat(document.getElementById('zo-cem-4')?.value) || 0.0,
+        zo_cement: parseFloat(document.getElementById('zo-cem-total-readonly')?.value) || 0.0,
         zo_cellulose: parseFloat(document.getElementById('zo-cellulose')?.value) || 0.0,
         zo_crushed_slate: parseFloat(document.getElementById('zo-crushed-slate')?.value) || 0.0,
         zo_asbozurit: parseFloat(document.getElementById('zo-asbozurit')?.value) || 0.0,
@@ -3733,7 +3750,7 @@ const REPORT_FIELDS = [
     'calc-crushed-slate-1', 'calc-crushed-slate-2', 'calc-crushed-slate-3', 'calc-crushed-slate-4',
     'calc-asbozurit-1', 'calc-asbozurit-2', 'calc-asbozurit-3', 'calc-asbozurit-4',
     'calc-fiberglass-1', 'calc-fiberglass-2', 'calc-fiberglass-3', 'calc-fiberglass-4',
-    'calc-laprol-1', 'calc-laprol-2', 'calc-laprol-3', 'calc-laprol-4',
+    'calc-laprol-machine', 'calc-laprol-pushitel',
     'calc-asbocarton-1', 'calc-asbocarton-2', 'calc-asbocarton-3', 'calc-asbocarton-4'
 ];
 
@@ -3788,6 +3805,16 @@ function loadReportDraft() {
                 if (typeof toggleDefectsGrid === 'function') toggleDefectsGrid();
                 if (typeof togglePrevDefectsGrid === 'function') togglePrevDefectsGrid();
                 if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
+                
+                // Recalculate and sync all raw material calculation fields
+                const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+                rmKeys.forEach(k => {
+                    if (typeof calcSumRM === 'function') calcSumRM(k);
+                });
+                if (typeof calcCem === 'function') calcCem();
+                if (typeof calcLaprol === 'function') calcLaprol();
+                if (typeof recalcChrTotal === 'function') recalcChrTotal();
+                if (typeof recalcCemTotal === 'function') recalcCemTotal();
                 
                 const indicator = document.getElementById('draft-indicator');
                 if (indicator) {

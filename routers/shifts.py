@@ -977,71 +977,150 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     shift.status = "closed"
     
     # Расход сырья
-    shift.zo_chrysotile_4_20_silo1 = data.zo_chrysotile_4_20_silo1
-    shift.zo_chrysotile_4_20_silo2 = data.zo_chrysotile_4_20_silo2
-    shift.zo_chrysotile_4_20_silo3 = data.zo_chrysotile_4_20_silo3
-    shift.zo_chrysotile_4_20_silo4 = data.zo_chrysotile_4_20_silo4
-    shift.zo_chrysotile_4_20 = (data.zo_chrysotile_4_20_silo1 or 0) + (data.zo_chrysotile_4_20_silo2 or 0) + (data.zo_chrysotile_4_20_silo3 or 0) + (data.zo_chrysotile_4_20_silo4 or 0)
+    # Хризотил 4-20
+    chr_4_20_sum = (data.zo_chrysotile_4_20_silo1 or 0) + (data.zo_chrysotile_4_20_silo2 or 0) + (data.zo_chrysotile_4_20_silo3 or 0) + (data.zo_chrysotile_4_20_silo4 or 0)
+    if chr_4_20_sum > 0:
+        shift.zo_chrysotile_4_20_silo1 = data.zo_chrysotile_4_20_silo1
+        shift.zo_chrysotile_4_20_silo2 = data.zo_chrysotile_4_20_silo2
+        shift.zo_chrysotile_4_20_silo3 = data.zo_chrysotile_4_20_silo3
+        shift.zo_chrysotile_4_20_silo4 = data.zo_chrysotile_4_20_silo4
+        shift.zo_chrysotile_4_20 = chr_4_20_sum
+    else:
+        shift.zo_chrysotile_4_20 = data.zo_chrysotile_4_20 or 0.0
+        shift.zo_chrysotile_4_20_silo1 = data.zo_chrysotile_4_20 or 0.0
+        shift.zo_chrysotile_4_20_silo2 = 0.0
+        shift.zo_chrysotile_4_20_silo3 = 0.0
+        shift.zo_chrysotile_4_20_silo4 = 0.0
     
-    shift.zo_chrysotile_5_65_silo1 = data.zo_chrysotile_5_65_silo1
-    shift.zo_chrysotile_5_65_silo2 = data.zo_chrysotile_5_65_silo2
-    shift.zo_chrysotile_5_65_silo3 = data.zo_chrysotile_5_65_silo3
-    shift.zo_chrysotile_5_65_silo4 = data.zo_chrysotile_5_65_silo4
-    shift.zo_chrysotile_5_65 = (data.zo_chrysotile_5_65_silo1 or 0) + (data.zo_chrysotile_5_65_silo2 or 0) + (data.zo_chrysotile_5_65_silo3 or 0) + (data.zo_chrysotile_5_65_silo4 or 0)
+    # Хризотил 5-65
+    chr_5_65_sum = (data.zo_chrysotile_5_65_silo1 or 0) + (data.zo_chrysotile_5_65_silo2 or 0) + (data.zo_chrysotile_5_65_silo3 or 0) + (data.zo_chrysotile_5_65_silo4 or 0)
+    if chr_5_65_sum > 0:
+        shift.zo_chrysotile_5_65_silo1 = data.zo_chrysotile_5_65_silo1
+        shift.zo_chrysotile_5_65_silo2 = data.zo_chrysotile_5_65_silo2
+        shift.zo_chrysotile_5_65_silo3 = data.zo_chrysotile_5_65_silo3
+        shift.zo_chrysotile_5_65_silo4 = data.zo_chrysotile_5_65_silo4
+        shift.zo_chrysotile_5_65 = chr_5_65_sum
+    else:
+        shift.zo_chrysotile_5_65 = data.zo_chrysotile_5_65 or 0.0
+        shift.zo_chrysotile_5_65_silo1 = data.zo_chrysotile_5_65 or 0.0
+        shift.zo_chrysotile_5_65_silo2 = 0.0
+        shift.zo_chrysotile_5_65_silo3 = 0.0
+        shift.zo_chrysotile_5_65_silo4 = 0.0
     
-    shift.zo_chrysotile_6_40_silo1 = data.zo_chrysotile_6_40_silo1
-    shift.zo_chrysotile_6_40_silo2 = data.zo_chrysotile_6_40_silo2
-    shift.zo_chrysotile_6_40_silo3 = data.zo_chrysotile_6_40_silo3
-    shift.zo_chrysotile_6_40_silo4 = data.zo_chrysotile_6_40_silo4
-    shift.zo_chrysotile_6_40 = (data.zo_chrysotile_6_40_silo1 or 0) + (data.zo_chrysotile_6_40_silo2 or 0) + (data.zo_chrysotile_6_40_silo3 or 0) + (data.zo_chrysotile_6_40_silo4 or 0)
+    # Хризотил 6-40
+    chr_6_40_sum = (data.zo_chrysotile_6_40_silo1 or 0) + (data.zo_chrysotile_6_40_silo2 or 0) + (data.zo_chrysotile_6_40_silo3 or 0) + (data.zo_chrysotile_6_40_silo4 or 0)
+    if chr_6_40_sum > 0:
+        shift.zo_chrysotile_6_40_silo1 = data.zo_chrysotile_6_40_silo1
+        shift.zo_chrysotile_6_40_silo2 = data.zo_chrysotile_6_40_silo2
+        shift.zo_chrysotile_6_40_silo3 = data.zo_chrysotile_6_40_silo3
+        shift.zo_chrysotile_6_40_silo4 = data.zo_chrysotile_6_40_silo4
+        shift.zo_chrysotile_6_40 = chr_6_40_sum
+    else:
+        shift.zo_chrysotile_6_40 = data.zo_chrysotile_6_40 or 0.0
+        shift.zo_chrysotile_6_40_silo1 = data.zo_chrysotile_6_40 or 0.0
+        shift.zo_chrysotile_6_40_silo2 = 0.0
+        shift.zo_chrysotile_6_40_silo3 = 0.0
+        shift.zo_chrysotile_6_40_silo4 = 0.0
     
-    shift.zo_cement_silo1 = data.zo_cement_silo1
-    shift.zo_cement_silo2 = data.zo_cement_silo2
-    shift.zo_cement_silo3 = data.zo_cement_silo3
-    shift.zo_cement_silo4 = data.zo_cement_silo4
-    shift.zo_cement = (data.zo_cement_silo1 or 0) + (data.zo_cement_silo2 or 0) + (data.zo_cement_silo3 or 0) + (data.zo_cement_silo4 or 0)
+    # Цемент
+    cem_sum = (data.zo_cement_silo1 or 0) + (data.zo_cement_silo2 or 0) + (data.zo_cement_silo3 or 0) + (data.zo_cement_silo4 or 0)
+    shift.zo_cement_silo1 = data.zo_cement_silo1 or 0.0
+    shift.zo_cement_silo2 = data.zo_cement_silo2 or 0.0
+    shift.zo_cement_silo3 = data.zo_cement_silo3 or 0.0
+    shift.zo_cement_silo4 = data.zo_cement_silo4 or 0.0
+    shift.zo_cement = cem_sum
     
-    shift.zo_cellulose_silo1 = data.zo_cellulose_silo1
-    shift.zo_cellulose_silo2 = data.zo_cellulose_silo2
-    shift.zo_cellulose_silo3 = data.zo_cellulose_silo3
-    shift.zo_cellulose_silo4 = data.zo_cellulose_silo4
-    shift.zo_cellulose = (data.zo_cellulose_silo1 or 0) + (data.zo_cellulose_silo2 or 0) + (data.zo_cellulose_silo3 or 0) + (data.zo_cellulose_silo4 or 0)
+    # Целлюлоза
+    cel_sum = (data.zo_cellulose_silo1 or 0) + (data.zo_cellulose_silo2 or 0) + (data.zo_cellulose_silo3 or 0) + (data.zo_cellulose_silo4 or 0)
+    if cel_sum > 0:
+        shift.zo_cellulose_silo1 = data.zo_cellulose_silo1
+        shift.zo_cellulose_silo2 = data.zo_cellulose_silo2
+        shift.zo_cellulose_silo3 = data.zo_cellulose_silo3
+        shift.zo_cellulose_silo4 = data.zo_cellulose_silo4
+        shift.zo_cellulose = cel_sum
+    else:
+        shift.zo_cellulose = data.zo_cellulose or 0.0
+        shift.zo_cellulose_silo1 = data.zo_cellulose or 0.0
+        shift.zo_cellulose_silo2 = 0.0
+        shift.zo_cellulose_silo3 = 0.0
+        shift.zo_cellulose_silo4 = 0.0
     
-    shift.zo_crushed_slate_silo1 = data.zo_crushed_slate_silo1
-    shift.zo_crushed_slate_silo2 = data.zo_crushed_slate_silo2
-    shift.zo_crushed_slate_silo3 = data.zo_crushed_slate_silo3
-    shift.zo_crushed_slate_silo4 = data.zo_crushed_slate_silo4
-    shift.zo_crushed_slate = (data.zo_crushed_slate_silo1 or 0) + (data.zo_crushed_slate_silo2 or 0) + (data.zo_crushed_slate_silo3 or 0) + (data.zo_crushed_slate_silo4 or 0)
+    # Дробленый шифер
+    csl_sum = (data.zo_crushed_slate_silo1 or 0) + (data.zo_crushed_slate_silo2 or 0) + (data.zo_crushed_slate_silo3 or 0) + (data.zo_crushed_slate_silo4 or 0)
+    if csl_sum > 0:
+        shift.zo_crushed_slate_silo1 = data.zo_crushed_slate_silo1
+        shift.zo_crushed_slate_silo2 = data.zo_crushed_slate_silo2
+        shift.zo_crushed_slate_silo3 = data.zo_crushed_slate_silo3
+        shift.zo_crushed_slate_silo4 = data.zo_crushed_slate_silo4
+        shift.zo_crushed_slate = csl_sum
+    else:
+        shift.zo_crushed_slate = data.zo_crushed_slate or 0.0
+        shift.zo_crushed_slate_silo1 = data.zo_crushed_slate or 0.0
+        shift.zo_crushed_slate_silo2 = 0.0
+        shift.zo_crushed_slate_silo3 = 0.0
+        shift.zo_crushed_slate_silo4 = 0.0
     
-    shift.zo_asbozurit_silo1 = data.zo_asbozurit_silo1
-    shift.zo_asbozurit_silo2 = data.zo_asbozurit_silo2
-    shift.zo_asbozurit_silo3 = data.zo_asbozurit_silo3
-    shift.zo_asbozurit_silo4 = data.zo_asbozurit_silo4
-    shift.zo_asbozurit = (data.zo_asbozurit_silo1 or 0) + (data.zo_asbozurit_silo2 or 0) + (data.zo_asbozurit_silo3 or 0) + (data.zo_asbozurit_silo4 or 0)
+    # Асбозурит
+    asb_sum = (data.zo_asbozurit_silo1 or 0) + (data.zo_asbozurit_silo2 or 0) + (data.zo_asbozurit_silo3 or 0) + (data.zo_asbozurit_silo4 or 0)
+    if asb_sum > 0:
+        shift.zo_asbozurit_silo1 = data.zo_asbozurit_silo1
+        shift.zo_asbozurit_silo2 = data.zo_asbozurit_silo2
+        shift.zo_asbozurit_silo3 = data.zo_asbozurit_silo3
+        shift.zo_asbozurit_silo4 = data.zo_asbozurit_silo4
+        shift.zo_asbozurit = asb_sum
+    else:
+        shift.zo_asbozurit = data.zo_asbozurit or 0.0
+        shift.zo_asbozurit_silo1 = data.zo_asbozurit or 0.0
+        shift.zo_asbozurit_silo2 = 0.0
+        shift.zo_asbozurit_silo3 = 0.0
+        shift.zo_asbozurit_silo4 = 0.0
     
-    shift.zo_fiberglass_silo1 = data.zo_fiberglass_silo1
-    shift.zo_fiberglass_silo2 = data.zo_fiberglass_silo2
-    shift.zo_fiberglass_silo3 = data.zo_fiberglass_silo3
-    shift.zo_fiberglass_silo4 = data.zo_fiberglass_silo4
-    shift.zo_fiberglass = (data.zo_fiberglass_silo1 or 0) + (data.zo_fiberglass_silo2 or 0) + (data.zo_fiberglass_silo3 or 0) + (data.zo_fiberglass_silo4 or 0)
+    # Стекловолокно
+    fib_sum = (data.zo_fiberglass_silo1 or 0) + (data.zo_fiberglass_silo2 or 0) + (data.zo_fiberglass_silo3 or 0) + (data.zo_fiberglass_silo4 or 0)
+    if fib_sum > 0:
+        shift.zo_fiberglass_silo1 = data.zo_fiberglass_silo1
+        shift.zo_fiberglass_silo2 = data.zo_fiberglass_silo2
+        shift.zo_fiberglass_silo3 = data.zo_fiberglass_silo3
+        shift.zo_fiberglass_silo4 = data.zo_fiberglass_silo4
+        shift.zo_fiberglass = fib_sum
+    else:
+        shift.zo_fiberglass = data.zo_fiberglass or 0.0
+        shift.zo_fiberglass_silo1 = data.zo_fiberglass or 0.0
+        shift.zo_fiberglass_silo2 = 0.0
+        shift.zo_fiberglass_silo3 = 0.0
+        shift.zo_fiberglass_silo4 = 0.0
     
-    shift.zo_laprol_under_machine = getattr(data, 'zo_laprol_under_machine', None) if getattr(data, 'zo_laprol_under_machine', None) is not None else (data.zo_laprol_silo1 or 0.0)
-    shift.zo_laprol_pushitel = getattr(data, 'zo_laprol_pushitel', None) if getattr(data, 'zo_laprol_pushitel', None) is not None else (data.zo_laprol_silo2 or 0.0)
-    shift.zo_laprol_silo1 = shift.zo_laprol_under_machine
-    shift.zo_laprol_silo2 = shift.zo_laprol_pushitel
+    # Лапрол
+    lap_machine = getattr(data, 'zo_laprol_under_machine', None) if getattr(data, 'zo_laprol_under_machine', None) is not None else (data.zo_laprol_silo1 or 0.0)
+    lap_pushitel = getattr(data, 'zo_laprol_pushitel', None) if getattr(data, 'zo_laprol_pushitel', None) is not None else (data.zo_laprol_silo2 or 0.0)
+    if (lap_machine or 0.0) == 0.0 and (lap_pushitel or 0.0) == 0.0 and (data.zo_laprol or 0.0) > 0.0:
+        lap_pushitel = data.zo_laprol
+    shift.zo_laprol_under_machine = lap_machine or 0.0
+    shift.zo_laprol_pushitel = lap_pushitel or 0.0
+    shift.zo_laprol_silo1 = lap_machine or 0.0
+    shift.zo_laprol_silo2 = lap_pushitel or 0.0
     shift.zo_laprol_silo3 = 0.0
     shift.zo_laprol_silo4 = 0.0
-    shift.zo_laprol = (shift.zo_laprol_under_machine or 0.0) + (shift.zo_laprol_pushitel or 0.0)
+    shift.zo_laprol = (lap_machine or 0.0) + (lap_pushitel or 0.0)
     
-    shift.zo_asbocarton_silo1 = data.zo_asbocarton_silo1
-    shift.zo_asbocarton_silo2 = data.zo_asbocarton_silo2
-    shift.zo_asbocarton_silo3 = data.zo_asbocarton_silo3
-    shift.zo_asbocarton_silo4 = data.zo_asbocarton_silo4
-    shift.zo_asbocarton = (data.zo_asbocarton_silo1 or 0) + (data.zo_asbocarton_silo2 or 0) + (data.zo_asbocarton_silo3 or 0) + (data.zo_asbocarton_silo4 or 0)
+    # Асбокартон
+    car_sum = (data.zo_asbocarton_silo1 or 0) + (data.zo_asbocarton_silo2 or 0) + (data.zo_asbocarton_silo3 or 0) + (data.zo_asbocarton_silo4 or 0)
+    if car_sum > 0:
+        shift.zo_asbocarton_silo1 = data.zo_asbocarton_silo1
+        shift.zo_asbocarton_silo2 = data.zo_asbocarton_silo2
+        shift.zo_asbocarton_silo3 = data.zo_asbocarton_silo3
+        shift.zo_asbocarton_silo4 = data.zo_asbocarton_silo4
+        shift.zo_asbocarton = car_sum
+    else:
+        shift.zo_asbocarton = data.zo_asbocarton or 0.0
+        shift.zo_asbocarton_silo1 = data.zo_asbocarton or 0.0
+        shift.zo_asbocarton_silo2 = 0.0
+        shift.zo_asbocarton_silo3 = 0.0
+        shift.zo_asbocarton_silo4 = 0.0
     
-    shift.zo_asb_drain = data.zo_asb_drain
-    shift.zo_cem_drain = data.zo_cem_drain
-    shift.zo_batches = data.zo_batches
+    shift.zo_asb_drain = data.zo_asb_drain or 0.0
+    shift.zo_cem_drain = data.zo_cem_drain or 0.0
+    shift.zo_batches = data.zo_batches or 0
     shift.zo_submitted = True
     if data.export_type is not None:
         shift.export_type = data.export_type or "Эталон"

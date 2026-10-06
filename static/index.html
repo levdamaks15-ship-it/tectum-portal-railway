@@ -1173,6 +1173,7 @@
                                         if (typeof recalcChrTotal === 'function') recalcChrTotal();
                                     }
                                 }
+                                window.calcSumRM = calcSumRM;
 
                                 function calcLaprol() {
                                     const s1 = parseFloat(document.getElementById('calc-laprol-machine')?.value) || 0;
@@ -1188,6 +1189,7 @@
                                         document.getElementById('zo-lap-2').value = s2 > 0 ? s2 : '0';
                                     }
                                 }
+                                window.calcLaprol = calcLaprol;
 
                                 function calcCem() {
                                     const s1 = parseFloat(document.getElementById('calc-cem-1')?.value) || 0;
@@ -1203,6 +1205,7 @@
                                     }
                                     if (typeof recalcCemTotal === 'function') recalcCemTotal();
                                 }
+                                window.calcCem = calcCem;
 
                                 window.updateLineSiloHeaders = function () {
                                     calcCem();

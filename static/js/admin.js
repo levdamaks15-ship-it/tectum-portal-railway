@@ -1620,6 +1620,14 @@ async function saveUnifiedShiftReport() {
         saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
     }
 
+    // Force sync all raw material calculation fields before collecting data
+    const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
+    rmKeys.forEach(k => {
+        if (typeof calcAdminSumRM === 'function') calcAdminSumRM(k);
+    });
+    if (typeof calcAdminCem === 'function') calcAdminCem();
+    if (typeof calcAdminLaprol === 'function') calcAdminLaprol();
+
     const payload = {
         date: document.getElementById('uni-date').value,
         shift_name: document.getElementById('uni-shift-name').value,
@@ -1640,57 +1648,57 @@ async function saveUnifiedShiftReport() {
         qcd_defect: parseInt(document.getElementById('uni-qcd-defect').value) || 0,
 
         // Chrysotile Silos & Totals
-        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('uni-zo-chr-4-20-1')?.value) || 0,
-        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('uni-zo-chr-4-20-2')?.value) || 0,
-        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('uni-zo-chr-4-20-3')?.value) || 0,
-        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('uni-zo-chr-4-20-4')?.value) || 0,
+        zo_chrysotile_4_20_silo1: parseFloat(document.getElementById('uni-calc-chr-4-20-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-1')?.value) || 0,
+        zo_chrysotile_4_20_silo2: parseFloat(document.getElementById('uni-calc-chr-4-20-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-2')?.value) || 0,
+        zo_chrysotile_4_20_silo3: parseFloat(document.getElementById('uni-calc-chr-4-20-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-3')?.value) || 0,
+        zo_chrysotile_4_20_silo4: parseFloat(document.getElementById('uni-calc-chr-4-20-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-4-20-4')?.value) || 0,
         zo_chrysotile_4_20: parseFloat(document.getElementById('uni-zo-chr-4-20')?.value) || 0,
 
-        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('uni-zo-chr-5-65-1')?.value) || 0,
-        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('uni-zo-chr-5-65-2')?.value) || 0,
-        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('uni-zo-chr-5-65-3')?.value) || 0,
-        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('uni-zo-chr-5-65-4')?.value) || 0,
+        zo_chrysotile_5_65_silo1: parseFloat(document.getElementById('uni-calc-chr-5-65-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-1')?.value) || 0,
+        zo_chrysotile_5_65_silo2: parseFloat(document.getElementById('uni-calc-chr-5-65-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-2')?.value) || 0,
+        zo_chrysotile_5_65_silo3: parseFloat(document.getElementById('uni-calc-chr-5-65-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-3')?.value) || 0,
+        zo_chrysotile_5_65_silo4: parseFloat(document.getElementById('uni-calc-chr-5-65-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-5-65-4')?.value) || 0,
         zo_chrysotile_5_65: parseFloat(document.getElementById('uni-zo-chr-5-65')?.value) || 0,
 
-        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('uni-zo-chr-6-40-1')?.value) || 0,
-        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('uni-zo-chr-6-40-2')?.value) || 0,
-        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('uni-zo-chr-6-40-3')?.value) || 0,
-        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('uni-zo-chr-6-40-4')?.value) || 0,
+        zo_chrysotile_6_40_silo1: parseFloat(document.getElementById('uni-calc-chr-6-40-1')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-1')?.value) || 0,
+        zo_chrysotile_6_40_silo2: parseFloat(document.getElementById('uni-calc-chr-6-40-2')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-2')?.value) || 0,
+        zo_chrysotile_6_40_silo3: parseFloat(document.getElementById('uni-calc-chr-6-40-3')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-3')?.value) || 0,
+        zo_chrysotile_6_40_silo4: parseFloat(document.getElementById('uni-calc-chr-6-40-4')?.value) || parseFloat(document.getElementById('uni-zo-chr-6-40-4')?.value) || 0,
         zo_chrysotile_6_40: parseFloat(document.getElementById('uni-zo-chr-6-40')?.value) || 0,
 
         // Cement Silos & Total
-        zo_cement_silo1: parseFloat(document.getElementById('uni-zo-cem-1')?.value) || 0,
-        zo_cement_silo2: parseFloat(document.getElementById('uni-zo-cem-2')?.value) || 0,
-        zo_cement_silo3: parseFloat(document.getElementById('uni-zo-cem-3')?.value) || 0,
-        zo_cement_silo4: parseFloat(document.getElementById('uni-zo-cem-4')?.value) || 0,
+        zo_cement_silo1: parseFloat(document.getElementById('uni-calc-cem-1')?.value) || parseFloat(document.getElementById('uni-zo-cem-1')?.value) || 0,
+        zo_cement_silo2: parseFloat(document.getElementById('uni-calc-cem-2')?.value) || parseFloat(document.getElementById('uni-zo-cem-2')?.value) || 0,
+        zo_cement_silo3: parseFloat(document.getElementById('uni-calc-cem-3')?.value) || parseFloat(document.getElementById('uni-zo-cem-3')?.value) || 0,
+        zo_cement_silo4: parseFloat(document.getElementById('uni-calc-cem-4')?.value) || parseFloat(document.getElementById('uni-zo-cem-4')?.value) || 0,
         zo_cement: parseFloat(document.getElementById('uni-zo-cem-total-readonly')?.value) || 0,
 
         // Cellulose
-        zo_cellulose_silo1: parseFloat(document.getElementById('uni-zo-cel-1')?.value) || 0,
-        zo_cellulose_silo2: parseFloat(document.getElementById('uni-zo-cel-2')?.value) || 0,
-        zo_cellulose_silo3: parseFloat(document.getElementById('uni-zo-cel-3')?.value) || 0,
-        zo_cellulose_silo4: parseFloat(document.getElementById('uni-zo-cel-4')?.value) || 0,
+        zo_cellulose_silo1: parseFloat(document.getElementById('uni-calc-cellulose-1')?.value) || parseFloat(document.getElementById('uni-zo-cel-1')?.value) || 0,
+        zo_cellulose_silo2: parseFloat(document.getElementById('uni-calc-cellulose-2')?.value) || parseFloat(document.getElementById('uni-zo-cel-2')?.value) || 0,
+        zo_cellulose_silo3: parseFloat(document.getElementById('uni-calc-cellulose-3')?.value) || parseFloat(document.getElementById('uni-zo-cel-3')?.value) || 0,
+        zo_cellulose_silo4: parseFloat(document.getElementById('uni-calc-cellulose-4')?.value) || parseFloat(document.getElementById('uni-zo-cel-4')?.value) || 0,
         zo_cellulose: parseFloat(document.getElementById('uni-zo-cellulose')?.value) || 0,
 
         // Crushed slate
-        zo_crushed_slate_silo1: parseFloat(document.getElementById('uni-zo-csl-1')?.value) || 0,
-        zo_crushed_slate_silo2: parseFloat(document.getElementById('uni-zo-csl-2')?.value) || 0,
-        zo_crushed_slate_silo3: parseFloat(document.getElementById('uni-zo-csl-3')?.value) || 0,
-        zo_crushed_slate_silo4: parseFloat(document.getElementById('uni-zo-csl-4')?.value) || 0,
+        zo_crushed_slate_silo1: parseFloat(document.getElementById('uni-calc-crushed-slate-1')?.value) || parseFloat(document.getElementById('uni-zo-csl-1')?.value) || 0,
+        zo_crushed_slate_silo2: parseFloat(document.getElementById('uni-calc-crushed-slate-2')?.value) || parseFloat(document.getElementById('uni-zo-csl-2')?.value) || 0,
+        zo_crushed_slate_silo3: parseFloat(document.getElementById('uni-calc-crushed-slate-3')?.value) || parseFloat(document.getElementById('uni-zo-csl-3')?.value) || 0,
+        zo_crushed_slate_silo4: parseFloat(document.getElementById('uni-calc-crushed-slate-4')?.value) || parseFloat(document.getElementById('uni-zo-csl-4')?.value) || 0,
         zo_crushed_slate: parseFloat(document.getElementById('uni-zo-crushed-slate')?.value) || 0,
 
         // Asbozurit
-        zo_asbozurit_silo1: parseFloat(document.getElementById('uni-zo-asb-1')?.value) || 0,
-        zo_asbozurit_silo2: parseFloat(document.getElementById('uni-zo-asb-2')?.value) || 0,
-        zo_asbozurit_silo3: parseFloat(document.getElementById('uni-zo-asb-3')?.value) || 0,
-        zo_asbozurit_silo4: parseFloat(document.getElementById('uni-zo-asb-4')?.value) || 0,
+        zo_asbozurit_silo1: parseFloat(document.getElementById('uni-calc-asbozurit-1')?.value) || parseFloat(document.getElementById('uni-zo-asb-1')?.value) || 0,
+        zo_asbozurit_silo2: parseFloat(document.getElementById('uni-calc-asbozurit-2')?.value) || parseFloat(document.getElementById('uni-zo-asb-2')?.value) || 0,
+        zo_asbozurit_silo3: parseFloat(document.getElementById('uni-calc-asbozurit-3')?.value) || parseFloat(document.getElementById('uni-zo-asb-3')?.value) || 0,
+        zo_asbozurit_silo4: parseFloat(document.getElementById('uni-calc-asbozurit-4')?.value) || parseFloat(document.getElementById('uni-zo-asb-4')?.value) || 0,
         zo_asbozurit: parseFloat(document.getElementById('uni-zo-asbozurit')?.value) || 0,
 
         // Fiberglass
-        zo_fiberglass_silo1: parseFloat(document.getElementById('uni-zo-fib-1')?.value) || 0,
-        zo_fiberglass_silo2: parseFloat(document.getElementById('uni-zo-fib-2')?.value) || 0,
-        zo_fiberglass_silo3: parseFloat(document.getElementById('uni-zo-fib-3')?.value) || 0,
-        zo_fiberglass_silo4: parseFloat(document.getElementById('uni-zo-fib-4')?.value) || 0,
+        zo_fiberglass_silo1: parseFloat(document.getElementById('uni-calc-fiberglass-1')?.value) || parseFloat(document.getElementById('uni-zo-fib-1')?.value) || 0,
+        zo_fiberglass_silo2: parseFloat(document.getElementById('uni-calc-fiberglass-2')?.value) || parseFloat(document.getElementById('uni-zo-fib-2')?.value) || 0,
+        zo_fiberglass_silo3: parseFloat(document.getElementById('uni-calc-fiberglass-3')?.value) || parseFloat(document.getElementById('uni-zo-fib-3')?.value) || 0,
+        zo_fiberglass_silo4: parseFloat(document.getElementById('uni-calc-fiberglass-4')?.value) || parseFloat(document.getElementById('uni-zo-fib-4')?.value) || 0,
         zo_fiberglass: parseFloat(document.getElementById('uni-zo-fiberglass')?.value) || 0,
 
         // Laprol
@@ -1703,10 +1711,10 @@ async function saveUnifiedShiftReport() {
         zo_laprol: parseFloat(document.getElementById('uni-zo-laprol')?.value) || 0,
 
         // Asbocarton
-        zo_asbocarton_silo1: parseFloat(document.getElementById('uni-zo-car-1')?.value) || 0,
-        zo_asbocarton_silo2: parseFloat(document.getElementById('uni-zo-car-2')?.value) || 0,
-        zo_asbocarton_silo3: parseFloat(document.getElementById('uni-zo-car-3')?.value) || 0,
-        zo_asbocarton_silo4: parseFloat(document.getElementById('uni-zo-car-4')?.value) || 0,
+        zo_asbocarton_silo1: parseFloat(document.getElementById('uni-calc-asbocarton-1')?.value) || parseFloat(document.getElementById('uni-zo-car-1')?.value) || 0,
+        zo_asbocarton_silo2: parseFloat(document.getElementById('uni-calc-asbocarton-2')?.value) || parseFloat(document.getElementById('uni-zo-car-2')?.value) || 0,
+        zo_asbocarton_silo3: parseFloat(document.getElementById('uni-calc-asbocarton-3')?.value) || parseFloat(document.getElementById('uni-zo-car-3')?.value) || 0,
+        zo_asbocarton_silo4: parseFloat(document.getElementById('uni-calc-asbocarton-4')?.value) || parseFloat(document.getElementById('uni-zo-car-4')?.value) || 0,
         zo_asbocarton: parseFloat(document.getElementById('uni-zo-asbocarton')?.value) || 0,
 
         // Drains
