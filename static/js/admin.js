@@ -2562,64 +2562,130 @@ function calcAdminDowntimeDuration() {
 
 // Password Management
 async function loadPasswords() {
+    const tbody = document.getElementById('passwords-table-body');
+    if (tbody) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка списка папок...</td></tr>';
+    }
     try {
-        const res = await fetch('/api/admin/document-categories');
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '6282';
+        const res = await fetch('/api/admin/document-categories', {
+            headers: {
+                'X-Admin-PIN': pin
+            }
+        });
         const data = await res.json();
-        const tbody = document.getElementById('passwords-table-body');
-        if (data.status === 'success') {
-            tbody.innerHTML = data.data.map(cat => `
-                <tr>
-                    <td>${cat.id}</td>
-                    <td>${cat.name}</td>
-                    <td>${cat.is_protected ? '<span style="color:red">Защищена</span>' : '<span style="color:green">Открыта</span>'}</td>
-                    <td>
-                        <button onclick="setPassword(${cat.id})" style="padding: 0.3rem 0.5rem;"><i class="fa-solid fa-key"></i> Установить пароль</button>
-                        ${cat.is_protected ? `<button onclick="clearPassword(${cat.id})" style="padding: 0.3rem 0.5rem; background: #e74c3c; margin-left: 0.5rem;"><i class="fa-solid fa-trash"></i> Сбросить</button>` : ''}
-                    </td>
-                </tr>
-            `).join('');
+        if (tbody) {
+            if (res.ok && data.status === 'success') {
+                if (!data.data || data.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#64748b;">Папки не найдены</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.data.map(cat => `
+                    <tr>
+                        <td style="font-weight: 600; color: #64748b;">${cat.id}</td>
+                        <td style="font-weight: 600; color: #1e293b;">
+                            <i class="fa-solid fa-folder" style="color: #3b82f6; margin-right: 6px;"></i> ${escapeHtml(cat.name)}
+                        </td>
+                        <td>
+                            ${cat.is_protected 
+                                ? '<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; background:#fee2e2; color:#dc2626; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-lock"></i> Защищена</span>' 
+                                : '<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; background:#dcfce7; color:#16a34a; font-size:0.75rem; font-weight:700;"><i class="fa-solid fa-lock-open"></i> Открыта</span>'}
+                        </td>
+                        <td>
+                            <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                <button type="button" onclick="setPassword(${cat.id}, this)" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-key"></i> Установить пароль
+                                </button>
+                                ${cat.is_protected ? `
+                                <button type="button" onclick="clearPassword(${cat.id}, this)" style="padding: 0.35rem 0.65rem; font-size: 0.8rem; background: #ef4444; color: #fff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                    <i class="fa-solid fa-trash"></i> Сбросить
+                                </button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#dc2626;"><i class="fa-solid fa-circle-exclamation"></i> Ошибка загрузки: ${escapeHtml(data.detail || data.message || 'Доступ запрещен')}</td></tr>`;
+            }
         }
     } catch(e) {
-        console.error(e);
+        console.error("Error loading passwords:", e);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#dc2626;"><i class="fa-solid fa-wifi"></i> Сетевая ошибка при загрузке списка папок</td></tr>`;
+        }
     }
 }
 
-async function setPassword(catId) {
+async function setPassword(catId, btnEl) {
     const pwd = prompt("Введите новый пароль для папки:");
-    if (!pwd) return;
+    if (!pwd || !pwd.trim()) return;
+    
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+    }
+    
     try {
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '6282';
         const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({password: pwd})
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-PIN': pin
+            },
+            body: JSON.stringify({password: pwd.trim()})
         });
-        if (res.ok) {
-            alert("Пароль успешно установлен");
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            alert(data.message || "Пароль успешно установлен");
             loadPasswords();
         } else {
-            alert("Ошибка установки пароля");
+            alert("Ошибка установки пароля: " + (data.detail || data.message || res.statusText));
         }
     } catch (e) {
         console.error(e);
+        alert("Сетевая ошибка при установке пароля");
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<i class="fa-solid fa-key"></i> Установить пароль';
+        }
     }
 }
 
-async function clearPassword(catId) {
+async function clearPassword(catId, btnEl) {
     if (!confirm("Вы уверены, что хотите сбросить пароль? Папка станет общедоступной.")) return;
+    
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сброс...';
+    }
+    
     try {
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '6282';
         const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Admin-PIN': pin
+            },
             body: JSON.stringify({password: null})
         });
-        if (res.ok) {
-            alert("Пароль сброшен");
+        const data = await res.json();
+        if (res.ok && data.status === 'success') {
+            alert(data.message || "Пароль успешно сброшен");
             loadPasswords();
         } else {
-            alert("Ошибка сброса пароля");
+            alert("Ошибка сброса пароля: " + (data.detail || data.message || res.statusText));
         }
     } catch (e) {
         console.error(e);
+        alert("Сетевая ошибка при сбросе пароля");
+    } finally {
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = '<i class="fa-solid fa-trash"></i> Сбросить';
+        }
     }
 }
 

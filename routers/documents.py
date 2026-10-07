@@ -368,8 +368,7 @@ def manual_sync_folders_to_drive(db: Session = Depends(get_db)):
 
 @router.get("/api/admin/document-categories")
 def admin_get_document_categories(request: Request, db: Session = Depends(get_db)):
-    if request.session.get("user_role") not in ["admin", "director", "technologist"]:
-        return {"status": "error", "message": "Access denied"}
+    admin = check_admin_session(request, db)
     try:
         folders = db.query(models.DocumentCategory).order_by(models.DocumentCategory.name).all()
         data = []
@@ -380,29 +379,53 @@ def admin_get_document_categories(request: Request, db: Session = Depends(get_db
                 "is_protected": bool(f.password_hash)
             })
         return {"status": "success", "data": data}
+    except HTTPException:
+        raise
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 class SetPasswordRequest(BaseModel):
     password: Optional[str] = None
 
 @router.post("/api/admin/document-categories/{cat_id}/set-password")
 def admin_set_document_password(cat_id: int, req: SetPasswordRequest, request: Request, db: Session = Depends(get_db)):
-    if request.session.get("user_role") not in ["admin", "director", "technologist"]:
-        return {"status": "error", "message": "Access denied"}
+    admin = check_admin_session(request, db)
+    folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Папка не найдена")
+        
+    old_status = "Защищена" if folder.password_hash else "Открыта"
+    if req.password and req.password.strip():
+        folder.password_hash = hashlib.sha256(req.password.strip().encode()).hexdigest()
+        new_status = "Защищена"
+        action_desc = f"Установлен пароль на папку «{folder.name}» (ID {folder.id})"
+    else:
+        folder.password_hash = None
+        new_status = "Открыта"
+        action_desc = f"Сброшен пароль с папки «{folder.name}» (ID {folder.id})"
+        
+    admin_name = admin.name if admin and hasattr(admin, 'name') else request.session.get("user_name", "Администратор")
+    
+    # Audit log
     try:
-        folder = db.query(models.DocumentCategory).filter(models.DocumentCategory.id == cat_id).first()
-        if not folder:
-            return {"status": "error", "message": "Папка не найдена"}
-            
-        if req.password:
-            folder.password_hash = hashlib.sha256(req.password.encode()).hexdigest()
-        else:
-            folder.password_hash = None
-        db.commit()
-        return {"status": "success"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+        db.add(models.AuditLog(
+            user_name=admin_name,
+            action="UPDATE",
+            target_table="document_categories",
+            target_id=folder.id,
+            details=f"{action_desc}. Статус: {old_status} -> {new_status}"
+        ))
+    except Exception as log_err:
+        print(f"AuditLog error: {log_err}")
+        
+    db.commit()
+    return {
+        "status": "success",
+        "message": action_desc,
+        "is_protected": bool(folder.password_hash),
+        "folder_id": folder.id,
+        "folder_name": folder.name
+    }
 
 def is_editable_doc(file_name: str) -> bool:
     name = (file_name or '').lower()
