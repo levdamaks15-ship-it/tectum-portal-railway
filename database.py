@@ -20,8 +20,10 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
 else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        pool_size=20,
-        max_overflow=10,
+        pool_size=30,
+        max_overflow=20,
+        pool_timeout=10,
+        pool_recycle=300,
         pool_pre_ping=True
     )
 

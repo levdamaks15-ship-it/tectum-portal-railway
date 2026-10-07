@@ -41,13 +41,7 @@
                 }
                 return response;
             } catch (err) {
-                const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
-                if (url.includes('/api/') && !url.includes('/api/system/version')) {
-                    consecutiveFailures++;
-                    if (consecutiveFailures >= 2) {
-                        handleDeploymentDetected('network_blip');
-                    }
-                }
+                // Client network glitches are handled by NetworkGuard, do not trigger deployment overlay
                 throw err;
             }
         };
@@ -195,15 +189,18 @@
                 if (src && (src.includes('/static/') || src.includes('.js') || src.includes('.css'))) {
                     try {
                         const assetUrl = new URL(src, window.location.origin);
-                        assetUrl.searchParams.set('v', ver);
-                        assetUrl.searchParams.set('_t', Date.now().toString());
-                        preloads.push(
-                            fetch(assetUrl.toString(), {
-                                method: 'GET',
-                                cache: 'reload',
-                                headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
-                            }).catch(() => {})
-                        );
+                        // Only preload same-origin assets to avoid CORS errors with external CDNs (FontAwesome, Google Fonts, etc.)
+                        if (assetUrl.origin === window.location.origin) {
+                            assetUrl.searchParams.set('v', ver);
+                            assetUrl.searchParams.set('_t', Date.now().toString());
+                            preloads.push(
+                                fetch(assetUrl.toString(), {
+                                    method: 'GET',
+                                    cache: 'reload',
+                                    headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+                                }).catch(() => {})
+                            );
+                        }
                     } catch (_) {}
                 }
             });
@@ -437,6 +434,19 @@
                     clearInterval(fastPollInterval);
                     fastPollInterval = null;
 
+                    // If we are already on the active version, dismiss overlay gracefully without loop reload
+                    if (currentVersion && currentVersion === serverVer) {
+                        if (overlayElement) {
+                            overlayElement.remove();
+                            overlayElement = null;
+                        }
+                        document.body.style.overflow = '';
+                        isDeploying = false;
+                        consecutiveFailures = 0;
+                        window.removeEventListener('keydown', blockUserInteraction, true);
+                        return;
+                    }
+
                     // Update UI to success state
                     const icon = document.getElementById('dg-main-icon');
                     const title = document.getElementById('dg-main-title');
@@ -476,17 +486,13 @@
 
             if (res.status === 502 || res.status === 503 || res.status === 504) {
                 consecutiveFailures++;
-                if (consecutiveFailures >= 1) {
+                if (consecutiveFailures >= 2) {
                     handleDeploymentDetected('server_gateway_error');
                 }
                 return;
             }
 
             if (!res.ok) {
-                consecutiveFailures++;
-                if (consecutiveFailures >= 3) {
-                    handleDeploymentDetected('server_http_error');
-                }
                 return;
             }
 
@@ -504,10 +510,7 @@
                 onVersionChanged(serverVer);
             }
         } catch (err) {
-            consecutiveFailures++;
-            if (consecutiveFailures >= 3) {
-                handleDeploymentDetected('network_offline');
-            }
+            // Silently ignore network fluctuations; NetworkGuard handles offline toasts
         } finally {
             isChecking = false;
         }

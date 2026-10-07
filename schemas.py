@@ -1216,3 +1216,111 @@ class TaskQuickCreate(BaseModel):
     status: Optional[str] = "⚪ В очереди"
 
 
+# --- LKC CABINET SCHEMAS ---
+class LKCReportItemBase(ORMBaseModel):
+    item_order: Optional[int] = 1
+    product_type: Optional[str] = "Комплект грядок"
+    dimension_size: str
+    plan_qty: Optional[float] = 0.0
+    fact_qty: Optional[float] = 0.0
+    fact_unit: Optional[str] = "шт"
+    order_batch: Optional[str] = ""
+    sets_count: Optional[int] = 0
+    comp_t_count: Optional[float] = 0.0
+    comp_l_count: Optional[float] = 0.0
+    comp_screws_count: Optional[int] = 0
+    raw_sheets_thickness: Optional[str] = "8 мм"
+    raw_sheets_spent: Optional[float] = 0.0
+    warehouse_submitted_qty: Optional[float] = 0.0
+    notes: Optional[str] = ""
+
+class LKCReportItemCreate(LKCReportItemBase):
+    pass
+
+class LKCReportItemOut(LKCReportItemBase):
+    id: int
+    report_id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LKCDowntimeBase(ORMBaseModel):
+    downtime_date: Optional[date] = None
+    shift_name: Optional[str] = "Дневная смена"
+    master_name: Optional[str] = "Миркасимов И.М."
+    start_time: str
+    end_time: Optional[str] = ""
+    duration_minutes: Optional[int] = 0
+    equipment_node: Optional[str] = "Дисковая пила"
+    category: Optional[str] = "Механическая"
+    reason: Optional[str] = ""
+    comment: Optional[str] = ""
+
+class LKCDowntimeCreate(LKCDowntimeBase):
+    report_id: Optional[int] = None
+
+class LKCDowntimeOut(LKCDowntimeBase):
+    id: int
+    report_id: Optional[int] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LKCRawMaterialUsageBase(ORMBaseModel):
+    item_order: Optional[int] = 1
+    material_name: str # "Плоский лист 8мм 1800х1200", "Профиль T", etc.
+    thickness: Optional[str] = "8 мм"
+    spent_qty: Optional[float] = 0.0
+    unit: Optional[str] = "шт"
+    warehouse_submitted_qty: Optional[float] = 0.0
+    scrap_defect_qty: Optional[float] = 0.0
+    notes: Optional[str] = ""
+
+class LKCRawMaterialUsageCreate(LKCRawMaterialUsageBase):
+    pass
+
+class LKCRawMaterialUsageOut(LKCRawMaterialUsageBase):
+    id: int
+    report_id: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LKCShiftReportBase(ORMBaseModel):
+    report_date: date
+    shift_name: Optional[str] = "Дневная смена (08:00 - 17:00)"
+    master_id: Optional[int] = None
+    master_name: Optional[str] = "Миркасимов И.М."
+    status: Optional[str] = "completed"
+    raw_sheets_thickness: Optional[str] = "8 мм"
+    raw_sheets_spent: Optional[float] = 0.0
+    warehouse_submitted_qty: Optional[float] = 0.0
+    scrap_defect_qty: Optional[float] = 0.0
+    notes: Optional[str] = ""
+
+class LKCShiftReportCreate(LKCShiftReportBase):
+    items: Optional[List[LKCReportItemCreate]] = []
+    raw_materials: Optional[List[LKCRawMaterialUsageCreate]] = []
+    downtimes: Optional[List[LKCDowntimeCreate]] = []
+
+class LKCShiftReportOut(LKCShiftReportBase):
+    id: int
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    items: List[LKCReportItemOut] = []
+    raw_materials: List[LKCRawMaterialUsageOut] = []
+    downtimes: List[LKCDowntimeOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+

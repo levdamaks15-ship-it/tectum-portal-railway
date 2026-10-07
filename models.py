@@ -691,3 +691,105 @@ class QcdLabAnalysis(Base):
     shift = relationship("Shift", foreign_keys=[shift_id], lazy="joined")
 
 
+class LKCShiftReport(Base):
+    __tablename__ = "lkc_shift_reports"
+    id = Column(Integer, primary_key=True, index=True)
+    report_date = Column(Date, index=True, nullable=False)
+    shift_name = Column(String(50), default="Дневная смена", nullable=False) # "Дневная смена"
+    master_id = Column(Integer, ForeignKey("masters.id"), nullable=True)
+    master_name = Column(String(150), default="Миркасимов И.М.", nullable=True)
+    status = Column(String(50), default="completed") # "draft", "completed"
+    
+    # Итоги сырья и сдачи на склад за смену
+    raw_sheets_thickness = Column(String(50), default="8 мм", nullable=True) # "8 мм", "6 мм", "10 мм"
+    raw_sheets_spent = Column(Float, default=0.0) # Списано исходных листов 1800х1200
+    warehouse_submitted_qty = Column(Float, default=0.0) # Сдано на склад ГП (шт / компл)
+    scrap_defect_qty = Column(Float, default=0.0) # Отходы / брак распила
+    
+    notes = Column(Text, default="", nullable=True) # Примечания / причины отклонений
+    is_active = Column(Boolean, default=True, index=True) # Soft Delete
+    
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    master = relationship("Master", foreign_keys=[master_id])
+    items = relationship("LKCReportItem", back_populates="report", cascade="all, delete-orphan", order_by="LKCReportItem.item_order.asc(), LKCReportItem.id.asc()")
+    raw_materials = relationship("LKCRawMaterialUsage", back_populates="report", cascade="all, delete-orphan", order_by="LKCRawMaterialUsage.item_order.asc(), LKCRawMaterialUsage.id.asc()")
+    downtimes = relationship("LKCDowntime", back_populates="report", cascade="all, delete-orphan", order_by="LKCDowntime.id.asc()")
+
+
+class LKCRawMaterialUsage(Base):
+    __tablename__ = "lkc_raw_material_usages"
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("lkc_shift_reports.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    item_order = Column(Integer, default=1)
+    material_name = Column(String(200), nullable=False) # "Плоский лист 8мм 1800х1200", "Плоский лист 6мм 1800х1200", "Профиль T", etc.
+    thickness = Column(String(50), default="8 мм", nullable=True)
+    spent_qty = Column(Float, default=0.0) # Списано сырья (шт / ед)
+    unit = Column(String(50), default="шт") # "шт", "м", "кг"
+    warehouse_submitted_qty = Column(Float, default=0.0) # Сдано на склад ГП (шт / ед)
+    scrap_defect_qty = Column(Float, default=0.0) # Брак / отходы (шт)
+    notes = Column(Text, default="", nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    report = relationship("LKCShiftReport", back_populates="raw_materials")
+
+
+class LKCReportItem(Base):
+    __tablename__ = "lkc_report_items"
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("lkc_shift_reports.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    item_order = Column(Integer, default=1)
+    product_type = Column(String(100), default="Комплект грядок") # "Комплект грядок", "Плоская полоса", "Заготовка", "Спецзаказ"
+    dimension_size = Column(String(200), nullable=False) # "пл. лист 6мм 1800x300", "грядка 3600x90", "грядка 2700x90", "грядка 1800x90"
+    
+    plan_qty = Column(Float, default=0.0) # План (шт / компл)
+    fact_qty = Column(Float, default=0.0) # Факт (шт / компл)
+    fact_unit = Column(String(50), default="шт") # "шт", "компл", "м²"
+    
+    order_batch = Column(String(200), default="", nullable=True) # Заказ / Партия / Комплект
+    sets_count = Column(Integer, default=0) # Кол-во комплектов
+    
+    # Комплектующие (шт)
+    comp_t_count = Column(Float, default=0.0) # Т-профиль
+    comp_l_count = Column(Float, default=0.0) # L-уголок
+    comp_screws_count = Column(Integer, default=0) # Шурупы
+    
+    # Доп. параметры строки
+    raw_sheets_thickness = Column(String(50), default="8 мм", nullable=True)
+    raw_sheets_spent = Column(Float, default=0.0)
+    warehouse_submitted_qty = Column(Float, default=0.0)
+    notes = Column(Text, default="", nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    report = relationship("LKCShiftReport", back_populates="items")
+
+
+class LKCDowntime(Base):
+    __tablename__ = "lkc_downtimes"
+    id = Column(Integer, primary_key=True, index=True)
+    report_id = Column(Integer, ForeignKey("lkc_shift_reports.id", ondelete="CASCADE"), nullable=True, index=True)
+    downtime_date = Column(Date, index=True, nullable=False)
+    shift_name = Column(String(50), default="Дневная смена", nullable=True)
+    master_name = Column(String(150), default="Миркасимов И.М.", nullable=True)
+    
+    start_time = Column(String(20), nullable=False) # "09:30"
+    end_time = Column(String(20), nullable=True)     # "10:15"
+    duration_minutes = Column(Integer, default=0)
+    
+    equipment_node = Column(String(150), default="Дисковая пила") # "Дисковая пила", "Станок нарезки профиля", "Погрузчик", "Электрика", "Снабжение / сырье"
+    category = Column(String(100), default="Механическая") # "Механическая", "Электрическая", "Организационная", "Технологическая"
+    reason = Column(String(255), default="") # Причина
+    comment = Column(Text, default="", nullable=True) # Подробный комментарий
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    report = relationship("LKCShiftReport", back_populates="downtimes")
+
+
+

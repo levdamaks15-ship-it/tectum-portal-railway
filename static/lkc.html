@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Кабинет мастера ЛКЦ — Раскрой и комплектующие | Tectum Engineering</title>
+    <link rel="icon" type="image/png" href="/static/img/Logo.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script>
+
+    <style>
+        :root {
+            --lkc-primary: #C82323;
+            --lkc-primary-hover: #b01e1e;
+            --lkc-navy: #1e3a8a;
+            --lkc-bg: #f8fafc;
+            --lkc-card: #ffffff;
+            --lkc-border: #e2e8f0;
+            --lkc-text: #0f172a;
+            --lkc-subtext: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--lkc-bg);
+            color: var(--lkc-text);
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .lkc-wrapper {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 1.25rem 1rem 3rem;
+            box-sizing: border-box;
+        }
+
+        /* Accordion Sections */
+        .lkc-section {
+            background: #ffffff;
+            border: 1px solid var(--lkc-border);
+            border-radius: 16px;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .lkc-section-header {
+            padding: 1.1rem 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #ffffff;
+            cursor: pointer;
+            user-select: none;
+            border-bottom: 1px solid transparent;
+        }
+
+        .lkc-section-header:hover {
+            background: #fbfcfe;
+        }
+
+        .lkc-section.expanded .lkc-section-header {
+            border-bottom-color: var(--lkc-border);
+        }
+
+        .lkc-section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .lkc-section-content {
+            padding: 1.4rem;
+            display: none;
+        }
+
+        .lkc-section.expanded .lkc-section-content {
+            display: block;
+        }
+
+        /* Table Design */
+        .lkc-table-wrapper {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--lkc-border);
+            margin-top: 1rem;
+            background: #ffffff;
+        }
+
+        .lkc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+            text-align: left;
+        }
+
+        .lkc-table th {
+            background: #f8fafc;
+            color: #334155;
+            font-weight: 700;
+            padding: 12px 14px;
+            border-bottom: 2px solid var(--lkc-border);
+            border-right: 1px solid var(--lkc-border);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+
+        .lkc-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            vertical-align: middle;
+        }
+
+        .lkc-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        .lkc-table input,
+        .lkc-table select {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            background: #ffffff;
+            color: #0f172a;
+            height: 42px;
+        }
+
+        .lkc-table input[type="number"]::-webkit-outer-spin-button,
+        .lkc-table input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .lkc-table input[type="number"] {
+            -moz-appearance: textfield;
+            padding: 6px 4px;
+        }
+
+        .lkc-table input:focus,
+        .lkc-table select:focus {
+            border-color: var(--lkc-primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.15);
+        }
+
+        /* Form Grids */
+        .lkc-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.1rem;
+            align-items: end;
+        }
+
+        .lkc-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.1rem;
+            align-items: end;
+        }
+
+        .lkc-form-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .lkc-form-group label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            min-height: 2.3em;
+            display: flex;
+            align-items: flex-end;
+            line-height: 1.25;
+            margin-bottom: 2px;
+        }
+
+        .lkc-form-group input,
+        .lkc-form-group select,
+        .lkc-form-group textarea {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.9rem;
+            background: #ffffff;
+            color: #0f172a;
+            box-sizing: border-box;
+            height: 40px;
+        }
+
+        .lkc-form-group textarea {
+            height: auto;
+        }
+
+        .lkc-form-group input:focus,
+        .lkc-form-group select:focus,
+        .lkc-form-group textarea:focus {
+            border-color: var(--lkc-primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.12);
+        }
+
+        /* Bento KPI Cards */
+        .lkc-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .lkc-kpi-card {
+            background: #ffffff;
+            border: 1px solid var(--lkc-border);
+            border-radius: 14px;
+            padding: 1.1rem 1.25rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .lkc-kpi-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .lkc-kpi-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .lkc-kpi-sub {
+            font-size: 0.78rem;
+            color: #94a3b8;
+        }
+
+        /* Buttons */
+        .lkc-btn-primary {
+            background: linear-gradient(135deg, #C82323 0%, #b01e1e 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(200, 35, 35, 0.25);
+        }
+
+        .lkc-btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(200, 35, 35, 0.35);
+        }
+
+        .lkc-btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .lkc-btn-secondary {
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 9px 16px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .lkc-btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        .lkc-btn-danger {
+            background: rgba(220, 38, 38, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .lkc-btn-danger:hover {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        /* Toast Notifications */
+        .lkc-toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .lkc-toast {
+            background: #ffffff;
+            border: 1px solid var(--lkc-border);
+            border-radius: 12px;
+            padding: 12px 18px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #0f172a;
+            pointer-events: auto;
+            animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 380px;
+        }
+
+        .lkc-toast.success {
+            border-left: 4px solid #16a34a;
+        }
+
+        .lkc-toast.error {
+            border-left: 4px solid #dc2626;
+        }
+
+        .lkc-toast.info {
+            border-left: 4px solid #0284c7;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .mobile-only {
+            display: none !important;
+        }
+
+        .desktop-only {
+            display: table-cell;
+        }
+
+        .lkc-save-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 1.5rem;
+            background: #ffffff;
+            padding: 1.25rem 1.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--lkc-border);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        }
+
+        /* Responsive Mobile Layout (100% Fit, Zero Horizontal Swipe) */
+        @media screen and (max-width: 767px) {
+            .mobile-only {
+                display: flex !important;
+            }
+
+            .desktop-only {
+                display: none !important;
+            }
+
+            .container {
+                padding: 0.75rem 0.5rem 3rem !important;
+            }
+
+            .header-main {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 1rem;
+                margin-bottom: 1.2rem;
+            }
+
+            .header-logo-container {
+                justify-content: center;
+            }
+
+            .header-actions {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+
+            .header-quick-links {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .header-user-container {
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .tabs-container {
+                gap: 6px;
+                margin-bottom: 1.2rem !important;
+            }
+
+            .tab-btn {
+                padding: 8px 4px !important;
+            }
+
+            .tab-label {
+                font-size: 0.75rem !important;
+            }
+
+            .tab-icon {
+                font-size: 1.1rem !important;
+            }
+
+            .lkc-section {
+                border-radius: 14px;
+                margin-bottom: 1rem;
+            }
+
+            .lkc-section-header {
+                padding: 0.9rem 1rem;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .lkc-section-title {
+                font-size: 0.95rem;
+                flex: 1 1 auto;
+            }
+
+            .lkc-section-header > div {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 4px;
+            }
+
+            .lkc-section-content {
+                padding: 1rem 0.75rem;
+            }
+
+            .lkc-grid-4, .lkc-grid-3 {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 0.75rem !important;
+            }
+
+            /* Zero-Swipe Mobile Cards Transformation */
+            .lkc-table-wrapper {
+                border: none !important;
+                background: transparent !important;
+                overflow: visible !important;
+                margin-top: 0.5rem;
+            }
+
+            .lkc-table,
+            .lkc-table tbody {
+                display: block !important;
+                width: 100% !important;
+            }
+
+            .lkc-table thead {
+                display: none !important;
+            }
+
+            /* Rows transformed to modern cards */
+            .lkc-item-row,
+            .lkc-raw-row {
+                display: grid !important;
+                grid-template-columns: repeat(6, 1fr) !important;
+                gap: 8px !important;
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 14px !important;
+                padding: 12px 14px !important;
+                margin-bottom: 14px !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+                box-sizing: border-box !important;
+            }
+
+            .lkc-item-row > td,
+            .lkc-raw-row > td {
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-end !important;
+                padding: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                box-sizing: border-box !important;
+            }
+
+            .lkc-item-row > td::before,
+            .lkc-raw-row > td::before {
+                content: attr(data-label);
+                font-size: 0.72rem;
+                font-weight: 700;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+                margin-bottom: 4px;
+                display: block;
+            }
+
+            /* Card Header Bar */
+            .lkc-item-row > td.cell-header,
+            .lkc-raw-row > td.cell-header {
+                grid-column: 1 / -1 !important;
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                padding-bottom: 8px !important;
+                margin-bottom: 4px !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+            }
+
+            .lkc-item-row > td.cell-header::before,
+            .lkc-raw-row > td.cell-header::before {
+                display: none !important;
+            }
+
+            .mobile-row-title {
+                font-weight: 700;
+                font-size: 0.92rem;
+                color: #1e293b;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            /* Items Card Layout */
+            .cell-dim {
+                grid-column: 1 / -1 !important;
+            }
+            .cell-plan {
+                grid-column: 1 / 4 !important;
+            }
+            .cell-fact {
+                grid-column: 4 / 7 !important;
+            }
+            .cell-order {
+                grid-column: 1 / -1 !important;
+            }
+            .cell-sets {
+                grid-column: 1 / -1 !important;
+            }
+            .cell-t {
+                grid-column: 1 / 3 !important;
+            }
+            .cell-l {
+                grid-column: 3 / 5 !important;
+            }
+            .cell-screws {
+                grid-column: 5 / 7 !important;
+            }
+
+            /* Raw Material Card Layout */
+            .cell-mat {
+                grid-column: 1 / -1 !important;
+            }
+            .cell-spent {
+                grid-column: 1 / 4 !important;
+            }
+            .cell-submitted {
+                grid-column: 4 / 7 !important;
+            }
+            .cell-scrap {
+                grid-column: 1 / 4 !important;
+            }
+            .cell-notes {
+                grid-column: 4 / 7 !important;
+            }
+
+            /* Bento Summary Footer on Mobile */
+            #lkc-raw-table tfoot {
+                display: block !important;
+                width: 100% !important;
+                margin-top: 10px;
+            }
+
+            #lkc-raw-table tfoot tr {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 14px !important;
+                padding: 10px !important;
+            }
+
+            #lkc-raw-table tfoot tr > td:first-child,
+            #lkc-raw-table tfoot tr > td:last-child {
+                display: none !important;
+            }
+
+            #lkc-raw-table tfoot td {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 6px 4px !important;
+                border: none !important;
+                background: #ffffff !important;
+                border-radius: 8px !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
+                text-align: center !important;
+            }
+
+            #lkc-raw-table tfoot td::before {
+                font-size: 0.68rem;
+                font-weight: 700;
+                color: #64748b;
+                text-transform: uppercase;
+                margin-bottom: 2px;
+                display: block;
+            }
+
+            #raw-total-spent::before {
+                content: "Списано";
+            }
+            #raw-total-submitted::before {
+                content: "Сдано";
+            }
+            #raw-total-scrap::before {
+                content: "Брак";
+            }
+
+            .lkc-save-bar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+                padding: 12px 14px !important;
+            }
+
+            .lkc-save-bar button {
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 14px 20px !important;
+                font-size: 1rem !important;
+            }
+        }
+
+        @media print {
+            .lkc-navbar, .lkc-tabs, .lkc-btn-primary, .lkc-btn-secondary, .lkc-btn-danger, #btn-add-item, .lkc-toast-container {
+                display: none !important;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+            }
+            .lkc-section {
+                border: none !important;
+                box-shadow: none !important;
+            }
+            .lkc-section-content {
+                display: block !important;
+                padding: 0 !important;
+            }
+            .lkc-table {
+                display: table !important;
+                width: 100% !important;
+            }
+            .lkc-table th, .lkc-table td {
+                border: 1px solid #000000 !important;
+                color: #000000 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem 3rem;">
+
+        <!-- Header: Matching Production Master Cabinet exactly -->
+        <header class="header-main">
+            <div class="header-logo-container">
+                <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 50px;">
+                <div class="header-title-block">
+                    <h1 class="header-title">TECTUM ENGINEERING</h1>
+                    <p class="header-subtitle">ПРОИЗВОДСТВЕННЫЙ ПОРТАЛ</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="header-quick-links">
+                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks">
+                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists">
+                        ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs">
+                        📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                </div>
+                <div id="user-info-container" class="header-user-container" style="display: flex;">
+                    <div class="user-greeting-text">
+                        <p id="lkc-user-name" style="margin: 0; font-weight: 600; color: var(--text-primary);">Миркасимов И.М.</p>
+                        <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Мастер ЛКЦ</p>
+                    </div>
+                    <button onclick="logoutLKC()" class="btn-logout" title="Выйти из системы">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Выйти</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tabs Navigation: Matching Production Portal Stripe style -->
+        <div id="tabs-menu" class="tabs-container" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.5rem;">
+            <a href="#report" class="tab-btn active" id="tab-btn-report" onclick="switchLKCTab('report', event)">
+                <span class="tab-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                <span class="tab-label">Рапорт<br>мастера</span>
+            </a>
+            <a href="#downtimes" class="tab-btn" id="tab-btn-downtimes" onclick="switchLKCTab('downtimes', event)">
+                <span class="tab-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                <span class="tab-label">Журнал<br>простоев</span>
+            </a>
+            <a href="#weekly" class="tab-btn" id="tab-btn-weekly" onclick="switchLKCTab('weekly', event)">
+                <span class="tab-icon"><i class="fa-solid fa-calendar-week"></i></span>
+                <span class="tab-label">Недельная<br>сводка</span>
+            </a>
+            <a href="#norms" class="tab-btn" id="tab-btn-norms" onclick="switchLKCTab('norms', event)">
+                <span class="tab-icon"><i class="fa-solid fa-book-bookmark"></i></span>
+                <span class="tab-label">Нормативы<br>ЛКЦ</span>
+            </a>
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 1: РАПОРТ МАСТЕРА                                -->
+        <!-- ==================================================== -->
+        <div id="tab-report" class="lkc-tab-pane" style="display: block;">
+
+            <!-- Блок 1: 📋 Параметры смены -->
+            <div class="lkc-section expanded" id="sec-shift-params">
+                <div class="lkc-section-header" onclick="toggleLKCSection('sec-shift-params')">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-clipboard-list" style="color: var(--lkc-primary);"></i> 1. Параметры смены
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-secondary" onclick="event.stopPropagation(); resetLKCReportForm();" style="font-size: 0.8rem; padding: 4px 10px;">
+                            <i class="fa-solid fa-broom"></i> Очистить форму
+                        </button>
+                        <i class="fa-solid fa-chevron-down acc-icon"></i>
+                    </div>
+                </div>
+                <div class="lkc-section-content">
+                    <div class="lkc-grid-4">
+                        <div class="lkc-form-group">
+                            <label>Дата рапорта</label>
+                            <div style="position: relative;">
+                                <input type="text" id="report-date-input" placeholder="ДД.ММ.ГГГГ" onchange="loadReportForDate(this.value)">
+                                <i class="fa-regular fa-calendar-days" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none;"></i>
+                            </div>
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Смена</label>
+                            <select id="report-shift-select">
+                                <option value="Дневная смена (08:00 - 17:00)" selected>Дневная смена (08:00 - 17:00)</option>
+                            </select>
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Участок</label>
+                            <input type="text" value="ЛКЦ" readonly style="background: #f1f5f9; color: #1e293b; font-weight: 700;">
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Мастер смены</label>
+                            <select id="report-master-select">
+                                <option value="Миркасимов И.М." selected>Миркасимов И.М.</option>
+                                <option value="Бекбосынов Р.">Бекбосынов Р.</option>
+                                <option value="Монаев С.">Монаев С.</option>
+                                <option value="Султанулы С.">Султанулы С.</option>
+                                <option value="Дауылбай М.">Дауылбай М.</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 2: 🏭 Выпуск продукции и комплектов (Таблица) -->
+            <div class="lkc-section expanded" id="sec-production-items">
+                <div class="lkc-section-header" onclick="toggleLKCSection('sec-production-items')">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-industry" style="color: var(--lkc-primary);"></i> 2. Выпуск продукции и комплектов (Заказы)
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-primary" id="btn-add-item" onclick="event.stopPropagation(); addLKCItemRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
+                            <i class="fa-solid fa-plus"></i> Добавить строку
+                        </button>
+                        <i class="fa-solid fa-chevron-down acc-icon"></i>
+                    </div>
+                </div>
+                <div class="lkc-section-content">
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table" id="lkc-items-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">№</th>
+                                    <th style="min-width: 240px;">Размер / Типоразмер</th>
+                                    <th style="width: 85px; min-width: 85px; text-align: center;">План (шт)</th>
+                                    <th style="width: 95px; min-width: 95px; text-align: center;">Факт (шт)</th>
+                                    <th style="min-width: 170px;">Комплект (Заказ / Партия)</th>
+                                    <th style="width: 100px; min-width: 100px; text-align: center;">Кол-во компл.</th>
+                                    <th style="width: 90px; min-width: 90px; background: #e0f2fe; text-align: center;">T (шт)</th>
+                                    <th style="width: 90px; min-width: 90px; background: #e0f2fe; text-align: center;">L (шт)</th>
+                                    <th style="width: 100px; min-width: 100px; background: #e0f2fe; text-align: center;">Шурупы</th>
+                                    <th style="width: 45px; text-align: center;">🗑️</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-items-tbody">
+                                <!-- Dynamic rows generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 3: 📦 Списание сырья и сдача на склад -->
+            <div class="lkc-section expanded" id="sec-raw-materials">
+                <div class="lkc-section-header" onclick="toggleLKCSection('sec-raw-materials')">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-boxes-stacked" style="color: var(--lkc-primary);"></i> 3. Списание сырья и сдача на склад
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-primary" id="btn-add-raw-item" onclick="event.stopPropagation(); addLKCRawMaterialRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
+                            <i class="fa-solid fa-plus"></i> Добавить списание сырья
+                        </button>
+                        <i class="fa-solid fa-chevron-down acc-icon"></i>
+                    </div>
+                </div>
+                <div class="lkc-section-content">
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table" id="lkc-raw-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">№</th>
+                                    <th style="min-width: 260px;">Наименование сырья / Материал</th>
+                                    <th style="width: 140px; text-align: center;">Списано (шт)</th>
+                                    <th style="width: 150px; text-align: center;">Сдано на склад ГП (шт)</th>
+                                    <th style="width: 140px; text-align: center;">Отходы / Брак (шт)</th>
+                                    <th style="min-width: 150px;">Примечание / Партия</th>
+                                    <th style="width: 45px; text-align: center;">🗑️</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-raw-tbody">
+                                <!-- Dynamic raw material rows generated by JS -->
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: #f8fafc; font-weight: 700; font-size: 0.92rem;">
+                                    <td colspan="2" style="text-align: right; color: #475569; padding: 10px 14px;">ИТОГО ПО СМЕНЕ:</td>
+                                    <td style="text-align: center; color: #1e293b; font-size: 1rem;" id="raw-total-spent">0</td>
+                                    <td style="text-align: center; color: #15803d; font-size: 1rem;" id="raw-total-submitted">0</td>
+                                    <td style="text-align: center; color: #dc2626; font-size: 1rem;" id="raw-total-scrap">0</td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Нижняя панель действий -->
+            <div class="lkc-save-bar">
+                <div style="font-size: 0.88rem; color: #64748b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-shield-halved" style="color: #10b981; font-size: 1.1rem;"></i>
+                    <span>Автосохранение черновика активно</span>
+                </div>
+                <div>
+                    <button type="button" class="lkc-btn-primary" id="btn-save-report" onclick="saveLKCReport()" style="padding: 12px 28px; font-size: 1rem; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.25);">
+                        <i class="fa-solid fa-floppy-disk"></i> СОХРАНИТЬ РАПОРТ СМЕНЫ
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 2: ЖУРНАЛ ПРОСТОЕВ                               -->
+        <!-- ==================================================== -->
+        <div id="tab-downtimes" class="lkc-tab-pane" style="display: none;">
+            
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Фиксация простоя оборудования
+                    </h3>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    <div class="lkc-grid-4">
+                        <div class="lkc-form-group">
+                            <label>Время начала</label>
+                            <input type="time" id="dt-start-time" value="09:00">
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Время окончания</label>
+                            <input type="time" id="dt-end-time" value="09:30">
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Узел оборудования</label>
+                            <select id="dt-node-select">
+                                <option value="Дисковая пила раскроя" selected>Дисковая пила раскроя</option>
+                                <option value="Станок нарезки профиля">Станок нарезки профиля</option>
+                                <option value="Погрузчик / подача листов">Погрузчик / подача листов</option>
+                                <option value="Электрооборудование">Электрооборудование</option>
+                                <option value="Отсутствие сырья (плоского листа)">Отсутствие сырья (плоского листа)</option>
+                                <option value="Отсутствие комплектующих (уголки/шурупы)">Отсутствие комплектующих (уголки/шурупы)</option>
+                                <option value="Прочее">Прочее</option>
+                            </select>
+                        </div>
+                        <div class="lkc-form-group">
+                            <label>Категория простоя</label>
+                            <select id="dt-category-select">
+                                <option value="Механическая" selected>Механическая (поломка, диск)</option>
+                                <option value="Электрическая">Электрическая</option>
+                                <option value="Организационная">Организационная (сырье, комплектация)</option>
+                                <option value="Технологическая">Технологическая</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="lkc-grid-3" style="margin-top: 1rem;">
+                        <div class="lkc-form-group" style="grid-column: span 2;">
+                            <label>Причина и описание</label>
+                            <input type="text" id="dt-reason-input" placeholder="Например: затупился пильный диск, замена и регулировка пилы">
+                        </div>
+                        <div class="lkc-form-group" style="display: flex; justify-content: flex-end; align-items: flex-end;">
+                            <button type="button" class="lkc-btn-primary" onclick="addLKCDowntimeRecord()" style="width: 100%;">
+                                <i class="fa-solid fa-plus"></i> Зафиксировать простой
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Таблица журнала простоев -->
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-list" style="color: var(--lkc-primary);"></i> Журнал простоев ЛКЦ
+                    </h3>
+                    <button class="lkc-btn-secondary" onclick="loadLKCDowntimes()" style="font-size: 0.8rem; padding: 4px 10px;">
+                        <i class="fa-solid fa-rotate-right"></i> Обновить
+                    </button>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Интервал</th>
+                                    <th>Длительность</th>
+                                    <th>Узел</th>
+                                    <th>Категория</th>
+                                    <th>Причина / Комментарий</th>
+                                    <th>Мастер</th>
+                                    <th style="width: 40px; text-align: center;">🗑️</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-downtimes-tbody">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 3: НЕДЕЛЬНАЯ СВОДКА                              -->
+        <!-- ==================================================== -->
+        <div id="tab-weekly" class="lkc-tab-pane" style="display: none;">
+            
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-calendar-days" style="color: var(--lkc-navy);"></i> Недельный рапорт ЛКЦ (Архив и Сводка)
+                    </h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="lkc-btn-secondary" onclick="downloadLKCExcel()">
+                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i> Выгрузить Excel
+                        </button>
+                    </div>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button class="lkc-btn-secondary" onclick="shiftLKCWeek(-1)"><i class="fa-solid fa-chevron-left"></i> Пред. неделя</button>
+                            <strong id="weekly-period-display" style="font-size: 0.95rem; color: #1e293b;">--</strong>
+                            <button class="lkc-btn-secondary" onclick="shiftLKCWeek(1)">След. неделя <i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table" id="lkc-weekly-summary-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Дата</th>
+                                    <th>Мастер</th>
+                                    <th>Размер / Типоразмер</th>
+                                    <th>План (шт)</th>
+                                    <th>Факт (шт)</th>
+                                    <th>Комплект</th>
+                                    <th>Компл.</th>
+                                    <th style="background: #e0f2fe;">T</th>
+                                    <th style="background: #e0f2fe;">L</th>
+                                    <th style="background: #e0f2fe;">Шурупы</th>
+                                    <th>Сдано</th>
+                                    <th>Примечания</th>
+                                    <th>Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-weekly-summary-tbody">
+                                <!-- Loaded via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================================================== -->
+        <!-- TAB 4: НОРМАТИВЫ ЛКЦ                                -->
+        <!-- ==================================================== -->
+        <div id="tab-norms" class="lkc-tab-pane" style="display: none;">
+            
+            <div class="lkc-section expanded">
+                <div class="lkc-section-header">
+                    <h3 class="lkc-section-title">
+                        <i class="fa-solid fa-book-bookmark" style="color: var(--lkc-primary);"></i> Справочник нормативов расхода комплектующих и сменных норм ЛКЦ
+                    </h3>
+                </div>
+                <div class="lkc-section-content" style="display: block;">
+                    
+                    <!-- Карточки ключевых нормативов -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+                        
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #1e3a8a; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cubes"></i> Грядка 3.6 м (3600х900)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Состав: 2 продольных борта (1800+1800) + 2 торца 900 мм</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
+                                • T-профиль: <strong>2 шт</strong> (1.0 м)<br>
+                                • L-уголок: <strong>4 шт</strong> (245 мм)<br>
+                                • Шурупы: <strong>24 шт</strong>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #6366f1; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #4338ca; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cubes"></i> Грядка 2.7 м (2700х900)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Состав: 2 борта (1800+900) + 2 торца 900 мм</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
+                                • T-профиль: <strong>2 шт</strong> (1.0 м)<br>
+                                • L-уголок: <strong>4 шт</strong> (245 мм)<br>
+                                • Шурупы: <strong>24 шт</strong>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #065f46; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-cubes"></i> Грядка 1.8 м (1800х900)
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Состав: 2 борта 1800х245 + 2 торца 900х245</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
+                                • T-профиль: <strong>0 шт</strong> (не требуется)<br>
+                                • L-уголок: <strong>4 шт</strong> (245 мм)<br>
+                                • Шурупы: <strong>16 шт</strong>
+                            </div>
+                        </div>
+
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 1.25rem;">
+                            <h4 style="margin: 0 0 8px; color: #92400e; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                <i class="fa-solid fa-scissors"></i> Раскрой полос и листов
+                            </h4>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Сменный план раскроя: <strong>750 листов</strong> / смена</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
+                                • Полоса 1800х300: <strong>4 полосы</strong> с листа 1800х1200<br>
+                                • Смена: <strong>08:00 – 17:00</strong> (1 дневная смена)
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Таблица всех утвержденных нормативов -->
+                    <div class="lkc-table-wrapper">
+                        <table class="lkc-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Наименование изделия / типоразмера</th>
+                                    <th>Тип продукции</th>
+                                    <th>Норма T (шт)</th>
+                                    <th>Норма L (шт)</th>
+                                    <th>Норма Шурупов (шт)</th>
+                                    <th>Базовый план</th>
+                                    <th>Техническое описание и примечания</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lkc-norms-tbody">
+                                <!-- Loaded via JS from Catalog -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Toast container -->
+    <div class="lkc-toast-container" id="lkc-toast-container"></div>
+
+    <script src="/static/js/lkc.js?v=20261006_lkc_v5"></script>
+</body>
+
+</html>

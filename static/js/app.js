@@ -990,6 +990,11 @@ async function login() {
             return;
         }
 
+        if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
+            window.location.href = '/static/lkc.html';
+            return;
+        }
+
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
         document.getElementById('user-info-container').style.display = 'flex';
@@ -4049,8 +4054,15 @@ function renderMainScreenGrid() {
         <polyline points="9 12 11 14 15 10"></polyline>
     </svg>`;
 
+    const svgLKC = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+        <polyline points="2 17 12 22 22 17"></polyline>
+        <polyline points="2 12 12 17 22 12"></polyline>
+    </svg>`;
+
     grid.innerHTML = 
         createCardHTML('Кабинет мастера', 'Производство', svgMaster, "selectUser('Мастер смены', 'Мастер')") +
+        createCardHTML('ЛКЦ', 'Кабинет мастера', svgLKC, "selectUser('Миркасимов И.М.', 'Мастер ЛКЦ')") +
         createCardHTML('Кабинет СКК', 'Контроль качества', svgQCD, "selectUser('Мусаилова З.', 'Руководитель СКК')") +
         createCardHTML('Планнер задач', 'Бережливое производство', svgTasks, null, '/static/tasks.html') +
         createCardHTML('Кабинет чек-листов', 'Смены и ТО', svgChecklists, null, '/static/checklists.html') +
