@@ -1358,7 +1358,15 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
     background_tasks.add_task(sync_google_sheets_bg)
     background_tasks.add_task(sync_receipts_bg)
     
-    return {"status": "success", "shift_id": shift.id}
+    return {
+        "status": "success",
+        "shift_id": shift.id,
+        "batch_number": shift.batch_number,
+        "date": shift.date.isoformat() if shift.date else "",
+        "shift_name": shift.shift_name,
+        "line": shift.line,
+        "google_synced": bool(shift.google_synced)
+    }
 
 
 @router.put("/api/report/{shift_id}")
@@ -1387,7 +1395,76 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
     background_tasks.add_task(sync_google_sheets_bg)
     background_tasks.add_task(sync_receipts_bg)
     
-    return {"status": "success", "shift_id": shift.id}
+    return {
+        "status": "success",
+        "shift_id": shift.id,
+        "batch_number": shift.batch_number,
+        "date": shift.date.isoformat() if shift.date else "",
+        "shift_name": shift.shift_name,
+        "line": shift.line,
+        "google_synced": bool(shift.google_synced)
+    }
+
+
+@router.post("/api/shifts/{shift_id}/sync-google")
+def sync_shift_to_google_endpoint(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    user_role = request.session.get("user_role")
+    user_name = request.session.get("user_name", "Unknown")
+    if not user_id or not user_role:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Смена не найдена")
+
+    try:
+        res = google_sheets_integration.sync_report_to_google_sheets(db, target_shift_id=shift_id)
+        # Log to AuditLog
+        db.add(models.AuditLog(
+            user_name=user_name,
+            action="UPDATE",
+            target_table="shifts",
+            target_id=shift_id,
+            details=f"Выполнена целевая синхронизация смены ID {shift_id} (партия {shift.batch_number}) в Google Таблицы."
+        ))
+        db.commit()
+        return {
+            "success": True,
+            "shift_id": shift.id,
+            "google_synced": True,
+            "google_synced_at": shift.google_synced_at.strftime("%d.%m.%Y %H:%M:%S") if shift.google_synced_at else "",
+            "sheet_url": res.get("sheet_url") or "",
+            "message": "Рапорт смены успешно синхронизирован с Google Таблицами!"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка синхронизации с Google Таблицами: {str(e)}"
+        )
+
+
+@router.get("/api/shifts/{shift_id}/sync-status")
+def get_shift_sync_status_endpoint(shift_id: int, request: Request, db: Session = Depends(get_db)):
+    shift = db.query(models.Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Смена не найдена")
+    
+    sheet_url = ""
+    try:
+        sheet_url = google_sheets_integration.get_google_sheet_bottom_url(db, sheet_type="summary")
+    except Exception:
+        pass
+
+    return {
+        "shift_id": shift.id,
+        "batch_number": shift.batch_number,
+        "date": shift.date.isoformat() if shift.date else "",
+        "google_synced": bool(shift.google_synced),
+        "google_synced_at": shift.google_synced_at.strftime("%d.%m.%Y %H:%M:%S") if shift.google_synced_at else None,
+        "google_sync_error": shift.google_sync_error,
+        "sheet_url": sheet_url
+    }
 
 
 @router.post("/api/receipts")

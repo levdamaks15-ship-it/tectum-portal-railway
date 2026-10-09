@@ -2,6 +2,8 @@ import os
 import json
 from datetime import datetime, timedelta, date
 from collections import defaultdict
+from typing import Optional, List, Dict, Any
+import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from sqlalchemy.orm import Session
@@ -137,14 +139,35 @@ def safe_set_basic_filter(service, spreadsheet_id: str, sheet_id: int, start_row
     except Exception as e:
         print(f"Warning setting basic filter on sheet {sheet_id}: {e}")
 
-def sync_report_to_google_sheets(db: Session):
+
+def retry_google_api(func, max_retries=3, initial_delay=1.0, backoff_factor=2.0):
+    """
+    Выполняет вызов Google API с автоматическими повторами при сетевых сбоях,
+    таймаутах и ошибках rate limit (429, 500, 502, 503, 504).
+    """
+    last_err = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            last_err = e
+            err_str = str(e).lower()
+            if attempt < max_retries and any(code in err_str for code in ["429", "500", "502", "503", "504", "timeout", "timed out", "connection", "reset by peer"]):
+                sleep_time = initial_delay * (backoff_factor ** (attempt - 1))
+                time.sleep(sleep_time)
+                continue
+            raise e
+    raise last_err
+
+def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = None) -> Dict[str, Any]:
     """
     Генерирует сводную таблицу рапортов смен аналогично Excel-отчету
     и выгружает ее в Google Таблицу по SPREADSHEET_ID с точным воссозданием форматирования.
+    Фиксирует статус выгрузки каждой смены в БД.
     """
     if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
         print("Синхронизация с Google Таблицами пропущена: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
-        return
+        return {"success": False, "error": "Не задан GOOGLE_SPREADSHEET_ID", "synced_count": 0, "sheet_url": ""}
     
     from sqlalchemy.orm import selectinload
     service = get_sheets_service()
@@ -178,7 +201,7 @@ def sync_report_to_google_sheets(db: Session):
     headers = [
         "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта", "Назначение (Экспорт)",
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
-        "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы наката",
+        "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы листов",
         "Слив асб. (кг)", "Слив цем. (кг)",
         "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
         "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
@@ -344,21 +367,7 @@ def sync_report_to_google_sheets(db: Session):
         
     sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
-    # Полная очистка диапазона перед записью новых данных, чтобы гарантированно стереть старые хвосты и дубли
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1:ZZ5000"
-    ).execute()
-    
-    # Записываем шапку и все строки данных разом
-    service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1",
-        valueInputOption="USER_ENTERED",
-        body={"values": rows_data}
-    ).execute()
-    
-    # 3. Обновляем форматирование, автофильтр и закрепление шапки
+    # 3. Формируем запросы форматирования, автофильтра и закрепления шапки
     total_rows = len(rows_data)
     requests = []
 
@@ -513,16 +522,64 @@ def sync_report_to_google_sheets(db: Session):
         }
     })
     
-    if requests:
-        try:
-            body = {"requests": requests}
-            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-        except Exception as e:
-            print(f"Warning executing batch styling on {sheet_name}: {e}")
+    def execute_api_calls():
+        # 1. Полная очистка диапазона перед записью новых данных
+        service.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1:ZZ5000"
+        ).execute()
+        
+        # 2. Записываем шапку и все строки данных разом
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
+        
+        # 3. Применяем форматирование
+        if requests:
+            try:
+                body = {"requests": requests}
+                service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            except Exception as e:
+                print(f"Warning executing batch styling on {sheet_name}: {e}")
 
-    # Устанавливаем автофильтр безопасным способом
-    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
-    print("Синхронизация отчета с Google Таблицами выполнена успешно.")
+        # 4. Устанавливаем автофильтр безопасным способом
+        safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
+
+    try:
+        retry_google_api(execute_api_calls)
+        
+        # Обновляем статус успешной синхронизации для всех выгруженных смен
+        now_utc = datetime.utcnow()
+        for s in shifts:
+            s.google_synced = True
+            s.google_synced_at = now_utc
+            s.google_sync_error = None
+        db.commit()
+        
+        sheet_url = get_google_sheet_bottom_url(db, sheet_type="summary")
+        print(f"Синхронизация отчета с Google Таблицами выполнена успешно ({len(shifts)} смен).")
+        return {
+            "success": True,
+            "synced_count": len(shifts),
+            "sheet_url": sheet_url,
+            "error": None
+        }
+    except Exception as e:
+        err_msg = str(e)
+        print(f"Ошибка выгрузки отчета в Google Sheets: {err_msg}")
+        if target_shift_id:
+            ts = db.query(models.Shift).filter(models.Shift.id == target_shift_id).first()
+            if ts:
+                ts.google_synced = False
+                ts.google_sync_error = err_msg
+                try:
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        raise e
 
 
 def export_norms_to_google_sheets(db: Session):

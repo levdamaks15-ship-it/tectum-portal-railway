@@ -23,6 +23,9 @@ class Shift(Base):
     batch_number = Column(String, default="", nullable=True)
     product_name = Column(String, default="", nullable=True)
     export_type = Column(String(50), default="Эталон", nullable=True)
+    google_synced = Column(Boolean, default=False, nullable=False)
+    google_synced_at = Column(DateTime, nullable=True)
+    google_sync_error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     # План

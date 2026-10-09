@@ -1443,6 +1443,10 @@ async function submitShiftReport() {
         });
         
         if (res.ok) {
+            const resData = await res.json().catch(() => ({}));
+            const savedShiftId = resData.shift_id || window.editingShiftId;
+            window.lastSavedShiftId = savedShiftId;
+
             clearReportDraft();
             saveLastLineAndShift(data.line, data.shift_name);
             
@@ -1450,6 +1454,14 @@ async function submitShiftReport() {
                 cancelReportEdit();
             }
             
+            // Заполняем карточку подтверждения
+            const successBatchEl = document.getElementById('success-batch-no');
+            const successShiftEl = document.getElementById('success-shift-info');
+            const successDbStatus = document.getElementById('success-db-status');
+            if (successBatchEl) successBatchEl.textContent = data.batch_number ? `№ ${data.batch_number}` : '—';
+            if (successShiftEl) successShiftEl.textContent = `${data.line} | Смена: ${data.shift_name} (${data.date})`;
+            if (successDbStatus) successDbStatus.textContent = `Запись #${savedShiftId} зафиксирована в базе`;
+
             const formContainer = document.getElementById('report-form-container');
             const successScreen = document.getElementById('report-success-screen');
             if (formContainer) formContainer.style.display = 'none';
@@ -1457,7 +1469,12 @@ async function submitShiftReport() {
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
             loadData();
-            showNotification('success', isUpdating ? 'Рапорт обновлен!' : 'Смена отправлена!', isUpdating ? 'Изменения в рапорте смены успешно сохранены.' : 'Данные рапорта смены успешно загружены в облако.');
+            showNotification('success', isUpdating ? 'Рапорт обновлен!' : 'Смена сохранена в БД!', isUpdating ? 'Изменения успешно сохранены в базе.' : 'Данные рапорта смены сохранены в базе Tectum. Проверяем облако...');
+
+            // Запускаем подтверждение выгрузки в Google Таблицы
+            if (savedShiftId) {
+                verifyAndSyncShiftGoogle(savedShiftId);
+            }
         } else {
             const err = await res.json();
             showNotification('error', 'Ошибка сохранения', err.detail || 'Неизвестная ошибка сервера');
@@ -1471,6 +1488,112 @@ async function submitShiftReport() {
         );
     } finally {
         setButtonLoading('btn-submit-shift-report', false);
+    }
+}
+
+async function verifyAndSyncShiftGoogle(shiftId) {
+    const googleStatus = document.getElementById('success-google-status');
+    const googleBadge = document.getElementById('success-google-badge');
+    const googleActions = document.getElementById('success-google-actions');
+    const btnOpenGoogle = document.getElementById('btn-open-google-sheet-success');
+    const btnRetryGoogle = document.getElementById('btn-retry-google-sync-success');
+    const googleIconBox = document.getElementById('success-google-icon-box');
+    const googleIcon = document.getElementById('success-google-icon');
+
+    if (googleStatus) googleStatus.textContent = 'Выполняется синхронизация с Google Таблицами...';
+    if (googleBadge) {
+        googleBadge.innerHTML = `<span style="font-size: 0.8rem; font-weight: 600; color: #2563eb; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...
+        </span>`;
+    }
+    if (googleIconBox) {
+        googleIconBox.style.background = '#eff6ff';
+        googleIconBox.style.color = '#2563eb';
+    }
+    if (googleIcon) {
+        googleIcon.className = 'fa-solid fa-cloud-arrow-up';
+    }
+    if (googleActions) googleActions.style.display = 'none';
+    if (btnRetryGoogle) btnRetryGoogle.style.display = 'none';
+
+    try {
+        const res = await fetch(`/api/shifts/${shiftId}/sync-google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (googleStatus) googleStatus.innerHTML = `<span style="color: #059669; font-weight: 600;">✓ Выгружено в Google Таблицы (${data.google_synced_at || 'сейчас'})</span>`;
+            if (googleBadge) {
+                googleBadge.innerHTML = `<span style="font-size: 0.8rem; font-weight: 700; color: #059669; display: flex; align-items: center; gap: 4px;">
+                    <i class="fa-solid fa-circle-check"></i> Подтверждено
+                </span>`;
+            }
+            if (googleIconBox) {
+                googleIconBox.style.background = '#ecfdf5';
+                googleIconBox.style.color = '#059669';
+            }
+            if (googleIcon) {
+                googleIcon.className = 'fa-solid fa-circle-check';
+            }
+            if (googleActions) googleActions.style.display = 'flex';
+            if (btnOpenGoogle) {
+                btnOpenGoogle.style.display = 'inline-flex';
+                btnOpenGoogle.href = data.sheet_url || 'https://docs.google.com/spreadsheets/d/1B7j7eO4bA3h_n2j9u8V6p3rL_EXAMPLE';
+            }
+            if (btnRetryGoogle) btnRetryGoogle.style.display = 'none';
+            
+            showNotification('success', 'Облако подтверждено!', 'Данные смены успешно записаны в Google Таблицу.');
+            loadData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Не удалось записать данные в Google Таблицы');
+        }
+    } catch (e) {
+        console.error('Google sync error:', e);
+        if (googleStatus) googleStatus.innerHTML = `<span style="color: #dc2626; font-weight: 600;">Сбой выгрузки: ${e.message}</span>`;
+        if (googleBadge) {
+            googleBadge.innerHTML = `<span style="font-size: 0.8rem; font-weight: 700; color: #dc2626; display: flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Сбой
+            </span>`;
+        }
+        if (googleIconBox) {
+            googleIconBox.style.background = '#fef2f2';
+            googleIconBox.style.color = '#dc2626';
+        }
+        if (googleIcon) {
+            googleIcon.className = 'fa-solid fa-cloud-arrow-up';
+        }
+        if (googleActions) googleActions.style.display = 'flex';
+        if (btnOpenGoogle) btnOpenGoogle.style.display = 'none';
+        if (btnRetryGoogle) {
+            btnRetryGoogle.style.display = 'inline-flex';
+        }
+        showNotification('warning', 'Внимание: Облако не обновилось', `Рапорт сохранен в базе Tectum, но выгрузка в Google дала сбой (${e.message}). Нажмите кнопку «Повторить выгрузку».`);
+    }
+}
+
+function retryCurrentShiftGoogleSync() {
+    if (window.lastSavedShiftId) {
+        verifyAndSyncShiftGoogle(window.lastSavedShiftId);
+    }
+}
+
+async function retryShiftGoogleSync(shiftId) {
+    showNotification('info', 'Синхронизация...', `Выполняется выгрузка смены #${shiftId} в Google Таблицы...`);
+    try {
+        const res = await fetch(`/api/shifts/${shiftId}/sync-google`, { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            showNotification('success', 'Успешно!', `Смена #${shiftId} выгружена в Google Таблицы.`);
+            loadData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showNotification('error', 'Ошибка выгрузки', err.detail || 'Не удалось выгрузить смену');
+        }
+    } catch(e) {
+        showNotification('error', 'Сбой связи', e.message || 'Ошибка сети');
     }
 }
 
@@ -1822,10 +1945,17 @@ function renderSummaryTable(rows) {
             `;
         }
 
+        let cloudSyncBadge = '';
+        if (r.google_synced) {
+            cloudSyncBadge = `<span title="Синхронизировано в Google Таблицы (${r.google_synced_at || 'Да'})" onclick="openGoogleSheetBottom()" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; background: #ecfdf5; color: #059669; font-size: 0.7rem; cursor: pointer; margin-left: 5px;"><i class="fa-solid fa-cloud-check"></i></span>`;
+        } else {
+            cloudSyncBadge = `<span title="${r.google_sync_error ? 'Ошибка: ' + r.google_sync_error + ' (Нажмите для повтора)' : 'Не выгружено в Google (Нажмите для выгрузки)'}" onclick="retryShiftGoogleSync(${r.shift_id})" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; background: #fef2f2; color: #dc2626; font-size: 0.7rem; cursor: pointer; margin-left: 5px;"><i class="fa-solid fa-cloud-arrow-up"></i></span>`;
+        }
+
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--glass-border);">
                 <td style="white-space: nowrap;">${actionCell}</td>
-                <td>${r.date}</td>
+                <td style="white-space: nowrap;">${r.date} ${cloudSyncBadge}</td>
                 <td>${r.batch_number}</td>
                 <td>${r.line}</td>
                 <td>${r.shift_name}</td>

@@ -85,7 +85,17 @@ async def lifespan(app: FastAPI):
             import sqlite3
             try:
                 conn = sqlite3.connect("tectum.db")
-                conn.execute("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;")
+                try:
+                    conn.execute("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;")
+                except: pass
+                for col_name, col_def in [
+                    ("google_synced", "BOOLEAN DEFAULT 0"),
+                    ("google_synced_at", "TIMESTAMP"),
+                    ("google_sync_error", "TEXT")
+                ]:
+                    try:
+                        conn.execute(f"ALTER TABLE shifts ADD COLUMN {col_name} {col_def};")
+                    except: pass
                 conn.commit()
                 conn.close()
             except: pass
@@ -98,6 +108,9 @@ async def lifespan(app: FastAPI):
                 if driver == 'postgresql':
                     db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_category_id ON documents (category_id);"))
                     db.execute(text("CREATE INDEX IF NOT EXISTS idx_doc_categories_parent_id ON document_categories (parent_id);"))
+                    db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_synced BOOLEAN DEFAULT FALSE;"))
+                    db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_synced_at TIMESTAMP;"))
+                    db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_sync_error TEXT;"))
                     db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
                     db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
                     db.commit()

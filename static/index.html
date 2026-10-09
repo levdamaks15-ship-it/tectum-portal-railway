@@ -607,7 +607,7 @@
                                         oninput="recalcTonsAndGrades()">
                                 </div>
                                 <div class="form-group">
-                                    <label>Сбросов наката (шт) [ЛФМ]</label>
+                                    <label>Сбросов листов (шт) [ЛФМ]</label>
                                     <input type="number" id="rep-resets" placeholder="0">
                                 </div>
                                 <div class="form-group">
@@ -1380,20 +1380,68 @@
 
                 </div>
 
-                <!-- Microsoft Forms-style Success Screen -->
+                <!-- Interactive 2-Stage Verification Success Screen -->
                 <div id="report-success-screen" class="glass-panel"
-                    style="display: none; max-width: 600px; margin: 3rem auto; text-align: center; padding: 3rem 2rem; border-radius: 16px;">
-                    <div
-                        style="width: 80px; height: 80px; background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-                        <span style="font-size: 3rem; color: #22c55e;">✓</span>
+                    style="display: none; max-width: 620px; margin: 2.5rem auto; text-align: center; padding: 2.5rem 2rem; border-radius: 20px; box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);">
+                    <div id="report-success-icon-wrap"
+                        style="width: 72px; height: 72px; background: rgba(34, 197, 94, 0.15); border: 2px solid #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto;">
+                        <i id="report-success-icon" class="fa-solid fa-check" style="font-size: 2.2rem; color: #16a34a;"></i>
                     </div>
-                    <h2 style="margin-bottom: 1rem; color: var(--text-primary);">Рапорт успешно сохранен!</h2>
-                    <p
-                        style="color: var(--text-secondary); margin-bottom: 2.5rem; font-size: 1.1rem; line-height: 1.5;">
-                        Данные смены успешно отправлены в базу данных и синхронизированы с облаком.
+                    <h2 id="report-success-title" style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 1.6rem; font-weight: 800;">Рапорт успешно сохранен!</h2>
+                    <p id="report-success-meta" style="color: var(--text-secondary); margin-bottom: 1.75rem; font-size: 0.95rem;">
+                        Партия: <strong id="success-batch-no">—</strong> | Смена: <strong id="success-shift-info">—</strong>
                     </p>
+
+                    <!-- 2-Step Verification Card -->
+                    <div style="background: #f8fafc; border: 1px solid var(--stripe-border); border-radius: 14px; padding: 1.25rem; margin-bottom: 2rem; text-align: left; display: flex; flex-direction: column; gap: 12px;">
+                        
+                        <!-- Step 1: Database -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.8rem; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1rem;">
+                                    <i class="fa-solid fa-database"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.88rem; font-weight: 700; color: #0f172a;">1. База данных Tectum</div>
+                                    <div style="font-size: 0.75rem; color: #64748b;" id="success-db-status">Запись зафиксирована в реестре</div>
+                                </div>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #059669; display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-circle-check"></i> Сохранено
+                            </span>
+                        </div>
+
+                        <!-- Step 2: Google Cloud Sheets -->
+                        <div id="success-google-step" style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.8rem; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0; transition: all 0.3s ease;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div id="success-google-icon-box" style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1rem;">
+                                    <i id="success-google-icon" class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.88rem; font-weight: 700; color: #0f172a;">2. Google Таблицы (Облако)</div>
+                                    <div style="font-size: 0.75rem; color: #64748b;" id="success-google-status">Выполняется синхронизация...</div>
+                                </div>
+                            </div>
+                            <div id="success-google-badge">
+                                <span style="font-size: 0.8rem; font-weight: 600; color: #2563eb; display: flex; align-items: center; gap: 6px;">
+                                    <i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Action / Direct link container for Google Sheet -->
+                        <div id="success-google-actions" style="display: none; padding-top: 4px; gap: 10px; flex-wrap: wrap;">
+                            <a id="btn-open-google-sheet-success" href="#" target="_blank" class="btn-secondary" style="flex: 1; text-align: center; text-decoration: none; font-size: 0.85rem; padding: 0.55rem 1rem; border-radius: 8px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600;">
+                                <i class="fa-solid fa-table"></i> Открыть в Google Таблицах
+                            </a>
+                            <button id="btn-retry-google-sync-success" onclick="retryCurrentShiftGoogleSync()" class="btn-primary" style="display: none; flex: 1; font-size: 0.85rem; padding: 0.55rem 1rem; border-radius: 8px; background: #ef4444; border: 1px solid #dc2626; color: #fff; align-items: center; justify-content: center; gap: 6px; font-weight: 600;">
+                                <i class="fa-solid fa-rotate"></i> Повторить выгрузку
+                            </button>
+                        </div>
+                    </div>
+
                     <button onclick="showNewReportForm()" class="btn-submit-huge"
-                        style="font-size: 1.1rem; padding: 1rem 2.5rem; border-radius: 8px; width: auto; max-width: 320px; display: inline-block;">
+                        style="font-size: 1.05rem; padding: 0.9rem 2.2rem; border-radius: 10px; width: auto; max-width: 320px; display: inline-block;">
                         📝 Заполнить еще один рапорт
                     </button>
                 </div>
@@ -1501,7 +1549,7 @@
                                     <th>На склад<br>(ГП)</th>
                                     <th>1 Сорт</th>
                                     <th>Брак</th>
-                                    <th>Сбросы<br>наката</th>
+                                    <th>Сбросы<br>листов</th>
                                     <th>Слив<br>асб. (кг)</th>
                                     <th>Слив<br>цем. (кг)</th>
                                     <th>Расход<br>асб. 4-20 (кг)</th>
