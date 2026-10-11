@@ -3075,6 +3075,12 @@ function startDirectVoiceTyping(targetInputId, lang, btnId) {
             activeSpeechRecognition = null;
 
             // Чистая надиктовка завершена без искажений текста
+            const curVal = (targetInput.value || '').trim();
+            if (!curVal) {
+                // Если пользователь стёр текст — ничего не переводим
+                return;
+            }
+
             // Запускаем фоновый автоперевод в соседнюю колонку
             const scope = targetInputId.startsWith('edit-') ? 'edit' : 'journal';
             const sourceLang = (lang && lang.startsWith('kk')) ? 'kz' : 'ru';
@@ -3096,7 +3102,9 @@ function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
     return startDirectVoiceTyping(targetInputId, lang, btnId);
 }
 
-function debounceDowntimeTranslate(scope, sourceLang, delay = 600) {
+let downtimeTranslateSeq = 0;
+
+function debounceDowntimeTranslate(scope, sourceLang, delay = 500) {
     if (downtimeTranslateDebounceTimer) {
         clearTimeout(downtimeTranslateDebounceTimer);
     }
@@ -3115,39 +3123,63 @@ async function autoTranslateDowntimeFields(scope, sourceLang = null) {
     const ruText = (ruInput.value || '').trim();
     const kzText = (kzInput.value || '').trim();
 
+    // Защита от обратного восстановления удаленного текста:
+    // Если пользователь стёр текст в поле, которое он редактировал, синхронно очищаем противоположное поле
+    // и категорически НЕ восстанавливаем стёртый текст!
+    if (sourceLang === 'ru' && !ruText) {
+        downtimeTranslateSeq++;
+        kzInput.value = '';
+        return;
+    }
+    if (sourceLang === 'kz' && !kzText) {
+        downtimeTranslateSeq++;
+        ruInput.value = '';
+        return;
+    }
+
     let textToSend = '';
     let sendLang = 'auto';
     let targetInput = null;
     let targetProp = '';
+    let sourceInput = null;
 
-    if (sourceLang === 'kz' && kzText) {
+    if (sourceLang === 'kz') {
+        if (!kzText) return;
+        sourceInput = kzInput;
         textToSend = kzText;
         sendLang = 'kk';
         targetInput = ruInput;
         targetProp = 'text_ru';
-    } else if (sourceLang === 'ru' && ruText) {
-        textToSend = ruText;
-        sendLang = 'ru';
-        targetInput = kzInput;
-        targetProp = 'text_kz';
-    } else if (ruText && !kzText) {
-        textToSend = ruText;
-        sendLang = 'ru';
-        targetInput = kzInput;
-        targetProp = 'text_kz';
-    } else if (kzText && !ruText) {
-        textToSend = kzText;
-        sendLang = 'kk';
-        targetInput = ruInput;
-        targetProp = 'text_ru';
-    } else if (ruText) {
+    } else if (sourceLang === 'ru') {
+        if (!ruText) return;
+        sourceInput = ruInput;
         textToSend = ruText;
         sendLang = 'ru';
         targetInput = kzInput;
         targetProp = 'text_kz';
     } else {
-        return;
+        // Явный клик по кнопке «Автоперевод RU ⇄ KZ»
+        if (ruText) {
+            sourceInput = ruInput;
+            textToSend = ruText;
+            sendLang = 'ru';
+            targetInput = kzInput;
+            targetProp = 'text_kz';
+        } else if (kzText) {
+            sourceInput = kzInput;
+            textToSend = kzText;
+            sendLang = 'kk';
+            targetInput = ruInput;
+            targetProp = 'text_ru';
+        } else {
+            return;
+        }
     }
+
+    if (!textToSend || !targetInput) return;
+
+    const currentSeq = ++downtimeTranslateSeq;
+    const sourceSnapshot = (sourceInput ? sourceInput.value : '').trim();
 
     try {
         const res = await fetch('/api/downtimes/translate', {
@@ -3158,6 +3190,14 @@ async function autoTranslateDowntimeFields(scope, sourceLang = null) {
                 source_lang: sendLang
             })
         });
+
+        // Защита от гонки запросов: если пока шёл запрос, текст был удален или изменен — отменяем запись
+        if (currentSeq !== downtimeTranslateSeq) {
+            return;
+        }
+        if (sourceInput && sourceInput.value.trim() !== sourceSnapshot) {
+            return;
+        }
 
         if (res.ok) {
             const data = await res.json();
