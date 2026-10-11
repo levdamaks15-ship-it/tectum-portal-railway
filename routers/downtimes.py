@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import base64
@@ -6,7 +7,7 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 
@@ -755,4 +756,71 @@ async def transcribe_voice_downtime(file: UploadFile = File(...)):
         status_code=503,
         detail=f"Не удалось распознать голосовое сообщение ({last_err}). Пожалуйста, повторите попытку или введите текст вручную."
     )
+
+
+FACTORY_TERM_CORRECTIONS = [
+    # Гауч-вал и его склонения / созвучия
+    (r"\bзамен[а-я]*\s+гауч[ -]?то\b", "замену гауч-вала"),
+    (r"\bгауч[ -]?то\b", "гауч-вал"),
+    (r"\bгаучто\b", "гауч-вал"),
+    (r"\bгауч\s+вал\b", "гауч-вал"),
+    (r"\bгауч\s+вала\b", "гауч-вала"),
+    (r"\bгауч\s+валу\b", "гауч-валу"),
+    (r"\bгауч\s+валом\b", "гауч-валом"),
+    (r"\bгауч\s+вале\b", "гауч-вале"),
+    (r"\bгаучвал", "гауч-вал"),
+    # Узлы и агрегаты завода
+    (r"\bстакир", "стакер"),
+    (r"\bдистакер", "дестакер"),
+    (r"\bвакум[ -]?коробк", "вакуум-коробк"),
+    (r"\bрекупиратор", "рекуператор"),
+    (r"\bбракомешалк", "бракомешалка"),
+    (r"\bтрансбордер", "трансбордер"),
+]
+
+
+def correct_factory_terms(text: str) -> str:
+    """Исправляет искажения специализированных цеховых терминов."""
+    if not text:
+        return text
+    result = text
+    for pattern, replacement in FACTORY_TERM_CORRECTIONS:
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+    return result
+
+
+@router.post("/api/downtimes/normalize-and-translate")
+def normalize_and_translate_downtime_text(payload: dict = Body(...)):
+    """
+    Нормализует заводские термины (например: гаучто -> гауч-вал)
+    и при необходимости переводит с казахского языка на русский через движок Планнера.
+    """
+    from routers.planner import detect_and_translate_task_text
+
+    raw_text = (payload.get("text", "") if isinstance(payload, dict) else str(payload)).strip()
+    source_lang = (payload.get("source_lang", "auto") if isinstance(payload, dict) else "auto").strip().lower()
+
+    if not raw_text:
+        return {"status": "ok", "text": "", "detected_lang": "ru"}
+
+    # 1. Первичная нормализация терминов
+    corrected_raw = correct_factory_terms(raw_text)
+
+    # 2. Определение языка и перевод через движок Планнера
+    forced_source = "kk" if source_lang in ("kk", "kk-kz", "kz") else (None if source_lang == "auto" else source_lang)
+    trans_res = detect_and_translate_task_text(corrected_raw, forced_source=forced_source)
+
+    # 3. Итоговый текст на русском языке (для сменного рапорта)
+    final_text = trans_res.get("text_ru") or corrected_raw
+
+    # 4. Повторная нормализация терминов после перевода
+    final_text = correct_factory_terms(final_text)
+
+    return {
+        "status": "ok",
+        "text": final_text,
+        "original": raw_text,
+        "detected_lang": trans_res.get("detected_lang", "ru")
+    }
+
 

@@ -2950,6 +2950,152 @@ async function submitEditDowntime() {
 }
 
 // ----------------------------------------------------
+// BROWSER SPEECH RECOGNITION (WEB SPEECH API) WITH AUTO-TRANSLATE
+// ----------------------------------------------------
+let activeSpeechRecognition = null;
+let activeSpeechBtnId = null;
+let activeSpeechTargetId = null;
+let activeSpeechLang = 'ru-RU';
+let activeSpeechInterim = '';
+
+function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
+    const btn = document.getElementById(btnId);
+    const targetInput = document.getElementById(targetInputId);
+    if (!btn || !targetInput) return;
+
+    // Если сейчас слушаем по этой же кнопке — останавливаем
+    if (activeSpeechRecognition && activeSpeechBtnId === btnId) {
+        activeSpeechRecognition.stop();
+        return;
+    }
+
+    // Если слушаем по другой кнопке — останавливаем предыдущую
+    if (activeSpeechRecognition) {
+        try { activeSpeechRecognition.abort(); } catch(e) {}
+        resetSpeechBtn(document.getElementById(activeSpeechBtnId));
+        activeSpeechRecognition = null;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        // Фоллбэк: если Web Speech не поддерживается браузером, запускаем запись аудио
+        showNotification('info', 'Голосовой ввод', 'Используется альтернативная запись аудио...');
+        return toggleDowntimeVoiceRecording(targetInputId, btnId);
+    }
+
+    try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = lang || 'ru-RU';
+        recognition.continuous = false; // останавливается, когда мастер делает естественную паузу
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        activeSpeechRecognition = recognition;
+        activeSpeechBtnId = btnId;
+        activeSpeechTargetId = targetInputId;
+        activeSpeechLang = lang;
+        activeSpeechInterim = '';
+
+        // Сохраняем исходное значение поля до начала диктовки
+        const existingVal = (targetInput.value || '').trim();
+
+        // Оформление кнопки во время прослушивания
+        btn.dataset.origHtml = btn.innerHTML;
+        btn.style.background = '#fee2e2';
+        btn.style.borderColor = '#ef4444';
+        btn.style.color = '#b91c1c';
+        const flag = (lang && lang.startsWith('kk')) ? '🇰🇿' : '🇷🇺';
+        btn.innerHTML = `<i class="fa-solid fa-circle" style="color: #ef4444; font-size: 0.65rem; animation: pulse 1s infinite;"></i> <span>${flag} Слушаю...</span>`;
+
+        recognition.onresult = (event) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            const currentSpeech = finalTranscript || interimTranscript;
+            if (currentSpeech) {
+                activeSpeechInterim = currentSpeech.trim();
+                // Отображаем на лету в поле ввода
+                targetInput.value = existingVal ? `${existingVal} ${activeSpeechInterim}` : activeSpeechInterim;
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.warn("Speech recognition error:", event.error);
+            if (event.error === 'not-allowed') {
+                showNotification('error', 'Доступ к микрофону', 'Разрешите доступ к микрофону в настройках браузера.');
+            } else if (event.error === 'no-speech') {
+                showNotification('warning', 'Голос не распознан', 'Речь не обнаружена. Попробуйте нажать и сказать снова.');
+            }
+        };
+
+        recognition.onend = async () => {
+            resetSpeechBtn(btn);
+            activeSpeechRecognition = null;
+
+            const textToProcess = activeSpeechInterim.trim();
+            if (!textToProcess) return;
+
+            // Показываем индикатор быстрой нормализации/перевода
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Перевод...</span>`;
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/downtimes/normalize-and-translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: textToProcess,
+                        source_lang: (lang && lang.startsWith('kk')) ? 'kk' : 'ru'
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    const cleanText = (data.text || textToProcess).trim();
+                    if (cleanText) {
+                        targetInput.value = existingVal ? `${existingVal} ${cleanText}` : cleanText;
+                        if (typeof onDowntimeTextChange === 'function') {
+                            onDowntimeTextChange();
+                        }
+                        showNotification('success', 'Готово', (lang && lang.startsWith('kk')) ? 'Текст переведен с казахского на русский.' : 'Текст распознан и выправлен.');
+                    }
+                }
+            } catch (err) {
+                console.error("Normalize and translate error:", err);
+            } finally {
+                resetSpeechBtn(btn);
+            }
+        };
+
+        recognition.start();
+
+    } catch (e) {
+        console.error("Start speech error:", e);
+        resetSpeechBtn(btn);
+        showNotification('error', 'Ошибка микрофона', 'Не удалось запустить распознавание.');
+    }
+}
+
+function resetSpeechBtn(btn) {
+    if (!btn) return;
+    if (btn.dataset.origHtml) {
+        btn.innerHTML = btn.dataset.origHtml;
+    }
+    btn.disabled = false;
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+}
+
+// ----------------------------------------------------
 // DOWNTIME VOICE DICTATION & TRANSCRIBING (KZ / RU)
 // ----------------------------------------------------
 let dtVoiceMediaRecorder = null;
