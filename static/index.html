@@ -1742,32 +1742,53 @@
                         </div>
                     </div>
 
-                    <!-- Section 2: Description -->
+                    <!-- Section 2: Bilingual Description (RU + KZ) -->
                     <div style="margin-bottom: 1.25rem;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 6px;">
                             <label
                                 style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin: 0;">
-                                2. Что произошло / Что делали *
+                                2. Что произошло / Сипаттамасы *
                             </label>
-                            <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                <button type="button" id="btn-speech-ru-journal" onclick="toggleWebSpeechRecognition('journal-dt-desc', 'ru-RU', 'btn-speech-ru-journal')"
-                                    style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
-                                    title="Надиктовать на русском">
-                                    <i class="fa-solid fa-microphone" style="color: #10b981;"></i>
-                                    <span class="speech-btn-label">🎙️ РУС</span>
-                                </button>
-                                <button type="button" id="btn-speech-kz-journal" onclick="toggleWebSpeechRecognition('journal-dt-desc', 'kk-KZ', 'btn-speech-kz-journal')"
-                                    style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
-                                    title="Қазақша надиктовать (автоперевод на русский)">
-                                    <i class="fa-solid fa-microphone" style="color: #2563eb;"></i>
-                                    <span class="speech-btn-label">🎙️ ҚАЗ</span>
-                                </button>
+                            <button type="button" onclick="autoTranslateDowntimeFields('journal')"
+                                style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s ease;"
+                                title="Перевести между RU и KZ">
+                                <i class="fa-solid fa-arrows-rotate"></i> <span>Автоперевод RU ⇄ KZ</span>
+                            </button>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem;">
+                            <!-- Column 1: Russian -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <span style="font-size: 0.75rem; color: #475569; font-weight: 600;">🇷🇺 На русском</span>
+                                    <button type="button" id="btn-dt-speech-ru" onclick="startDirectVoiceTyping('journal-dt-desc', 'ru-RU', 'btn-dt-speech-ru')"
+                                        style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                                        title="Надиктовать на русском голосом">
+                                        <i class="fa-solid fa-microphone" style="color: #10b981;"></i> <span>🎙️ РУС</span>
+                                    </button>
+                                </div>
+                                <textarea id="journal-dt-desc" rows="3"
+                                    placeholder="Остановка стакера, замена ножей..."
+                                    oninput="onDowntimeTextChange(); debounceDowntimeTranslate('journal', 'ru');"
+                                    style="width: 100%; padding: 0.65rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.92rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
+                            </div>
+
+                            <!-- Column 2: Kazakh -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                                    <span style="font-size: 0.75rem; color: #1d4ed8; font-weight: 600;">🇰🇿 Қазақша</span>
+                                    <button type="button" id="btn-dt-speech-kz" onclick="startDirectVoiceTyping('journal-dt-desc-kz', 'kk-KZ', 'btn-dt-speech-kz')"
+                                        style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                                        title="Қазақша дауыспен надиктовать">
+                                        <i class="fa-solid fa-microphone" style="color: #2563eb;"></i> <span>🎙️ ҚАЗ</span>
+                                    </button>
+                                </div>
+                                <textarea id="journal-dt-desc-kz" rows="3"
+                                    placeholder="Стакер тоқтап қалды, пышақтарын ауыстыру..."
+                                    oninput="debounceDowntimeTranslate('journal', 'kz');"
+                                    style="width: 100%; padding: 0.65rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.92rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
                             </div>
                         </div>
-                        <textarea id="journal-dt-desc" rows="3"
-                            placeholder="Например: Замена ножей, чистка кармана и рекуператора, устранение затора..."
-                            oninput="onDowntimeTextChange()"
-                            style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.95rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
                     </div>
 
                     <!-- Section 3: Time Interval & Duration -->
@@ -2217,24 +2238,47 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 6px;">
                 <label
                     style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; margin: 0;">Описание
-                    поломки / работ</label>
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                    <button type="button" id="btn-speech-ru-edit" onclick="toggleWebSpeechRecognition('edit-dt-desc', 'ru-RU', 'btn-speech-ru-edit')"
-                        style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
-                        title="Надиктовать на русском">
-                        <i class="fa-solid fa-microphone" style="color: #4ade80;"></i>
-                        <span class="speech-btn-label">🎙️ РУС</span>
-                    </button>
-                    <button type="button" id="btn-speech-kz-edit" onclick="toggleWebSpeechRecognition('edit-dt-desc', 'kk-KZ', 'btn-speech-kz-edit')"
-                        style="background: rgba(37,99,235,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
-                        title="Қазақша надиктовать (автоперевод на русский)">
-                        <i class="fa-solid fa-microphone" style="color: #60a5fa;"></i>
-                        <span class="speech-btn-label">🎙️ ҚАЗ</span>
-                    </button>
+                    поломки / Сипаттамасы</label>
+                <button type="button" onclick="autoTranslateDowntimeFields('edit')"
+                    style="background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #4ade80; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                    title="Перевести между RU и KZ">
+                    <i class="fa-solid fa-arrows-rotate"></i> <span>Автоперевод RU ⇄ KZ</span>
+                </button>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                <!-- Column 1: Russian -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.75rem; color: #cbd5e1; font-weight: 600;">🇷🇺 На русском</span>
+                        <button type="button" id="btn-edit-speech-ru" onclick="startDirectVoiceTyping('edit-dt-desc', 'ru-RU', 'btn-edit-speech-ru')"
+                            style="background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #cbd5e1; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                            title="Надиктовать на русском">
+                            <i class="fa-solid fa-microphone" style="color: #4ade80;"></i> <span>🎙️ РУС</span>
+                        </button>
+                    </div>
+                    <textarea id="edit-dt-desc" rows="3"
+                        placeholder="Остановка стакера, замена ножей..."
+                        oninput="debounceDowntimeTranslate('edit', 'ru');"
+                        style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical; box-sizing: border-box;"></textarea>
+                </div>
+
+                <!-- Column 2: Kazakh -->
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-size: 0.75rem; color: #93c5fd; font-weight: 600;">🇰🇿 Қазақша</span>
+                        <button type="button" id="btn-edit-speech-kz" onclick="startDirectVoiceTyping('edit-dt-desc-kz', 'kk-KZ', 'btn-edit-speech-kz')"
+                            style="background: rgba(37,99,235,0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; padding: 2px 7px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                            title="Қазақша надиктовать">
+                            <i class="fa-solid fa-microphone" style="color: #60a5fa;"></i> <span>🎙️ ҚАЗ</span>
+                        </button>
+                    </div>
+                    <textarea id="edit-dt-desc-kz" rows="3"
+                        placeholder="Стакер тоқтап қалды, пышақтарын ауыстыру..."
+                        oninput="debounceDowntimeTranslate('edit', 'kz');"
+                        style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical; box-sizing: border-box;"></textarea>
                 </div>
             </div>
-            <textarea id="edit-dt-desc" rows="3"
-                style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); font-size: 0.9rem; resize: vertical;"></textarea>
         </div>
         <div
             style="margin-bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; align-items: end;">

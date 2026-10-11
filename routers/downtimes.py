@@ -221,6 +221,7 @@ def create_autonomous_downtime(data: schemas.DowntimeCreate, background_tasks: B
     status = "resolved" if data.end_time else "pending"
     
     desc_text = (data.description or data.comment or "").strip()
+    desc_kz_text = (data.description_kz or "").strip()
     category_val = data.category or ""
     node_val = data.node or ""
     dept_val = data.department or ""
@@ -232,6 +233,7 @@ def create_autonomous_downtime(data: schemas.DowntimeCreate, background_tasks: B
 
     dt_data = data.model_dump(exclude={"status", "category", "node", "department", "is_equipment_downtime", "date", "shift_name", "line", "master_id", "actual_date"})
     dt_data["description"] = desc_text
+    dt_data["description_kz"] = desc_kz_text
     dt_data["comment"] = data.comment or desc_text
     dt_data["category"] = category_val
     dt_data["node"] = node_val
@@ -420,6 +422,8 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     dt.start_time = data.start_time
     dt.end_time = data.end_time
     dt.description = desc_text
+    if data.description_kz is not None:
+        dt.description_kz = data.description_kz.strip()
     dt.comment = data.comment or desc_text
     dt.category = category_val
     dt.department = dept_val
@@ -758,42 +762,10 @@ async def transcribe_voice_downtime(file: UploadFile = File(...)):
     )
 
 
-FACTORY_TERM_CORRECTIONS = [
-    # Гауч-вал и его склонения / созвучия
-    (r"\bзамен[а-я]*\s+гауч[ -]?то\b", "замену гауч-вала"),
-    (r"\bгауч[ -]?то\b", "гауч-вал"),
-    (r"\bгаучто\b", "гауч-вал"),
-    (r"\bгауч\s+вал\b", "гауч-вал"),
-    (r"\bгауч\s+вала\b", "гауч-вала"),
-    (r"\bгауч\s+валу\b", "гауч-валу"),
-    (r"\bгауч\s+валом\b", "гауч-валом"),
-    (r"\bгауч\s+вале\b", "гауч-вале"),
-    (r"\bгаучвал", "гауч-вал"),
-    # Узлы и агрегаты завода
-    (r"\bстакир", "стакер"),
-    (r"\bдистакер", "дестакер"),
-    (r"\bвакум[ -]?коробк", "вакуум-коробк"),
-    (r"\bрекупиратор", "рекуператор"),
-    (r"\bбракомешалк", "бракомешалка"),
-    (r"\bтрансбордер", "трансбордер"),
-]
-
-
-def correct_factory_terms(text: str) -> str:
-    """Исправляет искажения специализированных цеховых терминов."""
-    if not text:
-        return text
-    result = text
-    for pattern, replacement in FACTORY_TERM_CORRECTIONS:
-        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
-    return result
-
-
-@router.post("/api/downtimes/normalize-and-translate")
-def normalize_and_translate_downtime_text(payload: dict = Body(...)):
+@router.post("/api/downtimes/translate")
+def translate_downtime_text(payload: dict = Body(...)):
     """
-    Нормализует заводские термины (например: гаучто -> гауч-вал)
-    и при необходимости переводит с казахского языка на русский через движок Планнера.
+    Чистый двусторонний перевод RU <-> KZ через проверенный движок Планнера без изменения текста.
     """
     from routers.planner import detect_and_translate_task_text
 
@@ -801,26 +773,15 @@ def normalize_and_translate_downtime_text(payload: dict = Body(...)):
     source_lang = (payload.get("source_lang", "auto") if isinstance(payload, dict) else "auto").strip().lower()
 
     if not raw_text:
-        return {"status": "ok", "text": "", "detected_lang": "ru"}
+        return {"status": "ok", "text_ru": "", "text_kz": "", "detected_lang": "ru"}
 
-    # 1. Первичная нормализация терминов
-    corrected_raw = correct_factory_terms(raw_text)
-
-    # 2. Определение языка и перевод через движок Планнера
     forced_source = "kk" if source_lang in ("kk", "kk-kz", "kz") else (None if source_lang == "auto" else source_lang)
-    trans_res = detect_and_translate_task_text(corrected_raw, forced_source=forced_source)
+    return detect_and_translate_task_text(raw_text, forced_source=forced_source)
 
-    # 3. Итоговый текст на русском языке (для сменного рапорта)
-    final_text = trans_res.get("text_ru") or corrected_raw
 
-    # 4. Повторная нормализация терминов после перевода
-    final_text = correct_factory_terms(final_text)
+@router.post("/api/downtimes/normalize-and-translate")
+def normalize_and_translate_downtime_text(payload: dict = Body(...)):
+    return translate_downtime_text(payload)
 
-    return {
-        "status": "ok",
-        "text": final_text,
-        "original": raw_text,
-        "detected_lang": trans_res.get("detected_lang", "ru")
-    }
 
 

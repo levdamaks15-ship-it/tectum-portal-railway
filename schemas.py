@@ -143,6 +143,7 @@ class DowntimeBase(ORMBaseModel):
     department: Optional[str] = None
     node: Optional[str] = "Основное оборудование"
     description: Optional[str] = None
+    description_kz: Optional[str] = None
     comment: Optional[str] = None
     media_urls: Optional[str] = None
     status: Optional[str] = "pending"

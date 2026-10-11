@@ -2702,11 +2702,12 @@ function toggleEquipmentStopManual() {
 }
 
 function onDowntimeTextChange() {
-    const desc = document.getElementById('journal-dt-desc')?.value || '';
+    const descRu = document.getElementById('journal-dt-desc')?.value || '';
+    const descKz = document.getElementById('journal-dt-desc-kz')?.value || '';
+    const desc = `${descRu} ${descKz}`.toLowerCase();
     const chk = document.getElementById('journal-dt-is-equipment-stop');
     if (!chk) return;
-    const lower = desc.toLowerCase();
-    if (lower.includes('на ходу') || lower.includes('без остановки') || lower.includes('без простоя')) {
+    if (desc.includes('на ходу') || desc.includes('без остановки') || desc.includes('без простоя') || desc.includes('жүріп жатыр') || desc.includes('тоқтаусыз')) {
         chk.checked = false;
         updateDowntimeToggleUI();
     }
@@ -2737,7 +2738,10 @@ function renderDowntimesTable(shift) {
         const durationStr = mins > 0 ? formatDurationHM(mins) : (d.end_time ? '0:00' : 'В процессе');
         const isEquipment = d.is_equipment_downtime ? '<span style="color: #ef4444; font-weight: 600;">🛑 Да</span>' : '<span style="color: #10b981; font-weight: 600;">🟢 На ходу</span>';
         
-        const desc = d.description || d.comment || '-';
+        let desc = d.description || d.comment || '-';
+        if (d.description_kz && d.description_kz !== d.description) {
+            desc += `<div style="font-size: 0.8rem; color: #2563eb; margin-top: 3px; font-weight: 500;">🇰🇿 ${d.description_kz}</div>`;
+        }
         
         let startDisplay = d.start_time || '-';
         if (d.is_next_day) {
@@ -2790,12 +2794,14 @@ async function addJournalDowntime() {
     const startTime = (document.getElementById('journal-dt-start')?.value || '').trim();
     const endTime = (document.getElementById('journal-dt-end')?.value || '').trim();
     const desc = (document.getElementById('journal-dt-desc')?.value || '').trim();
+    const descKz = (document.getElementById('journal-dt-desc-kz')?.value || '').trim();
     const isEquipmentStop = document.getElementById('journal-dt-is-equipment-stop')?.checked ?? true;
 
-    if (!desc) {
+    if (!desc && !descKz) {
         showNotification('error', 'Ошибка', "Введите описание поломки или выполненных работ!");
         return;
     }
+    const finalDesc = desc || descKz;
     if (!startTime) {
         showNotification('error', 'Ошибка', "Укажите время начала простоя!");
         return;
@@ -2810,8 +2816,9 @@ async function addJournalDowntime() {
         master_id: master_id ? parseInt(master_id) : null,
         start_time: startTime,
         end_time: endTime || null,
-        description: desc,
-        comment: desc,
+        description: finalDesc,
+        description_kz: descKz || null,
+        comment: finalDesc,
         is_equipment_downtime: isEquipmentStop,
         media_urls: null
     };
@@ -2828,6 +2835,8 @@ async function addJournalDowntime() {
             showNotification('success', 'Отлично!', 'Простой успешно зафиксирован в журнале.');
             // Очищаем поля ввода и состояние Flatpickr
             document.getElementById('journal-dt-desc').value = '';
+            const descKzInput = document.getElementById('journal-dt-desc-kz');
+            if (descKzInput) descKzInput.value = '';
             
             const startInput = document.getElementById('journal-dt-start');
             if (startInput?._flatpickr) startInput._flatpickr.clear();
@@ -2881,6 +2890,8 @@ async function openEditDowntimeModal(id) {
         document.getElementById('edit-dt-start').value = d.start_time || '';
         document.getElementById('edit-dt-end').value = d.end_time || '';
         document.getElementById('edit-dt-desc').value = d.description || d.comment || '';
+        const editKz = document.getElementById('edit-dt-desc-kz');
+        if (editKz) editKz.value = d.description_kz || '';
         document.getElementById('edit-dt-is-equipment-stop').checked = d.is_equipment_downtime !== false;
         
         calcEditDowntimeDuration();
@@ -2901,15 +2912,17 @@ async function submitEditDowntime() {
     const startTime = (document.getElementById('edit-dt-start')?.value || '').trim();
     const endTime = (document.getElementById('edit-dt-end')?.value || '').trim();
     const desc = (document.getElementById('edit-dt-desc')?.value || '').trim();
+    const descKz = (document.getElementById('edit-dt-desc-kz')?.value || '').trim();
     const isEquipmentStop = document.getElementById('edit-dt-is-equipment-stop')?.checked ?? true;
 
     if (!id) return;
-    if (!desc) {
-        alert("Введите описание поломки / работ!");
+    if (!desc && !descKz) {
+        showNotification('error', 'Ошибка', "Введите описание поломки / работ!");
         return;
     }
+    const finalDesc = desc || descKz;
     if (!startTime) {
-        alert("Укажите время начала!");
+        showNotification('error', 'Ошибка', "Укажите время начала!");
         return;
     }
     
@@ -2919,8 +2932,9 @@ async function submitEditDowntime() {
     const data = {
         start_time: startTime,
         end_time: endTime || null,
-        description: desc,
-        comment: desc,
+        description: finalDesc,
+        description_kz: descKz || null,
+        comment: finalDesc,
         is_equipment_downtime: isEquipmentStop,
         media_urls: null,
         master_id: master_id ? parseInt(master_id) : null
@@ -2939,33 +2953,47 @@ async function submitEditDowntime() {
         } else {
             const err = await res.json();
             if (Array.isArray(err.detail)) {
-                alert("Ошибка валидации: " + err.detail.map(e => e.msg).join("; "));
+                showNotification('error', 'Ошибка валидации', err.detail.map(e => e.msg).join("; "));
             } else {
-                alert(`Ошибка: ${err.detail || 'Неизвестная ошибка'}`);
+                showNotification('error', 'Ошибка', err.detail || 'Неизвестная ошибка');
             }
         }
     } catch(e) {
-        alert(e.message);
+        showNotification('error', 'Сбой сети', e.message);
     }
 }
 
 // ----------------------------------------------------
-// BROWSER SPEECH RECOGNITION (WEB SPEECH API) WITH AUTO-TRANSLATE
+// DOWNTIME VOICE DICTATION & CLEAN AUTO-TRANSLATION (RU <-> KZ)
 // ----------------------------------------------------
 let activeSpeechRecognition = null;
 let activeSpeechBtnId = null;
 let activeSpeechTargetId = null;
 let activeSpeechLang = 'ru-RU';
+let activeSpeechBaseText = '';
 let activeSpeechInterim = '';
+let activeSpeechFinal = '';
+let downtimeTranslateDebounceTimer = null;
 
-function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
+function resetSpeechBtn(btn) {
+    if (!btn) return;
+    if (btn.dataset.origHtml) {
+        btn.innerHTML = btn.dataset.origHtml;
+    }
+    btn.disabled = false;
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+}
+
+function startDirectVoiceTyping(targetInputId, lang, btnId) {
     const btn = document.getElementById(btnId);
     const targetInput = document.getElementById(targetInputId);
     if (!btn || !targetInput) return;
 
     // Если сейчас слушаем по этой же кнопке — останавливаем
     if (activeSpeechRecognition && activeSpeechBtnId === btnId) {
-        activeSpeechRecognition.stop();
+        try { activeSpeechRecognition.stop(); } catch(e) {}
         return;
     }
 
@@ -2978,15 +3006,14 @@ function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-        // Фоллбэк: если Web Speech не поддерживается браузером, запускаем запись аудио
-        showNotification('info', 'Голосовой ввод', 'Используется альтернативная запись аудио...');
-        return toggleDowntimeVoiceRecording(targetInputId, btnId);
+        showNotification('warning', 'Голосовой ввод', 'Распознавание речи не поддерживается браузером. Рекомендуется использовать Google Chrome.');
+        return;
     }
 
     try {
         const recognition = new SpeechRecognition();
         recognition.lang = lang || 'ru-RU';
-        recognition.continuous = false; // останавливается, когда мастер делает естественную паузу
+        recognition.continuous = false;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
@@ -2994,13 +3021,14 @@ function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
         activeSpeechBtnId = btnId;
         activeSpeechTargetId = targetInputId;
         activeSpeechLang = lang;
+        activeSpeechBaseText = (targetInput.value || '').trim();
         activeSpeechInterim = '';
+        activeSpeechFinal = '';
 
-        // Сохраняем исходное значение поля до начала диктовки
-        const existingVal = (targetInput.value || '').trim();
+        if (!btn.dataset.origHtml) {
+            btn.dataset.origHtml = btn.innerHTML;
+        }
 
-        // Оформление кнопки во время прослушивания
-        btn.dataset.origHtml = btn.innerHTML;
         btn.style.background = '#fee2e2';
         btn.style.borderColor = '#ef4444';
         btn.style.color = '#b91c1c';
@@ -3019,11 +3047,17 @@ function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
                 }
             }
 
-            const currentSpeech = finalTranscript || interimTranscript;
-            if (currentSpeech) {
-                activeSpeechInterim = currentSpeech.trim();
-                // Отображаем на лету в поле ввода
-                targetInput.value = existingVal ? `${existingVal} ${activeSpeechInterim}` : activeSpeechInterim;
+            if (finalTranscript) {
+                activeSpeechFinal += (activeSpeechFinal ? ' ' : '') + finalTranscript.trim();
+            }
+            activeSpeechInterim = interimTranscript.trim();
+
+            const combinedSpeech = [activeSpeechFinal, activeSpeechInterim].filter(Boolean).join(' ');
+            if (combinedSpeech) {
+                targetInput.value = activeSpeechBaseText ? `${activeSpeechBaseText} ${combinedSpeech}` : combinedSpeech;
+            }
+            if (typeof onDowntimeTextChange === 'function') {
+                onDowntimeTextChange();
             }
         };
 
@@ -3036,43 +3070,15 @@ function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
             }
         };
 
-        recognition.onend = async () => {
+        recognition.onend = () => {
             resetSpeechBtn(btn);
             activeSpeechRecognition = null;
 
-            const textToProcess = activeSpeechInterim.trim();
-            if (!textToProcess) return;
-
-            // Показываем индикатор быстрой нормализации/перевода
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Перевод...</span>`;
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/api/downtimes/normalize-and-translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        text: textToProcess,
-                        source_lang: (lang && lang.startsWith('kk')) ? 'kk' : 'ru'
-                    })
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    const cleanText = (data.text || textToProcess).trim();
-                    if (cleanText) {
-                        targetInput.value = existingVal ? `${existingVal} ${cleanText}` : cleanText;
-                        if (typeof onDowntimeTextChange === 'function') {
-                            onDowntimeTextChange();
-                        }
-                        showNotification('success', 'Готово', (lang && lang.startsWith('kk')) ? 'Текст переведен с казахского на русский.' : 'Текст распознан и выправлен.');
-                    }
-                }
-            } catch (err) {
-                console.error("Normalize and translate error:", err);
-            } finally {
-                resetSpeechBtn(btn);
-            }
+            // Чистая надиктовка завершена без искажений текста
+            // Запускаем фоновый автоперевод в соседнюю колонку
+            const scope = targetInputId.startsWith('edit-') ? 'edit' : 'journal';
+            const sourceLang = (lang && lang.startsWith('kk')) ? 'kz' : 'ru';
+            debounceDowntimeTranslate(scope, sourceLang, 200);
         };
 
         recognition.start();
@@ -3080,193 +3086,88 @@ function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
     } catch (e) {
         console.error("Start speech error:", e);
         resetSpeechBtn(btn);
+        activeSpeechRecognition = null;
         showNotification('error', 'Ошибка микрофона', 'Не удалось запустить распознавание.');
     }
 }
 
-function resetSpeechBtn(btn) {
-    if (!btn) return;
-    if (btn.dataset.origHtml) {
-        btn.innerHTML = btn.dataset.origHtml;
-    }
-    btn.disabled = false;
-    btn.style.background = '';
-    btn.style.borderColor = '';
-    btn.style.color = '';
+// Псевдоним для обратной совместимости
+function toggleWebSpeechRecognition(targetInputId, lang, btnId) {
+    return startDirectVoiceTyping(targetInputId, lang, btnId);
 }
 
-// ----------------------------------------------------
-// DOWNTIME VOICE DICTATION & TRANSCRIBING (KZ / RU)
-// ----------------------------------------------------
-let dtVoiceMediaRecorder = null;
-let dtVoiceAudioChunks = [];
-let dtVoiceTargetId = null;
-let dtVoiceBtnId = null;
-let dtVoiceInterval = null;
-let dtVoiceSeconds = 0;
-
-async function toggleDowntimeVoiceRecording(targetInputId, btnId) {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-
-    // Если запись уже активна и нажата та же кнопка — останавливаем запись
-    if (dtVoiceMediaRecorder && dtVoiceMediaRecorder.state === 'recording') {
-        stopDowntimeVoiceRecording();
-        return;
+function debounceDowntimeTranslate(scope, sourceLang, delay = 600) {
+    if (downtimeTranslateDebounceTimer) {
+        clearTimeout(downtimeTranslateDebounceTimer);
     }
+    downtimeTranslateDebounceTimer = setTimeout(() => {
+        autoTranslateDowntimeFields(scope, sourceLang);
+    }, delay);
+}
 
-    // Проверка поддержки микрофона
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showNotification('error', 'Микрофон недоступен', 'Ваш браузер или устройство не поддерживают запись аудио.');
+async function autoTranslateDowntimeFields(scope, sourceLang = null) {
+    const isEdit = (scope === 'edit');
+    const ruInput = document.getElementById(isEdit ? 'edit-dt-desc' : 'journal-dt-desc');
+    const kzInput = document.getElementById(isEdit ? 'edit-dt-desc-kz' : 'journal-dt-desc-kz');
+
+    if (!ruInput || !kzInput) return;
+
+    const ruText = (ruInput.value || '').trim();
+    const kzText = (kzInput.value || '').trim();
+
+    let textToSend = '';
+    let sendLang = 'auto';
+    let targetInput = null;
+    let targetProp = '';
+
+    if (sourceLang === 'kz' && kzText) {
+        textToSend = kzText;
+        sendLang = 'kk';
+        targetInput = ruInput;
+        targetProp = 'text_ru';
+    } else if (sourceLang === 'ru' && ruText) {
+        textToSend = ruText;
+        sendLang = 'ru';
+        targetInput = kzInput;
+        targetProp = 'text_kz';
+    } else if (ruText && !kzText) {
+        textToSend = ruText;
+        sendLang = 'ru';
+        targetInput = kzInput;
+        targetProp = 'text_kz';
+    } else if (kzText && !ruText) {
+        textToSend = kzText;
+        sendLang = 'kk';
+        targetInput = ruInput;
+        targetProp = 'text_ru';
+    } else if (ruText) {
+        textToSend = ruText;
+        sendLang = 'ru';
+        targetInput = kzInput;
+        targetProp = 'text_kz';
+    } else {
         return;
     }
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        // Определяем поддерживаемый MIME-тип браузером
-        let mimeType = 'audio/webm';
-        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
-            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-                mimeType = 'audio/webm;codecs=opus';
-            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                mimeType = 'audio/mp4';
-            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-                mimeType = 'audio/ogg;codecs=opus';
-            }
-        }
-
-        dtVoiceAudioChunks = [];
-        dtVoiceTargetId = targetInputId;
-        dtVoiceBtnId = btnId;
-        dtVoiceMediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-
-        dtVoiceAudioChunks = [];
-        dtVoiceMediaRecorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) {
-                dtVoiceAudioChunks.push(e.data);
-            }
-        };
-
-        dtVoiceMediaRecorder.onstop = async () => {
-            clearInterval(dtVoiceInterval);
-            // Останавливаем все дорожки микрофона
-            stream.getTracks().forEach(track => track.stop());
-            await sendDowntimeVoiceAudio();
-        };
-
-        dtVoiceMediaRecorder.start(250); // Собираем чанки каждые 250мс
-        dtVoiceSeconds = 0;
-
-        // Визуальное оформление активной записи
-        btn.dataset.originalHtml = btn.innerHTML;
-        btn.style.background = '#fee2e2';
-        btn.style.borderColor = '#ef4444';
-        btn.style.color = '#b91c1c';
-        btn.innerHTML = `<i class="fa-solid fa-circle" style="color: #ef4444; font-size: 0.75rem;"></i> <span class="voice-btn-text">🔴 00:00 (Стоп)</span>`;
-
-        // Таймер записи
-        dtVoiceInterval = setInterval(() => {
-            dtVoiceSeconds++;
-            const mins = String(Math.floor(dtVoiceSeconds / 60)).padStart(2, '0');
-            const secs = String(dtVoiceSeconds % 60).padStart(2, '0');
-            const textSpan = btn.querySelector('.voice-btn-text');
-            if (textSpan) {
-                textSpan.textContent = `🔴 ${mins}:${secs} (Стоп)`;
-            }
-            // Авто-стоп через 60 секунд
-            if (dtVoiceSeconds >= 60) {
-                stopDowntimeVoiceRecording();
-            }
-        }, 1000);
-
-    } catch (err) {
-        console.error("Microphone access error:", err);
-        showNotification('error', 'Доступ к микрофону', 'Пожалуйста, разрешите доступ к микрофону в настройках браузера.');
-        resetDowntimeVoiceBtn(btn);
-    }
-}
-
-function stopDowntimeVoiceRecording() {
-    if (dtVoiceMediaRecorder && dtVoiceMediaRecorder.state === 'recording') {
-        dtVoiceMediaRecorder.stop();
-    }
-}
-
-function resetDowntimeVoiceBtn(btn) {
-    if (!btn) return;
-    clearInterval(dtVoiceInterval);
-    dtVoiceInterval = null;
-    dtVoiceSeconds = 0;
-    if (btn.dataset.originalHtml) {
-        btn.innerHTML = btn.dataset.originalHtml;
-    }
-    btn.disabled = false;
-    btn.style.background = '';
-    btn.style.borderColor = '';
-    btn.style.color = '';
-}
-
-async function sendDowntimeVoiceAudio() {
-    const btn = document.getElementById(dtVoiceBtnId);
-    const targetInput = document.getElementById(dtVoiceTargetId);
-
-    if (dtVoiceAudioChunks.length === 0) {
-        resetDowntimeVoiceBtn(btn);
-        return;
-    }
-
-    const recordedBlob = new Blob(dtVoiceAudioChunks, { type: dtVoiceMediaRecorder?.mimeType || 'audio/webm' });
-    
-    // Блокируем кнопку на время распознавания (Double-Submit Guard)
-    if (btn) {
-        btn.disabled = true;
-        btn.style.background = '#f1f5f9';
-        btn.style.borderColor = '#cbd5e1';
-        btn.style.color = '#64748b';
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span class="voice-btn-text">ИИ переводит...</span>`;
-    }
-
-    try {
-        const formData = new FormData();
-        const extension = (dtVoiceMediaRecorder?.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
-        formData.append('file', recordedBlob, `voice_record.${extension}`);
-
-        const fetchFn = (typeof networkGuardFetch === 'function') ? networkGuardFetch : fetch;
-        const res = await fetchFn('/api/downtimes/transcribe-voice', {
+        const res = await fetch('/api/downtimes/translate', {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: textToSend,
+                source_lang: sendLang
+            })
         });
 
         if (res.ok) {
             const data = await res.json();
-            const transcribedText = (data.text || '').trim();
-            if (transcribedText) {
-                if (targetInput) {
-                    if (targetInput.value && targetInput.value.trim()) {
-                        targetInput.value = targetInput.value.trim() + '. ' + transcribedText;
-                    } else {
-                        targetInput.value = transcribedText;
-                    }
-                    if (typeof onDowntimeTextChange === 'function') {
-                        onDowntimeTextChange();
-                    }
-                }
-                showNotification('success', 'Голос распознан', 'Текст переведен и добавлен в описание простоя.');
-            } else {
-                showNotification('warning', 'Внимание', 'Не удалось разобрать речь. Попробуйте надиктовать еще раз четче.');
+            const translated = data[targetProp];
+            if (translated && targetInput) {
+                targetInput.value = translated;
             }
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showNotification('error', 'Ошибка распознавания', err.detail || 'Не удалось обработать аудиозапись.');
         }
-    } catch (err) {
-        console.error("Transcribe voice error:", err);
-        showNotification('error', 'Сбой связи', 'Ошибка при отправке аудио на сервер. Проверьте интернет-соединение.');
-    } finally {
-        resetDowntimeVoiceBtn(btn);
-        dtVoiceMediaRecorder = null;
-        dtVoiceAudioChunks = [];
+    } catch (e) {
+        console.warn("Downtime translate network error:", e);
     }
 }
 

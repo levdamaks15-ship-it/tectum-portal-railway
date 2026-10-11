@@ -88,6 +88,9 @@ async def lifespan(app: FastAPI):
                 try:
                     conn.execute("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;")
                 except: pass
+                try:
+                    conn.execute("ALTER TABLE downtimes ADD COLUMN description_kz TEXT;")
+                except: pass
                 for col_name, col_def in [
                     ("google_synced", "BOOLEAN DEFAULT 0"),
                     ("google_synced_at", "TIMESTAMP"),
@@ -111,6 +114,7 @@ async def lifespan(app: FastAPI):
                     db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_synced BOOLEAN DEFAULT FALSE;"))
                     db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_synced_at TIMESTAMP;"))
                     db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_sync_error TEXT;"))
+                    db.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS description_kz TEXT;"))
                     db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
                     db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
                     db.commit()
