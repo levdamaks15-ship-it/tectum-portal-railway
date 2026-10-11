@@ -1,0 +1,160 @@
+<svg viewBox="0 0 520 420" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&amp;display=swap');
+
+      /* Roof beams synchronized easing */
+      @keyframes roofAssembleLeft {
+        0% {
+          transform: translate(-90px, -45px);
+          opacity: 0;
+        }
+        26% {
+          transform: translate(0, 0);
+          opacity: 1;
+        }
+        88% {
+          transform: translate(0, 0);
+          opacity: 1;
+        }
+        96%, 100% {
+          transform: translate(0, 0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes roofAssembleRight {
+        0% {
+          transform: translate(90px, -45px);
+          opacity: 0;
+        }
+        26% {
+          transform: translate(0, 0);
+          opacity: 1;
+        }
+        88% {
+          transform: translate(0, 0);
+          opacity: 1;
+        }
+        96%, 100% {
+          transform: translate(0, 0);
+          opacity: 1;
+        }
+      }
+
+      /* Synchronized text reveal */
+      @keyframes textSyncMain {
+        0% {
+          opacity: 0;
+          transform: translateY(28px);
+        }
+        26% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        88% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        96%, 100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes textSyncSub {
+        0% {
+          opacity: 0;
+          transform: translateY(22px);
+        }
+        26% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        88% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        96%, 100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes roofShine {
+        0%, 30% {
+          transform: translateX(-350px) skewX(-25deg);
+          opacity: 0;
+        }
+        42% {
+          opacity: 0.75;
+        }
+        56% {
+          transform: translateX(530px) skewX(-25deg);
+          opacity: 0;
+        }
+        100% {
+          transform: translateX(530px) skewX(-25deg);
+          opacity: 0;
+        }
+      }
+
+      .roof-left-beam {
+        animation: roofAssembleLeft 4.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
+      .roof-right-beam {
+        animation: roofAssembleRight 4.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
+      .shine-bar {
+        animation: roofShine 4.5s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+      }
+
+      .logo-title {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 114px;
+        fill: #393a3c;
+        animation: textSyncMain 4.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
+      .logo-sub {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 40px;
+        fill: #5a5d60;
+        animation: textSyncSub 4.5s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+    </style>
+    <linearGradient id="shineGradWhite" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <clipPath id="roofClipBold">
+      <polygon points="222,0 520,105 520,165 222,60" />
+      <polygon points="0,228 358,102 338,48 0,174" />
+    </clipPath>
+  </defs>
+
+  <rect fill="transparent" width="100%" height="100%" />
+  <g transform="translate(0, 20)">
+    <!-- Roof Geometric Beams matching exact brand mark -->
+    <g id="roof-structure">
+      <!-- Right/Upper Beam: red (#bf2319) -->
+      <polygon class="roof-right-beam" fill="#bf2319" points="222,0 520,105 520,165 222,60" />
+      <!-- Left/Lower Overlapping Beam: dark-red (#b3251c) hitting exactly under the ridge -->
+      <polygon class="roof-left-beam" fill="#b3251c" points="0,228 358,102 338,48 0,174" />
+      <!-- Clean Light Sweep across roof geometry -->
+      <g clip-path="url(#roofClipBold)">
+        <rect class="shine-bar" width="120" height="260" fill="url(#shineGradWhite)" pointer-events="none" x="0" y="0" />
+      </g>
+    </g>
+    <!-- Brand Typography exactly matched in font, weight, proportions and edge-to-edge alignment -->
+    <g id="brand-typography">
+      <text class="logo-title" x="0" y="324" textLength="520" lengthAdjust="spacingAndGlyphs">TECTUM</text>
+      <text class="logo-sub" x="0" y="374" textLength="520" lengthAdjust="spacing">ENGINEERING</text>
+    </g>
+  </g>
+</svg>

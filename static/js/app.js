@@ -2950,6 +2950,181 @@ async function submitEditDowntime() {
 }
 
 // ----------------------------------------------------
+// DOWNTIME VOICE DICTATION & TRANSCRIBING (KZ / RU)
+// ----------------------------------------------------
+let dtVoiceMediaRecorder = null;
+let dtVoiceAudioChunks = [];
+let dtVoiceTargetId = null;
+let dtVoiceBtnId = null;
+let dtVoiceInterval = null;
+let dtVoiceSeconds = 0;
+
+async function toggleDowntimeVoiceRecording(targetInputId, btnId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    // Если запись уже активна и нажата та же кнопка — останавливаем запись
+    if (dtVoiceMediaRecorder && dtVoiceMediaRecorder.state === 'recording') {
+        stopDowntimeVoiceRecording();
+        return;
+    }
+
+    // Проверка поддержки микрофона
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showNotification('error', 'Микрофон недоступен', 'Ваш браузер или устройство не поддерживают запись аудио.');
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Определяем поддерживаемый MIME-тип браузером
+        let mimeType = 'audio/webm';
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                mimeType = 'audio/ogg;codecs=opus';
+            }
+        }
+
+        dtVoiceAudioChunks = [];
+        dtVoiceTargetId = targetInputId;
+        dtVoiceBtnId = btnId;
+        dtVoiceMediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+        dtVoiceAudioChunks = [];
+        dtVoiceMediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) {
+                dtVoiceAudioChunks.push(e.data);
+            }
+        };
+
+        dtVoiceMediaRecorder.onstop = async () => {
+            clearInterval(dtVoiceInterval);
+            // Останавливаем все дорожки микрофона
+            stream.getTracks().forEach(track => track.stop());
+            await sendDowntimeVoiceAudio();
+        };
+
+        dtVoiceMediaRecorder.start(250); // Собираем чанки каждые 250мс
+        dtVoiceSeconds = 0;
+
+        // Визуальное оформление активной записи
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.style.background = '#fee2e2';
+        btn.style.borderColor = '#ef4444';
+        btn.style.color = '#b91c1c';
+        btn.innerHTML = `<i class="fa-solid fa-circle" style="color: #ef4444; font-size: 0.75rem;"></i> <span class="voice-btn-text">🔴 00:00 (Стоп)</span>`;
+
+        // Таймер записи
+        dtVoiceInterval = setInterval(() => {
+            dtVoiceSeconds++;
+            const mins = String(Math.floor(dtVoiceSeconds / 60)).padStart(2, '0');
+            const secs = String(dtVoiceSeconds % 60).padStart(2, '0');
+            const textSpan = btn.querySelector('.voice-btn-text');
+            if (textSpan) {
+                textSpan.textContent = `🔴 ${mins}:${secs} (Стоп)`;
+            }
+            // Авто-стоп через 60 секунд
+            if (dtVoiceSeconds >= 60) {
+                stopDowntimeVoiceRecording();
+            }
+        }, 1000);
+
+    } catch (err) {
+        console.error("Microphone access error:", err);
+        showNotification('error', 'Доступ к микрофону', 'Пожалуйста, разрешите доступ к микрофону в настройках браузера.');
+        resetDowntimeVoiceBtn(btn);
+    }
+}
+
+function stopDowntimeVoiceRecording() {
+    if (dtVoiceMediaRecorder && dtVoiceMediaRecorder.state === 'recording') {
+        dtVoiceMediaRecorder.stop();
+    }
+}
+
+function resetDowntimeVoiceBtn(btn) {
+    if (!btn) return;
+    clearInterval(dtVoiceInterval);
+    dtVoiceInterval = null;
+    dtVoiceSeconds = 0;
+    if (btn.dataset.originalHtml) {
+        btn.innerHTML = btn.dataset.originalHtml;
+    }
+    btn.disabled = false;
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+}
+
+async function sendDowntimeVoiceAudio() {
+    const btn = document.getElementById(dtVoiceBtnId);
+    const targetInput = document.getElementById(dtVoiceTargetId);
+
+    if (dtVoiceAudioChunks.length === 0) {
+        resetDowntimeVoiceBtn(btn);
+        return;
+    }
+
+    const recordedBlob = new Blob(dtVoiceAudioChunks, { type: dtVoiceMediaRecorder?.mimeType || 'audio/webm' });
+    
+    // Блокируем кнопку на время распознавания (Double-Submit Guard)
+    if (btn) {
+        btn.disabled = true;
+        btn.style.background = '#f1f5f9';
+        btn.style.borderColor = '#cbd5e1';
+        btn.style.color = '#64748b';
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span class="voice-btn-text">ИИ переводит...</span>`;
+    }
+
+    try {
+        const formData = new FormData();
+        const extension = (dtVoiceMediaRecorder?.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+        formData.append('file', recordedBlob, `voice_record.${extension}`);
+
+        const fetchFn = (typeof networkGuardFetch === 'function') ? networkGuardFetch : fetch;
+        const res = await fetchFn('/api/downtimes/transcribe-voice', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const transcribedText = (data.text || '').trim();
+            if (transcribedText) {
+                if (targetInput) {
+                    if (targetInput.value && targetInput.value.trim()) {
+                        targetInput.value = targetInput.value.trim() + '. ' + transcribedText;
+                    } else {
+                        targetInput.value = transcribedText;
+                    }
+                    if (typeof onDowntimeTextChange === 'function') {
+                        onDowntimeTextChange();
+                    }
+                }
+                showNotification('success', 'Голос распознан', 'Текст переведен и добавлен в описание простоя.');
+            } else {
+                showNotification('warning', 'Внимание', 'Не удалось разобрать речь. Попробуйте надиктовать еще раз четче.');
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showNotification('error', 'Ошибка распознавания', err.detail || 'Не удалось обработать аудиозапись.');
+        }
+    } catch (err) {
+        console.error("Transcribe voice error:", err);
+        showNotification('error', 'Сбой связи', 'Ошибка при отправке аудио на сервер. Проверьте интернет-соединение.');
+    } finally {
+        resetDowntimeVoiceBtn(btn);
+        dtVoiceMediaRecorder = null;
+        dtVoiceAudioChunks = [];
+    }
+}
+
+// ----------------------------------------------------
 // ANALYTICS TAB LOGIC
 // ----------------------------------------------------
 async function loadAnalyticsData() {

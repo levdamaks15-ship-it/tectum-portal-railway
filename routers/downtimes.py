@@ -1,6 +1,12 @@
+import os
+import json
+import time
+import base64
+import urllib.request
+import urllib.error
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 
@@ -612,3 +618,141 @@ def admin_delete_downtime(downtime_id: int, request: Request, background_tasks: 
     db.commit()
     background_tasks.add_task(sync_downtimes_bg)
     return {"status": "ok"}
+
+
+@router.post("/api/downtimes/transcribe-voice")
+async def transcribe_voice_downtime(file: UploadFile = File(...)):
+    """
+    Транскрибация голосового сообщения мастера смены о простое.
+    Поддерживает казахский язык, русский язык и смешанную цеховую речь.
+    Переводит и форматирует речь в понятный технический русский текст для журнала.
+    """
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="GEMINI_API_KEY не настроен в переменных окружения сервера"
+        )
+
+    # Чтение аудиофайла
+    audio_bytes = await file.read()
+    if not audio_bytes or len(audio_bytes) < 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Аудиозапись пуста или не содержит данных"
+        )
+
+    # Ограничение размера 15 МБ
+    if len(audio_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Размер аудиозаписи превышает допустимый лимит (15 МБ)"
+        )
+
+    # Очистка MIME-типа (отсекаем параметры кодеков вроде ;codecs=opus)
+    raw_content_type = (file.content_type or "audio/webm").split(";")[0].strip().lower()
+    valid_mimes = {
+        "audio/webm": "audio/webm",
+        "audio/ogg": "audio/ogg",
+        "audio/mp4": "audio/mp4",
+        "audio/mpeg": "audio/mp3",
+        "audio/mp3": "audio/mp3",
+        "audio/wav": "audio/wav",
+        "audio/x-wav": "audio/wav",
+        "audio/aac": "audio/aac",
+        "audio/m4a": "audio/mp4",
+        "video/webm": "audio/webm",
+        "video/mp4": "audio/mp4"
+    }
+    mime_type = valid_mimes.get(raw_content_type, "audio/webm")
+
+    b64_data = base64.b64encode(audio_bytes).decode("utf-8")
+
+    prompt = (
+        "Ты — дежурный диспетчер асбестоцементного завода Tectum.\n"
+        "Мастер смены надиктовал голосовое сообщение о причине простоя или выполненных работах на оборудовании.\n"
+        "Речь может звучать на казахском языке, русском языке или их смеси (цеховой суржик с техническими терминами).\n\n"
+        "Твоя задача:\n"
+        "1. Внимательно прослушай аудиозапись.\n"
+        "2. Если речь на казахском языке или смешанная — переведи её на грамотный, понятный технический русский язык. Если на русском — оставь на русском, исправив невнятные речевые оговорки и шумы.\n"
+        "3. Выдай ТОЛЬКО краткое, четкое описание произошедшего для журнала сменного рапорта (например: 'Остановка стакера, чистка кармана и замена ножей').\n"
+        "4. Запрещено добавлять вводные слова, приветствия, кавычки, комментарии от себя или markdown-разметку. Ответь ТОЛЬКО чистым текстом описания простоя."
+    )
+
+    candidate_models = [
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.6-flash",
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.5-flash",
+        "gemini-flash-latest"
+    ]
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": b64_data
+                        }
+                    },
+                    {
+                        "text": prompt
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 300
+        }
+    }
+    encoded_payload = json.dumps(payload).encode("utf-8")
+
+    last_err = None
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        req = urllib.request.Request(
+            url,
+            data=encoded_payload,
+            headers={"Content-Type": "application/json"}
+        )
+
+        for attempt in range(2):
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    candidates = resp_data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        if parts and "text" in parts[0]:
+                            transcribed_text = parts[0]["text"].strip()
+                            if (transcribed_text.startswith('"') and transcribed_text.endswith('"')) or \
+                               (transcribed_text.startswith("'") and transcribed_text.endswith("'")):
+                                transcribed_text = transcribed_text[1:-1].strip()
+                            return {
+                                "status": "ok",
+                                "text": transcribed_text,
+                                "model_used": model_name
+                            }
+            except urllib.error.HTTPError as e:
+                last_err = f"{model_name} HTTP {e.code}"
+                if e.code in (429, 503):
+                    time.sleep(0.5)
+                    continue
+                else:
+                    break
+            except Exception as e:
+                last_err = str(e)
+                time.sleep(0.3)
+                continue
+
+    raise HTTPException(
+        status_code=503,
+        detail=f"Не удалось распознать голосовое сообщение ({last_err}). Пожалуйста, повторите попытку или введите текст вручную."
+    )
+

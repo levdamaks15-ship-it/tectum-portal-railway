@@ -381,6 +381,19 @@ def read_root():
 def favicon():
     return FileResponse("static/img/Logo.png")
 
+@app.get("/manifest.json", include_in_schema=False)
+def serve_manifest():
+    return FileResponse("static/manifest.json", media_type="application/manifest+json")
+
+@app.get("/service-worker.js", include_in_schema=False)
+@app.get("/sw.js", include_in_schema=False)
+def serve_service_worker():
+    return FileResponse(
+        "static/service-worker.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"}
+    )
+
 @app.get("/admin")
 def serve_admin():
     return FileResponse("static/admin.html", headers=HTML_NO_CACHE_HEADERS)
@@ -412,6 +425,8 @@ def serve_qcd():
 @app.get("/lkc")
 def serve_lkc():
     return FileResponse("static/lkc.html", headers=HTML_NO_CACHE_HEADERS)
+
+
 
 
 if __name__ == "__main__":
