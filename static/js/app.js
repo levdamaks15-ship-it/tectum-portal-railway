@@ -234,14 +234,32 @@ function recalcWarehouseGPTotal() {
 }
 
 async function updateShiftScheduleHints() {
-    const dateVal = document.getElementById('rep-date')?.value;
-    const shiftVal = document.getElementById('rep-shift')?.value;
-    if (!dateVal) return;
+    const dateInput = document.getElementById('rep-date');
+    const shiftVal = document.getElementById('rep-shift')?.value || 'День';
+    if (!dateInput) return;
     
-    // dateVal: YYYY-MM-DD -> DD.MM.YYYY
-    const parts = dateVal.split('-');
-    if (parts.length !== 3) return;
-    const dateStr = `${parts[2]}.${parts[1]}.${parts[0]}`;
+    let rawDate = (dateInput.value || '').trim();
+    if (!rawDate && dateInput._flatpickr) {
+        rawDate = dateInput._flatpickr.input?.value || '';
+    }
+    if (!rawDate) {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        rawDate = `${y}-${m}-${d}`;
+    }
+    
+    let dateStr = '';
+    if (rawDate.includes('-')) {
+        const parts = rawDate.split('-');
+        if (parts.length === 3) {
+            dateStr = `${parts[2].padStart(2, '0')}.${parts[1].padStart(2, '0')}.${parts[0]}`;
+        }
+    } else if (rawDate.includes('.')) {
+        dateStr = rawDate;
+    }
+    if (!dateStr) return;
     
     try {
         const res = await fetch(`/api/checklists/schedule/today?date=${encodeURIComponent(dateStr)}`);
@@ -567,6 +585,7 @@ function setupTimePickers() {
             }
         });
         ensureFlatpickrSync(repDateEl);
+        if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
     }
 
     // 3. Raw Material Receipt Date (Приход сырья)
@@ -1139,7 +1158,7 @@ async function loadData() {
 }
 
 function prefillReportForm(shift) {
-    setDateInputValue('rep-date', shift.date);
+    setDateInputValue('rep-date', shift.date, true);
     document.getElementById('rep-shift').value = shift.shift_name;
     document.getElementById('rep-line').value = shift.line;
     if (window.updateLineSiloHeaders) window.updateLineSiloHeaders();
@@ -1149,6 +1168,7 @@ function prefillReportForm(shift) {
     if (document.getElementById('rep-export-type')) {
         document.getElementById('rep-export-type').value = shift.export_type || 'Эталон';
     }
+    if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
     
     // Quantities
     document.getElementById('rep-batches').value = shift.zo_batches || '0';
@@ -1601,12 +1621,16 @@ function resetReportForm() {
     window.currentLoadedShiftId = null;
     clearReportDraft();
     
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     if (typeof setDateInputValue === 'function') {
-        const today = new Date().toISOString().split('T')[0];
-        setDateInputValue('rep-date', today);
+        setDateInputValue('rep-date', today, true);
     } else {
         const dateEl = document.getElementById('rep-date');
-        if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+        if (dateEl) dateEl.value = today;
+    }
+    if (typeof updateShiftScheduleHints === 'function') {
+        updateShiftScheduleHints();
     }
     
     const batchEl = document.getElementById('rep-batch');
@@ -4180,6 +4204,14 @@ function loadReportDraft() {
         try {
             const draft = JSON.parse(saved);
             let hasData = false;
+            
+            const now = new Date();
+            const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            // Защита от устаревшей даты: если черновик был сохранен в прошлые дни, обновляем дату на сегодня!
+            if (draft['rep-date'] && draft['rep-date'] !== todayIso) {
+                draft['rep-date'] = todayIso;
+            }
+
             REPORT_FIELDS.forEach(id => {
                 const el = document.getElementById(id);
                 if (el && draft[id] !== undefined && draft[id] !== '') {
@@ -4202,6 +4234,7 @@ function loadReportDraft() {
                 if (typeof toggleDefectsGrid === 'function') toggleDefectsGrid();
                 if (typeof togglePrevDefectsGrid === 'function') togglePrevDefectsGrid();
                 if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
+                if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
                 
                 // Recalculate and sync all raw material calculation fields
                 const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
@@ -4315,6 +4348,7 @@ window.addEventListener('DOMContentLoaded', () => {
         loadReportDraft();
         attachDowntimeContextListeners();
         loadDowntimeContext();
+        if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
     });
 });
 
