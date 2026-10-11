@@ -1002,7 +1002,7 @@
             if (scheduleInfo && scheduleInfo.schedule_entry) {
                 const curG = isDay ? scheduleInfo.schedule_entry.day_shift_group : scheduleInfo.schedule_entry.night_shift_group;
                 // Для Дня: сдавала прошлая Ночь. Для Ночи: сдает сегодняшний День.
-                const prevG = isDay ? (scheduleInfo.prev_shift_group || scheduleInfo.schedule_entry.night_shift_group) : scheduleInfo.schedule_entry.day_shift_group;
+                const prevG = isDay ? (scheduleInfo.schedule_entry.day_prev_shift_group || scheduleInfo.schedule_entry.night_shift_group) : (scheduleInfo.schedule_entry.night_prev_shift_group || scheduleInfo.schedule_entry.day_shift_group);
 
                 scheduleInfo.current_shift_group = curG;
                 scheduleInfo.prev_shift_group = prevG;

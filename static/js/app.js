@@ -233,9 +233,9 @@ function recalcWarehouseGPTotal() {
     if (totalEl) totalEl.value = total;
 }
 
-async function updateShiftScheduleHints() {
+async function updateShiftScheduleHints(forceAutoShift = false) {
     const dateInput = document.getElementById('rep-date');
-    const shiftVal = document.getElementById('rep-shift')?.value || 'День';
+    const shiftSelect = document.getElementById('rep-shift');
     if (!dateInput) return;
     
     let rawDate = (dateInput.value || '').trim();
@@ -261,19 +261,45 @@ async function updateShiftScheduleHints() {
     }
     if (!dateStr) return;
     
+    const currentShiftVal = shiftSelect?.value || 'День';
+    const queryShiftParam = forceAutoShift ? '' : currentShiftVal;
+    
     try {
-        const res = await fetch(`/api/checklists/schedule/today?date=${encodeURIComponent(dateStr)}`);
+        const url = `/api/checklists/schedule/today?date=${encodeURIComponent(dateStr)}${queryShiftParam ? `&shift=${encodeURIComponent(queryShiftParam)}` : ''}`;
+        const res = await fetch(url);
         if (res.ok) {
             const data = await res.json();
+            
+            // Если включен режим автоопределения смены по часам завода (напр. при открытии формы)
+            if (forceAutoShift && data.factory_shift_name && shiftSelect) {
+                if (shiftSelect.value !== data.factory_shift_name) {
+                    shiftSelect.value = data.factory_shift_name;
+                    shiftSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+            }
+            
             const currEl = document.getElementById('badge-curr-shift-hint');
             const prevEl = document.getElementById('badge-prev-shift-hint');
             
-            const isDay = (shiftVal === 'День');
-            let currGroup = isDay ? (data.schedule_entry?.day_shift_group || 'Смена') : (data.schedule_entry?.night_shift_group || 'Смена');
-            let prevGroup = isDay ? (data.prev_shift_group || 'Смена') : (data.schedule_entry?.day_shift_group || 'Смена');
+            if (currEl && data.current_shift_group) {
+                currEl.textContent = `Текущая: ${data.current_shift_group}`;
+            }
+            if (prevEl && data.prev_shift_group) {
+                prevEl.textContent = `Предыдущая: ${data.prev_shift_group}`;
+            }
             
-            if (currEl) currEl.textContent = `Текущая: ${currGroup}`;
-            if (prevEl) prevEl.textContent = `Предыдущая: ${prevGroup}`;
+            // Автоматическая подстановка дежурного мастера, если он еще не выбран пользователем вручную
+            const repMaster = document.getElementById('rep-master');
+            if (repMaster && data.current_master_id) {
+                const isAuto = repMaster.dataset.autoSelected === 'true';
+                const isEmpty = !repMaster.value;
+                if (isEmpty || isAuto) {
+                    repMaster.value = String(data.current_master_id);
+                    repMaster.dataset.autoSelected = 'true';
+                    repMaster.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
         }
     } catch(e) {
         console.log('Schedule hint note:', e);
@@ -4207,10 +4233,17 @@ function loadReportDraft() {
             
             const now = new Date();
             const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            // Защита от устаревшей даты: если черновик был сохранен в прошлые дни, обновляем дату на сегодня!
+            // Защита от устаревшей даты: если черновик был сохранен в прошлые дни, обновляем дату на сегодня и сбрасываем смену!
             if (draft['rep-date'] && draft['rep-date'] !== todayIso) {
                 draft['rep-date'] = todayIso;
+                delete draft['rep-shift'];
             }
+
+            const hasDraftNumbers = Boolean(
+                parseFloat(draft['rep-sheets']) > 0 ||
+                (draft['rep-batch'] && String(draft['rep-batch']).trim()) ||
+                parseFloat(draft['rep-warehouse-gp']) > 0
+            );
 
             REPORT_FIELDS.forEach(id => {
                 const el = document.getElementById(id);
@@ -4234,7 +4267,7 @@ function loadReportDraft() {
                 if (typeof toggleDefectsGrid === 'function') toggleDefectsGrid();
                 if (typeof togglePrevDefectsGrid === 'function') togglePrevDefectsGrid();
                 if (typeof window.updateLineSiloHeaders === 'function') window.updateLineSiloHeaders();
-                if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
+                if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints(!hasDraftNumbers);
                 
                 // Recalculate and sync all raw material calculation fields
                 const rmKeys = ['chr-4-20', 'chr-5-65', 'chr-6-40', 'cellulose', 'crushed-slate', 'asbozurit', 'fiberglass', 'asbocarton'];
@@ -4254,11 +4287,13 @@ function loadReportDraft() {
                         indicator.style.opacity = '0';
                     }, 3000);
                 }
+                return hasDraftNumbers;
             }
         } catch (e) {
             console.error("Error loading draft", e);
         }
     }
+    return false;
 }
 
 function clearReportDraft() {
@@ -4345,10 +4380,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     init().then(() => {
         attachDraftListeners();
-        loadReportDraft();
+        const hasDraftNumbers = loadReportDraft();
         attachDowntimeContextListeners();
         loadDowntimeContext();
-        if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints();
+        if (typeof updateShiftScheduleHints === 'function') updateShiftScheduleHints(!hasDraftNumbers);
     });
 });
 
@@ -4364,6 +4399,15 @@ async function init() {
     document.getElementById('rep-export-type')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('change', onProductChange);
     document.getElementById('rep-batch')?.addEventListener('blur', onProductChange);
+    
+    const repMaster = document.getElementById('rep-master');
+    if (repMaster) {
+        repMaster.addEventListener('change', (e) => {
+            if (e.isTrusted) {
+                repMaster.dataset.autoSelected = 'false';
+            }
+        });
+    }
 
     // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
     let cachedUser = window.__cachedUser;

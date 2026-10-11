@@ -185,8 +185,39 @@ def update_shift_schedule_day(data: dict, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+def find_master_for_shift_group(shift_group: str, db: Session):
+    """Находит id и имя мастера в БД по бригаде (например, 'Смена 1' -> Бекбосынов Р., id=1)."""
+    if not shift_group:
+        return None, ""
+    try:
+        import re
+        match = re.search(r'\d+', str(shift_group))
+        crew_num = match.group(0) if match else None
+        if crew_num:
+            # 1. Поиск по прямому соответствию ID бригады (1->Бекбосынов, 2->Монаев, 3->Султанулы, 4->Дауылбай)
+            m = db.query(models.Master).filter(models.Master.id == int(crew_num)).first()
+            if m:
+                return m.id, m.name
+            
+            # 2. Поиск через ChecklistEmployee
+            emp = db.query(models.ChecklistEmployee).filter(
+                models.ChecklistEmployee.shift_group.ilike(f"%{crew_num}%"),
+                models.ChecklistEmployee.position.ilike("%мастер%"),
+                models.ChecklistEmployee.is_active == True
+            ).first()
+            if emp:
+                surname = emp.name.split()[0] if emp.name else ""
+                if surname:
+                    m = db.query(models.Master).filter(models.Master.name.ilike(f"{surname}%")).first()
+                    if m:
+                        return m.id, m.name
+                return None, emp.name
+    except Exception as e:
+        print(f"Error resolving master for {shift_group}: {e}")
+    return None, ""
+
 @router.get("/api/checklists/schedule/today")
-def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(get_db)):
+def get_today_shift_schedule(date: Optional[str] = None, shift: Optional[str] = None, db: Session = Depends(get_db)):
     """Возвращает текущую смену и дежурную бригаду по графику сменности с учетом часового пояса завода (UTC+5)."""
     try:
         from datetime import timezone
@@ -195,11 +226,15 @@ def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(g
         
         target_date_str = date if date else now.strftime("%d.%m.%Y")
         
-        # Определение день/ночь по времени завода (UTC+5):
+        # 1. Определение фактического времени завода (UTC+5):
         # День: 08:00 - 19:00, Ночь: 19:00 - 08:00
         hour = now.hour
-        is_day = 8 <= hour < 19
-        shift_name = "День" if is_day else "Ночь"
+        factory_is_day = 8 <= hour < 19
+        factory_shift_name = "День" if factory_is_day else "Ночь"
+        
+        # 2. Выбранная смена (если передана, иначе текущая по часам завода)
+        selected_shift = shift if (shift in ["День", "Ночь"]) else factory_shift_name
+        is_day = (selected_shift == "День")
         
         entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == target_date_str).first()
         if not entry:
@@ -207,40 +242,54 @@ def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(g
             google_sheets_integration.sync_schedule_from_google_sheets(db)
             entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == target_date_str).first()
             
-        current_shift_group = ""
-        prev_shift_group = ""
+        day_shift_group = entry.day_shift_group if entry else ""
+        night_shift_group = entry.night_shift_group if entry else ""
         
-        if entry:
-            if is_day:
-                # Текущая смена: День сегодняшней даты
-                current_shift_group = entry.day_shift_group
-                # Сдающая смена: Ночь предыдущего дня!
-                try:
-                    target_dt = datetime.strptime(target_date_str, "%d.%m.%Y")
-                    prev_dt_str = (target_dt - timedelta(days=1)).strftime("%d.%m.%Y")
-                    prev_entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == prev_dt_str).first()
-                    if prev_entry and prev_entry.night_shift_group:
-                        prev_shift_group = prev_entry.night_shift_group
-                    else:
-                        prev_shift_group = entry.night_shift_group
-                except Exception:
-                    prev_shift_group = entry.night_shift_group
+        # 3. Расчет предшествующих (сдающих) смен для Дня и Ночи:
+        # Для Ночи: сдает дневная смена этого же дня
+        night_prev_shift_group = day_shift_group
+        # Для Дня: сдает ночная смена предшествующего дня (target_date - 1 день)
+        day_prev_shift_group = ""
+        try:
+            target_dt = datetime.strptime(target_date_str, "%d.%m.%Y")
+            prev_dt_str = (target_dt - timedelta(days=1)).strftime("%d.%m.%Y")
+            prev_entry = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str == prev_dt_str).first()
+            if prev_entry and prev_entry.night_shift_group:
+                day_prev_shift_group = prev_entry.night_shift_group
             else:
-                # Текущая смена: Ночь сегодняшней даты
-                current_shift_group = entry.night_shift_group
-                # Сдающая смена: День сегодняшней даты
-                prev_shift_group = entry.day_shift_group
+                day_prev_shift_group = night_shift_group
+        except Exception:
+            day_prev_shift_group = night_shift_group
+            
+        # 4. Итоговые группы для выбранной смены
+        if is_day:
+            current_shift_group = day_shift_group
+            prev_shift_group = day_prev_shift_group
+        else:
+            current_shift_group = night_shift_group
+            prev_shift_group = night_prev_shift_group
+            
+        # 5. Определение дежурного и сдавшего мастеров
+        current_master_id, current_master_name = find_master_for_shift_group(current_shift_group, db)
+        prev_master_id, prev_master_name = find_master_for_shift_group(prev_shift_group, db)
             
         return {
             "date": target_date_str,
-            "shift_name": shift_name,
+            "shift_name": selected_shift,
+            "factory_shift_name": factory_shift_name,
             "is_day": is_day,
             "current_shift_group": current_shift_group,
             "prev_shift_group": prev_shift_group,
+            "current_master_id": current_master_id,
+            "current_master_name": current_master_name,
+            "prev_master_id": prev_master_id,
+            "prev_master_name": prev_master_name,
             "schedule_entry": {
                 "day_of_week": entry.day_of_week if entry else "",
-                "day_shift_group": entry.day_shift_group if entry else "",
-                "night_shift_group": entry.night_shift_group if entry else ""
+                "day_shift_group": day_shift_group,
+                "day_prev_shift_group": day_prev_shift_group,
+                "night_shift_group": night_shift_group,
+                "night_prev_shift_group": night_prev_shift_group
             } if entry else None
         }
     except Exception as e:
@@ -248,8 +297,14 @@ def get_today_shift_schedule(date: Optional[str] = None, db: Session = Depends(g
         return {
             "date": datetime.now(timezone(timedelta(hours=5))).strftime("%d.%m.%Y"),
             "shift_name": "День",
+            "factory_shift_name": "День",
+            "is_day": True,
             "current_shift_group": "Смена 1",
-            "prev_shift_group": "Смена 4"
+            "prev_shift_group": "Смена 4",
+            "current_master_id": 1,
+            "current_master_name": "Бекбосынов Р.",
+            "prev_master_id": 4,
+            "prev_master_name": "Дауылбай М."
         }
 
 @router.get("/api/checklists/templates")
