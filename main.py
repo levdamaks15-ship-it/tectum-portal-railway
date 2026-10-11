@@ -276,7 +276,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan)
+app = FastAPI(title="Tectum Enterprise Portal", lifespan=lifespan, docs_url="/api/docs", redoc_url=None)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -315,7 +315,7 @@ async def add_no_cache_headers(request: Request, call_next):
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
-    elif path.endswith(".html") or path in ("/", "/admin", "/analytics", "/tasks", "/planner", "/docs", "/checklists", "/qcd"):
+    elif path.endswith(".html") or path in ("/", "/admin", "/analytics", "/tasks", "/planner", "/docs", "/knowledge", "/base", "/checklists", "/qcd"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -416,6 +416,14 @@ def serve_planner():
 
 @app.get("/docs")
 def serve_docs():
+    return FileResponse("static/docs.html", headers=HTML_NO_CACHE_HEADERS)
+
+@app.get("/knowledge")
+def serve_knowledge():
+    return FileResponse("static/docs.html", headers=HTML_NO_CACHE_HEADERS)
+
+@app.get("/base")
+def serve_base():
     return FileResponse("static/docs.html", headers=HTML_NO_CACHE_HEADERS)
 
 @app.get("/checklists")

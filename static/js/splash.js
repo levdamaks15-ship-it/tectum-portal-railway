@@ -68,10 +68,6 @@
         <i class="fas fa-book"></i>
         <span>База знаний</span>
       </a>
-      <div class="tectum-nav-item" id="nav-item-hub" onclick="window.toggleTectumHubDrawer(true)">
-        <i class="fas fa-th"></i>
-        <span>Модули</span>
-      </div>
     `;
     document.body.appendChild(nav);
 
