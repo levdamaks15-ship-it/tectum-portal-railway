@@ -278,30 +278,40 @@ function addLKCItemRow(data = {}) {
     const factQty = data.fact_qty !== undefined && data.fact_qty !== '' ? Math.round(Number(data.fact_qty)) : '';
     const orderBatch = data.order_batch || 'грядки';
     const setsCount = data.sets_count !== undefined && data.sets_count !== '' ? Math.round(Number(data.sets_count)) : '';
-    const compT = data.comp_t_count !== undefined && data.comp_t_count !== '' ? Math.round(Number(data.comp_t_count)) : '';
-    const compL = data.comp_l_count !== undefined && data.comp_l_count !== '' ? Math.round(Number(data.comp_l_count)) : '';
-    const compScrews = data.comp_screws_count !== undefined && data.comp_screws_count !== '' ? Math.round(Number(data.comp_screws_count)) : '';
+    let compT = data.comp_t_count !== undefined && data.comp_t_count !== '' ? Math.round(Number(data.comp_t_count)) : '';
+    let compL = data.comp_l_count !== undefined && data.comp_l_count !== '' ? Math.round(Number(data.comp_l_count)) : '';
+    let compScrews = data.comp_screws_count !== undefined && data.comp_screws_count !== '' ? Math.round(Number(data.comp_screws_count)) : '';
+
+    // If sets are given but hardware is not specified, auto-calculate from catalog
+    if (setsCount > 0 && compT === '' && compL === '' && compScrews === '' && lkcCatalog && lkcCatalog.length > 0) {
+        const catItem = lkcCatalog.find(c => c.dimension_size === dimSize || c.name === dimSize);
+        if (catItem) {
+            compT = Math.round((catItem.norm_t || 0) * setsCount);
+            compL = Math.round((catItem.norm_l || 0) * setsCount);
+            compScrews = Math.round((catItem.norm_screws || 0) * setsCount);
+        }
+    }
 
     tr.innerHTML = `
         <td class="cell-header" data-label="№">
             <span class="mobile-row-title"><i class="fa-solid fa-layer-group" style="color:var(--lkc-primary);"></i> Строка №<span class="row-num">${rowIdx}</span></span>
-            <button type="button" class="lkc-btn-danger mobile-only" onclick="removeLKCItemRow(this)" title="Удалить строку" style="height: 32px; width: 32px; font-size: 0.85rem; border-radius: 8px;">
+            <button type="button" class="lkc-row-del-btn mobile-only" onclick="removeLKCItemRow(this)" title="Удалить строку" aria-label="Удалить строку">
                 <i class="fa-solid fa-trash-can"></i>
             </button>
         </td>
         <td class="cell-dim" data-label="Размер / Типоразмер">
-            <select class="item-dimension" onchange="onDimensionSelectChange(this)" style="font-weight: 600; color: #0f172a; height: 42px; font-size: 0.92rem;">
+            <select class="item-dimension" onchange="onDimensionSelectChange(this)" style="font-weight: 700; color: #0f172a;">
                 ${getCatalogOptionsHTML(dimSize)}
             </select>
         </td>
         <td class="cell-plan" data-label="План (шт)">
-            <input type="number" step="1" class="item-plan" value="${planQty}" readonly style="background: #f8fafc; color: #475569; font-weight: 700; text-align: center; height: 42px; font-size: 0.95rem;">
+            <input type="number" step="1" class="item-plan" value="${planQty}" readonly>
         </td>
         <td class="cell-fact" data-label="Факт (шт)">
-            <input type="number" step="1" class="item-fact" value="${factQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 700; color: #0f172a; height: 42px; font-size: 0.95rem;">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-fact" value="${factQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
         </td>
         <td class="cell-order" data-label="Комплект (Заказ / Партия)">
-            <select class="item-order" onchange="calculateLKCTotals()" style="height: 42px; font-size: 0.92rem; font-weight: 600;">
+            <select class="item-order" onchange="calculateLKCTotals()">
                 <option value="грядки" ${orderBatch === 'грядки' ? 'selected' : ''}>грядки</option>
                 <option value="Заказ покупателя" ${orderBatch === 'Заказ покупателя' ? 'selected' : ''}>Заказ покупателя</option>
                 <option value="Партия на склад" ${orderBatch === 'Партия на склад' ? 'selected' : ''}>Партия на склад</option>
@@ -309,16 +319,22 @@ function addLKCItemRow(data = {}) {
             </select>
         </td>
         <td class="cell-sets" data-label="Кол-во компл.">
-            <input type="number" step="1" class="item-sets" value="${setsCount}" placeholder="0" min="0" onwheel="this.blur()" oninput="onSetsCountChange(this)" style="text-align: center; font-weight: 700; height: 42px; font-size: 0.95rem;">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-sets" value="${setsCount}" placeholder="0" min="0" onwheel="this.blur()" oninput="onSetsCountChange(this)">
         </td>
-        <td class="cell-t" data-label="T (шт)" style="background: #f0f9ff;">
-            <input type="number" step="1" class="item-t" value="${compT}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="background: #f0f9ff; font-weight: 700; text-align: center; color: #0369a1; height: 42px; font-size: 0.95rem;">
+        <td class="cell-hw-banner mobile-only" data-label="">
+            <div class="mobile-hw-header">
+                <i class="fa-solid fa-calculator" style="color: #0284c7;"></i>
+                <span>Фурнитура комплекта (авторасчет)</span>
+            </div>
         </td>
-        <td class="cell-l" data-label="L (шт)" style="background: #f0f9ff;">
-            <input type="number" step="1" class="item-l" value="${compL}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="background: #f0f9ff; font-weight: 700; text-align: center; color: #0369a1; height: 42px; font-size: 0.95rem;">
+        <td class="cell-t" data-label="T (шт)">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-t" value="${compT}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
         </td>
-        <td class="cell-screws" data-label="Шурупы" style="background: #f0f9ff;">
-            <input type="number" step="1" class="item-screws" value="${compScrews}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="background: #f0f9ff; font-weight: 700; text-align: center; color: #0369a1; height: 42px; font-size: 0.95rem;">
+        <td class="cell-l" data-label="L (шт)">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-l" value="${compL}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
+        </td>
+        <td class="cell-screws" data-label="Шурупы">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-screws" value="${compScrews}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
         </td>
         <td class="cell-action desktop-only" style="text-align: center;">
             <button type="button" class="lkc-btn-danger" onclick="removeLKCItemRow(this)" title="Удалить строку" style="height: 38px; width: 38px; font-size: 0.95rem;">
@@ -389,26 +405,26 @@ function addLKCRawMaterialRow(data = {}) {
     tr.innerHTML = `
         <td class="cell-header" data-label="№">
             <span class="mobile-row-title"><i class="fa-solid fa-box-open" style="color:var(--lkc-primary);"></i> Материал №<span class="raw-row-num">${rowIdx}</span></span>
-            <button type="button" class="lkc-btn-danger mobile-only" onclick="removeLKCRawMaterialRow(this)" title="Удалить строку" style="height: 32px; width: 32px; font-size: 0.85rem; border-radius: 8px;">
+            <button type="button" class="lkc-row-del-btn mobile-only" onclick="removeLKCRawMaterialRow(this)" title="Удалить строку" aria-label="Удалить строку">
                 <i class="fa-solid fa-trash-can"></i>
             </button>
         </td>
         <td class="cell-mat" data-label="Наименование сырья / Материал">
-            <select class="raw-material-name" onchange="calculateLKCTotals()" style="font-weight: 600; color: #0f172a; height: 42px; font-size: 0.92rem;">
+            <select class="raw-material-name" onchange="calculateLKCTotals()" style="font-weight: 700; color: #0f172a;">
                 ${getRawMaterialOptionsHTML(matName)}
             </select>
         </td>
         <td class="cell-spent" data-label="Списано (шт)">
-            <input type="number" step="1" class="raw-spent" value="${spentQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 700; color: #1e293b; height: 42px; font-size: 0.95rem;">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="raw-spent" value="${spentQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 700; color: #1e293b;">
         </td>
         <td class="cell-submitted" data-label="Сдано на склад ГП (шт)">
-            <input type="number" step="1" class="raw-submitted" value="${whSub}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 700; color: #15803d; height: 42px; font-size: 0.95rem;">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="raw-submitted" value="${whSub}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 800; color: #15803d;">
         </td>
         <td class="cell-scrap" data-label="Отходы / Брак (шт)">
-            <input type="number" step="1" class="raw-scrap" value="${scrapQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 700; color: #dc2626; height: 42px; font-size: 0.95rem;">
+            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="raw-scrap" value="${scrapQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()" style="text-align: center; font-weight: 800; color: #dc2626;">
         </td>
         <td class="cell-notes" data-label="Примечание / Партия">
-            <input type="text" class="raw-notes" value="${escapeHtml(notes)}" placeholder="Партия / примечание" style="height: 42px; font-size: 0.92rem;">
+            <input type="text" class="raw-notes" value="${escapeHtml(notes)}" placeholder="Партия / примечание">
         </td>
         <td class="cell-action desktop-only" style="text-align: center;">
             <button type="button" class="lkc-btn-danger" onclick="removeLKCRawMaterialRow(this)" title="Удалить строку списания" style="height: 38px; width: 38px; font-size: 0.95rem;">
@@ -526,6 +542,7 @@ function renderLKCNormsTable() {
 
 function calculateLKCTotals() {
     const itemRows = document.querySelectorAll('.lkc-item-row');
+    let totalPlan = 0;
     let totalFact = 0;
     let totalSets = 0;
     let totalT = 0;
@@ -533,18 +550,38 @@ function calculateLKCTotals() {
     let totalScrews = 0;
 
     itemRows.forEach(tr => {
+        const plan = parseInt(tr.querySelector('.item-plan')?.value, 10) || 0;
         const fact = parseInt(tr.querySelector('.item-fact')?.value, 10) || 0;
         const sets = parseInt(tr.querySelector('.item-sets')?.value, 10) || 0;
         const t = parseInt(tr.querySelector('.item-t')?.value, 10) || 0;
         const l = parseInt(tr.querySelector('.item-l')?.value, 10) || 0;
         const screws = parseInt(tr.querySelector('.item-screws')?.value, 10) || 0;
 
+        totalPlan += plan;
         totalFact += fact;
         totalSets += sets;
         totalT += t;
         totalL += l;
         totalScrews += screws;
     });
+
+    const elPlan = document.getElementById('items-total-plan');
+    if (elPlan) elPlan.innerText = totalPlan;
+
+    const elFact = document.getElementById('items-total-fact');
+    if (elFact) elFact.innerText = totalFact;
+
+    const elSets = document.getElementById('items-total-sets');
+    if (elSets) elSets.innerText = totalSets;
+
+    const elT = document.getElementById('items-total-t');
+    if (elT) elT.innerText = totalT;
+
+    const elL = document.getElementById('items-total-l');
+    if (elL) elL.innerText = totalL;
+
+    const elScrews = document.getElementById('items-total-screws');
+    if (elScrews) elScrews.innerText = totalScrews;
 
     const rawRows = document.querySelectorAll('.lkc-raw-row');
     let totalSpent = 0;

@@ -517,18 +517,24 @@
                 display: none !important;
             }
 
-            /* Rows transformed to modern cards */
+            /* Strict desktop action cell isolation on mobile */
+            .lkc-item-row > td.desktop-only,
+            .lkc-raw-row > td.desktop-only {
+                display: none !important;
+            }
+
+            /* Rows transformed to modern cards with Large-Font Safety */
             .lkc-item-row,
             .lkc-raw-row {
                 display: grid !important;
-                grid-template-columns: repeat(6, 1fr) !important;
-                gap: 8px !important;
+                grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+                gap: 10px 8px !important;
                 background: #ffffff !important;
                 border: 1px solid #e2e8f0 !important;
-                border-radius: 14px !important;
-                padding: 12px 14px !important;
+                border-radius: 16px !important;
+                padding: 14px !important;
                 margin-bottom: 14px !important;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
                 box-sizing: border-box !important;
             }
 
@@ -541,18 +547,33 @@
                 border: none !important;
                 background: transparent !important;
                 box-sizing: border-box !important;
+                min-width: 0 !important;
             }
 
             .lkc-item-row > td::before,
             .lkc-raw-row > td::before {
                 content: attr(data-label);
-                font-size: 0.72rem;
+                font-size: 0.86rem;
                 font-weight: 700;
-                color: #64748b;
+                color: #1e293b;
                 text-transform: uppercase;
                 letter-spacing: 0.02em;
-                margin-bottom: 4px;
+                margin-bottom: 5px;
                 display: block;
+                line-height: 1.25;
+            }
+
+            /* High Legibility Mobile Inputs (Anti-Cutoff for Large System Fonts) */
+            .lkc-item-row select,
+            .lkc-item-row input,
+            .lkc-raw-row select,
+            .lkc-raw-row input {
+                min-height: 48px !important;
+                height: auto !important;
+                font-size: 1.05rem !important;
+                border-radius: 10px !important;
+                padding: 10px 12px !important;
+                box-sizing: border-box !important;
             }
 
             /* Card Header Bar */
@@ -563,7 +584,7 @@
                 flex-direction: row !important;
                 justify-content: space-between !important;
                 align-items: center !important;
-                padding-bottom: 8px !important;
+                padding-bottom: 10px !important;
                 margin-bottom: 4px !important;
                 border-bottom: 1px solid #f1f5f9 !important;
             }
@@ -574,30 +595,115 @@
             }
 
             .mobile-row-title {
-                font-weight: 700;
-                font-size: 0.92rem;
-                color: #1e293b;
+                font-weight: 800;
+                font-size: 1.05rem;
+                color: #0f172a;
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
             }
 
-            /* Items Card Layout */
+            /* Touch Target 44px+ for Card Delete Button (No Neon Glow) */
+            .lkc-row-del-btn {
+                width: 44px !important;
+                height: 44px !important;
+                min-width: 44px !important;
+                min-height: 44px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 10px !important;
+                background: #fef2f2 !important;
+                border: 1.5px solid #fecaca !important;
+                color: #dc2626 !important;
+                font-size: 1.15rem !important;
+                cursor: pointer !important;
+                box-shadow: none !important;
+                transition: all 0.15s ease !important;
+            }
+
+            .lkc-row-del-btn:active {
+                background: #fee2e2 !important;
+                transform: scale(0.96) !important;
+            }
+
+            /* Items Card Layout (Compact 2-Phase Grid) */
             .cell-dim {
                 grid-column: 1 / -1 !important;
             }
+            .cell-dim select {
+                font-weight: 700 !important;
+                color: #0f172a !important;
+            }
+
             .cell-plan {
                 grid-column: 1 / 4 !important;
             }
+            .cell-plan input {
+                background: #f8fafc !important;
+                color: #475569 !important;
+                font-weight: 800 !important;
+                font-size: 1.15rem !important;
+                text-align: center !important;
+                border: 1.5px solid #cbd5e1 !important;
+            }
+
+            /* Extra-prominent Fact Input for poor eyesight */
             .cell-fact {
                 grid-column: 4 / 7 !important;
             }
+            .cell-fact input {
+                background: #f0fdf4 !important;
+                color: #15803d !important;
+                font-weight: 800 !important;
+                font-size: 1.3rem !important;
+                text-align: center !important;
+                border: 2px solid #22c55e !important;
+            }
+
+            /* Combined Order + Sets Count in One Row */
             .cell-order {
-                grid-column: 1 / -1 !important;
+                grid-column: 1 / 5 !important;
             }
+            .cell-order select {
+                font-weight: 600 !important;
+                color: #0f172a !important;
+            }
+
             .cell-sets {
-                grid-column: 1 / -1 !important;
+                grid-column: 5 / 7 !important;
             }
+            .cell-sets input {
+                background: #ffffff !important;
+                color: #0f172a !important;
+                font-weight: 800 !important;
+                font-size: 1.2rem !important;
+                text-align: center !important;
+                border: 2px solid #3b82f6 !important;
+            }
+
+            /* Hardware Autocalculation Section on Mobile */
+            .cell-hw-banner {
+                grid-column: 1 / -1 !important;
+                margin-top: 6px;
+                margin-bottom: 2px;
+            }
+            .cell-hw-banner::before {
+                display: none !important;
+            }
+            .mobile-hw-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 7px 12px;
+                background: #e0f2fe;
+                border: 1px solid #bae6fd;
+                border-radius: 8px;
+                color: #0369a1;
+                font-size: 0.88rem;
+                font-weight: 700;
+            }
+
             .cell-t {
                 grid-column: 1 / 3 !important;
             }
@@ -606,6 +712,25 @@
             }
             .cell-screws {
                 grid-column: 5 / 7 !important;
+            }
+
+            .cell-t::before,
+            .cell-l::before,
+            .cell-screws::before {
+                color: #0369a1 !important;
+                font-size: 0.84rem !important;
+                text-align: center !important;
+            }
+
+            .cell-t input,
+            .cell-l input,
+            .cell-screws input {
+                background: #f0f9ff !important;
+                border: 1.5px solid #7dd3fc !important;
+                color: #0369a1 !important;
+                font-weight: 800 !important;
+                font-size: 1.15rem !important;
+                text-align: center !important;
             }
 
             /* Raw Material Card Layout */
@@ -618,23 +743,35 @@
             .cell-submitted {
                 grid-column: 4 / 7 !important;
             }
+            .cell-submitted input {
+                color: #15803d !important;
+                font-weight: 800 !important;
+                font-size: 1.2rem !important;
+            }
             .cell-scrap {
                 grid-column: 1 / 4 !important;
+            }
+            .cell-scrap input {
+                color: #dc2626 !important;
+                font-weight: 800 !important;
+                font-size: 1.2rem !important;
             }
             .cell-notes {
                 grid-column: 4 / 7 !important;
             }
 
-            /* Bento Summary Footer on Mobile */
+            /* Bento Summary Footer on Mobile for Items & Raw Materials */
+            #lkc-items-table tfoot,
             #lkc-raw-table tfoot {
                 display: block !important;
                 width: 100% !important;
-                margin-top: 10px;
+                margin-top: 12px;
             }
 
+            #lkc-items-table tfoot tr,
             #lkc-raw-table tfoot tr {
                 display: grid !important;
-                grid-template-columns: repeat(3, 1fr) !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
                 gap: 8px !important;
                 background: #f8fafc !important;
                 border: 1px solid #e2e8f0 !important;
@@ -642,31 +779,51 @@
                 padding: 10px !important;
             }
 
+            #lkc-items-table tfoot tr > td:first-child,
+            #lkc-items-table tfoot tr > td:nth-child(5),
+            #lkc-items-table tfoot tr > td:nth-child(7),
+            #lkc-items-table tfoot tr > td:nth-child(8),
+            #lkc-items-table tfoot tr > td:nth-child(9),
+            #lkc-items-table tfoot tr > td:last-child,
             #lkc-raw-table tfoot tr > td:first-child,
             #lkc-raw-table tfoot tr > td:last-child {
                 display: none !important;
             }
 
+            #lkc-items-table tfoot td,
             #lkc-raw-table tfoot td {
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: center !important;
                 justify-content: center !important;
-                padding: 6px 4px !important;
+                padding: 8px 4px !important;
                 border: none !important;
                 background: #ffffff !important;
-                border-radius: 8px !important;
+                border-radius: 10px !important;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
                 text-align: center !important;
+                font-size: 1.25rem !important;
+                font-weight: 800 !important;
             }
 
+            #lkc-items-table tfoot td::before,
             #lkc-raw-table tfoot td::before {
-                font-size: 0.68rem;
+                font-size: 0.8rem;
                 font-weight: 700;
-                color: #64748b;
+                color: #475569;
                 text-transform: uppercase;
-                margin-bottom: 2px;
+                margin-bottom: 3px;
                 display: block;
+            }
+
+            #items-total-plan::before {
+                content: "План (шт)";
+            }
+            #items-total-fact::before {
+                content: "Факт (шт)";
+            }
+            #items-total-sets::before {
+                content: "Комплекты";
             }
 
             #raw-total-spent::before {
@@ -863,7 +1020,25 @@
                             <tbody id="lkc-items-tbody">
                                 <!-- Dynamic rows generated by JS -->
                             </tbody>
+                            <tfoot>
+                                <tr style="background: #f8fafc; font-weight: 700; font-size: 0.92rem;">
+                                    <td colspan="2" style="text-align: right; color: #475569; padding: 10px 14px;">ИТОГО ПО ВЫПУСКУ:</td>
+                                    <td style="text-align: center; color: #64748b; font-size: 1rem;" id="items-total-plan">0</td>
+                                    <td style="text-align: center; color: #15803d; font-size: 1.05rem;" id="items-total-fact">0</td>
+                                    <td></td>
+                                    <td style="text-align: center; color: #1e293b; font-size: 1rem;" id="items-total-sets">0</td>
+                                    <td style="text-align: center; color: #0369a1; font-size: 0.95rem; background: #f0f9ff;" id="items-total-t">0</td>
+                                    <td style="text-align: center; color: #0369a1; font-size: 0.95rem; background: #f0f9ff;" id="items-total-l">0</td>
+                                    <td style="text-align: center; color: #0369a1; font-size: 0.95rem; background: #f0f9ff;" id="items-total-screws">0</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="lkc-btn-secondary mobile-only" onclick="addLKCItemRow();" style="width: 100%; justify-content: center; min-height: 48px; font-size: 1.02rem; font-weight: 700; border-radius: 12px; border: 1.5px dashed var(--lkc-primary); color: var(--lkc-primary); background: #fff5f5;">
+                            <i class="fa-solid fa-plus"></i> Добавить позицию продукции
+                        </button>
                     </div>
                 </div>
             </div>
@@ -908,6 +1083,11 @@
                                 </tr>
                             </tfoot>
                         </table>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button type="button" class="lkc-btn-secondary mobile-only" onclick="addLKCRawMaterialRow();" style="width: 100%; justify-content: center; min-height: 48px; font-size: 1.02rem; font-weight: 700; border-radius: 12px; border: 1.5px dashed var(--lkc-primary); color: var(--lkc-primary); background: #fff5f5;">
+                            <i class="fa-solid fa-plus"></i> Добавить строку сырья
+                        </button>
                     </div>
                 </div>
             </div>
