@@ -2936,9 +2936,10 @@ async function openEditDowntimeModal(id) {
         if (!res.ok) throw new Error("Не удалось загрузить простой");
         const d = await res.json();
         
+        const cleanTime = (t) => t ? t.trim().slice(0, 5) : '';
         document.getElementById('edit-dt-id').value = d.id;
-        document.getElementById('edit-dt-start').value = d.start_time || '';
-        document.getElementById('edit-dt-end').value = d.end_time || '';
+        document.getElementById('edit-dt-start').value = cleanTime(d.start_time);
+        document.getElementById('edit-dt-end').value = cleanTime(d.end_time);
         document.getElementById('edit-dt-desc').value = d.description || d.comment || '';
         const editKz = document.getElementById('edit-dt-desc-kz');
         if (editKz) editKz.value = d.description_kz || '';
@@ -3131,10 +3132,12 @@ function startDirectVoiceTyping(targetInputId, lang, btnId) {
                 return;
             }
 
-            // Запускаем фоновый автоперевод в соседнюю колонку
+            // Запускаем фоновый автоперевод в соседнюю колонку (только если поле перевода существует)
             const scope = targetInputId.startsWith('edit-') ? 'edit' : 'journal';
-            const sourceLang = (lang && lang.startsWith('kk')) ? 'kz' : 'ru';
-            debounceDowntimeTranslate(scope, sourceLang, 200);
+            if (document.getElementById(scope + '-dt-desc-kz')) {
+                const sourceLang = (lang && lang.startsWith('kk')) ? 'kz' : 'ru';
+                debounceDowntimeTranslate(scope, sourceLang, 200);
+            }
         };
 
         recognition.start();
