@@ -473,21 +473,26 @@
 
             .lkc-section-header {
                 padding: 0.9rem 1rem;
-                flex-wrap: wrap;
-                gap: 8px;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                flex-wrap: nowrap !important;
+                gap: 10px;
             }
 
             .lkc-section-title {
-                font-size: 0.95rem;
+                font-size: 1rem;
                 flex: 1 1 auto;
+                margin: 0;
             }
 
             .lkc-section-header > div {
-                width: 100%;
+                width: auto !important;
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
-                margin-top: 4px;
+                gap: 10px;
+                margin-top: 0 !important;
+                flex-shrink: 0;
             }
 
             .lkc-section-content {
@@ -1017,7 +1022,7 @@
                         <i class="fa-solid fa-industry" style="color: var(--lkc-primary);"></i> 2. Выпуск продукции и комплектов (Заказы)
                     </h3>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <button type="button" class="lkc-btn-primary" id="btn-add-item" onclick="event.stopPropagation(); addLKCItemRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
+                        <button type="button" class="lkc-btn-primary desktop-only" id="btn-add-item" onclick="event.stopPropagation(); addLKCItemRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
                             <i class="fa-solid fa-plus"></i> Добавить строку
                         </button>
                         <i class="fa-solid fa-chevron-down acc-icon"></i>
@@ -1047,7 +1052,7 @@
                     </div>
                     <div style="margin-top: 10px;">
                         <button type="button" class="lkc-btn-secondary mobile-only" onclick="addLKCItemRow();" style="width: 100%; justify-content: center; min-height: 48px; font-size: 1.02rem; font-weight: 700; border-radius: 12px; border: 1.5px dashed var(--lkc-primary); color: var(--lkc-primary); background: #fff5f5;">
-                            <i class="fa-solid fa-plus"></i> Добавить позицию продукции
+                            <i class="fa-solid fa-plus"></i> Добавить строку продукции
                         </button>
                     </div>
                 </div>
@@ -1060,7 +1065,7 @@
                         <i class="fa-solid fa-boxes-stacked" style="color: var(--lkc-primary);"></i> 3. Списание сырья и сдача на склад
                     </h3>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <button type="button" class="lkc-btn-primary" id="btn-add-raw-item" onclick="event.stopPropagation(); addLKCRawMaterialRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
+                        <button type="button" class="lkc-btn-primary desktop-only" id="btn-add-raw-item" onclick="event.stopPropagation(); addLKCRawMaterialRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
                             <i class="fa-solid fa-plus"></i> Добавить списание сырья
                         </button>
                         <i class="fa-solid fa-chevron-down acc-icon"></i>
