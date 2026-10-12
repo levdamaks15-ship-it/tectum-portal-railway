@@ -311,11 +311,9 @@ function addLKCItemRow(data = {}) {
             <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-fact" value="${factQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
         </td>
         <td class="cell-order" data-label="Комплект (Заказ / Партия)">
-            <select class="item-order" onchange="calculateLKCTotals()">
-                <option value="грядки" ${orderBatch === 'грядки' ? 'selected' : ''}>грядки</option>
-                <option value="Заказ покупателя" ${orderBatch === 'Заказ покупателя' ? 'selected' : ''}>Заказ покупателя</option>
-                <option value="Партия на склад" ${orderBatch === 'Партия на склад' ? 'selected' : ''}>Партия на склад</option>
-                <option value="Без комплекта" ${orderBatch === 'Без комплекта' ? 'selected' : ''}>Без комплекта</option>
+            <select class="item-order" onchange="onOrderTypeChange(this)">
+                <option value="грядки" ${(orderBatch.toLowerCase() === 'грядки') ? 'selected' : ''}>Грядки</option>
+                <option value="Раскрой листа" ${orderBatch === 'Раскрой листа' ? 'selected' : ''}>Раскрой листа</option>
             </select>
         </td>
         <td class="cell-sets" data-label="Кол-во компл.">
@@ -328,13 +326,13 @@ function addLKCItemRow(data = {}) {
             </div>
         </td>
         <td class="cell-t" data-label="T (шт)">
-            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-t" value="${compT}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
+            <input type="number" step="1" class="item-t" value="${compT}" placeholder="0" readonly tabindex="-1" style="pointer-events: none;">
         </td>
         <td class="cell-l" data-label="L (шт)">
-            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-l" value="${compL}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
+            <input type="number" step="1" class="item-l" value="${compL}" placeholder="0" readonly tabindex="-1" style="pointer-events: none;">
         </td>
         <td class="cell-screws" data-label="Шурупы">
-            <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-screws" value="${compScrews}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
+            <input type="number" step="1" class="item-screws" value="${compScrews}" placeholder="0" readonly tabindex="-1" style="pointer-events: none;">
         </td>
         <td class="cell-action desktop-only" style="text-align: center;">
             <button type="button" class="lkc-btn-danger" onclick="removeLKCItemRow(this)" title="Удалить строку" style="height: 38px; width: 38px; font-size: 0.95rem;">
@@ -344,7 +342,52 @@ function addLKCItemRow(data = {}) {
     `;
 
     tbody.appendChild(tr);
+    if (orderBatch === 'Раскрой листа') {
+        const orderSelect = tr.querySelector('.item-order');
+        if (orderSelect) onOrderTypeChange(orderSelect);
+    }
     renumberItemRows();
+    calculateLKCTotals();
+}
+
+function onOrderTypeChange(selectEl) {
+    const tr = selectEl.closest('tr');
+    if (!tr) return;
+    const isCut = selectEl.value === 'Раскрой листа';
+    const setsInput = tr.querySelector('.item-sets');
+    const hwBanner = tr.querySelector('.cell-hw-banner');
+    const cellT = tr.querySelector('.cell-t');
+    const cellL = tr.querySelector('.cell-l');
+    const cellScrews = tr.querySelector('.cell-screws');
+
+    if (isCut) {
+        if (setsInput) {
+            setsInput.value = 0;
+            setsInput.disabled = true;
+            setsInput.style.background = '#f1f5f9';
+            setsInput.style.color = '#94a3b8';
+            setsInput.style.borderColor = '#cbd5e1';
+        }
+        if (tr.querySelector('.item-t')) tr.querySelector('.item-t').value = 0;
+        if (tr.querySelector('.item-l')) tr.querySelector('.item-l').value = 0;
+        if (tr.querySelector('.item-screws')) tr.querySelector('.item-screws').value = 0;
+        if (hwBanner) hwBanner.style.opacity = '0.35';
+        if (cellT) cellT.style.opacity = '0.35';
+        if (cellL) cellL.style.opacity = '0.35';
+        if (cellScrews) cellScrews.style.opacity = '0.35';
+    } else {
+        if (setsInput) {
+            setsInput.disabled = false;
+            setsInput.style.background = '#ffffff';
+            setsInput.style.color = '#0f172a';
+            setsInput.style.borderColor = '#3b82f6';
+        }
+        if (hwBanner) hwBanner.style.opacity = '1';
+        if (cellT) cellT.style.opacity = '1';
+        if (cellL) cellL.style.opacity = '1';
+        if (cellScrews) cellScrews.style.opacity = '1';
+        if (setsInput) onSetsCountChange(setsInput);
+    }
     calculateLKCTotals();
 }
 
@@ -564,24 +607,6 @@ function calculateLKCTotals() {
         totalL += l;
         totalScrews += screws;
     });
-
-    const elPlan = document.getElementById('items-total-plan');
-    if (elPlan) elPlan.innerText = totalPlan;
-
-    const elFact = document.getElementById('items-total-fact');
-    if (elFact) elFact.innerText = totalFact;
-
-    const elSets = document.getElementById('items-total-sets');
-    if (elSets) elSets.innerText = totalSets;
-
-    const elT = document.getElementById('items-total-t');
-    if (elT) elT.innerText = totalT;
-
-    const elL = document.getElementById('items-total-l');
-    if (elL) elL.innerText = totalL;
-
-    const elScrews = document.getElementById('items-total-screws');
-    if (elScrews) elScrews.innerText = totalScrews;
 
     const rawRows = document.querySelectorAll('.lkc-raw-row');
     let totalSpent = 0;

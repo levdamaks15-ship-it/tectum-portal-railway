@@ -729,46 +729,78 @@
                 border: 1.5px solid #7dd3fc !important;
                 color: #0369a1 !important;
                 font-weight: 800 !important;
-                font-size: 1.15rem !important;
+                font-size: 1.2rem !important;
                 text-align: center !important;
+                cursor: default !important;
+                user-select: none !important;
+                pointer-events: none !important;
+                -webkit-user-select: none !important;
             }
 
-            /* Raw Material Card Layout */
+            /* Raw Material Card Layout (Styled by Block 2 Template) */
             .cell-mat {
                 grid-column: 1 / -1 !important;
             }
+            .cell-mat select {
+                font-weight: 700 !important;
+                color: #0f172a !important;
+            }
+
+            /* Spent raw materials: prominent blue */
             .cell-spent {
                 grid-column: 1 / 4 !important;
             }
+            .cell-spent input {
+                background: #eff6ff !important;
+                color: #1d4ed8 !important;
+                font-weight: 800 !important;
+                font-size: 1.3rem !important;
+                text-align: center !important;
+                border: 2px solid #3b82f6 !important;
+            }
+
+            /* Finished goods submitted: prominent green like Fact in Block 2 */
             .cell-submitted {
                 grid-column: 4 / 7 !important;
             }
             .cell-submitted input {
+                background: #f0fdf4 !important;
                 color: #15803d !important;
                 font-weight: 800 !important;
-                font-size: 1.2rem !important;
+                font-size: 1.3rem !important;
+                text-align: center !important;
+                border: 2px solid #22c55e !important;
             }
+
+            /* Scrap / defect: prominent red */
             .cell-scrap {
                 grid-column: 1 / 4 !important;
             }
             .cell-scrap input {
+                background: #fef2f2 !important;
                 color: #dc2626 !important;
                 font-weight: 800 !important;
-                font-size: 1.2rem !important;
+                font-size: 1.3rem !important;
+                text-align: center !important;
+                border: 2px solid #ef4444 !important;
             }
+
             .cell-notes {
                 grid-column: 4 / 7 !important;
             }
+            .cell-notes input {
+                border: 1.5px solid #cbd5e1 !important;
+                color: #0f172a !important;
+                font-size: 1rem !important;
+            }
 
-            /* Bento Summary Footer on Mobile for Items & Raw Materials */
-            #lkc-items-table tfoot,
+            /* Bento Summary Footer on Mobile for Raw Materials Only */
             #lkc-raw-table tfoot {
                 display: block !important;
                 width: 100% !important;
                 margin-top: 12px;
             }
 
-            #lkc-items-table tfoot tr,
             #lkc-raw-table tfoot tr {
                 display: grid !important;
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -779,18 +811,11 @@
                 padding: 10px !important;
             }
 
-            #lkc-items-table tfoot tr > td:first-child,
-            #lkc-items-table tfoot tr > td:nth-child(5),
-            #lkc-items-table tfoot tr > td:nth-child(7),
-            #lkc-items-table tfoot tr > td:nth-child(8),
-            #lkc-items-table tfoot tr > td:nth-child(9),
-            #lkc-items-table tfoot tr > td:last-child,
             #lkc-raw-table tfoot tr > td:first-child,
             #lkc-raw-table tfoot tr > td:last-child {
                 display: none !important;
             }
 
-            #lkc-items-table tfoot td,
             #lkc-raw-table tfoot td {
                 display: flex !important;
                 flex-direction: column !important;
@@ -802,11 +827,10 @@
                 border-radius: 10px !important;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important;
                 text-align: center !important;
-                font-size: 1.25rem !important;
+                font-size: 1.3rem !important;
                 font-weight: 800 !important;
             }
 
-            #lkc-items-table tfoot td::before,
             #lkc-raw-table tfoot td::before {
                 font-size: 0.8rem;
                 font-weight: 700;
@@ -816,21 +840,20 @@
                 display: block;
             }
 
-            #items-total-plan::before {
-                content: "План (шт)";
+            #raw-total-spent {
+                color: #1d4ed8 !important;
             }
-            #items-total-fact::before {
-                content: "Факт (шт)";
-            }
-            #items-total-sets::before {
-                content: "Комплекты";
-            }
-
             #raw-total-spent::before {
                 content: "Списано";
             }
+            #raw-total-submitted {
+                color: #15803d !important;
+            }
             #raw-total-submitted::before {
                 content: "Сдано";
+            }
+            #raw-total-scrap {
+                color: #dc2626 !important;
             }
             #raw-total-scrap::before {
                 content: "Брак";
@@ -1020,19 +1043,6 @@
                             <tbody id="lkc-items-tbody">
                                 <!-- Dynamic rows generated by JS -->
                             </tbody>
-                            <tfoot>
-                                <tr style="background: #f8fafc; font-weight: 700; font-size: 0.92rem;">
-                                    <td colspan="2" style="text-align: right; color: #475569; padding: 10px 14px;">ИТОГО ПО ВЫПУСКУ:</td>
-                                    <td style="text-align: center; color: #64748b; font-size: 1rem;" id="items-total-plan">0</td>
-                                    <td style="text-align: center; color: #15803d; font-size: 1.05rem;" id="items-total-fact">0</td>
-                                    <td></td>
-                                    <td style="text-align: center; color: #1e293b; font-size: 1rem;" id="items-total-sets">0</td>
-                                    <td style="text-align: center; color: #0369a1; font-size: 0.95rem; background: #f0f9ff;" id="items-total-t">0</td>
-                                    <td style="text-align: center; color: #0369a1; font-size: 0.95rem; background: #f0f9ff;" id="items-total-l">0</td>
-                                    <td style="text-align: center; color: #0369a1; font-size: 0.95rem; background: #f0f9ff;" id="items-total-screws">0</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
                         </table>
                     </div>
                     <div style="margin-top: 10px;">
