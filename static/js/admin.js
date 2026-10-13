@@ -173,6 +173,7 @@ function switchAdminTab(tabId) {
     const tabChecklistEmps = document.getElementById('tab-checklist-emps'); if (tabChecklistEmps) tabChecklistEmps.style.display = 'none';
     const tabShiftSchedule = document.getElementById('tab-shift-schedule'); if (tabShiftSchedule) tabShiftSchedule.style.display = 'none';
     const tabAiAssistant = document.getElementById('tab-ai-assistant'); if (tabAiAssistant) tabAiAssistant.style.display = 'none';
+    const tabLkc = document.getElementById('tab-lkc'); if (tabLkc) tabLkc.style.display = 'none';
     
     const targetTab = document.getElementById('tab-' + tabId);
     if (targetTab) targetTab.style.display = 'block';
@@ -196,6 +197,8 @@ function switchAdminTab(tabId) {
         loadDowntimesDir();
     } else if (tabId === 'downtimes-log') {
         loadDowntimesLog();
+    } else if (tabId === 'lkc') {
+        loadAdminLKCTab();
     } else if (tabId === 'planner-settings') {
         loadPlannerSettings();
     } else if (tabId === 'passwords') {
@@ -214,6 +217,8 @@ function switchAdminTab(tabId) {
 function closeModals() {
     closePlannerModals();
     closeAdminTaskModal();
+    const lkcModal = document.getElementById('admin-lkc-details-modal');
+    if (lkcModal) lkcModal.style.display = 'none';
     const clEmpModal = document.getElementById('checklist-emp-modal');
     if (clEmpModal) clEmpModal.style.display = 'none';
     const schedModal = document.getElementById('shift-schedule-modal');
@@ -4243,6 +4248,357 @@ async function restoreFromBackupExcel() {
         alert("Ошибка сети при загрузке файла");
     }
 }
+
+// =========================================================================
+// --- LKC (УЧАСТОК РАСКРОЯ И КОМПЛЕКТУЮЩИХ) ADMIN MODULE ---
+// =========================================================================
+
+let adminLKCCachedReports = [];
+
+function escapeLKCHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatLKCDateRu(dStr) {
+    if (!dStr) return '-';
+    try {
+        const parts = String(dStr).split('T')[0].split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}.${parts[1]}.${parts[0]}`;
+        }
+        return dStr;
+    } catch (e) {
+        return dStr;
+    }
+}
+
+async function loadAdminLKCTab() {
+    const tbody = document.getElementById('admin-lkc-table-body');
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка рапортов ЛКЦ...</td></tr>`;
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const res = await fetch('/api/lkc/reports?limit=200', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) throw new Error(`Ошибка сервера: ${res.status}`);
+        const reports = await res.json();
+        adminLKCCachedReports = Array.isArray(reports) ? reports : [];
+        filterAdminLKCTable();
+    } catch (err) {
+        console.error('[Admin LKC] Ошибка загрузки рапортов:', err);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #ef4444; padding: 1.5rem;"><i class="fa-solid fa-circle-exclamation"></i> Не удалось загрузить рапорты: ${escapeLKCHtml(err.message)}</td></tr>`;
+        }
+    }
+}
+
+function filterAdminLKCTable() {
+    const dateFrom = document.getElementById('filter-lkc-date-from')?.value || '';
+    const dateTo = document.getElementById('filter-lkc-date-to')?.value || '';
+    const shiftFilter = (document.getElementById('filter-lkc-shift')?.value || '').toLowerCase();
+    const searchFilter = (document.getElementById('filter-lkc-search')?.value || '').toLowerCase().trim();
+
+    const filtered = adminLKCCachedReports.filter(r => {
+        const rDate = r.report_date ? String(r.report_date).split('T')[0] : '';
+        if (dateFrom && rDate < dateFrom) return false;
+        if (dateTo && rDate > dateTo) return false;
+
+        if (shiftFilter) {
+            const shiftName = (r.shift_name || '').toLowerCase();
+            if (!shiftName.includes(shiftFilter)) return false;
+        }
+
+        if (searchFilter) {
+            const master = (r.master_name || '').toLowerCase();
+            const notes = (r.notes || '').toLowerCase();
+            const itemsText = (r.items || []).map(it => (it.product_type || '') + ' ' + (it.dimension_size || '')).join(' ').toLowerCase();
+            if (!master.includes(searchFilter) && !notes.includes(searchFilter) && !itemsText.includes(searchFilter)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    renderAdminLKCTable(filtered);
+}
+
+function renderAdminLKCTable(reports) {
+    const tbody = document.getElementById('admin-lkc-table-body');
+    const statsBadge = document.getElementById('admin-lkc-stats-badge');
+    if (!tbody) return;
+
+    if (!reports || reports.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">Нет рапортов, соответствующих выбранным фильтрам</td></tr>`;
+        if (statsBadge) statsBadge.innerText = 'Рапортов: 0';
+        return;
+    }
+
+    let totalRawSpent = 0;
+    let totalWhSubmitted = 0;
+    let totalScrap = 0;
+
+    let html = '';
+    reports.forEach(r => {
+        totalRawSpent += (r.raw_sheets_spent || 0);
+        totalWhSubmitted += (r.warehouse_submitted_qty || 0);
+        totalScrap += (r.scrap_defect_qty || 0);
+
+        const isDayShift = (r.shift_name || '').includes('1') || (r.shift_name || '').toLowerCase().includes('дневн');
+        const shiftBadge = isDayShift
+            ? `<span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-sun"></i> Дневная</span>`
+            : `<span style="background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-moon"></i> Ночная</span>`;
+
+        // Краткий перечень продукции
+        const itemsList = (r.items || []).map(it => {
+            const shortName = escapeLKCHtml(it.product_type || it.dimension_size || 'Продукция');
+            return `<span style="display: inline-block; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 5px; font-size: 0.73rem; margin: 1px 2px;">${shortName}: <b>${it.fact_qty || 0}</b></span>`;
+        }).join('');
+
+        const totalItemsCount = (r.items || []).reduce((acc, it) => acc + (it.fact_qty || 0), 0);
+        const prodCellContent = itemsList ? `${itemsList} <span style="color:#64748b; font-size:0.75rem;">(всего ${totalItemsCount} шт)</span>` : '<span style="color:#94a3b8; font-style:italic;">Нет позиций</span>';
+
+        // Простои
+        const totalDowntimeMin = (r.downtimes || []).reduce((acc, d) => acc + (d.duration_minutes || 0), 0);
+        const downtimeBadge = totalDowntimeMin > 0
+            ? `<span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> ${totalDowntimeMin} мин</span>`
+            : `<span style="color: #10b981; font-weight: 500; font-size: 0.75rem;"><i class="fa-solid fa-check"></i> 0 мин</span>`;
+
+        html += `
+            <tr>
+                <td>
+                    <b>#${r.id}</b>
+                    <div style="font-size: 0.75rem; color: #64748b;">${formatLKCDateRu(r.report_date)}</div>
+                </td>
+                <td>${shiftBadge}</td>
+                <td>
+                    <div style="font-weight: 600; color: #0f172a;">${escapeLKCHtml(r.master_name || '-')}</div>
+                </td>
+                <td style="max-width: 320px; white-space: normal;">
+                    ${prodCellContent}
+                </td>
+                <td style="text-align: right; font-weight: 600; color: #0f172a;">
+                    ${r.raw_sheets_spent || 0} <span style="font-size: 0.72rem; color: #64748b;">л.</span>
+                </td>
+                <td style="text-align: right; font-weight: 600; color: #047857;">
+                    ${r.warehouse_submitted_qty || 0} <span style="font-size: 0.72rem; color: #64748b;">шт</span>
+                </td>
+                <td style="text-align: right; font-weight: 600; color: ${r.scrap_defect_qty > 0 ? '#dc2626' : '#64748b'};">
+                    ${r.scrap_defect_qty || 0}
+                </td>
+                <td style="text-align: center;">
+                    ${downtimeBadge}
+                </td>
+                <td style="text-align: right; white-space: nowrap;">
+                    <button class="action-btn btn-edit" title="Просмотр деталей рапорта" onclick="openAdminLKCDetails(${r.id})">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    <button class="action-btn btn-delete" title="Удалить рапорт" onclick="deleteAdminLKCReport(${r.id})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    if (statsBadge) {
+        statsBadge.innerHTML = `Рапортов: <b>${reports.length}</b> | Сырья: <b>${totalRawSpent}</b> л. | Сдано: <b>${totalWhSubmitted}</b> шт. | Брак: <b>${totalScrap}</b> шт.`;
+    }
+}
+
+async function openAdminLKCDetails(reportId) {
+    let report = adminLKCCachedReports.find(r => r.id === reportId);
+    if (!report || !report.items || !report.raw_materials) {
+        try {
+            const res = await fetch(`/api/lkc/reports/${reportId}`);
+            if (res.ok) {
+                report = await res.json();
+            }
+        } catch (e) {
+            console.error('[Admin LKC] Ошибка загрузки деталей:', e);
+        }
+    }
+
+    if (!report) {
+        alert('Не удалось загрузить данные рапорта №' + reportId);
+        return;
+    }
+
+    // Заполнение модального окна
+    document.getElementById('admin-lkc-modal-id').innerText = report.id;
+    document.getElementById('admin-lkc-modal-date').innerText = formatLKCDateRu(report.report_date);
+    document.getElementById('admin-lkc-modal-shift').innerText = report.shift_name || '-';
+    document.getElementById('admin-lkc-modal-master').innerText = report.master_name || '-';
+    document.getElementById('admin-lkc-modal-thickness').innerText = report.raw_sheets_thickness || '-';
+
+    // 1. Позиции выпуска
+    const itemsTbody = document.getElementById('admin-lkc-modal-items-tbody');
+    if (itemsTbody) {
+        if (!report.items || report.items.length === 0) {
+            itemsTbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding: 0.8rem;">Нет позиций продукции</td></tr>`;
+        } else {
+            itemsTbody.innerHTML = report.items.map((it, idx) => `
+                <tr>
+                    <td style="color:#64748b;">${idx + 1}</td>
+                    <td><b>${escapeLKCHtml(it.product_type || '-')}</b></td>
+                    <td>${escapeLKCHtml(it.dimension_size || '-')}</td>
+                    <td style="text-align: right;">${it.plan_qty || 0}</td>
+                    <td style="text-align: right; font-weight: 700; color: #1e3a8a;">${it.fact_qty || 0} ${escapeLKCHtml(it.fact_unit || 'шт')}</td>
+                    <td>${escapeLKCHtml(it.order_batch || '-')}</td>
+                    <td style="text-align: right;">${it.sets_count || 0}</td>
+                    <td style="text-align: right;">${it.comp_t_count || 0}</td>
+                    <td style="text-align: right;">${it.comp_l_count || 0}</td>
+                    <td style="text-align: right;">${it.comp_screws_count || 0}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // 2. Расход сырья и сдача на склад
+    const rawTbody = document.getElementById('admin-lkc-modal-raw-tbody');
+    if (rawTbody) {
+        if (!report.raw_materials || report.raw_materials.length === 0) {
+            rawTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding: 0.8rem;">Нет записей расхода сырья</td></tr>`;
+        } else {
+            rawTbody.innerHTML = report.raw_materials.map((rm, idx) => `
+                <tr>
+                    <td style="color:#64748b;">${idx + 1}</td>
+                    <td><b>${escapeLKCHtml(rm.material_name || '-')}</b></td>
+                    <td>${escapeLKCHtml(rm.thickness || '-')}</td>
+                    <td style="text-align: right; font-weight: 700; color: #0f172a;">${rm.spent_qty || 0} ${escapeLKCHtml(rm.unit || 'шт')}</td>
+                    <td style="text-align: right; font-weight: 700; color: #047857;">${rm.warehouse_submitted_qty || 0} шт</td>
+                    <td style="text-align: right; font-weight: 700; color: ${rm.scrap_defect_qty > 0 ? '#dc2626' : '#64748b'};">${rm.scrap_defect_qty || 0} шт</td>
+                    <td>${escapeLKCHtml(rm.notes || '-')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // 3. Простои оборудования
+    const dtTbody = document.getElementById('admin-lkc-modal-downtimes-tbody');
+    if (dtTbody) {
+        if (!report.downtimes || report.downtimes.length === 0) {
+            dtTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#10b981; padding: 0.8rem;"><i class="fa-solid fa-check"></i> Простоев за смену не зафиксировано</td></tr>`;
+        } else {
+            dtTbody.innerHTML = report.downtimes.map(dt => `
+                <tr>
+                    <td><b>${escapeLKCHtml(dt.start_time || '')}</b> - ${escapeLKCHtml(dt.end_time || '')}</td>
+                    <td style="text-align: center; font-weight: 700; color: #dc2626;">${dt.duration_minutes || 0}</td>
+                    <td><b>${escapeLKCHtml(dt.equipment_node || '-')}</b></td>
+                    <td><span style="background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.75rem;">${escapeLKCHtml(dt.category || '-')}</span></td>
+                    <td style="color: #991b1b;">${escapeLKCHtml(dt.reason || '-')}</td>
+                    <td>${escapeLKCHtml(dt.comment || '-')}</td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // Примечания
+    const notesWrap = document.getElementById('admin-lkc-modal-notes-wrap');
+    const notesEl = document.getElementById('admin-lkc-modal-notes');
+    if (notesWrap && notesEl) {
+        if (report.notes && report.notes.trim()) {
+            notesEl.innerText = report.notes;
+            notesWrap.style.display = 'block';
+        } else {
+            notesWrap.style.display = 'none';
+        }
+    }
+
+    const modal = document.getElementById('admin-lkc-details-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeAdminLKCDetailsModal() {
+    const modal = document.getElementById('admin-lkc-details-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function deleteAdminLKCReport(reportId) {
+    if (!confirm(`Вы действительно хотите удалить рапорт ЛКЦ №${reportId}?\nДанное действие выполнит мягкое удаление записи.`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/lkc/reports/${reportId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Ошибка удаления');
+
+        if (typeof showToast === 'function') {
+            showToast('info', `Рапорт №${reportId} успешно удален`);
+        } else {
+            alert(`Рапорт №${reportId} успешно удален`);
+        }
+
+        loadAdminLKCTab();
+    } catch (e) {
+        console.error('[Admin LKC] Ошибка удаления:', e);
+        alert('Ошибка при удалении рапорта: ' + e.message);
+    }
+}
+
+async function syncAdminLKCGoogleSheets(btn) {
+    if (!btn) btn = document.getElementById('btn-admin-sync-lkc-sheets');
+    const origHtml = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка...';
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        const res = await fetch('/api/lkc/sync_google_sheets', {
+            method: 'POST',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || 'Не удалось выполнить синхронизацию с Google Таблицей');
+        }
+
+        const msg = 'Данные ЛКЦ успешно выгружены в Google Таблицу (3 листа: «Производство», «Простои», «Сдано на склад»)!';
+        if (typeof showToast === 'function') {
+            showToast('success', msg);
+        }
+        alert(msg);
+
+        // Обновим ссылку на таблицу если вернулся URL
+        if (data.url) {
+            const openLink = document.getElementById('btn-admin-open-lkc-sheets');
+            if (openLink) openLink.href = data.url;
+        }
+    } catch (err) {
+        console.error('[Admin LKC] Ошибка синхронизации Google Sheets:', err);
+        const errMsg = 'Ошибка выгрузки в Google Таблицу: ' + err.message;
+        if (typeof showToast === 'function') {
+            showToast('error', errMsg);
+        }
+        alert(errMsg);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
 
 
 

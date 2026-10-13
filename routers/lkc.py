@@ -2,7 +2,7 @@ import io
 import os
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query, status, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import desc, asc, and_
@@ -172,6 +172,7 @@ def get_report_by_id(report_id: int, db: Session = Depends(get_db)):
 def save_report(
     data: schemas.LKCShiftReportCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -296,6 +297,14 @@ def save_report(
                 db.add(downtime_obj)
 
         db.commit()
+
+        # Фоновая синхронизация с Google Таблицей ЛКЦ
+        try:
+            import google_sheets_integration
+            if background_tasks and google_sheets_integration:
+                background_tasks.add_task(google_sheets_integration.export_lkc_to_google_sheets, db)
+        except Exception as bg_err:
+            print(f"[LKC] Фоновая синхронизация Google не запланирована: {bg_err}")
 
         # Перезагружаем со всеми связями
         db.refresh(report)
@@ -627,3 +636,33 @@ def export_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers
     )
+
+
+# --- СИНХРОНИЗАЦИЯ С GOOGLE ТАБЛИЦЕЙ ЛКЦ ---
+
+@router.post("/sync_google_sheets")
+def sync_google_sheets(db: Session = Depends(get_db)):
+    """
+    Принудительная выгрузка всех рапортов и простоев ЛКЦ в выделенную Google Таблицу (3 листа).
+    """
+    try:
+        import google_sheets_integration
+        res = google_sheets_integration.export_lkc_to_google_sheets(db)
+        if not res.get("success"):
+            raise HTTPException(status_code=500, detail=res.get("error", "Ошибка выгрузки в Google Sheets"))
+        return res
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Непредвиденная ошибка синхронизации: {str(e)}")
+
+
+@router.get("/google_sheet_url")
+def get_google_sheet_url():
+    """
+    Возвращает актуальную ссылку на Google Таблицу ЛКЦ.
+    """
+    import google_sheets_integration
+    url = google_sheets_integration.get_lkc_sheet_url()
+    return {"url": url}
+

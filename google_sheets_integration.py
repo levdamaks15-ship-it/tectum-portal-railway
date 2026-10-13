@@ -14,6 +14,7 @@ load_dotenv()
 
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
 QCD_SPREADSHEET_ID = os.getenv("QCD_SPREADSHEET_ID", "1UtlJO02uAaokD9oOGMa9GPvckjORLT_KiLIWJZLKI1o")
+LKC_SPREADSHEET_ID = os.getenv("LKC_SPREADSHEET_ID", "1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google_credentials.json")
 
 def get_sheets_service():
@@ -3126,4 +3127,376 @@ def sync_qcd_lab_analysis_to_google(db: Session, analysis_id: int):
         analysis.google_synced = False
         analysis.google_sync_error = str(e)[:500]
         db.commit()
+
+
+# =========================================================================
+# ВЫГРУЗКА РАПОРТОВ ЛКЦ В ВЫДЕЛЕННУЮ GOOGLE ТАБЛИЦУ (3 ЛИСТА)
+# =========================================================================
+
+def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
+    """
+    Экспортирует все данные участка ЛКЦ в выделенную Google Таблицу (LKC_SPREADSHEET_ID)
+    с разделением на 3 листа:
+      1. «Производство» — выпуск продукции и раскроя (LKCReportItem)
+      2. «Простои» — журнал простоев оборудования ЛКЦ (LKCDowntime)
+      3. «Сдано на склад» — списание сырья, сдача на склад ГП и брак (LKCRawMaterialUsage)
+
+    Автоматически удаляет/очищает старые устаревшие листы и настраивает корпоративное
+    оформление (закрепление первой строки, автофильтр, границы, числовые форматы).
+    """
+    target_id = LKC_SPREADSHEET_ID or os.getenv("LKC_SPREADSHEET_ID")
+    if not target_id or target_id.startswith("1_mock"):
+        print("[LKC Google Sheets] Синхронизация пропущена: LKC_SPREADSHEET_ID не задан")
+        return {"success": False, "error": "Не задан LKC_SPREADSHEET_ID", "synced_reports": 0}
+
+    from sqlalchemy.orm import selectinload
+    import models
+
+    try:
+        service = get_sheets_service()
+    except Exception as cred_err:
+        print(f"[LKC Google Sheets] Ошибка доступа к Google API: {cred_err}")
+        return {"success": False, "error": f"Ошибка авторизации Google API: {cred_err}"}
+
+    target_sheet_names = ["Производство", "Простои", "Сдано на склад"]
+
+    try:
+        # 1. Получаем текущую структуру листов в документе
+        spreadsheet = service.spreadsheets().get(spreadsheetId=target_id).execute()
+        existing_sheets = spreadsheet.get("sheets", [])
+        existing_titles = {s["properties"]["title"]: s["properties"]["sheetId"] for s in existing_sheets}
+
+        # 2. Создаем или переименовываем целевые листы
+        # В Google Sheets нельзя удалить последний оставшийся лист, поэтому сначала гарантируем наличие целевых
+        sheet_ids = {}
+
+        # Обрабатываем лист «Производство»
+        if "Производство" in existing_titles:
+            sheet_ids["Производство"] = existing_titles["Производство"]
+        elif "Лист1" in existing_titles:
+            # Переименовываем пустой «Лист1» в «Производство»
+            l1_id = existing_titles["Лист1"]
+            service.spreadsheets().batchUpdate(
+                spreadsheetId=target_id,
+                body={"requests": [{"updateSheetProperties": {
+                    "properties": {"sheetId": l1_id, "title": "Производство"},
+                    "fields": "title"
+                }}]}
+            ).execute()
+            sheet_ids["Производство"] = l1_id
+        else:
+            add_res = service.spreadsheets().batchUpdate(
+                spreadsheetId=target_id,
+                body={"requests": [{"addSheet": {
+                    "properties": {"title": "Производство", "gridProperties": {"rowCount": 1000, "columnCount": 20}}
+                }}]}
+            ).execute()
+            sheet_ids["Производство"] = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+        # Обрабатываем лист «Простои»
+        if "Простои" in existing_titles:
+            sheet_ids["Простои"] = existing_titles["Простои"]
+        else:
+            add_res = service.spreadsheets().batchUpdate(
+                spreadsheetId=target_id,
+                body={"requests": [{"addSheet": {
+                    "properties": {"title": "Простои", "gridProperties": {"rowCount": 1000, "columnCount": 16}}
+                }}]}
+            ).execute()
+            sheet_ids["Простои"] = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+        # Обрабатываем лист «Сдано на склад»
+        if "Сдано на склад" in existing_titles:
+            sheet_ids["Сдано на склад"] = existing_titles["Сдано на склад"]
+        else:
+            add_res = service.spreadsheets().batchUpdate(
+                spreadsheetId=target_id,
+                body={"requests": [{"addSheet": {
+                    "properties": {"title": "Сдано на склад", "gridProperties": {"rowCount": 1000, "columnCount": 16}}
+                }}]}
+            ).execute()
+            sheet_ids["Сдано на склад"] = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+        # 3. Удаляем старые устаревшие листы (копии старого теста: «Сводный отчет», «Переборка», «Приход сырья», «Нормативы» и т.д.)
+        spreadsheet = service.spreadsheets().get(spreadsheetId=target_id).execute()
+        del_requests = []
+        for s in spreadsheet.get("sheets", []):
+            stitle = s["properties"]["title"]
+            sid = s["properties"]["sheetId"]
+            if stitle not in target_sheet_names:
+                del_requests.append({"deleteSheet": {"sheetId": sid}})
+
+        if del_requests:
+            try:
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=target_id,
+                    body={"requests": del_requests}
+                ).execute()
+            except Exception as del_err:
+                print(f"[LKC Google Sheets Warning] Не удалось удалить устаревшие листы: {del_err}")
+
+        # 4. Извлекаем данные ЛКЦ из базы данных с жадной загрузкой (защита от N+1)
+        reports = db.query(models.LKCShiftReport).options(
+            selectinload(models.LKCShiftReport.items),
+            selectinload(models.LKCShiftReport.raw_materials),
+            selectinload(models.LKCShiftReport.downtimes)
+        ).filter(models.LKCShiftReport.is_active == True).order_by(
+            models.LKCShiftReport.report_date.asc(),
+            models.LKCShiftReport.id.asc()
+        ).all()
+
+        downtimes = db.query(models.LKCDowntime).filter(
+            models.LKCDowntime.is_active == True
+        ).order_by(
+            models.LKCDowntime.downtime_date.asc(),
+            models.LKCDowntime.start_time.asc(),
+            models.LKCDowntime.id.asc()
+        ).all()
+
+        # -------------------------------------------------------------
+        # ЛИСТ 1: «Производство»
+        # -------------------------------------------------------------
+        headers_prod = [
+            "№ п/п", "Дата", "Смена", "Мастер смены",
+            "Размер / Типоразмер", "Комплект (Заказ / Партия)",
+            "План (шт)", "Факт (шт)", "Кол-во комплектов (шт)",
+            "T-профиль (шт)", "L-уголок (шт)", "Шурупы (шт)",
+            "Сдано на склад (шт)", "Примечания"
+        ]
+        rows_prod = [headers_prod]
+        p_idx = 1
+        for rep in reports:
+            d_str = rep.report_date.strftime("%d.%m.%Y") if rep.report_date else ""
+            if rep.items:
+                for it in rep.items:
+                    wh_sub = it.warehouse_submitted_qty if it.warehouse_submitted_qty > 0 else (rep.warehouse_submitted_qty or 0)
+                    rows_prod.append([
+                        p_idx,
+                        d_str,
+                        rep.shift_name or "Дневная смена",
+                        rep.master_name or "Миркасимов И.М.",
+                        it.dimension_size or "",
+                        it.order_batch or "",
+                        it.plan_qty or 0,
+                        it.fact_qty or 0,
+                        it.sets_count or 0,
+                        it.comp_t_count or 0,
+                        it.comp_l_count or 0,
+                        it.comp_screws_count or 0,
+                        wh_sub,
+                        it.notes or rep.notes or ""
+                    ])
+                    p_idx += 1
+            else:
+                rows_prod.append([
+                    p_idx,
+                    d_str,
+                    rep.shift_name or "Дневная смена",
+                    rep.master_name or "Миркасимов И.М.",
+                    "—",
+                    "—",
+                    750,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    rep.warehouse_submitted_qty or 0,
+                    rep.notes or ""
+                ])
+                p_idx += 1
+
+        # -------------------------------------------------------------
+        # ЛИСТ 2: «Простои»
+        # -------------------------------------------------------------
+        headers_dt = [
+            "№ п/п", "Дата", "Смена", "Мастер",
+            "Время начала", "Время окончания", "Длительность (мин)",
+            "Узел оборудования", "Категория",
+            "Причина / Описание", "Комментарий"
+        ]
+        rows_dt = [headers_dt]
+        for dt_idx, dt in enumerate(downtimes):
+            dt_date = dt.downtime_date.strftime("%d.%m.%Y") if dt.downtime_date else ""
+            rows_dt.append([
+                dt_idx + 1,
+                dt_date,
+                dt.shift_name or "Дневная смена",
+                dt.master_name or "Миркасимов И.М.",
+                dt.start_time or "",
+                dt.end_time or "",
+                dt.duration_minutes or 0,
+                dt.equipment_node or "Дисковая пила раскроя",
+                dt.category or "Механическая",
+                dt.reason or "",
+                dt.comment or ""
+            ])
+
+        # -------------------------------------------------------------
+        # ЛИСТ 3: «Сдано на склад»
+        # -------------------------------------------------------------
+        headers_raw = [
+            "№ п/п", "Дата", "Смена", "Мастер",
+            "Наименование сырья / Материал", "Толщина",
+            "Списано сырья (шт)", "Сдано на склад ГП (шт)", "Отходы / Брак (шт)",
+            "Ед. изм.", "Примечание / Партия"
+        ]
+        rows_raw = [headers_raw]
+        raw_idx = 1
+        for rep in reports:
+            d_str = rep.report_date.strftime("%d.%m.%Y") if rep.report_date else ""
+            if rep.raw_materials:
+                for rm in rep.raw_materials:
+                    rows_raw.append([
+                        raw_idx,
+                        d_str,
+                        rep.shift_name or "Дневная смена",
+                        rep.master_name or "Миркасимов И.М.",
+                        rm.material_name or "Плоский лист 8мм 1800х1200",
+                        rm.thickness or "8 мм",
+                        rm.spent_qty or 0,
+                        rm.warehouse_submitted_qty or 0,
+                        rm.scrap_defect_qty or 0,
+                        rm.unit or "шт",
+                        rm.notes or ""
+                    ])
+                    raw_idx += 1
+            elif (rep.raw_sheets_spent or rep.warehouse_submitted_qty or rep.scrap_defect_qty):
+                rows_raw.append([
+                    raw_idx,
+                    d_str,
+                    rep.shift_name or "Дневная смена",
+                    rep.master_name or "Миркасимов И.М.",
+                    "Плоский лист " + (rep.raw_sheets_thickness or "8 мм"),
+                    rep.raw_sheets_thickness or "8 мм",
+                    rep.raw_sheets_spent or 0,
+                    rep.warehouse_submitted_qty or 0,
+                    rep.scrap_defect_qty or 0,
+                    "шт",
+                    rep.notes or ""
+                ])
+                raw_idx += 1
+
+        # 5. Запись данных и оформление каждого листа
+        all_sheets_config = [
+            ("Производство", sheet_ids["Производство"], headers_prod, rows_prod),
+            ("Простои", sheet_ids["Простои"], headers_dt, rows_dt),
+            ("Сдано на склад", sheet_ids["Сдано на склад"], headers_raw, rows_raw)
+        ]
+
+        for s_title, s_id, s_headers, s_rows in all_sheets_config:
+            # Очищаем старые ячейки
+            try:
+                service.spreadsheets().values().clear(
+                    spreadsheetId=target_id,
+                    range=f"'{s_title}'!A1:Z5000"
+                ).execute()
+            except Exception:
+                pass
+
+            # Записываем новые строки
+            service.spreadsheets().values().update(
+                spreadsheetId=target_id,
+                range=f"'{s_title}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": s_rows}
+            ).execute()
+
+            # Оформление
+            total_r = len(s_rows)
+            total_c = len(s_headers)
+            target_cols = max(20, total_c + 2)
+
+            fmt_requests = []
+
+            # Закрепление 1-й строки
+            fmt_requests.append({
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": s_id,
+                        "gridProperties": {
+                            "frozenRowCount": 1,
+                            "columnCount": target_cols
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount,gridProperties.columnCount"
+                }
+            })
+
+            # Высота шапки 28px
+            fmt_requests.append({
+                "updateDimensionProperties": {
+                    "range": {"sheetId": s_id, "dimension": "ROWS", "startIndex": 0, "endIndex": 1},
+                    "properties": {"pixelSize": 28},
+                    "fields": "pixelSize"
+                }
+            })
+
+            # Стилизация шапки (пастельно-зеленая)
+            fmt_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": s_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": total_c},
+                    "cell": {"userEnteredFormat": PASTEL_GREEN_HEADER},
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+                }
+            })
+
+            # Сетка границ
+            fmt_requests.append({
+                "updateBorders": {
+                    "range": {"sheetId": s_id, "startRowIndex": 0, "endRowIndex": max(total_r, 2), "startColumnIndex": 0, "endColumnIndex": total_c},
+                    **STANDARD_BORDER_STYLE
+                }
+            })
+
+            # Выравнивание по центру для колонки 0 (№ п/п) и колонки 1 (Дата)
+            fmt_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": s_id, "startRowIndex": 1, "endRowIndex": total_r, "startColumnIndex": 0, "endColumnIndex": 2},
+                    "cell": {"userEnteredFormat": {"horizontalAlignment": "CENTER"}},
+                    "fields": "userEnteredFormat(horizontalAlignment)"
+                }
+            })
+
+            service.spreadsheets().batchUpdate(
+                spreadsheetId=target_id,
+                body={"requests": fmt_requests}
+            ).execute()
+
+            # Установка автофильтра
+            safe_set_basic_filter(service, target_id, s_id, 0, total_r, 0, total_c)
+
+        # Логируем успешное действие в AuditLog
+        db.add(models.AuditLog(
+            user_name="System LKC Sheets",
+            action="EXPORT",
+            target_table="lkc_shift_reports",
+            target_id=0,
+            details=f"Синхронизировано {len(reports)} смен ЛКЦ и {len(downtimes)} простоев в таблицу '{target_id}'."
+        ))
+        db.commit()
+
+        print(f"[LKC Google Sheets] Успешная выгрузка: {len(reports)} отчетов, {len(downtimes)} простоев в 3 листа.")
+        return {
+            "success": True,
+            "spreadsheet_id": target_id,
+            "synced_reports": len(reports),
+            "synced_downtimes": len(downtimes),
+            "sheets": target_sheet_names,
+            "url": f"https://docs.google.com/spreadsheets/d/{target_id}/edit#gid={sheet_ids['Производство']}"
+        }
+
+    except Exception as e:
+        print(f"[LKC Google Sheets Error] Ошибка выгрузки ЛКЦ в Google: {e}")
+        return {"success": False, "error": str(e), "synced_reports": 0}
+
+
+def get_lkc_sheet_url(sheet_type: str = "production") -> str:
+    """
+    Возвращает прямую ссылку на Google Таблицу ЛКЦ.
+    sheet_type: 'production' | 'downtimes' | 'warehouse'
+    """
+    target_id = LKC_SPREADSHEET_ID or os.getenv("LKC_SPREADSHEET_ID", "1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE")
+    return f"https://docs.google.com/spreadsheets/d/{target_id}/edit"
+
 

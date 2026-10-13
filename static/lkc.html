@@ -1224,10 +1224,16 @@
                     <h3 class="lkc-section-title">
                         <i class="fa-solid fa-calendar-days" style="color: var(--lkc-navy);"></i> Недельный рапорт ЛКЦ (Архив и Сводка)
                     </h3>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button type="button" class="lkc-btn-secondary" onclick="downloadLKCExcel()">
                             <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i> Выгрузить Excel
                         </button>
+                        <button type="button" class="lkc-btn-secondary" id="btn-sync-lkc-sheets" onclick="syncLKCGoogleSheets(this)">
+                            <i class="fa-solid fa-arrows-rotate" style="color: #2563eb;"></i> Выгрузить в Google Таблицу
+                        </button>
+                        <a href="https://docs.google.com/spreadsheets/d/1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE/edit" target="_blank" class="lkc-btn-secondary" id="link-lkc-sheets" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-table" style="color: #0f9d58;"></i> Google Таблица ЛКЦ <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.72rem; color: #94a3b8;"></i>
+                        </a>
                     </div>
                 </div>
                 <div class="lkc-section-content" style="display: block;">

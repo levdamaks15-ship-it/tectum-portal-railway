@@ -975,6 +975,47 @@ function downloadLKCExcel() {
     window.location.href = `/api/lkc/export_excel?start_date=${startStr}&end_date=${endStr}`;
 }
 
+async function syncLKCGoogleSheets(btn) {
+    if (!btn) btn = document.getElementById('btn-sync-lkc-sheets');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Выгрузка в Google...';
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    try {
+        const resp = await fetch('/api/lkc/sync_google_sheets', {
+            method: 'POST',
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || `Ошибка сервера: ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        showToast('success', 'Данные успешно выгружены в Google Таблицу ЛКЦ (3 листа: Производство, Простои, Сдано на склад)!');
+
+        if (data.url) {
+            const link = document.getElementById('link-lkc-sheets');
+            if (link) link.href = data.url;
+        }
+    } catch (e) {
+        console.error('LKC Google Sheets sync error:', e);
+        showToast('error', `Ошибка выгрузки: ${e.message}`);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml || '<i class="fa-solid fa-arrows-rotate" style="color: #2563eb;"></i> Выгрузить в Google Таблицу';
+        }
+    }
+}
+
 // --- LOCAL STORAGE DRAFT MANAGEMENT ---
 function saveDraft(dateStr, data) {
     try {
