@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query, status, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import desc, asc, and_
+from sqlalchemy import desc, asc, and_, or_
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -15,6 +15,15 @@ import schemas
 from routers.common import get_db
 
 router = APIRouter(prefix="/api/lkc", tags=["lkc"])
+
+def normalize_lkc_shift(shift_raw: Optional[str]) -> str:
+    """Нормализует наименование смены ЛКЦ к каноническим значениям 'День' или 'Ночь'."""
+    if not shift_raw:
+        return "День"
+    s = str(shift_raw).strip().lower()
+    if "ноч" in s or s == "2":
+        return "Ночь"
+    return "День"
 
 # --- СПРАВОЧНИК НОМЕНКЛАТУРЫ И НОРМ РАСХОДА ---
 LKC_CATALOG = [
@@ -75,7 +84,7 @@ LKC_CATALOG = [
         "norm_t": 2,
         "norm_l": 4,
         "norm_screws": 24,
-        "plan_default": 750,
+        "plan_default": 0,
         "description": "2 продольных борта (1800+1800) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт"
     },
     {
@@ -87,7 +96,7 @@ LKC_CATALOG = [
         "norm_t": 2,
         "norm_l": 4,
         "norm_screws": 24,
-        "plan_default": 750,
+        "plan_default": 0,
         "description": "2 борта (1800+900) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт"
     },
     {
@@ -99,7 +108,7 @@ LKC_CATALOG = [
         "norm_t": 0,
         "norm_l": 4,
         "norm_screws": 16,
-        "plan_default": 750,
+        "plan_default": 0,
         "description": "2 борта 1800х245 + 2 торца 900х245. Расход: Т-профиль 0 шт, L-уголок 4 шт, Шурупы 16 шт"
     }
 ]
@@ -136,17 +145,23 @@ def get_reports(
 @router.get("/reports/by_date", response_model=Optional[schemas.LKCShiftReportOut])
 def get_report_by_date(
     report_date: date,
-    shift_name: str = "Дневная смена (08:00 - 17:00)",
+    shift_name: str = "День",
     db: Session = Depends(get_db)
 ):
-    """Получает рапорт ЛКЦ на конкретную дату и смену."""
+    """Получает рапорт ЛКЦ на конкретную дату и смену (с авто-распознаванием 'День'/'Ночь')."""
+    norm_shift = normalize_lkc_shift(shift_name)
     report = db.query(models.LKCShiftReport).options(
         selectinload(models.LKCShiftReport.items),
         selectinload(models.LKCShiftReport.raw_materials),
         selectinload(models.LKCShiftReport.downtimes)
     ).filter(
         models.LKCShiftReport.report_date == report_date,
-        models.LKCShiftReport.shift_name == shift_name,
+        or_(
+            models.LKCShiftReport.shift_name == norm_shift,
+            models.LKCShiftReport.shift_name == shift_name,
+            and_(norm_shift == "День", models.LKCShiftReport.shift_name.ilike("%Дневн%")),
+            and_(norm_shift == "Ночь", models.LKCShiftReport.shift_name.ilike("%Ноч%"))
+        ),
         models.LKCShiftReport.is_active == True
     ).first()
     return report
@@ -179,17 +194,24 @@ def save_report(
     Создает или обновляет рапорт смены ЛКЦ в единой атомарной транзакции (Strict Backend-First).
     """
     try:
+        norm_shift = normalize_lkc_shift(data.shift_name)
+
         # Ищем существующий рапорт на эту дату и смену
         report = db.query(models.LKCShiftReport).filter(
             models.LKCShiftReport.report_date == data.report_date,
-            models.LKCShiftReport.shift_name == data.shift_name,
+            or_(
+                models.LKCShiftReport.shift_name == norm_shift,
+                models.LKCShiftReport.shift_name == data.shift_name,
+                and_(norm_shift == "День", models.LKCShiftReport.shift_name.ilike("%Дневн%")),
+                and_(norm_shift == "Ночь", models.LKCShiftReport.shift_name.ilike("%Ноч%"))
+            ),
             models.LKCShiftReport.is_active == True
         ).first()
 
         if not report:
             report = models.LKCShiftReport(
                 report_date=data.report_date,
-                shift_name=data.shift_name,
+                shift_name=norm_shift,
                 master_id=data.master_id,
                 master_name=data.master_name or "Миркасимов И.М.",
                 status=data.status or "completed",
@@ -205,7 +227,8 @@ def save_report(
             db.add(report)
             db.flush()
         else:
-            # Обновляем поля шапки
+            # Обновляем поля шапки с нормализацией смены
+            report.shift_name = norm_shift
             report.master_id = data.master_id
             report.master_name = data.master_name or report.master_name
             report.status = data.status or report.status
@@ -282,7 +305,7 @@ def save_report(
                 downtime_obj = models.LKCDowntime(
                     report_id=report.id,
                     downtime_date=data.report_date,
-                    shift_name=data.shift_name,
+                    shift_name=norm_shift,
                     master_name=report.master_name,
                     start_time=dt.start_time,
                     end_time=dt.end_time or "",
@@ -354,7 +377,7 @@ def create_downtime(data: schemas.LKCDowntimeCreate, db: Session = Depends(get_d
         dt = models.LKCDowntime(
             report_id=data.report_id,
             downtime_date=data.downtime_date or date.today(),
-            shift_name=data.shift_name or "Дневная смена",
+            shift_name=normalize_lkc_shift(data.shift_name),
             master_name=data.master_name or "Миркасимов И.М.",
             start_time=data.start_time,
             end_time=data.end_time or "",

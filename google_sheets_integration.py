@@ -3258,51 +3258,60 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
         # -------------------------------------------------------------
         headers_prod = [
             "№ п/п", "Дата", "Смена", "Мастер смены",
-            "Размер / Типоразмер", "Комплект (Заказ / Партия)",
+            "Продукт / Изделие", "Размер / Типоразмер", "Комплект (Заказ / Партия)",
             "План (шт)", "Факт (шт)", "Кол-во комплектов (шт)",
-            "T-профиль (шт)", "L-уголок (шт)", "Шурупы (шт)",
-            "Сдано на склад (шт)", "Примечания"
+            "T-профиль (шт)", "L-уголок (шт)", "Шурупы (шт)"
         ]
         rows_prod = [headers_prod]
         p_idx = 1
         for rep in reports:
             d_str = rep.report_date.strftime("%d.%m.%Y") if rep.report_date else ""
+            shift_val = "Ночь" if (rep.shift_name and ("ноч" in rep.shift_name.lower() or rep.shift_name == "2")) else "День"
+            master_val = rep.master_name or "Миркасимов И.М."
             if rep.items:
                 for it in rep.items:
-                    wh_sub = it.warehouse_submitted_qty if it.warehouse_submitted_qty > 0 else (rep.warehouse_submitted_qty or 0)
+                    is_bed = bool(
+                        (it.product_type and "гряд" in it.product_type.lower()) or
+                        (it.dimension_size and "гряд" in it.dimension_size.lower()) or
+                        (it.order_batch and "гряд" in it.order_batch.lower())
+                    )
+                    # У комплектов грядок плана нет (0)
+                    plan_val = 0 if is_bed else (it.plan_qty or 0)
+                    prod_name = it.product_type or ("Комплект грядок" if is_bed else "Плоская полоса")
+                    dim_name = it.dimension_size or ""
+                    order_val = it.order_batch or ("грядки" if is_bed else "Раскрой листа")
+
                     rows_prod.append([
                         p_idx,
                         d_str,
-                        rep.shift_name or "Дневная смена",
-                        rep.master_name or "Миркасимов И.М.",
-                        it.dimension_size or "",
-                        it.order_batch or "",
-                        it.plan_qty or 0,
+                        shift_val,
+                        master_val,
+                        prod_name,
+                        dim_name,
+                        order_val,
+                        plan_val,
                         it.fact_qty or 0,
                         it.sets_count or 0,
                         it.comp_t_count or 0,
                         it.comp_l_count or 0,
-                        it.comp_screws_count or 0,
-                        wh_sub,
-                        it.notes or rep.notes or ""
+                        it.comp_screws_count or 0
                     ])
                     p_idx += 1
             else:
                 rows_prod.append([
                     p_idx,
                     d_str,
-                    rep.shift_name or "Дневная смена",
-                    rep.master_name or "Миркасимов И.М.",
+                    shift_val,
+                    master_val,
                     "—",
                     "—",
-                    750,
+                    "—",
                     0,
                     0,
                     0,
                     0,
                     0,
-                    rep.warehouse_submitted_qty or 0,
-                    rep.notes or ""
+                    0
                 ])
                 p_idx += 1
 
@@ -3318,10 +3327,11 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
         rows_dt = [headers_dt]
         for dt_idx, dt in enumerate(downtimes):
             dt_date = dt.downtime_date.strftime("%d.%m.%Y") if dt.downtime_date else ""
+            dt_shift = "Ночь" if (dt.shift_name and ("ноч" in dt.shift_name.lower() or dt.shift_name == "2")) else "День"
             rows_dt.append([
                 dt_idx + 1,
                 dt_date,
-                dt.shift_name or "Дневная смена",
+                dt_shift,
                 dt.master_name or "Миркасимов И.М.",
                 dt.start_time or "",
                 dt.end_time or "",
@@ -3345,13 +3355,15 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
         raw_idx = 1
         for rep in reports:
             d_str = rep.report_date.strftime("%d.%m.%Y") if rep.report_date else ""
+            raw_shift = "Ночь" if (rep.shift_name and ("ноч" in rep.shift_name.lower() or rep.shift_name == "2")) else "День"
+            master_val = rep.master_name or "Миркасимов И.М."
             if rep.raw_materials:
                 for rm in rep.raw_materials:
                     rows_raw.append([
                         raw_idx,
                         d_str,
-                        rep.shift_name or "Дневная смена",
-                        rep.master_name or "Миркасимов И.М.",
+                        raw_shift,
+                        master_val,
                         rm.material_name or "Плоский лист 8мм 1800х1200",
                         rm.thickness or "8 мм",
                         rm.spent_qty or 0,
@@ -3365,8 +3377,8 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
                 rows_raw.append([
                     raw_idx,
                     d_str,
-                    rep.shift_name or "Дневная смена",
-                    rep.master_name or "Миркасимов И.М.",
+                    raw_shift,
+                    master_val,
                     "Плоский лист " + (rep.raw_sheets_thickness or "8 мм"),
                     rep.raw_sheets_thickness or "8 мм",
                     rep.raw_sheets_spent or 0,

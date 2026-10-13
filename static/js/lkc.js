@@ -7,12 +7,44 @@ let currentReportId = null;
 let currentSelectedDate = null;
 let currentWeekOffset = 0; // 0 = current week
 
-// --- PREVENT WHEEL SCROLL VALUE CHANGES ON NUMBER INPUTS ---
+// --- PREVENT WHEEL SCROLL & AUTO-CLEAR 0 ON FOCUS (FIX 0500 BUG) ---
 document.addEventListener('wheel', function(e) {
     if (document.activeElement && document.activeElement.type === 'number') {
         document.activeElement.blur();
     }
 }, { passive: true });
+
+// Auto-clear or select '0' on focus/click to prevent '0500' when typing
+document.addEventListener('focusin', function(e) {
+    const el = e.target;
+    if (el && (el.type === 'number' || el.inputMode === 'numeric')) {
+        if (el.value === '0') {
+            el.value = '';
+        } else if (el.value) {
+            setTimeout(() => {
+                if (typeof el.select === 'function') el.select();
+            }, 15);
+        }
+    }
+});
+
+document.addEventListener('click', function(e) {
+    const el = e.target;
+    if (el && (el.type === 'number' || el.inputMode === 'numeric')) {
+        if (el.value === '0') {
+            el.value = '';
+        }
+    }
+});
+
+document.addEventListener('input', function(e) {
+    const el = e.target;
+    if (el && (el.type === 'number' || el.inputMode === 'numeric')) {
+        if (el.value && el.value.length > 1 && el.value.startsWith('0') && !el.value.startsWith('0.')) {
+            el.value = el.value.replace(/^0+/, '') || '0';
+        }
+    }
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
     initDatePicker();
@@ -142,9 +174,15 @@ function toggleLKCSection(sectionId) {
 }
 
 // --- REPORT LOADING & RENDERING ---
+function onShiftSelectChange(shiftVal) {
+    if (currentSelectedDate) {
+        loadReportForDate(currentSelectedDate);
+    }
+}
+
 async function loadReportForDate(isoDate) {
     currentSelectedDate = isoDate;
-    const shiftName = document.getElementById('report-shift-select')?.value || 'Дневная смена (08:00 - 17:00)';
+    const shiftName = document.getElementById('report-shift-select')?.value || 'День';
 
     try {
         const resp = await fetch(`/api/lkc/reports/by_date?report_date=${isoDate}&shift_name=${encodeURIComponent(shiftName)}`);
@@ -152,7 +190,7 @@ async function loadReportForDate(isoDate) {
             const report = await resp.json();
             if (report) {
                 populateReportForm(report);
-                showToast('info', `Загружен рапорт за ${formatDateRu(isoDate)}`);
+                showToast('info', `Загружен рапорт (${shiftName}) за ${formatDateRu(isoDate)}`);
                 return;
             }
         }
@@ -179,12 +217,12 @@ function initEmptyReportForm() {
     const rawTbody = document.getElementById('lkc-raw-tbody');
     if (rawTbody) rawTbody.innerHTML = '';
 
-    // Default 1 product item row
+    // Default 1 product item row (Раскрой листа со сменным планом 750)
     addLKCItemRow({
         dimension_size: 'пл. лист 6мм 1800х300',
         plan_qty: 750,
         fact_qty: '',
-        order_batch: 'грядки',
+        order_batch: 'Раскрой листа',
         sets_count: '',
         comp_t_count: '',
         comp_l_count: '',
@@ -205,6 +243,14 @@ function initEmptyReportForm() {
 
 function populateReportForm(report) {
     currentReportId = report.id || null;
+
+    if (report.shift_name) {
+        const shiftSelect = document.getElementById('report-shift-select');
+        if (shiftSelect) {
+            const isNight = report.shift_name.toLowerCase().includes('ноч') || report.shift_name === '2';
+            shiftSelect.value = isNight ? 'Ночь' : 'День';
+        }
+    }
 
     if (report.master_name) {
         const masterSelect = document.getElementById('report-master-select');
@@ -246,23 +292,25 @@ function populateReportForm(report) {
 function getCatalogOptionsHTML(selectedDim = '') {
     if (!lkcCatalog || lkcCatalog.length === 0) {
         const fallback = [
-            { name: 'Полоса плоская 6мм 1800х300', dim: 'пл. лист 6мм 1800х300' },
-            { name: 'Полоса плоская 8мм 1800х300', dim: 'пл. лист 8мм 1800х300' },
-            { name: 'Плоский лист 6мм 1800х1200', dim: 'пл. лист 6мм 1800х1200' },
-            { name: 'Плоский лист 8мм 1800х1200', dim: 'пл. лист 8мм 1800х1200' },
-            { name: 'Грядка 3.6 м (3600х900)', dim: 'грядка 3600х900' },
-            { name: 'Грядка 2.7 м (2700х900)', dim: 'грядка 2700х900' },
-            { name: 'Грядка 1.8 м (1800х900)', dim: 'грядка 1800х900' }
+            { name: 'Полоса плоская 6мм 1800х300', dim: 'пл. лист 6мм 1800х300', plan: 750 },
+            { name: 'Полоса плоская 8мм 1800х300', dim: 'пл. лист 8мм 1800х300', plan: 750 },
+            { name: 'Плоский лист 6мм 1800х1200', dim: 'пл. лист 6мм 1800х1200', plan: 750 },
+            { name: 'Плоский лист 8мм 1800х1200', dim: 'пл. лист 8мм 1800х1200', plan: 750 },
+            { name: 'Грядка 3.6 м (3600х900)', dim: 'грядка 3600х900', plan: 0 },
+            { name: 'Грядка 2.7 м (2700х900)', dim: 'грядка 2700х900', plan: 0 },
+            { name: 'Грядка 1.8 м (1800х900)', dim: 'грядка 1800х900', plan: 0 }
         ];
         return fallback.map(item => {
             const isSel = (item.dim === selectedDim || item.name === selectedDim) ? 'selected' : '';
-            return `<option value="${escapeHtml(item.dim)}" ${isSel}>${escapeHtml(item.name)}</option>`;
+            return `<option value="${escapeHtml(item.dim)}" data-plan="${item.plan}" ${isSel}>${escapeHtml(item.name)}</option>`;
         }).join('');
     }
 
     return lkcCatalog.map(c => {
         const isSel = (c.dimension_size === selectedDim || c.name === selectedDim) ? 'selected' : '';
-        return `<option value="${escapeHtml(c.dimension_size || c.name)}" data-t="${c.norm_t}" data-l="${c.norm_l}" data-s="${c.norm_screws}" data-plan="${c.plan_default || 750}" ${isSel}>${escapeHtml(c.name)}</option>`;
+        const isBed = (c.product_type && c.product_type.includes('гряд')) || (c.id && c.id.startsWith('bed_')) || c.name.toLowerCase().includes('грядка');
+        const planVal = isBed ? 0 : (c.plan_default !== undefined ? c.plan_default : 750);
+        return `<option value="${escapeHtml(c.dimension_size || c.name)}" data-t="${c.norm_t}" data-l="${c.norm_l}" data-s="${c.norm_screws}" data-plan="${planVal}" ${isSel}>${escapeHtml(c.name)}</option>`;
     }).join('');
 }
 
@@ -274,9 +322,16 @@ function addLKCItemRow(data = {}) {
     tr.className = 'lkc-item-row';
 
     const dimSize = data.dimension_size || 'пл. лист 6мм 1800х300';
-    const planQty = data.plan_qty !== undefined && data.plan_qty !== '' ? Math.round(Number(data.plan_qty)) : 750;
+    const isBed = Boolean(
+        (dimSize && dimSize.toLowerCase().includes('гряд')) ||
+        (data.order_batch && data.order_batch.toLowerCase() === 'грядки') ||
+        (dimSize && (dimSize.includes('3600') || dimSize.includes('2700') || dimSize.includes('1800х900')))
+    );
+    const defaultPlan = isBed ? 0 : 750;
+    const planQty = data.plan_qty !== undefined && data.plan_qty !== '' ? Math.round(Number(data.plan_qty)) : defaultPlan;
     const factQty = data.fact_qty !== undefined && data.fact_qty !== '' ? Math.round(Number(data.fact_qty)) : '';
-    const orderBatch = data.order_batch || 'грядки';
+    const defaultOrder = isBed ? 'грядки' : 'Раскрой листа';
+    const orderBatch = data.order_batch || defaultOrder;
     const setsCount = data.sets_count !== undefined && data.sets_count !== '' ? Math.round(Number(data.sets_count)) : '';
     let compT = data.comp_t_count !== undefined && data.comp_t_count !== '' ? Math.round(Number(data.comp_t_count)) : '';
     let compL = data.comp_l_count !== undefined && data.comp_l_count !== '' ? Math.round(Number(data.comp_l_count)) : '';
@@ -342,10 +397,8 @@ function addLKCItemRow(data = {}) {
     `;
 
     tbody.appendChild(tr);
-    if (orderBatch === 'Раскрой листа') {
-        const orderSelect = tr.querySelector('.item-order');
-        if (orderSelect) onOrderTypeChange(orderSelect);
-    }
+    const orderSelect = tr.querySelector('.item-order');
+    if (orderSelect) onOrderTypeChange(orderSelect);
     renumberItemRows();
     calculateLKCTotals();
 }
@@ -354,6 +407,10 @@ function onOrderTypeChange(selectEl) {
     const tr = selectEl.closest('tr');
     if (!tr) return;
     const isCut = selectEl.value === 'Раскрой листа';
+    const planInput = tr.querySelector('.item-plan');
+    if (planInput) {
+        planInput.value = isCut ? 750 : 0;
+    }
     const setsInput = tr.querySelector('.item-sets');
     const hwBanner = tr.querySelector('.cell-hw-banner');
     const cellT = tr.querySelector('.cell-t');
@@ -506,12 +563,25 @@ function renumberRawRows() {
 // --- AUTO CALCULATION LOGIC ---
 function onDimensionSelectChange(selectEl) {
     const tr = selectEl.closest('tr');
+    if (!tr) return;
     const dimVal = selectEl.value;
     const catItem = lkcCatalog.find(c => c.dimension_size === dimVal || c.name === dimVal);
+    const isBed = Boolean(
+        (catItem?.product_type && catItem.product_type.includes('гряд')) ||
+        (catItem?.id && catItem.id.startsWith('bed_')) ||
+        dimVal.toLowerCase().includes('грядк') ||
+        dimVal.includes('3600') || dimVal.includes('2700') || dimVal.includes('1800х900')
+    );
 
     const planInput = tr.querySelector('.item-plan');
     if (planInput) {
-        planInput.value = catItem?.plan_default !== undefined ? catItem.plan_default : 750;
+        planInput.value = isBed ? 0 : (catItem?.plan_default !== undefined ? catItem.plan_default : 750);
+    }
+
+    const orderSelect = tr.querySelector('.item-order');
+    if (orderSelect) {
+        orderSelect.value = isBed ? 'грядки' : 'Раскрой листа';
+        onOrderTypeChange(orderSelect);
     }
 
     const setsInput = tr.querySelector('.item-sets');
@@ -641,7 +711,7 @@ function calculateLKCTotals() {
 // --- COLLECT DATA & SAVE ---
 function collectFormData() {
     const reportDate = currentSelectedDate || getTodayDateStr();
-    const shiftName = document.getElementById('report-shift-select')?.value || 'Дневная смена (08:00 - 17:00)';
+    const shiftName = document.getElementById('report-shift-select')?.value || 'День';
     const masterName = document.getElementById('report-master-select')?.value || 'Миркасимов И.М.';
 
     const items = [];
@@ -737,10 +807,20 @@ async function saveLKCReport() {
         currentReportId = savedData.id;
         clearDraft(payload.report_date);
 
-        showToast('success', `Рапорт смены за ${formatDateRu(payload.report_date)} успешно сохранен!`);
+        showNotification(
+            'success',
+            'Рапорт смены сохранен!',
+            `Смена «${payload.shift_name}» за ${formatDateRu(payload.report_date)} успешно записана в базу Tectum.\nМастер: ${payload.master_name}\nСтрок продукции: ${payload.items.length}\nСдано на склад: ${payload.warehouse_submitted_qty} шт`
+        );
+        showToast('success', `Рапорт сохранен в БД`);
     } catch (e) {
         console.error('Save error:', e);
-        showToast('error', `Ошибка сохранения: ${e.message}. Черновик сохранен в памяти браузера.`);
+        showNotification(
+            'error',
+            'Ошибка сохранения',
+            `${e.message || 'Сбой сети'}.\nЧерновик надежно сохранен в локальной памяти браузера.`
+        );
+        showToast('error', `Ошибка: ${e.message}`);
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -806,9 +886,10 @@ async function addLKCDowntimeRecord() {
         if (durationMin < 0) durationMin += 24 * 60;
     }
 
+    const currentShift = document.getElementById('report-shift-select')?.value || 'День';
     const payload = {
         downtime_date: currentSelectedDate || getTodayDateStr(),
-        shift_name: 'Дневная смена',
+        shift_name: currentShift,
         master_name: document.getElementById('report-master-select')?.value || 'Миркасимов И.М.',
         start_time: startTime,
         end_time: endTime,
@@ -827,13 +908,21 @@ async function addLKCDowntimeRecord() {
         });
 
         if (resp.ok) {
+            showNotification(
+                'success',
+                'Простой зафиксирован!',
+                `Узел: ${node}\nКатегория: ${category}\nВремя: ${startTime} - ${endTime || 'по н.в.'} (${durationMin} мин)\nПричина: ${reason || 'Не указана'}`
+            );
             showToast('success', 'Простой успешно зафиксирован в журнале');
             document.getElementById('dt-reason-input').value = '';
             loadLKCDowntimes();
         } else {
+            const err = await resp.json().catch(() => ({}));
+            showNotification('error', 'Ошибка фиксации простоя', err.detail || 'Не удалось сохранить запись простоя');
             showToast('error', 'Ошибка фиксации простоя');
         }
     } catch (e) {
+        showNotification('error', 'Сетевой сбой', e.message || 'Ошибка сети');
         showToast('error', `Сетевой сбой: ${e.message}`);
     }
 }
@@ -1073,6 +1162,58 @@ function showToast(type, text) {
     }, 3500);
 }
 
+// --- UNIVERSAL NOTIFICATION MODAL (КАК В БОЕВОМ РАПОРТЕ) ---
+function showNotification(type, title, message) {
+    const modal = document.getElementById('universal-notification-modal');
+    const overlay = document.getElementById('universal-notification-overlay');
+    const iconContainer = document.getElementById('unm-icon');
+    const iconText = document.getElementById('unm-icon-text');
+    const titleEl = document.getElementById('unm-title');
+    const messageEl = document.getElementById('unm-message');
+    const btn = document.getElementById('unm-btn');
+
+    if (!modal || !overlay) {
+        showToast(type, `${title}: ${message}`);
+        return;
+    }
+
+    if (type === 'success') {
+        iconContainer.style.background = 'rgba(34, 197, 94, 0.2)';
+        iconContainer.style.border = '2px solid #22c55e';
+        iconText.style.color = '#22c55e';
+        iconText.innerHTML = '✓';
+        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.3)';
+    } else if (type === 'error') {
+        iconContainer.style.background = 'rgba(239, 68, 68, 0.2)';
+        iconContainer.style.border = '2px solid #ef4444';
+        iconText.style.color = '#ef4444';
+        iconText.innerHTML = '✕';
+        btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        btn.style.boxShadow = '0 8px 20px rgba(239, 68, 68, 0.3)';
+    } else {
+        iconContainer.style.background = 'rgba(59, 130, 246, 0.2)';
+        iconContainer.style.border = '2px solid #3b82f6';
+        iconText.style.color = '#3b82f6';
+        iconText.innerHTML = 'ℹ';
+        btn.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+        btn.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.3)';
+    }
+
+    titleEl.innerText = title;
+    messageEl.innerText = message;
+
+    overlay.style.display = 'block';
+    modal.style.display = 'block';
+}
+
+function closeUniversalNotification() {
+    const overlay = document.getElementById('universal-notification-overlay');
+    const modal = document.getElementById('universal-notification-modal');
+    if (overlay) overlay.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+}
+
 // --- NORMS TAB TABLE RENDERING ---
 function renderLKCNormsTable() {
     const tbody = document.getElementById('lkc-norms-tbody');
@@ -1082,12 +1223,15 @@ function renderLKCNormsTable() {
         { id: 'strip_1800_300_8', name: 'Полоса плоская 8мм 1800х300', product_type: 'Плоская полоса', norm_t: 0, norm_l: 0, norm_screws: 0, plan_default: 750, description: 'Нарезка полос из листа 8мм 1800х1200 (4 полосы с 1 листа)' },
         { id: 'sheet_1800_1200_6', name: 'Плоский лист 6мм 1800х1200', product_type: 'Плоский лист', norm_t: 0, norm_l: 0, norm_screws: 0, plan_default: 750, description: 'Плоский хризотилцементный лист 6 мм. Сменный план: 750 шт' },
         { id: 'sheet_1800_1200_8', name: 'Плоский лист 8мм 1800х1200', product_type: 'Плоский лист', norm_t: 0, norm_l: 0, norm_screws: 0, plan_default: 750, description: 'Базовый плоский хризотилцементный лист 8 мм. Сменный план: 750 шт' },
-        { id: 'bed_3600', name: 'Грядка 3.6 м (3600х900)', product_type: 'Комплект грядок', norm_t: 2.0, norm_l: 4.0, norm_screws: 24, plan_default: 750, description: '2 продольных борта (1800+1800) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт' },
-        { id: 'bed_2700', name: 'Грядка 2.7 м (2700х900)', product_type: 'Комплект грядок', norm_t: 2.0, norm_l: 4.0, norm_screws: 24, plan_default: 750, description: '2 борта (1800+900) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт' },
-        { id: 'bed_1800', name: 'Грядка 1.8 м (1800х900)', product_type: 'Комплект грядок', norm_t: 0.0, norm_l: 4.0, norm_screws: 16, plan_default: 750, description: '2 борта 1800х245 + 2 торца 900х245. Расход: Т-профиль 0 шт, L-уголок 4 шт, Шурупы 16 шт' }
+        { id: 'bed_3600', name: 'Грядка 3.6 м (3600х900)', product_type: 'Комплект грядок', norm_t: 2.0, norm_l: 4.0, norm_screws: 24, plan_default: 0, description: '2 продольных борта (1800+1800) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт' },
+        { id: 'bed_2700', name: 'Грядка 2.7 м (2700х900)', product_type: 'Комплект грядок', norm_t: 2.0, norm_l: 4.0, norm_screws: 24, plan_default: 0, description: '2 борта (1800+900) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт' },
+        { id: 'bed_1800', name: 'Грядка 1.8 м (1800х900)', product_type: 'Комплект грядок', norm_t: 0.0, norm_l: 4.0, norm_screws: 16, plan_default: 0, description: '2 борта 1800х245 + 2 торца 900х245. Расход: Т-профиль 0 шт, L-уголок 4 шт, Шурупы 16 шт' }
     ];
 
-    tbody.innerHTML = list.map((item, idx) => `
+    tbody.innerHTML = list.map((item, idx) => {
+        const isBed = (item.product_type && item.product_type.includes('гряд')) || (item.id && item.id.startsWith('bed_')) || item.name.toLowerCase().includes('грядка');
+        const planText = isBed ? '— (без плана)' : `${item.plan_default || 750} шт`;
+        return `
         <tr>
             <td style="text-align: center; font-weight: 700; color: #64748b;">${idx + 1}</td>
             <td style="font-weight: 700; color: #0f172a;">${escapeHtml(item.name)}</td>
@@ -1095,9 +1239,10 @@ function renderLKCNormsTable() {
             <td style="text-align: center; font-weight: 700; color: ${item.norm_t > 0 ? '#0284c7' : '#94a3b8'};">${item.norm_t > 0 ? item.norm_t + ' шт' : '0 шт'}</td>
             <td style="text-align: center; font-weight: 700; color: ${item.norm_l > 0 ? '#0284c7' : '#94a3b8'};">${item.norm_l > 0 ? item.norm_l + ' шт' : '0 шт'}</td>
             <td style="text-align: center; font-weight: 700; color: ${item.norm_screws > 0 ? '#0284c7' : '#94a3b8'};">${item.norm_screws > 0 ? item.norm_screws + ' шт' : '0 шт'}</td>
-            <td style="text-align: center; font-weight: 700; color: #16a34a;">${item.plan_default || 750} шт</td>
+            <td style="text-align: center; font-weight: 700; color: ${isBed ? '#64748b' : '#16a34a'};">${planText}</td>
             <td style="font-size: 0.85rem; color: #475569;">${escapeHtml(item.description || '--')}</td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 

@@ -4316,7 +4316,13 @@ function filterAdminLKCTable() {
 
         if (shiftFilter) {
             const shiftName = (r.shift_name || '').toLowerCase();
-            if (!shiftName.includes(shiftFilter)) return false;
+            if (shiftFilter === 'день') {
+                if (!shiftName.includes('день') && !shiftName.includes('дневн') && shiftName !== '1') return false;
+            } else if (shiftFilter === 'ночь') {
+                if (!shiftName.includes('ноч') && shiftName !== '2') return false;
+            } else if (!shiftName.includes(shiftFilter)) {
+                return false;
+            }
         }
 
         if (searchFilter) {
@@ -4354,10 +4360,10 @@ function renderAdminLKCTable(reports) {
         totalWhSubmitted += (r.warehouse_submitted_qty || 0);
         totalScrap += (r.scrap_defect_qty || 0);
 
-        const isDayShift = (r.shift_name || '').includes('1') || (r.shift_name || '').toLowerCase().includes('дневн');
+        const isDayShift = (r.shift_name || '').includes('1') || (r.shift_name || '').toLowerCase().includes('дневн') || (r.shift_name || '').toLowerCase().includes('день');
         const shiftBadge = isDayShift
-            ? `<span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-sun"></i> Дневная</span>`
-            : `<span style="background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-moon"></i> Ночная</span>`;
+            ? `<span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-sun"></i> День</span>`
+            : `<span style="background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; padding: 2px 7px; border-radius: 4px; font-weight: 600; font-size: 0.74rem;"><i class="fa-solid fa-moon"></i> Ночь</span>`;
 
         // Краткий перечень продукции
         const itemsList = (r.items || []).map(it => {
