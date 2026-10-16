@@ -710,18 +710,22 @@
             }
 
             .cell-t {
-                grid-column: 1 / 3 !important;
+                grid-column: 1 / 4 !important;
             }
             .cell-l {
-                grid-column: 3 / 5 !important;
+                grid-column: 4 / 7 !important;
             }
             .cell-screws {
-                grid-column: 5 / 7 !important;
+                grid-column: 1 / 4 !important;
+            }
+            .cell-strips {
+                grid-column: 4 / 7 !important;
             }
 
             .cell-t::before,
             .cell-l::before,
-            .cell-screws::before {
+            .cell-screws::before,
+            .cell-strips::before {
                 color: #0369a1 !important;
                 font-size: 0.84rem !important;
                 text-align: center !important;
@@ -729,7 +733,8 @@
 
             .cell-t input,
             .cell-l input,
-            .cell-screws input {
+            .cell-screws input,
+            .cell-strips input {
                 background: #f0f9ff !important;
                 border: 1.5px solid #7dd3fc !important;
                 color: #0369a1 !important;
@@ -1038,11 +1043,12 @@
                                     <th style="min-width: 240px;">Размер / Типоразмер</th>
                                     <th style="width: 85px; min-width: 85px; text-align: center;">План (шт)</th>
                                     <th style="width: 95px; min-width: 95px; text-align: center;">Факт (шт)</th>
-                                    <th style="min-width: 170px;">Комплект (Заказ / Партия)</th>
+                                    <th style="min-width: 190px;">Комплект (Заказ / Партия)</th>
                                     <th style="width: 100px; min-width: 100px; text-align: center;">Кол-во компл.</th>
-                                    <th style="width: 90px; min-width: 90px; background: #e0f2fe; text-align: center;">T (шт)</th>
-                                    <th style="width: 90px; min-width: 90px; background: #e0f2fe; text-align: center;">L (шт)</th>
-                                    <th style="width: 100px; min-width: 100px; background: #e0f2fe; text-align: center;">Шурупы</th>
+                                    <th style="width: 80px; min-width: 80px; background: #e0f2fe; text-align: center;">T (шт)</th>
+                                    <th style="width: 80px; min-width: 80px; background: #e0f2fe; text-align: center;">L (шт)</th>
+                                    <th style="width: 90px; min-width: 90px; background: #e0f2fe; text-align: center;">Шурупы</th>
+                                    <th style="width: 95px; min-width: 95px; background: #e0f2fe; text-align: center;">Полосы (шт)</th>
                                     <th style="width: 45px; text-align: center;">🗑️</th>
                                 </tr>
                             </thead>
@@ -1066,6 +1072,9 @@
                         <i class="fa-solid fa-boxes-stacked" style="color: var(--lkc-primary);"></i> 3. Списание сырья и сдача на склад
                     </h3>
                     <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" class="lkc-btn-secondary" onclick="event.stopPropagation(); applyTheoreticalRawDemand();" style="font-size: 0.85rem; font-weight: 700; padding: 6px 14px; border-radius: 8px; border: 1.5px solid #0284c7; color: #0284c7; background: #f0f9ff; display: flex; align-items: center; gap: 6px;" title="Рассчитать нормативную потребность листов по факту смены">
+                            <i class="fa-solid fa-bolt"></i> <span class="desktop-only">Нормы расхода</span>
+                        </button>
                         <button type="button" class="lkc-btn-primary desktop-only" id="btn-add-raw-item" onclick="event.stopPropagation(); addLKCRawMaterialRow();" style="font-size: 0.95rem; font-weight: 700; padding: 10px 22px; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(200, 35, 35, 0.2);">
                             <i class="fa-solid fa-plus"></i> Добавить списание сырья
                         </button>
@@ -1073,6 +1082,23 @@
                     </div>
                 </div>
                 <div class="lkc-section-content">
+                    <!-- Сводка материального баланса ЛКЦ (Material Balance Engine) -->
+                    <div id="lkc-balance-summary-banner" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-weight: 700; color: #1e293b; font-size: 0.9rem;"><i class="fa-solid fa-scale-balanced" style="color: #0284c7;"></i> Баланс смены:</span>
+                            <span class="badge" id="balance-badge-norm" style="background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">
+                                Норма: <strong id="bal-norm-total">0</strong> л. (6мм: <span id="bal-norm-6">0</span>, 8мм: <span id="bal-norm-8">0</span>, 10мм: <span id="bal-norm-10">0</span>)
+                            </span>
+                            <span class="badge" id="balance-badge-diff" style="background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">
+                                Баланс (Списано = Сдано + Брак): <strong id="bal-diff-val">0</strong>
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px; font-size: 0.88rem; font-weight: 700;">
+                            <span style="color: #15803d;"><i class="fa-solid fa-chart-line"></i> КИС: <span id="bal-kis-val">0.0</span>%</span>
+                            <span style="color: #dc2626;"><i class="fa-solid fa-triangle-exclamation"></i> Брак: <span id="bal-defect-val">0.0</span>%</span>
+                        </div>
+                    </div>
+
                     <div class="lkc-table-wrapper">
                         <table class="lkc-table" id="lkc-raw-table">
                             <thead>
@@ -1260,6 +1286,7 @@
                                     <th style="background: #e0f2fe;">T</th>
                                     <th style="background: #e0f2fe;">L</th>
                                     <th style="background: #e0f2fe;">Шурупы</th>
+                                    <th style="background: #e0f2fe;">Полосы</th>
                                     <th>Сдано</th>
                                     <th>Примечания</th>
                                     <th>Действие</th>
@@ -1293,48 +1320,47 @@
                         
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 1.25rem;">
                             <h4 style="margin: 0 0 8px; color: #1e3a8a; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-cubes"></i> Грядка 3.6 м (3600х900)
+                                <i class="fa-solid fa-cubes"></i> Грядка 3.6 м (3600х900х240)
                             </h4>
-                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Состав: 2 продольных борта (1800+1800) + 2 торца 900 мм</p>
-                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
-                                • T-профиль: <strong>2 шт</strong> (1.0 м)<br>
-                                • L-уголок: <strong>4 шт</strong> (245 мм)<br>
-                                • Шурупы: <strong>24 шт</strong>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Норма на 1 комплект (свободный ввод плана):</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • T-профиль: <strong>6 шт</strong> | L-уголок: <strong>4 шт</strong><br>
+                                • Шурупы: <strong>40 шт</strong> | Полосы: <strong>10 шт</strong>
                             </div>
                         </div>
 
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #6366f1; border-radius: 12px; padding: 1.25rem;">
                             <h4 style="margin: 0 0 8px; color: #4338ca; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-cubes"></i> Грядка 2.7 м (2700х900)
+                                <i class="fa-solid fa-cubes"></i> Грядка 2.7 м (2700х900х240)
                             </h4>
-                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Состав: 2 борта (1800+900) + 2 торца 900 мм</p>
-                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
-                                • T-профиль: <strong>2 шт</strong> (1.0 м)<br>
-                                • L-уголок: <strong>4 шт</strong> (245 мм)<br>
-                                • Шурупы: <strong>24 шт</strong>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Норма на 1 комплект (свободный ввод плана):</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • T-профиль: <strong>4 шт</strong> | L-уголок: <strong>4 шт</strong><br>
+                                • Шурупы: <strong>32 шт</strong> | Полосы: <strong>8 шт</strong>
                             </div>
                         </div>
 
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 12px; padding: 1.25rem;">
                             <h4 style="margin: 0 0 8px; color: #065f46; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-cubes"></i> Грядка 1.8 м (1800х900)
+                                <i class="fa-solid fa-cubes"></i> Грядка 1.8 м (1800х900х240)
                             </h4>
-                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Состав: 2 борта 1800х245 + 2 торца 900х245</p>
-                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
-                                • T-профиль: <strong>0 шт</strong> (не требуется)<br>
-                                • L-уголок: <strong>4 шт</strong> (245 мм)<br>
-                                • Шурупы: <strong>16 шт</strong>
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Норма на 1 комплект (свободный ввод плана):</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • T-профиль: <strong>2 шт</strong> | L-уголок: <strong>4 шт</strong><br>
+                                • Шурупы: <strong>24 шт</strong> | Полосы: <strong>6 шт</strong>
                             </div>
                         </div>
 
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 1.25rem;">
                             <h4 style="margin: 0 0 8px; color: #92400e; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                <i class="fa-solid fa-scissors"></i> Раскрой полос и листов
+                                <i class="fa-solid fa-scissors"></i> Раскрой полос (6, 8, 10 мм)
                             </h4>
-                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Сменный план раскроя: <strong>750 листов</strong> / смена</p>
-                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">
-                                • Полоса 1800х300: <strong>4 полосы</strong> с листа 1800х1200<br>
-                                • Смена: <strong>08:00 – 17:00</strong> (1 дневная смена)
+                            <p style="margin: 0 0 6px; font-size: 0.85rem; color: #475569;">Коэффициенты раскроя листа 1800х1200:</p>
+                            <div style="background: #ffffff; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1; line-height: 1.6;">
+                                • 1800х400: <strong>3 полосы</strong> / лист<br>
+                                • 1800х300: <strong>4 полосы</strong> / лист<br>
+                                • 1800х240: <strong>5 полос</strong> / лист (высота борта по чертежу)<br>
+                                • 1800х200: <strong>6 полос</strong> / лист
                             </div>
                         </div>
 
@@ -1350,7 +1376,8 @@
                                     <th>Тип продукции</th>
                                     <th>Норма T (шт)</th>
                                     <th>Норма L (шт)</th>
-                                    <th>Норма Шурупов (шт)</th>
+                                    <th>Норма Шурупов</th>
+                                    <th>Норма Полос</th>
                                     <th>Базовый план</th>
                                     <th>Техническое описание и примечания</th>
                                 </tr>
@@ -1392,7 +1419,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/lkc.js?v=20261013_lkc_v6"></script>
+    <script src="/static/js/lkc.js?v=20261016_lkc_v8"></script>
     <script src="/static/js/splash.js"></script>
 </body>
 

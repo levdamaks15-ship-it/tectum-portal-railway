@@ -248,9 +248,29 @@ async def lifespan(app: FastAPI):
                 models.QcdMonthlySpreadsheet.__table__.create(bind=engine, checkfirst=True)
                 models.QcdLabAnalysis.__table__.create(bind=engine, checkfirst=True)
                 models.LKCShiftReport.__table__.create(bind=engine, checkfirst=True)
+                models.LKCRawMaterialUsage.__table__.create(bind=engine, checkfirst=True)
                 models.LKCReportItem.__table__.create(bind=engine, checkfirst=True)
                 models.LKCDowntime.__table__.create(bind=engine, checkfirst=True)
                 db.commit()
+
+                # Автомиграция колонок ЛКЦ
+                driver = db.bind.dialect.name if db.bind else 'unknown'
+                try:
+                    if driver == 'postgresql':
+                        db.execute(text("ALTER TABLE lkc_report_items ADD COLUMN IF NOT EXISTS comp_strips_count INTEGER DEFAULT 0;"))
+                        db.execute(text("ALTER TABLE lkc_report_items ADD COLUMN IF NOT EXISTS order_number VARCHAR(100);"))
+                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_lkc_items_order_number ON lkc_report_items (order_number);"))
+                        db.commit()
+                    elif driver == 'sqlite':
+                        with engine.connect() as conn:
+                            for col_name, col_def in [("comp_strips_count", "INTEGER DEFAULT 0"), ("order_number", "VARCHAR(100)")]:
+                                try:
+                                    conn.execute(text(f"ALTER TABLE lkc_report_items ADD COLUMN {col_name} {col_def};"))
+                                    conn.commit()
+                                except: pass
+                except Exception as mig_err:
+                    print(f"LKC columns migration notice: {mig_err}")
+
                 print("Seeded core master profiles (Левда М., Булеханов К., Мусаилова З., Миркасимов И.М. PIN 4321).")
             except Exception as e:
                 print(f"Error seeding users: {e}")

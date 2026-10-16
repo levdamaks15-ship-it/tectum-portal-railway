@@ -294,11 +294,15 @@ function getCatalogOptionsHTML(selectedDim = '') {
         const fallback = [
             { name: 'Полоса плоская 6мм 1800х300', dim: 'пл. лист 6мм 1800х300', plan: 750 },
             { name: 'Полоса плоская 8мм 1800х300', dim: 'пл. лист 8мм 1800х300', plan: 750 },
+            { name: 'Полоса плоская 6мм 1800х240', dim: 'пл. лист 6мм 1800х240', plan: 750 },
+            { name: 'Полоса плоская 8мм 1800х240', dim: 'пл. лист 8мм 1800х240', plan: 750 },
+            { name: 'Полоса плоская 10мм 1800х240', dim: 'пл. лист 10мм 1800х240', plan: 750 },
             { name: 'Плоский лист 6мм 1800х1200', dim: 'пл. лист 6мм 1800х1200', plan: 750 },
             { name: 'Плоский лист 8мм 1800х1200', dim: 'пл. лист 8мм 1800х1200', plan: 750 },
-            { name: 'Грядка 3.6 м (3600х900)', dim: 'грядка 3600х900', plan: 0 },
-            { name: 'Грядка 2.7 м (2700х900)', dim: 'грядка 2700х900', plan: 0 },
-            { name: 'Грядка 1.8 м (1800х900)', dim: 'грядка 1800х900', plan: 0 }
+            { name: 'Плоский лист 10мм 1800х1200', dim: 'пл. лист 10мм 1800х1200', plan: 750 },
+            { name: 'Грядка 3.6 м (3600х900х240)', dim: 'грядка 3600х900х240', plan: 0 },
+            { name: 'Грядка 2.7 м (2700х900х240)', dim: 'грядка 2700х900х240', plan: 0 },
+            { name: 'Грядка 1.8 м (1800х900х240)', dim: 'грядка 1800х900х240', plan: 0 }
         ];
         return fallback.map(item => {
             const isSel = (item.dim === selectedDim || item.name === selectedDim) ? 'selected' : '';
@@ -314,6 +318,66 @@ function getCatalogOptionsHTML(selectedDim = '') {
     }).join('');
 }
 
+let orderProgressTimers = {};
+
+async function checkOrderProgress(orderNumber, badgeEl, currentShiftSets = 0) {
+    if (!badgeEl || !orderNumber) return;
+    const cleanOrder = orderNumber.trim();
+    if (!cleanOrder || cleanOrder.toLowerCase() === 'раскрой листа') {
+        badgeEl.style.display = 'none';
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/lkc/orders/progress?order_number=${encodeURIComponent(cleanOrder)}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            const prev = data.previously_produced_qty || 0;
+            const plan = data.total_planned_qty || 0;
+            const currentTotal = prev + Number(currentShiftSets || 0);
+
+            badgeEl.style.display = 'block';
+            if (plan > 0) {
+                const pct = Math.min(100, Math.round((currentTotal / plan) * 100));
+                const rem = Math.max(0, plan - currentTotal);
+                badgeEl.innerHTML = `<i class="fa-solid fa-list-check"></i> Заказ: <strong>${currentTotal}</strong> из ${plan} (${pct}%) • Ост: ${rem}`;
+                badgeEl.style.background = rem === 0 ? '#dcfce7' : '#e0f2fe';
+                badgeEl.style.color = rem === 0 ? '#15803d' : '#0369a1';
+                badgeEl.style.border = `1px solid ${rem === 0 ? '#86efac' : '#bae6fd'}`;
+            } else if (prev > 0) {
+                badgeEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Ранее сделано: <strong>${prev}</strong> шт • Смена: +${currentShiftSets || 0}`;
+                badgeEl.style.background = '#f1f5f9';
+                badgeEl.style.color = '#334155';
+                badgeEl.style.border = '1px solid #cbd5e1';
+            } else {
+                badgeEl.innerHTML = `<i class="fa-solid fa-circle-plus"></i> Новый заказ (0 шт ранее)`;
+                badgeEl.style.background = '#f8fafc';
+                badgeEl.style.color = '#64748b';
+                badgeEl.style.border = '1px solid #e2e8f0';
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to check order progress:', e);
+    }
+}
+
+function onOrderInputChange(inputEl) {
+    const tr = inputEl.closest('tr');
+    if (!tr) return;
+    const badgeEl = tr.querySelector('.order-progress-tag');
+    const orderVal = inputEl.value.trim();
+    const setsVal = parseInt(tr.querySelector('.item-sets')?.value, 10) || 0;
+
+    const rowId = tr.rowIndex || Math.random();
+    if (orderProgressTimers[rowId]) clearTimeout(orderProgressTimers[rowId]);
+
+    orderProgressTimers[rowId] = setTimeout(() => {
+        checkOrderProgress(orderVal, badgeEl, setsVal);
+    }, 400);
+
+    calculateLKCTotals();
+}
+
 function addLKCItemRow(data = {}) {
     const tbody = document.getElementById('lkc-items-tbody');
     if (!tbody) return;
@@ -324,26 +388,29 @@ function addLKCItemRow(data = {}) {
     const dimSize = data.dimension_size || 'пл. лист 6мм 1800х300';
     const isBed = Boolean(
         (dimSize && dimSize.toLowerCase().includes('гряд')) ||
-        (data.order_batch && data.order_batch.toLowerCase() === 'грядки') ||
+        (data.order_batch && data.order_batch.toLowerCase().includes('гряд')) ||
+        (data.order_number && data.order_number.toLowerCase().includes('гряд')) ||
         (dimSize && (dimSize.includes('3600') || dimSize.includes('2700') || dimSize.includes('1800х900')))
     );
     const defaultPlan = isBed ? 0 : 750;
     const planQty = data.plan_qty !== undefined && data.plan_qty !== '' ? Math.round(Number(data.plan_qty)) : defaultPlan;
     const factQty = data.fact_qty !== undefined && data.fact_qty !== '' ? Math.round(Number(data.fact_qty)) : '';
-    const defaultOrder = isBed ? 'грядки' : 'Раскрой листа';
-    const orderBatch = data.order_batch || defaultOrder;
+    const defaultOrder = isBed ? 'Заказ грядки' : 'Раскрой листа';
+    const orderNum = data.order_number || data.order_batch || defaultOrder;
     const setsCount = data.sets_count !== undefined && data.sets_count !== '' ? Math.round(Number(data.sets_count)) : '';
     let compT = data.comp_t_count !== undefined && data.comp_t_count !== '' ? Math.round(Number(data.comp_t_count)) : '';
     let compL = data.comp_l_count !== undefined && data.comp_l_count !== '' ? Math.round(Number(data.comp_l_count)) : '';
     let compScrews = data.comp_screws_count !== undefined && data.comp_screws_count !== '' ? Math.round(Number(data.comp_screws_count)) : '';
+    let compStrips = data.comp_strips_count !== undefined && data.comp_strips_count !== '' ? Math.round(Number(data.comp_strips_count)) : '';
 
     // If sets are given but hardware is not specified, auto-calculate from catalog
-    if (setsCount > 0 && compT === '' && compL === '' && compScrews === '' && lkcCatalog && lkcCatalog.length > 0) {
+    if (setsCount > 0 && compT === '' && compL === '' && compScrews === '' && compStrips === '' && lkcCatalog && lkcCatalog.length > 0) {
         const catItem = lkcCatalog.find(c => c.dimension_size === dimSize || c.name === dimSize);
         if (catItem) {
             compT = Math.round((catItem.norm_t || 0) * setsCount);
             compL = Math.round((catItem.norm_l || 0) * setsCount);
             compScrews = Math.round((catItem.norm_screws || 0) * setsCount);
+            compStrips = Math.round((catItem.norm_strips || 0) * setsCount);
         }
     }
 
@@ -360,16 +427,16 @@ function addLKCItemRow(data = {}) {
             </select>
         </td>
         <td class="cell-plan" data-label="План (шт)">
-            <input type="number" step="1" class="item-plan" value="${planQty}" readonly>
+            <input type="number" step="1" inputmode="numeric" class="item-plan" value="${planQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
         </td>
         <td class="cell-fact" data-label="Факт (шт)">
             <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-fact" value="${factQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
         </td>
         <td class="cell-order" data-label="Комплект (Заказ / Партия)">
-            <select class="item-order" onchange="onOrderTypeChange(this)">
-                <option value="грядки" ${(orderBatch.toLowerCase() === 'грядки') ? 'selected' : ''}>Грядки</option>
-                <option value="Раскрой листа" ${orderBatch === 'Раскрой листа' ? 'selected' : ''}>Раскрой листа</option>
-            </select>
+            <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+                <input type="text" class="item-order" value="${escapeHtml(orderNum)}" placeholder="№ Заказа (напр. ЗАК-104)" oninput="onOrderInputChange(this)">
+                <div class="order-progress-tag" style="display: none; font-size: 0.74rem; font-weight: 700; border-radius: 6px; padding: 2px 6px;"></div>
+            </div>
         </td>
         <td class="cell-sets" data-label="Кол-во компл.">
             <input type="number" step="1" inputmode="numeric" pattern="[0-9]*" class="item-sets" value="${setsCount}" placeholder="0" min="0" onwheel="this.blur()" oninput="onSetsCountChange(this)">
@@ -377,7 +444,7 @@ function addLKCItemRow(data = {}) {
         <td class="cell-hw-banner mobile-only" data-label="">
             <div class="mobile-hw-header">
                 <i class="fa-solid fa-calculator" style="color: #0284c7;"></i>
-                <span>Фурнитура комплекта (авторасчет)</span>
+                <span>Фурнитура и полосы (авторасчет)</span>
             </div>
         </td>
         <td class="cell-t" data-label="T (шт)">
@@ -389,6 +456,9 @@ function addLKCItemRow(data = {}) {
         <td class="cell-screws" data-label="Шурупы">
             <input type="number" step="1" class="item-screws" value="${compScrews}" placeholder="0" readonly tabindex="-1" style="pointer-events: none;">
         </td>
+        <td class="cell-strips" data-label="Полосы (шт)">
+            <input type="number" step="1" class="item-strips" value="${compStrips}" placeholder="0" readonly tabindex="-1" style="pointer-events: none;">
+        </td>
         <td class="cell-action desktop-only" style="text-align: center;">
             <button type="button" class="lkc-btn-danger" onclick="removeLKCItemRow(this)" title="Удалить строку" style="height: 38px; width: 38px; font-size: 0.95rem;">
                 <i class="fa-solid fa-xmark"></i>
@@ -397,8 +467,10 @@ function addLKCItemRow(data = {}) {
     `;
 
     tbody.appendChild(tr);
-    const orderSelect = tr.querySelector('.item-order');
-    if (orderSelect) onOrderTypeChange(orderSelect);
+    const orderInput = tr.querySelector('.item-order');
+    if (orderInput && orderInput.value) {
+        onOrderInputChange(orderInput);
+    }
     renumberItemRows();
     calculateLKCTotals();
 }
@@ -406,9 +478,10 @@ function addLKCItemRow(data = {}) {
 function onOrderTypeChange(selectEl) {
     const tr = selectEl.closest('tr');
     if (!tr) return;
-    const isCut = selectEl.value === 'Раскрой листа';
+    const val = (selectEl.value || '').toLowerCase();
+    const isCut = val === 'раскрой листа' || val.includes('раскрой');
     const planInput = tr.querySelector('.item-plan');
-    if (planInput) {
+    if (planInput && !planInput.value) {
         planInput.value = isCut ? 750 : 0;
     }
     const setsInput = tr.querySelector('.item-sets');
@@ -416,6 +489,7 @@ function onOrderTypeChange(selectEl) {
     const cellT = tr.querySelector('.cell-t');
     const cellL = tr.querySelector('.cell-l');
     const cellScrews = tr.querySelector('.cell-screws');
+    const cellStrips = tr.querySelector('.cell-strips');
 
     if (isCut) {
         if (setsInput) {
@@ -428,10 +502,12 @@ function onOrderTypeChange(selectEl) {
         if (tr.querySelector('.item-t')) tr.querySelector('.item-t').value = 0;
         if (tr.querySelector('.item-l')) tr.querySelector('.item-l').value = 0;
         if (tr.querySelector('.item-screws')) tr.querySelector('.item-screws').value = 0;
+        if (tr.querySelector('.item-strips')) tr.querySelector('.item-strips').value = 0;
         if (hwBanner) hwBanner.style.opacity = '0.35';
         if (cellT) cellT.style.opacity = '0.35';
         if (cellL) cellL.style.opacity = '0.35';
         if (cellScrews) cellScrews.style.opacity = '0.35';
+        if (cellStrips) cellStrips.style.opacity = '0.35';
     } else {
         if (setsInput) {
             setsInput.disabled = false;
@@ -443,6 +519,7 @@ function onOrderTypeChange(selectEl) {
         if (cellT) cellT.style.opacity = '1';
         if (cellL) cellL.style.opacity = '1';
         if (cellScrews) cellScrews.style.opacity = '1';
+        if (cellStrips) cellStrips.style.opacity = '1';
         if (setsInput) onSetsCountChange(setsInput);
     }
     calculateLKCTotals();
@@ -475,8 +552,12 @@ function getRawMaterialOptionsHTML(selectedMat = '') {
     const rawPresets = [
         'Плоский лист 8мм 1800х1200',
         'Плоский лист 6мм 1800х1200',
+        'Плоский лист 10мм 1800х1200',
         'Полоса 8мм 1800х300',
         'Полоса 6мм 1800х300',
+        'Полоса 8мм 1800х240',
+        'Полоса 6мм 1800х240',
+        'Полоса 10мм 1800х240',
         'Т-профиль (1.0 м)',
         'L-уголок (245 мм)',
         'Саморезы / Шурупы 4.2х16',
@@ -599,31 +680,36 @@ function onSetsCountChange(inputEl) {
     const dimVal = dimSelect ? dimSelect.value : '';
 
     const catItem = lkcCatalog.find(c => c.dimension_size === dimVal || c.name === dimVal);
-    if (catItem && (catItem.norm_t > 0 || catItem.norm_l > 0 || catItem.norm_screws > 0)) {
-        tr.querySelector('.item-t').value = sets > 0 ? Math.round(catItem.norm_t * sets) : 0;
-        tr.querySelector('.item-l').value = sets > 0 ? Math.round(catItem.norm_l * sets) : 0;
-        tr.querySelector('.item-screws').value = sets > 0 ? Math.round(catItem.norm_screws * sets) : 0;
+    let normT = 0, normL = 0, normScrews = 0, normStrips = 0;
+
+    if (catItem && (catItem.norm_t > 0 || catItem.norm_l > 0 || catItem.norm_screws > 0 || catItem.norm_strips > 0)) {
+        normT = catItem.norm_t || 0;
+        normL = catItem.norm_l || 0;
+        normScrews = catItem.norm_screws || 0;
+        normStrips = catItem.norm_strips || 0;
     } else {
         // Fallback rule by dimension text
         const dimLower = dimVal.toLowerCase();
         if (dimLower.includes('3.6') || dimLower.includes('3600')) {
-            tr.querySelector('.item-t').value = sets > 0 ? (sets * 2) : 0;
-            tr.querySelector('.item-l').value = sets > 0 ? (sets * 4) : 0;
-            tr.querySelector('.item-screws').value = sets > 0 ? (sets * 24) : 0;
+            normT = 6; normL = 4; normScrews = 40; normStrips = 10;
         } else if (dimLower.includes('2.7') || dimLower.includes('2700')) {
-            tr.querySelector('.item-t').value = sets > 0 ? (sets * 2) : 0;
-            tr.querySelector('.item-l').value = sets > 0 ? (sets * 4) : 0;
-            tr.querySelector('.item-screws').value = sets > 0 ? (sets * 24) : 0;
+            normT = 4; normL = 4; normScrews = 32; normStrips = 8;
         } else if (dimLower.includes('1.8') || dimLower.includes('1800') || dimLower.includes('грядка')) {
-            tr.querySelector('.item-t').value = 0;
-            tr.querySelector('.item-l').value = sets > 0 ? (sets * 4) : 0;
-            tr.querySelector('.item-screws').value = sets > 0 ? (sets * 16) : 0;
-        } else {
-            tr.querySelector('.item-t').value = 0;
-            tr.querySelector('.item-l').value = 0;
-            tr.querySelector('.item-screws').value = 0;
+            normT = 2; normL = 4; normScrews = 24; normStrips = 6;
         }
     }
+
+    if (tr.querySelector('.item-t')) tr.querySelector('.item-t').value = sets > 0 ? Math.round(normT * sets) : 0;
+    if (tr.querySelector('.item-l')) tr.querySelector('.item-l').value = sets > 0 ? Math.round(normL * sets) : 0;
+    if (tr.querySelector('.item-screws')) tr.querySelector('.item-screws').value = sets > 0 ? Math.round(normScrews * sets) : 0;
+    if (tr.querySelector('.item-strips')) tr.querySelector('.item-strips').value = sets > 0 ? Math.round(normStrips * sets) : 0;
+
+    // Check order progress dynamically
+    const orderInput = tr.querySelector('.item-order');
+    if (orderInput && orderInput.value) {
+        onOrderInputChange(orderInput);
+    }
+
     calculateLKCTotals();
 }
 
@@ -633,7 +719,7 @@ function renderLKCNormsTable() {
     tbody.innerHTML = '';
 
     if (!lkcCatalog || lkcCatalog.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 1.5rem;">Загрузка справочника нормативов...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #64748b; padding: 1.5rem;">Загрузка справочника нормативов...</td></tr>';
         return;
     }
 
@@ -646,11 +732,108 @@ function renderLKCNormsTable() {
             <td style="text-align: center; font-weight: 700; color: #0369a1; background: #f0f9ff;">${item.norm_t} шт</td>
             <td style="text-align: center; font-weight: 700; color: #0369a1; background: #f0f9ff;">${item.norm_l} шт</td>
             <td style="text-align: center; font-weight: 700; color: #0369a1; background: #f0f9ff;">${item.norm_screws} шт</td>
-            <td style="text-align: center; font-weight: 700; color: #15803d;">${item.plan_default || 750} шт</td>
+            <td style="text-align: center; font-weight: 700; color: #0369a1; background: #f0f9ff;">${item.norm_strips || 0} шт</td>
+            <td style="text-align: center; font-weight: 700; color: #15803d;">${item.plan_default || (item.product_type === 'Комплект грядок' ? 'Заказ' : 750)}</td>
             <td style="color: #475569; font-size: 0.82rem;">${escapeHtml(item.description || '')}</td>
         `;
         tbody.appendChild(tr);
     });
+}
+
+function calculateTheoreticalDemand() {
+    let normSheets6 = 0;
+    let normSheets8 = 0;
+    let normSheets10 = 0;
+    let normStripsTotal = 0;
+
+    document.querySelectorAll('.lkc-item-row').forEach(tr => {
+        const dim = (tr.querySelector('.item-dimension')?.value || '').toLowerCase();
+        const fact = parseInt(tr.querySelector('.item-fact')?.value, 10) || 0;
+        const sets = parseInt(tr.querySelector('.item-sets')?.value, 10) || 0;
+        const strips = parseInt(tr.querySelector('.item-strips')?.value, 10) || 0;
+        const isBed = dim.includes('гряд') || dim.includes('3600') || dim.includes('2700') || dim.includes('1800х900');
+
+        let th = '8';
+        if (dim.includes('6мм') || dim.includes('6 мм')) th = '6';
+        else if (dim.includes('10мм') || dim.includes('10 мм')) th = '10';
+
+        if (isBed) {
+            normStripsTotal += strips;
+            // 1 лист 1800х1200 дает 5 полос 1800х240 для грядки (высота 240 мм по чертежу)
+            const sheets = strips / 5.0;
+            if (th === '6') normSheets6 += sheets;
+            else if (th === '10') normSheets10 += sheets;
+            else normSheets8 += sheets;
+        } else {
+            let ratio = 4.0;
+            if (dim.includes('400')) ratio = 3.0;
+            else if (dim.includes('240')) ratio = 5.0;
+            else if (dim.includes('200')) ratio = 6.0;
+            else if (dim.includes('300')) ratio = 4.0;
+
+            const sheets = ratio > 0 ? (fact / ratio) : 0;
+            if (th === '6') normSheets6 += sheets;
+            else if (th === '10') normSheets10 += sheets;
+            else normSheets8 += sheets;
+        }
+    });
+
+    return {
+        normSheets6: Math.round(normSheets6 * 10) / 10,
+        normSheets8: Math.round(normSheets8 * 10) / 10,
+        normSheets10: Math.round(normSheets10 * 10) / 10,
+        normSheetsTotal: Math.round((normSheets6 + normSheets8 + normSheets10) * 10) / 10,
+        normStripsTotal: normStripsTotal
+    };
+}
+
+function applyTheoreticalRawDemand() {
+    const demand = calculateTheoreticalDemand();
+    const totalSheets = Math.ceil(demand.normSheetsTotal);
+
+    if (totalSheets <= 0) {
+        showToast('info', 'В рапорте пока нет факта выпуска продукции для расчета норм расхода');
+        return;
+    }
+
+    const rawTbody = document.getElementById('lkc-raw-tbody');
+    if (!rawTbody) return;
+
+    rawTbody.innerHTML = '';
+
+    if (demand.normSheets6 > 0) {
+        addLKCRawMaterialRow({
+            material_name: 'Плоский лист 6мм 1800х1200',
+            spent_qty: Math.ceil(demand.normSheets6),
+            warehouse_submitted_qty: Math.ceil(demand.normSheets6),
+            scrap_defect_qty: 0,
+            notes: 'По норме раскроя (6мм)'
+        });
+    }
+
+    if (demand.normSheets8 > 0 || (demand.normSheets6 === 0 && demand.normSheets10 === 0)) {
+        const qty = demand.normSheets8 > 0 ? Math.ceil(demand.normSheets8) : totalSheets;
+        addLKCRawMaterialRow({
+            material_name: 'Плоский лист 8мм 1800х1200',
+            spent_qty: qty,
+            warehouse_submitted_qty: qty,
+            scrap_defect_qty: 0,
+            notes: 'По норме раскроя (8мм)'
+        });
+    }
+
+    if (demand.normSheets10 > 0) {
+        addLKCRawMaterialRow({
+            material_name: 'Плоский лист 10мм 1800х1200',
+            spent_qty: Math.ceil(demand.normSheets10),
+            warehouse_submitted_qty: Math.ceil(demand.normSheets10),
+            scrap_defect_qty: 0,
+            notes: 'По норме раскроя (10мм)'
+        });
+    }
+
+    calculateLKCTotals();
+    showToast('success', `Применены нормы расхода сырья: ${totalSheets} листов`);
 }
 
 function calculateLKCTotals() {
@@ -661,6 +844,7 @@ function calculateLKCTotals() {
     let totalT = 0;
     let totalL = 0;
     let totalScrews = 0;
+    let totalStrips = 0;
 
     itemRows.forEach(tr => {
         const plan = parseInt(tr.querySelector('.item-plan')?.value, 10) || 0;
@@ -669,6 +853,7 @@ function calculateLKCTotals() {
         const t = parseInt(tr.querySelector('.item-t')?.value, 10) || 0;
         const l = parseInt(tr.querySelector('.item-l')?.value, 10) || 0;
         const screws = parseInt(tr.querySelector('.item-screws')?.value, 10) || 0;
+        const strips = parseInt(tr.querySelector('.item-strips')?.value, 10) || 0;
 
         totalPlan += plan;
         totalFact += fact;
@@ -676,6 +861,7 @@ function calculateLKCTotals() {
         totalT += t;
         totalL += l;
         totalScrews += screws;
+        totalStrips += strips;
     });
 
     const rawRows = document.querySelectorAll('.lkc-raw-row');
@@ -702,6 +888,46 @@ function calculateLKCTotals() {
     const elScrap = document.getElementById('raw-total-scrap');
     if (elScrap) elScrap.innerText = totalScrap;
 
+    // Расчет материального баланса
+    const demand = calculateTheoreticalDemand();
+    const normTotalEl = document.getElementById('bal-norm-total');
+    if (normTotalEl) normTotalEl.innerText = demand.normSheetsTotal;
+
+    const norm6El = document.getElementById('bal-norm-6');
+    if (norm6El) norm6El.innerText = demand.normSheets6;
+
+    const norm8El = document.getElementById('bal-norm-8');
+    if (norm8El) norm8El.innerText = demand.normSheets8;
+
+    const norm10El = document.getElementById('bal-norm-10');
+    if (norm10El) norm10El.innerText = demand.normSheets10;
+
+    const balanceDiff = Math.round((totalSpent - (totalSubmitted + totalScrap)) * 100) / 100;
+    const diffBadge = document.getElementById('balance-badge-diff');
+    const diffValEl = document.getElementById('bal-diff-val');
+    if (diffValEl) diffValEl.innerText = balanceDiff === 0 ? '0 (Баланс сошелся)' : (balanceDiff > 0 ? `+${balanceDiff}` : `${balanceDiff}`);
+    if (diffBadge) {
+        if (totalSpent === 0 && totalSubmitted === 0 && totalScrap === 0) {
+            diffBadge.style.background = '#f1f5f9';
+            diffBadge.style.color = '#475569';
+        } else if (balanceDiff === 0) {
+            diffBadge.style.background = '#dcfce7';
+            diffBadge.style.color = '#15803d';
+        } else {
+            diffBadge.style.background = '#fef2f2';
+            diffBadge.style.color = '#dc2626';
+        }
+    }
+
+    const kis = totalSpent > 0 ? (totalSubmitted / totalSpent * 100).toFixed(1) : '0.0';
+    const scrapPct = totalSpent > 0 ? (totalScrap / totalSpent * 100).toFixed(1) : '0.0';
+
+    const kisEl = document.getElementById('bal-kis-val');
+    if (kisEl) kisEl.innerText = kis;
+
+    const defectEl = document.getElementById('bal-defect-val');
+    if (defectEl) defectEl.innerText = scrapPct;
+
     // Save active draft
     if (currentSelectedDate) {
         saveDraft(currentSelectedDate, collectFormData());
@@ -719,17 +945,21 @@ function collectFormData() {
         const dim = tr.querySelector('.item-dimension')?.value.trim();
         if (!dim) return;
 
+        const orderText = tr.querySelector('.item-order')?.value.trim() || '';
+
         items.push({
             item_order: idx + 1,
             dimension_size: dim,
             plan_qty: parseInt(tr.querySelector('.item-plan')?.value, 10) || 0,
             fact_qty: parseInt(tr.querySelector('.item-fact')?.value, 10) || 0,
             fact_unit: 'шт',
-            order_batch: tr.querySelector('.item-order')?.value.trim() || '',
+            order_batch: orderText,
+            order_number: orderText,
             sets_count: parseInt(tr.querySelector('.item-sets')?.value, 10) || 0,
             comp_t_count: parseInt(tr.querySelector('.item-t')?.value, 10) || 0,
             comp_l_count: parseInt(tr.querySelector('.item-l')?.value, 10) || 0,
-            comp_screws_count: parseInt(tr.querySelector('.item-screws')?.value, 10) || 0
+            comp_screws_count: parseInt(tr.querySelector('.item-screws')?.value, 10) || 0,
+            comp_strips_count: parseInt(tr.querySelector('.item-strips')?.value, 10) || 0
         });
     });
 
@@ -998,11 +1228,12 @@ async function loadLKCWeeklySummary() {
                             <td>${escapeHtml(item.dimension_size)}</td>
                             <td style="text-align:right;">${item.plan_qty || 0}</td>
                             <td style="text-align:right; font-weight:700;">${item.fact_qty || 0}</td>
-                            <td>${escapeHtml(item.order_batch || '')}</td>
+                            <td>${escapeHtml(item.order_number || item.order_batch || '')}</td>
                             <td style="text-align:right;">${item.sets_count || 0}</td>
                             <td style="text-align:right; background:#f0f9ff;">${item.comp_t_count || 0}</td>
                             <td style="text-align:right; background:#f0f9ff;">${item.comp_l_count || 0}</td>
                             <td style="text-align:right; background:#f0f9ff;">${item.comp_screws_count || 0}</td>
+                            <td style="text-align:right; background:#f0f9ff;">${item.comp_strips_count || 0}</td>
                             <td style="text-align:right;">${item.warehouse_submitted_qty || dayRep.warehouse_submitted_qty || 0}</td>
                             <td>${escapeHtml(item.notes || dayRep.notes || '')}</td>
                             <td style="text-align:center;">
@@ -1022,6 +1253,7 @@ async function loadLKCWeeklySummary() {
                         <td style="text-align:right;">0</td>
                         <td>--</td>
                         <td style="text-align:right;">0</td>
+                        <td style="text-align:right; background:#f0f9ff;">0</td>
                         <td style="text-align:right; background:#f0f9ff;">0</td>
                         <td style="text-align:right; background:#f0f9ff;">0</td>
                         <td style="text-align:right; background:#f0f9ff;">0</td>

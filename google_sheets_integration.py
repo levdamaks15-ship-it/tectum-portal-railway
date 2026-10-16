@@ -3260,7 +3260,7 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
             "№ п/п", "Дата", "Смена", "Мастер смены",
             "Продукт / Изделие", "Размер / Типоразмер", "Комплект (Заказ / Партия)",
             "План (шт)", "Факт (шт)", "Кол-во комплектов (шт)",
-            "T-профиль (шт)", "L-уголок (шт)", "Шурупы (шт)"
+            "T-профиль (шт)", "L-уголок (шт)", "Шурупы (шт)", "Полосы (шт)"
         ]
         rows_prod = [headers_prod]
         p_idx = 1
@@ -3273,13 +3273,13 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
                     is_bed = bool(
                         (it.product_type and "гряд" in it.product_type.lower()) or
                         (it.dimension_size and "гряд" in it.dimension_size.lower()) or
-                        (it.order_batch and "гряд" in it.order_batch.lower())
+                        (it.order_batch and "гряд" in it.order_batch.lower()) or
+                        (it.order_number and "гряд" in it.order_number.lower())
                     )
-                    # У комплектов грядок плана нет (0)
-                    plan_val = 0 if is_bed else (it.plan_qty or 0)
+                    plan_val = it.plan_qty or 0
                     prod_name = it.product_type or ("Комплект грядок" if is_bed else "Плоская полоса")
                     dim_name = it.dimension_size or ""
-                    order_val = it.order_batch or ("грядки" if is_bed else "Раскрой листа")
+                    order_val = it.order_number or it.order_batch or ("грядки" if is_bed else "Раскрой листа")
 
                     rows_prod.append([
                         p_idx,
@@ -3294,7 +3294,8 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
                         it.sets_count or 0,
                         it.comp_t_count or 0,
                         it.comp_l_count or 0,
-                        it.comp_screws_count or 0
+                        it.comp_screws_count or 0,
+                        it.comp_strips_count or 0
                     ])
                     p_idx += 1
             else:
@@ -3306,6 +3307,7 @@ def export_lkc_to_google_sheets(db: Session) -> Dict[str, Any]:
                     "—",
                     "—",
                     "—",
+                    0,
                     0,
                     0,
                     0,

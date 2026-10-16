@@ -761,6 +761,9 @@ class LKCReportItem(Base):
     comp_t_count = Column(Float, default=0.0) # Т-профиль
     comp_l_count = Column(Float, default=0.0) # L-уголок
     comp_screws_count = Column(Integer, default=0) # Шурупы
+    comp_strips_count = Column(Integer, default=0) # Полосы (шт)
+    
+    order_number = Column(String(100), nullable=True, index=True) # Номер заказа для сквозного многосменного учета
     
     # Доп. параметры строки
     raw_sheets_thickness = Column(String(50), default="8 мм", nullable=True)

@@ -27,89 +27,233 @@ def normalize_lkc_shift(shift_raw: Optional[str]) -> str:
 
 # --- СПРАВОЧНИК НОМЕНКЛАТУРЫ И НОРМ РАСХОДА ---
 LKC_CATALOG = [
+    # --- РАСКРОЙ ПОЛОС: 1800х400 (3 полосы с 1 листа 1800х1200) ---
+    {
+        "id": "strip_1800_400_6",
+        "name": "Полоса плоская 6мм 1800х400",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 6мм 1800х400",
+        "thickness": "6 мм",
+        "cut_ratio": 3.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 6мм 1800х1200 на 3 полосы 1800х400"
+    },
+    {
+        "id": "strip_1800_400_8",
+        "name": "Полоса плоская 8мм 1800х400",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 8мм 1800х400",
+        "thickness": "8 мм",
+        "cut_ratio": 3.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 8мм 1800х1200 на 3 полосы 1800х400"
+    },
+    {
+        "id": "strip_1800_400_10",
+        "name": "Полоса плоская 10мм 1800х400",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 10мм 1800х400",
+        "thickness": "10 мм",
+        "cut_ratio": 3.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 10мм 1800х1200 на 3 полосы 1800х400"
+    },
+
+    # --- РАСКРОЙ ПОЛОС: 1800х300 (4 полосы с 1 листа 1800х1200) ---
     {
         "id": "strip_1800_300_6",
         "name": "Полоса плоская 6мм 1800х300",
         "product_type": "Плоская полоса",
         "dimension_size": "пл. лист 6мм 1800х300",
+        "thickness": "6 мм",
+        "cut_ratio": 4.0,
         "default_unit": "шт",
         "norm_t": 0,
         "norm_l": 0,
         "norm_screws": 0,
+        "norm_strips": 0,
         "plan_default": 750,
-        "description": "Нарезка полос из листа 6мм 1800х1200 (4 полосы с 1 листа)"
+        "description": "Раскрой листа 6мм 1800х1200 на 4 полосы 1800х300"
     },
     {
         "id": "strip_1800_300_8",
         "name": "Полоса плоская 8мм 1800х300",
         "product_type": "Плоская полоса",
         "dimension_size": "пл. лист 8мм 1800х300",
+        "thickness": "8 мм",
+        "cut_ratio": 4.0,
         "default_unit": "шт",
         "norm_t": 0,
         "norm_l": 0,
         "norm_screws": 0,
+        "norm_strips": 0,
         "plan_default": 750,
-        "description": "Нарезка полос из листа 8мм 1800х1200 (4 полосы с 1 листа)"
+        "description": "Раскрой листа 8мм 1800х1200 на 4 полосы 1800х300"
     },
     {
-        "id": "sheet_1800_1200_6",
-        "name": "Плоский лист 6мм 1800х1200",
-        "product_type": "Плоский лист",
-        "dimension_size": "пл. лист 6мм 1800х1200",
+        "id": "strip_1800_300_10",
+        "name": "Полоса плоская 10мм 1800х300",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 10мм 1800х300",
+        "thickness": "10 мм",
+        "cut_ratio": 4.0,
         "default_unit": "шт",
         "norm_t": 0,
         "norm_l": 0,
         "norm_screws": 0,
+        "norm_strips": 0,
         "plan_default": 750,
-        "description": "Плоский хризотилцементный лист 6 мм. Сменный план: 750 шт"
+        "description": "Раскрой листа 10мм 1800х1200 на 4 полосы 1800х300"
+    },
+
+    # --- РАСКРОЙ ПОЛОС: 1800х200 (6 полос с 1 листа 1800х1200) ---
+    {
+        "id": "strip_1800_200_6",
+        "name": "Полоса плоская 6мм 1800х200",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 6мм 1800х200",
+        "thickness": "6 мм",
+        "cut_ratio": 6.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 6мм 1800х1200 на 6 полос 1800х200"
     },
     {
-        "id": "sheet_1800_1200_8",
-        "name": "Плоский лист 8мм 1800х1200",
-        "product_type": "Плоский лист",
-        "dimension_size": "пл. лист 8мм 1800х1200",
+        "id": "strip_1800_200_8",
+        "name": "Полоса плоская 8мм 1800х200",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 8мм 1800х200",
+        "thickness": "8 мм",
+        "cut_ratio": 6.0,
         "default_unit": "шт",
         "norm_t": 0,
         "norm_l": 0,
         "norm_screws": 0,
+        "norm_strips": 0,
         "plan_default": 750,
-        "description": "Базовый плоский хризотилцементный лист 8 мм. Сменный план: 750 шт"
+        "description": "Раскрой листа 8мм 1800х1200 на 6 полос 1800х200"
     },
+    {
+        "id": "strip_1800_200_10",
+        "name": "Полоса плоская 10мм 1800х200",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 10мм 1800х200",
+        "thickness": "10 мм",
+        "cut_ratio": 6.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 10мм 1800х1200 на 6 полос 1800х200"
+    },
+
+    # --- РАСКРОЙ ПОЛОС: 1800х240 (5 полос с 1 листа 1800х1200 по чертежу) ---
+    {
+        "id": "strip_1800_240_6",
+        "name": "Полоса плоская 6мм 1800х240",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 6мм 1800х240",
+        "thickness": "6 мм",
+        "cut_ratio": 5.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 6мм 1800х1200 на 5 полос 1800х240 (высота борта по ГОСТ 30340-2012)"
+    },
+    {
+        "id": "strip_1800_240_8",
+        "name": "Полоса плоская 8мм 1800х240",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 8мм 1800х240",
+        "thickness": "8 мм",
+        "cut_ratio": 5.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 8мм 1800х1200 на 5 полос 1800х240 (высота борта по ГОСТ 30340-2012)"
+    },
+    {
+        "id": "strip_1800_240_10",
+        "name": "Полоса плоская 10мм 1800х240",
+        "product_type": "Плоская полоса",
+        "dimension_size": "пл. лист 10мм 1800х240",
+        "thickness": "10 мм",
+        "cut_ratio": 5.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Раскрой листа 10мм 1800х1200 на 5 полос 1800х240 (высота борта по ГОСТ 30340-2012)"
+    },
+
+    # --- КОМПЛЕКТЫ ГРЯДОК (Сборка под заказ, чертёжная высота 240 мм по ГОСТ 30340-2012) ---
     {
         "id": "bed_3600",
-        "name": "Грядка 3.6 м (3600х900)",
+        "name": "Грядка 3.6 м (3600х900х240)",
         "product_type": "Комплект грядок",
-        "dimension_size": "грядка 3600х900",
+        "dimension_size": "грядка 3600х900х240",
         "default_unit": "компл",
-        "norm_t": 2,
+        "norm_t": 6,
         "norm_l": 4,
-        "norm_screws": 24,
+        "norm_screws": 40,
+        "norm_strips": 10,
         "plan_default": 0,
-        "description": "2 продольных борта (1800+1800) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт"
+        "description": "Комплект грядки 3.6 м (3600х900х240 мм). Норма на 1 компл: Т-профиль 6 шт, L-уголок 4 шт, Шурупы 40 шт, Полосы 10 шт (2 цельных листа 1800х1200). Свободный ввод заказа."
     },
     {
         "id": "bed_2700",
-        "name": "Грядка 2.7 м (2700х900)",
+        "name": "Грядка 2.7 м (2700х900х240)",
         "product_type": "Комплект грядок",
-        "dimension_size": "грядка 2700х900",
+        "dimension_size": "грядка 2700х900х240",
+        "default_unit": "компл",
+        "norm_t": 4,
+        "norm_l": 4,
+        "norm_screws": 32,
+        "norm_strips": 8,
+        "plan_default": 0,
+        "description": "Комплект грядки 2.7 м (2700х900х240 мм по чертежу). Норма на 1 компл: Т-профиль 4 шт, L-уголок 4 шт, Шурупы 32 шт, Полосы 8 шт (1.6 листа 1800х1200). Свободный ввод заказа."
+    },
+    {
+        "id": "bed_1800",
+        "name": "Грядка 1.8 м (1800х900х240)",
+        "product_type": "Комплект грядок",
+        "dimension_size": "грядка 1800х900х240",
         "default_unit": "компл",
         "norm_t": 2,
         "norm_l": 4,
         "norm_screws": 24,
+        "norm_strips": 6,
         "plan_default": 0,
-        "description": "2 борта (1800+900) + 2 торца 900х245. Расход: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт"
-    },
-    {
-        "id": "bed_1800",
-        "name": "Грядка 1.8 м (1800х900)",
-        "product_type": "Комплект грядок",
-        "dimension_size": "грядка 1800х900",
-        "default_unit": "компл",
-        "norm_t": 0,
-        "norm_l": 4,
-        "norm_screws": 16,
-        "plan_default": 0,
-        "description": "2 борта 1800х245 + 2 торца 900х245. Расход: Т-профиль 0 шт, L-уголок 4 шт, Шурупы 16 шт"
+        "description": "Комплект грядки 1.8 м (1800х900х240 мм). Норма на 1 компл: Т-профиль 2 шт, L-уголок 4 шт, Шурупы 24 шт, Полосы 6 шт (1.2 листа 1800х1200). Свободный ввод заказа."
     }
 ]
 
@@ -245,6 +389,7 @@ def save_report(
 
         # Добавляем строки позиций выпуска
         for idx, item_data in enumerate(data.items or []):
+            order_num = (item_data.order_number or item_data.order_batch or "").strip()
             item = models.LKCReportItem(
                 report_id=report.id,
                 item_order=idx + 1,
@@ -253,11 +398,13 @@ def save_report(
                 plan_qty=item_data.plan_qty or 0.0,
                 fact_qty=item_data.fact_qty or 0.0,
                 fact_unit=item_data.fact_unit or "шт",
-                order_batch=item_data.order_batch or "",
+                order_batch=order_num,
+                order_number=order_num,
                 sets_count=item_data.sets_count or 0,
                 comp_t_count=item_data.comp_t_count or 0.0,
                 comp_l_count=item_data.comp_l_count or 0.0,
                 comp_screws_count=item_data.comp_screws_count or 0,
+                comp_strips_count=item_data.comp_strips_count or 0,
                 raw_sheets_thickness=item_data.raw_sheets_thickness or report.raw_sheets_thickness,
                 raw_sheets_spent=item_data.raw_sheets_spent or 0.0,
                 warehouse_submitted_qty=item_data.warehouse_submitted_qty or 0.0,
@@ -352,6 +499,178 @@ def delete_report(report_id: int, db: Session = Depends(get_db)):
     report.updated_at = datetime.utcnow()
     db.commit()
     return {"status": "ok", "message": f"Рапорт №{report_id} успешно удален"}
+
+
+# --- АНАЛИТИКА: СКВОЗНЫЕ ЗАКАЗЫ И СЫРЬЕВОЙ БАЛАНС ---
+
+@router.get("/orders/progress", response_model=schemas.LKCOrderProgressOut)
+def get_order_progress(
+    order_number: str = Query(..., description="Номер или наименование заказа"),
+    current_report_id: Optional[int] = Query(None, description="ID текущего отчета"),
+    current_shift_qty: Optional[float] = Query(0.0, description="Количество в текущей смене"),
+    db: Session = Depends(get_db)
+):
+    """
+    Возвращает сквозной прогресс выполнения заказа нарастающим итогом по всем сменам ЛКЦ.
+    Позволяет мастеру видеть, сколько уже сделано по заказу ранее, сколько делается в эту смену,
+    и сколько осталось до полного закрытия заказа.
+    """
+    clean_ord = str(order_number).strip()
+    if not clean_ord:
+        return schemas.LKCOrderProgressOut(order_number="")
+
+    # Ищем все строки выпуска с этим номером заказа в активных отчетах
+    items = db.query(models.LKCReportItem).join(models.LKCShiftReport).filter(
+        models.LKCShiftReport.is_active == True,
+        or_(
+            models.LKCReportItem.order_number == clean_ord,
+            models.LKCReportItem.order_batch == clean_ord,
+            models.LKCReportItem.order_number.ilike(f"%{clean_ord}%"),
+            models.LKCReportItem.order_batch.ilike(f"%{clean_ord}%")
+        )
+    ).all()
+
+    total_planned = 0.0
+    for it in items:
+        if it.plan_qty and it.plan_qty > total_planned:
+            total_planned = float(it.plan_qty)
+
+    previously_produced = 0.0
+    for it in items:
+        if current_report_id and it.report_id == current_report_id:
+            continue
+        qty = float(it.sets_count if (it.sets_count and it.sets_count > 0) else (it.fact_qty or 0.0))
+        previously_produced += qty
+
+    cur_shift = float(current_shift_qty or 0.0)
+    total_produced = previously_produced + cur_shift
+    remaining = max(0.0, total_planned - total_produced) if total_planned > 0 else 0.0
+    completion_pct = round((total_produced / total_planned * 100), 1) if total_planned > 0 else 0.0
+
+    return schemas.LKCOrderProgressOut(
+        order_number=clean_ord,
+        total_planned_qty=total_planned,
+        previously_produced_qty=previously_produced,
+        current_shift_produced_qty=cur_shift,
+        total_produced_qty=total_produced,
+        remaining_qty=remaining,
+        completion_percentage=completion_pct
+    )
+
+
+@router.get("/reports/{report_id}/balance", response_model=schemas.LKCMaterialBalanceSummary)
+def get_report_balance(report_id: int, db: Session = Depends(get_db)):
+    """
+    Рассчитывает материальный сырьевой баланс отчета смены ЛКЦ:
+    нормативная потребность (теоретический расход листов 6/8/10 мм, полос, Т, L, шурупов)
+    в сравнении с фактическим списанием из таблицы сырья.
+    """
+    report = db.query(models.LKCShiftReport).options(
+        selectinload(models.LKCShiftReport.items),
+        selectinload(models.LKCShiftReport.raw_materials)
+    ).filter(
+        models.LKCShiftReport.id == report_id,
+        models.LKCShiftReport.is_active == True
+    ).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Рапорт ЛКЦ не найден")
+
+    norm_sheets_6 = 0.0
+    norm_sheets_8 = 0.0
+    norm_sheets_10 = 0.0
+    norm_strips = 0
+    norm_t = 0.0
+    norm_l = 0.0
+    norm_screws = 0
+
+    for it in (report.items or []):
+        dim = (it.dimension_size or "").lower()
+        is_bed = "гряд" in dim or "3600" in dim or "2700" in dim or "1800х900" in dim
+        sets = it.sets_count or 0
+        fact = it.fact_qty or 0.0
+
+        if is_bed:
+            strips_bed = 0
+            if "3600" in dim or "3.6" in dim:
+                norm_t += sets * 6
+                norm_l += sets * 4
+                norm_screws += sets * 40
+                norm_strips += sets * 10
+                strips_bed = sets * 10
+            elif "2700" in dim or "2.7" in dim:
+                norm_t += sets * 4
+                norm_l += sets * 4
+                norm_screws += sets * 32
+                norm_strips += sets * 8
+                strips_bed = sets * 8
+            elif "1800" in dim or "1.8" in dim:
+                norm_t += sets * 2
+                norm_l += sets * 4
+                norm_screws += sets * 24
+                norm_strips += sets * 6
+                strips_bed = sets * 6
+
+            bed_ratio = 5.0 # Лист 1800х1200 дает 5 полос 1800х240 без отходов
+            sheets_needed = (strips_bed / bed_ratio) if bed_ratio > 0 else 0.0
+            th = (it.raw_sheets_thickness or "").lower()
+            if "6" in th or "6мм" in dim:
+                norm_sheets_6 += sheets_needed
+            elif "10" in th or "10мм" in dim:
+                norm_sheets_10 += sheets_needed
+            else:
+                norm_sheets_8 += sheets_needed
+        else:
+            ratio = 4.0
+            if "400" in dim: ratio = 3.0
+            elif "240" in dim: ratio = 5.0
+            elif "200" in dim: ratio = 6.0
+            elif "300" in dim: ratio = 4.0
+
+            sheets_needed = (fact / ratio) if ratio > 0 else 0.0
+            th = (it.raw_sheets_thickness or "").lower()
+            if "6" in th or "6мм" in dim:
+                norm_sheets_6 += sheets_needed
+            elif "10" in th or "10мм" in dim:
+                norm_sheets_10 += sheets_needed
+            else:
+                norm_sheets_8 += sheets_needed
+
+    fact_spent = 0.0
+    fact_sub = 0.0
+    fact_scrap = 0.0
+
+    for rm in (report.raw_materials or []):
+        fact_spent += (rm.spent_qty or 0.0)
+        fact_sub += (rm.warehouse_submitted_qty or 0.0)
+        fact_scrap += (rm.scrap_defect_qty or 0.0)
+
+    norm_total_sheets = round(norm_sheets_6 + norm_sheets_8 + norm_sheets_10, 1)
+    balance_diff = round(fact_spent - (fact_sub + fact_scrap), 2)
+    sheets_var = round(fact_spent - norm_total_sheets, 2)
+    kis = round((fact_sub / fact_spent * 100), 1) if fact_spent > 0 else 0.0
+    scrap_pct = round((fact_scrap / fact_spent * 100), 1) if fact_spent > 0 else 0.0
+
+    return schemas.LKCMaterialBalanceSummary(
+        report_id=report.id,
+        report_date=report.report_date,
+        shift_name=report.shift_name,
+        master_name=report.master_name or "",
+        norm_sheets_6mm=round(norm_sheets_6, 1),
+        norm_sheets_8mm=round(norm_sheets_8, 1),
+        norm_sheets_10mm=round(norm_sheets_10, 1),
+        norm_sheets_total=norm_total_sheets,
+        norm_strips_total=norm_strips,
+        norm_t_total=norm_t,
+        norm_l_total=norm_l,
+        norm_screws_total=norm_screws,
+        fact_sheets_spent=round(fact_spent, 1),
+        fact_warehouse_submitted=round(fact_sub, 1),
+        fact_scrap_defect=round(fact_scrap, 1),
+        balance_diff=balance_diff,
+        sheets_variance=sheets_var,
+        kis_percentage=kis,
+        defect_percentage=scrap_pct
+    )
 
 
 # --- ПРОСТОИ ЛКЦ ---
@@ -470,13 +789,13 @@ def export_excel(
     align_right = Alignment(horizontal="right", vertical="center")
 
     # Шапка отчета
-    ws.merge_cells("A1:M1")
+    ws.merge_cells("A1:N1")
     ws["A1"] = "ТЕКТУМ ИНЖИНИРИНГ (TECTUM ENGINEERING) — НЕДЕЛЬНЫЙ РАПОРТ ЛКЦ"
     ws["A1"].font = title_font
     ws["A1"].alignment = align_center
 
     period_str = f"Период: {start_date.strftime('%d.%m.%Y')} – {end_date.strftime('%d.%m.%Y')} | Участок: Линия кровельных сэндвич-панелей и комплектующих (ЛКЦ) | Режим: Дневная смена"
-    ws.merge_cells("A2:M2")
+    ws.merge_cells("A2:N2")
     ws["A2"] = period_str
     ws["A2"].font = sub_font
     ws["A2"].alignment = align_center
@@ -491,9 +810,9 @@ def export_excel(
         ("F4:F5", "Факт\n(шт.)"),
         ("G4:G5", "Комплект\n(Заказ / Партия)"),
         ("H4:H5", "Кол-во\nкомпл."),
-        ("I4:K4", "Комплектующие (шт.)"),
-        ("L4:L5", "Сдано на\nсклад (шт.)"),
-        ("M4:M5", "Причины простоев / Отклонений /\nПримечания"),
+        ("I4:L4", "Комплектующие (шт.)"),
+        ("M4:M5", "Сдано на\nсклад (шт.)"),
+        ("N4:N5", "Причины простоев / Отклонений /\nПримечания"),
     ]
 
     for cell_range, text in headers:
@@ -508,9 +827,10 @@ def export_excel(
     ws["I5"] = "T"
     ws["J5"] = "L"
     ws["K5"] = "Шурупы"
+    ws["L5"] = "Полосы"
 
     for r in range(4, 6):
-        for c in range(1, 14):
+        for c in range(1, 15):
             cell = ws.cell(row=r, column=c)
             cell.font = header_font
             cell.fill = header_fill if r == 4 else sub_header_fill
@@ -526,6 +846,7 @@ def export_excel(
     total_t = 0
     total_l = 0
     total_screws = 0
+    total_strips = 0
     total_warehouse = 0
 
     curr_d = start_date
@@ -541,19 +862,21 @@ def export_excel(
                 ws.cell(row=current_row, column=4, value=item.dimension_size or "").alignment = align_left
                 ws.cell(row=current_row, column=5, value=item.plan_qty or 0).alignment = align_right
                 ws.cell(row=current_row, column=6, value=item.fact_qty or 0).alignment = align_right
-                ws.cell(row=current_row, column=7, value=item.order_batch or "").alignment = align_left
+                order_disp = item.order_number or item.order_batch or ""
+                ws.cell(row=current_row, column=7, value=order_disp).alignment = align_left
                 ws.cell(row=current_row, column=8, value=item.sets_count or 0).alignment = align_right
                 ws.cell(row=current_row, column=9, value=item.comp_t_count or 0).alignment = align_right
                 ws.cell(row=current_row, column=10, value=item.comp_l_count or 0).alignment = align_right
                 ws.cell(row=current_row, column=11, value=item.comp_screws_count or 0).alignment = align_right
+                ws.cell(row=current_row, column=12, value=item.comp_strips_count or 0).alignment = align_right
                 
                 wh_val = item.warehouse_submitted_qty if item.warehouse_submitted_qty > 0 else (day_report.warehouse_submitted_qty or 0)
-                ws.cell(row=current_row, column=12, value=wh_val).alignment = align_right
+                ws.cell(row=current_row, column=13, value=wh_val).alignment = align_right
                 
                 notes_val = item.notes or day_report.notes or ""
-                ws.cell(row=current_row, column=13, value=notes_val).alignment = align_left
+                ws.cell(row=current_row, column=14, value=notes_val).alignment = align_left
 
-                for c in range(1, 14):
+                for c in range(1, 15):
                     cell = ws.cell(row=current_row, column=c)
                     cell.font = data_font
                     cell.border = thin_border
@@ -564,6 +887,7 @@ def export_excel(
                 total_t += (item.comp_t_count or 0)
                 total_l += (item.comp_l_count or 0)
                 total_screws += (item.comp_screws_count or 0)
+                total_strips += (item.comp_strips_count or 0)
                 total_warehouse += wh_val
 
                 current_row += 1
@@ -582,9 +906,10 @@ def export_excel(
             ws.cell(row=current_row, column=10, value="").alignment = align_right
             ws.cell(row=current_row, column=11, value="").alignment = align_right
             ws.cell(row=current_row, column=12, value="").alignment = align_right
-            ws.cell(row=current_row, column=13, value=day_report.notes if day_report else "").alignment = align_left
+            ws.cell(row=current_row, column=13, value="").alignment = align_right
+            ws.cell(row=current_row, column=14, value=day_report.notes if day_report else "").alignment = align_left
 
-            for c in range(1, 14):
+            for c in range(1, 15):
                 cell = ws.cell(row=current_row, column=c)
                 cell.font = data_font
                 cell.border = thin_border
@@ -608,10 +933,11 @@ def export_excel(
     ws.cell(row=current_row, column=9, value=total_t).alignment = align_right
     ws.cell(row=current_row, column=10, value=total_l).alignment = align_right
     ws.cell(row=current_row, column=11, value=total_screws).alignment = align_right
-    ws.cell(row=current_row, column=12, value=total_warehouse).alignment = align_right
-    ws.cell(row=current_row, column=13, value="")
+    ws.cell(row=current_row, column=12, value=total_strips).alignment = align_right
+    ws.cell(row=current_row, column=13, value=total_warehouse).alignment = align_right
+    ws.cell(row=current_row, column=14, value="")
 
-    for c in range(1, 14):
+    for c in range(1, 15):
         cell = ws.cell(row=current_row, column=c)
         cell.font = total_font
         cell.fill = total_fill
@@ -636,8 +962,9 @@ def export_excel(
         9: 10,  # T
         10: 10, # L
         11: 12, # Шурупы
-        12: 15, # Сдано на склад
-        13: 35  # Примечания
+        12: 12, # Полосы
+        13: 15, # Сдано на склад
+        14: 35  # Примечания
     }
     for col_idx, width in col_widths.items():
         ws.column_dimensions[get_column_letter(col_idx)].width = width

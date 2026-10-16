@@ -1230,10 +1230,45 @@ class LKCReportItemBase(ORMBaseModel):
     comp_t_count: Optional[float] = 0.0
     comp_l_count: Optional[float] = 0.0
     comp_screws_count: Optional[int] = 0
+    comp_strips_count: Optional[int] = 0
+    order_number: Optional[str] = ""
     raw_sheets_thickness: Optional[str] = "8 мм"
     raw_sheets_spent: Optional[float] = 0.0
     warehouse_submitted_qty: Optional[float] = 0.0
     notes: Optional[str] = ""
+
+class LKCOrderProgressOut(BaseModel):
+    order_number: str
+    total_planned_qty: float = 0.0
+    previously_produced_qty: float = 0.0
+    current_shift_produced_qty: float = 0.0
+    total_produced_qty: float = 0.0
+    remaining_qty: float = 0.0
+    completion_percentage: float = 0.0
+
+class LKCMaterialBalanceSummary(BaseModel):
+    report_id: Optional[int] = None
+    report_date: Optional[date] = None
+    shift_name: Optional[str] = "День"
+    master_name: Optional[str] = ""
+    # Нормативная потребность (расчетная по факту выпуска)
+    norm_sheets_6mm: float = 0.0
+    norm_sheets_8mm: float = 0.0
+    norm_sheets_10mm: float = 0.0
+    norm_sheets_total: float = 0.0
+    norm_strips_total: int = 0
+    norm_t_total: float = 0.0
+    norm_l_total: float = 0.0
+    norm_screws_total: int = 0
+    # Фактическое списание из raw_materials
+    fact_sheets_spent: float = 0.0
+    fact_warehouse_submitted: float = 0.0
+    fact_scrap_defect: float = 0.0
+    # Аналитика
+    balance_diff: float = 0.0
+    sheets_variance: float = 0.0
+    kis_percentage: float = 0.0
+    defect_percentage: float = 0.0
 
 class LKCReportItemCreate(LKCReportItemBase):
     pass
