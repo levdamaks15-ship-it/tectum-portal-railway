@@ -612,7 +612,8 @@ def get_roadmaps_tree(
     try:
         query = db.query(models.Task).filter(
             models.Task.task_type == "roadmap",
-            models.Task.is_archived == False
+            models.Task.is_archived == False,
+            or_(models.Task.parent_id.is_(None), models.Task.parent_id == 0)
         )
         # По умолчанию или при quarter == 'active': показываем все активные проекты (не закрытые и не отмененные)
         if not quarter or quarter == "active":
