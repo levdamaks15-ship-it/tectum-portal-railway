@@ -908,6 +908,480 @@
                 border: 1px solid #000000 !important;
                 color: #000000 !important;
             }
+            .lkc-sheet-backdrop,
+            .lkc-bottom-sheet {
+                display: none !important;
+            }
+        }
+
+        /* ======================================================= */
+        /* ПОШАГОВАЯ ШТОРКА (BOTTOM SHEET) ВЫБОРА ПРОДУКЦИИ (ЛКЦ) */
+        /* ======================================================= */
+        .lkc-dim-picker-btn {
+            width: 100%;
+            min-height: 48px;
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            text-align: left;
+            user-select: none;
+            font-family: inherit;
+        }
+        .lkc-dim-picker-btn:hover {
+            border-color: var(--lkc-primary);
+            background: #fffdfd;
+        }
+        .lkc-dim-picker-btn:active {
+            transform: scale(0.99);
+        }
+        .lkc-dim-picker-text {
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 0.98rem;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .lkc-dim-picker-icon {
+            color: var(--lkc-primary);
+            font-size: 0.85rem;
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+        }
+        .lkc-dim-picker-btn:hover .lkc-dim-picker-icon {
+            transform: translateY(2px);
+        }
+
+        /* Bottom Sheet Backdrop */
+        .lkc-sheet-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+        }
+        .lkc-sheet-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Bottom Sheet Card */
+        .lkc-bottom-sheet {
+            background: #ffffff;
+            width: 100%;
+            max-width: 580px;
+            max-height: 88vh;
+            border-radius: 24px 24px 0 0;
+            box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box;
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+            overflow: hidden;
+        }
+        .lkc-sheet-backdrop.active .lkc-bottom-sheet {
+            transform: translateY(0);
+        }
+
+        @media screen and (min-width: 768px) {
+            .lkc-sheet-backdrop {
+                align-items: center;
+                padding: 1.5rem;
+                box-sizing: border-box;
+            }
+            .lkc-bottom-sheet {
+                border-radius: 20px;
+                max-height: 85vh;
+                transform: translateY(24px) scale(0.96);
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+            }
+            .lkc-sheet-backdrop.active .lkc-bottom-sheet {
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .sheet-drag-handle {
+            width: 44px;
+            height: 5px;
+            background: #cbd5e1;
+            border-radius: 3px;
+            margin: 10px auto 4px;
+            flex-shrink: 0;
+        }
+        @media screen and (min-width: 768px) {
+            .sheet-drag-handle {
+                display: none;
+            }
+        }
+
+        .sheet-header {
+            padding: 0.75rem 1.25rem 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f1f5f9;
+            flex-shrink: 0;
+            gap: 10px;
+        }
+        .sheet-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+        .sheet-btn-back {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .sheet-btn-back:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        .sheet-btn-back:active {
+            transform: scale(0.96);
+        }
+        .sheet-btn-close {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .sheet-btn-close:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .sheet-main-title {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+        .sheet-step-subtitle {
+            font-size: 0.82rem;
+            color: #64748b;
+            font-weight: 600;
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* Category Filter Chips */
+        .sheet-cat-filter-chips {
+            display: flex;
+            gap: 8px;
+            padding: 0.75rem 1.25rem 0.5rem;
+            overflow-x: auto;
+            flex-shrink: 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        .sheet-chip {
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            border: 1.5px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+        .sheet-chip:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+        }
+        .sheet-chip.active {
+            background: var(--lkc-primary);
+            border-color: var(--lkc-primary);
+            color: #ffffff;
+        }
+
+        /* Scrollable Panels */
+        .sheet-step-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex: 1;
+        }
+        .sheet-items-scrollable {
+            padding: 0.5rem 1.25rem 1.25rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 60vh;
+        }
+
+        /* Base Dim Cards */
+        .sheet-dim-card {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .sheet-dim-card:hover {
+            border-color: var(--lkc-primary);
+            background: #fff8f8;
+        }
+        .sheet-dim-card:active {
+            transform: scale(0.98);
+        }
+        .sheet-dim-card.active-selected {
+            border-color: var(--lkc-primary);
+            background: #fff5f5;
+            box-shadow: 0 0 0 1px var(--lkc-primary);
+        }
+        .card-icon-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .card-icon-strip {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .card-icon-sheet {
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+        .card-icon-bed {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .card-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .card-title {
+            font-size: 1.02rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .card-subtitle {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+            line-height: 1.25;
+        }
+        .card-action-indicator {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #dc2626;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #fff1f2;
+            padding: 5px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .card-action-indicator.bed-instant {
+            background: #ecfdf5;
+            color: #15803d;
+        }
+
+        /* Step 2 Styles */
+        .sheet-step2-header {
+            padding: 1rem 1.25rem 0.5rem;
+        }
+        .sheet-selected-preview {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            margin-bottom: 0.9rem;
+        }
+        .preview-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #64748b;
+            letter-spacing: 0.04em;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .preview-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .preview-hint {
+            font-size: 0.82rem;
+            color: #0284c7;
+            font-weight: 600;
+            margin-top: 3px;
+        }
+        .sheet-step2-question {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Thickness Options */
+        .sheet-thickness-options {
+            padding: 0 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+        .sheet-thick-card {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+        .sheet-thick-card:hover {
+            border-color: var(--lkc-primary);
+            background: #fffdfd;
+        }
+        .sheet-thick-card:active {
+            transform: scale(0.98);
+        }
+        .sheet-thick-card.popular {
+            border-color: #3b82f6;
+            background: #f8faff;
+        }
+        .sheet-thick-card.active-selected {
+            border-color: var(--lkc-primary);
+            background: #fff5f5;
+            box-shadow: 0 0 0 2px var(--lkc-primary);
+        }
+        .thick-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .thick-badge {
+            min-width: 60px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+        .badge-6 {
+            background: #f1f5f9;
+            color: #334155;
+            border: 1.5px solid #cbd5e1;
+        }
+        .badge-8 {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1.5px solid #93c5fd;
+        }
+        .badge-10 {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1.5px solid #fca5a5;
+        }
+        .thick-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .thick-title {
+            font-size: 1.02rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+        .thick-hit-tag {
+            background: #3b82f6;
+            color: #ffffff;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+            letter-spacing: 0.04em;
+        }
+        .thick-desc {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .thick-arrow {
+            color: #94a3b8;
+            font-size: 1.1rem;
+            transition: transform 0.15s ease;
+        }
+        .sheet-thick-card:hover .thick-arrow {
+            transform: translateX(4px);
+            color: var(--lkc-primary);
         }
     </style>
 </head>
@@ -1418,8 +1892,100 @@
         </button>
     </div>
 
+    <!-- ========================================== -->
+    <!-- ПОШАГОВАЯ ШТОРКА ВЫБОРА ПРОДУКЦИИ (ЛКЦ)   -->
+    <!-- ========================================== -->
+    <div id="lkc-product-sheet-backdrop" class="lkc-sheet-backdrop" onclick="closeLKCProductSheet()">
+        <div id="lkc-product-sheet" class="lkc-bottom-sheet" onclick="event.stopPropagation()">
+            <!-- Drag handle bar for mobile UX -->
+            <div class="sheet-drag-handle"></div>
+
+            <!-- Header -->
+            <div class="sheet-header">
+                <div class="sheet-header-left">
+                    <button type="button" id="sheet-btn-back" class="sheet-btn-back" onclick="goToSheetStep(1)" style="display: none;">
+                        <i class="fa-solid fa-arrow-left"></i> Назад
+                    </button>
+                    <div>
+                        <h3 id="sheet-title" class="sheet-main-title">Выбор продукции</h3>
+                        <span id="sheet-subtitle" class="sheet-step-subtitle">Шаг 1 из 2: Выберите типоразмер</span>
+                    </div>
+                </div>
+                <button type="button" class="sheet-btn-close" onclick="closeLKCProductSheet()" aria-label="Закрыть">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Step 1: Base Dimensions / Categories -->
+            <div id="sheet-step-1" class="sheet-step-panel">
+                <div class="sheet-cat-filter-chips">
+                    <button type="button" class="sheet-chip active" data-cat="all" onclick="filterSheetDimensions('all', this)">Все</button>
+                    <button type="button" class="sheet-chip" data-cat="strip" onclick="filterSheetDimensions('strip', this)">Полосы</button>
+                    <button type="button" class="sheet-chip" data-cat="sheet" onclick="filterSheetDimensions('sheet', this)">Листы</button>
+                    <button type="button" class="sheet-chip" data-cat="bed" onclick="filterSheetDimensions('bed', this)">Грядки</button>
+                </div>
+                <div class="sheet-items-scrollable" id="sheet-step1-items">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+            <!-- Step 2: Thickness Selection (6, 8, 10 мм) -->
+            <div id="sheet-step-2" class="sheet-step-panel" style="display: none;">
+                <div class="sheet-step2-header">
+                    <div class="sheet-selected-preview">
+                        <span class="preview-label">Выбранный типоразмер:</span>
+                        <div class="preview-title" id="sheet-step2-base-name">Полоса 1800×300</div>
+                        <div class="preview-hint" id="sheet-step2-base-hint">4 полосы с 1 цельного листа 1800×1200</div>
+                    </div>
+                    <div class="sheet-step2-question">
+                        <i class="fa-solid fa-ruler-combined" style="color: var(--lkc-primary);"></i>
+                        <span>Выберите толщину листа:</span>
+                    </div>
+                </div>
+
+                <div class="sheet-thickness-options">
+                    <button type="button" class="sheet-thick-card" onclick="selectLKCThickness('6 мм')">
+                        <div class="thick-info">
+                            <span class="thick-badge badge-6">6 мм</span>
+                            <div class="thick-meta">
+                                <span class="thick-title">Облегченный / Стандарт</span>
+                                <span class="thick-desc">Раскрой листа 6мм 1800х1200</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right thick-arrow"></i>
+                    </button>
+
+                    <button type="button" class="sheet-thick-card popular" onclick="selectLKCThickness('8 мм')">
+                        <div class="thick-info">
+                            <span class="thick-badge badge-8">8 мм</span>
+                            <div class="thick-meta">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span class="thick-title">Основная номенклатура</span>
+                                    <span class="thick-hit-tag">ХИТ</span>
+                                </div>
+                                <span class="thick-desc">Раскрой листа 8мм 1800х1200</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right thick-arrow"></i>
+                    </button>
+
+                    <button type="button" class="sheet-thick-card" onclick="selectLKCThickness('10 мм')">
+                        <div class="thick-info">
+                            <span class="thick-badge badge-10">10 мм</span>
+                            <div class="thick-meta">
+                                <span class="thick-title">Усиленный лист</span>
+                                <span class="thick-desc">Раскрой листа 10мм 1800х1200</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right thick-arrow"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/lkc.js?v=20261016_lkc_v8"></script>
+    <script src="/static/js/lkc.js?v=20261020_lkc_stepped_sheet"></script>
     <script src="/static/js/splash.js"></script>
 </body>
 

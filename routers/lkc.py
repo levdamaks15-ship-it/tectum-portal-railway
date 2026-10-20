@@ -215,6 +215,53 @@ LKC_CATALOG = [
         "description": "Раскрой листа 10мм 1800х1200 на 5 полос 1800х240 (высота борта по ГОСТ 30340-2012)"
     },
 
+    # --- ПЛОСКИЕ ЛИСТЫ (ЦЕЛЬНЫЕ): 1800х1200 ---
+    {
+        "id": "sheet_1800_1200_6",
+        "name": "Плоский лист 6мм 1800х1200",
+        "product_type": "Плоский лист",
+        "dimension_size": "пл. лист 6мм 1800х1200",
+        "thickness": "6 мм",
+        "cut_ratio": 1.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Цельный плоский лист 6мм 1800х1200"
+    },
+    {
+        "id": "sheet_1800_1200_8",
+        "name": "Плоский лист 8мм 1800х1200",
+        "product_type": "Плоский лист",
+        "dimension_size": "пл. лист 8мм 1800х1200",
+        "thickness": "8 мм",
+        "cut_ratio": 1.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Цельный плоский лист 8мм 1800х1200"
+    },
+    {
+        "id": "sheet_1800_1200_10",
+        "name": "Плоский лист 10мм 1800х1200",
+        "product_type": "Плоский лист",
+        "dimension_size": "пл. лист 10мм 1800х1200",
+        "thickness": "10 мм",
+        "cut_ratio": 1.0,
+        "default_unit": "шт",
+        "norm_t": 0,
+        "norm_l": 0,
+        "norm_screws": 0,
+        "norm_strips": 0,
+        "plan_default": 750,
+        "description": "Цельный плоский лист 10мм 1800х1200"
+    },
+
     # --- КОМПЛЕКТЫ ГРЯДОК (Сборка под заказ, чертёжная высота 240 мм по ГОСТ 30340-2012) ---
     {
         "id": "bed_3600",

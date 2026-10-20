@@ -48,6 +48,7 @@ document.addEventListener('input', function(e) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     initDatePicker();
+    initSheetGestures();
     await loadCatalog();
     await checkCurrentUser();
     await loadReportForDate(getTodayDateStr());
@@ -288,6 +289,340 @@ function populateReportForm(report) {
     calculateLKCTotals();
 }
 
+// --- FRIENDLY PRODUCT NAMES & BASE SIZES FOR STEPPED SELECTION ---
+function getFriendlyDimName(dimVal = '') {
+    if (!dimVal) return 'Выберите продукцию...';
+    if (lkcCatalog && lkcCatalog.length > 0) {
+        const item = lkcCatalog.find(c => c.dimension_size === dimVal || c.name === dimVal);
+        if (item && item.name) return item.name;
+    }
+    const s = String(dimVal).toLowerCase();
+    if (s.includes('3600') || s.includes('3.6')) return 'Грядка 3.6 м (3600х900х240)';
+    if (s.includes('2700') || s.includes('2.7')) return 'Грядка 2.7 м (2700х900х240)';
+    if (s.includes('1800х900') || s.includes('1800x900') || s.includes('1.8')) return 'Грядка 1.8 м (1800х900х240)';
+    let th = '8мм';
+    if (s.includes('6мм') || s.includes('6 мм')) th = '6мм';
+    else if (s.includes('10мм') || s.includes('10 мм')) th = '10мм';
+    
+    if (s.includes('1200')) return `Плоский лист ${th} 1800х1200`;
+    if (s.includes('300')) return `Полоса плоская ${th} 1800х300`;
+    if (s.includes('240')) return `Полоса плоская ${th} 1800х240`;
+    if (s.includes('200')) return `Полоса плоская ${th} 1800х200`;
+    if (s.includes('400')) return `Полоса плоская ${th} 1800х400`;
+    return dimVal;
+}
+
+const LKC_BASE_SIZES = [
+    {
+        key: 'strip_1800_300',
+        cat: 'strip',
+        title: 'Полоса 1800 × 300',
+        ratioText: '4 полосы с 1 цельного листа 1800×1200',
+        iconClass: 'card-icon-strip',
+        icon: 'fa-solid fa-bars',
+        dimPrefix: '1800х300',
+        type: 'cut'
+    },
+    {
+        key: 'strip_1800_240',
+        cat: 'strip',
+        title: 'Полоса 1800 × 240',
+        ratioText: '5 полос с 1 листа (высота борта грядки)',
+        iconClass: 'card-icon-strip',
+        icon: 'fa-solid fa-bars',
+        dimPrefix: '1800х240',
+        type: 'cut'
+    },
+    {
+        key: 'strip_1800_200',
+        cat: 'strip',
+        title: 'Полоса 1800 × 200',
+        ratioText: '6 полос с 1 цельного листа 1800×1200',
+        iconClass: 'card-icon-strip',
+        icon: 'fa-solid fa-bars',
+        dimPrefix: '1800х200',
+        type: 'cut'
+    },
+    {
+        key: 'strip_1800_400',
+        cat: 'strip',
+        title: 'Полоса 1800 × 400',
+        ratioText: '3 полосы с 1 цельного листа 1800×1200',
+        iconClass: 'card-icon-strip',
+        icon: 'fa-solid fa-bars',
+        dimPrefix: '1800х400',
+        type: 'cut'
+    },
+    {
+        key: 'sheet_1800_1200',
+        cat: 'sheet',
+        title: 'Плоский лист 1800 × 1200',
+        ratioText: 'Цельный плоский хризотилцементный лист',
+        iconClass: 'card-icon-sheet',
+        icon: 'fa-solid fa-sheet-plastic',
+        dimPrefix: '1800х1200',
+        type: 'cut'
+    },
+    {
+        key: 'bed_3600',
+        cat: 'bed',
+        title: 'Грядка 3.6 м (3600х900х240)',
+        ratioText: 'Комплект: Т-профиль 6 шт, L-уголок 4 шт, шурупы 40 шт',
+        iconClass: 'card-icon-bed',
+        icon: 'fa-solid fa-cubes-stacked',
+        dimension_size: 'грядка 3600х900х240',
+        type: 'bed'
+    },
+    {
+        key: 'bed_2700',
+        cat: 'bed',
+        title: 'Грядка 2.7 м (2700х900х240)',
+        ratioText: 'Комплект: Т-профиль 4 шт, L-уголок 4 шт, шурупы 32 шт',
+        iconClass: 'card-icon-bed',
+        icon: 'fa-solid fa-cubes-stacked',
+        dimension_size: 'грядка 2700х900х240',
+        type: 'bed'
+    },
+    {
+        key: 'bed_1800',
+        cat: 'bed',
+        title: 'Грядка 1.8 м (1800х900х240)',
+        ratioText: 'Комплект: Т-профиль 2 шт, L-уголок 4 шт, шурупы 24 шт',
+        iconClass: 'card-icon-bed',
+        icon: 'fa-solid fa-cubes-stacked',
+        dimension_size: 'грядка 1800х900х240',
+        type: 'bed'
+    }
+];
+
+let currentActiveDimRow = null;
+let currentSelectedBase = null;
+let currentSheetCategory = 'all';
+
+function openLKCProductSheet(btnEl) {
+    currentActiveDimRow = btnEl.closest('tr');
+    if (!currentActiveDimRow) return;
+
+    const selectEl = currentActiveDimRow.querySelector('.item-dimension');
+    const currentDim = selectEl ? selectEl.value : '';
+
+    currentSelectedBase = null;
+    currentSheetCategory = 'all';
+
+    document.querySelectorAll('.sheet-cat-filter-chips .sheet-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.cat === 'all');
+    });
+
+    renderSheetStep1(currentDim);
+    goToSheetStep(1);
+
+    const backdrop = document.getElementById('lkc-product-sheet-backdrop');
+    if (backdrop) {
+        backdrop.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeLKCProductSheet() {
+    const backdrop = document.getElementById('lkc-product-sheet-backdrop');
+    if (backdrop) {
+        backdrop.classList.remove('active');
+    }
+    document.body.style.overflow = '';
+    currentActiveDimRow = null;
+    currentSelectedBase = null;
+}
+
+function goToSheetStep(step) {
+    const step1 = document.getElementById('sheet-step-1');
+    const step2 = document.getElementById('sheet-step-2');
+    const btnBack = document.getElementById('sheet-btn-back');
+    const subtitle = document.getElementById('sheet-subtitle');
+
+    if (step === 1) {
+        if (step1) step1.style.display = 'flex';
+        if (step2) step2.style.display = 'none';
+        if (btnBack) btnBack.style.display = 'none';
+        if (subtitle) subtitle.textContent = 'Шаг 1 из 2: Выберите типоразмер';
+    } else if (step === 2) {
+        if (step1) step1.style.display = 'none';
+        if (step2) step2.style.display = 'flex';
+        if (btnBack) btnBack.style.display = 'inline-flex';
+        if (subtitle) subtitle.textContent = 'Шаг 2 из 2: Выберите толщину листа';
+    }
+}
+
+function filterSheetDimensions(cat, chipEl) {
+    currentSheetCategory = cat;
+    if (chipEl) {
+        document.querySelectorAll('.sheet-cat-filter-chips .sheet-chip').forEach(c => c.classList.remove('active'));
+        chipEl.classList.add('active');
+    }
+    const currentDim = currentActiveDimRow?.querySelector('.item-dimension')?.value || '';
+    renderSheetStep1(currentDim);
+}
+
+function renderSheetStep1(currentDim = '') {
+    const container = document.getElementById('sheet-step1-items');
+    if (!container) return;
+
+    const filtered = currentSheetCategory === 'all' 
+        ? LKC_BASE_SIZES 
+        : LKC_BASE_SIZES.filter(b => b.cat === currentSheetCategory);
+
+    const normDim = (currentDim || '').toLowerCase().replace(' ', '');
+
+    container.innerHTML = filtered.map(item => {
+        let isSelected = false;
+        if (item.type === 'bed') {
+            isSelected = normDim.includes(item.dimension_size.replace(' ', '')) || normDim.includes(item.key.replace('bed_', ''));
+        } else {
+            const prefix = item.dimPrefix.replace('х', 'x');
+            const normPref = item.dimPrefix;
+            isSelected = normDim.includes(normPref) || normDim.includes(prefix);
+        }
+
+        const selectedClass = isSelected ? 'active-selected' : '';
+        const actionLabel = item.type === 'bed' 
+            ? '<span class="card-action-indicator bed-instant"><i class="fa-solid fa-check"></i> 1 клик</span>' 
+            : '<span class="card-action-indicator">Толщина <i class="fa-solid fa-chevron-right"></i></span>';
+
+        return `
+            <button type="button" class="sheet-dim-card ${selectedClass}" onclick="selectLKCBaseDimension('${item.key}')">
+                <div class="card-icon-box ${item.iconClass}">
+                    <i class="${item.icon}"></i>
+                </div>
+                <div class="card-info">
+                    <span class="card-title">${escapeHtml(item.title)}</span>
+                    <span class="card-subtitle">${escapeHtml(item.ratioText)}</span>
+                </div>
+                ${actionLabel}
+            </button>
+        `;
+    }).join('');
+}
+
+function selectLKCBaseDimension(key) {
+    const baseItem = LKC_BASE_SIZES.find(b => b.key === key);
+    if (!baseItem) return;
+
+    if (baseItem.type === 'bed') {
+        applyDimensionToActiveRow(baseItem.dimension_size);
+        closeLKCProductSheet();
+        return;
+    }
+
+    currentSelectedBase = baseItem;
+    const nameEl = document.getElementById('sheet-step2-base-name');
+    const hintEl = document.getElementById('sheet-step2-base-hint');
+    if (nameEl) nameEl.textContent = baseItem.title;
+    if (hintEl) hintEl.textContent = baseItem.ratioText;
+
+    const currentDim = (currentActiveDimRow?.querySelector('.item-dimension')?.value || '').toLowerCase();
+    document.querySelectorAll('.sheet-thickness-options .sheet-thick-card').forEach(btn => {
+        btn.classList.remove('active-selected');
+    });
+    if (currentDim.includes('6мм') || currentDim.includes('6 мм')) {
+        document.querySelector('.sheet-thickness-options .sheet-thick-card:nth-child(1)')?.classList.add('active-selected');
+    } else if (currentDim.includes('8мм') || currentDim.includes('8 мм')) {
+        document.querySelector('.sheet-thickness-options .sheet-thick-card:nth-child(2)')?.classList.add('active-selected');
+    } else if (currentDim.includes('10мм') || currentDim.includes('10 мм')) {
+        document.querySelector('.sheet-thickness-options .sheet-thick-card:nth-child(3)')?.classList.add('active-selected');
+    }
+
+    goToSheetStep(2);
+}
+
+function selectLKCThickness(thick) {
+    if (!currentSelectedBase) return;
+    const cleanThick = thick.replace(' ', '');
+    const dimPrefix = currentSelectedBase.dimPrefix;
+
+    let matchedItem = null;
+    if (lkcCatalog && lkcCatalog.length > 0) {
+        matchedItem = lkcCatalog.find(c => {
+            const d = (c.dimension_size || '').toLowerCase().replace(' ', '');
+            const n = (c.name || '').toLowerCase().replace(' ', '');
+            const pNorm = dimPrefix.replace('x', 'х');
+            return (d.includes(cleanThick) || n.includes(cleanThick)) && (d.includes(dimPrefix) || n.includes(dimPrefix) || d.includes(pNorm) || n.includes(pNorm));
+        });
+    }
+
+    let finalDimValue = '';
+    if (matchedItem) {
+        finalDimValue = matchedItem.dimension_size || matchedItem.name;
+    } else {
+        finalDimValue = `пл. лист ${cleanThick} ${dimPrefix}`;
+    }
+
+    applyDimensionToActiveRow(finalDimValue);
+    closeLKCProductSheet();
+}
+
+function applyDimensionToActiveRow(dimVal) {
+    if (!currentActiveDimRow) return;
+    const selectEl = currentActiveDimRow.querySelector('.item-dimension');
+    const btnTextEl = currentActiveDimRow.querySelector('.lkc-dim-picker-text');
+
+    if (selectEl) {
+        selectEl.value = dimVal;
+        if (selectEl.value !== dimVal) {
+            const opt = document.createElement('option');
+            opt.value = dimVal;
+            opt.textContent = getFriendlyDimName(dimVal);
+            opt.selected = true;
+            selectEl.appendChild(opt);
+            selectEl.value = dimVal;
+        }
+        onDimensionSelectChange(selectEl);
+    }
+
+    if (btnTextEl) {
+        btnTextEl.textContent = getFriendlyDimName(dimVal);
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(14); } catch (e) {}
+    }
+}
+
+// Drag down gesture & Escape key listener
+let sheetTouchStartY = 0;
+let sheetTouchCurrentY = 0;
+
+function initSheetGestures() {
+    const sheet = document.getElementById('lkc-product-sheet');
+    const handle = document.querySelector('.sheet-drag-handle');
+    if (sheet && handle) {
+        handle.addEventListener('touchstart', (e) => {
+            sheetTouchStartY = e.touches[0].clientY;
+            sheetTouchCurrentY = sheetTouchStartY;
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => {
+            sheetTouchCurrentY = e.touches[0].clientY;
+            const diff = sheetTouchCurrentY - sheetTouchStartY;
+            if (diff > 0) {
+                sheet.style.transform = `translateY(${diff}px)`;
+            }
+        }, { passive: true });
+
+        handle.addEventListener('touchend', () => {
+            const diff = sheetTouchCurrentY - sheetTouchStartY;
+            sheet.style.transform = '';
+            if (diff > 70) {
+                closeLKCProductSheet();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeLKCProductSheet();
+        }
+    });
+}
+
 // Catalog options helper
 function getCatalogOptionsHTML(selectedDim = '') {
     if (!lkcCatalog || lkcCatalog.length === 0) {
@@ -422,9 +757,13 @@ function addLKCItemRow(data = {}) {
             </button>
         </td>
         <td class="cell-dim" data-label="Размер / Типоразмер">
-            <select class="item-dimension" onchange="onDimensionSelectChange(this)" style="font-weight: 700; color: #0f172a;">
+            <select class="item-dimension" onchange="onDimensionSelectChange(this)" style="display: none;">
                 ${getCatalogOptionsHTML(dimSize)}
             </select>
+            <button type="button" class="lkc-dim-picker-btn" onclick="openLKCProductSheet(this)" title="Нажмите для выбора типоразмера">
+                <span class="lkc-dim-picker-text">${escapeHtml(getFriendlyDimName(dimSize))}</span>
+                <i class="fa-solid fa-chevron-down lkc-dim-picker-icon"></i>
+            </button>
         </td>
         <td class="cell-plan" data-label="План (шт)">
             <input type="number" step="1" inputmode="numeric" class="item-plan" value="${planQty}" placeholder="0" min="0" onwheel="this.blur()" oninput="calculateLKCTotals()">
@@ -646,6 +985,12 @@ function onDimensionSelectChange(selectEl) {
     const tr = selectEl.closest('tr');
     if (!tr) return;
     const dimVal = selectEl.value;
+
+    const pickerText = tr.querySelector('.lkc-dim-picker-text');
+    if (pickerText) {
+        pickerText.textContent = getFriendlyDimName(dimVal);
+    }
+
     const catItem = lkcCatalog.find(c => c.dimension_size === dimVal || c.name === dimVal);
     const isBed = Boolean(
         (catItem?.product_type && catItem.product_type.includes('гряд')) ||
