@@ -280,6 +280,13 @@ async def lifespan(app: FastAPI):
 
             seed_norms.seed_norms()
 
+            # Backfill roadmap quarters for tasks without target_quarter
+            try:
+                from routers.planner import backfill_missing_roadmap_quarters
+                backfill_missing_roadmap_quarters(db)
+            except Exception as bf_err:
+                print(f"[Planner Startup] Backfill roadmap quarters error: {bf_err}")
+
             # Telegram Webhook
             try:
                 tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "8980370531:AAGGhgbRH04LT_KOMUHr02ms1X4wZ0b3LwY").strip()

@@ -1035,7 +1035,10 @@ function switchHorizon(horizon, event) {
         if (roadmapsContainer) roadmapsContainer.style.display = "block";
         if (filterWeek) filterWeek.style.display = "none";
         if (filterMonth) filterMonth.style.display = "none";
-        if (filterQuarter) filterQuarter.style.display = "inline-block";
+        if (filterQuarter) {
+            filterQuarter.style.display = "inline-block";
+            if (!filterQuarter.value) filterQuarter.value = "active";
+        }
         if (btnBacklog) btnBacklog.style.display = "none";
         if (printSubtitle) printSubtitle.textContent = "СТРАТЕГИЧЕСКИЕ ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
         loadRoadmaps();
@@ -1088,7 +1091,7 @@ async function loadRoadmaps() {
     if (!grid) return;
 
     const quarterSelect = document.getElementById("filter-quarter");
-    const qVal = quarterSelect ? quarterSelect.value : "all";
+    const qVal = (quarterSelect && quarterSelect.value) ? quarterSelect.value : "active";
 
     grid.innerHTML = `<div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...</div>`;
 
@@ -1236,10 +1239,11 @@ function renderRoadmaps(projects) {
             <div class="roadmap-card">
                 <div class="roadmap-header">
                     <div>
-                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
                             <span class="badge-code" style="font-size: 11px; color: #B5B5BA; font-family: monospace; letter-spacing: 0.2px; background: none; border: none; padding: 0;">${p.code || ('TSK-' + p.id)}</span>
-                            <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">${p.target_quarter || 'Q3 2026'}</span>
-                            ${p.department_service ? `<span class="badge-zone">${p.department_service}</span>` : ''}
+                            <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">${escapeHtml(p.target_quarter || currentQuarter)}</span>
+                            ${p.department_service ? `<span class="badge-zone">${escapeHtml(p.department_service)}</span>` : ''}
+                            <span class="badge-zone" style="background: ${p.status && p.status.includes('Выполнено') ? '#f0fdf4' : '#fffbeb'}; color: ${p.status && p.status.includes('Выполнено') ? '#166534' : '#b45309'}; border-color: ${p.status && p.status.includes('Выполнено') ? '#bbf7d0' : '#fde68a'}; font-size: 0.72rem;">${escapeHtml(p.status || '🟡 В работе')}</span>
                         </div>
                         <div class="roadmap-title">${escapeHtml(p.title)}</div>
                     </div>
@@ -1263,6 +1267,11 @@ function renderRoadmaps(projects) {
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b;">
                     <div>👤 Ответственный: <strong style="color: #0f172a;">${p.assignee_name || 'Не назначен'}</strong></div>
                     <div>${docBadge}</div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #475569; margin: 6px 0; padding: 4px 8px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <div><i class="fa-solid fa-calendar-day" style="color: #6366f1;"></i> Срок: <strong style="color: #0f172a;">${escapeHtml(p.due_date_str || 'Не установлен')}</strong></div>
+                    ${p.created_date ? `<div style="font-size: 0.72rem; color: #94a3b8;">Старт: ${p.created_date}</div>` : ''}
                 </div>
 
                 ${tagsHtml ? `<div>${tagsHtml}</div>` : ''}
@@ -4020,6 +4029,19 @@ async function onDueDateInputChanged(dateVal) {
             if (data.status === "ok" && data.month_label && data.week_label) {
                 badge.innerHTML = `<i class="fa-solid fa-crosshairs" style="color: #2563eb;"></i> <span>Попадёт в: <b>${data.month_label} · ${data.week_label}</b></span>`;
                 badge.className = "due-date-target-badge";
+                if (data.target_quarter) {
+                    const qInp = document.getElementById("task-quarter-input");
+                    if (qInp) {
+                        let hasOpt = Array.from(qInp.options).some(o => o.value === data.target_quarter);
+                        if (!hasOpt) {
+                            const opt = document.createElement("option");
+                            opt.value = data.target_quarter;
+                            opt.textContent = data.target_quarter;
+                            qInp.appendChild(opt);
+                        }
+                        qInp.value = data.target_quarter;
+                    }
+                }
             } else {
                 badge.innerHTML = `<i class="fa-solid fa-calendar" style="color: #64748b;"></i> <span>Срок: <b>${dispDate}</b></span>`;
             }
@@ -4461,6 +4483,13 @@ async function saveTaskModal() {
             pin_code: authSession ? authSession.pin : ""
         };
 
+        const saveBtn = document.querySelector("#task-modal .btn-primary-action");
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.dataset.origText = saveBtn.innerHTML;
+            saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...`;
+        }
+
         try {
             let res;
             if (taskId) {
@@ -4492,6 +4521,11 @@ async function saveTaskModal() {
             }
         } catch (e) {
             console.error("Save task error:", e);
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                if (saveBtn.dataset.origText) saveBtn.innerHTML = saveBtn.dataset.origText;
+            }
         }
     });
 }

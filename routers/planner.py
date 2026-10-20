@@ -614,10 +614,26 @@ def get_roadmaps_tree(
             models.Task.task_type == "roadmap",
             models.Task.is_archived == False
         )
-        if quarter and quarter != "all":
-            query = query.filter(models.Task.target_quarter == quarter)
+        # По умолчанию или при quarter == 'active': показываем все активные проекты (не закрытые и не отмененные)
+        if not quarter or quarter == "active":
+            query = query.filter(models.Task.status.notin_(["🟢 Выполнено", "🔴 Отменено"]))
+        elif quarter != "all":
+            query = query.filter(
+                or_(
+                    models.Task.target_quarter == quarter,
+                    and_(
+                        or_(models.Task.target_quarter.is_(None), models.Task.target_quarter == ""),
+                        models.Task.due_date_str.isnot(None)
+                    )
+                )
+            )
         
-        projects = query.order_by(models.Task.id.desc()).all()
+        raw_projects = query.order_by(models.Task.id.desc()).all()
+        
+        if quarter and quarter not in ("active", "all"):
+            projects = [p for p in raw_projects if (p.target_quarter == quarter or resolve_quarter_by_date(p.due_date_str) == quarter)]
+        else:
+            projects = raw_projects
         
         # Собираем все ID проектов
         project_ids = [p.id for p in projects]
@@ -681,7 +697,7 @@ def get_roadmaps_tree(
                 "title_kz": item.title_kz or "",
                 "task_type": item.task_type or "roadmap",
                 "department_service": item.department_service or "",
-                "target_quarter": item.target_quarter or "",
+                "target_quarter": item.target_quarter or resolve_quarter_by_date(item.due_date_str) or "",
                 "progress": item.progress or 0,
                 "status": item.status or "🟡 В работе",
                 "assignee_name": item.assignee_name or "",
@@ -692,7 +708,8 @@ def get_roadmaps_tree(
                 "attached_doc": doc_info,
                 "depends_on": dep_info,
                 "is_my": is_my_item,
-                "created_at": item.created_at.strftime("%d.%m.%Y %H:%M") if item.created_at else ""
+                "created_at": item.created_at.strftime("%d.%m.%Y %H:%M") if item.created_at else "",
+                "created_date": item.created_at.strftime("%d.%m.%Y") if item.created_at else ""
             }
 
         tree = []
@@ -831,13 +848,55 @@ def find_week_and_month_for_date(d_str: Optional[str], default_year: int = 2026)
                     return m_name, w
     return None, None
 
+def resolve_quarter_by_date(d_str: Optional[str], default_year: int = 2026) -> Optional[str]:
+    """Определяет целевой квартал (например, 'Q4 2026') по переданной дате."""
+    if not d_str:
+        return None
+    parsed_date = parse_date_dm_or_full(d_str, default_year)
+    if not parsed_date:
+        return None
+    q_num = (parsed_date.month - 1) // 3 + 1
+    return f"Q{q_num} {parsed_date.year}"
+
+def backfill_missing_roadmap_quarters(db: Session) -> int:
+    """Заполняет target_quarter для проектов дорожных карт и этапов, если оно отсутствует."""
+    try:
+        tasks = db.query(models.Task).filter(
+            models.Task.task_type.in_(["roadmap", "milestone"]),
+            (models.Task.target_quarter.is_(None) | (models.Task.target_quarter == "")),
+            models.Task.due_date_str.isnot(None),
+            models.Task.due_date_str != "",
+            models.Task.is_archived == False
+        ).all()
+        updated = 0
+        for t in tasks:
+            q = resolve_quarter_by_date(t.due_date_str)
+            if q:
+                t.target_quarter = q
+                updated += 1
+        if updated > 0:
+            db.commit()
+            print(f"[Planner Roadmaps] Backfilled target_quarter for {updated} tasks.")
+        return updated
+    except Exception as e:
+        db.rollback()
+        print(f"[Planner Roadmaps] Error backfilling quarters: {e}")
+        return 0
+
 @router.get("/api/tasks/resolve_week")
 def resolve_week_by_date(date_str: str = Query(...)):
-    """Определяет месяц и рабочую неделю по переданной дате."""
+    """Определяет месяц, рабочую неделю и квартал по переданной дате."""
     m_label, w_label = find_week_and_month_for_date(date_str)
+    q_label = resolve_quarter_by_date(date_str)
     if m_label and w_label:
-        return {"status": "ok", "month_label": m_label, "week_label": w_label}
-    return {"status": "fallback", "month_label": None, "week_label": None}
+        return {"status": "ok", "month_label": m_label, "week_label": w_label, "target_quarter": q_label}
+    return {"status": "fallback", "month_label": None, "week_label": None, "target_quarter": q_label}
+
+@router.post("/api/tasks/backfill_quarters")
+def trigger_backfill_quarters(db: Session = Depends(get_db)):
+    """Ручной триггер фонового заполнения target_quarter для существующих задач."""
+    count = backfill_missing_roadmap_quarters(db)
+    return {"status": "ok", "backfilled_count": count}
 
 @router.get("/api/tasks/weeks_summary")
 def get_tasks_weeks_summary(
@@ -1463,11 +1522,14 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
 
         task_month = task_data.month_label or "Сентябрь 2026"
         task_week = task_data.week_label or "Неделя 3 (21.09 - 25.09)"
+        target_quarter = (task_data.target_quarter or "").strip()
         if task_data.due_date_str:
             res_m, res_w = find_week_and_month_for_date(task_data.due_date_str)
             if res_m and res_w:
                 task_month = res_m
                 task_week = res_w
+            if not target_quarter:
+                target_quarter = resolve_quarter_by_date(task_data.due_date_str) or ""
 
         new_task = models.Task(
             code=code_str,
@@ -1479,7 +1541,7 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             parent_id=task_data.parent_id,
             depends_on_id=task_data.depends_on_id,
             tags=combined_tags,
-            target_quarter=task_data.target_quarter or "",
+            target_quarter=target_quarter,
             progress=task_data.progress or 0,
             photo_link=task_data.photo_link or "",
             photo_link_after=task_data.photo_link_after or "",
@@ -1636,6 +1698,10 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
             if not assignee_val and (bulk_data.task_type == "service_plan" or bulk_data.department_service in ("ОГМ", "ОГЭ", "Технологи", "ОТК", "СКК")):
                 assignee_val = author_name
 
+            item_quarter = (bulk_data.target_quarter or "").strip()
+            if not item_quarter and due_date:
+                item_quarter = resolve_quarter_by_date(due_date) or ""
+
             new_task = models.Task(
                 code=code_str,
                 zone=zone_val,
@@ -1644,7 +1710,7 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 task_type=bulk_data.task_type or "weekly",
                 department_service=bulk_data.department_service or "",
                 tags=combined_tags,
-                target_quarter=bulk_data.target_quarter or "",
+                target_quarter=item_quarter,
                 progress=0,
                 photo_link=item.photo_link or "",
                 photo_link_after=item.photo_link_after or "",
@@ -2039,11 +2105,16 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
             curr_tags = update_dict.get("tags") if "tags" in update_dict else task.tags
             update_dict["tags"] = extract_hashtags_from_title(update_dict["title"], curr_tags)
 
-        if "due_date_str" in update_dict and update_dict.get("due_date_str") and "week_label" not in update_dict:
-            res_m, res_w = find_week_and_month_for_date(update_dict["due_date_str"])
-            if res_m and res_w:
-                update_dict["month_label"] = res_m
-                update_dict["week_label"] = res_w
+        if "due_date_str" in update_dict and update_dict.get("due_date_str"):
+            if "week_label" not in update_dict:
+                res_m, res_w = find_week_and_month_for_date(update_dict["due_date_str"])
+                if res_m and res_w:
+                    update_dict["month_label"] = res_m
+                    update_dict["week_label"] = res_w
+            if not update_dict.get("target_quarter"):
+                auto_q = resolve_quarter_by_date(update_dict["due_date_str"])
+                if auto_q:
+                    update_dict["target_quarter"] = auto_q
 
         changes = []
         for key, val in update_dict.items():

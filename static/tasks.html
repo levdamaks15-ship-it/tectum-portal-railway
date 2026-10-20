@@ -2013,11 +2013,16 @@
             <!-- Quarter Selector for Roadmaps (Hidden by default) -->
             <select class="select-filter date-pill-select" id="filter-quarter" onchange="loadRoadmaps()"
                 style="display: none; font-weight: 700; color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff;">
-                <option value="all">📅 Все кварталы</option>
-                <option value="Q1 2026">Q1 2026</option>
+                <option value="active" selected>🟢 Все активные проекты</option>
+                <option value="Q4 2026">Q4 2026 (Текущий)</option>
+                <option value="Q1 2027">Q1 2027</option>
+                <option value="Q2 2027">Q2 2027</option>
+                <option value="Q3 2027">Q3 2027</option>
+                <option value="Q4 2027">Q4 2027</option>
+                <option value="Q3 2026">Q3 2026</option>
                 <option value="Q2 2026">Q2 2026</option>
-                <option value="Q3 2026" selected>Q3 2026</option>
-                <option value="Q4 2026">Q4 2026</option>
+                <option value="Q1 2026">Q1 2026</option>
+                <option value="all">📅 За всё время (включая закрытые)</option>
             </select>
         </div>
 
@@ -2351,6 +2356,44 @@
                 </div>
             </div>
 
+            <!-- Hierarchy & Dependencies (Parent Project & Blocker) -->
+            <div class="form-row" id="task-hierarchy-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                <div>
+                    <label id="task-parent-label">Родительский проект / Этап</label>
+                    <select class="form-select" id="task-parent-input">
+                        <option value="">-- Без родительского проекта --</option>
+                    </select>
+                </div>
+                <div>
+                    <label><i class="fa-solid fa-link" style="color: #f59e0b;"></i> Зависит от задачи (Блокер)</label>
+                    <select class="form-select" id="task-depends-input">
+                        <option value="">-- Нет блокирующих задач --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Roadmap Specific Fields (Quarter & Progress) -->
+            <div class="form-row" id="task-roadmap-fields-row" style="display: none; grid-template-columns: 1fr 1fr; gap: 0.75rem; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <div>
+                    <label style="color: #6d28d9; font-weight: 600;">Целевой квартал</label>
+                    <select class="form-select" id="task-quarter-input">
+                        <option value="Q4 2026" selected>Q4 2026 (Текущий)</option>
+                        <option value="Q1 2027">Q1 2027</option>
+                        <option value="Q2 2027">Q2 2027</option>
+                        <option value="Q3 2027">Q3 2027</option>
+                        <option value="Q4 2027">Q4 2027</option>
+                        <option value="Q3 2026">Q3 2026</option>
+                        <option value="Q2 2026">Q2 2026</option>
+                        <option value="Q1 2026">Q1 2026</option>
+                        <option value="Долгосрочный">Долгосрочный (2027+)</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="color: #6d28d9; font-weight: 600;">Прогресс выполнения: <span id="task-progress-display" style="font-weight: 700; color: #7c3aed;">0%</span></label>
+                    <input type="range" min="0" max="100" step="5" value="0" id="task-progress-input" oninput="document.getElementById('task-progress-display').textContent = this.value + '%'" style="width: 100%; accent-color: #7c3aed; margin-top: 6px;">
+                </div>
+            </div>
+
             <!-- Task text & Auto-Translation (2 Columns) -->
             <div class="form-row"
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; align-items: start;">
@@ -2382,6 +2425,24 @@
                     <textarea class="form-textarea" id="task-kz-input" rows="3" placeholder="Автоматический перевод..."
                         oninput="onTaskInputChanged('secondary')"
                         style="resize: vertical; min-height: 78px; background: #f8fafc; color: #334155;"></textarea>
+                </div>
+            </div>
+
+            <!-- Tags Field & Quick Chips -->
+            <div class="form-row">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label style="margin-bottom: 0;"><i class="fa-solid fa-tags" style="color: #2563eb;"></i> Хэштеги задачи</label>
+                    <span style="font-size: 0.72rem; color: #64748b;">(через запятую или кликните чип)</span>
+                </div>
+                <input type="text" class="form-input" id="task-tags-input" placeholder="#ОГМ, #ППР, #ЛФМ, #Закупки...">
+                <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px;">
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ОГМ')">#ОГМ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ОГЭ')">#ОГЭ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ППР')">#ППР</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ЛФМ')">#ЛФМ</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#Дестакер')">#Дестакер</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#Закупки')">#Закупки</span>
+                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#Срочно')">#Срочно</span>
                 </div>
             </div>
 
