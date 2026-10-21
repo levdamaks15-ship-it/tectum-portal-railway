@@ -5046,6 +5046,7 @@ async function openEditTaskModal(taskId) {
     const isLeader = isPlannerTrustedLeader();
     const canEdit = canEditProjectOrTask(task);
     const canInteract = canInteractWithTask(task);
+    const isLocked = !canEdit || (isFinished && !isAdmin && !isLeader);
 
     if (isFinished && !isAdmin && !isLeader) {
         setTaskModalLockState("full_lock", `Задача ${isCancelled ? 'отменена' : 'завершена'} и защищена от изменений. Редактирование доступно только руководству или администратору.`);
@@ -5137,7 +5138,11 @@ async function openEditTaskModal(taskId) {
         btnReassign.style.display = isLocked ? "none" : "inline-flex";
     }
 
-    document.getElementById("task-modal").style.display = "flex";
+    const taskModal = document.getElementById("task-modal");
+    if (taskModal) {
+        taskModal.style.display = "flex";
+        taskModal.style.zIndex = "6500";
+    }
 }
 
 function closeTaskModal() {
@@ -5292,6 +5297,9 @@ async function saveTaskModal() {
                 closeTaskModal();
                 showToast(taskId ? "Задача обновлена" : "Задача добавлена в план");
                 loadTaskTags();
+                if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
+                    reloadProjectGraphData();
+                }
                 if (currentHorizon === "roadmaps") {
                     loadRoadmaps();
                 } else {
@@ -7326,6 +7334,58 @@ function openAddSubtaskFromDetail() {
     }
 }
 
+async function deleteTaskFromDetail() {
+    if (!currentDetailTaskId) return;
+    const tid = currentDetailTaskId;
+    const task = currentDetailTaskData || allTasks.find(t => t.id == tid) || null;
+    const targetAuthor = task ? task.author_name : null;
+    const taskTitle = task ? `[${task.code || ('TSK-' + task.id)}] «${task.title}»` : `TSK-${tid}`;
+
+    ensureUserAuthorized(targetAuthor, async (authedUser) => {
+        if (!confirm(`Вы действительно хотите удалить задачу ${taskTitle}?\n\nДействие подтверждается сотрудником «${authedUser.name}» через PIN-код и будет зафиксировано в истории аудита.`)) {
+            return;
+        }
+
+        const delBtn = document.getElementById("detail-btn-delete");
+        if (delBtn) {
+            delBtn.disabled = true;
+            delBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        }
+
+        try {
+            const userName = authedUser.name || "";
+            const pinCode = authedUser.pin || "";
+            const res = await fetch(`/api/tasks/${tid}?user_name=${encodeURIComponent(userName)}&pin_code=${encodeURIComponent(pinCode)}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                showToast("Задача удалена и зафиксирована в истории", "success");
+                closeTaskDetailModal();
+                if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
+                    await reloadProjectGraphData();
+                }
+                if (currentHorizon === "roadmaps") {
+                    await loadRoadmaps();
+                } else {
+                    await loadTasks();
+                }
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить задачу'}`, "error");
+            }
+        } catch (e) {
+            console.error("Error deleting task from detail:", e);
+            showToast("Сетевая ошибка при удалении задачи", "error");
+        } finally {
+            if (delBtn) {
+                delBtn.disabled = false;
+                delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Удалить';
+            }
+        }
+    }, task, "delete_task");
+}
+
 /* ==========================================================
    KPI SUMMARY DASHBOARD
    ========================================================== */
@@ -7690,7 +7750,6 @@ async function openProjectGraphModal(projectId) {
     if (container) container.innerHTML = `<div style="padding: 4rem; text-align: center; color: #64748b; font-size: 0.95rem;"><i class="fa-solid fa-spinner fa-spin fa-2x" style="color: #6366f1; margin-bottom: 12px; display: block;"></i> Построение графа зависимостей проекта...</div>`;
     if (svgGroup) svgGroup.innerHTML = "";
 
-    closeGraphInspector();
     initGraphPanZoomListeners();
 
     try {
@@ -7717,6 +7776,16 @@ async function openProjectGraphModal(projectId) {
         if (progVal) progVal.textContent = `${prog}%`;
 
         renderProjectGraph(currentGraphData);
+        
+        // Auto-select first active or available node to populate inspector immediately
+        const nodes = currentGraphData.nodes || [];
+        if (nodes.length > 0) {
+            const activeNode = nodes.find(n => !n.is_done) || nodes[0];
+            selectGraphNode(activeNode.id);
+        } else {
+            showGraphInspectorEmpty();
+        }
+
         setTimeout(() => {
             fitProjectGraphToScreen();
         }, 80);
@@ -7814,20 +7883,45 @@ function initGraphPanZoomListeners() {
         isGraphPanning = false;
     });
 
+    viewport.addEventListener("wheel", handleGraphWheel, { passive: false });
+
     graphListenersBound = true;
 }
 
 function handleGraphWheel(event) {
-    if (event) {
-        event.preventDefault();
-        const delta = event.deltaY < 0 ? 0.08 : -0.08;
-        zoomProjectGraph(delta);
+    if (!event) return;
+    // Don't intercept wheel if scrolling inside inspector drawer or dropdowns
+    if (event.target && event.target.closest && event.target.closest('.graph-inspector')) {
+        return;
     }
+    event.preventDefault();
+
+    const viewport = document.getElementById("graph-viewport");
+    if (!viewport) return;
+
+    const rect = viewport.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    const prevScale = graphZoomScale;
+    const factor = event.deltaY < 0 ? 1.12 : 0.88;
+    const newScale = Math.max(0.3, Math.min(2.5, prevScale * factor));
+    if (Math.abs(newScale - prevScale) < 0.001) return;
+
+    // Zoom centered on cursor position
+    const contentX = (mouseX - graphPanX) / prevScale;
+    const contentY = (mouseY - graphPanY) / prevScale;
+
+    graphZoomScale = newScale;
+    graphPanX = mouseX - contentX * newScale;
+    graphPanY = mouseY - contentY * newScale;
+
+    applyGraphTransform();
 }
 
 function zoomProjectGraph(delta) {
     const prevScale = graphZoomScale;
-    graphZoomScale = Math.max(0.35, Math.min(2.0, graphZoomScale + delta));
+    graphZoomScale = Math.max(0.3, Math.min(2.5, graphZoomScale + delta));
     // Zoom towards center
     const viewport = document.getElementById("graph-viewport");
     if (viewport) {
@@ -7990,10 +8084,10 @@ function renderProjectGraph(data) {
                     ${statusBadge}
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <button type="button" class="roadmap-check-btn ${isDone ? 'checked' : ''}" onclick="toggleGraphMilestone(${n.id}, '${n.status || ''}', ${prog}, event)" title="${isDone ? 'Снять выполнение' : 'Отметить как выполненное'}" style="width: 20px; height: 20px; font-size: 0.65rem;">
-                        <i class="fa-solid fa-check"></i>
+                    <button type="button" class="btn-icon-cell" onclick="event.stopPropagation(); selectGraphNode(${n.id})" title="Управление этапом (Инспектор)" style="font-size: 0.72rem; padding: 2px 5px; color: #4338ca;">
+                        <i class="fa-solid fa-sliders"></i>
                     </button>
-                    <button type="button" class="btn-icon-cell" onclick="event.stopPropagation(); openTaskDetailModal(${n.id})" title="Открыть детали" style="font-size: 0.72rem; padding: 2px 4px;">
+                    <button type="button" class="btn-icon-cell" onclick="event.stopPropagation(); openTaskDetailModal(${n.id})" title="Паспорт задачи" style="font-size: 0.72rem; padding: 2px 5px;">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </button>
                 </div>
@@ -8181,6 +8275,36 @@ function selectGraphNode(nodeId) {
     }
 
     inspector.style.display = "block";
+    const emptyState = document.getElementById("inspector-empty-state");
+    const contentWrap = document.getElementById("inspector-content-wrap");
+    if (emptyState) emptyState.style.display = "none";
+    if (contentWrap) contentWrap.style.display = "block";
+
+    const completeBtn = document.getElementById("inspector-btn-complete");
+    if (completeBtn) {
+        if (node.is_done) {
+            completeBtn.style.display = "none";
+        } else {
+            completeBtn.style.display = "inline-flex";
+        }
+    }
+}
+
+function completeStageFromInspector() {
+    if (!selectedGraphNodeId) return;
+    openCompleteTaskModal(selectedGraphNodeId);
+}
+
+function handleInspectorStatusChange(val) {
+    if (val && val.includes("Выполнено")) {
+        const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+        const statusSelect = document.getElementById("inspector-edit-status");
+        if (statusSelect) {
+            statusSelect.value = node?.status || "🟡 В работе";
+        }
+        showToast("Завершение этапа требует подтверждения факта и фото", "info");
+        completeStageFromInspector();
+    }
 }
 
 async function saveStageFromInspector() {
@@ -8191,6 +8315,11 @@ async function saveStageFromInspector() {
         return;
     }
     const status = document.getElementById("inspector-edit-status")?.value || "🟡 В работе";
+    if (status && status.includes("Выполнено")) {
+        showToast("Завершение этапа требует подтверждения факта и фото", "info");
+        completeStageFromInspector();
+        return;
+    }
     const assignee = document.getElementById("inspector-edit-assignee")?.value || "";
     const dateVal = document.getElementById("inspector-edit-due-date")?.value || "";
     const dependsVal = document.getElementById("inspector-edit-depends")?.value || "";
@@ -8507,11 +8636,43 @@ async function submitGraphNewStage() {
     }
 }
 
+function showGraphInspectorEmpty() {
+    const inspector = document.getElementById("graph-inspector");
+    if (!inspector) return;
+    inspector.style.display = "block";
+    const emptyState = document.getElementById("inspector-empty-state");
+    const contentWrap = document.getElementById("inspector-content-wrap");
+    if (emptyState) emptyState.style.display = "block";
+    if (contentWrap) contentWrap.style.display = "none";
+    document.querySelectorAll(".graph-node").forEach(el => el.classList.remove("selected"));
+    selectedGraphNodeId = null;
+}
+
 function closeGraphInspector() {
     const inspector = document.getElementById("graph-inspector");
     if (inspector) inspector.style.display = "none";
     document.querySelectorAll(".graph-node").forEach(el => el.classList.remove("selected"));
     selectedGraphNodeId = null;
+}
+
+function toggleGraphInspector() {
+    const inspector = document.getElementById("graph-inspector");
+    if (!inspector) return;
+    if (inspector.style.display === "none") {
+        if (selectedGraphNodeId) {
+            selectGraphNode(selectedGraphNodeId);
+        } else {
+            const nodes = currentGraphData?.nodes || [];
+            if (nodes.length > 0) {
+                const active = nodes.find(n => !n.is_done) || nodes[0];
+                selectGraphNode(active.id);
+            } else {
+                showGraphInspectorEmpty();
+            }
+        }
+    } else {
+        closeGraphInspector();
+    }
 }
 
 function toggleGraphHideDone(isChecked) {

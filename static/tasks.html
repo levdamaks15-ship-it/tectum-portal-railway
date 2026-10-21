@@ -993,7 +993,7 @@
             z-index: 5500 !important;
         }
 
-        #task-detail-modal {
+        #task-detail-modal, #task-modal {
             z-index: 6500 !important;
         }
 
@@ -2964,7 +2964,7 @@
     </main>
 
     <!-- CREATE / EDIT TASK MODAL -->
-    <div class="modal-overlay" id="task-modal">
+    <div class="modal-overlay" id="task-modal" style="z-index: 6500;">
         <div class="modal-box" style="max-width: 680px;">
             <div class="modal-header">
                 <h3 id="modal-title">Новая задача</h3>
@@ -3856,6 +3856,9 @@
                     <button type="button" class="btn-action btn-secondary-action" id="detail-btn-edit" onclick="openEditTaskModalFromDetail()" style="padding: 5px 10px; font-size: 0.78rem; border-radius: 8px;" title="Редактировать задачу">
                         <i class="fa-solid fa-pen"></i> Редактировать
                     </button>
+                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-delete" onclick="deleteTaskFromDetail()" style="padding: 5px 10px; font-size: 0.78rem; border-radius: 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить задачу (требуется PIN)">
+                        <i class="fa-solid fa-trash-can"></i> Удалить
+                    </button>
                     <button type="button" class="modal-close" onclick="closeTaskDetailModal()" title="Закрыть" style="margin-left: 4px;">&times;</button>
                 </div>
             </div>
@@ -4146,6 +4149,9 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" id="graph-btn-toggle-inspector" onclick="toggleGraphInspector()" style="padding: 4px 10px; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; border-color: #c7d2fe; color: #4338ca; background: #eef2ff;" title="Показать или скрыть боковой инспектор управления">
+                        <i class="fa-solid fa-sliders"></i> Свойства этапа
+                    </button>
                     <button type="button" class="btn-action btn-primary-action graph-tool-btn" onclick="openGraphAddStageModal()" style="background: #4f46e5; border-color: #4f46e5; color: #fff; padding: 4px 11px; font-weight: 700; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);" title="Добавить новый этап в проект">
                         <i class="fa-solid fa-plus"></i> Добавить этап
                     </button>
@@ -4157,7 +4163,7 @@
             </div>
 
             <!-- Interactive Viewport -->
-            <div class="graph-viewport" id="graph-viewport">
+            <div class="graph-viewport" id="graph-viewport" onwheel="handleGraphWheel(event)">
                 <!-- Movable Canvas Surface -->
                 <div class="graph-surface" id="graph-surface">
                     <!-- SVG Edge Lines Layer -->
@@ -4183,97 +4189,112 @@
                 </div>
 
                 <!-- Floating Inspector Card (Right Drawer) -->
-                <div class="graph-inspector" id="graph-inspector" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="graph-inspector" id="graph-inspector" style="display: block;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
                         <span style="font-size: 0.74rem; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 5px;">
                             <i class="fa-solid fa-sliders"></i> Управление этапом
                         </span>
-                        <button type="button" class="btn-icon-cell" onclick="closeGraphInspector()" style="font-size: 0.85rem; padding: 2px 6px;" title="Закрыть инспектор">&times;</button>
+                        <button type="button" class="btn-icon-cell" onclick="closeGraphInspector()" style="font-size: 0.85rem; padding: 2px 6px;" title="Скрыть инспектор">&times;</button>
                     </div>
 
-                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px;">
-                        <span class="badge-code" id="inspector-node-code">TSK-00</span>
-                        <select id="inspector-edit-status" class="form-select" style="font-size: 0.75rem; font-weight: 600; padding: 2px 6px; border-radius: 6px; max-width: 150px;" title="Статус этапа">
-                            <option value="🟡 В работе">🟡 В работе</option>
-                            <option value="🟢 Выполнено">🟢 Выполнено</option>
-                            <option value="🔴 Отменено">🔴 Отменено</option>
-                        </select>
+                    <!-- Empty State Placeholder when no node is selected -->
+                    <div id="inspector-empty-state" style="display: none; padding: 2.5rem 1rem; text-align: center; color: #64748b;">
+                        <i class="fa-solid fa-hand-pointer fa-2x" style="color: #818cf8; margin-bottom: 12px; display: block;"></i>
+                        <div style="font-weight: 700; color: #334155; font-size: 0.85rem; margin-bottom: 4px;">Этап не выбран</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4;">Кликните на карточку любого этапа на схеме, чтобы настроить параметры, связи или удалить этап.</div>
                     </div>
 
-                    <div style="margin-bottom: 8px;">
-                        <label style="font-size: 0.72rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Название этапа:</label>
-                        <textarea id="inspector-edit-title" class="form-input" rows="2" style="width: 100%; box-sizing: border-box; font-size: 0.82rem; font-weight: 600; padding: 5px 8px; border-radius: 6px; resize: vertical; line-height: 1.3;" placeholder="Суть этапа..."></textarea>
-                        <div id="inspector-node-title-kz" style="font-size: 0.72rem; color: #64748b; font-style: italic; margin-top: 2px; word-break: break-word;"></div>
-                    </div>
-
-                    <!-- Blocker alert if blocked -->
-                    <div id="inspector-blocker-alert" style="display: none; padding: 6px 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 0.74rem; color: #991b1b; margin-bottom: 8px;">
-                        <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> <strong>Блокировка:</strong> ждет завершения <span id="inspector-blocker-name" style="font-weight: 700;"></span>
-                    </div>
-
-                    <!-- Editable Fields Grid -->
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 0.78rem; margin-bottom: 8px;">
-                        <div>
-                            <label style="font-size: 0.71rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Исполнитель:</label>
-                            <select id="inspector-edit-assignee" class="form-select" style="width: 100%; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px;"></select>
-                        </div>
-                        <div>
-                            <label style="font-size: 0.71rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Срок сдачи:</label>
-                            <input type="date" id="inspector-edit-due-date" class="form-input" style="width: 100%; box-sizing: border-box; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px;">
-                        </div>
-                        <div>
-                            <label style="font-size: 0.71rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Зависит от этапа (связь стрелкой):</label>
-                            <select id="inspector-edit-depends" class="form-select" style="width: 100%; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px;"></select>
-                        </div>
-                    </div>
-
-                    <!-- Progress Bar & Save Button -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0; border-top: 1px dashed #e2e8f0;">
-                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Прогресс этапа:</span>
-                        <span id="inspector-node-progress" style="font-weight: 700; color: #2563eb;">0%</span>
-                    </div>
-
-                    <button type="button" class="btn-action btn-primary-action" id="inspector-btn-save-stage" onclick="saveStageFromInspector()" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 6px 10px; background: #4f46e5; border-color: #4f46e5; border-radius: 6px;">
-                        <i class="fa-solid fa-floppy-disk"></i> Сохранить этап
-                    </button>
-
-                    <!-- Subtasks / Checklist section -->
-                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                            <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">Подзадачи этапа:</span>
-                            <span id="inspector-subtasks-count" style="font-size: 0.72rem; color: #64748b; font-weight: 600;">0/0</span>
-                        </div>
-                        <div id="inspector-subtasks-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 130px; overflow-y: auto; margin-bottom: 6px;">
-                            <!-- subtasks rendered dynamically -->
-                        </div>
-                        <div style="display: flex; gap: 4px;">
-                            <input type="text" id="inspector-new-subtask-input" class="form-input" placeholder="+ Подзадача (Enter)..." style="flex: 1; font-size: 0.76rem; padding: 4px 6px; border-radius: 6px;" onkeydown="handleInspectorNewSubtaskKeydown(event)">
-                            <button type="button" class="btn-action btn-primary-action" onclick="addInspectorSubtask()" style="padding: 4px 8px; font-size: 0.76rem; border-radius: 6px;" title="Добавить подзадачу">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Mini Photos ДО/ПОСЛЕ -->
-                    <div id="inspector-photos-section" style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: none;">
-                        <div style="font-size: 0.74rem; font-weight: 700; color: #475569; margin-bottom: 4px;">Фотоотчет (ДО / ПОСЛЕ):</div>
-                        <div id="inspector-photos-strip" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;"></div>
-                    </div>
-
-                    <!-- Additional Action buttons -->
-                    <div style="display: flex; gap: 6px; flex-direction: column; margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
-                        <button type="button" class="btn-action btn-secondary-action" onclick="addNextStageAfterSelected()" style="font-size: 0.76rem; padding: 5px 8px; width: 100%; justify-content: center; background: #eef2ff; color: #4338ca; border-color: #c7d2fe;" title="Создать следующий этап с привязкой стрелкой от этого">
-                            <i class="fa-solid fa-arrow-right"></i> + Следующий этап по цепочке
+                    <!-- Inspector Active Body -->
+                    <div id="inspector-content-wrap">
+                        <!-- Quick Complete Action Button -->
+                        <button type="button" class="btn-action" id="inspector-btn-complete" onclick="completeStageFromInspector()" style="width: 100%; justify-content: center; font-size: 0.8rem; font-weight: 700; padding: 7px 10px; background: #10b981; border: 1px solid #059669; color: #fff; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);" title="Завершить этап с обязательным фото и текстовым подтверждением факта">
+                            <i class="fa-solid fa-check"></i> Завершить этап (факт + фото)
                         </button>
-                        <div style="display: flex; gap: 6px;">
-                            <button type="button" class="btn-action btn-secondary-action" id="inspector-btn-open-detail" style="font-size: 0.76rem; padding: 5px 8px; flex: 1; justify-content: center;" title="Открыть полный паспорт задачи">
-                                <i class="fa-solid fa-folder-open"></i> Паспорт
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px;">
+                            <span class="badge-code" id="inspector-node-code">TSK-00</span>
+                            <select id="inspector-edit-status" class="form-select" onchange="handleInspectorStatusChange(this.value)" style="font-size: 0.75rem; font-weight: 600; padding: 2px 6px; border-radius: 6px; max-width: 150px;" title="Статус этапа">
+                                <option value="🟡 В работе">🟡 В работе</option>
+                                <option value="🟢 Выполнено">🟢 Выполнено (отчёт)</option>
+                                <option value="🔴 Отменено">🔴 Отменено</option>
+                            </select>
+                        </div>
+
+                        <div style="margin-bottom: 8px;">
+                            <label style="font-size: 0.72rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Название этапа:</label>
+                            <textarea id="inspector-edit-title" class="form-input" rows="2" style="width: 100%; box-sizing: border-box; font-size: 0.82rem; font-weight: 600; padding: 5px 8px; border-radius: 6px; resize: vertical; line-height: 1.3;" placeholder="Суть этапа..."></textarea>
+                            <div id="inspector-node-title-kz" style="font-size: 0.72rem; color: #64748b; font-style: italic; margin-top: 2px; word-break: break-word;"></div>
+                        </div>
+
+                        <!-- Blocker alert if blocked -->
+                        <div id="inspector-blocker-alert" style="display: none; padding: 6px 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 0.74rem; color: #991b1b; margin-bottom: 8px;">
+                            <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> <strong>Блокировка:</strong> ждет завершения <span id="inspector-blocker-name" style="font-weight: 700;"></span>
+                        </div>
+
+                        <!-- Editable Fields Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 0.78rem; margin-bottom: 8px;">
+                            <div>
+                                <label style="font-size: 0.71rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Исполнитель:</label>
+                                <select id="inspector-edit-assignee" class="form-select" style="width: 100%; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px;"></select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.71rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Срок сдачи:</label>
+                                <input type="date" id="inspector-edit-due-date" class="form-input" style="width: 100%; box-sizing: border-box; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.71rem; font-weight: 700; color: #475569; display: block; margin-bottom: 2px;">Зависит от этапа (связь стрелкой):</label>
+                                <select id="inspector-edit-depends" class="form-select" style="width: 100%; font-size: 0.78rem; padding: 4px 6px; border-radius: 6px;"></select>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar & Save Button -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 0; border-top: 1px dashed #e2e8f0;">
+                            <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Прогресс этапа:</span>
+                            <span id="inspector-node-progress" style="font-weight: 700; color: #2563eb;">0%</span>
+                        </div>
+
+                        <button type="button" class="btn-action btn-primary-action" id="inspector-btn-save-stage" onclick="saveStageFromInspector()" style="width: 100%; justify-content: center; font-size: 0.8rem; padding: 6px 10px; background: #4f46e5; border-color: #4f46e5; border-radius: 6px; font-weight: 700;">
+                            <i class="fa-solid fa-floppy-disk"></i> Сохранить этап
+                        </button>
+
+                        <!-- Subtasks / Checklist section -->
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">Подзадачи этапа:</span>
+                                <span id="inspector-subtasks-count" style="font-size: 0.72rem; color: #64748b; font-weight: 600;">0/0</span>
+                            </div>
+                            <div id="inspector-subtasks-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 130px; overflow-y: auto; margin-bottom: 6px;">
+                                <!-- subtasks rendered dynamically -->
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <input type="text" id="inspector-new-subtask-input" class="form-input" placeholder="+ Подзадача (Enter)..." style="flex: 1; font-size: 0.76rem; padding: 4px 6px; border-radius: 6px;" onkeydown="handleInspectorNewSubtaskKeydown(event)">
+                                <button type="button" class="btn-action btn-primary-action" onclick="addInspectorSubtask()" style="padding: 4px 8px; font-size: 0.76rem; border-radius: 6px;" title="Добавить подзадачу">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Mini Photos ДО/ПОСЛЕ -->
+                        <div id="inspector-photos-section" style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0; display: none;">
+                            <div style="font-size: 0.74rem; font-weight: 700; color: #475569; margin-bottom: 4px;">Фотоотчет (ДО / ПОСЛЕ):</div>
+                            <div id="inspector-photos-strip" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;"></div>
+                        </div>
+
+                        <!-- Additional Action buttons -->
+                        <div style="display: flex; gap: 6px; flex-direction: column; margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
+                            <button type="button" class="btn-action btn-secondary-action" onclick="addNextStageAfterSelected()" style="font-size: 0.76rem; padding: 5px 8px; width: 100%; justify-content: center; background: #eef2ff; color: #4338ca; border-color: #c7d2fe;" title="Создать следующий этап с привязкой стрелкой от этого">
+                                <i class="fa-solid fa-arrow-right"></i> + Следующий этап по цепочке
                             </button>
-                            <button type="button" class="btn-action btn-secondary-action" onclick="openSelectedStageHistory()" style="font-size: 0.76rem; padding: 5px 8px; justify-content: center; color: #b45309; border-color: #fde68a; background: #fffbeb;" title="История изменений и аудит этапа">
-                                <i class="fa-solid fa-clock-rotate-left"></i> История
-                            </button>
-                            <button type="button" class="btn-action btn-secondary-action" id="inspector-delete-btn" onclick="deleteStageFromGraph()" style="font-size: 0.76rem; padding: 5px 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить этап (требуется PIN)">
-                                <i class="fa-solid fa-trash-can"></i>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" class="btn-action btn-secondary-action" id="inspector-btn-open-detail" style="font-size: 0.76rem; padding: 5px 8px; flex: 1; justify-content: center;" title="Открыть полный паспорт задачи">
+                                    <i class="fa-solid fa-folder-open"></i> Паспорт
+                                </button>
+                                <button type="button" class="btn-action btn-secondary-action" onclick="openSelectedStageHistory()" style="font-size: 0.76rem; padding: 5px 8px; justify-content: center; color: #b45309; border-color: #fde68a; background: #fffbeb;" title="История изменений и аудит этапа">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> История
+                                </button>
+                            </div>
+                            <button type="button" class="btn-action btn-secondary-action" id="inspector-delete-btn" onclick="deleteStageFromGraph()" style="width: 100%; justify-content: center; font-size: 0.78rem; font-weight: 700; padding: 7px 10px; color: #dc2626; border-color: #fecaca; background: #fef2f2; border-radius: 6px; margin-top: 4px;" title="Удалить этап (требуется PIN-код автора или руководства)">
+                                <i class="fa-solid fa-trash-can" style="margin-right: 4px;"></i> Удалить этап (через PIN)
                             </button>
                         </div>
                     </div>
