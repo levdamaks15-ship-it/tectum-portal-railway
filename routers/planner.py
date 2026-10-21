@@ -1093,6 +1093,7 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                         "is_done": st_done,
                         "is_blocked": st_blocked,
                         "blocked_by": st_blocker,
+                        "depends_on_id": st.depends_on_id,
                         "photos": parse_task_photos_dict(st)
                     })
 
@@ -1113,6 +1114,7 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                     "is_done": m_done,
                     "is_blocked": is_m_blocked,
                     "blocked_by": blocker_info,
+                    "depends_on_id": m.depends_on_id,
                     "subtasks_count": len(m_subs),
                     "subtasks_done_count": m_sub_done_cnt,
                     "subtasks": serialized_subs,

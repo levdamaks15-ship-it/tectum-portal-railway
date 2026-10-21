@@ -1308,6 +1308,28 @@ function renderRoadmaps(projects) {
         return;
     }
 
+function getStagePluralWord(n) {
+    const absN = Math.abs(n) % 100;
+    const n10 = absN % 10;
+    if (absN > 10 && absN < 20) return 'этапов';
+    if (n10 > 1 && n10 < 5) return 'этапа';
+    if (n10 === 1) return 'этап';
+    return 'этапов';
+}
+
+function convertRuDateToIso(str, defaultYear = 2026) {
+    if (!str) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const m = str.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/);
+    if (m) {
+        const dd = m[1].padStart(2, '0');
+        const mm = m[2].padStart(2, '0');
+        const yyyy = m[3] ? m[3] : String(defaultYear);
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    return "";
+}
+
     grid.innerHTML = projects.map(p => {
         const prog = p.calculated_progress || p.progress || 0;
         const totalElems = p.total_elements || 0;
@@ -1333,77 +1355,15 @@ function renderRoadmaps(projects) {
             statusBadgeHtml = `<span class="badge-zone" style="background: #fffbeb; color: #b45309; border-color: #fde68a; font-size: 0.72rem;">${escapeHtml(p.status || '🟡 В работе')}</span>`;
         }
 
-        const milestonesHtml = (p.milestones || []).map(m => {
-            const mProg = m.calculated_progress || m.progress || 0;
-            const isMDone = (m.status && m.status.includes('Выполнено')) || mProg === 100;
-            const subtasksHtml = (m.subtasks || []).map(st => {
-                const isStDone = st.status === '🟢 Выполнено';
-                const depHtml = st.depends_on ? `<span class="dep-blocker-badge" title="Зависит от ${st.depends_on.code}"><i class="fa-solid fa-lock"></i> ${st.depends_on.code}</span>` : '';
-                return `
-                    <div class="roadmap-subtask-item" id="roadmap-subtask-${st.id}">
-                        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1;">
-                            <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" onclick="quickToggleRoadmapSubtask(${st.id}, '${st.status || ''}', event)" title="${isStDone ? 'Отметить как «В работе»' : 'Отметить как «Выполнено»'}">
-                                <i class="fa-solid fa-check"></i>
-                            </button>
-                            <span style="font-weight: 500; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" onclick="openTaskDetailModal(${st.id})" title="Подробный просмотр задачи">${escapeHtml(st.title)}</span>
-                            ${depHtml}
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                            <span style="font-size: 0.75rem; color: #64748b;">${st.assignee_name || '—'}</span>
-                            <button class="btn-icon-cell" onclick="openSubtaskQuickModal(${p.id}, ${st.id})" title="Редактировать" style="font-size: 0.7rem; padding: 2px 4px;">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            const mDepHtml = m.depends_on ? `<span class="dep-blocker-badge" title="Зависит от ${m.depends_on.code}"><i class="fa-solid fa-lock"></i> ${m.depends_on.code}</span>` : '';
-
-            return `
-                <div class="roadmap-milestone-box" id="roadmap-milestone-${m.id}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <div style="font-weight: 700; font-size: 0.88rem; color: #1e293b; display: flex; align-items: center; gap: 7px; overflow: hidden;">
-                            <button type="button" class="roadmap-check-btn ${isMDone ? 'checked' : ''}" onclick="quickToggleRoadmapMilestone(${m.id}, '${m.status || ''}', ${mProg}, event)" title="${isMDone ? 'Снять отметку выполнения этапа' : 'Завершить этап (100%)'}" style="width: 18px; height: 18px; font-size: 0.6rem;">
-                                <i class="fa-solid fa-check"></i>
-                            </button>
-                            <span style="cursor: pointer; text-decoration: ${isMDone ? 'line-through' : 'none'}; opacity: ${isMDone ? '0.7' : '1'};" onclick="openTaskDetailModal(${m.id})" title="Подробный просмотр этапа">${escapeHtml(m.title)}</span>
-                            ${mDepHtml}
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 0.78rem; font-weight: 700; color: ${mProg === 100 ? '#10b981' : '#2563eb'};">${mProg}%</span>
-                            <button class="btn-icon-cell" onclick="openSubtaskQuickModal(${p.id}, ${m.id})" title="Редактировать этап" style="font-size: 0.7rem; padding: 2px 4px;">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="roadmap-progress-wrap" style="height: 5px; margin-bottom: 6px;">
-                        <div class="roadmap-progress-bar" style="width: ${mProg}%; ${mProg === 100 ? 'background: #10b981;' : ''}"></div>
-                    </div>
-                    <div>
-                        ${subtasksHtml}
-                    </div>
-
-                    <!-- Quick Add Subtask Input Inline -->
-                    <div class="roadmap-quick-add-wrap" id="quick-add-box-${m.id}">
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <input type="text" class="roadmap-quick-add-input" id="quick-add-input-${m.id}" placeholder="Суть подзадачи (нажмите Enter для сохранения)..." onkeydown="handleQuickAddKeydown(event, ${m.id}, ${p.id})">
-                            <button type="button" class="btn-action btn-primary-action" style="padding: 2px 8px; font-size: 0.75rem;" onclick="submitQuickAddSubtask(${m.id}, ${p.id})">OK</button>
-                            <button type="button" class="btn-action btn-secondary-action" style="padding: 2px 6px; font-size: 0.75rem;" onclick="hideQuickAddSubtask(${m.id})">&times;</button>
-                        </div>
-                    </div>
-
-                    <div style="margin-top: 6px; display: flex; justify-content: flex-end; gap: 4px;" id="quick-add-btn-wrap-${m.id}">
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="showQuickAddSubtask(${m.id})">
-                            <i class="fa-solid fa-plus"></i> Быстрая подзадача
-                        </button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openSubtaskQuickModal(${p.id}, null, ${m.id})" title="Подробная форма">
-                            <i class="fa-solid fa-sliders"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        const totalStages = (p.milestones || []).length;
+        const doneStages = (p.milestones || []).filter(m => (m.status && m.status.includes('Выполнено')) || (m.progress >= 100)).length;
+        let blockedStages = 0;
+        (p.milestones || []).forEach(m => {
+            if (m.depends_on && m.depends_on.status && !m.depends_on.status.includes('Выполнено')) {
+                blockedStages++;
+            }
+        });
+        const stageWord = getStagePluralWord(totalStages);
 
         const docBadge = p.attached_doc ? `
             <a href="${p.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.75rem; font-weight: 600; color: #1d4ed8; text-decoration: none;" title="Регламент / Спецификация">
@@ -1437,22 +1397,22 @@ function renderRoadmaps(projects) {
 
                 <div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
-                        <span>Прогресс: ${doneElems}/${totalElems} этапов</span>
+                        <span>Прогресс: ${doneStages}/${totalStages} ${stageWord}</span>
                         <span style="color: ${prog === 100 ? '#10b981' : '#2563eb'}; font-weight: 700;">${prog}%</span>
                     </div>
                     <div class="roadmap-progress-wrap">
                         <div class="roadmap-progress-bar" style="width: ${prog}%; ${prog === 100 ? 'background: #10b981;' : ''}"></div>
                     </div>
+                    ${blockedStages > 0 ? `
+                        <div style="margin-top: 6px;">
+                            <span class="badge-zone" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-lock"></i> ${blockedStages} ${getStagePluralWord(blockedStages)} ждет предшественника
+                            </span>
+                        </div>
+                    ` : ''}
                 </div>
 
-                <div style="margin: 8px 0 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                    <button type="button" class="btn-action" onclick="openProjectGraphModal(${p.id})" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; font-size: 0.78rem; font-weight: 600; padding: 4px 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'" title="Интерактивная схема зависимостей и вех">
-                        <i class="fa-solid fa-diagram-project" style="color: #6366f1;"></i> ⚡ Схема связей и вех
-                    </button>
-                    <span style="font-size: 0.74rem; color: #64748b; font-weight: 500;">${p.milestones ? p.milestones.length : 0} вех</span>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b; margin-top: 10px;">
                     <div>👤 Ответственный: <strong style="color: #0f172a;">${p.assignee_name || 'Не назначен'}</strong></div>
                     <div>${docBadge}</div>
                 </div>
@@ -1462,29 +1422,14 @@ function renderRoadmaps(projects) {
                     ${p.created_date ? `<div style="font-size: 0.72rem; color: #94a3b8;">Старт: ${p.created_date}</div>` : ''}
                 </div>
 
-                ${tagsHtml ? `<div>${tagsHtml}</div>` : ''}
+                ${tagsHtml ? `<div style="margin-bottom: 6px;">${tagsHtml}</div>` : ''}
 
-                <!-- Milestones & Steps -->
-                <div style="margin-top: 0.25rem;">
-                    <div style="font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 4px; text-transform: uppercase;">Ключевые этапы:</div>
-                    ${milestonesHtml || '<div style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 0.5rem 0;">Этапы проекта пока не добавлены</div>'}
+                <!-- Main CTA Action: Open Project Interactive Graph -->
+                <div style="margin-top: 8px;">
+                    <button type="button" class="btn-action" onclick="openProjectGraphModal(${p.id})" style="width: 100%; box-sizing: border-box; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; border: none; font-size: 0.82rem; font-weight: 700; padding: 8px 12px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.28); transition: all 0.2s ease;" onmouseover="this.style.opacity='0.95'" onmouseout="this.style.opacity='1'" title="Интерактивная схема этапов и связей">
+                        <i class="fa-solid fa-diagram-project"></i> ⚡ Схема этапов и связей (${totalStages} ${stageWord})
+                    </button>
                 </div>
-
-                <!-- Inline Quick Add Milestone Bar (доступно автору проекта, руководству завода или администратору) -->
-                ${canEdit ? `
-                <div id="inline-milestone-box-${p.id}" class="roadmap-inline-milestone-box" style="margin-top: 0.65rem; padding: 0.5rem; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 8px; box-sizing: border-box;">
-                    <input type="text" id="inline-milestone-input-${p.id}" class="form-input" placeholder="+ Название этапа... (Enter)" style="width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 0.82rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" onkeydown="handleInlineMilestoneKeydown(event, ${p.id})">
-                    <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px;">
-                        <select id="inline-milestone-assignee-${p.id}" class="form-select" style="flex: 1; min-width: 0; padding: 4px 6px; font-size: 0.78rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" title="Исполнитель этапа">
-                            ${buildAssigneeOptions(p.assignee_name)}
-                        </select>
-                        <input type="date" id="inline-milestone-date-${p.id}" class="form-input" style="width: 110px; flex-shrink: 0; padding: 4px 6px; font-size: 0.78rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" value="${getDefaultQuickDateIso()}" title="Срок выполнения">
-                        <button type="button" id="inline-milestone-btn-${p.id}" class="btn-action btn-primary-action" style="padding: 4px 10px; font-size: 0.78rem; background: #7c3aed; border-color: #7c3aed; border-radius: 6px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="submitInlineMilestone(${p.id})" title="Добавить этап">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </div>
-                </div>
-                ` : ''}
 
                 <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
                     <div>
@@ -1497,9 +1442,6 @@ function renderRoadmaps(projects) {
                             <span style="font-size: 0.75rem; color: #16a34a; font-weight: 600;"><i class="fa-solid fa-medal"></i> Проект сдан и завершён</span>
                         ` : ''}
                     </div>
-                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.78rem; padding: 3px 9px; background: #faf5ff; color: #7c3aed; border-color: #ddd6fe;" onclick="openSubtaskQuickModal(${p.id})">
-                        <i class="fa-solid fa-list-check"></i> Окно этапов
-                    </button>
                 </div>
             </div>
         `;
@@ -7754,7 +7696,7 @@ async function openProjectGraphModal(projectId) {
             const subtitleParts = [];
             if (p.department_service) subtitleParts.push(`Служба: ${p.department_service}`);
             if (p.target_quarter) subtitleParts.push(`Период: ${p.target_quarter}`);
-            subtitleParts.push(`Вех: ${summary.done_milestones || 0}/${summary.total_milestones || 0}`);
+            subtitleParts.push(`Этапов: ${summary.done_milestones || 0}/${summary.total_milestones || 0}`);
             if (summary.blocked_count > 0) subtitleParts.push(`🔒 Заблокировано: ${summary.blocked_count}`);
             subEl.textContent = subtitleParts.join(" • ");
         }
@@ -7961,10 +7903,10 @@ function renderProjectGraph(data) {
         container.innerHTML = `
             <div style="position: absolute; top: 80px; left: 80px; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; max-width: 440px;">
                 <div style="font-size: 2rem; margin-bottom: 6px;">🗺️</div>
-                <h4 style="margin: 0 0 6px; color: #0f172a;">В проекте пока нет вех</h4>
+                <h4 style="margin: 0 0 6px; color: #0f172a;">В проекте пока нет этапов</h4>
                 <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 12px;">Добавьте этапы и настройте блокирующие зависимости, чтобы увидеть интерактивную схему.</p>
-                <button type="button" class="btn-action btn-primary-action" onclick="openSubtaskQuickModal(${currentGraphProjectId})">
-                    <i class="fa-solid fa-plus"></i> Добавить первую веху
+                <button type="button" class="btn-action btn-primary-action" onclick="openGraphAddStageModal()">
+                    <i class="fa-solid fa-plus"></i> Добавить первый этап
                 </button>
             </div>
         `;
@@ -8111,31 +8053,52 @@ function selectGraphNode(nodeId) {
     const inspector = document.getElementById("graph-inspector");
     if (!node || !inspector) return;
 
-    // Populate Inspector
+    // Populate Inspector Fields
     const codeEl = document.getElementById("inspector-node-code");
-    const statusEl = document.getElementById("inspector-node-status");
-    const titleEl = document.getElementById("inspector-node-title");
+    const statusSelect = document.getElementById("inspector-edit-status");
+    const titleInput = document.getElementById("inspector-edit-title");
     const titleKzEl = document.getElementById("inspector-node-title-kz");
-    const assigneeEl = document.getElementById("inspector-node-assignee");
-    const dueEl = document.getElementById("inspector-node-due");
+    const assigneeSelect = document.getElementById("inspector-edit-assignee");
+    const dueDateInput = document.getElementById("inspector-edit-due-date");
+    const dependsSelect = document.getElementById("inspector-edit-depends");
     const progEl = document.getElementById("inspector-node-progress");
     const blockerAlert = document.getElementById("inspector-blocker-alert");
     const blockerName = document.getElementById("inspector-blocker-name");
+    const subCountEl = document.getElementById("inspector-subtasks-count");
+    const subListEl = document.getElementById("inspector-subtasks-list");
+    const newSubInput = document.getElementById("inspector-new-subtask-input");
     const photosSection = document.getElementById("inspector-photos-section");
     const photosStrip = document.getElementById("inspector-photos-strip");
     const detailBtn = document.getElementById("inspector-btn-open-detail");
 
     if (codeEl) codeEl.textContent = node.code || `TSK-${node.id}`;
-    if (statusEl) {
-        statusEl.textContent = node.status || "В работе";
-        statusEl.style.background = node.is_done ? "#f0fdf4" : (node.is_blocked ? "#fef2f2" : "#eff6ff");
-        statusEl.style.color = node.is_done ? "#166534" : (node.is_blocked ? "#991b1b" : "#1d4ed8");
+    if (statusSelect) {
+        statusSelect.value = node.status || "🟡 В работе";
     }
-    if (titleEl) titleEl.textContent = node.title || "";
-    if (titleKzEl) titleKzEl.textContent = node.title_kz ? `«${node.title_kz}»` : "";
-    if (assigneeEl) assigneeEl.textContent = node.assignee_name || "Не назначен";
-    if (dueEl) dueEl.textContent = node.due_date_str || "Не установлен";
-    if (progEl) progEl.textContent = `${node.progress || 0}%`;
+    if (titleInput) {
+        titleInput.value = node.title || "";
+    }
+    if (titleKzEl) {
+        titleKzEl.textContent = node.title_kz ? `«${node.title_kz}»` : "";
+    }
+    if (assigneeSelect) {
+        assigneeSelect.innerHTML = buildAssigneeOptions(node.assignee_name);
+    }
+    if (dueDateInput) {
+        dueDateInput.value = convertRuDateToIso(node.due_date_str);
+    }
+    if (dependsSelect) {
+        const otherNodes = currentGraphData.nodes.filter(n => n.id !== nodeId);
+        let depHtml = `<option value="">-- Без зависимости (первый шаг) --</option>`;
+        otherNodes.forEach(on => {
+            const isSel = (node.depends_on_id && node.depends_on_id === on.id);
+            depHtml += `<option value="${on.id}" ${isSel ? 'selected' : ''}>[${on.code || 'TSK-' + on.id}] ${escapeHtml(on.title)}</option>`;
+        });
+        dependsSelect.innerHTML = depHtml;
+    }
+    if (progEl) {
+        progEl.textContent = `${node.progress || 0}%`;
+    }
 
     // Blocker info
     if (blockerAlert) {
@@ -8145,6 +8108,37 @@ function selectGraphNode(nodeId) {
         } else {
             blockerAlert.style.display = "none";
         }
+    }
+
+    // Subtasks Checklist
+    const subs = node.subtasks || [];
+    if (subCountEl) {
+        subCountEl.textContent = `${node.subtasks_done_count || 0}/${subs.length}`;
+    }
+    if (subListEl) {
+        if (!subs.length) {
+            subListEl.innerHTML = `<div style="font-size: 0.74rem; color: #94a3b8; font-style: italic; padding: 4px 0;">Подзадачи этапа пока не добавлены</div>`;
+        } else {
+            subListEl.innerHTML = subs.map(st => {
+                const isStDone = st.is_done;
+                return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 6px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
+                            <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" onclick="toggleInspectorSubtask(${st.id}, '${st.status || ''}', event)" style="width: 16px; height: 16px; font-size: 0.55rem; flex-shrink: 0;" title="${isStDone ? 'Снять выполнение' : 'Выполнено'}">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                            <span style="font-size: 0.76rem; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(st.title)}">${escapeHtml(st.title)}</span>
+                        </div>
+                        <button type="button" class="btn-icon-cell" onclick="deleteInspectorSubtask(${st.id}, event)" style="font-size: 0.68rem; color: #94a3b8; padding: 2px 4px;" title="Удалить подзадачу">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+    if (newSubInput) {
+        newSubInput.value = "";
     }
 
     // Mini Photos preview
@@ -8176,6 +8170,283 @@ function selectGraphNode(nodeId) {
     }
 
     inspector.style.display = "block";
+}
+
+async function saveStageFromInspector() {
+    if (!selectedGraphNodeId) return;
+    const title = (document.getElementById("inspector-edit-title")?.value || "").trim();
+    if (!title) {
+        showToast("⚠️ Название этапа не может быть пустым", "warning");
+        return;
+    }
+    const status = document.getElementById("inspector-edit-status")?.value || "🟡 В работе";
+    const assignee = document.getElementById("inspector-edit-assignee")?.value || "";
+    const dateVal = document.getElementById("inspector-edit-due-date")?.value || "";
+    const dependsVal = document.getElementById("inspector-edit-depends")?.value || "";
+    const dependsOnId = dependsVal ? parseInt(dependsVal, 10) : null;
+    const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
+
+    const btn = document.getElementById("inspector-btn-save-stage");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...`;
+    }
+
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
+    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+
+    try {
+        const payload = {
+            title: title,
+            status: status,
+            assignee_name: assignee,
+            due_date_str: dueDateStr,
+            depends_on_id: dependsOnId,
+            user_name: authorName,
+            pin_code: pin
+        };
+
+        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Не удалось сохранить этап");
+        }
+
+        showToast("Этап успешно сохранён! 🎯", "success");
+        await reloadProjectGraphData();
+        await loadRoadmaps();
+    } catch (e) {
+        console.error("Error saving stage from inspector:", e);
+        showToast(`⚠️ Ошибка: ${e.message}`, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Сохранить этап`;
+        }
+    }
+}
+
+async function toggleInspectorSubtask(subtaskId, currentStatus, event) {
+    if (event) event.stopPropagation();
+    try {
+        await quickToggleRoadmapSubtask(subtaskId, currentStatus, event);
+        await reloadProjectGraphData();
+    } catch (e) {
+        console.error("Error toggling inspector subtask:", e);
+    }
+}
+
+async function deleteInspectorSubtask(subtaskId, event) {
+    if (event) event.stopPropagation();
+    if (!confirm("Удалить эту подзадачу?")) return;
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
+    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+    try {
+        const res = await fetch(`/api/tasks/${subtaskId}?user_name=${encodeURIComponent(authorName)}&pin_code=${encodeURIComponent(pin)}`, {
+            method: "DELETE"
+        });
+        if (res.ok) {
+            showToast("Подзадача удалена");
+            await reloadProjectGraphData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить подзадачу'}`);
+        }
+    } catch (e) {
+        console.error("Error deleting subtask:", e);
+    }
+}
+
+function handleInspectorNewSubtaskKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        addInspectorSubtask();
+    }
+}
+
+async function addInspectorSubtask() {
+    if (!selectedGraphNodeId) return;
+    const input = document.getElementById("inspector-new-subtask-input");
+    const title = input ? input.value.trim() : "";
+    if (!title) return;
+
+    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
+    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+
+    try {
+        const payload = {
+            parent_id: selectedGraphNodeId,
+            title: title,
+            assignee_name: node ? node.assignee_name : "",
+            due_date_str: node ? node.due_date_str : "",
+            author_name: authorName,
+            pin_code: pin
+        };
+
+        const res = await fetch("/api/tasks/quick_milestone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            if (input) input.value = "";
+            showToast("Подзадача добавлена! 🎯", "success");
+            await reloadProjectGraphData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось добавить подзадачу'}`);
+        }
+    } catch (e) {
+        console.error("Error adding subtask in inspector:", e);
+    }
+}
+
+async function deleteStageFromGraph() {
+    if (!selectedGraphNodeId) return;
+    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+    const stageTitle = node ? `[${node.code}] «${node.title}»` : "выбранный этап";
+    if (!confirm(`Вы действительно хотите удалить ${stageTitle}?`)) return;
+
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
+    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+
+    try {
+        const res = await fetch(`/api/tasks/${selectedGraphNodeId}?user_name=${encodeURIComponent(authorName)}&pin_code=${encodeURIComponent(pin)}`, {
+            method: "DELETE"
+        });
+
+        if (res.ok) {
+            showToast("Этап удалён из проекта");
+            closeGraphInspector();
+            await reloadProjectGraphData();
+            await loadRoadmaps();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить этап'}`);
+        }
+    } catch (e) {
+        console.error("Error deleting stage from graph:", e);
+    }
+}
+
+function openGraphAddStageModal(presetDependsOnId = null) {
+    if (!currentGraphProjectId) return;
+    const modal = document.getElementById("graph-new-stage-modal");
+    if (!modal) return;
+
+    const titleInput = document.getElementById("graph-new-stage-title");
+    const assigneeSelect = document.getElementById("graph-new-stage-assignee");
+    const dateInput = document.getElementById("graph-new-stage-date");
+    const dependsSelect = document.getElementById("graph-new-stage-depends");
+
+    if (titleInput) titleInput.value = "";
+    if (dateInput) dateInput.value = getDefaultQuickDateIso();
+
+    const p = currentGraphData?.project || {};
+    if (assigneeSelect) {
+        assigneeSelect.innerHTML = buildAssigneeOptions(p.assignee_name);
+    }
+
+    if (dependsSelect) {
+        const nodes = currentGraphData?.nodes || [];
+        let html = `<option value="">-- Без зависимости (первый шаг) --</option>`;
+        nodes.forEach(n => {
+            const isSel = presetDependsOnId && (n.id === presetDependsOnId);
+            html += `<option value="${n.id}" ${isSel ? 'selected' : ''}>[${n.code || 'TSK-' + n.id}] ${escapeHtml(n.title)}</option>`;
+        });
+        dependsSelect.innerHTML = html;
+    }
+
+    modal.style.display = "flex";
+    if (titleInput) titleInput.focus();
+}
+
+function closeGraphNewStageModal() {
+    const modal = document.getElementById("graph-new-stage-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function addNextStageAfterSelected() {
+    if (!selectedGraphNodeId) return;
+    openGraphAddStageModal(selectedGraphNodeId);
+}
+
+async function submitGraphNewStage() {
+    if (!currentGraphProjectId) return;
+    const titleInput = document.getElementById("graph-new-stage-title");
+    const assigneeSelect = document.getElementById("graph-new-stage-assignee");
+    const dateInput = document.getElementById("graph-new-stage-date");
+    const dependsSelect = document.getElementById("graph-new-stage-depends");
+    const btn = document.getElementById("graph-new-stage-submit-btn");
+
+    const title = titleInput ? titleInput.value.trim() : "";
+    if (!title) {
+        showToast("⚠️ Введите название этапа", "warning");
+        if (titleInput) titleInput.focus();
+        return;
+    }
+
+    const assignee = assigneeSelect ? assigneeSelect.value : "";
+    const dateVal = dateInput ? dateInput.value : "";
+    const dependsVal = dependsSelect ? dependsSelect.value : "";
+    const dependsOnId = dependsVal ? parseInt(dependsVal, 10) : null;
+    const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
+
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
+    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Создание...`;
+    }
+
+    try {
+        const payload = {
+            parent_id: currentGraphProjectId,
+            title: title,
+            assignee_name: assignee,
+            due_date_str: dueDateStr,
+            depends_on_id: dependsOnId,
+            author_name: authorName,
+            pin_code: pin
+        };
+
+        const res = await fetch("/api/tasks/quick_milestone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Не удалось создать этап");
+        }
+
+        const data = await res.json();
+        showToast(`Этап [${data.code}] создан на схеме! 🎯`, "success");
+        closeGraphNewStageModal();
+        await reloadProjectGraphData();
+        await loadRoadmaps();
+
+        if (data.id) {
+            selectGraphNode(data.id);
+        }
+    } catch (e) {
+        console.error("Error creating stage in graph:", e);
+        showToast(`⚠️ Ошибка: ${e.message}`, "error");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-plus"></i> Создать этап`;
+        }
+    }
 }
 
 function closeGraphInspector() {
