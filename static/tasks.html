@@ -984,6 +984,27 @@
             display: flex !important;
         }
 
+        /* Strict Modal Z-Index Hierarchy: Pin (9000) > History (8000) > Detail (6500) > Graph Stage (5500) > Graph (5400) > Base (3000) */
+        #project-graph-modal {
+            z-index: 5400 !important;
+        }
+
+        #graph-new-stage-modal {
+            z-index: 5500 !important;
+        }
+
+        #task-detail-modal {
+            z-index: 6500 !important;
+        }
+
+        #task-history-modal {
+            z-index: 8000 !important;
+        }
+
+        #planner-pin-modal {
+            z-index: 9000 !important;
+        }
+
         .modal-box {
             background: #ffffff;
             border: 1px solid var(--tbl-border);
@@ -3776,7 +3797,7 @@
     </div>
 
     <!-- TASK HISTORY & AUDIT LOG MODAL -->
-    <div class="modal-overlay" id="task-history-modal">
+    <div class="modal-overlay" id="task-history-modal" style="z-index: 8000;">
         <div class="modal-box" style="max-width: 580px;">
             <div class="modal-header">
                 <div style="display: flex; align-items: center; gap: 0.6rem;">
@@ -4035,7 +4056,7 @@
     </div>
 
     <!-- PIN AUTHORIZATION MODAL -->
-    <div class="modal-overlay" id="planner-pin-modal" style="z-index: 5000;">
+    <div class="modal-overlay" id="planner-pin-modal" style="z-index: 7000;">
         <div class="modal-box"
             style="max-width: 420px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
             <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔐</div>
@@ -4111,6 +4132,9 @@
                     </button>
                     <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="fitProjectGraphToScreen()" title="По размеру экрана">
                         <i class="fa-solid fa-expand"></i> Центрировать
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action graph-tool-btn" onclick="openCurrentProjectHistory()" title="История изменений и аудит проекта" style="display: inline-flex; align-items: center; gap: 5px;">
+                        <i class="fa-solid fa-clock-rotate-left" style="color: #6366f1;"></i> История проекта
                     </button>
                 </div>
 
@@ -4245,7 +4269,10 @@
                             <button type="button" class="btn-action btn-secondary-action" id="inspector-btn-open-detail" style="font-size: 0.76rem; padding: 5px 8px; flex: 1; justify-content: center;" title="Открыть полный паспорт задачи">
                                 <i class="fa-solid fa-folder-open"></i> Паспорт
                             </button>
-                            <button type="button" class="btn-action btn-secondary-action" onclick="deleteStageFromGraph()" style="font-size: 0.76rem; padding: 5px 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить этап">
+                            <button type="button" class="btn-action btn-secondary-action" onclick="openSelectedStageHistory()" style="font-size: 0.76rem; padding: 5px 8px; justify-content: center; color: #b45309; border-color: #fde68a; background: #fffbeb;" title="История изменений и аудит этапа">
+                                <i class="fa-solid fa-clock-rotate-left"></i> История
+                            </button>
+                            <button type="button" class="btn-action btn-secondary-action" id="inspector-delete-btn" onclick="deleteStageFromGraph()" style="font-size: 0.76rem; padding: 5px 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить этап (требуется PIN)">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         </div>
@@ -4358,7 +4385,7 @@
                 <!-- PIN Verification -->
                 <div class="form-row" style="margin-top: 0.75rem;">
                     <label style="font-weight: 600; font-size: 0.82rem; color: #334155; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-key" style="color: #f59e0b;"></i> PIN-код подтверждения (Автор или 6282) *
+                        <i class="fa-solid fa-key" style="color: #f59e0b;"></i> PIN-код подтверждения *
                     </label>
                     <input type="password" class="form-input" id="accept-project-pin" maxlength="10" placeholder="••••"
                         style="font-size: 1.25rem; letter-spacing: 6px; text-align: center; font-weight: 700; width: 100%;">

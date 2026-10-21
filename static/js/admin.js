@@ -2572,7 +2572,7 @@ async function loadPasswords() {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:#64748b;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка списка папок...</td></tr>';
     }
     try {
-        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '6282';
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
         const res = await fetch('/api/admin/document-categories', {
             headers: {
                 'X-Admin-PIN': pin
@@ -2631,7 +2631,7 @@ async function setPassword(catId, btnEl) {
     }
     
     try {
-        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '6282';
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
         const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
             method: 'POST',
             headers: {
@@ -2667,7 +2667,7 @@ async function clearPassword(catId, btnEl) {
     }
     
     try {
-        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '6282';
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
         const res = await fetch(`/api/admin/document-categories/${catId}/set-password`, {
             method: 'POST',
             headers: {
@@ -3866,7 +3866,7 @@ async function saveAdminTask() {
         week_label: week,
         status: status,
         comment: comment,
-        pin_code: (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : "6282"
+        pin_code: (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : ""
     };
 
     try {

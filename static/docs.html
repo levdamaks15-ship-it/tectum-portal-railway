@@ -2531,10 +2531,10 @@
                 const checkRes = await verifyPasswordOnServer(passwordModalFolderId, pwd);
                 if (checkRes.ok) {
                     sessionStorage.setItem('folder_password', pwd);
-                    if (pwd === '6282' && (!currentDocsUser || !currentDocsUser.pin)) {
-                        currentDocsUser = { name: 'Левда М.', pin: '6282' };
+                    if (checkRes.data?.is_admin && (!currentDocsUser || !currentDocsUser.pin)) {
+                        currentDocsUser = { name: checkRes.data.employee_name || 'Левда М.', pin: pwd, is_admin: true };
                         localStorage.setItem('tectum_portal_user', JSON.stringify(currentDocsUser));
-                        localStorage.setItem('tectum_current_user_name', 'Левда М.');
+                        localStorage.setItem('tectum_current_user_name', currentDocsUser.name);
                         updateDocsUserBadge();
                     } else if (checkRes.data?.employee_name && (!currentDocsUser || !currentDocsUser.pin)) {
                         currentDocsUser = { name: checkRes.data.employee_name, pin: pwd };
@@ -2566,8 +2566,8 @@
 
         async function ensurePassword(isProtected, targetFolderId = null) {
             if (!isProtected) return true;
-            // Администратор (6282) имеет прямой доступ
-            if (currentDocsUser && currentDocsUser.pin === '6282') return true;
+            // Администратор имеет прямой доступ
+            if (currentDocsUser && (currentDocsUser.is_admin || currentDocsUser.name === 'Левда М.')) return true;
 
             const checkFolderId = targetFolderId || currentFolderId;
             let pwd = sessionStorage.getItem('folder_password') || (currentDocsUser ? currentDocsUser.pin : null);

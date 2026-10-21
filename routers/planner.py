@@ -147,6 +147,12 @@ def check_task_access(
         is_author = bool(clean_user and task.author_name and clean_user == task.author_name)
         is_assignee = bool(clean_user and task.assignee_name and clean_user == task.assignee_name)
 
+        # Если задача является подзадачей или этапом, проверяем также автора родительского проекта
+        if not is_author and task.parent_id:
+            parent_task = db.query(models.Task).filter(models.Task.id == task.parent_id).first()
+            if parent_task and parent_task.author_name and clean_user == parent_task.author_name:
+                is_author = True
+
         if is_author:
             if verify_person_pin(db, clean_user, clean_pin):
                 return True, ""
@@ -161,7 +167,7 @@ def check_task_access(
             return False, f"Неверный PIN-код исполнителя «{clean_user}»"
 
         if action in ("edit_project", "delete_task"):
-            return False, f"Редактировать суть, вехи и удалять проект/задачу может только автор ({task.author_name or '—'}), руководство завода или администратор"
+            return False, f"Редактировать суть, этапы и удалять проект/задачу может только автор ({task.author_name or '—'}), руководство завода или администратор"
 
         if action == "interact_task":
             return False, f"Взаимодействовать с задачей (смена статуса, фото, факт) может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
@@ -2980,6 +2986,7 @@ def delete_task(
     task_id: int,
     user_name: Optional[str] = Query(None),
     pin: Optional[str] = Query(None),
+    pin_code: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     """Удаляет задачу в Корзину / Архив (Soft Delete с полным JSON-снимком в AuditLog)."""
@@ -2989,15 +2996,27 @@ def delete_task(
             raise HTTPException(status_code=404, detail="Задача не найдена")
         
         clean_user = (user_name or "").strip()
-        clean_pin = (pin or "").strip()
+        clean_pin = (pin or pin_code or "").strip()
         ok, err = check_task_access(db, task, clean_user, clean_pin, "delete_task")
         if not ok:
             raise HTTPException(status_code=403, detail=err)
 
         task_info = f"ID: {task.id}, Код: {task.code}, Заголовок: {task.title}, Зона: {task.zone}, Период: {task.month_label}/{task.week_label}"
+        parent_id = task.parent_id
         
         # Soft delete: не вызываем db.delete(task), а переносим в архив/корзину
         task.is_archived = True
+
+        # Каскадно архивируем вложенные подзадачи
+        child_subtasks = db.query(models.Task).filter(
+            models.Task.parent_id == task_id,
+            models.Task.is_archived == False
+        ).all()
+        for child in child_subtasks:
+            child.is_archived = True
+
+        # Сбрасываем блокировку у зависимых этапов в графе проекта
+        db.query(models.Task).filter(models.Task.depends_on_id == task_id).update({models.Task.depends_on_id: None})
         
         # Сохраняем полный JSON-снимок задачи для 100% гарантии восстановления
         snapshot = {
@@ -3019,7 +3038,7 @@ def delete_task(
             "progress": task.progress
         }
         
-        # Логирование в аудит
+        # Логирование в аудит для самой задачи
         db.add(models.AuditLog(
             user_name=clean_user or "Администратор",
             action="DELETE",
@@ -3027,8 +3046,26 @@ def delete_task(
             target_id=task_id,
             details=f"Пользователь «{clean_user or 'Администратор'}» переместил задачу в Корзину [{task_info}] | Снимок: {json.dumps(snapshot, ensure_ascii=False)}"
         ))
+
+        # Если задача вложена в родительский проект/этап — логируем также в историю родителя
+        if parent_id:
+            parent_task = db.query(models.Task).filter(models.Task.id == parent_id).first()
+            if parent_task:
+                item_label = "этап" if (task.task_type == "milestone" or getattr(task, 'is_milestone', False)) else "подзадачу"
+                db.add(models.AuditLog(
+                    user_name=clean_user or "Администратор",
+                    action="DELETE",
+                    target_table="tasks",
+                    target_id=parent_id,
+                    details=f"Пользователь «{clean_user or 'Администратор'}» удалил {item_label} [{task.code or f'TSK-{task.id}'}] «{task.title}» из проекта"
+                ))
         
         db.commit()
+
+        # Автоматический пересчет прогресса родителя
+        if parent_id:
+            recalculate_parent_task_progress(db, parent_id)
+
         return {"status": "ok", "message": "Задача успешно перемещена в Корзину"}
     except HTTPException:
         raise

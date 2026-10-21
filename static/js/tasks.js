@@ -163,8 +163,7 @@ const PLANNER_TRUSTED_LEADERS = ["Туматов Д.", "Герлинг С.", "Б
 
 function isPlannerAdmin(user = currentPlannerUser) {
     if (!user) return false;
-    const masterPin = "6282";
-    return user.name === "Левда М." || (user.pin && user.pin.trim() === masterPin);
+    return user.name === "Левда М." || user.is_admin === true;
 }
 
 function isPlannerTrustedLeader(user = currentPlannerUser) {
@@ -296,6 +295,7 @@ function openPinModal(preselectedUser = null, onSuccess = null) {
         modal.style.display = "flex";
         modal.style.alignItems = "center";
         modal.style.justifyContent = "center";
+        modal.style.zIndex = "9000";
     }
     
     setTimeout(() => {
@@ -378,7 +378,7 @@ async function submitPinModal() {
 }
 
 function ensureUserAuthorized(requiredUser = null, onSuccess, task = null, actionType = "interact") {
-    // 1. Мастер-администратор (Левда М. или мастер-PIN 6282) — абсолютные права
+    // 1. Администратор — абсолютные права
     if (currentPlannerUser && isPlannerAdmin()) {
         onSuccess(currentPlannerUser);
         return;
@@ -395,26 +395,28 @@ function ensureUserAuthorized(requiredUser = null, onSuccess, task = null, actio
         const uName = currentPlannerUser.name ? currentPlannerUser.name.trim() : "";
         const isAuthor = Boolean(task.author_name && task.author_name.trim() === uName);
         const isAssignee = Boolean(task.assignee_name && task.assignee_name.trim() === uName);
+        const projectAuthor = currentGraphData?.project?.author_name;
+        const isProjectAuthor = Boolean(projectAuthor && projectAuthor.trim() === uName);
 
         if (actionType === "edit_project" || actionType === "delete_task") {
-            if (isAuthor) {
+            if (isAuthor || isProjectAuthor) {
                 onSuccess(currentPlannerUser);
                 return;
             } else {
-                showToast(`🔒 Редактировать суть и удалять задачу/проект может только автор (${task.author_name || '—'}), руководство завода или администратор`, "warning");
+                showToast(`🔒 Редактировать суть и удалять задачу/этап может только автор (${task.author_name || projectAuthor || '—'}), руководство завода или администратор`, "warning");
                 return;
             }
         } else if (actionType === "accept_project") {
-            if (isAuthor) {
+            if (isAuthor || isProjectAuthor) {
                 onSuccess(currentPlannerUser);
                 return;
             } else {
-                showToast(`🔒 Принимать проект дорожной карты может только автор (${task.author_name || '—'}), руководство завода или администратор`, "warning");
+                showToast(`🔒 Принимать проект дорожной карты может только автор (${task.author_name || projectAuthor || '—'}), руководство завода или администратор`, "warning");
                 return;
             }
         } else {
             // interact (статус, комментарий, фото)
-            if (isAuthor || isAssignee) {
+            if (isAuthor || isAssignee || isProjectAuthor) {
                 onSuccess(currentPlannerUser);
                 return;
             } else {
@@ -430,13 +432,7 @@ function ensureUserAuthorized(requiredUser = null, onSuccess, task = null, actio
         return;
     }
 
-    // 5. Если пользователь залогинен под другим именем и не проходит проверки
-    if (currentPlannerUser && requiredUser && currentPlannerUser.name.trim() !== String(requiredUser).trim()) {
-        showToast(`🔒 Действие требует прав «${requiredUser}», руководства завода или администратора`, "warning");
-        return;
-    }
-
-    // 6. Если сессии нет (Гость) — открываем ввод PIN
+    // 5. Если пользователь залогинен под другим именем или сессии нет — открываем ввод PIN
     openPinModal(requiredUser, onSuccess);
 }
 
@@ -1551,7 +1547,7 @@ async function submitProjectAcceptance() {
     const comment = (commentInput && commentInput.value) ? commentInput.value.trim() : "Проект официально принят";
 
     if (!pin) {
-        alert("Пожалуйста, введите PIN-код автора проекта или администратора (6282)");
+        alert("Пожалуйста, введите персональный PIN-код для подтверждения");
         if (pinInput) pinInput.focus();
         return;
     }
@@ -7370,7 +7366,7 @@ function renderKpiSummary(tasks) {
    TASK HISTORY & AUDIT LOG MODAL
    ========================================================== */
 async function openTaskHistoryModal(taskId) {
-    const task = allTasks.find(t => t.id === taskId);
+    const task = allTasks.find(t => t.id === taskId) || (currentGraphData?.nodes || []).find(n => n.id === taskId) || currentGraphData?.project;
     const modal = document.getElementById("task-history-modal");
     const timelineList = document.getElementById("history-timeline-list");
     const codeEl = document.getElementById("history-task-code");
@@ -7388,11 +7384,15 @@ async function openTaskHistoryModal(taskId) {
     }
 
     modal.style.display = "flex";
+    modal.style.zIndex = "8000";
 
     try {
         const res = await fetch(`/api/tasks/${taskId}/history`);
         if (res.ok) {
             const data = await res.json();
+            if (data.code && codeEl) codeEl.textContent = data.code;
+            if (data.title && titleEl) titleEl.textContent = data.title;
+            if (data.status && statusBadgeEl) statusBadgeEl.textContent = data.status;
             renderTimelineHistory(data.history || []);
         } else {
             if (timelineList) {
@@ -7427,9 +7427,14 @@ function renderTimelineHistory(historyItems) {
 
         if (act === "CREATE") {
             dotClass = "dot-create";
-            actionBadge = "Создание задачи";
+            actionBadge = "Создание";
             badgeColor = "#16a34a";
             badgeBg = "#dcfce7";
+        } else if (act === "DELETE" || details.includes("удалил") || details.includes("Корзину")) {
+            dotClass = "dot-cancel";
+            actionBadge = "Удаление (PIN)";
+            badgeColor = "#b91c1c";
+            badgeBg = "#fee2e2";
         } else if (details.includes("Выполнено")) {
             dotClass = "dot-complete";
             actionBadge = "Выполнено";
@@ -7452,6 +7457,12 @@ function renderTimelineHistory(historyItems) {
             badgeBg = "#fef3c7";
         }
 
+        // Очищаем снимок JSON из отображаемого текста истории
+        let cleanDetails = details;
+        if (cleanDetails.includes(" | Снимок:")) {
+            cleanDetails = cleanDetails.split(" | Снимок:")[0];
+        }
+
         return `
             <div class="timeline-item">
                 <div class="timeline-dot ${dotClass}"></div>
@@ -7463,7 +7474,7 @@ function renderTimelineHistory(historyItems) {
                         </div>
                         <span class="timeline-date">${item.timestamp || ''}</span>
                     </div>
-                    <div class="timeline-body">${escapeHtml(item.details || '')}</div>
+                    <div class="timeline-body">${escapeHtml(cleanDetails)}</div>
                 </div>
             </div>
         `;
@@ -8243,23 +8254,35 @@ async function toggleInspectorSubtask(subtaskId, currentStatus, event) {
 
 async function deleteInspectorSubtask(subtaskId, event) {
     if (event) event.stopPropagation();
-    if (!confirm("Удалить эту подзадачу?")) return;
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
-    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
-    try {
-        const res = await fetch(`/api/tasks/${subtaskId}?user_name=${encodeURIComponent(authorName)}&pin_code=${encodeURIComponent(pin)}`, {
-            method: "DELETE"
-        });
-        if (res.ok) {
-            showToast("Подзадача удалена");
-            await reloadProjectGraphData();
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить подзадачу'}`);
+    if (!selectedGraphNodeId) return;
+    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+    const subtask = (node?.subtasks || []).find(st => st.id === subtaskId);
+    const subtaskTitle = subtask ? `«${subtask.title}»` : "подзадачу";
+    const targetAuthor = subtask?.author_name || node?.author_name || currentGraphData?.project?.author_name || null;
+
+    ensureUserAuthorized(targetAuthor, async (authedUser) => {
+        if (!confirm(`Вы действительно хотите удалить ${subtaskTitle}?\n\nДействие подтверждается сотрудником «${authedUser.name}» через PIN-код и запишется в журнал истории проекта.`)) {
+            return;
         }
-    } catch (e) {
-        console.error("Error deleting subtask:", e);
-    }
+
+        try {
+            const userName = authedUser.name || "";
+            const pinCode = authedUser.pin || "";
+            const res = await fetch(`/api/tasks/${subtaskId}?user_name=${encodeURIComponent(userName)}&pin_code=${encodeURIComponent(pinCode)}`, {
+                method: "DELETE"
+            });
+            if (res.ok) {
+                showToast("Подзадача удалена и зафиксирована в истории");
+                await reloadProjectGraphData();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить подзадачу'}`);
+            }
+        } catch (e) {
+            console.error("Error deleting subtask:", e);
+            showToast("Сетевая ошибка при удалении подзадачи");
+        }
+    }, subtask || node, "delete_task");
 }
 
 function handleInspectorNewSubtaskKeydown(event) {
@@ -8311,29 +8334,64 @@ async function addInspectorSubtask() {
 async function deleteStageFromGraph() {
     if (!selectedGraphNodeId) return;
     const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
-    const stageTitle = node ? `[${node.code}] «${node.title}»` : "выбранный этап";
-    if (!confirm(`Вы действительно хотите удалить ${stageTitle}?`)) return;
+    if (!node) return;
 
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
-    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+    const stageTitle = `[${node.code || ('TSK-' + node.id)}] «${node.title}»`;
+    const targetAuthor = node.author_name || currentGraphData?.project?.author_name || null;
 
-    try {
-        const res = await fetch(`/api/tasks/${selectedGraphNodeId}?user_name=${encodeURIComponent(authorName)}&pin_code=${encodeURIComponent(pin)}`, {
-            method: "DELETE"
-        });
-
-        if (res.ok) {
-            showToast("Этап удалён из проекта");
-            closeGraphInspector();
-            await reloadProjectGraphData();
-            await loadRoadmaps();
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить этап'}`);
+    ensureUserAuthorized(targetAuthor, async (authedUser) => {
+        if (!confirm(`Вы действительно хотите удалить этап ${stageTitle}?\n\nДействие подтверждается сотрудником «${authedUser.name}» через PIN-код и будет зафиксировано в истории аудита проекта.`)) {
+            return;
         }
-    } catch (e) {
-        console.error("Error deleting stage from graph:", e);
+
+        const deleteBtn = document.getElementById("inspector-delete-btn");
+        if (deleteBtn) {
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        }
+
+        try {
+            const userName = authedUser.name || "";
+            const pinCode = authedUser.pin || "";
+            const res = await fetch(`/api/tasks/${selectedGraphNodeId}?user_name=${encodeURIComponent(userName)}&pin_code=${encodeURIComponent(pinCode)}`, {
+                method: "DELETE"
+            });
+
+            if (res.ok) {
+                showToast("Этап удалён и зафиксирован в истории");
+                closeGraphInspector();
+                await reloadProjectGraphData();
+                await loadRoadmaps();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось удалить этап'}`);
+            }
+        } catch (e) {
+            console.error("Error deleting stage from graph:", e);
+            showToast("Сетевая ошибка при удалении этапа");
+        } finally {
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+            }
+        }
+    }, node, "delete_task");
+}
+
+function openSelectedStageHistory() {
+    if (!selectedGraphNodeId) {
+        showToast("Выберите этап на схеме для просмотра истории");
+        return;
     }
+    openTaskHistoryModal(selectedGraphNodeId);
+}
+
+function openCurrentProjectHistory() {
+    if (!currentGraphProjectId) {
+        showToast("Проект не выбран");
+        return;
+    }
+    openTaskHistoryModal(currentGraphProjectId);
 }
 
 function openGraphAddStageModal(presetDependsOnId = null) {
