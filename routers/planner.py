@@ -54,15 +54,22 @@ def send_task_email_notification(to_email: str, subject: str, event_type: str, t
 PLANNER_ADMIN_NAMES = {"Левда М."}
 
 def is_admin_authorized(db: Session, pin: str) -> bool:
-    """Проверяет, совпадает ли введенный PIN с PIN-кодом любого из администраторов системы или мастер-PIN."""
+    """Проверяет, совпадает ли введенный PIN с PIN-кодом любого из администраторов системы или мастер-PIN (6282)."""
     if not pin:
         return False
-    master_pin = os.getenv("MASTER_PIN", "1509")
-    if pin.strip() == master_pin or pin.strip() == "1509":
+    clean_pin = pin.strip()
+    master_pin = os.getenv("MASTER_PIN", "6282").strip()
+    if clean_pin == master_pin or clean_pin == "6282":
         return True
     admin_emps = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name.in_(PLANNER_ADMIN_NAMES)).all()
     for a in admin_emps:
-        if a.pin_code and a.pin_code.strip() == pin.strip():
+        if a.pin_code and a.pin_code.strip() == clean_pin:
+            return True
+    admin_masters = db.query(models.Master).filter(
+        or_(models.Master.role.in_(["admin", "director"]), models.Master.name.in_(PLANNER_ADMIN_NAMES))
+    ).all()
+    for m in admin_masters:
+        if m.pin and m.pin.strip() == clean_pin:
             return True
     return False
 
@@ -572,10 +579,21 @@ def recalculate_parent_task_progress(db: Session, parent_id: Optional[int]):
         total_count = len(subtasks)
         calc_prog = int((done_count / total_count) * 100) if total_count > 0 else 0
         parent.progress = calc_prog
-        if calc_prog == 100 and parent.status != "🟢 Выполнено":
-            parent.status = "🟢 Выполнено"
-        elif calc_prog < 100 and parent.status == "🟢 Выполнено":
-            parent.status = "🟡 В работе"
+        # Проверяем, является ли родитель корневым проектом дорожной карты
+        is_root_project = (parent.task_type == "roadmap" and (not parent.parent_id or parent.parent_id == 0))
+        
+        if is_root_project:
+            # Для КОРНЕВОГО проекта: 100% готовность не закрывает проект автоматически,
+            # чтобы он не пропадал с активной доски до официальной приемки автором/директором.
+            # Если проект ранее был принят, но подзадачу вернули в работу (<100%), статус сбрасывается в "В работе"
+            if calc_prog < 100 and parent.status == "🟢 Выполнено":
+                parent.status = "🟡 В работе"
+        else:
+            # Для вех и обычных задач: стандартный авто-перевод
+            if calc_prog == 100 and parent.status != "🟢 Выполнено":
+                parent.status = "🟢 Выполнено"
+            elif calc_prog < 100 and parent.status == "🟢 Выполнено":
+                parent.status = "🟡 В работе"
         db.commit()
         if parent.parent_id:
             recalculate_parent_task_progress(db, parent.parent_id)
@@ -602,6 +620,36 @@ def get_task_tags(db: Session = Depends(get_db)):
         print(f"Error fetching task tags: {e}")
         return []
 
+def parse_task_photos_dict(task: models.Task) -> dict:
+    """Возвращает нормализованный словарь {'before': [...], 'after': [...]} с учетом legacy-ссылок."""
+    photos_dict = {"before": [], "after": []}
+    if task.photos:
+        try:
+            parsed = json.loads(task.photos) if isinstance(task.photos, str) else task.photos
+            if isinstance(parsed, dict):
+                photos_dict["before"] = parsed.get("before", []) or []
+                photos_dict["after"] = parsed.get("after", []) or []
+            elif isinstance(parsed, list):
+                photos_dict["before"] = parsed
+        except Exception:
+            pass
+
+    if task.photo_link and not any((p.get("url") == task.photo_link if isinstance(p, dict) else p == task.photo_link) for p in photos_dict["before"]):
+        photos_dict["before"].insert(0, {
+            "url": task.photo_link,
+            "name": "Фото ДО",
+            "type": "before",
+            "uploaded_at": task.created_at.strftime("%d.%m.%Y") if task.created_at else ""
+        })
+    if task.photo_link_after and not any((p.get("url") == task.photo_link_after if isinstance(p, dict) else p == task.photo_link_after) for p in photos_dict["after"]):
+        photos_dict["after"].insert(0, {
+            "url": task.photo_link_after,
+            "name": "Фото ПОСЛЕ",
+            "type": "after",
+            "uploaded_at": ""
+        })
+    return photos_dict
+
 @router.get("/api/tasks/roadmaps")
 def get_roadmaps_tree(
     quarter: Optional[str] = None,
@@ -618,6 +666,8 @@ def get_roadmaps_tree(
         # По умолчанию или при quarter == 'active': показываем все активные проекты (не закрытые и не отмененные)
         if not quarter or quarter == "active":
             query = query.filter(models.Task.status.notin_(["🟢 Выполнено", "🔴 Отменено"]))
+        elif quarter == "completed":
+            query = query.filter(models.Task.status == "🟢 Выполнено")
         elif quarter != "all":
             query = query.filter(
                 or_(
@@ -631,7 +681,7 @@ def get_roadmaps_tree(
         
         raw_projects = query.order_by(models.Task.id.desc()).all()
         
-        if quarter and quarter not in ("active", "all"):
+        if quarter and quarter not in ("active", "completed", "all"):
             projects = [p for p in raw_projects if (p.target_quarter == quarter or resolve_quarter_by_date(p.due_date_str) == quarter)]
         else:
             projects = raw_projects
@@ -706,6 +756,9 @@ def get_roadmaps_tree(
                 "due_date_str": item.due_date_str or "",
                 "tags": item.tags or "",
                 "comment": item.comment or "",
+                "photo_link": item.photo_link or "",
+                "photo_link_after": item.photo_link_after or "",
+                "photos": parse_task_photos_dict(item),
                 "attached_doc": doc_info,
                 "depends_on": dep_info,
                 "is_my": is_my_item,
@@ -761,6 +814,251 @@ def get_roadmaps_tree(
         return tree
     except Exception as e:
         print(f"Error fetching roadmaps tree: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/tasks/{project_id}/graph")
+def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db)):
+    """
+    Возвращает интерактивный направленный граф зависимостей (DAG) для проекта дорожной карты:
+    узлы вех и подзадач, блокирующие зависимости, топологические колонки и расчет критического пути.
+    """
+    try:
+        project = db.query(models.Task).filter(
+            models.Task.id == project_id,
+            models.Task.is_archived == False
+        ).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Проект дорожной карты не найден")
+
+        # 1. Загружаем вехи проекта (Level 1)
+        milestones = db.query(models.Task).filter(
+            models.Task.parent_id == project_id,
+            models.Task.is_archived == False
+        ).order_by(models.Task.order_index.asc(), models.Task.id.asc()).all()
+
+        milestone_ids = [m.id for m in milestones]
+
+        # 2. Загружаем подзадачи вех (Level 2)
+        subtasks = []
+        if milestone_ids:
+            subtasks = db.query(models.Task).filter(
+                models.Task.parent_id.in_(milestone_ids),
+                models.Task.is_archived == False
+            ).order_by(models.Task.order_index.asc(), models.Task.id.asc()).all()
+
+        # 3. Собираем все задачи и внешние зависимости
+        all_local_tasks = [project] + milestones + subtasks
+        local_map = {t.id: t for t in all_local_tasks}
+
+        dep_ids = {t.depends_on_id for t in all_local_tasks if t.depends_on_id}
+        external_dep_ids = [did for did in dep_ids if did not in local_map]
+        if external_dep_ids:
+            ext_tasks = db.query(models.Task).filter(models.Task.id.in_(external_dep_ids)).all()
+            for et in ext_tasks:
+                local_map[et.id] = et
+
+        def is_task_done(t):
+            if not t:
+                return False
+            status_str = t.status or ""
+            return "Выполнено" in status_str or (t.progress is not None and t.progress >= 100)
+
+        # 4. Вычисление топологической глубины вех (col index)
+        depth_cache = {}
+        visited = set()
+
+        def get_milestone_depth(m_id):
+            if m_id in depth_cache:
+                return depth_cache[m_id]
+            if m_id in visited:
+                return 0  # Защита от циклов
+            visited.add(m_id)
+            
+            m_obj = local_map.get(m_id)
+            if not m_obj or not m_obj.depends_on_id:
+                depth_cache[m_id] = 0
+                return 0
+            
+            dep_obj = local_map.get(m_obj.depends_on_id)
+            if not dep_obj:
+                depth_cache[m_id] = 0
+                return 0
+            
+            # Если зависит от задачи внутри другой вехи, связываем с глубиной той вехи
+            parent_m_id = dep_obj.parent_id if dep_obj.parent_id in milestone_ids else dep_obj.id
+            if parent_m_id in milestone_ids and parent_m_id != m_id:
+                d = get_milestone_depth(parent_m_id) + 1
+            else:
+                d = 1
+            depth_cache[m_id] = d
+            return d
+
+        for m in milestones:
+            get_milestone_depth(m.id)
+
+        # 5. Группировка вех по колонкам
+        cols_map = {}
+        for m in milestones:
+            c = depth_cache.get(m.id, 0)
+            if c not in cols_map:
+                cols_map[c] = []
+            cols_map[c].append(m)
+
+        # 6. Сборка узлов и связей
+        nodes = []
+        edges = []
+        total_milestones = len(milestones)
+        done_milestones = 0
+        total_subtasks = len(subtasks)
+        done_subtasks = 0
+        blocked_count = 0
+
+        # Subtasks map by milestone
+        sub_by_m = {}
+        for st in subtasks:
+            sub_by_m.setdefault(st.parent_id, []).append(st)
+
+        for col_idx, m_list in sorted(cols_map.items()):
+            for row_idx, m in enumerate(m_list):
+                m_done = is_task_done(m)
+                if m_done:
+                    done_milestones += 1
+
+                # Проверка блокировки вехи
+                is_m_blocked = False
+                blocker_info = None
+                if m.depends_on_id:
+                    dep = local_map.get(m.depends_on_id)
+                    if dep:
+                        dep_done = is_task_done(dep)
+                        if not dep_done:
+                            is_m_blocked = True
+                            blocked_count += 1
+                        blocker_info = {
+                            "id": dep.id,
+                            "code": dep.code or f"TSK-{dep.id}",
+                            "title": dep.title,
+                            "is_done": dep_done
+                        }
+                        edges.append({
+                            "from_id": dep.id,
+                            "from_code": dep.code or f"TSK-{dep.id}",
+                            "to_id": m.id,
+                            "to_code": m.code or f"TSK-{m.id}",
+                            "type": "dependency",
+                            "is_completed": dep_done,
+                            "is_blocked": not dep_done,
+                            "is_active": not dep_done and not is_m_blocked
+                        })
+
+                # Подзадачи вехи
+                m_subs = sub_by_m.get(m.id, [])
+                serialized_subs = []
+                m_sub_done_cnt = 0
+                for st in m_subs:
+                    st_done = is_task_done(st)
+                    if st_done:
+                        done_subtasks += 1
+                        m_sub_done_cnt += 1
+                    
+                    st_blocked = False
+                    st_blocker = None
+                    if st.depends_on_id:
+                        s_dep = local_map.get(st.depends_on_id)
+                        if s_dep:
+                            s_dep_done = is_task_done(s_dep)
+                            if not s_dep_done:
+                                st_blocked = True
+                            st_blocker = {
+                                "id": s_dep.id,
+                                "code": s_dep.code or f"TSK-{s_dep.id}",
+                                "title": s_dep.title,
+                                "is_done": s_dep_done
+                            }
+                            edges.append({
+                                "from_id": s_dep.id,
+                                "from_code": s_dep.code or f"TSK-{s_dep.id}",
+                                "to_id": st.id,
+                                "to_code": st.code or f"TSK-{st.id}",
+                                "type": "dependency",
+                                "is_completed": s_dep_done,
+                                "is_blocked": not s_dep_done,
+                                "is_active": not s_dep_done
+                            })
+
+                    serialized_subs.append({
+                        "id": st.id,
+                        "code": st.code or f"TSK-{st.id}",
+                        "title": st.title,
+                        "title_kz": st.title_kz or "",
+                        "status": st.status or "🟡 В работе",
+                        "progress": st.progress or (100 if st_done else 0),
+                        "assignee_name": st.assignee_name or "",
+                        "due_date_str": st.due_date_str or "",
+                        "is_done": st_done,
+                        "is_blocked": st_blocked,
+                        "blocked_by": st_blocker,
+                        "photos": parse_task_photos_dict(st)
+                    })
+
+                calc_prog = int((m_sub_done_cnt / len(m_subs)) * 100) if m_subs else (100 if m_done else (m.progress or 0))
+
+                nodes.append({
+                    "id": m.id,
+                    "code": m.code or f"TSK-{m.id}",
+                    "title": m.title,
+                    "title_kz": m.title_kz or "",
+                    "task_type": "milestone",
+                    "status": m.status or "🟡 В работе",
+                    "progress": calc_prog,
+                    "assignee_name": m.assignee_name or "",
+                    "due_date_str": m.due_date_str or "",
+                    "col": col_idx,
+                    "row": row_idx,
+                    "is_done": m_done,
+                    "is_blocked": is_m_blocked,
+                    "blocked_by": blocker_info,
+                    "subtasks_count": len(m_subs),
+                    "subtasks_done_count": m_sub_done_cnt,
+                    "subtasks": serialized_subs,
+                    "photos": parse_task_photos_dict(m)
+                })
+
+        # Общий процент выполнения проекта
+        total_items = total_milestones + total_subtasks
+        done_items = done_milestones + done_subtasks
+        overall_progress = int((done_items / total_items) * 100) if total_items > 0 else (project.progress or 0)
+
+        max_col_val = max(cols_map.keys()) if cols_map else 0
+
+        return {
+            "project": {
+                "id": project.id,
+                "code": project.code or f"TSK-{project.id}",
+                "title": project.title,
+                "title_kz": project.title_kz or "",
+                "status": project.status or "🟡 В работе",
+                "progress": overall_progress,
+                "target_quarter": project.target_quarter or "",
+                "department_service": project.department_service or "",
+                "assignee_name": project.assignee_name or ""
+            },
+            "nodes": nodes,
+            "edges": edges,
+            "summary": {
+                "total_milestones": total_milestones,
+                "done_milestones": done_milestones,
+                "total_subtasks": total_subtasks,
+                "done_subtasks": done_subtasks,
+                "blocked_count": blocked_count,
+                "overall_progress": overall_progress,
+                "max_col": max_col_val
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error generating project graph: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/documents/{doc_id}/tasks")
@@ -1317,6 +1615,7 @@ def get_tasks(
                 "subtasks_done_count": subs_data["done"],
                 "photo_link": t.photo_link or "",
                 "photo_link_after": t.photo_link_after or "",
+                "photos": parse_task_photos_dict(t),
                 "author_name": t.author_name or "",
                 "assignee_name": t.assignee_name or "",
                 "due_date_str": t.due_date_str or "",
@@ -1366,9 +1665,107 @@ async def upload_task_photo(file: UploadFile = File(...)):
         print(f"Error uploading task photo: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/api/tasks/{task_id}/upload_photos")
+async def upload_task_photos_batch(
+    task_id: int,
+    files: List[UploadFile] = File(...),
+    photo_type: str = Form("before"),
+    author_name: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Принимает пачку фотографий (multi-photo) для задачи,
+    сохраняет на постоянный диск Railway Volume (/uploads/tasks/),
+    и обновляет JSON-массив task.photos в единой транзакции с разделением ДО/ПОСЛЕ.
+    """
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    upload_dir = os.path.join("uploads", "tasks")
+    os.makedirs(upload_dir, exist_ok=True)
+
+    photos_dict = parse_task_photos_dict(task)
+    clean_type = "after" if str(photo_type).lower() == "after" else "before"
+    now_str = datetime.utcnow().strftime("%d.%m.%Y %H:%M")
+    added_photos = []
+
+    import uuid
+    for file in files:
+        if not file.filename:
+            continue
+        ext = os.path.splitext(file.filename)[1].lower() or ".webp"
+        unique_name = f"task_{task_id}_{clean_type}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
+        file_path = os.path.join(upload_dir, unique_name)
+        contents = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        public_url = f"/uploads/tasks/{unique_name}"
+        item = {
+            "url": public_url,
+            "name": file.filename,
+            "type": clean_type,
+            "uploaded_at": now_str,
+            "author": author_name or task.author_name or "Пользователь"
+        }
+        photos_dict[clean_type].append(item)
+        added_photos.append(item)
+
+    if clean_type == "before" and not task.photo_link and photos_dict["before"]:
+        task.photo_link = photos_dict["before"][0]["url"]
+    if clean_type == "after" and not task.photo_link_after and photos_dict["after"]:
+        task.photo_link_after = photos_dict["after"][0]["url"]
+
+    task.photos = json.dumps(photos_dict, ensure_ascii=False)
+
+    db.add(models.AuditLog(
+        user_name=author_name or "Пользователь",
+        action="UPDATE",
+        target_table="tasks",
+        target_id=task.id,
+        details=f"Загружено {len(added_photos)} фото ({'ПОСЛЕ' if clean_type == 'after' else 'ДО'}) к задаче [{task.code or f'TSK-{task.id}'}]"
+    ))
+    db.commit()
+    db.refresh(task)
+
+    return {"status": "ok", "photos": photos_dict, "added_count": len(added_photos)}
+
+@router.delete("/api/tasks/{task_id}/photos")
+def delete_task_photo(
+    task_id: int,
+    payload: dict = Body(...),
+    db: Session = Depends(get_db)
+):
+    """Удаляет фото из массива photos задачи."""
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Задача не найдена")
+
+    target_url = payload.get("url")
+    photo_type = payload.get("photo_type", "before")
+    clean_type = "after" if str(photo_type).lower() == "after" else "before"
+
+    if not target_url:
+        raise HTTPException(status_code=400, detail="Не указан url фотографии")
+
+    photos_dict = parse_task_photos_dict(task)
+    photos_dict[clean_type] = [p for p in photos_dict[clean_type] if (p.get("url") if isinstance(p, dict) else p) != target_url]
+
+    if task.photo_link == target_url:
+        task.photo_link = photos_dict["before"][0]["url"] if photos_dict["before"] else ""
+    if task.photo_link_after == target_url:
+        task.photo_link_after = photos_dict["after"][0]["url"] if photos_dict["after"] else ""
+
+    task.photos = json.dumps(photos_dict, ensure_ascii=False)
+    db.commit()
+    db.refresh(task)
+
+    return {"status": "ok", "photos": photos_dict}
+
 @router.get("/api/tasks/{task_id}")
 def get_single_task(task_id: int, db: Session = Depends(get_db)):
-    """Возвращает полную информацию по конкретной задаче с подзадачами, связями и документом."""
+    """Возвращает полную информацию по конкретной задаче с подзадачами, связями, документами и мульти-фото."""
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
@@ -1415,6 +1812,8 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
     done_cnt = sum(1 for s in subtasks if s.status == "🟢 Выполнено")
     calc_prog = int((done_cnt / len(subtasks)) * 100) if subtasks else (task.progress or 0)
 
+    photos_dict = parse_task_photos_dict(task)
+
     return {
         "id": task.id,
         "code": task.code or f"TSK-{task.id:02d}",
@@ -1434,6 +1833,7 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "subtasks": subtasks_list,
         "photo_link": task.photo_link or "",
         "photo_link_after": task.photo_link_after or "",
+        "photos": photos_dict,
         "author_name": task.author_name or "",
         "assignee_name": task.assignee_name or "",
         "due_date_str": task.due_date_str or "",
@@ -1603,6 +2003,138 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
     except Exception as e:
         db.rollback()
         print(f"Error creating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/quick_milestone")
+def create_quick_milestone(
+    data: schemas.QuickMilestoneCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Сверхбыстрое создание этапа/подзадачи в дорожной карте:
+    - Проверяет существование родительского проекта
+    - Наследует зону, службу, квартал от проекта
+    - Автоматически синхронизирует календарь (month_label, week_label)
+    - Переводит название на KZ в фоне
+    - Пересчитывает прогресс родительского проекта
+    """
+    try:
+        title_ru = (data.title or "").strip()
+        if not title_ru:
+            raise HTTPException(status_code=400, detail="Суть этапа не может быть пустой")
+
+        parent = db.query(models.Task).filter(models.Task.id == data.parent_id).first()
+        if not parent:
+            raise HTTPException(status_code=404, detail=f"Родительский проект TSK-{data.parent_id} не найден")
+
+        # Автор и PIN
+        author_name = (data.author_name or "").strip() or parent.author_name or "Планнер"
+        pin = (data.pin_code or "").strip()
+        if author_name and not is_admin_authorized(db, pin):
+            emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
+            if emp and emp.pin_code and emp.pin_code.strip():
+                if emp.pin_code.strip() != pin:
+                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
+
+        last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
+        next_num = (last_task.id + 1) if last_task else 1
+        code_str = f"TSK-{next_num:02d}"
+
+        # Автоперевод на казахский
+        trans_res = detect_and_translate_task_text(title_ru)
+        title_kz = trans_res.get("text_kz", "")
+
+        # Определение дат и квартала
+        due_date = (data.due_date_str or "").strip()
+        task_month = parent.month_label or "Сентябрь 2026"
+        task_week = parent.week_label or "Неделя 3 (21.09 - 25.09)"
+        target_quarter = parent.target_quarter or ""
+
+        if due_date:
+            res_m, res_w = find_week_and_month_for_date(due_date)
+            if res_m and res_w:
+                task_month = res_m
+                task_week = res_w
+            target_quarter = resolve_quarter_by_date(due_date) or target_quarter
+        elif not target_quarter and parent.due_date_str:
+            target_quarter = resolve_quarter_by_date(parent.due_date_str) or ""
+
+        assignee = (data.assignee_name or "").strip() or (parent.assignee_name or "")
+
+        new_milestone = models.Task(
+            code=code_str,
+            zone=parent.zone or "Бережливое производство",
+            title=title_ru,
+            title_kz=title_kz,
+            task_type="roadmap",
+            department_service=parent.department_service or "",
+            parent_id=parent.id,
+            depends_on_id=data.depends_on_id,
+            target_quarter=target_quarter,
+            progress=0,
+            photo_link=data.photo_link or "",
+            author_name=author_name,
+            assignee_name=assignee,
+            due_date_str=due_date,
+            status="🟡 В работе",
+            comment=data.comment or "",
+            month_label=task_month,
+            week_label=task_week,
+            is_archived=False
+        )
+        db.add(new_milestone)
+        db.flush()
+
+        # Автоматический пересчет прогресса родителя
+        recalculate_parent_task_progress(db, parent.id)
+
+        # AuditLog
+        db.add(models.AuditLog(
+            user_name=author_name,
+            action="CREATE",
+            target_table="tasks",
+            target_id=new_milestone.id,
+            details=f"Создан этап [{new_milestone.code}] «{new_milestone.title}» в проекте [{parent.code or f'TSK-{parent.id}'}]. Исполнитель: {assignee}"
+        ))
+        db.commit()
+        db.refresh(new_milestone)
+
+        # Отправка email исполнителю
+        if new_milestone.assignee_name:
+            assignee_email = get_task_person_email(db, new_milestone.assignee_name)
+            if assignee_email:
+                subject = f"📌 Новый этап проекта [{parent.title}]: {new_milestone.title}"
+                task_dict = {
+                    "id": new_milestone.id,
+                    "code": new_milestone.code,
+                    "title": new_milestone.title,
+                    "title_kz": new_milestone.title_kz,
+                    "zone": new_milestone.zone,
+                    "due_date_str": new_milestone.due_date_str,
+                    "author_name": new_milestone.author_name,
+                    "assignee_name": new_milestone.assignee_name,
+                    "status": new_milestone.status,
+                    "comment": new_milestone.comment,
+                    "photo_link": new_milestone.photo_link,
+                    "photo_link_after": "",
+                    "month_label": new_milestone.month_label,
+                    "week_label": new_milestone.week_label
+                }
+                background_tasks.add_task(send_task_email_notification, assignee_email, subject, f"Вам назначен этап проекта: {parent.title}", task_dict)
+
+        return {
+            "status": "ok",
+            "task_id": new_milestone.id,
+            "code": new_milestone.code,
+            "parent_id": parent.id,
+            "parent_progress": parent.progress or 0
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating quick milestone: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/bulk")
@@ -2216,6 +2748,102 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
     except Exception as e:
         db.rollback()
         print(f"Error updating task: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/{project_id}/accept")
+def accept_project(
+    project_id: int,
+    data: dict = Body(...),
+    background_tasks: BackgroundTasks = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Официальная приемка и завершение проекта дорожной карты:
+    - Проверяет права: автор проекта или администратор/директор (PIN 6282).
+    - Переводит проект в статус "🟢 Выполнено", устанавливает progress = 100, фиксирует completed_at.
+    - Регистрирует приемку в AuditLog.
+    """
+    try:
+        project = db.query(models.Task).filter(
+            models.Task.id == project_id,
+            models.Task.is_archived == False
+        ).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Проект дорожной карты не найден")
+
+        pin = (data.get("pin_code") or "").strip()
+        user_name = (data.get("user_name") or "").strip()
+        comment = (data.get("comment") or "Проект официально принят").strip()
+
+        is_admin = is_admin_authorized(db, pin)
+        is_author = False
+
+        if project.author_name:
+            author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == project.author_name).first()
+            if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
+                is_author = True
+            elif user_name and user_name == project.author_name and (not author_emp or not author_emp.pin_code):
+                is_author = True
+
+        if not is_admin and not is_author:
+            raise HTTPException(
+                status_code=403,
+                detail="Принять проект может только Автор проекта или Администратор/Директор (PIN 6282)"
+            )
+
+        project.status = "🟢 Выполнено"
+        project.progress = 100
+        project.completed_at = datetime.utcnow()
+        if comment and not project.comment:
+            project.comment = comment
+        elif comment and comment not in (project.comment or ""):
+            project.comment = f"{project.comment}; {comment}"
+
+        actor_name = user_name or project.author_name or "Администратор"
+        db.add(models.AuditLog(
+            user_name=actor_name,
+            action="ACCEPT_PROJECT",
+            target_table="tasks",
+            target_id=project.id,
+            details=f"Проект [{project.code or f'TSK-{project.id}'}] «{project.title}» официально принят и завершен. Комментарий: {comment}"
+        ))
+
+        db.commit()
+        db.refresh(project)
+
+        # Отправка email-уведомлений при наличии background_tasks
+        if background_tasks:
+            p_dict = {
+                "id": project.id,
+                "code": project.code or f"TSK-{project.id}",
+                "title": project.title,
+                "zone": project.zone,
+                "author_name": project.author_name,
+                "assignee_name": project.assignee_name,
+                "status": project.status,
+                "comment": project.comment
+            }
+            if project.author_name:
+                author_email = get_task_person_email(db, project.author_name)
+                if author_email:
+                    background_tasks.add_task(
+                        send_task_email_notification,
+                        author_email,
+                        f"🏆 Проект принят и завершен: {project.title}",
+                        "Проект принят",
+                        p_dict
+                    )
+
+        return {
+            "status": "ok",
+            "message": f"Проект [{project.code or f'TSK-{project.id}'}] успешно принят и завершен! 🏆",
+            "project_id": project.id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error accepting project: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/api/tasks/{task_id}")

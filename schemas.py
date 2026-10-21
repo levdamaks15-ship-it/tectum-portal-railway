@@ -1,6 +1,6 @@
 from pydantic import BaseModel, model_validator
 from pydantic_core import PydanticUndefined
-from typing import List, Optional
+from typing import List, Optional, Any, Dict, Union
 from datetime import date, datetime
 import datetime as dt_module
 
@@ -701,6 +701,7 @@ class TaskBase(ORMBaseModel):
     title_kz: Optional[str] = ""
     photo_link: Optional[str] = ""
     photo_link_after: Optional[str] = ""
+    photos: Optional[Any] = None
     author_name: Optional[str] = ""
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
@@ -734,6 +735,17 @@ class TaskBase(ORMBaseModel):
 
 class TaskCreate(TaskBase):
     pass
+
+class QuickMilestoneCreate(ORMBaseModel):
+    parent_id: int
+    title: str
+    assignee_name: Optional[str] = ""
+    due_date_str: Optional[str] = ""
+    author_name: Optional[str] = ""
+    depends_on_id: Optional[int] = None
+    comment: Optional[str] = ""
+    photo_link: Optional[str] = ""
+    pin_code: Optional[str] = None
 
 class BulkTaskItem(ORMBaseModel):
     title: str
@@ -781,6 +793,7 @@ class TaskUpdate(ORMBaseModel):
     title_kz: Optional[str] = None
     photo_link: Optional[str] = None
     photo_link_after: Optional[str] = None
+    photos: Optional[Any] = None
     author_name: Optional[str] = None
     assignee_name: Optional[str] = None
     due_date_str: Optional[str] = None

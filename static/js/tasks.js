@@ -47,6 +47,7 @@ let activeQuickPreset = "all"; // "all" | "my" | "in_work" | "zone"
 let myTasksFilterActive = false;
 let liveSyncIntervalId = null;
 let lastTasksDataHash = "";
+let lastRoadmapsDataHash = "";
 let isModalOpen = false;
 let isInitialLoading = true;
 let tasksFetchSeq = 0;
@@ -838,13 +839,24 @@ function startTasksLiveSync() {
     if (liveSyncIntervalId) clearInterval(liveSyncIntervalId);
 
     liveSyncIntervalId = setInterval(async () => {
-        // Only run when tab is visible and no dialog modals are currently open
-        if (document.hidden || document.visibilityState !== 'visible' || isModalOpen) {
+        // Only run when tab is visible, no dialog/photo/detail modals are active, and user is not actively typing
+        const anyModalActive = !!document.querySelector('.modal-overlay.active, .modal.active, #task-detail-modal.active, #photo-viewer-modal.active') ||
+            Array.from(document.querySelectorAll('.modal-overlay, .modal, .modal-backdrop, #subtask-quick-modal, #add-task-modal, #history-modal, #task-detail-modal, #photo-viewer-modal, #pin-auth-modal, #column-picker-modal')).some(m => {
+                try {
+                    const style = window.getComputedStyle ? window.getComputedStyle(m) : m.style;
+                    return style && style.display !== 'none' && style.visibility !== 'hidden';
+                } catch (e) {
+                    return false;
+                }
+            });
+        const isUserTyping = !!(document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName));
+
+        if (document.hidden || document.visibilityState !== 'visible' || isModalOpen || anyModalActive || isUserTyping) {
             return;
         }
 
         if (currentHorizon === "roadmaps") {
-            await loadRoadmaps();
+            await loadRoadmaps(true);
             return;
         }
 
@@ -906,7 +918,7 @@ function startTasksLiveSync() {
         } catch (e) {
             // Silently ignore background polling errors
         }
-    }, 35000); // every 35 seconds
+    }, 45000); // 45 seconds interval
 }
 
 async function loadTasks() {
@@ -1030,11 +1042,16 @@ function switchHorizon(horizon, event) {
     const quickChips = document.getElementById("quick-chips-group");
     const printSubtitle = document.getElementById("print-header-subtitle");
 
+    const roadmapChips = document.getElementById("roadmap-status-chips");
+    const weekPresets = document.getElementById("week-presets-container");
+
     if (horizon === "roadmaps") {
         if (tableWrapper) tableWrapper.style.display = "none";
         if (roadmapsContainer) roadmapsContainer.style.display = "block";
         if (filterWeek) filterWeek.style.display = "none";
         if (filterMonth) filterMonth.style.display = "none";
+        if (weekPresets) weekPresets.style.display = "none";
+        if (roadmapChips) roadmapChips.style.display = "inline-flex";
         if (filterQuarter) {
             filterQuarter.style.display = "inline-block";
             if (!filterQuarter.value) filterQuarter.value = "active";
@@ -1047,6 +1064,8 @@ function switchHorizon(horizon, event) {
         if (roadmapsContainer) roadmapsContainer.style.display = "none";
         if (filterWeek) filterWeek.style.display = "inline-block";
         if (filterMonth) filterMonth.style.display = "inline-block";
+        if (weekPresets) weekPresets.style.display = "flex";
+        if (roadmapChips) roadmapChips.style.display = "none";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
         if (printSubtitle) printSubtitle.textContent = "ПЛАНЫ СЛУЖБ ОГМ И ОГЭ (ППР И РЕВИЗИИ ОБОРУДОВАНИЯ)";
@@ -1056,6 +1075,8 @@ function switchHorizon(horizon, event) {
         if (roadmapsContainer) roadmapsContainer.style.display = "none";
         if (filterWeek) filterWeek.style.display = "inline-block";
         if (filterMonth) filterMonth.style.display = "inline-block";
+        if (weekPresets) weekPresets.style.display = "flex";
+        if (roadmapChips) roadmapChips.style.display = "none";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
         if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ТЕХНИЧЕСКОГО СОВЕТА";
@@ -1067,6 +1088,8 @@ function switchHorizon(horizon, event) {
         if (roadmapsContainer) roadmapsContainer.style.display = "none";
         if (filterWeek) filterWeek.style.display = "inline-block";
         if (filterMonth) filterMonth.style.display = "inline-block";
+        if (weekPresets) weekPresets.style.display = "flex";
+        if (roadmapChips) roadmapChips.style.display = "none";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
         if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ДНЯ КАЧЕСТВА";
@@ -1079,6 +1102,8 @@ function switchHorizon(horizon, event) {
         if (roadmapsContainer) roadmapsContainer.style.display = "none";
         if (filterWeek) filterWeek.style.display = "inline-block";
         if (filterMonth) filterMonth.style.display = "inline-block";
+        if (weekPresets) weekPresets.style.display = "flex";
+        if (roadmapChips) roadmapChips.style.display = "none";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
         if (printSubtitle) printSubtitle.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО";
@@ -1086,14 +1111,64 @@ function switchHorizon(horizon, event) {
     }
 }
 
-async function loadRoadmaps() {
+function setRoadmapScope(scope) {
+    const chipActive = document.getElementById("chip-roadmap-active");
+    const chipCompleted = document.getElementById("chip-roadmap-completed");
+    const chipAll = document.getElementById("chip-roadmap-all");
+    const quarterSelect = document.getElementById("filter-quarter");
+
+    [chipActive, chipCompleted, chipAll].forEach(c => {
+        if (c) c.classList.remove("active");
+    });
+
+    if (scope === "completed") {
+        if (chipCompleted) chipCompleted.classList.add("active");
+        if (quarterSelect) quarterSelect.value = "completed";
+    } else if (scope === "all") {
+        if (chipAll) chipAll.classList.add("active");
+        if (quarterSelect) quarterSelect.value = "all";
+    } else {
+        if (chipActive) chipActive.classList.add("active");
+        if (quarterSelect) quarterSelect.value = "active";
+    }
+
+    loadRoadmaps();
+}
+
+function onRoadmapQuarterSelectChange(val) {
+    const chipActive = document.getElementById("chip-roadmap-active");
+    const chipCompleted = document.getElementById("chip-roadmap-completed");
+    const chipAll = document.getElementById("chip-roadmap-all");
+
+    [chipActive, chipCompleted, chipAll].forEach(c => {
+        if (c) c.classList.remove("active");
+    });
+
+    if (val === "completed" && chipCompleted) {
+        chipCompleted.classList.add("active");
+    } else if (val === "all" && chipAll) {
+        chipAll.classList.add("active");
+    } else if (val === "active" && chipActive) {
+        chipActive.classList.add("active");
+    }
+
+    loadRoadmaps();
+}
+
+async function loadRoadmaps(isSilent = false) {
     const grid = document.getElementById("roadmaps-cards-grid");
     if (!grid) return;
 
     const quarterSelect = document.getElementById("filter-quarter");
     const qVal = (quarterSelect && quarterSelect.value) ? quarterSelect.value : "active";
 
-    grid.innerHTML = `<div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...</div>`;
+    // Only show spinner on manual/initial load if grid is currently empty
+    if (!isSilent) {
+        lastRoadmapsDataHash = "";
+        if (!allRoadmaps || allRoadmaps.length === 0) {
+            grid.innerHTML = `<div style="text-align: center; padding: 2rem; color: #64748b; grid-column: 1 / -1;"><i class="fa-solid fa-spinner fa-spin"></i> Загрузка дорожных карт...</div>`;
+        }
+    }
 
     try {
         let url = `/api/tasks/roadmaps?quarter=${encodeURIComponent(qVal)}`;
@@ -1102,14 +1177,23 @@ async function loadRoadmaps() {
         }
         const res = await fetch(url);
         if (res.ok) {
-            allRoadmaps = await res.json();
+            const freshRoadmaps = await res.json();
+            const freshHash = JSON.stringify(freshRoadmaps);
+            // If data is identical, do not touch DOM (prevents flicker, scroll jump, input loss)
+            if (isSilent && freshHash === lastRoadmapsDataHash) {
+                return;
+            }
+            lastRoadmapsDataHash = freshHash;
+            allRoadmaps = freshRoadmaps;
             renderRoadmaps(allRoadmaps);
-        } else {
+        } else if (!isSilent) {
             grid.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem; grid-column: 1 / -1;">Ошибка загрузки проектов</div>`;
         }
     } catch (e) {
-        console.error("Error loading roadmaps:", e);
-        grid.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem; grid-column: 1 / -1;">Ошибка соединения</div>`;
+        if (!isSilent) {
+            console.error("Error loading roadmaps:", e);
+            grid.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 2rem; grid-column: 1 / -1;">Ошибка соединения</div>`;
+        }
     }
 }
 
@@ -1151,6 +1235,24 @@ function renderRoadmaps(projects) {
         const prog = p.calculated_progress || p.progress || 0;
         const totalElems = p.total_elements || 0;
         const doneElems = p.done_elements || 0;
+        const isReadyForAccept = (prog === 100 || (totalElems > 0 && doneElems === totalElems)) && p.status !== '🟢 Выполнено';
+        const isCompleted = p.status === '🟢 Выполнено';
+
+        let cardStyle = '';
+        if (isReadyForAccept) {
+            cardStyle = 'border: 2px solid #f59e0b; box-shadow: 0 4px 18px rgba(245, 158, 11, 0.18);';
+        } else if (isCompleted) {
+            cardStyle = 'border: 1px solid #bbf7d0; background: #ffffff;';
+        }
+
+        let statusBadgeHtml = '';
+        if (isReadyForAccept) {
+            statusBadgeHtml = `<span class="badge-zone" style="background: #fef3c7; color: #b45309; border-color: #fde68a; font-size: 0.72rem; font-weight: 700;">✨ 100% — Готов к сдаче</span>`;
+        } else if (isCompleted) {
+            statusBadgeHtml = `<span class="badge-zone" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0; font-size: 0.72rem; font-weight: 700;">🟢 Завершён (100%)</span>`;
+        } else {
+            statusBadgeHtml = `<span class="badge-zone" style="background: #fffbeb; color: #b45309; border-color: #fde68a; font-size: 0.72rem;">${escapeHtml(p.status || '🟡 В работе')}</span>`;
+        }
 
         const milestonesHtml = (p.milestones || []).map(m => {
             const mProg = m.calculated_progress || m.progress || 0;
@@ -1164,12 +1266,12 @@ function renderRoadmaps(projects) {
                             <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" onclick="quickToggleRoadmapSubtask(${st.id}, '${st.status || ''}', event)" title="${isStDone ? 'Отметить как «В работе»' : 'Отметить как «Выполнено»'}">
                                 <i class="fa-solid fa-check"></i>
                             </button>
-                            <span style="font-weight: 500; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" onclick="openEditTaskModal(${st.id})" title="Нажмите для редактирования">${escapeHtml(st.title)}</span>
+                            <span style="font-weight: 500; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;" onclick="openTaskDetailModal(${st.id})" title="Подробный просмотр задачи">${escapeHtml(st.title)}</span>
                             ${depHtml}
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
                             <span style="font-size: 0.75rem; color: #64748b;">${st.assignee_name || '—'}</span>
-                            <button class="btn-icon-cell" onclick="openEditTaskModal(${st.id})" title="Редактировать" style="font-size: 0.7rem; padding: 2px 4px;">
+                            <button class="btn-icon-cell" onclick="openSubtaskQuickModal(${p.id}, ${st.id})" title="Редактировать" style="font-size: 0.7rem; padding: 2px 4px;">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                         </div>
@@ -1186,12 +1288,12 @@ function renderRoadmaps(projects) {
                             <button type="button" class="roadmap-check-btn ${isMDone ? 'checked' : ''}" onclick="quickToggleRoadmapMilestone(${m.id}, '${m.status || ''}', ${mProg}, event)" title="${isMDone ? 'Снять отметку выполнения этапа' : 'Завершить этап (100%)'}" style="width: 18px; height: 18px; font-size: 0.6rem;">
                                 <i class="fa-solid fa-check"></i>
                             </button>
-                            <span style="cursor: pointer; text-decoration: ${isMDone ? 'line-through' : 'none'}; opacity: ${isMDone ? '0.7' : '1'};" onclick="openEditTaskModal(${m.id})" title="Нажмите для редактирования">${escapeHtml(m.title)}</span>
+                            <span style="cursor: pointer; text-decoration: ${isMDone ? 'line-through' : 'none'}; opacity: ${isMDone ? '0.7' : '1'};" onclick="openTaskDetailModal(${m.id})" title="Подробный просмотр этапа">${escapeHtml(m.title)}</span>
                             ${mDepHtml}
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span style="font-size: 0.78rem; font-weight: 700; color: ${mProg === 100 ? '#10b981' : '#2563eb'};">${mProg}%</span>
-                            <button class="btn-icon-cell" onclick="openEditTaskModal(${m.id})" title="Редактировать этап" style="font-size: 0.7rem; padding: 2px 4px;">
+                            <button class="btn-icon-cell" onclick="openSubtaskQuickModal(${p.id}, ${m.id})" title="Редактировать этап" style="font-size: 0.7rem; padding: 2px 4px;">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                         </div>
@@ -1216,7 +1318,7 @@ function renderRoadmaps(projects) {
                         <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="showQuickAddSubtask(${m.id})">
                             <i class="fa-solid fa-plus"></i> Быстрая подзадача
                         </button>
-                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openAddTaskModal('milestone', ${m.id})" title="Подробная форма">
+                        <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.72rem; padding: 2px 7px;" onclick="openSubtaskQuickModal(${p.id}, null, ${m.id})" title="Подробная форма">
                             <i class="fa-solid fa-sliders"></i>
                         </button>
                     </div>
@@ -1236,16 +1338,16 @@ function renderRoadmaps(projects) {
         }).join('');
 
         return `
-            <div class="roadmap-card">
+            <div class="roadmap-card" style="${cardStyle}">
                 <div class="roadmap-header">
                     <div>
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap;">
                             <span class="badge-code" style="font-size: 11px; color: #B5B5BA; font-family: monospace; letter-spacing: 0.2px; background: none; border: none; padding: 0;">${p.code || ('TSK-' + p.id)}</span>
                             <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe;">${escapeHtml(p.target_quarter || currentQuarter)}</span>
                             ${p.department_service ? `<span class="badge-zone">${escapeHtml(p.department_service)}</span>` : ''}
-                            <span class="badge-zone" style="background: ${p.status && p.status.includes('Выполнено') ? '#f0fdf4' : '#fffbeb'}; color: ${p.status && p.status.includes('Выполнено') ? '#166534' : '#b45309'}; border-color: ${p.status && p.status.includes('Выполнено') ? '#bbf7d0' : '#fde68a'}; font-size: 0.72rem;">${escapeHtml(p.status || '🟡 В работе')}</span>
+                            ${statusBadgeHtml}
                         </div>
-                        <div class="roadmap-title">${escapeHtml(p.title)}</div>
+                        <div class="roadmap-title" onclick="openTaskDetailModal(${p.id})" style="cursor: pointer;" title="Подробный просмотр проекта">${escapeHtml(p.title)}</div>
                     </div>
                     <div style="display: flex; gap: 4px;">
                         <button class="btn-icon-cell" onclick="openEditTaskModal(${p.id})" title="Редактировать проект">
@@ -1257,11 +1359,18 @@ function renderRoadmaps(projects) {
                 <div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 4px;">
                         <span>Прогресс: ${doneElems}/${totalElems} этапов</span>
-                        <span style="color: #2563eb;">${prog}%</span>
+                        <span style="color: ${prog === 100 ? '#10b981' : '#2563eb'}; font-weight: 700;">${prog}%</span>
                     </div>
                     <div class="roadmap-progress-wrap">
-                        <div class="roadmap-progress-bar" style="width: ${prog}%;"></div>
+                        <div class="roadmap-progress-bar" style="width: ${prog}%; ${prog === 100 ? 'background: #10b981;' : ''}"></div>
                     </div>
+                </div>
+
+                <div style="margin: 8px 0 10px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <button type="button" class="btn-action" onclick="openProjectGraphModal(${p.id})" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; font-size: 0.78rem; font-weight: 600; padding: 4px 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'" title="Интерактивная схема зависимостей и вех">
+                        <i class="fa-solid fa-diagram-project" style="color: #6366f1;"></i> ⚡ Схема связей и вех
+                    </button>
+                    <span style="font-size: 0.74rem; color: #64748b; font-weight: 500;">${p.milestones ? p.milestones.length : 0} вех</span>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b;">
@@ -1282,14 +1391,468 @@ function renderRoadmaps(projects) {
                     ${milestonesHtml || '<div style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 0.5rem 0;">Этапы проекта пока не добавлены</div>'}
                 </div>
 
-                <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 6px;">
-                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.78rem; padding: 3px 9px;" onclick="openAddTaskModal('milestone', ${p.id})">
-                        <i class="fa-solid fa-plus"></i> Добавить этап
+                <!-- Inline Quick Add Milestone Bar -->
+                <div id="inline-milestone-box-${p.id}" class="roadmap-inline-milestone-box" style="margin-top: 0.65rem; padding: 0.45rem; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 8px;">
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="text" id="inline-milestone-input-${p.id}" class="form-input" placeholder="+ Добавить этап... (Enter)" style="flex: 1; min-width: 140px; padding: 4px 8px; font-size: 0.82rem; background: #fff;" onkeydown="handleInlineMilestoneKeydown(event, ${p.id})">
+                        <select id="inline-milestone-assignee-${p.id}" class="form-select" style="width: 130px; padding: 4px 6px; font-size: 0.78rem; background: #fff;" title="Исполнитель этапа">
+                            ${buildAssigneeOptions(p.assignee_name)}
+                        </select>
+                        <input type="date" id="inline-milestone-date-${p.id}" class="form-input" style="width: 110px; padding: 4px 6px; font-size: 0.78rem; background: #fff;" value="${getDefaultQuickDateIso()}" title="Срок выполнения">
+                        <button type="button" id="inline-milestone-btn-${p.id}" class="btn-action btn-primary-action" style="padding: 4px 9px; font-size: 0.78rem; background: #7c3aed; border-color: #7c3aed; flex-shrink: 0;" onclick="submitInlineMilestone(${p.id})" title="Добавить этап">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <button type="button" class="btn-icon-cell" style="padding: 4px 6px; font-size: 0.82rem; color: #7c3aed; background: #fff; border: 1px solid #ddd6fe; border-radius: 6px;" onclick="openSubtaskQuickModal(${p.id})" title="Открыть окно этапов">
+                            <i class="fa-solid fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <div>
+                        ${isReadyForAccept ? `
+                            <button type="button" class="btn-action" onclick="openProjectAcceptModal(${p.id})" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; font-weight: 700; font-size: 0.78rem; padding: 4px 11px; border-radius: 6px; border: none; cursor: pointer; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);" title="Принять проект и подписать акт">
+                                <i class="fa-solid fa-trophy"></i> Принять проект
+                            </button>
+                        ` : ''}
+                        ${isCompleted ? `
+                            <span style="font-size: 0.75rem; color: #16a34a; font-weight: 600;"><i class="fa-solid fa-medal"></i> Проект сдан и завершён</span>
+                        ` : ''}
+                    </div>
+                    <button type="button" class="btn-action btn-secondary-action" style="font-size: 0.78rem; padding: 3px 9px; background: #faf5ff; color: #7c3aed; border-color: #ddd6fe;" onclick="openSubtaskQuickModal(${p.id})">
+                        <i class="fa-solid fa-list-check"></i> Окно этапов
                     </button>
                 </div>
             </div>
         `;
     }).join('');
+}
+
+/* ==========================================================
+   PROJECT ACCEPTANCE & SIGN-OFF ACTIONS
+   ========================================================== */
+
+let currentAcceptProjectId = null;
+
+function openProjectAcceptModal(projectId) {
+    currentAcceptProjectId = projectId;
+    const p = (allRoadmaps || []).find(item => item.id === projectId);
+    if (!p) return;
+
+    document.getElementById("accept-project-id").value = projectId;
+    document.getElementById("accept-project-code").textContent = p.code || (`TSK-${p.id}`);
+    document.getElementById("accept-project-title").textContent = p.title || "";
+    document.getElementById("accept-project-author").textContent = p.author_name || "Не указан";
+    document.getElementById("accept-project-quarter").textContent = p.target_quarter || "Текущий";
+
+    // Проверяем наличие фото ПОСЛЕ
+    const hasAfterPhoto = Boolean(
+        p.photo_link_after || 
+        (p.photos && p.photos.after && p.photos.after.length > 0) ||
+        (p.milestones && p.milestones.some(m => m.photo_link_after || (m.photos && m.photos.after && m.photos.after.length > 0)))
+    );
+
+    const noticeEl = document.getElementById("accept-project-photo-notice");
+    const noticeText = document.getElementById("accept-project-photo-text");
+    if (noticeEl && noticeText) {
+        if (hasAfterPhoto) {
+            noticeEl.style.background = "#f0fdf4";
+            noticeEl.style.borderColor = "#bbf7d0";
+            noticeEl.style.color = "#15803d";
+            noticeText.innerHTML = "<b>Фотоотчет «ПОСЛЕ» прикреплен</b> и готов к проверке.";
+        } else {
+            noticeEl.style.background = "#fffbeb";
+            noticeEl.style.borderColor = "#fde68a";
+            noticeEl.style.color = "#b45309";
+            noticeText.innerHTML = "<b>Внимание:</b> фото «ПОСЛЕ» еще не загружены. Рекомендуется прикрепить фотоотчет в деталях задачи.";
+        }
+    }
+
+    document.getElementById("accept-project-comment").value = "Проект выполнен в полном объеме, ключевые этапы реализованы.";
+
+    const pinInput = document.getElementById("accept-project-pin");
+    if (pinInput) {
+        pinInput.value = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+    }
+
+    const modal = document.getElementById("project-accept-modal");
+    if (modal) modal.style.display = "flex";
+}
+
+function closeProjectAcceptModal() {
+    const modal = document.getElementById("project-accept-modal");
+    if (modal) modal.style.display = "none";
+    currentAcceptProjectId = null;
+}
+
+async function submitProjectAcceptance() {
+    if (!currentAcceptProjectId) return;
+    const btn = document.getElementById("btn-accept-project-submit");
+    const pinInput = document.getElementById("accept-project-pin");
+    const commentInput = document.getElementById("accept-project-comment");
+
+    const pin = (pinInput && pinInput.value) ? pinInput.value.trim() : "";
+    const comment = (commentInput && commentInput.value) ? commentInput.value.trim() : "Проект официально принят";
+
+    if (!pin) {
+        alert("Пожалуйста, введите PIN-код автора проекта или администратора (6282)");
+        if (pinInput) pinInput.focus();
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Подписание...`;
+    }
+
+    try {
+        const res = await fetch(`/api/tasks/${currentAcceptProjectId}/accept`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                pin_code: pin,
+                comment: comment,
+                user_name: (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : ""
+            })
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Не удалось принять проект");
+        }
+
+        showToast("🏆 Проект успешно принят и завершён!", "success");
+        closeProjectAcceptModal();
+        loadRoadmaps();
+    } catch (err) {
+        console.error("Error accepting project:", err);
+        alert("Ошибка приёмки проекта: " + err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-check-double"></i> Подписать и завершить проект`;
+        }
+    }
+}
+
+/* ==========================================================
+   SUPPORTING HELPERS & ACTIONS FOR ROADMAP MILESTONES
+   ========================================================== */
+
+function buildAssigneeOptions(defaultAssignee) {
+    const persons = getUniquePersons();
+    const cleanDefault = (defaultAssignee || '').trim().toLowerCase();
+    let html = `<option value="">-- Исполнитель --</option>`;
+    persons.forEach(name => {
+        const isSel = cleanDefault && name.toLowerCase().includes(cleanDefault);
+        html += `<option value="${escapeHtml(name)}" ${isSel ? 'selected' : ''}>${escapeHtml(name)}</option>`;
+    });
+    return html;
+}
+
+function getDefaultQuickDateIso() {
+    const d = new Date();
+    const day = d.getDay();
+    const isoDay = day === 0 ? 7 : day;
+    const diff = 5 - isoDay;
+    d.setDate(d.getDate() + (diff >= 0 ? diff : diff + 7));
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function handleInlineMilestoneKeydown(event, projectId) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        submitInlineMilestone(projectId);
+    }
+}
+
+function submitInlineMilestone(projectId) {
+    const input = document.getElementById(`inline-milestone-input-${projectId}`);
+    const assigneeSelect = document.getElementById(`inline-milestone-assignee-${projectId}`);
+    const dateInput = document.getElementById(`inline-milestone-date-${projectId}`);
+    const btn = document.getElementById(`inline-milestone-btn-${projectId}`);
+
+    const title = input ? input.value.trim() : '';
+    if (!title) {
+        if (input) input.focus();
+        return;
+    }
+
+    const assignee = assigneeSelect ? assigneeSelect.value : '';
+    const dateVal = dateInput ? dateInput.value : '';
+    const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : '';
+
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Офис бережливого производства");
+
+    ensureUserAuthorized(authorName, async (authSession) => {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+        }
+
+        try {
+            const payload = {
+                parent_id: projectId,
+                title: title,
+                assignee_name: assignee,
+                due_date_str: dueDateStr,
+                author_name: authorName,
+                pin_code: authSession ? authSession.pin : ""
+            };
+
+            const res = await fetch("/api/tasks/quick_milestone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                showToast(`Этап [${data.code}] добавлен! 🎯`);
+                if (input) input.value = '';
+                await loadRoadmaps();
+                const refreshedInput = document.getElementById(`inline-milestone-input-${projectId}`);
+                if (refreshedInput) refreshedInput.focus();
+            } else {
+                const err = await res.json();
+                showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось сохранить этап'}`);
+            }
+        } catch (e) {
+            console.error("Error submitting inline milestone:", e);
+            showToast("⚠️ Ошибка сети при добавлении этапа");
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-plus"></i>`;
+            }
+        }
+    });
+}
+
+function openSubtaskQuickModal(projectId, editTaskId = null, parentMilestoneId = null) {
+    const modal = document.getElementById("subtask-quick-modal");
+    if (!modal) return;
+
+    const project = allRoadmaps.find(p => p.id === projectId);
+    const parentInfo = document.getElementById("subtask-modal-parent-info");
+    const titleModal = document.getElementById("subtask-modal-title");
+    const parentIdInp = document.getElementById("quick-subtask-parent-id");
+    const editIdInp = document.getElementById("quick-subtask-edit-id");
+    const titleInp = document.getElementById("quick-subtask-title");
+    const assigneeSel = document.getElementById("quick-subtask-assignee");
+    const dueDateInp = document.getElementById("quick-subtask-due-date");
+    const dependsSel = document.getElementById("quick-subtask-depends");
+    const commentInp = document.getElementById("quick-subtask-comment");
+
+    const effectiveParentId = parentMilestoneId || projectId;
+    parentIdInp.value = effectiveParentId;
+    editIdInp.value = editTaskId || "";
+
+    if (project) {
+        parentInfo.textContent = `В проект [${project.code || 'TSK-' + project.id}] «${project.title}»`;
+    } else {
+        parentInfo.textContent = `Родительский проект #${projectId}`;
+    }
+
+    titleModal.textContent = editTaskId ? "Редактирование этапа" : "Новый этап проекта";
+
+    // Populate assignees
+    const persons = getUniquePersons();
+    const defaultAssignee = project ? (project.assignee_name || "") : "";
+    assigneeSel.innerHTML = `<option value="">-- Без исполнителя --</option>` + persons.map(p => {
+        const isSel = defaultAssignee && p.toLowerCase().includes(defaultAssignee.toLowerCase());
+        return `<option value="${escapeHtml(p)}" ${isSel ? 'selected' : ''}>${escapeHtml(p)}</option>`;
+    }).join('');
+
+    // Populate depends blockers
+    dependsSel.innerHTML = `<option value="">-- Без блокировки --</option>`;
+    if (project && project.milestones) {
+        project.milestones.forEach(m => {
+            if (m.id !== editTaskId) {
+                dependsSel.innerHTML += `<option value="${m.id}">${escapeHtml(m.code || 'TSK-' + m.id)}: ${escapeHtml(m.title)}</option>`;
+            }
+        });
+    }
+
+    if (!editTaskId) {
+        titleInp.value = "";
+        commentInp.value = "";
+        dueDateInp.value = getDefaultQuickDateIso();
+    } else {
+        const milestone = project && project.milestones ? project.milestones.find(m => m.id === editTaskId) : null;
+        if (milestone) {
+            titleInp.value = milestone.title || "";
+            if (milestone.assignee_name) assigneeSel.value = milestone.assignee_name;
+            commentInp.value = milestone.comment || "";
+            if (milestone.depends_on && milestone.depends_on.id) {
+                dependsSel.value = milestone.depends_on.id;
+            }
+        }
+    }
+
+    const extraContent = document.getElementById("quick-subtask-extra-content");
+    const extraIcon = document.getElementById("quick-subtask-extra-icon");
+    if (extraContent) extraContent.style.display = "none";
+    if (extraIcon) extraIcon.style.transform = "rotate(0deg)";
+
+    modal.style.display = "flex";
+    setTimeout(() => {
+        if (titleInp) titleInp.focus();
+    }, 100);
+}
+
+function closeSubtaskQuickModal() {
+    const modal = document.getElementById("subtask-quick-modal");
+    if (modal) modal.style.display = "none";
+}
+
+function toggleQuickSubtaskExtra() {
+    const content = document.getElementById("quick-subtask-extra-content");
+    const icon = document.getElementById("quick-subtask-extra-icon");
+    if (!content) return;
+    const isHidden = content.style.display === "none" || !content.style.display;
+    content.style.display = isHidden ? "flex" : "none";
+    if (icon) icon.style.transform = isHidden ? "rotate(90deg)" : "rotate(0deg)";
+}
+
+function setQuickSubtaskPreset(preset) {
+    const d = new Date();
+    if (preset === 'today') {
+        // today
+    } else if (preset === 'this_fri') {
+        const day = d.getDay();
+        const isoDay = day === 0 ? 7 : day;
+        d.setDate(d.getDate() + (5 - isoDay));
+    } else if (preset === 'next_fri') {
+        const day = d.getDay();
+        const isoDay = day === 0 ? 7 : day;
+        d.setDate(d.getDate() + (5 - isoDay) + 7);
+    } else if (preset === 'month_end') {
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+        d.setDate(lastDay.getDate());
+    }
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const dateInp = document.getElementById("quick-subtask-due-date");
+    if (dateInp) dateInp.value = `${yyyy}-${mm}-${dd}`;
+}
+
+function onQuickSubtaskDateChanged() {
+    // date changed handler
+}
+
+function handleQuickSubtaskModalKeydown(event) {
+    if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        if (event.ctrlKey) {
+            submitQuickSubtaskModal(true);
+        } else {
+            submitQuickSubtaskModal(false);
+        }
+    }
+}
+
+function submitQuickSubtaskModal(keepOpen = false) {
+    const parentId = parseInt(document.getElementById("quick-subtask-parent-id").value, 10);
+    const editId = document.getElementById("quick-subtask-edit-id").value;
+    const titleInp = document.getElementById("quick-subtask-title");
+    const assigneeSel = document.getElementById("quick-subtask-assignee");
+    const dateInp = document.getElementById("quick-subtask-due-date");
+    const dependsSel = document.getElementById("quick-subtask-depends");
+    const commentInp = document.getElementById("quick-subtask-comment");
+
+    const btnClose = document.getElementById("btn-save-subtask-close");
+    const btnMore = document.getElementById("btn-save-subtask-and-more");
+
+    const title = titleInp ? titleInp.value.trim() : "";
+    if (!title) {
+        showToast("⚠️ Введите суть этапа");
+        if (titleInp) titleInp.focus();
+        return;
+    }
+
+    const assignee = assigneeSel ? assigneeSel.value : "";
+    const dateVal = dateInp ? dateInp.value : "";
+    const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
+    const dependsOnId = dependsSel && dependsSel.value ? parseInt(dependsSel.value, 10) : null;
+    const comment = commentInp ? commentInp.value.trim() : "";
+
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Офис бережливого производства");
+
+    ensureUserAuthorized(authorName, async (authSession) => {
+        if (btnClose) btnClose.disabled = true;
+        if (btnMore) btnMore.disabled = true;
+
+        try {
+            if (editId) {
+                const updatePayload = {
+                    title: title,
+                    assignee_name: assignee,
+                    due_date_str: dueDateStr,
+                    depends_on_id: dependsOnId,
+                    comment: comment,
+                    pin_code: authSession ? authSession.pin : ""
+                };
+                const res = await fetch(`/api/tasks/${editId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updatePayload)
+                });
+                if (res.ok) {
+                    showToast("Этап успешно обновлен! 🎯");
+                    closeSubtaskQuickModal();
+                    loadRoadmaps();
+                } else {
+                    const err = await res.json();
+                    showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось обновить'}`);
+                }
+            } else {
+                const createPayload = {
+                    parent_id: parentId,
+                    title: title,
+                    assignee_name: assignee,
+                    due_date_str: dueDateStr,
+                    depends_on_id: dependsOnId,
+                    comment: comment,
+                    author_name: authorName,
+                    pin_code: authSession ? authSession.pin : ""
+                };
+                const res = await fetch("/api/tasks/quick_milestone", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(createPayload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`Этап [${data.code}] сохранен! 🎯`);
+                    if (keepOpen) {
+                        if (titleInp) {
+                            titleInp.value = "";
+                            titleInp.focus();
+                        }
+                        if (commentInp) commentInp.value = "";
+                        loadRoadmaps();
+                    } else {
+                        closeSubtaskQuickModal();
+                        loadRoadmaps();
+                    }
+                } else {
+                    const err = await res.json();
+                    showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось сохранить'}`);
+                }
+            }
+        } catch (e) {
+            console.error("Error saving quick subtask:", e);
+            showToast("⚠️ Ошибка сети при сохранении этапа");
+        } finally {
+            if (btnClose) btnClose.disabled = false;
+            if (btnMore) btnMore.disabled = false;
+        }
+    });
 }
 
 /* ==========================================================
@@ -2470,31 +3033,38 @@ function renderTasksTable(tasks) {
                 rowExtraClass += " task-row-backlog";
             }
 
-            const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim());
-            const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim());
+            const photosObj = t.photos || {};
+            const beforeList = photosObj.before || [];
+            const afterList = photosObj.after || [];
+            const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim()) || beforeList.length > 0;
+            const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim()) || afterList.length > 0;
+            const countBefore = Math.max(beforeList.length, hasPhotoBefore ? 1 : 0);
+            const countAfter = Math.max(afterList.length, hasPhotoAfter ? 1 : 0);
+            const labelBefore = countBefore > 1 ? `ДО (${countBefore})` : 'ДО';
+            const labelAfter = countAfter > 1 ? `ПОСЛЕ (${countAfter})` : 'ПОСЛЕ';
 
             let photoBtn = `<span style="color: #94a3b8; font-size: 0.75rem;">—</span>`;
             if (hasPhotoBefore && hasPhotoAfter) {
                 photoBtn = `
                     <div class="photo-dual-group" style="display: inline-flex; gap: 4px; align-items: center;">
-                        <button type="button" onclick="openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'before')" class="btn-photo-chip before" title="Фото ДО (Исходное)">
-                            <i class="fa-solid fa-camera"></i> ДО
+                        <button type="button" onclick="openPhotoViewerModal('${t.photo_link || (beforeList[0] ? (beforeList[0].url || beforeList[0]) : '')}', '${t.photo_link_after || (afterList[0] ? (afterList[0].url || afterList[0]) : '')}', 'before')" class="btn-photo-chip before" title="Фото ДО (${countBefore} шт.)">
+                            <i class="fa-solid fa-camera"></i> ${labelBefore}
                         </button>
-                        <button type="button" onclick="openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after}', 'after')" class="btn-photo-chip after" title="Фото ПОСЛЕ (Факт)">
-                            <i class="fa-solid fa-circle-check"></i> ПОСЛЕ
+                        <button type="button" onclick="openPhotoViewerModal('${t.photo_link || (beforeList[0] ? (beforeList[0].url || beforeList[0]) : '')}', '${t.photo_link_after || (afterList[0] ? (afterList[0].url || afterList[0]) : '')}', 'after')" class="btn-photo-chip after" title="Фото ПОСЛЕ (${countAfter} шт.)">
+                            <i class="fa-solid fa-circle-check"></i> ${labelAfter}
                         </button>
                     </div>
                 `;
             } else if (hasPhotoBefore) {
                 photoBtn = `
-                    <button type="button" onclick="openPhotoViewerModal('${t.photo_link}', '', 'before')" class="btn-photo-chip before" title="Фото ДО (Исходное)">
-                        <i class="fa-solid fa-camera"></i> ДО
+                    <button type="button" onclick="openPhotoViewerModal('${t.photo_link || (beforeList[0] ? (beforeList[0].url || beforeList[0]) : '')}', '', 'before')" class="btn-photo-chip before" title="Фото ДО (${countBefore} шт.)">
+                        <i class="fa-solid fa-camera"></i> ${labelBefore}
                     </button>
                 `;
             } else if (hasPhotoAfter) {
                 photoBtn = `
-                    <button type="button" onclick="openPhotoViewerModal('', '${t.photo_link_after}', 'after')" class="btn-photo-chip after" title="Фото ПОСЛЕ (Факт)">
-                        <i class="fa-solid fa-circle-check"></i> ПОСЛЕ
+                    <button type="button" onclick="openPhotoViewerModal('', '${t.photo_link_after || (afterList[0] ? (afterList[0].url || afterList[0]) : '')}', 'after')" class="btn-photo-chip after" title="Фото ПОСЛЕ (${countAfter} шт.)">
+                        <i class="fa-solid fa-circle-check"></i> ${labelAfter}
                     </button>
                 `;
             }
@@ -2622,7 +3192,7 @@ function renderTasksTable(tasks) {
                         ${zoneAndDeptHtml}
                     </td>
                     <td class="${titleClass}" style="font-weight: 600; min-width: 250px; color: #0f172a; line-height: 1.35; word-break: break-word;">
-                        <div>${t.title || '—'}</div>
+                        <div onclick="openTaskDetailModal(${t.id})" style="cursor: pointer;" title="Подробный просмотр задачи">${t.title || '—'}</div>
                         ${docBadge}
                         ${depBadge}
                         ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
@@ -2899,7 +3469,12 @@ function closeAllSwipeRows() {
 }
 
 function handleCardClick(e, taskId) {
+    if (activeSwipedCard) {
+        closeAllSwipeRows();
+        return;
+    }
     closeAllSwipeRows();
+    openTaskDetailModal(taskId);
 }
 
 function initCardSwipeGestures() {
@@ -5780,16 +6355,19 @@ function onPhotoInputChanged(inputId, hintId, previewBtnId, thumbContainerId) {
     }
 }
 
-/* ── Lightbox Viewer with ДО / ПОСЛЕ Tabs ───────────────────────── */
+/* ── Lightbox Viewer with ДО / ПОСЛЕ Tabs and Multi-Photo Gallery ───────── */
 let currentViewerPhotoBefore = "";
 let currentViewerPhotoAfter = "";
 let currentViewerActiveTab = "before";
+let currentLightboxGallery = [];
+let currentLightboxIndex = 0;
 
 function openPhotoViewerModal(urlBefore, urlAfter, activeTab = 'before') {
+    currentLightboxGallery = [];
+    currentLightboxIndex = 0;
     currentViewerPhotoBefore = (urlBefore && typeof urlBefore === 'string') ? urlBefore.trim() : "";
     currentViewerPhotoAfter = (urlAfter && typeof urlAfter === 'string') ? urlAfter.trim() : "";
 
-    // If only after photo is provided
     if (!currentViewerPhotoBefore && currentViewerPhotoAfter) {
         currentViewerActiveTab = 'after';
     } else if (currentViewerPhotoBefore && !currentViewerPhotoAfter) {
@@ -5802,10 +6380,16 @@ function openPhotoViewerModal(urlBefore, urlAfter, activeTab = 'before') {
     const tabsContainer = document.getElementById("photo-viewer-tabs");
     const tabBeforeBtn = document.getElementById("tab-photo-before");
     const tabAfterBtn = document.getElementById("tab-photo-after");
+    const prevBtn = document.getElementById("lightbox-prev-btn");
+    const nextBtn = document.getElementById("lightbox-next-btn");
+    const counterEl = document.getElementById("photo-viewer-counter");
 
     if (!modal) return;
 
-    // Show/hide switcher tabs depending on whether both photos exist
+    if (prevBtn) prevBtn.style.display = "none";
+    if (nextBtn) nextBtn.style.display = "none";
+    if (counterEl) counterEl.textContent = "";
+
     if (currentViewerPhotoBefore && currentViewerPhotoAfter) {
         if (tabsContainer) tabsContainer.style.display = "flex";
         if (tabBeforeBtn) tabBeforeBtn.style.display = "inline-flex";
@@ -5816,6 +6400,61 @@ function openPhotoViewerModal(urlBefore, urlAfter, activeTab = 'before') {
 
     updateLightboxImage();
     modal.classList.add("active");
+}
+
+function openLightboxGallery(photoType = 'before', initialIndex = 0) {
+    if (!currentDetailTaskData || !currentDetailTaskData.photos) return;
+    const cleanType = (photoType === 'after') ? 'after' : 'before';
+    const list = currentDetailTaskData.photos[cleanType] || [];
+    if (!list.length) return;
+
+    currentLightboxGallery = list;
+    currentLightboxIndex = Math.max(0, Math.min(initialIndex, list.length - 1));
+    currentViewerActiveTab = cleanType;
+
+    const modal = document.getElementById("photo-viewer-modal");
+    const tabsContainer = document.getElementById("photo-viewer-tabs");
+    const prevBtn = document.getElementById("lightbox-prev-btn");
+    const nextBtn = document.getElementById("lightbox-next-btn");
+
+    if (!modal) return;
+    if (tabsContainer) tabsContainer.style.display = "none";
+
+    const hasNav = list.length > 1;
+    if (prevBtn) prevBtn.style.display = hasNav ? "flex" : "none";
+    if (nextBtn) nextBtn.style.display = hasNav ? "flex" : "none";
+
+    renderLightboxGalleryImage();
+    modal.classList.add("active");
+}
+
+function navigateLightboxPhoto(step) {
+    if (!currentLightboxGallery || !currentLightboxGallery.length) return;
+    currentLightboxIndex = (currentLightboxIndex + step + currentLightboxGallery.length) % currentLightboxGallery.length;
+    renderLightboxGalleryImage();
+}
+
+function renderLightboxGalleryImage() {
+    if (!currentLightboxGallery || !currentLightboxGallery.length) return;
+    const item = currentLightboxGallery[currentLightboxIndex];
+    const url = (typeof item === 'object' && item) ? (item.url || "") : String(item);
+
+    const img = document.getElementById("photo-viewer-img");
+    const directLink = document.getElementById("photo-viewer-direct-link");
+    const counterEl = document.getElementById("photo-viewer-counter");
+
+    if (img) {
+        img.style.opacity = "0.3";
+        img.src = url;
+        img.onload = () => { img.style.opacity = "1"; };
+    }
+    if (directLink) {
+        directLink.href = url || "#";
+    }
+    if (counterEl) {
+        const typeLabel = (currentViewerActiveTab === 'after') ? 'ПОСЛЕ' : 'ДО';
+        counterEl.textContent = `${typeLabel}: ${currentLightboxIndex + 1} из ${currentLightboxGallery.length}`;
+    }
 }
 
 function switchLightboxTab(tab) {
@@ -5858,6 +6497,544 @@ function closePhotoViewerModal() {
     if (img) img.src = "";
     currentViewerPhotoBefore = "";
     currentViewerPhotoAfter = "";
+    currentLightboxGallery = [];
+    currentLightboxIndex = 0;
+}
+
+// Lightbox keyboard navigation
+document.addEventListener("keydown", (e) => {
+    const modal = document.getElementById("photo-viewer-modal");
+    if (!modal || !modal.classList.contains("active")) return;
+    if (e.key === "Escape") {
+        closePhotoViewerModal();
+    } else if (e.key === "ArrowLeft") {
+        navigateLightboxPhoto(-1);
+    } else if (e.key === "ArrowRight") {
+        navigateLightboxPhoto(1);
+    }
+});
+
+/* ==========================================================
+   TASK DETAIL VIEW MODAL & MULTI-PHOTO GALLERY
+   ========================================================== */
+let currentDetailTaskId = null;
+let currentDetailTaskData = null;
+let currentDetailPhotoTab = 'before';
+
+async function openTaskDetailModal(taskId) {
+    if (!taskId) return;
+    currentDetailTaskId = taskId;
+    currentDetailPhotoTab = 'before';
+
+    const modal = document.getElementById("task-detail-modal");
+    if (!modal) return;
+
+    // Reset fields to loading state
+    const codeEl = document.getElementById("detail-task-code");
+    const titleRuEl = document.getElementById("detail-task-title-ru");
+    const titleKzEl = document.getElementById("detail-task-title-kz");
+    const statusBadgeEl = document.getElementById("detail-task-status-badge");
+    const horizonBadgeEl = document.getElementById("detail-task-horizon-badge");
+    const commentEl = document.getElementById("detail-task-comment");
+
+    if (codeEl) codeEl.textContent = `TSK-${taskId}`;
+    if (titleRuEl) titleRuEl.textContent = "Загрузка данных задачи...";
+    if (titleKzEl) titleKzEl.textContent = "";
+    if (statusBadgeEl) statusBadgeEl.textContent = "Загрузка...";
+    if (commentEl) commentEl.textContent = "—";
+
+    modal.classList.add("active");
+
+    try {
+        const res = await fetch(`/api/tasks/${taskId}`);
+        if (!res.ok) {
+            throw new Error(`Ошибка загрузки задачи (HTTP ${res.status})`);
+        }
+        const task = await res.json();
+        currentDetailTaskData = task;
+        populateTaskDetailModal(task);
+    } catch (err) {
+        console.error("Error opening task detail modal:", err);
+        showToast("Не удалось загрузить подробности задачи", "error");
+        closeTaskDetailModal();
+    }
+}
+
+function closeTaskDetailModal() {
+    const modal = document.getElementById("task-detail-modal");
+    if (modal) modal.classList.remove("active");
+    currentDetailTaskId = null;
+    currentDetailTaskData = null;
+}
+
+function populateTaskDetailModal(task) {
+    if (!task) return;
+
+    // Header & Codes
+    const codeEl = document.getElementById("detail-task-code");
+    if (codeEl) codeEl.textContent = task.code || `TSK-${task.id}`;
+
+    // Titles
+    const titleRuEl = document.getElementById("detail-task-title-ru");
+    if (titleRuEl) titleRuEl.textContent = task.title || "Без названия";
+
+    const titleKzEl = document.getElementById("detail-task-title-kz");
+    if (titleKzEl) {
+        if (task.title_kz && task.title_kz.trim()) {
+            titleKzEl.textContent = task.title_kz.trim();
+            titleKzEl.style.display = "block";
+        } else {
+            titleKzEl.style.display = "none";
+        }
+    }
+
+    // Status Badge
+    const statusBadgeEl = document.getElementById("detail-task-status-badge");
+    if (statusBadgeEl) {
+        const st = task.status || "⚪ В очереди";
+        statusBadgeEl.textContent = st;
+        if (st.includes("Выполнено")) {
+            statusBadgeEl.style.background = "#dcfce7";
+            statusBadgeEl.style.color = "#15803d";
+        } else if (st.includes("Отменено")) {
+            statusBadgeEl.style.background = "#fee2e2";
+            statusBadgeEl.style.color = "#b91c1c";
+        } else if (st.includes("Перенесено")) {
+            statusBadgeEl.style.background = "#e0f2fe";
+            statusBadgeEl.style.color = "#0369a1";
+        } else {
+            statusBadgeEl.style.background = "#fef3c7";
+            statusBadgeEl.style.color = "#b45309";
+        }
+    }
+
+    // Horizon Badge
+    const horizonBadgeEl = document.getElementById("detail-task-horizon-badge");
+    if (horizonBadgeEl) {
+        const hLabel = task.horizon_label || (task.task_type === 'roadmap' ? '🗺️ Дорожная карта' : 'Спринт');
+        horizonBadgeEl.textContent = hLabel;
+        horizonBadgeEl.className = `badge-horizon ${task.horizon_badge_class || 'horizon-sprint'}`;
+    }
+
+    // Action buttons state
+    const btnComplete = document.getElementById("detail-btn-complete");
+    const isDone = task.status && task.status.includes("Выполнено");
+    if (btnComplete) {
+        if (isDone) {
+            btnComplete.innerHTML = `<i class="fa-solid fa-circle-check"></i> Выполнено`;
+            btnComplete.style.background = "#059669";
+            btnComplete.disabled = true;
+        } else {
+            btnComplete.innerHTML = `<i class="fa-solid fa-check"></i> Завершить`;
+            btnComplete.style.background = "#10b981";
+            btnComplete.disabled = false;
+        }
+    }
+
+    // Progress Section
+    const progSection = document.getElementById("detail-progress-section");
+    const progBar = document.getElementById("detail-progress-bar");
+    const progPercent = document.getElementById("detail-progress-percent");
+    const progLabel = document.getElementById("detail-progress-label");
+    const subtasks = task.subtasks || [];
+    const hasProgress = task.task_type === 'roadmap' || subtasks.length > 0 || (task.progress !== undefined && task.progress !== null);
+
+    if (progSection && hasProgress) {
+        progSection.style.display = "block";
+        const calcProg = task.calculated_progress || task.progress || 0;
+        if (progBar) progBar.style.width = `${calcProg}%`;
+        if (progPercent) progPercent.textContent = `${calcProg}%`;
+        if (progLabel) {
+            if (subtasks.length > 0) {
+                const doneSubs = subtasks.filter(s => s.status && s.status.includes("Выполнено")).length;
+                progLabel.textContent = `Прогресс: ${doneSubs} из ${subtasks.length} этапов выполнено`;
+            } else {
+                progLabel.textContent = `Прогресс выполнения:`;
+            }
+        }
+    } else if (progSection) {
+        progSection.style.display = "none";
+    }
+
+    // Metadata Grid
+    const assigneeEl = document.getElementById("detail-task-assignee");
+    if (assigneeEl) {
+        assigneeEl.innerHTML = task.assignee_name ? `<strong style="color: #007AFF;">${escapeHtml(task.assignee_name)}</strong>` : `<span style="color: #94a3b8;">Не назначен</span>`;
+    }
+
+    const authorEl = document.getElementById("detail-task-author");
+    if (authorEl) {
+        authorEl.textContent = task.author_name || "Не указан";
+    }
+
+    const dueDateEl = document.getElementById("detail-task-due-date");
+    if (dueDateEl) {
+        if (task.due_date_str) {
+            dueDateEl.innerHTML = `<span style="color: #0f172a;">${escapeHtml(task.due_date_str)}</span>`;
+        } else {
+            dueDateEl.innerHTML = `<span style="color: #94a3b8;">В течение недели</span>`;
+        }
+    }
+
+    const zoneServiceEl = document.getElementById("detail-task-zone-service");
+    if (zoneServiceEl) {
+        const zoneBadge = `<span class="badge-zone">${escapeHtml(task.zone || 'Бережливое производство')}</span>`;
+        const deptBadge = task.department_service ? `<span class="badge-zone" style="background:#f0fdf4; color:#15803d; border-color:#bbf7d0;">${escapeHtml(task.department_service)}</span>` : '';
+        zoneServiceEl.innerHTML = `${zoneBadge} ${deptBadge}`;
+    }
+
+    const periodEl = document.getElementById("detail-task-period");
+    if (periodEl) {
+        const parts = [];
+        if (task.month_label) parts.push(task.month_label);
+        if (task.week_label) parts.push(task.week_label);
+        if (task.target_quarter) parts.push(`(${task.target_quarter})`);
+        periodEl.textContent = parts.length ? parts.join(" • ") : "—";
+    }
+
+    const docCell = document.getElementById("detail-doc-cell");
+    const docEl = document.getElementById("detail-task-doc");
+    if (docCell && docEl) {
+        if (task.attached_doc && task.attached_doc.title) {
+            docCell.style.display = "flex";
+            docEl.innerHTML = `
+                <a href="${task.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #1d4ed8; text-decoration: none;">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span>${escapeHtml(task.attached_doc.title)}</span>
+                </a>
+            `;
+        } else {
+            docEl.innerHTML = `<span style="color: #94a3b8;">Нет прикрепленного регламента</span>`;
+        }
+    }
+
+    // Tags & Blockers
+    const blockerWrap = document.getElementById("detail-blocker-wrap");
+    if (blockerWrap) {
+        if (task.depends_on && task.depends_on.code) {
+            blockerWrap.style.display = "inline-flex";
+            blockerWrap.innerHTML = `
+                <span class="dep-blocker-badge" style="font-size: 0.78rem; padding: 4px 10px;" title="${escapeHtml(task.depends_on.title || '')}">
+                    <i class="fa-solid fa-lock"></i> Блокируется задачей ${task.depends_on.code}: ${escapeHtml(task.depends_on.title || '')}
+                </span>
+            `;
+        } else {
+            blockerWrap.style.display = "none";
+            blockerWrap.innerHTML = "";
+        }
+    }
+
+    const tagsWrap = document.getElementById("detail-tags-wrap");
+    if (tagsWrap) {
+        tagsWrap.innerHTML = "";
+        if (task.tags) {
+            task.tags.split(",").filter(Boolean).forEach(t => {
+                const cleanT = t.trim();
+                if (cleanT) {
+                    const span = document.createElement("span");
+                    span.className = "tag-pill";
+                    span.textContent = cleanT;
+                    tagsWrap.appendChild(span);
+                }
+            });
+        }
+    }
+
+    // Comment
+    const commentBox = document.getElementById("detail-task-comment");
+    if (commentBox) {
+        if (task.comment && task.comment.trim()) {
+            commentBox.textContent = task.comment.trim();
+            commentBox.style.color = "#1e293b";
+        } else {
+            commentBox.textContent = "Комментарий отсутствует";
+            commentBox.style.color = "#94a3b8";
+        }
+    }
+
+    // Render Multi-photo Gallery
+    renderDetailPhotoGallery();
+
+    // Render Subtasks
+    renderDetailSubtasks();
+}
+
+function renderDetailSubtasks() {
+    const section = document.getElementById("detail-subtasks-section");
+    const countEl = document.getElementById("detail-subtasks-count");
+    const listEl = document.getElementById("detail-subtasks-list");
+    if (!section || !listEl) return;
+
+    const subtasks = (currentDetailTaskData && currentDetailTaskData.subtasks) || [];
+    if (countEl) countEl.textContent = subtasks.length;
+
+    if (!subtasks.length) {
+        listEl.innerHTML = `
+            <div style="text-align: center; color: #94a3b8; font-size: 0.82rem; padding: 0.75rem; border: 1px dashed #e2e8f0; border-radius: 8px;">
+                Подзадачи и промежуточные этапы пока не созданы
+            </div>
+        `;
+        return;
+    }
+
+    listEl.innerHTML = subtasks.map(st => {
+        const isDone = st.status && st.status.includes("Выполнено");
+        return `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: ${isDone ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                    <button type="button" class="roadmap-check-btn ${isDone ? 'checked' : ''}" onclick="quickToggleSubtaskFromDetail(${st.id}, '${st.status || ''}')" style="width: 20px; height: 20px; font-size: 0.7rem; flex-shrink: 0;" title="${isDone ? 'Снять отметку' : 'Отметить выполненным'}">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                    <span style="font-size: 0.86rem; font-weight: 500; color: ${isDone ? '#64748b' : '#0f172a'}; text-decoration: ${isDone ? 'line-through' : 'none'}; word-break: break-word;">${escapeHtml(st.title)}</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <span style="font-size: 0.74rem; color: #64748b;">${escapeHtml(st.assignee_name || '—')}</span>
+                    <span class="badge-zone" style="font-size: 0.68rem; padding: 1px 6px;">${escapeHtml(st.status || 'В работе')}</span>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+async function quickToggleSubtaskFromDetail(subtaskId, currentStatus) {
+    const isDone = currentStatus && currentStatus.includes("Выполнено");
+    const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
+
+    try {
+        const res = await fetch(`/api/tasks/${subtaskId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: nextStatus,
+                comment: isDone ? "Возвращено в работу" : "Выполнено"
+            })
+        });
+        if (!res.ok) throw new Error("Не удалось обновить статус подзадачи");
+        showToast(isDone ? "Этап возвращен в работу" : "Этап выполнен!", "success");
+
+        // Refresh detail modal
+        if (currentDetailTaskId) {
+            const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
+            if (freshRes.ok) {
+                currentDetailTaskData = await freshRes.json();
+                populateTaskDetailModal(currentDetailTaskData);
+            }
+        }
+        // Refresh background sprint / roadmaps view if active
+        if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+            loadRoadmaps();
+        } else if (typeof loadTasks === 'function') {
+            loadTasks();
+        }
+    } catch (err) {
+        console.error("Error toggling subtask from detail:", err);
+        showToast("Ошибка при обновлении этапа", "error");
+    }
+}
+
+function switchDetailPhotoTab(tab) {
+    currentDetailPhotoTab = (tab === 'after') ? 'after' : 'before';
+    const tabBefore = document.getElementById("detail-tab-before");
+    const tabAfter = document.getElementById("detail-tab-after");
+
+    if (tabBefore && tabAfter) {
+        if (currentDetailPhotoTab === 'after') {
+            tabAfter.classList.add("active");
+            tabBefore.classList.remove("active");
+        } else {
+            tabBefore.classList.add("active");
+            tabAfter.classList.remove("active");
+        }
+    }
+    renderDetailPhotoGallery();
+}
+
+function renderDetailPhotoGallery() {
+    const grid = document.getElementById("detail-photos-grid");
+    const emptyEl = document.getElementById("detail-photos-empty");
+    const emptyText = document.getElementById("detail-photos-empty-text");
+    const countBeforeEl = document.getElementById("detail-count-before");
+    const countAfterEl = document.getElementById("detail-count-after");
+    const uploadBtn = document.getElementById("detail-btn-upload-photos");
+
+    if (!grid || !currentDetailTaskData) return;
+
+    const photos = currentDetailTaskData.photos || { before: [], after: [] };
+    const beforeList = photos.before || [];
+    const afterList = photos.after || [];
+
+    if (countBeforeEl) countBeforeEl.textContent = beforeList.length;
+    if (countAfterEl) countAfterEl.textContent = afterList.length;
+
+    const activeList = (currentDetailPhotoTab === 'after') ? afterList : beforeList;
+    const tabName = (currentDetailPhotoTab === 'after') ? 'ПОСЛЕ' : 'ДО';
+
+    if (uploadBtn) {
+        uploadBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> + Загрузить фото ${tabName}`;
+    }
+
+    if (!activeList.length) {
+        grid.innerHTML = "";
+        grid.style.display = "none";
+        if (emptyEl) emptyEl.style.display = "block";
+        if (emptyText) emptyText.textContent = `Нет загруженных фотографий ${tabName} выполнения объекта`;
+        return;
+    }
+
+    if (emptyEl) emptyEl.style.display = "none";
+    grid.style.display = "grid";
+
+    grid.innerHTML = activeList.map((item, idx) => {
+        const url = (typeof item === 'object' && item) ? (item.url || "") : String(item);
+        const name = (typeof item === 'object' && item) ? (item.name || `Фото ${idx + 1}`) : `Фото ${idx + 1}`;
+        const dateStr = (typeof item === 'object' && item) ? (item.uploaded_at || "") : "";
+        const authorStr = (typeof item === 'object' && item) ? (item.author || "") : "";
+        const caption = dateStr ? `${dateStr}${authorStr ? ' • ' + authorStr : ''}` : name;
+
+        return `
+            <div class="gallery-item" onclick="openLightboxGallery('${currentDetailPhotoTab}', ${idx})" title="${escapeHtml(name)} (нажмите для просмотра)">
+                <img src="${url}" alt="${escapeHtml(name)}" loading="lazy">
+                <div class="gallery-item-badge">${escapeHtml(caption)}</div>
+                <button type="button" class="gallery-item-del-btn" onclick="deleteDetailPhoto(event, '${url}', '${currentDetailPhotoTab}')" title="Удалить фото">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        `;
+    }).join("");
+}
+
+function triggerDetailPhotoUpload() {
+    const input = document.getElementById("detail-photo-file-input");
+    if (input) input.click();
+}
+
+async function handleDetailPhotoUpload(event) {
+    const files = event.target.files;
+    if (!files || !files.length || !currentDetailTaskId) return;
+
+    const banner = document.getElementById("detail-photo-uploading-banner");
+    const uploadBtn = document.getElementById("detail-btn-upload-photos");
+    if (banner) banner.style.display = "block";
+    if (uploadBtn) uploadBtn.disabled = true;
+
+    try {
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append("files", files[i]);
+        }
+        formData.append("photo_type", currentDetailPhotoTab);
+        if (typeof currentPlannerUser !== 'undefined' && currentPlannerUser && currentPlannerUser.name) {
+            formData.append("author_name", currentPlannerUser.name);
+        }
+
+        const res = await fetch(`/api/tasks/${currentDetailTaskId}/upload_photos`, {
+            method: "POST",
+            body: formData
+        });
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Сбой при загрузке фото");
+        }
+
+        const data = await res.json();
+        if (currentDetailTaskData) {
+            currentDetailTaskData.photos = data.photos;
+        }
+
+        renderDetailPhotoGallery();
+        showToast(`Успешно загружено фото: ${data.added_count || files.length}`, "success");
+
+        // Sync background views
+        if (typeof loadTasks === 'function' && currentHorizon !== 'roadmaps') loadTasks();
+        if (typeof loadRoadmaps === 'function' && currentHorizon === 'roadmaps') loadRoadmaps();
+    } catch (err) {
+        console.error("Error uploading photos:", err);
+        showToast(err.message || "Ошибка при загрузке фото", "error");
+    } finally {
+        if (banner) banner.style.display = "none";
+        if (uploadBtn) uploadBtn.disabled = false;
+        event.target.value = "";
+    }
+}
+
+async function deleteDetailPhoto(event, photoUrl, photoType) {
+    if (event) event.stopPropagation();
+    if (!currentDetailTaskId || !photoUrl) return;
+
+    if (!confirm("Вы уверены, что хотите удалить эту фотографию?")) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/tasks/${currentDetailTaskId}/photos`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                url: photoUrl,
+                photo_type: photoType
+            })
+        });
+
+        if (!res.ok) throw new Error("Не удалось удалить фотографию");
+
+        const data = await res.json();
+        if (currentDetailTaskData) {
+            currentDetailTaskData.photos = data.photos;
+        }
+
+        renderDetailPhotoGallery();
+        showToast("Фотография удалена", "success");
+
+        if (typeof loadTasks === 'function' && currentHorizon !== 'roadmaps') loadTasks();
+        if (typeof loadRoadmaps === 'function' && currentHorizon === 'roadmaps') loadRoadmaps();
+    } catch (err) {
+        console.error("Error deleting photo:", err);
+        showToast("Ошибка при удалении фото", "error");
+    }
+}
+
+function openCompleteTaskModalFromDetail() {
+    if (!currentDetailTaskId) return;
+    const tid = currentDetailTaskId;
+    closeTaskDetailModal();
+    if (typeof openCompleteTaskModal === 'function') {
+        openCompleteTaskModal(tid);
+    }
+}
+
+function openRescheduleModalFromDetail() {
+    if (!currentDetailTaskId) return;
+    const tid = currentDetailTaskId;
+    closeTaskDetailModal();
+    if (typeof openRescheduleTaskModal === 'function') {
+        openRescheduleTaskModal(tid);
+    }
+}
+
+function openEditTaskModalFromDetail() {
+    if (!currentDetailTaskId) return;
+    const tid = currentDetailTaskId;
+    closeTaskDetailModal();
+    if (typeof openEditTaskModal === 'function') {
+        openEditTaskModal(tid);
+    }
+}
+
+function openTaskHistoryModalFromDetail() {
+    if (!currentDetailTaskId) return;
+    const tid = currentDetailTaskId;
+    if (typeof openTaskHistoryModal === 'function') {
+        openTaskHistoryModal(tid);
+    }
+}
+
+function openAddSubtaskFromDetail() {
+    if (!currentDetailTaskId) return;
+    const tid = currentDetailTaskId;
+    if (typeof openSubtaskQuickModal === 'function') {
+        openSubtaskQuickModal(tid);
+    }
 }
 
 /* ==========================================================
@@ -6169,3 +7346,570 @@ function setSelectedDocAttachment(docId, docTitle) {
 function clearSelectedDocAttachment() {
     setSelectedDocAttachment(null, "");
 }
+
+/* ==========================================================
+   INTERACTIVE PROJECT DEPENDENCY GRAPH (FULLSCREEN DAG)
+   ========================================================== */
+
+let currentGraphProjectId = null;
+let currentGraphData = null;
+let graphZoomScale = 1.0;
+let graphPanX = 60;
+let graphPanY = 60;
+let isGraphPanning = false;
+let graphPanStartX = 0;
+let graphPanStartY = 0;
+let selectedGraphNodeId = null;
+let hideCompletedNodesOnGraph = false;
+let graphListenersBound = false;
+
+async function openProjectGraphModal(projectId) {
+    if (!projectId) return;
+    currentGraphProjectId = projectId;
+    isModalOpen = true;
+
+    const modal = document.getElementById("project-graph-modal");
+    if (!modal) return;
+    modal.style.display = "flex";
+
+    const titleEl = document.getElementById("graph-project-title");
+    const codeEl = document.getElementById("graph-project-code");
+    const subEl = document.getElementById("graph-project-subtitle");
+    const progBar = document.getElementById("graph-project-progress-bar");
+    const progVal = document.getElementById("graph-project-progress-val");
+    const container = document.getElementById("graph-nodes-container");
+    const svgGroup = document.getElementById("graph-edges-group");
+
+    if (titleEl) titleEl.textContent = "Загрузка интерактивной схемы...";
+    if (codeEl) codeEl.textContent = `TSK-${projectId}`;
+    if (subEl) subEl.textContent = "";
+    if (container) container.innerHTML = `<div style="padding: 4rem; text-align: center; color: #64748b; font-size: 0.95rem;"><i class="fa-solid fa-spinner fa-spin fa-2x" style="color: #6366f1; margin-bottom: 12px; display: block;"></i> Построение графа зависимостей проекта...</div>`;
+    if (svgGroup) svgGroup.innerHTML = "";
+
+    closeGraphInspector();
+    initGraphPanZoomListeners();
+
+    try {
+        const res = await fetch(`/api/tasks/${projectId}/graph`);
+        if (!res.ok) throw new Error("Не удалось загрузить граф проекта");
+
+        currentGraphData = await res.json();
+        const p = currentGraphData.project || {};
+        const summary = currentGraphData.summary || {};
+
+        if (titleEl) titleEl.textContent = p.title || "Интерактивная схема проекта";
+        if (codeEl) codeEl.textContent = p.code || `TSK-${projectId}`;
+        if (subEl) {
+            const subtitleParts = [];
+            if (p.department_service) subtitleParts.push(`Служба: ${p.department_service}`);
+            if (p.target_quarter) subtitleParts.push(`Период: ${p.target_quarter}`);
+            subtitleParts.push(`Вех: ${summary.done_milestones || 0}/${summary.total_milestones || 0}`);
+            if (summary.blocked_count > 0) subtitleParts.push(`🔒 Заблокировано: ${summary.blocked_count}`);
+            subEl.textContent = subtitleParts.join(" • ");
+        }
+
+        const prog = summary.overall_progress || p.progress || 0;
+        if (progBar) progBar.style.width = `${prog}%`;
+        if (progVal) progVal.textContent = `${prog}%`;
+
+        renderProjectGraph(currentGraphData);
+        setTimeout(() => {
+            fitProjectGraphToScreen();
+        }, 80);
+    } catch (err) {
+        console.error("Error opening project graph:", err);
+        if (container) container.innerHTML = `<div style="padding: 3rem; text-align: center; color: #ef4444;"><i class="fa-solid fa-triangle-exclamation fa-2x" style="margin-bottom: 8px;"></i><br>${escapeHtml(err.message || 'Ошибка загрузки графа')}</div>`;
+    }
+}
+
+function closeProjectGraphModal() {
+    const modal = document.getElementById("project-graph-modal");
+    if (modal) modal.style.display = "none";
+    isModalOpen = false;
+    currentGraphProjectId = null;
+    currentGraphData = null;
+    closeGraphInspector();
+}
+
+function initGraphPanZoomListeners() {
+    if (graphListenersBound) return;
+    const viewport = document.getElementById("graph-viewport");
+    if (!viewport) return;
+
+    viewport.addEventListener("mousedown", (e) => {
+        // Only start pan if clicking directly on viewport or surface, not on interactive nodes or buttons
+        if (e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap')) {
+            return;
+        }
+        isGraphPanning = true;
+        graphPanStartX = e.clientX - graphPanX;
+        graphPanStartY = e.clientY - graphPanY;
+        viewport.style.cursor = "grabbing";
+    });
+
+    window.addEventListener("mousemove", (e) => {
+        if (!isGraphPanning) return;
+        graphPanX = e.clientX - graphPanStartX;
+        graphPanY = e.clientY - graphPanStartY;
+        applyGraphTransform();
+    });
+
+    window.addEventListener("mouseup", () => {
+        if (isGraphPanning) {
+            isGraphPanning = false;
+            if (viewport) viewport.style.cursor = "grab";
+        }
+    });
+
+    // Touch support for tablets / touchscreens
+    let touchStartX = 0;
+    let touchStartY = 0;
+    viewport.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 1) {
+            if (e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-minimap-wrap')) return;
+            isGraphPanning = true;
+            touchStartX = e.touches[0].clientX - graphPanX;
+            touchStartY = e.touches[0].clientY - graphPanY;
+        }
+    }, { passive: true });
+
+    viewport.addEventListener("touchmove", (e) => {
+        if (isGraphPanning && e.touches.length === 1) {
+            graphPanX = e.touches[0].clientX - touchStartX;
+            graphPanY = e.touches[0].clientY - touchStartY;
+            applyGraphTransform();
+        }
+    }, { passive: true });
+
+    viewport.addEventListener("touchend", () => {
+        isGraphPanning = false;
+    });
+
+    graphListenersBound = true;
+}
+
+function handleGraphWheel(event) {
+    if (event) {
+        event.preventDefault();
+        const delta = event.deltaY < 0 ? 0.08 : -0.08;
+        zoomProjectGraph(delta);
+    }
+}
+
+function zoomProjectGraph(delta) {
+    const prevScale = graphZoomScale;
+    graphZoomScale = Math.max(0.35, Math.min(2.0, graphZoomScale + delta));
+    // Zoom towards center
+    const viewport = document.getElementById("graph-viewport");
+    if (viewport) {
+        const vw = viewport.clientWidth / 2;
+        const vh = viewport.clientHeight / 2;
+        graphPanX = vw - (vw - graphPanX) * (graphZoomScale / prevScale);
+        graphPanY = vh - (vh - graphPanY) * (graphZoomScale / prevScale);
+    }
+    applyGraphTransform();
+}
+
+function resetProjectGraphZoom() {
+    graphZoomScale = 1.0;
+    graphPanX = 60;
+    graphPanY = 60;
+    applyGraphTransform();
+}
+
+function fitProjectGraphToScreen() {
+    const viewport = document.getElementById("graph-viewport");
+    if (!viewport || !currentGraphData || !currentGraphData.nodes || !currentGraphData.nodes.length) {
+        resetProjectGraphZoom();
+        return;
+    }
+
+    const nodes = currentGraphData.nodes;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    nodes.forEach(n => {
+        if (n._renderedX !== undefined) {
+            minX = Math.min(minX, n._renderedX);
+            minY = Math.min(minY, n._renderedY);
+            maxX = Math.max(maxX, n._renderedX + 280);
+            maxY = Math.max(maxY, n._renderedY + 180);
+        }
+    });
+
+    if (minX === Infinity) {
+        resetProjectGraphZoom();
+        return;
+    }
+
+    const contentW = (maxX - minX) + 120;
+    const contentH = (maxY - minY) + 120;
+    const vpW = viewport.clientWidth;
+    const vpH = viewport.clientHeight;
+
+    const scaleX = vpW / contentW;
+    const scaleY = vpH / contentH;
+    let idealScale = Math.min(scaleX, scaleY, 1.1);
+    idealScale = Math.max(0.45, Math.min(1.2, idealScale));
+
+    graphZoomScale = idealScale;
+    graphPanX = (vpW - (contentW * graphZoomScale)) / 2 - (minX * graphZoomScale) + (60 * graphZoomScale);
+    graphPanY = (vpH - (contentH * graphZoomScale)) / 2 - (minY * graphZoomScale) + (60 * graphZoomScale);
+
+    applyGraphTransform();
+}
+
+function applyGraphTransform() {
+    const surface = document.getElementById("graph-surface");
+    const zoomLabel = document.getElementById("graph-zoom-label");
+    if (surface) {
+        surface.style.transform = `translate(${graphPanX}px, ${graphPanY}px) scale(${graphZoomScale})`;
+    }
+    if (zoomLabel) {
+        zoomLabel.textContent = `${Math.round(graphZoomScale * 100)}%`;
+    }
+    renderGraphMinimap();
+}
+
+function renderProjectGraph(data) {
+    const container = document.getElementById("graph-nodes-container");
+    const svgGroup = document.getElementById("graph-edges-group");
+    if (!container || !svgGroup || !data) return;
+
+    container.innerHTML = "";
+    svgGroup.innerHTML = "";
+
+    const nodes = data.nodes || [];
+    const edges = data.edges || [];
+
+    if (!nodes.length) {
+        container.innerHTML = `
+            <div style="position: absolute; top: 80px; left: 80px; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; max-width: 440px;">
+                <div style="font-size: 2rem; margin-bottom: 6px;">🗺️</div>
+                <h4 style="margin: 0 0 6px; color: #0f172a;">В проекте пока нет вех</h4>
+                <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 12px;">Добавьте этапы и настройте блокирующие зависимости, чтобы увидеть интерактивную схему.</p>
+                <button type="button" class="btn-action btn-primary-action" onclick="openSubtaskQuickModal(${currentGraphProjectId})">
+                    <i class="fa-solid fa-plus"></i> Добавить первую веху
+                </button>
+            </div>
+        `;
+        renderGraphMinimap();
+        return;
+    }
+
+    const colWidth = 360;
+    const colStartX = 80;
+    const rowGap = 210;
+    const rowStartY = 80;
+
+    // Filter nodes if hideCompletedNodesOnGraph is on
+    const visibleNodes = hideCompletedNodesOnGraph ? nodes.filter(n => !n.is_done) : nodes;
+    const nodeCoordMap = new Map();
+
+    // 1. Render DOM Nodes
+    visibleNodes.forEach(n => {
+        const x = colStartX + ((n.col || 0) * colWidth);
+        const y = rowStartY + ((n.row || 0) * rowGap);
+        n._renderedX = x;
+        n._renderedY = y;
+        nodeCoordMap.set(n.id, { x, y, width: 280, height: 160, node: n });
+
+        const isDone = n.is_done;
+        const isBlocked = n.is_blocked;
+        let statusCls = "status-work";
+        let statusBadge = `<span class="badge-zone" style="background: #eff6ff; color: #1d4ed8; font-size: 0.72rem;">🟡 В работе</span>`;
+
+        if (isDone) {
+            statusCls = "status-done";
+            statusBadge = `<span class="badge-zone" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0; font-size: 0.72rem;">🟢 Выполнено</span>`;
+        } else if (isBlocked) {
+            statusCls = "status-blocked";
+            statusBadge = `<span class="badge-zone" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; font-size: 0.72rem;"><i class="fa-solid fa-lock"></i> Заблокировано</span>`;
+        }
+
+        const prog = n.progress || 0;
+        const subtasks = n.subtasks || [];
+        const subPreviewHtml = subtasks.slice(0, 3).map(st => {
+            const isStDone = st.is_done;
+            return `
+                <div class="graph-subtask-mini" title="${escapeHtml(st.title)}">
+                    <i class="fa-solid ${isStDone ? 'fa-circle-check' : 'fa-circle'}" style="color: ${isStDone ? '#10b981' : '#94a3b8'}; font-size: 0.65rem;"></i>
+                    <span style="text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.7' : '1'};">${escapeHtml(st.title)}</span>
+                </div>
+            `;
+        }).join('');
+
+        const subCountLabel = subtasks.length > 0 ? `(${n.subtasks_done_count || 0}/${subtasks.length})` : '';
+
+        const nodeEl = document.createElement("div");
+        nodeEl.className = `graph-node ${statusCls}`;
+        nodeEl.id = `graph-node-${n.id}`;
+        nodeEl.style.left = `${x}px`;
+        nodeEl.style.top = `${y}px`;
+        nodeEl.onclick = (e) => {
+            e.stopPropagation();
+            selectGraphNode(n.id);
+        };
+        nodeEl.ondblclick = (e) => {
+            e.stopPropagation();
+            openTaskDetailModal(n.id);
+        };
+
+        nodeEl.innerHTML = `
+            <div class="graph-node-header">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="badge-code" style="font-size: 11px; font-family: monospace; font-weight: 700;">${n.code || 'TSK-' + n.id}</span>
+                    ${statusBadge}
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button type="button" class="roadmap-check-btn ${isDone ? 'checked' : ''}" onclick="toggleGraphMilestone(${n.id}, '${n.status || ''}', ${prog}, event)" title="${isDone ? 'Снять выполнение' : 'Отметить как выполненное'}" style="width: 20px; height: 20px; font-size: 0.65rem;">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                    <button type="button" class="btn-icon-cell" onclick="event.stopPropagation(); openTaskDetailModal(${n.id})" title="Открыть детали" style="font-size: 0.72rem; padding: 2px 4px;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="graph-node-title" title="${escapeHtml(n.title)}">${escapeHtml(n.title)}</div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem; color: #64748b; margin-bottom: 4px;">
+                <span>👤 ${escapeHtml(n.assignee_name || '—')}</span>
+                <span style="font-weight: 700; color: ${prog === 100 ? '#10b981' : '#2563eb'};">${prog}%</span>
+            </div>
+
+            <div class="roadmap-progress-wrap" style="height: 5px; margin-bottom: 4px;">
+                <div class="roadmap-progress-bar" style="width: ${prog}%; ${prog === 100 ? 'background: #10b981;' : ''}"></div>
+            </div>
+
+            ${subPreviewHtml ? `<div class="graph-subtasks-preview"><div style="font-size: 0.7rem; font-weight: 700; color: #64748b;">Подзадачи ${subCountLabel}:</div>${subPreviewHtml}</div>` : ''}
+        `;
+
+        container.appendChild(nodeEl);
+    });
+
+    // 2. Render SVG Bezier Edges
+    edges.forEach((edge, edgeIdx) => {
+        const fromCoord = nodeCoordMap.get(edge.from_id);
+        const toCoord = nodeCoordMap.get(edge.to_id);
+        if (!fromCoord || !toCoord) return;
+
+        const x1 = fromCoord.x + 280;
+        const y1 = fromCoord.y + 44;
+        const x2 = toCoord.x;
+        const y2 = toCoord.y + 44;
+
+        const dx = Math.max(50, Math.abs(x2 - x1) * 0.5);
+        const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+        let edgeClass = "work";
+        let markerUrl = "url(#arrow-work)";
+        if (edge.is_completed) {
+            edgeClass = "done";
+            markerUrl = "url(#arrow-done)";
+        } else if (edge.is_blocked) {
+            edgeClass = "blocked";
+            markerUrl = "url(#arrow-blocked)";
+        }
+
+        const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pathEl.setAttribute("d", pathData);
+        pathEl.setAttribute("class", `graph-edge-path ${edgeClass}`);
+        pathEl.setAttribute("marker-end", markerUrl);
+        pathEl.setAttribute("id", `graph-edge-${edge.from_id}-${edge.to_id}`);
+        svgGroup.appendChild(pathEl);
+    });
+
+    renderGraphMinimap();
+}
+
+function selectGraphNode(nodeId) {
+    if (!currentGraphData || !currentGraphData.nodes) return;
+    selectedGraphNodeId = nodeId;
+
+    // Highlight node in DOM
+    document.querySelectorAll(".graph-node").forEach(el => el.classList.remove("selected"));
+    const activeEl = document.getElementById(`graph-node-${nodeId}`);
+    if (activeEl) activeEl.classList.add("selected");
+
+    const node = currentGraphData.nodes.find(n => n.id === nodeId);
+    const inspector = document.getElementById("graph-inspector");
+    if (!node || !inspector) return;
+
+    // Populate Inspector
+    const codeEl = document.getElementById("inspector-node-code");
+    const statusEl = document.getElementById("inspector-node-status");
+    const titleEl = document.getElementById("inspector-node-title");
+    const titleKzEl = document.getElementById("inspector-node-title-kz");
+    const assigneeEl = document.getElementById("inspector-node-assignee");
+    const dueEl = document.getElementById("inspector-node-due");
+    const progEl = document.getElementById("inspector-node-progress");
+    const blockerAlert = document.getElementById("inspector-blocker-alert");
+    const blockerName = document.getElementById("inspector-blocker-name");
+    const photosSection = document.getElementById("inspector-photos-section");
+    const photosStrip = document.getElementById("inspector-photos-strip");
+    const detailBtn = document.getElementById("inspector-btn-open-detail");
+
+    if (codeEl) codeEl.textContent = node.code || `TSK-${node.id}`;
+    if (statusEl) {
+        statusEl.textContent = node.status || "В работе";
+        statusEl.style.background = node.is_done ? "#f0fdf4" : (node.is_blocked ? "#fef2f2" : "#eff6ff");
+        statusEl.style.color = node.is_done ? "#166534" : (node.is_blocked ? "#991b1b" : "#1d4ed8");
+    }
+    if (titleEl) titleEl.textContent = node.title || "";
+    if (titleKzEl) titleKzEl.textContent = node.title_kz ? `«${node.title_kz}»` : "";
+    if (assigneeEl) assigneeEl.textContent = node.assignee_name || "Не назначен";
+    if (dueEl) dueEl.textContent = node.due_date_str || "Не установлен";
+    if (progEl) progEl.textContent = `${node.progress || 0}%`;
+
+    // Blocker info
+    if (blockerAlert) {
+        if (node.is_blocked && node.blocked_by) {
+            blockerAlert.style.display = "block";
+            if (blockerName) blockerName.textContent = `[${node.blocked_by.code}] «${node.blocked_by.title}»`;
+        } else {
+            blockerAlert.style.display = "none";
+        }
+    }
+
+    // Mini Photos preview
+    const photos = node.photos || { before: [], after: [] };
+    const allImgs = [...(photos.before || []), ...(photos.after || [])];
+    if (photosStrip) {
+        if (allImgs.length > 0) {
+            if (photosSection) photosSection.style.display = "block";
+            photosStrip.innerHTML = allImgs.map(item => {
+                const url = (typeof item === 'object' && item) ? (item.url || "") : String(item);
+                const caption = (typeof item === 'object' && item && item.type === 'after') ? 'ПОСЛЕ' : 'ДО';
+                return `
+                    <div style="position: relative; width: 64px; height: 48px; border-radius: 6px; overflow: hidden; background: #000; flex-shrink: 0; cursor: pointer; border: 1px solid #cbd5e1;" onclick="openPhotoViewerModal('${url}')" title="Нажмите для просмотра">
+                        <img src="${url}" alt="Фото" style="width: 100%; height: 100%; object-fit: cover;">
+                        <span style="position: absolute; bottom: 1px; left: 2px; font-size: 0.6rem; color: #fff; background: rgba(0,0,0,0.7); padding: 1px 3px; border-radius: 3px;">${caption}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            if (photosSection) photosSection.style.display = "none";
+            photosStrip.innerHTML = "";
+        }
+    }
+
+    if (detailBtn) {
+        detailBtn.onclick = () => {
+            openTaskDetailModal(node.id);
+        };
+    }
+
+    inspector.style.display = "block";
+}
+
+function closeGraphInspector() {
+    const inspector = document.getElementById("graph-inspector");
+    if (inspector) inspector.style.display = "none";
+    document.querySelectorAll(".graph-node").forEach(el => el.classList.remove("selected"));
+    selectedGraphNodeId = null;
+}
+
+function toggleGraphHideDone(isChecked) {
+    hideCompletedNodesOnGraph = isChecked;
+    if (currentGraphData) {
+        renderProjectGraph(currentGraphData);
+        fitProjectGraphToScreen();
+    }
+}
+
+async function toggleGraphMilestone(milestoneId, currentStatus, currentProgress, event) {
+    if (event) event.stopPropagation();
+    try {
+        // Use existing quickToggleRoadmapMilestone
+        await quickToggleRoadmapMilestone(milestoneId, currentStatus, currentProgress, event);
+        await reloadProjectGraphData();
+    } catch (err) {
+        console.error("Error toggling milestone in graph:", err);
+    }
+}
+
+async function reloadProjectGraphData() {
+    if (!currentGraphProjectId) return;
+    try {
+        const res = await fetch(`/api/tasks/${currentGraphProjectId}/graph`);
+        if (res.ok) {
+            currentGraphData = await res.json();
+            const p = currentGraphData.project || {};
+            const summary = currentGraphData.summary || {};
+
+            const progBar = document.getElementById("graph-project-progress-bar");
+            const progVal = document.getElementById("graph-project-progress-val");
+            const prog = summary.overall_progress || p.progress || 0;
+            if (progBar) progBar.style.width = `${prog}%`;
+            if (progVal) progVal.textContent = `${prog}%`;
+
+            renderProjectGraph(currentGraphData);
+
+            if (selectedGraphNodeId) {
+                selectGraphNode(selectedGraphNodeId);
+            }
+        }
+    } catch (err) {
+        console.error("Error reloading graph data:", err);
+    }
+}
+
+function renderGraphMinimap() {
+    const canvas = document.getElementById("graph-minimap-canvas");
+    const viewportBox = document.getElementById("graph-minimap-viewport");
+    const viewport = document.getElementById("graph-viewport");
+    if (!canvas || !viewport || !currentGraphData || !currentGraphData.nodes) return;
+
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Canvas background
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const nodes = currentGraphData.nodes;
+    if (!nodes.length) return;
+
+    // Fixed virtual space for minimap: 2400 x 1350
+    const virtW = 2400;
+    const virtH = 1350;
+    const scaleMiniX = canvas.width / virtW;
+    const scaleMiniY = canvas.height / virtH;
+
+    // Draw mini nodes
+    nodes.forEach(n => {
+        if (n._renderedX !== undefined) {
+            const mx = n._renderedX * scaleMiniX;
+            const my = n._renderedY * scaleMiniY;
+            const mw = 280 * scaleMiniX;
+            const mh = 160 * scaleMiniY;
+
+            ctx.fillStyle = n.is_done ? "#10b981" : (n.is_blocked ? "#ef4444" : "#2563eb");
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(mx, my, mw, mh, 2) : ctx.rect(mx, my, mw, mh);
+            ctx.fill();
+        }
+    });
+
+    // Draw viewport box in minimap
+    if (viewportBox) {
+        const vpW = viewport.clientWidth;
+        const vpH = viewport.clientHeight;
+
+        const visibleX = -graphPanX / graphZoomScale;
+        const visibleY = -graphPanY / graphZoomScale;
+        const visibleW = vpW / graphZoomScale;
+        const visibleH = vpH / graphZoomScale;
+
+        const boxX = Math.max(0, Math.min(canvas.width - 10, visibleX * scaleMiniX));
+        const boxY = Math.max(0, Math.min(canvas.height - 10, visibleY * scaleMiniY));
+        const boxW = Math.max(8, Math.min(canvas.width, visibleW * scaleMiniX));
+        const boxH = Math.max(8, Math.min(canvas.height, visibleH * scaleMiniY));
+
+        viewportBox.style.left = `${boxX}px`;
+        viewportBox.style.top = `${boxY}px`;
+        viewportBox.style.width = `${boxW}px`;
+        viewportBox.style.height = `${boxH}px`;
+    }
+}
+

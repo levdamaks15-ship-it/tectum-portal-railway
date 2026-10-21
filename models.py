@@ -421,6 +421,7 @@ class Task(Base):
     title_kz = Column(String, nullable=True) # Суть задачи (KZ)
     photo_link = Column(String, nullable=True) # Ссылка на Google Drive / Google Photo (Фото ДО)
     photo_link_after = Column(Text, nullable=True) # Подтверждающее фото выполнения (Фото ПОСЛЕ)
+    photos = Column(Text, nullable=True) # JSON: {"before": [...], "after": [...]} для мульти-фото
     author_name = Column(String, nullable=True) # Автор
     assignee_name = Column(String, nullable=True) # Исполнитель
     due_date_str = Column(String, nullable=True) # Срок (строка, напр. "28.08")

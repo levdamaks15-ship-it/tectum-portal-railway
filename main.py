@@ -271,6 +271,20 @@ async def lifespan(app: FastAPI):
                 except Exception as mig_err:
                     print(f"LKC columns migration notice: {mig_err}")
 
+                # Автомиграция колонки photos в tasks (мульти-фото)
+                try:
+                    if driver == 'postgresql':
+                        db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS photos TEXT;"))
+                        db.commit()
+                    elif driver == 'sqlite':
+                        with engine.connect() as conn:
+                            try:
+                                conn.execute(text("ALTER TABLE tasks ADD COLUMN photos TEXT;"))
+                                conn.commit()
+                            except: pass
+                except Exception as mig_err:
+                    print(f"Tasks photos migration notice: {mig_err}")
+
                 print("Seeded core master profiles (Левда М., Булеханов К., Мусаилова З., Миркасимов И.М. PIN 4321).")
             except Exception as e:
                 print(f"Error seeding users: {e}")
