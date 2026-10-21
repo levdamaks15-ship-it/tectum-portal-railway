@@ -1834,13 +1834,46 @@
             .apple-fab,
             .apple-bottom-nav           { display: none !important; }
 
-            /* Таблица — показываем */
-            #planner-table-wrapper      { display: block !important; }
+            /* Таблица — показываем только если не в режиме Дорожных карт */
+            body:not(.horizon-roadmaps) #planner-table-wrapper { display: block; }
             .planner-cards-container    { display: none !important; }
 
             /* Навигация горизонтов — показываем */
             .horizon-nav-bar            { display: flex !important; }
             #main-toolbar               { display: flex !important; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           СТРОГАЯ ИЗОЛЯЦИЯ ГОРИЗОНТА "ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ"
+           ═══════════════════════════════════════════════════════════════ */
+        body.horizon-roadmaps #planner-table-wrapper,
+        body.horizon-roadmaps .planner-cards-container,
+        body.horizon-roadmaps #filter-month,
+        body.horizon-roadmaps #filter-week,
+        body.horizon-roadmaps #btn-nav-today,
+        body.horizon-roadmaps .toolbar-divider-v,
+        body.horizon-roadmaps #week-presets-container,
+        body.horizon-roadmaps .week-presets-bar,
+        body.horizon-roadmaps #btn-toggle-backlog {
+            display: none !important;
+        }
+
+        body.horizon-roadmaps #roadmaps-view-container {
+            display: block !important;
+        }
+
+        body.horizon-roadmaps #roadmap-status-chips {
+            display: inline-flex !important;
+        }
+
+        body.horizon-roadmaps #filter-quarter {
+            display: inline-block !important;
+        }
+
+        body:not(.horizon-roadmaps) #roadmaps-view-container,
+        body:not(.horizon-roadmaps) #roadmap-status-chips,
+        body:not(.horizon-roadmaps) #filter-quarter {
+            display: none !important;
         }
 
         /* ═══════════════════════════════════════════════════════════════
@@ -3783,7 +3816,7 @@
     </div>
 
     <!-- TASK DETAIL VIEW MODAL (WITH MULTI-PHOTO GALLERY & SUBTASKS) -->
-    <div class="modal-overlay" id="task-detail-modal" style="z-index: 5200;">
+    <div class="modal-overlay" id="task-detail-modal" style="z-index: 6500;">
         <div class="modal-box task-detail-box">
             <!-- Header -->
             <div class="task-detail-header">
@@ -3936,7 +3969,7 @@
 
     <!-- POPUP PHOTO VIEWER MODAL (LIGHTBOX) WITH APPLE DESIGN TABS -->
     <div class="modal-overlay" id="photo-viewer-modal" onclick="closePhotoViewerModal()"
-        style="z-index: 6000; background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
+        style="z-index: 7000; background: rgba(0, 0, 0, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);">
         <div class="apple-photo-viewer-box" onclick="event.stopPropagation()">
             <button type="button" class="apple-lightbox-close-btn" onclick="closePhotoViewerModal()" title="Закрыть">&times;</button>
             
@@ -4181,6 +4214,8 @@
                 </div>
             </div>
         </div>
+    </div>
+
     <!-- PROJECT ACCEPTANCE & SIGN-OFF MODAL -->
     <div class="modal-overlay" id="project-accept-modal" style="z-index: 5500;">
         <div class="modal-box" style="max-width: 520px; max-height: 85vh; overflow-y: auto; word-break: break-word; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
@@ -4257,7 +4292,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20260928_desc_weeks_v2"></script>
+    <script src="/static/js/tasks.js?v=20261021_roadmap_subtask_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

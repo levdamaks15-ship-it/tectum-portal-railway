@@ -2103,11 +2103,11 @@ tr.week-divider-row td {
 
 /* 3. Блок быстрых пресетов (Сегодня, Эта нед., След. нед., 2 недели, Весь месяц) */
 .week-presets-bar {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 5px !important;
-    flex-wrap: nowrap !important;
-    flex-shrink: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
 }
 
 .btn-preset-chip {

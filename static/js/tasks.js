@@ -1033,6 +1033,13 @@ function switchHorizon(horizon, event) {
         appleNavSwitch(horizon);
     }
 
+    document.body.classList.toggle("horizon-roadmaps", horizon === "roadmaps");
+
+    const btnNavToday = document.getElementById("btn-nav-today");
+    const toolbarDivider = document.querySelector(".toolbar-divider-v");
+    if (btnNavToday) btnNavToday.style.display = (horizon === "roadmaps") ? "none" : "inline-flex";
+    if (toolbarDivider) toolbarDivider.style.display = (horizon === "roadmaps") ? "none" : "block";
+
     const tableWrapper = document.getElementById("planner-table-wrapper");
     const roadmapsContainer = document.getElementById("roadmaps-view-container");
     const filterWeek = document.getElementById("filter-week");
@@ -1046,8 +1053,8 @@ function switchHorizon(horizon, event) {
     const weekPresets = document.getElementById("week-presets-container");
 
     if (horizon === "roadmaps") {
-        if (tableWrapper) tableWrapper.style.display = "none";
-        if (roadmapsContainer) roadmapsContainer.style.display = "block";
+        if (tableWrapper) tableWrapper.style.setProperty("display", "none", "important");
+        if (roadmapsContainer) roadmapsContainer.style.setProperty("display", "block", "important");
         if (filterWeek) filterWeek.style.display = "none";
         if (filterMonth) filterMonth.style.display = "none";
         if (weekPresets) weekPresets.style.display = "none";
@@ -1058,55 +1065,31 @@ function switchHorizon(horizon, event) {
         }
         if (btnBacklog) btnBacklog.style.display = "none";
         if (printSubtitle) printSubtitle.textContent = "СТРАТЕГИЧЕСКИЕ ДОРОЖНЫЕ КАРТЫ И ПРОЕКТЫ";
+        window.scrollTo({ top: 0, behavior: "instant" });
         loadRoadmaps();
-    } else if (horizon === "services") {
-        if (tableWrapper) tableWrapper.style.display = "block";
-        if (roadmapsContainer) roadmapsContainer.style.display = "none";
-        if (filterWeek) filterWeek.style.display = "inline-block";
-        if (filterMonth) filterMonth.style.display = "inline-block";
-        if (weekPresets) weekPresets.style.display = "flex";
-        if (roadmapChips) roadmapChips.style.display = "none";
-        if (filterQuarter) filterQuarter.style.display = "none";
-        if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (printSubtitle) printSubtitle.textContent = "ПЛАНЫ СЛУЖБ ОГМ И ОГЭ (ППР И РЕВИЗИИ ОБОРУДОВАНИЯ)";
-        loadTasks();
-    } else if (horizon === "tech_council") {
-        if (tableWrapper) tableWrapper.style.display = "block";
-        if (roadmapsContainer) roadmapsContainer.style.display = "none";
-        if (filterWeek) filterWeek.style.display = "inline-block";
-        if (filterMonth) filterMonth.style.display = "inline-block";
-        if (weekPresets) weekPresets.style.display = "flex";
-        if (roadmapChips) roadmapChips.style.display = "none";
-        if (filterQuarter) filterQuarter.style.display = "none";
-        if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ТЕХНИЧЕСКОГО СОВЕТА";
-        const zoneFilter = document.getElementById("table-filter-zone");
-        if (zoneFilter) zoneFilter.value = "all";
-        loadTasks();
-    } else if (horizon === "quality_day") {
-        if (tableWrapper) tableWrapper.style.display = "block";
-        if (roadmapsContainer) roadmapsContainer.style.display = "none";
-        if (filterWeek) filterWeek.style.display = "inline-block";
-        if (filterMonth) filterMonth.style.display = "inline-block";
-        if (weekPresets) weekPresets.style.display = "flex";
-        if (roadmapChips) roadmapChips.style.display = "none";
-        if (filterQuarter) filterQuarter.style.display = "none";
-        if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ДНЯ КАЧЕСТВА";
-        const zoneFilter = document.getElementById("table-filter-zone");
-        if (zoneFilter) zoneFilter.value = "all";
-        loadTasks();
     } else {
-        // weekly
-        if (tableWrapper) tableWrapper.style.display = "block";
-        if (roadmapsContainer) roadmapsContainer.style.display = "none";
+        if (tableWrapper) tableWrapper.style.removeProperty("display");
+        if (roadmapsContainer) roadmapsContainer.style.setProperty("display", "none", "important");
         if (filterWeek) filterWeek.style.display = "inline-block";
         if (filterMonth) filterMonth.style.display = "inline-block";
         if (weekPresets) weekPresets.style.display = "flex";
         if (roadmapChips) roadmapChips.style.display = "none";
         if (filterQuarter) filterQuarter.style.display = "none";
         if (btnBacklog) btnBacklog.style.display = "inline-flex";
-        if (printSubtitle) printSubtitle.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО";
+
+        if (horizon === "services") {
+            if (printSubtitle) printSubtitle.textContent = "ПЛАНЫ СЛУЖБ ОГМ И ОГЭ (ППР И РЕВИЗИИ ОБОРУДОВАНИЯ)";
+        } else if (horizon === "tech_council") {
+            if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ТЕХНИЧЕСКОГО СОВЕТА";
+            const zoneFilter = document.getElementById("table-filter-zone");
+            if (zoneFilter) zoneFilter.value = "all";
+        } else if (horizon === "quality_day") {
+            if (printSubtitle) printSubtitle.textContent = "ПРОТОКОЛ ДНЯ КАЧЕСТВА";
+            const zoneFilter = document.getElementById("table-filter-zone");
+            if (zoneFilter) zoneFilter.value = "all";
+        } else {
+            if (printSubtitle) printSubtitle.textContent = "ИНФОРМАЦИОННЫЙ СТЕНД / БЕРЕЖЛИВОЕ ПРОИЗВОДСТВО";
+        }
         loadTasks();
     }
 }
@@ -1431,16 +1414,35 @@ function renderRoadmaps(projects) {
 
 let currentAcceptProjectId = null;
 
-function openProjectAcceptModal(projectId) {
+async function openProjectAcceptModal(projectId) {
+    if (!projectId) return;
     currentAcceptProjectId = projectId;
-    const p = (allRoadmaps || []).find(item => item.id === projectId);
-    if (!p) return;
+    let p = (allRoadmaps || []).find(item => item.id == projectId || String(item.id) === String(projectId));
+    if (!p) {
+        try {
+            const res = await fetch(`/api/tasks/${projectId}`);
+            if (res.ok) p = await res.json();
+        } catch (e) {
+            console.error("Error fetching project for acceptance:", e);
+        }
+    }
+    if (!p) {
+        showToast("Не удалось найти данные проекта для приёмки", "error");
+        return;
+    }
 
-    document.getElementById("accept-project-id").value = projectId;
-    document.getElementById("accept-project-code").textContent = p.code || (`TSK-${p.id}`);
-    document.getElementById("accept-project-title").textContent = p.title || "";
-    document.getElementById("accept-project-author").textContent = p.author_name || "Не указан";
-    document.getElementById("accept-project-quarter").textContent = p.target_quarter || "Текущий";
+    const idEl = document.getElementById("accept-project-id");
+    const codeEl = document.getElementById("accept-project-code");
+    const titleEl = document.getElementById("accept-project-title");
+    const authorEl = document.getElementById("accept-project-author");
+    const quarterEl = document.getElementById("accept-project-quarter");
+    const commentEl = document.getElementById("accept-project-comment");
+
+    if (idEl) idEl.value = projectId;
+    if (codeEl) codeEl.textContent = p.code || (`TSK-${p.id}`);
+    if (titleEl) titleEl.textContent = p.title || "";
+    if (authorEl) authorEl.textContent = p.author_name || "Не указан";
+    if (quarterEl) quarterEl.textContent = p.target_quarter || "Текущий";
 
     // Проверяем наличие фото ПОСЛЕ
     const hasAfterPhoto = Boolean(
@@ -1465,7 +1467,7 @@ function openProjectAcceptModal(projectId) {
         }
     }
 
-    document.getElementById("accept-project-comment").value = "Проект выполнен в полном объеме, ключевые этапы реализованы.";
+    if (commentEl) commentEl.value = "Проект выполнен в полном объеме, ключевые этапы реализованы.";
 
     const pinInput = document.getElementById("accept-project-pin");
     if (pinInput) {
@@ -1473,12 +1475,18 @@ function openProjectAcceptModal(projectId) {
     }
 
     const modal = document.getElementById("project-accept-modal");
-    if (modal) modal.style.display = "flex";
+    if (modal) {
+        modal.style.display = "flex";
+        modal.classList.add("active");
+    }
 }
 
 function closeProjectAcceptModal() {
     const modal = document.getElementById("project-accept-modal");
-    if (modal) modal.style.display = "none";
+    if (modal) {
+        modal.style.display = "none";
+        modal.classList.remove("active");
+    }
     currentAcceptProjectId = null;
 }
 
@@ -1899,7 +1907,7 @@ async function submitQuickAddSubtask(milestoneId, projectId) {
     const payload = {
         title: text,
         title_kz: text,
-        zone: "Бережливое производство",
+        zone: "Дорожная карта",
         task_type: "weekly",
         parent_id: milestoneId,
         author_name: authorName,
@@ -3146,19 +3154,43 @@ function renderTasksTable(tasks) {
                 </div>
             ` : '';
 
-            const zoneVal = t.zone || 'Бережливое производство';
-            let zoneClass = 'badge-zone';
-            if (zoneVal === 'Техсовет') zoneClass += ' badge-zone-tech-council';
-            else if (zoneVal === 'День качества') zoneClass += ' badge-zone-quality-day';
-
-            let zoneAndDeptHtml = `<span class="${zoneClass}">${escapeHtml(zoneVal)}</span>`;
-            if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
-                zoneAndDeptHtml += `
-                    <div style="margin-top: 2px;">
-                        <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>
+            let zoneAndDeptHtml = '';
+            if (t.is_roadmap_subtask) {
+                const projCode = t.roadmap_project_code || t.parent_code || '';
+                const projTitle = t.roadmap_project_title || t.parent_title || 'Проект';
+                zoneAndDeptHtml = `
+                    <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; font-weight: 700;">
+                        <i class="fa-solid fa-map-location-dot"></i> Дорожная карта
+                    </span>
+                    <div style="margin-top: 3px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span class="badge-zone" style="background: #f8fafc; color: #475569; border-color: #e2e8f0; font-size: 0.7rem; font-weight: 600;" title="Проект: ${escapeHtml(projCode)} ${escapeHtml(projTitle)}">
+                            📁 ${escapeHtml(projCode)} ${escapeHtml(projTitle)}
+                        </span>
                     </div>
                 `;
+            } else {
+                const zoneVal = t.zone || 'Бережливое производство';
+                let zoneClass = 'badge-zone';
+                if (zoneVal === 'Техсовет') zoneClass += ' badge-zone-tech-council';
+                else if (zoneVal === 'День качества') zoneClass += ' badge-zone-quality-day';
+
+                zoneAndDeptHtml = `<span class="${zoneClass}">${escapeHtml(zoneVal)}</span>`;
+                if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+                    zoneAndDeptHtml += `
+                        <div style="margin-top: 2px;">
+                            <span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>
+                        </div>
+                    `;
+                }
             }
+
+            const milestoneBadge = (t.is_roadmap_subtask && t.parent_code && t.parent_code !== t.roadmap_project_code) ? `
+                <div style="margin-top: 3px;">
+                    <span style="font-size: 0.72rem; color: #6d28d9; background: #faf5ff; border: 1px solid #ede9fe; border-radius: 4px; padding: 1px 6px; font-weight: 600;" title="Этап проекта: ${escapeHtml(t.parent_code)} ${escapeHtml(t.parent_title)}">
+                        <i class="fa-solid fa-flag-checkered"></i> Этап: ${escapeHtml(t.parent_code)} ${escapeHtml(t.parent_title)}
+                    </span>
+                </div>
+            ` : '';
 
             const dueDateCell = t.is_deadline_week ? `
                 <div>
@@ -3191,6 +3223,7 @@ function renderTasksTable(tasks) {
                     <td class="${titleClass}" style="font-weight: 600; min-width: 250px; color: #0f172a; line-height: 1.35; word-break: break-word;">
                         <div onclick="openTaskDetailModal(${t.id})" style="cursor: pointer;" title="Подробный просмотр задачи">${t.title || '—'}</div>
                         ${docBadge}
+                        ${milestoneBadge}
                         ${depBadge}
                         ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
                     </td>
@@ -3320,14 +3353,28 @@ function renderTasksCards(tasks) {
                 <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" style="font-size: 10px;">${escapeHtml(t.horizon_label)}</span>
             ` : '';
 
-            const cardZoneVal = t.zone || 'Бережливое производство';
-            let cardZoneClass = 'badge-zone';
-            if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
-            else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
+            let cardZoneHtml = '';
+            if (t.is_roadmap_subtask) {
+                const projCode = t.roadmap_project_code || t.parent_code || '';
+                const projTitle = t.roadmap_project_title || t.parent_title || 'Проект';
+                cardZoneHtml = `
+                    <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; font-weight: 700;">
+                        <i class="fa-solid fa-map-location-dot"></i> Дорожная карта
+                    </span>
+                    <span class="badge-zone" style="background: #f8fafc; color: #475569; border-color: #e2e8f0; font-size: 0.7rem; font-weight: 600;" title="Проект: ${escapeHtml(projCode)} ${escapeHtml(projTitle)}">
+                        📁 ${escapeHtml(projCode)}
+                    </span>
+                `;
+            } else {
+                const cardZoneVal = t.zone || 'Бережливое производство';
+                let cardZoneClass = 'badge-zone';
+                if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
+                else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
 
-            let cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
-            if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
-                cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
+                cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
+                if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
+                    cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
+                }
             }
 
             const cardDueDateItem = t.is_deadline_week ? `
@@ -6540,6 +6587,7 @@ async function openTaskDetailModal(taskId) {
     if (statusBadgeEl) statusBadgeEl.textContent = "Загрузка...";
     if (commentEl) commentEl.textContent = "—";
 
+    modal.style.display = "flex";
     modal.classList.add("active");
 
     try {
@@ -6559,7 +6607,10 @@ async function openTaskDetailModal(taskId) {
 
 function closeTaskDetailModal() {
     const modal = document.getElementById("task-detail-modal");
-    if (modal) modal.classList.remove("active");
+    if (modal) {
+        modal.style.display = "none";
+        modal.classList.remove("active");
+    }
     currentDetailTaskId = null;
     currentDetailTaskData = null;
 }

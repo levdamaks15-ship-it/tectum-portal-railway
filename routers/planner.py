@@ -1513,13 +1513,30 @@ def get_tasks(
         ref_map = {}
         if ref_ids:
             ref_tasks = db.query(models.Task).filter(models.Task.id.in_(list(ref_ids))).all()
+            second_parent_ids = set()
             for rt in ref_tasks:
                 ref_map[rt.id] = {
                     "id": rt.id,
                     "code": rt.code or f"TSK-{rt.id}",
                     "title": rt.title,
-                    "status": rt.status
+                    "status": rt.status,
+                    "task_type": rt.task_type,
+                    "parent_id": rt.parent_id
                 }
+                if rt.parent_id and rt.parent_id not in ref_ids:
+                    second_parent_ids.add(rt.parent_id)
+
+            if second_parent_ids:
+                root_ref_tasks = db.query(models.Task).filter(models.Task.id.in_(list(second_parent_ids))).all()
+                for rrt in root_ref_tasks:
+                    ref_map[rrt.id] = {
+                        "id": rrt.id,
+                        "code": rrt.code or f"TSK-{rrt.id}",
+                        "title": rrt.title,
+                        "status": rrt.status,
+                        "task_type": rrt.task_type,
+                        "parent_id": rrt.parent_id
+                    }
 
         # Предзагрузка подсчета подзадач
         task_ids = [t.id for t in tasks]
@@ -1556,10 +1573,25 @@ def get_tasks(
                     if t_due and (sel_week_start <= t_due <= sel_week_end):
                         is_deadline_week = True
 
+            # Определение принадлежности к Дорожной карте (подзадачи проектов)
+            is_roadmap_subtask = False
+            root_project = None
+            parent_milestone = None
+            if t.parent_id and t.parent_id in ref_map:
+                p_item = ref_map[t.parent_id]
+                parent_milestone = p_item
+                if p_item.get("task_type") == "roadmap":
+                    is_roadmap_subtask = True
+                    if p_item.get("parent_id") and p_item.get("parent_id") in ref_map:
+                        root_project = ref_map[p_item["parent_id"]]
+                    else:
+                        root_project = p_item
+
             # Определение человекопонятного бейджа горизонта
-            h_label = "⚡ Спринт"
-            h_badge_class = "horizon-sprint"
-            if t.task_type == "tech_council" or t.zone == "Техсовет":
+            if is_roadmap_subtask or t.task_type == "roadmap":
+                h_label = "🗺️ Дорожная карта"
+                h_badge_class = "horizon-roadmap"
+            elif t.task_type == "tech_council" or t.zone == "Техсовет":
                 h_label = "🔬 Техсовет"
                 h_badge_class = "horizon-tech"
             elif t.task_type == "quality_day" or t.zone == "День качества":
@@ -1582,9 +1614,9 @@ def get_tasks(
                 else:
                     h_label = f"🔧 {dept}"
                     h_badge_class = "horizon-service"
-            elif t.task_type == "roadmap":
-                h_label = "🗺️ Дорожная карта"
-                h_badge_class = "horizon-roadmap"
+            else:
+                h_label = "⚡ Спринт"
+                h_badge_class = "horizon-sprint"
 
             doc_info = doc_map.get(t.attached_document_id) if t.attached_document_id else None
             parent_info = ref_map.get(t.parent_id) if t.parent_id else None
@@ -1603,8 +1635,13 @@ def get_tasks(
                 "department_service": t.department_service or "",
                 "horizon_label": h_label,
                 "horizon_badge_class": h_badge_class,
+                "is_roadmap_subtask": is_roadmap_subtask,
                 "parent_id": t.parent_id,
-                "parent_title": parent_info["title"] if parent_info else "",
+                "parent_code": parent_milestone["code"] if parent_milestone else "",
+                "parent_title": parent_milestone["title"] if parent_milestone else "",
+                "roadmap_project_id": root_project["id"] if root_project else None,
+                "roadmap_project_code": root_project["code"] if root_project else "",
+                "roadmap_project_title": root_project["title"] if root_project else "",
                 "depends_on_id": t.depends_on_id,
                 "depends_on": dep_info,
                 "tags": t.tags or "",
