@@ -219,13 +219,31 @@ async def lifespan(app: FastAPI):
                     levda.pin = "6282"
                     levda.role = "admin"
 
+                tumatov = db.query(models.Master).filter(models.Master.name.like("%Туматов%")).first()
+                if not tumatov:
+                    db.add(models.Master(name="Туматов Д.", pin="1111", role="director"))
+                else:
+                    tumatov.name = "Туматов Д."
+                    tumatov.role = "director"
+
+                gerling = db.query(models.Master).filter(models.Master.name.like("%Герлинг%")).first()
+                if not gerling:
+                    db.add(models.Master(name="Герлинг С.", pin="2222", role="tech_director"))
+                else:
+                    gerling.name = "Герлинг С."
+                    gerling.role = "tech_director"
+
                 bulekhanov = db.query(models.Master).filter(or_(models.Master.name.like("%Булеханов%"), models.Master.name.like("%Булекпаев%"))).first()
                 if not bulekhanov:
-                    db.add(models.Master(name="Булеханов К.", pin="2026", role="director"))
+                    db.add(models.Master(name="Булеханов К.", pin="2026", role="production_head"))
                 else:
                     bulekhanov.name = "Булеханов К."
                     bulekhanov.pin = "2026"
-                    bulekhanov.role = "director"
+                    bulekhanov.role = "production_head"
+
+                # Деактивация исключенных из списков сотрудников
+                db.query(models.Master).filter(models.Master.name.in_(["Акжанбаев Ж.", "Носиков Е."])).update({"role": "inactive"}, synchronize_session=False)
+                db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name.in_(["Акжанбаев Ж.", "Носиков Е."])).update({"is_active": False}, synchronize_session=False)
 
                 musailova = db.query(models.Master).filter(or_(models.Master.name.like("%Мусаилова%"), models.Master.name == "Зарина", models.Master.id == 25)).first()
                 if not musailova:

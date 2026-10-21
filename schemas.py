@@ -778,6 +778,7 @@ class BulkTaskStatusUpdate(ORMBaseModel):
     next_month_label: Optional[str] = ""
     next_week_label: Optional[str] = ""
     pin_code: Optional[str] = None
+    user_name: Optional[str] = None
 
 class TaskReassignRequest(ORMBaseModel):
     new_assignee: str
@@ -803,6 +804,7 @@ class TaskUpdate(ORMBaseModel):
     week_label: Optional[str] = None
     is_archived: Optional[bool] = None
     pin_code: Optional[str] = None
+    user_name: Optional[str] = None
     
     # 3-level Planner & Hierarchy fields
     task_type: Optional[str] = None

@@ -55,11 +55,9 @@ let tasksFetchSeq = 0;
 const CORE_NAMES = [
     "Герлинг С.",
     "Булеханов К.",
-    "Акжанбаев Ж.",
     "Курилова С.",
     "Солонцов Ю.",
     "Сазонов С.",
-    "Носиков Е.",
     "Хохлов К.",
     "Зарина",
     "Косумов Р.",
@@ -161,8 +159,40 @@ function initPlannerSession() {
     updatePlannerUserBadge();
 }
 
+const PLANNER_TRUSTED_LEADERS = ["Туматов Д.", "Герлинг С.", "Булеханов К."];
+
 function isPlannerAdmin(user = currentPlannerUser) {
-    return user && user.name === "Левда М.";
+    if (!user) return false;
+    const masterPin = "6282";
+    return user.name === "Левда М." || (user.pin && user.pin.trim() === masterPin);
+}
+
+function isPlannerTrustedLeader(user = currentPlannerUser) {
+    if (!user || !user.name) return false;
+    return PLANNER_TRUSTED_LEADERS.includes(user.name.trim());
+}
+
+function canEditProjectOrTask(task, user = currentPlannerUser) {
+    if (!user || !user.name) return false;
+    if (isPlannerAdmin(user)) return true;
+    if (isPlannerTrustedLeader(user)) return true;
+    if (task && task.author_name && task.author_name.trim() === user.name.trim()) return true;
+    return false;
+}
+
+function canInteractWithTask(task, user = currentPlannerUser) {
+    if (!user || !user.name) return false;
+    if (canEditProjectOrTask(task, user)) return true;
+    if (task && task.assignee_name && task.assignee_name.trim() === user.name.trim()) return true;
+    return false;
+}
+
+function canAcceptProject(project, user = currentPlannerUser) {
+    if (!user || !user.name) return false;
+    if (isPlannerAdmin(user)) return true;
+    if (isPlannerTrustedLeader(user)) return true;
+    if (project && project.author_name && project.author_name.trim() === user.name.trim()) return true;
+    return false;
 }
 
 function updatePlannerUserBadge() {
@@ -173,19 +203,37 @@ function updatePlannerUserBadge() {
 
     if (currentPlannerUser && currentPlannerUser.name) {
         const isAdmin = isPlannerAdmin();
-        nameEl.innerHTML = isAdmin 
-            ? `<i class="fa-solid fa-crown" style="color: #eab308; margin-right: 4px;" title="Мастер-администратор"></i>${currentPlannerUser.name}` 
-            : currentPlannerUser.name;
+        const isLeader = isPlannerTrustedLeader();
+
+        let iconHtml = '<i class="fa-solid fa-user-check" style="color: #2563eb; margin-right: 4px;"></i>';
+        let bg = "#eff6ff";
+        let color = "#1d4ed8";
+        let border = "#bfdbfe";
+        let title = `👤 Сотрудник: ${currentPlannerUser.name}. Нажмите для смены`;
+
+        if (isAdmin) {
+            iconHtml = '<i class="fa-solid fa-crown" style="color: #eab308; margin-right: 4px;" title="Мастер-администратор"></i>';
+            bg = "#fefce8";
+            color = "#854d0e";
+            border = "#fef08a";
+            title = `👑 Мастер-администратор: ${currentPlannerUser.name} (полные права). Нажмите для смены`;
+        } else if (isLeader) {
+            iconHtml = '<i class="fa-solid fa-shield-halved" style="color: #6366f1; margin-right: 4px;" title="Руководство завода"></i>';
+            bg = "#eef2ff";
+            color = "#4338ca";
+            border = "#c7d2fe";
+            title = `🛡️ Руководство завода: ${currentPlannerUser.name}. Нажмите для смены`;
+        }
+
+        nameEl.innerHTML = `${iconHtml}${currentPlannerUser.name}`;
         badgeEl.style.display = "flex";
-        badgeEl.style.background = isAdmin ? "#fefce8" : "#eff6ff";
-        badgeEl.style.color = isAdmin ? "#854d0e" : "#1d4ed8";
-        badgeEl.style.borderColor = isAdmin ? "#fef08a" : "#bfdbfe";
-        badgeEl.title = isAdmin 
-            ? `👑 Мастер-администратор: ${currentPlannerUser.name} (полные права). Нажмите для смены` 
-            : `Авторизован: ${currentPlannerUser.name}. Нажмите для смены`;
+        badgeEl.style.background = bg;
+        badgeEl.style.color = color;
+        badgeEl.style.borderColor = border;
+        badgeEl.title = title;
         if (logoutBtn) logoutBtn.style.display = "inline-block";
     } else {
-        nameEl.textContent = "Войти (PIN)";
+        nameEl.innerHTML = '<i class="fa-solid fa-lock" style="margin-right: 4px;"></i>Войти (PIN)';
         badgeEl.style.display = "flex";
         badgeEl.style.background = "#f1f5f9";
         badgeEl.style.color = "#475569";
@@ -329,20 +377,66 @@ async function submitPinModal() {
     }
 }
 
-function ensureUserAuthorized(requiredUser = null, onSuccess) {
-    // Если пользователь — мастер-администратор (Левда М.), он обладает абсолютными правами на любые действия
+function ensureUserAuthorized(requiredUser = null, onSuccess, task = null, actionType = "interact") {
+    // 1. Мастер-администратор (Левда М. или мастер-PIN 6282) — абсолютные права
     if (currentPlannerUser && isPlannerAdmin()) {
         onSuccess(currentPlannerUser);
         return;
     }
 
-    // Если уже есть сессия и она совпадает с требуемым пользователем (или пользователь не указан)
-    if (currentPlannerUser && (!requiredUser || currentPlannerUser.name === requiredUser)) {
+    // 2. Доверенное руководство завода (Туматов Д., Герлинг С., Булеханов К.) — полный доступ ко всем проектам и задачам
+    if (currentPlannerUser && isPlannerTrustedLeader()) {
         onSuccess(currentPlannerUser);
         return;
     }
 
-    // Если нужна авторизация — открываем модалку ввода PIN
+    // 3. Проверка прав по объекту задачи/проекта
+    if (task && currentPlannerUser) {
+        const uName = currentPlannerUser.name ? currentPlannerUser.name.trim() : "";
+        const isAuthor = Boolean(task.author_name && task.author_name.trim() === uName);
+        const isAssignee = Boolean(task.assignee_name && task.assignee_name.trim() === uName);
+
+        if (actionType === "edit_project" || actionType === "delete_task") {
+            if (isAuthor) {
+                onSuccess(currentPlannerUser);
+                return;
+            } else {
+                showToast(`🔒 Редактировать суть и удалять задачу/проект может только автор (${task.author_name || '—'}), руководство завода или администратор`, "warning");
+                return;
+            }
+        } else if (actionType === "accept_project") {
+            if (isAuthor) {
+                onSuccess(currentPlannerUser);
+                return;
+            } else {
+                showToast(`🔒 Принимать проект дорожной карты может только автор (${task.author_name || '—'}), руководство завода или администратор`, "warning");
+                return;
+            }
+        } else {
+            // interact (статус, комментарий, фото)
+            if (isAuthor || isAssignee) {
+                onSuccess(currentPlannerUser);
+                return;
+            } else {
+                showToast(`🔒 Взаимодействовать с задачей (смена статуса, фото, факт) может только исполнитель (${task.assignee_name || '—'}), автор (${task.author_name || '—'}) или руководство завода`, "warning");
+                return;
+            }
+        }
+    }
+
+    // 4. Если сессия совпадает с requiredUser (или requiredUser не задан)
+    if (currentPlannerUser && (!requiredUser || currentPlannerUser.name === (typeof requiredUser === 'string' ? requiredUser.trim() : requiredUser))) {
+        onSuccess(currentPlannerUser);
+        return;
+    }
+
+    // 5. Если пользователь залогинен под другим именем и не проходит проверки
+    if (currentPlannerUser && requiredUser && currentPlannerUser.name.trim() !== String(requiredUser).trim()) {
+        showToast(`🔒 Действие требует прав «${requiredUser}», руководства завода или администратора`, "warning");
+        return;
+    }
+
+    // 6. Если сессии нет (Гость) — открываем ввод PIN
     openPinModal(requiredUser, onSuccess);
 }
 
@@ -1220,6 +1314,8 @@ function renderRoadmaps(projects) {
         const doneElems = p.done_elements || 0;
         const isReadyForAccept = (prog === 100 || (totalElems > 0 && doneElems === totalElems)) && p.status !== '🟢 Выполнено';
         const isCompleted = p.status === '🟢 Выполнено';
+        const canEdit = canEditProjectOrTask(p);
+        const canAccept = canAcceptProject(p);
 
         let cardStyle = '';
         if (isReadyForAccept) {
@@ -1333,8 +1429,8 @@ function renderRoadmaps(projects) {
                         <div class="roadmap-title" onclick="openTaskDetailModal(${p.id})" style="cursor: pointer;" title="Подробный просмотр проекта">${escapeHtml(p.title)}</div>
                     </div>
                     <div style="display: flex; gap: 4px;">
-                        <button class="btn-icon-cell" onclick="openEditTaskModal(${p.id})" title="Редактировать проект">
-                            <i class="fa-solid fa-pen"></i>
+                        <button class="btn-icon-cell" onclick="openEditTaskModal(${p.id})" title="${canEdit ? 'Редактировать проект' : 'Просмотр проекта'}">
+                            <i class="${canEdit ? 'fa-solid fa-pen' : 'fa-solid fa-eye'}" style="${canEdit ? '' : 'color: #64748b;'}"></i>
                         </button>
                     </div>
                 </div>
@@ -1374,7 +1470,8 @@ function renderRoadmaps(projects) {
                     ${milestonesHtml || '<div style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 0.5rem 0;">Этапы проекта пока не добавлены</div>'}
                 </div>
 
-                <!-- Inline Quick Add Milestone Bar -->
+                <!-- Inline Quick Add Milestone Bar (доступно автору проекта, руководству завода или администратору) -->
+                ${canEdit ? `
                 <div id="inline-milestone-box-${p.id}" class="roadmap-inline-milestone-box" style="margin-top: 0.65rem; padding: 0.5rem; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 8px; box-sizing: border-box;">
                     <input type="text" id="inline-milestone-input-${p.id}" class="form-input" placeholder="+ Название этапа... (Enter)" style="width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 0.82rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" onkeydown="handleInlineMilestoneKeydown(event, ${p.id})">
                     <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px;">
@@ -1387,10 +1484,11 @@ function renderRoadmaps(projects) {
                         </button>
                     </div>
                 </div>
+                ` : ''}
 
                 <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
                     <div>
-                        ${isReadyForAccept ? `
+                        ${(isReadyForAccept && canAccept) ? `
                             <button type="button" class="btn-action" onclick="openProjectAcceptModal(${p.id})" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; font-weight: 700; font-size: 0.78rem; padding: 4px 11px; border-radius: 6px; border: none; cursor: pointer; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);" title="Принять проект и подписать акт">
                                 <i class="fa-solid fa-trophy"></i> Принять проект
                             </button>
@@ -1428,6 +1526,17 @@ async function openProjectAcceptModal(projectId) {
     }
     if (!p) {
         showToast("Не удалось найти данные проекта для приёмки", "error");
+        return;
+    }
+
+    if (!canAcceptProject(p)) {
+        if (!currentPlannerUser) {
+            openPinModal(p.author_name, () => {
+                openProjectAcceptModal(projectId);
+            });
+            return;
+        }
+        showToast(`🔒 Принимать проект может автор (${p.author_name || '—'}), руководство завода или администратор`, "warning");
         return;
     }
 
@@ -1901,42 +2010,46 @@ async function submitQuickAddSubtask(milestoneId, projectId) {
         return;
     }
 
-    // Определяем автора/ответственного (текущий авторизованный пользователь или ответственный по проекту)
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Офис бережливого производства");
+    const project = (allRoadmaps || []).find(p => p.id === projectId);
+    const requiredUser = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (project ? project.author_name : null);
 
-    const payload = {
-        title: text,
-        title_kz: text,
-        zone: "Дорожная карта",
-        task_type: "weekly",
-        parent_id: milestoneId,
-        author_name: authorName,
-        assignee_name: authorName,
-        status: "🟡 В работе",
-        month_label: currentMonth,
-        week_label: currentWeek,
-        pin_code: (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : ""
-    };
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        const authorName = authSession ? authSession.name : "Офис бережливого производства";
+        const payload = {
+            title: text,
+            title_kz: text,
+            zone: "Дорожная карта",
+            task_type: "weekly",
+            parent_id: milestoneId,
+            author_name: authorName,
+            assignee_name: authorName,
+            status: "🟡 В работе",
+            month_label: currentMonth,
+            week_label: currentWeek,
+            pin_code: authSession ? authSession.pin : "",
+            user_name: authorName
+        };
 
-    try {
-        const res = await fetch("/api/tasks", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+        try {
+            const res = await fetch("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-        if (res.ok) {
-            showToast("Подзадача создана!");
-            hideQuickAddSubtask(milestoneId);
-            loadRoadmaps();
-        } else {
-            const err = await res.json();
-            alert("Ошибка создания: " + (err.detail || "Не удалось сохранить подзадачу"));
+            if (res.ok) {
+                showToast("Подзадача создана!");
+                hideQuickAddSubtask(milestoneId);
+                loadRoadmaps();
+            } else {
+                const err = await res.json();
+                alert("Ошибка создания: " + (err.detail || "Не удалось сохранить подзадачу"));
+            }
+        } catch (e) {
+            console.error("Quick add subtask error:", e);
+            alert("Ошибка сети при создании подзадачи");
         }
-    } catch (e) {
-        console.error("Quick add subtask error:", e);
-        alert("Ошибка сети при создании подзадачи");
-    }
+    }, project, "edit_project");
 }
 
 async function quickToggleRoadmapSubtask(taskId, currentStatus, event) {
@@ -1945,36 +2058,50 @@ async function quickToggleRoadmapSubtask(taskId, currentStatus, event) {
     const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
     const defaultComment = isDone ? "" : "Выполнено через дорожную карту";
 
-    // Оптимистичный UI: находим кнопку чекбокса
-    const rowEl = document.getElementById(`roadmap-subtask-${taskId}`);
-    if (rowEl) {
-        const btn = rowEl.querySelector('.roadmap-check-btn');
-        if (btn) btn.classList.toggle('checked');
+    // Находим задачу в кэше
+    let task = null;
+    for (const r of (allRoadmaps || [])) {
+        for (const m of (r.milestones || [])) {
+            const found = (m.subtasks || []).find(s => s.id === taskId);
+            if (found) { task = found; break; }
+        }
+        if (task) break;
     }
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
-    try {
-        const res = await fetch(`/api/tasks/${taskId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                status: nextStatus,
-                comment: defaultComment,
-                pin_code: (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : ""
-            })
-        });
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        // Оптимистичный UI: находим кнопку чекбокса
+        const rowEl = document.getElementById(`roadmap-subtask-${taskId}`);
+        if (rowEl) {
+            const btn = rowEl.querySelector('.roadmap-check-btn');
+            if (btn) btn.classList.toggle('checked');
+        }
 
-        if (res.ok) {
-            showToast(isDone ? "Статус: В работе" : "Задача выполнена! 🎯");
-            loadRoadmaps();
-        } else {
-            const err = await res.json();
-            alert("Ошибка изменения статуса: " + (err.detail || "Не удалось изменить статус"));
+        try {
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    status: nextStatus,
+                    comment: defaultComment,
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
+                })
+            });
+
+            if (res.ok) {
+                showToast(isDone ? "Статус: В работе" : "Задача выполнена! 🎯");
+                loadRoadmaps();
+            } else {
+                const err = await res.json();
+                alert("Ошибка изменения статуса: " + (err.detail || "Не удалось изменить статус"));
+                loadRoadmaps();
+            }
+        } catch (e) {
+            console.error("Quick toggle error:", e);
             loadRoadmaps();
         }
-    } catch (e) {
-        console.error("Quick toggle error:", e);
-        loadRoadmaps();
-    }
+    }, task, "interact");
 }
 
 async function quickToggleRoadmapMilestone(milestoneId, currentStatus, currentProgress, event) {
@@ -1984,30 +2111,41 @@ async function quickToggleRoadmapMilestone(milestoneId, currentStatus, currentPr
     const nextProgress = isDone ? 0 : 100;
     const defaultComment = isDone ? "" : "Этап завершён";
 
-    try {
-        const res = await fetch(`/api/tasks/${milestoneId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                status: nextStatus,
-                progress: nextProgress,
-                comment: defaultComment,
-                pin_code: (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : ""
-            })
-        });
+    let milestone = null;
+    let parentProject = null;
+    for (const r of (allRoadmaps || [])) {
+        const found = (r.milestones || []).find(m => m.id === milestoneId);
+        if (found) { milestone = found; parentProject = r; break; }
+    }
+    const requiredUser = milestone ? (milestone.assignee_name || milestone.author_name || (parentProject ? parentProject.author_name : null)) : null;
 
-        if (res.ok) {
-            showToast(isDone ? "Этап возвращен в работу" : "Ключевой этап завершен! 🎉");
-            loadRoadmaps();
-        } else {
-            const err = await res.json();
-            alert("Ошибка: " + (err.detail || "Не удалось обновить статус этапа"));
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        try {
+            const res = await fetch(`/api/tasks/${milestoneId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    status: nextStatus,
+                    progress: nextProgress,
+                    comment: defaultComment,
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
+                })
+            });
+
+            if (res.ok) {
+                showToast(isDone ? "Этап возвращен в работу" : "Ключевой этап завершен! 🎉");
+                loadRoadmaps();
+            } else {
+                const err = await res.json();
+                alert("Ошибка: " + (err.detail || "Не удалось обновить статус этапа"));
+                loadRoadmaps();
+            }
+        } catch (e) {
+            console.error("Quick milestone toggle error:", e);
             loadRoadmaps();
         }
-    } catch (e) {
-        console.error("Quick milestone toggle error:", e);
-        loadRoadmaps();
-    }
+    }, milestone || parentProject, "interact");
 }
 
 async function loadTaskTags() {
@@ -2807,7 +2945,8 @@ async function executeServicesBulkStatus(newStatus) {
                 task_ids: taskIds,
                 status: newStatus,
                 comment: newStatus.includes("Выполнено") ? "Выполнено" : "",
-                pin_code: authSession ? authSession.pin : ""
+                pin_code: authSession ? authSession.pin : "",
+                user_name: authSession ? authSession.name : ""
             };
 
             const res = await fetch("/api/tasks/bulk_status", {
@@ -2855,7 +2994,8 @@ async function executeServicesBulkMove() {
                 move_to_next_week: true,
                 next_month_label: next.month,
                 next_week_label: next.week,
-                pin_code: authSession ? authSession.pin : ""
+                pin_code: authSession ? authSession.pin : "",
+                user_name: authSession ? authSession.name : ""
             };
 
             const res = await fetch("/api/tasks/bulk_status", {
@@ -3096,8 +3236,12 @@ function renderTasksTable(tasks) {
 
             const titleClass = isCancelled ? 'task-cancelled-text' : '';
 
-            const commentCell = isLocked ? `
-                <span class="comment-locked" title="${isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована'}">
+            const isGuest = !currentPlannerUser;
+            const canEdit = isGuest || canEditProjectOrTask(t);
+            const canInteract = isGuest || canInteractWithTask(t);
+
+            const commentCell = (isLocked || (!isGuest && !canInteract)) ? `
+                <span class="comment-locked" title="${isLocked ? (isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована') : 'Только для исполнителя/руководства'}">
                     ${t.comment || '—'}
                 </span>
             ` : `
@@ -3106,31 +3250,47 @@ function renderTasksTable(tasks) {
                 </span>
             `;
 
-            const actionButtons = isLocked ? `
-                <div class="row-actions">
-                    <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
-                        <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
-                    </button>
-                    <button class="btn-icon-cell" disabled title="Заблокировано">
-                        <i class="fa-solid fa-lock" style="font-size: 0.75rem;"></i>
-                    </button>
-                </div>
-            ` : `
-                <div class="row-actions">
-                    <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
-                        <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
-                    </button>
-                    <button class="btn-icon-cell" onclick="openReassignTaskModal(${t.id})" title="Переадресовать задачу другому исполнителю">
-                        <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i>
-                    </button>
-                    <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                        <i class="fa-solid fa-arrow-right"></i>
-                    </button>
-                    <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Редактировать">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                </div>
-            `;
+            let actionButtons = '';
+            if (isLocked) {
+                actionButtons = `
+                    <div class="row-actions">
+                        <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                        </button>
+                        <button class="btn-icon-cell" disabled title="Заблокировано">
+                            <i class="fa-solid fa-lock" style="font-size: 0.75rem;"></i>
+                        </button>
+                    </div>
+                `;
+            } else if (!canInteract) {
+                actionButtons = `
+                    <div class="row-actions">
+                        <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                        </button>
+                        <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="Просмотр задачи (только чтение)">
+                            <i class="fa-solid fa-eye" style="color: #64748b;"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                actionButtons = `
+                    <div class="row-actions">
+                        <button class="btn-icon-cell" onclick="openTaskHistoryModal(${t.id})" title="История задачи (таймлайн)">
+                            <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i>
+                        </button>
+                        <button class="btn-icon-cell" onclick="openReassignTaskModal(${t.id})" title="Переадресовать задачу другому исполнителю">
+                            <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i>
+                        </button>
+                        <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="${canEdit ? 'Редактировать' : 'Внести факт / фото / статус'}">
+                            <i class="fa-solid ${canEdit ? 'fa-pen' : 'fa-pen-to-square'}" style="${canEdit ? '' : 'color: #0284c7;'}"></i>
+                        </button>
+                    </div>
+                `;
+            }
 
             const docBadge = t.attached_doc ? `
                 <div style="margin-top: 4px;">
@@ -3429,7 +3589,12 @@ function renderTasksCards(tasks) {
                 `;
             }
 
-            const swipeLeftActionHtml = isLocked ? '' : `
+            const isGuest = !currentPlannerUser;
+            const canEdit = isGuest || canEditProjectOrTask(t);
+            const canInteract = isGuest || canInteractWithTask(t);
+            const isSwipeLocked = isLocked || !canInteract;
+
+            const swipeLeftActionHtml = isSwipeLocked ? '' : `
                 <!-- Фоновое действие при свайпе вправо (Выполнить) -->
                 <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
                     <i class="fa-solid fa-check" style="font-size: 20px;"></i>
@@ -3437,7 +3602,17 @@ function renderTasksCards(tasks) {
                 </div>
             `;
 
-            const swipeRightActionsHtml = isLocked ? '' : `
+            const swipeRightActionsHtml = isSwipeLocked ? (
+                isLocked ? '' : `
+                <!-- Фоновые действия при свайпе влево (Только инфо/просмотр для зрителей) -->
+                <div class="apple-swipe-action-right">
+                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Просмотр">
+                        <i class="fa-solid fa-eye" style="font-size: 16px;"></i>
+                        <span>Инфо</span>
+                    </button>
+                </div>
+                `
+            ) : `
                 <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
                 <div class="apple-swipe-action-right">
                     <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
@@ -3448,9 +3623,9 @@ function renderTasksCards(tasks) {
                         <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
                         <span>Передать</span>
                     </button>
-                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Редактировать">
-                        <i class="fa-solid fa-pen" style="font-size: 16px;"></i>
-                        <span>Правка</span>
+                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="${canEdit ? 'Редактировать' : 'Внести факт'}">
+                        <i class="fa-solid ${canEdit ? 'fa-pen' : 'fa-pen-to-square'}" style="font-size: 16px;"></i>
+                        <span>${canEdit ? 'Правка' : 'Факт'}</span>
                     </button>
                 </div>
             `;
@@ -3884,7 +4059,8 @@ async function quickUpdateStatus(taskId, newStatus) {
                         body: JSON.stringify({
                             status: "🟢 Выполнено",
                             comment: task.comment || "Выполнено",
-                            pin_code: authSession ? authSession.pin : ""
+                            pin_code: authSession ? authSession.pin : "",
+                            user_name: authSession ? authSession.name : ""
                         })
                     });
                     if (res.ok) {
@@ -3899,7 +4075,7 @@ async function quickUpdateStatus(taskId, newStatus) {
                     console.error("Error completing service task:", e);
                     restoreSelectValue(taskId);
                 }
-            });
+            }, task, "interact");
             return;
         }
 
@@ -3931,7 +4107,8 @@ async function quickUpdateStatus(taskId, newStatus) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     status: newStatus,
-                    pin_code: authSession ? authSession.pin : ""
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
                 })
             });
             if (res.ok) {
@@ -3945,7 +4122,7 @@ async function quickUpdateStatus(taskId, newStatus) {
         } catch (e) {
             console.error("Error updating status:", e);
         }
-    });
+    }, task, "interact");
 }
 
 function restoreSelectValue(taskId) {
@@ -4025,7 +4202,8 @@ async function submitCompleteModal() {
                 status: "🟢 Выполнено",
                 comment: factText,
                 photo_link_after: photoLinkAfter,
-                pin_code: authSession ? authSession.pin : ""
+                pin_code: authSession ? authSession.pin : "",
+                user_name: authSession ? authSession.name : ""
             };
 
             const res = await fetch(`/api/tasks/${taskId}`, {
@@ -4046,7 +4224,7 @@ async function submitCompleteModal() {
             console.error("Error completing task:", e);
             alert("Произошла ошибка при сохранении");
         }
-    });
+    }, task, "interact");
 }
 
 /* ==========================================================
@@ -4168,7 +4346,8 @@ async function submitRescheduleModal() {
                 status: "🔵 Перенесено",
                 due_date_str: newDueDateStr,
                 comment: commentText,
-                pin_code: authSession ? authSession.pin : ""
+                pin_code: authSession ? authSession.pin : "",
+                user_name: authSession ? authSession.name : ""
             };
 
             const res = await fetch(`/api/tasks/${taskId}`, {
@@ -4189,7 +4368,7 @@ async function submitRescheduleModal() {
             console.error("Error rescheduling task:", e);
             alert("Произошла ошибка сети при переносе срока");
         }
-    });
+    }, task, "interact");
 }
 
 /* ==========================================================
@@ -4255,7 +4434,8 @@ async function submitCancelModal() {
                 body: JSON.stringify({ 
                     status: "🔴 Отменено",
                     comment: commentText,
-                    pin_code: authSession ? authSession.pin : ""
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
                 })
             });
 
@@ -4271,7 +4451,7 @@ async function submitCancelModal() {
             console.error("Error cancelling task:", e);
             alert("Произошла ошибка при отмене задачи");
         }
-    });
+    }, task, "delete_task");
 }
 
 /* ==========================================================
@@ -4430,7 +4610,8 @@ async function inlineEditComment(taskId, currentComment) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     comment: newComment,
-                    pin_code: authSession ? authSession.pin : ""
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
                 })
             });
             if (res.ok) {
@@ -4443,7 +4624,7 @@ async function inlineEditComment(taskId, currentComment) {
         } catch (e) {
             console.error("Error updating comment:", e);
         }
-    });
+    }, task, "interact");
 }
 
 /* ==========================================================
@@ -4821,53 +5002,82 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     document.getElementById("task-modal").style.display = "flex";
 }
 
-function setTaskModalLockState(isLocked, taskStatus = "") {
+function setTaskModalLockState(mode, bannerText = "") {
     const lockBanner = document.getElementById("task-modal-lock-banner");
     const saveBtn = document.querySelector("#task-modal .btn-primary-action");
-    const inputs = [
-        "task-type-input", "task-department-input", "task-quarter-input", "task-progress-input",
+    
+    // mode can be: false / "unlocked", true / "full_lock", or "interact_only"
+    const isFullLock = (mode === true || mode === "full_lock");
+    const isInteractOnly = (mode === "interact_only");
+
+    const structuralInputs = [
+        "task-type-input", "task-department-input", "task-quarter-input",
         "task-ru-input", "task-kz-input", "task-tags-input", "task-zone-input",
-        "task-photo-input", "task-photo-after-input", "task-author-input", "task-assignee-input",
-        "task-due-input", "task-status-input", "task-comment-input"
+        "task-author-input", "task-assignee-input", "task-due-input"
+    ];
+    const interactionInputs = [
+        "task-progress-input", "task-photo-input", "task-photo-after-input",
+        "task-status-input", "task-comment-input"
     ];
 
-    inputs.forEach(id => {
+    structuralInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                el.readOnly = isLocked;
+                el.readOnly = isFullLock || isInteractOnly;
             }
             if (el.tagName === 'SELECT' || el.type === 'date') {
-                el.disabled = isLocked;
+                el.disabled = isFullLock || isInteractOnly;
+            }
+        }
+    });
+
+    interactionInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.readOnly = isFullLock;
+            }
+            if (el.tagName === 'SELECT' || el.type === 'date') {
+                el.disabled = isFullLock;
             }
         }
     });
 
     const photoGalleryBtns = document.querySelectorAll("#task-modal button[onclick*='gallery']");
-    photoGalleryBtns.forEach(btn => btn.style.display = isLocked ? "none" : "inline-flex");
+    photoGalleryBtns.forEach(btn => btn.style.display = isFullLock ? "none" : "inline-flex");
 
     const duePresetBtns = document.querySelectorAll("#task-modal .due-presets-bar button");
-    duePresetBtns.forEach(btn => btn.style.display = isLocked ? "none" : "inline-block");
+    duePresetBtns.forEach(btn => btn.style.display = (isFullLock || isInteractOnly) ? "none" : "inline-block");
 
     if (saveBtn) {
-        saveBtn.style.display = isLocked ? "none" : "inline-block";
+        saveBtn.style.display = isFullLock ? "none" : "inline-block";
     }
 
-    if (isLocked) {
-        const isCancelled = taskStatus && taskStatus.includes("Отменено");
-        const statusText = isCancelled ? "отменена" : "завершена";
-        if (!lockBanner) {
-            const banner = document.createElement("div");
-            banner.id = "task-modal-lock-banner";
-            banner.style.cssText = "background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;";
-            banner.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Задача ${statusText} и защищена от изменений. Редактирование доступно только администратору.</span>`;
+    if (isFullLock || isInteractOnly) {
+        let b = document.getElementById("task-modal-lock-banner");
+        if (!b) {
+            b = document.createElement("div");
+            b.id = "task-modal-lock-banner";
+            b.style.cssText = "padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;";
             const header = document.querySelector("#task-modal .modal-header");
             if (header && header.nextSibling) {
-                header.parentNode.insertBefore(banner, header.nextSibling);
+                header.parentNode.insertBefore(b, header.nextSibling);
             }
-        } else {
-            lockBanner.style.display = "flex";
-            lockBanner.innerHTML = `<i class="fa-solid fa-lock"></i> <span>Задача ${statusText} и защищена от изменений. Редактирование доступно только администратору.</span>`;
+        }
+        if (b) {
+            b.style.display = "flex";
+            if (isFullLock) {
+                b.style.background = "#fef2f2";
+                b.style.border = "1px solid #fecaca";
+                b.style.color = "#991b1b";
+                b.innerHTML = `<i class="fa-solid fa-lock"></i> <span>${bannerText || "Режим просмотра: редактирование заблокировано."}</span>`;
+            } else {
+                b.style.background = "#eff6ff";
+                b.style.border = "1px solid #bfdbfe";
+                b.style.color = "#1e40af";
+                b.innerHTML = `<i class="fa-solid fa-user-pen"></i> <span>${bannerText || "Режим исполнителя: доступно обновление статуса, прогресса, комментария и фото."}</span>`;
+            }
         }
     } else {
         if (lockBanner) {
@@ -4892,13 +5102,24 @@ async function openEditTaskModal(taskId) {
 
     const isCompleted = task.status && task.status.includes("Выполнено");
     const isCancelled = task.status && task.status.includes("Отменено");
-    const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
+    const isFinished = isCompleted || isCancelled;
 
-    setTaskModalLockState(isLocked, task.status || "");
+    const isAdmin = isPlannerAdmin();
+    const isLeader = isPlannerTrustedLeader();
+    const canEdit = canEditProjectOrTask(task);
+    const canInteract = canInteractWithTask(task);
 
-    if (isLocked) {
+    if (isFinished && !isAdmin && !isLeader) {
+        setTaskModalLockState("full_lock", `Задача ${isCancelled ? 'отменена' : 'завершена'} и защищена от изменений. Редактирование доступно только руководству или администратору.`);
         document.getElementById("modal-title").innerHTML = `<i class="fa-solid fa-lock" style="color: #ef4444; margin-right: 6px;"></i>Просмотр задачи [${task.code || ('TSK-' + task.id)}]`;
+    } else if (!canEdit && !canInteract) {
+        setTaskModalLockState("full_lock", "Режим просмотра: редактировать суть проекта/задачи может только автор, руководство завода или администратор.");
+        document.getElementById("modal-title").innerHTML = `<i class="fa-solid fa-eye" style="color: #64748b; margin-right: 6px;"></i>Просмотр задачи [${task.code || ('TSK-' + task.id)}]`;
+    } else if (canInteract && !canEdit) {
+        setTaskModalLockState("interact_only", "Режим исполнителя: вам доступно обновление статуса, прогресса, факта/комментария и фото.");
+        document.getElementById("modal-title").innerHTML = `<i class="fa-solid fa-user-pen" style="color: #2563eb; margin-right: 6px;"></i>Взаимодействие с задачей [${task.code || ('TSK-' + task.id)}]`;
     } else {
+        setTaskModalLockState("unlocked");
         document.getElementById("modal-title").textContent = `Редактирование задачи [${task.code || ('TSK-' + task.id)}]`;
     }
     document.getElementById("task-id-input").value = task.id;
@@ -4987,9 +5208,9 @@ function closeTaskModal() {
 
 async function saveTaskModal() {
     const taskId = document.getElementById("task-id-input").value;
-    if (taskId) {
-        const existing = allTasks.find(t => t.id == taskId);
-        const isLocked = !isPlannerAdmin() && existing && existing.status && (existing.status.includes("Выполнено") || existing.status.includes("Отменено"));
+    const existing = taskId ? allTasks.find(t => t.id == taskId) : null;
+    if (existing) {
+        const isLocked = !isPlannerAdmin() && !isPlannerTrustedLeader() && existing.status && (existing.status.includes("Выполнено") || existing.status.includes("Отменено"));
         if (isLocked) {
             showToast("🔒 Завершенные и отмененные задачи защищены от изменений", "error");
             return;
@@ -5027,8 +5248,11 @@ async function saveTaskModal() {
         return;
     }
 
-    // Если автор не авторизован по PIN — запрашиваем PIN
-    ensureUserAuthorized(author, async (authSession) => {
+    // Определяем пользователя и тип действия для проверки прав
+    const requiredUser = existing ? (canEditProjectOrTask(existing) ? (existing.author_name || author) : (existing.assignee_name || assignee)) : author;
+    const actionType = existing ? (canEditProjectOrTask(existing) ? "edit_project" : "interact") : "create";
+
+    ensureUserAuthorized(requiredUser, async (authSession) => {
         // Если статус Выполнено — факт обязателен
         if (status === "🟢 Выполнено" && !comment) {
             alert("При установке статуса «Выполнено» обязательно укажите факт / результат выполнения в поле «Факт / Комментарий»!");
@@ -5099,7 +5323,8 @@ async function saveTaskModal() {
             month_label: targetMonth,
             week_label: targetWeek,
             attached_document_id: docIdVal || null,
-            pin_code: authSession ? authSession.pin : ""
+            pin_code: authSession ? authSession.pin : "",
+            user_name: authSession ? authSession.name : ""
         };
 
         const saveBtn = document.querySelector("#task-modal .btn-primary-action");
@@ -6048,7 +6273,10 @@ async function moveTaskToNextWeekModal(taskId) {
         if (!confirmMove) return;
 
         try {
-            const res = await fetch(`/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}&next_month=${encodeURIComponent(next.month)}`, {
+            const uName = authSession ? authSession.name : (currentPlannerUser ? currentPlannerUser.name : "");
+            const uPin = authSession ? authSession.pin : (currentPlannerUser ? currentPlannerUser.pin : "");
+            const url = `/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}&next_month=${encodeURIComponent(next.month)}&user_name=${encodeURIComponent(uName)}&pin=${encodeURIComponent(uPin)}`;
+            const res = await fetch(url, {
                 method: "POST"
             });
             if (res.ok) {
@@ -6067,12 +6295,13 @@ async function moveTaskToNextWeekModal(taskId) {
                     loadTasks();
                 }
             } else {
-                alert("Ошибка переноса задачи");
+                const err = await res.json().catch(() => ({}));
+                alert("Ошибка переноса задачи: " + (err.detail || "Доступ запрещен"));
             }
         } catch (e) {
             console.error("Move task error:", e);
         }
-    });
+    }, task, "interact");
 }
 
 /* ==========================================================
@@ -6665,18 +6894,42 @@ function populateTaskDetailModal(task) {
     }
 
     // Action buttons state
+    const isGuest = !currentPlannerUser;
+    const canInteract = isGuest || canInteractWithTask(task);
+    const canEdit = isGuest || canEditProjectOrTask(task);
+
     const btnComplete = document.getElementById("detail-btn-complete");
     const isDone = task.status && task.status.includes("Выполнено");
     if (btnComplete) {
-        if (isDone) {
-            btnComplete.innerHTML = `<i class="fa-solid fa-circle-check"></i> Выполнено`;
-            btnComplete.style.background = "#059669";
-            btnComplete.disabled = true;
+        if (!canInteract) {
+            btnComplete.style.display = "none";
         } else {
-            btnComplete.innerHTML = `<i class="fa-solid fa-check"></i> Завершить`;
-            btnComplete.style.background = "#10b981";
-            btnComplete.disabled = false;
+            btnComplete.style.display = "inline-flex";
+            if (isDone) {
+                btnComplete.innerHTML = `<i class="fa-solid fa-circle-check"></i> Выполнено`;
+                btnComplete.style.background = "#059669";
+                btnComplete.disabled = true;
+            } else {
+                btnComplete.innerHTML = `<i class="fa-solid fa-check"></i> Завершить`;
+                btnComplete.style.background = "#10b981";
+                btnComplete.disabled = false;
+            }
         }
+    }
+
+    const btnReschedule = document.getElementById("detail-btn-reschedule");
+    if (btnReschedule) {
+        btnReschedule.style.display = canInteract ? "inline-flex" : "none";
+    }
+
+    const btnEdit = document.getElementById("detail-btn-edit");
+    if (btnEdit) {
+        btnEdit.innerHTML = canEdit ? `<i class="fa-solid fa-pen"></i> Редактировать` : `<i class="fa-solid fa-eye"></i> Просмотр`;
+    }
+
+    const btnAddSubtask = document.getElementById("detail-btn-add-subtask");
+    if (btnAddSubtask) {
+        btnAddSubtask.style.display = canEdit ? "inline-flex" : "none";
     }
 
     // Progress Section
@@ -6848,36 +7101,47 @@ async function quickToggleSubtaskFromDetail(subtaskId, currentStatus) {
     const isDone = currentStatus && currentStatus.includes("Выполнено");
     const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
 
-    try {
-        const res = await fetch(`/api/tasks/${subtaskId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                status: nextStatus,
-                comment: isDone ? "Возвращено в работу" : "Выполнено"
-            })
-        });
-        if (!res.ok) throw new Error("Не удалось обновить статус подзадачи");
-        showToast(isDone ? "Этап возвращен в работу" : "Этап выполнен!", "success");
+    const subtasks = (currentDetailTaskData && currentDetailTaskData.subtasks) || [];
+    const st = subtasks.find(s => s.id === subtaskId);
+    const requiredUser = st ? (st.assignee_name || st.author_name || (currentDetailTaskData ? currentDetailTaskData.assignee_name : null)) : null;
 
-        // Refresh detail modal
-        if (currentDetailTaskId) {
-            const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
-            if (freshRes.ok) {
-                currentDetailTaskData = await freshRes.json();
-                populateTaskDetailModal(currentDetailTaskData);
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        try {
+            const res = await fetch(`/api/tasks/${subtaskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    status: nextStatus,
+                    comment: isDone ? "Возвращено в работу" : "Выполнено",
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Не удалось обновить статус подзадачи");
             }
+            showToast(isDone ? "Этап возвращен в работу" : "Этап выполнен!", "success");
+
+            // Refresh detail modal
+            if (currentDetailTaskId) {
+                const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
+                if (freshRes.ok) {
+                    currentDetailTaskData = await freshRes.json();
+                    populateTaskDetailModal(currentDetailTaskData);
+                }
+            }
+            // Refresh background sprint / roadmaps view if active
+            if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+                loadRoadmaps();
+            } else if (typeof loadTasks === 'function') {
+                loadTasks();
+            }
+        } catch (err) {
+            console.error("Error updating subtask status:", err);
+            showToast(err.message, "error");
         }
-        // Refresh background sprint / roadmaps view if active
-        if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
-            loadRoadmaps();
-        } else if (typeof loadTasks === 'function') {
-            loadTasks();
-        }
-    } catch (err) {
-        console.error("Error toggling subtask from detail:", err);
-        showToast("Ошибка при обновлении этапа", "error");
-    }
+    }, st || currentDetailTaskData, "interact");
 }
 
 function switchDetailPhotoTab(tab) {
@@ -6916,9 +7180,11 @@ function renderDetailPhotoGallery() {
 
     const activeList = (currentDetailPhotoTab === 'after') ? afterList : beforeList;
     const tabName = (currentDetailPhotoTab === 'after') ? 'ПОСЛЕ' : 'ДО';
+    const canInteract = canInteractWithTask(currentDetailTaskData);
 
     if (uploadBtn) {
         uploadBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> + Загрузить фото ${tabName}`;
+        uploadBtn.style.display = canInteract ? "inline-flex" : "none";
     }
 
     if (!activeList.length) {
@@ -6938,20 +7204,33 @@ function renderDetailPhotoGallery() {
         const dateStr = (typeof item === 'object' && item) ? (item.uploaded_at || "") : "";
         const authorStr = (typeof item === 'object' && item) ? (item.author || "") : "";
         const caption = dateStr ? `${dateStr}${authorStr ? ' • ' + authorStr : ''}` : name;
+        const delBtnHtml = canInteract ? `
+            <button type="button" class="gallery-item-del-btn" onclick="deleteDetailPhoto(event, '${url}', '${currentDetailPhotoTab}')" title="Удалить фото">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        ` : '';
 
         return `
             <div class="gallery-item" onclick="openLightboxGallery('${currentDetailPhotoTab}', ${idx})" title="${escapeHtml(name)} (нажмите для просмотра)">
                 <img src="${url}" alt="${escapeHtml(name)}" loading="lazy">
                 <div class="gallery-item-badge">${escapeHtml(caption)}</div>
-                <button type="button" class="gallery-item-del-btn" onclick="deleteDetailPhoto(event, '${url}', '${currentDetailPhotoTab}')" title="Удалить фото">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
+                ${delBtnHtml}
             </div>
         `;
     }).join("");
 }
 
 function triggerDetailPhotoUpload() {
+    if (!canInteractWithTask(currentDetailTaskData)) {
+        if (!currentPlannerUser) {
+            openPinModal(null, () => {
+                triggerDetailPhotoUpload();
+            });
+            return;
+        }
+        showToast("Загрузка фото доступна только исполнителю, автору или руководству завода", "warning");
+        return;
+    }
     const input = document.getElementById("detail-photo-file-input");
     if (input) input.click();
 }
@@ -6959,6 +7238,11 @@ function triggerDetailPhotoUpload() {
 async function handleDetailPhotoUpload(event) {
     const files = event.target.files;
     if (!files || !files.length || !currentDetailTaskId) return;
+
+    if (!canInteractWithTask(currentDetailTaskData)) {
+        showToast("Загрузка фото доступна только исполнителю, автору или руководству завода", "warning");
+        return;
+    }
 
     const banner = document.getElementById("detail-photo-uploading-banner");
     const uploadBtn = document.getElementById("detail-btn-upload-photos");
@@ -6973,6 +7257,9 @@ async function handleDetailPhotoUpload(event) {
         formData.append("photo_type", currentDetailPhotoTab);
         if (typeof currentPlannerUser !== 'undefined' && currentPlannerUser && currentPlannerUser.name) {
             formData.append("author_name", currentPlannerUser.name);
+            if (currentPlannerUser.pin) {
+                formData.append("pin_code", currentPlannerUser.pin);
+            }
         }
 
         const res = await fetch(`/api/tasks/${currentDetailTaskId}/upload_photos`, {
@@ -7009,6 +7296,11 @@ async function handleDetailPhotoUpload(event) {
 async function deleteDetailPhoto(event, photoUrl, photoType) {
     if (event) event.stopPropagation();
     if (!currentDetailTaskId || !photoUrl) return;
+
+    if (!canInteractWithTask(currentDetailTaskData)) {
+        showToast("Удалять фото может только исполнитель, автор или руководство завода", "warning");
+        return;
+    }
 
     if (!confirm("Вы уверены, что хотите удалить эту фотографию?")) {
         return;
@@ -7080,6 +7372,17 @@ function openTaskHistoryModalFromDetail() {
 function openAddSubtaskFromDetail() {
     if (!currentDetailTaskId) return;
     const tid = currentDetailTaskId;
+    if (!canEditProjectOrTask(currentDetailTaskData)) {
+        if (!currentPlannerUser) {
+            openPinModal(null, () => {
+                openAddSubtaskFromDetail();
+            });
+            return;
+        }
+        showToast("Добавлять подзадачи может только автор проекта, руководство завода или администратор", "warning");
+        return;
+    }
+    closeTaskDetailModal();
     if (typeof openSubtaskQuickModal === 'function') {
         openSubtaskQuickModal(tid);
     }

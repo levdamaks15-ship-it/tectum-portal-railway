@@ -52,6 +52,8 @@ def send_task_email_notification(to_email: str, subject: str, event_type: str, t
 
 # Имена суперпользователей/администраторов планнера с абсолютными правами
 PLANNER_ADMIN_NAMES = {"Левда М."}
+# Доверенные лица (руководство завода с правом редактирования любых проектов и задач)
+PLANNER_TRUSTED_LEADERS = {"Туматов Д.", "Герлинг С.", "Булеханов К."}
 
 def is_admin_authorized(db: Session, pin: str) -> bool:
     """Проверяет, совпадает ли введенный PIN с PIN-кодом любого из администраторов системы или мастер-PIN (6282)."""
@@ -66,12 +68,105 @@ def is_admin_authorized(db: Session, pin: str) -> bool:
         if a.pin_code and a.pin_code.strip() == clean_pin:
             return True
     admin_masters = db.query(models.Master).filter(
-        or_(models.Master.role.in_(["admin", "director"]), models.Master.name.in_(PLANNER_ADMIN_NAMES))
+        or_(models.Master.role == "admin", models.Master.name.in_(PLANNER_ADMIN_NAMES))
     ).all()
     for m in admin_masters:
         if m.pin and m.pin.strip() == clean_pin:
             return True
     return False
+
+def verify_person_pin(db: Session, person_name: str, pin: str) -> bool:
+    """Сверяет PIN-код конкретного лица по таблицам PlannerEmployee и Master, либо по мастер-PIN (6282)."""
+    if not pin or not person_name:
+        return False
+    clean_pin = pin.strip()
+    clean_name = person_name.strip()
+    master_pin = os.getenv("MASTER_PIN", "6282").strip()
+    if clean_pin == master_pin or clean_pin == "6282":
+        return True
+    
+    # 1. PlannerEmployee
+    emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_name).first()
+    if emp and emp.pin_code and emp.pin_code.strip():
+        return emp.pin_code.strip() == clean_pin
+
+    # 2. Master
+    m = db.query(models.Master).filter(models.Master.name == clean_name).first()
+    if m and m.pin and m.pin.strip():
+        return m.pin.strip() == clean_pin
+
+    # Если сотрудника нет в базе или у него не задан PIN
+    return True
+
+def check_task_access(
+    db: Session,
+    task: Optional[models.Task],
+    user_name: str,
+    pin: str,
+    action: str  # "create", "edit_project", "interact_task", "delete_task", "accept_project"
+) -> tuple[bool, str]:
+    """
+    Проверяет права доступа к задаче или проекту:
+    - Админ (Левда М. / Мастер-PIN): полный доступ к любым действиям.
+    - Доверенное руководство завода (Туматов Д., Герлинг С., Булеханов К.): полный доступ к любым действиям.
+    - Приемка проектов (accept_project): ТОЛЬКО руководство (Туматов Д., Герлинг С., Булеханов К.) или админ (Левда М.).
+    - Создание задач (create): любой сотрудник с подтвержденным PIN.
+    - Редактирование сути/сроков/вех и удаление (edit_project, delete_task): автор задачи/проекта, руководство или админ.
+    - Взаимодействие (interact_task - статус, фото, факт/комментарий): исполнитель, автор, руководство или админ.
+    - Остальные: 403 Forbidden.
+    """
+    clean_pin = (pin or "").strip()
+    clean_user = (user_name or "").strip()
+
+    if not clean_pin:
+        return False, "Для выполнения действия требуется подтверждение PIN-кода"
+
+    master_pin = os.getenv("MASTER_PIN", "6282").strip()
+    is_master = (clean_pin == master_pin or clean_pin == "6282")
+
+    # 1. Мастер-администратор
+    if is_master or clean_user in PLANNER_ADMIN_NAMES:
+        if is_master or is_admin_authorized(db, clean_pin):
+            return True, ""
+        return False, "Неверный PIN-код администратора"
+
+    # 2. Доверенное руководство завода (Туматов Д., Герлинг С., Булеханов К.)
+    if clean_user in PLANNER_TRUSTED_LEADERS:
+        if verify_person_pin(db, clean_user, clean_pin):
+            return True, ""
+        return False, f"Неверный PIN-код для «{clean_user}»"
+
+    # 3. Создание новой задачи/проекта (create)
+    if action == "create":
+        if clean_user and verify_person_pin(db, clean_user, clean_pin):
+            return True, ""
+        return False, f"Неверный PIN-код для автора «{clean_user}»"
+
+    # Если задача передана, проверяем отношение к ней
+    if task:
+        is_author = bool(clean_user and task.author_name and clean_user == task.author_name)
+        is_assignee = bool(clean_user and task.assignee_name and clean_user == task.assignee_name)
+
+        if is_author:
+            if verify_person_pin(db, clean_user, clean_pin):
+                return True, ""
+            return False, f"Неверный PIN-код автора «{clean_user}»"
+
+        if action == "accept_project":
+            return False, f"Принимать проект дорожной карты может автор ({task.author_name or '—'}), руководство завода (Туматов Д., Герлинг С., Булеханов К.) или администратор"
+
+        if action == "interact_task" and is_assignee:
+            if verify_person_pin(db, clean_user, clean_pin):
+                return True, ""
+            return False, f"Неверный PIN-код исполнителя «{clean_user}»"
+
+        if action in ("edit_project", "delete_task"):
+            return False, f"Редактировать суть, вехи и удалять проект/задачу может только автор ({task.author_name or '—'}), руководство завода или администратор"
+
+        if action == "interact_task":
+            return False, f"Взаимодействовать с задачей (смена статуса, фото, факт) может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
+
+    return False, "Недостаточно прав для выполнения этого действия"
 
 # --- PLANNER SETTINGS (EMPLOYEES & ZONES) ENDPOINTS ---
 
@@ -1931,12 +2026,9 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         author_name = (task_data.author_name or "").strip()
         pin = (task_data.pin_code or "").strip()
 
-        # Проверка PIN-кода автора (администратор может создавать от имени любого сотрудника)
-        if author_name and not is_admin_authorized(db, pin):
-            emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
-            if emp and emp.pin_code and emp.pin_code.strip():
-                if emp.pin_code.strip() != pin:
-                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
+        ok, err = check_task_access(db, None, author_name, pin, "create")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
 
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         next_num = (last_task.id + 1) if last_task else 1
@@ -2068,11 +2160,9 @@ def create_quick_milestone(
         # Автор и PIN
         author_name = (data.author_name or "").strip() or parent.author_name or "Планнер"
         pin = (data.pin_code or "").strip()
-        if author_name and not is_admin_authorized(db, pin):
-            emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == author_name).first()
-            if emp and emp.pin_code and emp.pin_code.strip():
-                if emp.pin_code.strip() != pin:
-                    raise HTTPException(status_code=401, detail=f"Неверный PIN-код для автора «{author_name}»")
+        ok, err = check_task_access(db, parent, author_name, pin, "edit_project")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
 
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         next_num = (last_task.id + 1) if last_task else 1
@@ -2562,16 +2652,26 @@ def update_tasks_bulk_status(payload: schemas.BulkTaskStatusUpdate, background_t
 
         tasks = db.query(models.Task).filter(models.Task.id.in_(task_ids)).all()
         pin = (payload.pin_code or "").strip()
-        is_admin = is_admin_authorized(db, pin)
+        user_name = (payload.user_name or "").strip()
+        is_leader_or_admin = (
+            pin == os.getenv("MASTER_PIN", "6282").strip() or 
+            pin == "6282" or 
+            user_name in PLANNER_ADMIN_NAMES or 
+            user_name in PLANNER_TRUSTED_LEADERS
+        )
 
-        # 🔒 ЗАЩИТА: Если в пачке есть уже завершенные или отмененные задачи, а пользователь не админ — блокируем
-        if not is_admin:
+        if not is_leader_or_admin:
+            if not user_name or not verify_person_pin(db, user_name, pin):
+                raise HTTPException(status_code=403, detail="Неверный PIN-код или отсутствие прав для массового обновления")
+
+        # 🔒 ЗАЩИТА: Если в пачке есть уже завершенные или отмененные задачи, а пользователь не админ/руководство — блокируем
+        if not is_leader_or_admin:
             locked_tasks = [t for t in tasks if t.status in ["🟢 Выполнено", "🔴 Отменено"]]
             if locked_tasks:
                 codes_str = ", ".join([t.code or f"TSK-{t.id}" for t in locked_tasks[:5]])
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Задачи ({codes_str}) уже завершены или отменены и заблокированы от изменений. Изменение доступно только администратору."
+                    detail=f"Задачи ({codes_str}) уже завершены или отменены и заблокированы от изменений. Изменение доступно только руководству или администратору."
                 )
 
         new_status = payload.status
@@ -2644,32 +2744,34 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
         old_parent_id = task.parent_id
 
         pin = (task_data.pin_code or "").strip()
-        is_admin = is_admin_authorized(db, pin)
-
-        # 🔒 ЗАЩИТА: Завершенные ("🟢 Выполнено") и отмененные ("🔴 Отменено") задачи заблокированы от любых изменений для обычных сотрудников
-        if old_status in ["🟢 Выполнено", "🔴 Отменено"] and not is_admin:
-            raise HTTPException(
-                status_code=403,
-                detail="Завершенные и отмененные задачи заблокированы от изменений. Редактирование доступно только администратору."
-            )
-
-        if pin and not is_admin:
-            author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.author_name).first() if task.author_name else None
-            assignee_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == task.assignee_name).first() if task.assignee_name else None
-            
-            valid = False
-            if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
-                valid = True
-            if assignee_emp and assignee_emp.pin_code and assignee_emp.pin_code.strip() == pin:
-                valid = True
-            if (not author_emp or not author_emp.pin_code) and (not assignee_emp or not assignee_emp.pin_code):
-                valid = True
-            if not valid:
-                raise HTTPException(status_code=403, detail="Неверный PIN-код сотрудника")
+        user_name = (task_data.user_name or "").strip()
 
         # Автоматическое извлечение хэштегов из заголовка при обновлении
         update_dict = task_data.dict(exclude_unset=True)
         update_dict.pop("pin_code", None)
+        update_dict.pop("user_name", None)
+
+        # Определяем тип действия: только взаимодействие (статус/факт/фото/прогресс) или редактирование сути проекта/задачи
+        interaction_fields = {"status", "comment", "photos", "photo_link", "photo_link_after", "progress"}
+        is_interaction_only = all(k in interaction_fields for k in update_dict.keys()) if update_dict else True
+        required_action = "interact_task" if is_interaction_only else "edit_project"
+
+        # 🔒 ЗАЩИТА: Завершенные ("🟢 Выполнено") и отмененные ("🔴 Отменено") задачи заблокированы от любых изменений для обычных сотрудников
+        is_leader_or_admin = (
+            pin == os.getenv("MASTER_PIN", "6282").strip() or 
+            pin == "6282" or 
+            user_name in PLANNER_ADMIN_NAMES or 
+            user_name in PLANNER_TRUSTED_LEADERS
+        )
+        if old_status in ["🟢 Выполнено", "🔴 Отменено"] and not is_leader_or_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="Завершенные и отмененные задачи заблокированы от изменений. Редактирование доступно только руководству или администратору."
+            )
+
+        ok, err = check_task_access(db, task, user_name, pin, required_action)
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
 
         if "title" in update_dict:
             curr_tags = update_dict.get("tags") if "tags" in update_dict else task.tags
@@ -2812,21 +2914,9 @@ def accept_project(
         user_name = (data.get("user_name") or "").strip()
         comment = (data.get("comment") or "Проект официально принят").strip()
 
-        is_admin = is_admin_authorized(db, pin)
-        is_author = False
-
-        if project.author_name:
-            author_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == project.author_name).first()
-            if author_emp and author_emp.pin_code and author_emp.pin_code.strip() == pin:
-                is_author = True
-            elif user_name and user_name == project.author_name and (not author_emp or not author_emp.pin_code):
-                is_author = True
-
-        if not is_admin and not is_author:
-            raise HTTPException(
-                status_code=403,
-                detail="Принять проект может только Автор проекта или Администратор/Директор (PIN 6282)"
-            )
+        ok, err = check_task_access(db, project, user_name, pin, "accept_project")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
 
         project.status = "🟢 Выполнено"
         project.progress = 100
@@ -2884,13 +2974,24 @@ def accept_project(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/api/tasks/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_id: int,
+    user_name: Optional[str] = Query(None),
+    pin: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
     """Удаляет задачу в Корзину / Архив (Soft Delete с полным JSON-снимком в AuditLog)."""
     try:
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
         
+        clean_user = (user_name or "").strip()
+        clean_pin = (pin or "").strip()
+        ok, err = check_task_access(db, task, clean_user, clean_pin, "delete_task")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
+
         task_info = f"ID: {task.id}, Код: {task.code}, Заголовок: {task.title}, Зона: {task.zone}, Период: {task.month_label}/{task.week_label}"
         
         # Soft delete: не вызываем db.delete(task), а переносим в архив/корзину
@@ -2918,11 +3019,11 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         
         # Логирование в аудит
         db.add(models.AuditLog(
-            user_name="Администратор",
+            user_name=clean_user or "Администратор",
             action="DELETE",
             target_table="tasks",
             target_id=task_id,
-            details=f"Администратор переместил задачу в Корзину [{task_info}] | Снимок: {json.dumps(snapshot, ensure_ascii=False)}"
+            details=f"Пользователь «{clean_user or 'Администратор'}» переместил задачу в Корзину [{task_info}] | Снимок: {json.dumps(snapshot, ensure_ascii=False)}"
         ))
         
         db.commit()
@@ -2971,6 +3072,8 @@ def move_task_to_next_week(
     task_id: int, 
     next_week: str, 
     next_month: Optional[str] = None, 
+    user_name: Optional[str] = Query(None),
+    pin: Optional[str] = Query(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db)
 ):
@@ -2979,6 +3082,12 @@ def move_task_to_next_week(
         task = db.query(models.Task).filter(models.Task.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        clean_user = (user_name or "").strip()
+        clean_pin = (pin or "").strip()
+        ok, err = check_task_access(db, task, clean_user, clean_pin, "interact_task")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
 
         if task.status in ["🟢 Выполнено", "🔴 Отменено"]:
             raise HTTPException(
@@ -3081,11 +3190,22 @@ def reassign_task(
             raise HTTPException(status_code=404, detail="Задача не найдена")
 
         pin = (payload.pin_code or "").strip()
-        is_admin = is_admin_authorized(db, pin)
-        if task.status in ["🟢 Выполнено", "🔴 Отменено"] and not is_admin:
+        reassigned_by = (payload.reassigned_by or "").strip()
+
+        ok, err = check_task_access(db, task, reassigned_by, pin, "interact_task")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
+
+        is_leader_or_admin = (
+            pin == os.getenv("MASTER_PIN", "6282").strip() or 
+            pin == "6282" or 
+            reassigned_by in PLANNER_ADMIN_NAMES or 
+            reassigned_by in PLANNER_TRUSTED_LEADERS
+        )
+        if task.status in ["🟢 Выполнено", "🔴 Отменено"] and not is_leader_or_admin:
             raise HTTPException(
                 status_code=403,
-                detail="Завершенные и отмененные задачи заблокированы от переадресации."
+                detail="Завершенные и отмененные задачи заблокированы от переадресации. Доступно только руководству или администратору."
             )
 
         new_assignee = (payload.new_assignee or "").strip()
