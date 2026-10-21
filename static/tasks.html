@@ -1691,6 +1691,7 @@
                 font-size: 6.5pt !important;
                 padding: 0 3px !important;
             }
+        }
 
         /* ================================================================
            APPLE REDESIGN OVERRIDES
@@ -2093,19 +2094,39 @@
         /* ══════════════════════════════════════════════════════════
            INTERACTIVE PROJECT DEPENDENCY GRAPH (FULLSCREEN DAG)
            ══════════════════════════════════════════════════════════ */
+        #project-graph-modal {
+            padding: 1.5vh 1.5vw !important;
+            box-sizing: border-box !important;
+        }
+
+        #project-graph-modal.has-fullscreen {
+            padding: 0 !important;
+        }
+
         .graph-modal-box {
-            max-width: 96vw !important;
-            width: 96vw !important;
-            height: 92vh !important;
-            max-height: 92vh !important;
-            border-radius: 16px !important;
+            max-width: 98vw !important;
+            width: 98vw !important;
+            height: 96vh !important;
+            max-height: 96vh !important;
+            border-radius: 14px !important;
             padding: 0 !important;
             background: #ffffff !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35) !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45) !important;
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
             position: relative;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .graph-modal-box.is-fullscreen {
+            max-width: 100vw !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
         }
 
         .graph-modal-header {
@@ -4034,6 +4055,9 @@
                         <span id="graph-project-progress-val" style="font-size: 0.84rem; font-weight: 700; color: #2563eb;">0%</span>
                     </div>
 
+                    <button type="button" class="btn-action btn-secondary-action" id="graph-fullscreen-btn" onclick="toggleGraphModalFullscreen()" style="padding: 5px 10px;" title="Развернуть на весь экран">
+                        <i class="fa-solid fa-expand" id="graph-fullscreen-icon"></i>
+                    </button>
                     <button type="button" class="btn-action btn-secondary-action" onclick="closeProjectGraphModal()" style="padding: 5px 10px;" title="Закрыть (ESC)">
                         <i class="fa-solid fa-xmark"></i>
                     </button>

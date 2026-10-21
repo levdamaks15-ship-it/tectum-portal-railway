@@ -1392,18 +1392,15 @@ function renderRoadmaps(projects) {
                 </div>
 
                 <!-- Inline Quick Add Milestone Bar -->
-                <div id="inline-milestone-box-${p.id}" class="roadmap-inline-milestone-box" style="margin-top: 0.65rem; padding: 0.45rem; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 8px;">
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <input type="text" id="inline-milestone-input-${p.id}" class="form-input" placeholder="+ Добавить этап... (Enter)" style="flex: 1; min-width: 140px; padding: 4px 8px; font-size: 0.82rem; background: #fff;" onkeydown="handleInlineMilestoneKeydown(event, ${p.id})">
-                        <select id="inline-milestone-assignee-${p.id}" class="form-select" style="width: 130px; padding: 4px 6px; font-size: 0.78rem; background: #fff;" title="Исполнитель этапа">
+                <div id="inline-milestone-box-${p.id}" class="roadmap-inline-milestone-box" style="margin-top: 0.65rem; padding: 0.5rem; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 8px; box-sizing: border-box;">
+                    <input type="text" id="inline-milestone-input-${p.id}" class="form-input" placeholder="+ Название этапа... (Enter)" style="width: 100%; box-sizing: border-box; padding: 5px 8px; font-size: 0.82rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" onkeydown="handleInlineMilestoneKeydown(event, ${p.id})">
+                    <div style="display: flex; gap: 6px; align-items: center; margin-top: 6px;">
+                        <select id="inline-milestone-assignee-${p.id}" class="form-select" style="flex: 1; min-width: 0; padding: 4px 6px; font-size: 0.78rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" title="Исполнитель этапа">
                             ${buildAssigneeOptions(p.assignee_name)}
                         </select>
-                        <input type="date" id="inline-milestone-date-${p.id}" class="form-input" style="width: 110px; padding: 4px 6px; font-size: 0.78rem; background: #fff;" value="${getDefaultQuickDateIso()}" title="Срок выполнения">
-                        <button type="button" id="inline-milestone-btn-${p.id}" class="btn-action btn-primary-action" style="padding: 4px 9px; font-size: 0.78rem; background: #7c3aed; border-color: #7c3aed; flex-shrink: 0;" onclick="submitInlineMilestone(${p.id})" title="Добавить этап">
+                        <input type="date" id="inline-milestone-date-${p.id}" class="form-input" style="width: 110px; flex-shrink: 0; padding: 4px 6px; font-size: 0.78rem; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 6px;" value="${getDefaultQuickDateIso()}" title="Срок выполнения">
+                        <button type="button" id="inline-milestone-btn-${p.id}" class="btn-action btn-primary-action" style="padding: 4px 10px; font-size: 0.78rem; background: #7c3aed; border-color: #7c3aed; border-radius: 6px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="submitInlineMilestone(${p.id})" title="Добавить этап">
                             <i class="fa-solid fa-plus"></i>
-                        </button>
-                        <button type="button" class="btn-icon-cell" style="padding: 4px 6px; font-size: 0.82rem; color: #7c3aed; background: #fff; border: 1px solid #ddd6fe; border-radius: 6px;" onclick="openSubtaskQuickModal(${p.id})" title="Открыть окно этапов">
-                            <i class="fa-solid fa-expand"></i>
                         </button>
                     </div>
                 </div>
@@ -7424,11 +7421,36 @@ async function openProjectGraphModal(projectId) {
 
 function closeProjectGraphModal() {
     const modal = document.getElementById("project-graph-modal");
-    if (modal) modal.style.display = "none";
+    if (modal) {
+        modal.style.display = "none";
+        modal.classList.remove("has-fullscreen");
+    }
+    const box = document.querySelector("#project-graph-modal .graph-modal-box");
+    if (box) box.classList.remove("is-fullscreen");
+    const icon = document.getElementById("graph-fullscreen-icon");
+    if (icon) icon.className = "fa-solid fa-expand";
     isModalOpen = false;
     currentGraphProjectId = null;
     currentGraphData = null;
     closeGraphInspector();
+}
+
+function toggleGraphModalFullscreen() {
+    const modal = document.getElementById("project-graph-modal");
+    const box = document.querySelector("#project-graph-modal .graph-modal-box");
+    const icon = document.getElementById("graph-fullscreen-icon");
+    if (!box) return;
+    box.classList.toggle("is-fullscreen");
+    const isFull = box.classList.contains("is-fullscreen");
+    if (modal) {
+        modal.classList.toggle("has-fullscreen", isFull);
+    }
+    if (icon) {
+        icon.className = isFull ? "fa-solid fa-compress" : "fa-solid fa-expand";
+    }
+    setTimeout(() => {
+        fitProjectGraphToScreen();
+    }, 120);
 }
 
 function initGraphPanZoomListeners() {
