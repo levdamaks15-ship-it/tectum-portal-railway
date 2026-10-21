@@ -1270,6 +1270,28 @@ async function loadRoadmaps(isSilent = false) {
     }
 }
 
+function getStagePluralWord(n) {
+    const absN = Math.abs(n) % 100;
+    const n10 = absN % 10;
+    if (absN > 10 && absN < 20) return 'этапов';
+    if (n10 > 1 && n10 < 5) return 'этапа';
+    if (n10 === 1) return 'этап';
+    return 'этапов';
+}
+
+function convertRuDateToIso(str, defaultYear = 2026) {
+    if (!str) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const m = str.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/);
+    if (m) {
+        const dd = m[1].padStart(2, '0');
+        const mm = m[2].padStart(2, '0');
+        const yyyy = m[3] ? m[3] : String(defaultYear);
+        return `${yyyy}-${mm}-${dd}`;
+    }
+    return "";
+}
+
 function renderRoadmaps(projects) {
     const grid = document.getElementById("roadmaps-cards-grid");
     if (!grid) return;
@@ -1303,28 +1325,6 @@ function renderRoadmaps(projects) {
         `;
         return;
     }
-
-function getStagePluralWord(n) {
-    const absN = Math.abs(n) % 100;
-    const n10 = absN % 10;
-    if (absN > 10 && absN < 20) return 'этапов';
-    if (n10 > 1 && n10 < 5) return 'этапа';
-    if (n10 === 1) return 'этап';
-    return 'этапов';
-}
-
-function convertRuDateToIso(str, defaultYear = 2026) {
-    if (!str) return "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-    const m = str.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?/);
-    if (m) {
-        const dd = m[1].padStart(2, '0');
-        const mm = m[2].padStart(2, '0');
-        const yyyy = m[3] ? m[3] : String(defaultYear);
-        return `${yyyy}-${mm}-${dd}`;
-    }
-    return "";
-}
 
     grid.innerHTML = projects.map(p => {
         const prog = p.calculated_progress || p.progress || 0;
@@ -7777,13 +7777,17 @@ async function openProjectGraphModal(projectId) {
 
         renderProjectGraph(currentGraphData);
         
-        // Auto-select first active or available node to populate inspector immediately
-        const nodes = currentGraphData.nodes || [];
-        if (nodes.length > 0) {
-            const activeNode = nodes.find(n => !n.is_done) || nodes[0];
-            selectGraphNode(activeNode.id);
-        } else {
-            showGraphInspectorEmpty();
+        try {
+            // Auto-select first active or available node to populate inspector immediately
+            const nodes = currentGraphData.nodes || [];
+            if (nodes.length > 0) {
+                const activeNode = nodes.find(n => !n.is_done) || nodes[0];
+                selectGraphNode(activeNode.id);
+            } else {
+                showGraphInspectorEmpty();
+            }
+        } catch (selErr) {
+            console.warn("Could not auto-select node in inspector:", selErr);
         }
 
         setTimeout(() => {
@@ -8157,6 +8161,13 @@ function selectGraphNode(nodeId) {
     const node = currentGraphData.nodes.find(n => n.id === nodeId);
     const inspector = document.getElementById("graph-inspector");
     if (!node || !inspector) return;
+
+    // Immediately open inspector and show content container
+    inspector.style.display = "block";
+    const emptyState = document.getElementById("inspector-empty-state");
+    const contentWrap = document.getElementById("inspector-content-wrap");
+    if (emptyState) emptyState.style.display = "none";
+    if (contentWrap) contentWrap.style.display = "block";
 
     // Populate Inspector Fields
     const codeEl = document.getElementById("inspector-node-code");
@@ -8658,7 +8669,8 @@ function closeGraphInspector() {
 function toggleGraphInspector() {
     const inspector = document.getElementById("graph-inspector");
     if (!inspector) return;
-    if (inspector.style.display === "none") {
+    const isHidden = !inspector.style.display || inspector.style.display === "none" || (typeof window !== "undefined" && window.getComputedStyle(inspector).display === "none");
+    if (isHidden) {
         if (selectedGraphNodeId) {
             selectGraphNode(selectedGraphNodeId);
         } else {
