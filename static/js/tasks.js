@@ -7841,7 +7841,7 @@ function initGraphPanZoomListeners() {
 
     viewport.addEventListener("mousedown", (e) => {
         // Only start pan if clicking directly on viewport or surface, not on interactive nodes or buttons
-        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea') || e.target.closest('a') || e.target.closest('.btn-action') || e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap')) {
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea') || e.target.closest('a') || e.target.closest('.btn-action') || e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap') || e.target.closest('.graph-empty-state-card')) {
             return;
         }
         isGraphPanning = true;
@@ -7869,7 +7869,7 @@ function initGraphPanZoomListeners() {
     let touchStartY = 0;
     viewport.addEventListener("touchstart", (e) => {
         if (e.touches.length === 1) {
-            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea') || e.target.closest('a') || e.target.closest('.btn-action') || e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap')) return;
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea') || e.target.closest('a') || e.target.closest('.btn-action') || e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap') || e.target.closest('.graph-empty-state-card')) return;
             isGraphPanning = true;
             touchStartX = e.touches[0].clientX - graphPanX;
             touchStartY = e.touches[0].clientY - graphPanY;
@@ -7940,8 +7940,17 @@ function zoomProjectGraph(delta) {
 
 function resetProjectGraphZoom() {
     graphZoomScale = 1.0;
-    graphPanX = 60;
-    graphPanY = 60;
+    const viewport = document.getElementById("graph-viewport");
+    if (viewport && (!currentGraphData || !currentGraphData.nodes || !currentGraphData.nodes.length)) {
+        const vpW = viewport.clientWidth || 800;
+        const vpH = viewport.clientHeight || 500;
+        // Center empty state card (width 440, positioned at left 80, top 80)
+        graphPanX = Math.round(Math.max(20, (vpW - 440) / 2 - 80));
+        graphPanY = Math.round(Math.max(20, (vpH - 220) / 2 - 80));
+    } else {
+        graphPanX = 60;
+        graphPanY = 60;
+    }
     applyGraphTransform();
 }
 
@@ -8011,11 +8020,11 @@ function renderProjectGraph(data) {
 
     if (!nodes.length) {
         container.innerHTML = `
-            <div style="position: absolute; top: 80px; left: 80px; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; max-width: 440px; cursor: default; user-select: none;" onmousedown="event.stopPropagation()">
+            <div class="graph-empty-state-card" style="position: absolute; top: 80px; left: 80px; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; max-width: 440px; cursor: default; user-select: none; pointer-events: auto; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);" onmousedown="event.stopPropagation()">
                 <div style="font-size: 2rem; margin-bottom: 6px;">🗺️</div>
                 <h4 style="margin: 0 0 6px; color: #0f172a;">В проекте пока нет этапов</h4>
                 <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 12px;">Добавьте этапы и настройте блокирующие зависимости, чтобы увидеть интерактивную схему.</p>
-                <button type="button" class="btn-action btn-primary-action graph-tool-btn" onclick="event.stopPropagation(); openGraphAddStageModal()" onmousedown="event.stopPropagation()" style="cursor: pointer;">
+                <button type="button" class="btn-action btn-primary-action graph-tool-btn" onclick="event.stopPropagation(); openGraphAddStageModal()" onmousedown="event.stopPropagation()" style="cursor: pointer; pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; margin: 0 auto;">
                     <i class="fa-solid fa-plus"></i> Добавить первый этап
                 </button>
             </div>
