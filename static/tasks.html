@@ -4278,12 +4278,20 @@
                             <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> <strong>Блокировка:</strong> ждет завершения <span id="inspector-blocker-name" style="font-weight: 700;"></span>
                         </div>
 
-                        <!-- Graph-Specific: Arrow Dependency with Auto-Save -->
+                        <!-- Graph-Specific: Arrow Dependency (Multi-Blockers) with Auto-Save -->
                         <div style="margin-bottom: 10px;">
-                            <label style="font-size: 0.72rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">
-                                <i class="fa-solid fa-diagram-project" style="color: #6366f1;"></i> Зависит от этапа (связь стрелкой):
-                            </label>
-                            <select id="inspector-edit-depends" class="form-select" onchange="autoSaveInspectorDepends(this.value)" style="width: 100%; font-size: 0.78rem; padding: 5px 8px; border-radius: 6px;"></select>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <label style="font-size: 0.72rem; font-weight: 700; color: #475569; margin: 0;">
+                                    <i class="fa-solid fa-diagram-project" style="color: #6366f1;"></i> Зависит от этапов (блокеры):
+                                </label>
+                                <span id="inspector-depends-count" style="font-size: 0.68rem; font-weight: 700; color: #6366f1; background: #eef2ff; padding: 1px 6px; border-radius: 4px;">0 выбрано</span>
+                            </div>
+                            <div id="inspector-depends-list" style="max-height: 140px; overflow-y: auto; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; display: flex; flex-direction: column; gap: 3px;">
+                                <!-- Checkboxes for preceding stages rendered dynamically -->
+                            </div>
+                            <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 3px; line-height: 1.3;">
+                                💡 Отметьте один или несколько этапов. Задача разблокируется только когда <strong>все</strong> выбранные этапы будут выполнены.
+                            </div>
                         </div>
 
                         <!-- Subtasks / Checklist section with Integrated Progress -->
@@ -4365,10 +4373,13 @@
                     </div>
                 </div>
                 <div style="margin-bottom: 14px;">
-                    <label style="font-size: 0.74rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Зависит от этапа (предшественник)</label>
-                    <select id="graph-new-stage-depends" class="form-select" style="width: 100%; font-size: 0.8rem; padding: 5px 6px; border-radius: 6px;">
-                        <option value="">-- Без зависимости (первый шаг) --</option>
-                    </select>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                        <label style="font-size: 0.74rem; font-weight: 700; color: #475569; margin: 0;">Зависит от этапов (предшественники / блокеры)</label>
+                        <span id="graph-new-stage-depends-count" style="font-size: 0.68rem; font-weight: 700; color: #7c3aed; background: #ede9fe; padding: 1px 6px; border-radius: 4px;">0 выбрано</span>
+                    </div>
+                    <div id="graph-new-stage-depends-list" style="max-height: 120px; overflow-y: auto; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; display: flex; flex-direction: column; gap: 3px;">
+                        <!-- Checkboxes rendered dynamically -->
+                    </div>
                 </div>
                 <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; border-top: 1px solid #f1f5f9;">
                     <button type="button" class="btn-action btn-secondary-action" onclick="closeGraphNewStageModal()">Отмена</button>

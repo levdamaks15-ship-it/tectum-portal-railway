@@ -436,6 +436,7 @@ class Task(Base):
     department_service = Column(String, nullable=True, index=True) # "ОГМ", "ОГЭ", "Технологи", "ОТК", "Общий"
     parent_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True)
     depends_on_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True, index=True)
+    depends_on_ids = Column(Text, nullable=True) # JSON-список ID задач-блокеров: "[344, 345]"
     tags = Column(String, nullable=True, index=True) # "#ОГМ, #ППР, #ЛФМ"
     target_quarter = Column(String, nullable=True, index=True) # "Q3 2026", "Q4 2026"
     progress = Column(Integer, default=0) # 0-100%

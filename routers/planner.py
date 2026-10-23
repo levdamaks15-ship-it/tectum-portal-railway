@@ -754,6 +754,25 @@ def parse_task_photos_dict(task: models.Task) -> dict:
         })
     return photos_dict
 
+def get_task_depends_on_ids(task) -> List[int]:
+    """Возвращает список ID задач-блокеров с гарантией обратной совместимости."""
+    if not task:
+        return []
+    ids = []
+    raw_ids = getattr(task, "depends_on_ids", None)
+    if raw_ids:
+        try:
+            parsed = json.loads(raw_ids)
+            if isinstance(parsed, list):
+                ids = [int(x) for x in parsed if x is not None]
+        except Exception:
+            pass
+    if not ids:
+        single_id = getattr(task, "depends_on_id", None)
+        if single_id:
+            ids = [single_id]
+    return ids
+
 @router.get("/api/tasks/roadmaps")
 def get_roadmaps_tree(
     quarter: Optional[str] = None,
@@ -824,8 +843,12 @@ def get_roadmaps_tree(
                     "link": file_link
                 }
 
-        # Карта зависимостей
-        depends_ids = [t.depends_on_id for t in all_tasks_for_docs if t.depends_on_id]
+        # Карта зависимостей (поддержка множественных блокеров)
+        depends_ids = []
+        for t in all_tasks_for_docs:
+            depends_ids.extend(get_task_depends_on_ids(t))
+        depends_ids = list(set(depends_ids))
+
         dep_map = {}
         if depends_ids:
             dep_tasks = db.query(models.Task).filter(models.Task.id.in_(depends_ids)).all()
@@ -839,7 +862,9 @@ def get_roadmaps_tree(
 
         def serialize_item(item):
             doc_info = doc_map.get(item.attached_document_id) if item.attached_document_id else None
-            dep_info = dep_map.get(item.depends_on_id) if item.depends_on_id else None
+            m_dep_ids = get_task_depends_on_ids(item)
+            blockers_info = [dep_map[did] for did in m_dep_ids if did in dep_map]
+            dep_info = blockers_info[0] if blockers_info else None
             is_my_item = bool(my_person and my_person != "all" and (
                 (item.assignee_name and my_person.lower() in item.assignee_name.lower()) or 
                 (item.author_name and my_person.lower() in item.author_name.lower())
@@ -864,7 +889,10 @@ def get_roadmaps_tree(
                 "photo_link_after": item.photo_link_after or "",
                 "photos": parse_task_photos_dict(item),
                 "attached_doc": doc_info,
+                "depends_on_id": m_dep_ids[0] if m_dep_ids else None,
+                "depends_on_ids": m_dep_ids,
                 "depends_on": dep_info,
+                "blockers": blockers_info,
                 "is_my": is_my_item,
                 "created_at": item.created_at.strftime("%d.%m.%Y %H:%M") if item.created_at else "",
                 "created_date": item.created_at.strftime("%d.%m.%Y") if item.created_at else ""
@@ -954,7 +982,9 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
         all_local_tasks = [project] + milestones + subtasks
         local_map = {t.id: t for t in all_local_tasks}
 
-        dep_ids = {t.depends_on_id for t in all_local_tasks if t.depends_on_id}
+        dep_ids = set()
+        for t in all_local_tasks:
+            dep_ids.update(get_task_depends_on_ids(t))
         external_dep_ids = [did for did in dep_ids if did not in local_map]
         if external_dep_ids:
             ext_tasks = db.query(models.Task).filter(models.Task.id.in_(external_dep_ids)).all()
@@ -967,7 +997,7 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
             status_str = t.status or ""
             return "Выполнено" in status_str or (t.progress is not None and t.progress >= 100)
 
-        # 4. Вычисление топологической глубины вех (col index)
+        # 4. Вычисление топологической глубины вех (col index) с поддержкой слияния веток (Join)
         depth_cache = {}
         visited = set()
 
@@ -979,23 +1009,31 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
             visited.add(m_id)
             
             m_obj = local_map.get(m_id)
-            if not m_obj or not m_obj.depends_on_id:
+            if not m_obj:
+                depth_cache[m_id] = 0
+                return 0
+
+            m_dep_ids = get_task_depends_on_ids(m_obj)
+            if not m_dep_ids:
                 depth_cache[m_id] = 0
                 return 0
             
-            dep_obj = local_map.get(m_obj.depends_on_id)
-            if not dep_obj:
-                depth_cache[m_id] = 0
-                return 0
-            
-            # Если зависит от задачи внутри другой вехи, связываем с глубиной той вехи
-            parent_m_id = dep_obj.parent_id if dep_obj.parent_id in milestone_ids else dep_obj.id
-            if parent_m_id in milestone_ids and parent_m_id != m_id:
-                d = get_milestone_depth(parent_m_id) + 1
-            else:
-                d = 1
-            depth_cache[m_id] = d
-            return d
+            max_d = 0
+            for did in m_dep_ids:
+                dep_obj = local_map.get(did)
+                if not dep_obj:
+                    continue
+                # Если зависит от задачи внутри другой вехи, связываем с глубиной той вехи
+                parent_m_id = dep_obj.parent_id if dep_obj.parent_id in milestone_ids else dep_obj.id
+                if parent_m_id in milestone_ids and parent_m_id != m_id:
+                    d = get_milestone_depth(parent_m_id) + 1
+                else:
+                    d = 1
+                if d > max_d:
+                    max_d = d
+
+            depth_cache[m_id] = max_d
+            return max_d
 
         for m in milestones:
             get_milestone_depth(m.id)
@@ -1028,22 +1066,23 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                 if m_done:
                     done_milestones += 1
 
-                # Проверка блокировки вехи
+                # Проверка блокировки вехи (AND-условие: заблокировано, если хотя бы 1 блокер не выполнен)
                 is_m_blocked = False
-                blocker_info = None
-                if m.depends_on_id:
-                    dep = local_map.get(m.depends_on_id)
+                blockers_list = []
+                m_dep_ids = get_task_depends_on_ids(m)
+                for did in m_dep_ids:
+                    dep = local_map.get(did)
                     if dep:
                         dep_done = is_task_done(dep)
                         if not dep_done:
                             is_m_blocked = True
-                            blocked_count += 1
-                        blocker_info = {
+                        b_info = {
                             "id": dep.id,
                             "code": dep.code or f"TSK-{dep.id}",
                             "title": dep.title,
                             "is_done": dep_done
                         }
+                        blockers_list.append(b_info)
                         edges.append({
                             "from_id": dep.id,
                             "from_code": dep.code or f"TSK-{dep.id}",
@@ -1054,6 +1093,11 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                             "is_blocked": not dep_done,
                             "is_active": not dep_done and not is_m_blocked
                         })
+
+                if is_m_blocked:
+                    blocked_count += 1
+
+                primary_blocker = next((b for b in blockers_list if not b["is_done"]), (blockers_list[0] if blockers_list else None))
 
                 # Подзадачи вехи
                 m_subs = sub_by_m.get(m.id, [])
@@ -1066,19 +1110,21 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                         m_sub_done_cnt += 1
                     
                     st_blocked = False
-                    st_blocker = None
-                    if st.depends_on_id:
-                        s_dep = local_map.get(st.depends_on_id)
+                    st_blockers = []
+                    st_dep_ids = get_task_depends_on_ids(st)
+                    for did in st_dep_ids:
+                        s_dep = local_map.get(did)
                         if s_dep:
                             s_dep_done = is_task_done(s_dep)
                             if not s_dep_done:
                                 st_blocked = True
-                            st_blocker = {
+                            b_info = {
                                 "id": s_dep.id,
                                 "code": s_dep.code or f"TSK-{s_dep.id}",
                                 "title": s_dep.title,
                                 "is_done": s_dep_done
                             }
+                            st_blockers.append(b_info)
                             edges.append({
                                 "from_id": s_dep.id,
                                 "from_code": s_dep.code or f"TSK-{s_dep.id}",
@@ -1089,6 +1135,8 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                                 "is_blocked": not s_dep_done,
                                 "is_active": not s_dep_done
                             })
+
+                    primary_st_blocker = next((b for b in st_blockers if not b["is_done"]), (st_blockers[0] if st_blockers else None))
 
                     serialized_subs.append({
                         "id": st.id,
@@ -1101,8 +1149,10 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                         "due_date_str": st.due_date_str or "",
                         "is_done": st_done,
                         "is_blocked": st_blocked,
-                        "blocked_by": st_blocker,
-                        "depends_on_id": st.depends_on_id,
+                        "blocked_by": primary_st_blocker,
+                        "blockers": st_blockers,
+                        "depends_on_id": st_dep_ids[0] if st_dep_ids else None,
+                        "depends_on_ids": st_dep_ids,
                         "photos": parse_task_photos_dict(st)
                     })
 
@@ -1122,8 +1172,10 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
                     "row": row_idx,
                     "is_done": m_done,
                     "is_blocked": is_m_blocked,
-                    "blocked_by": blocker_info,
-                    "depends_on_id": m.depends_on_id,
+                    "blocked_by": primary_blocker,
+                    "blockers": blockers_list,
+                    "depends_on_id": m_dep_ids[0] if m_dep_ids else None,
+                    "depends_on_ids": m_dep_ids,
                     "subtasks_count": len(m_subs),
                     "subtasks_done_count": m_sub_done_cnt,
                     "subtasks": serialized_subs,
@@ -2069,8 +2121,14 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             if res_m and res_w:
                 task_month = res_m
                 task_week = res_w
-            if not target_quarter:
-                target_quarter = resolve_quarter_by_date(task_data.due_date_str) or ""
+        # Зависимости и блокеры
+        init_dep_ids = []
+        if getattr(task_data, "depends_on_ids", None):
+            init_dep_ids = [int(x) for x in task_data.depends_on_ids if x]
+        elif getattr(task_data, "depends_on_id", None):
+            init_dep_ids = [int(task_data.depends_on_id)]
+        dep_ids_json = json.dumps(init_dep_ids) if init_dep_ids else None
+        single_dep_id = init_dep_ids[0] if init_dep_ids else None
 
         new_task = models.Task(
             code=code_str,
@@ -2080,7 +2138,8 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             task_type=task_data.task_type or "weekly",
             department_service=task_data.department_service or "",
             parent_id=task_data.parent_id,
-            depends_on_id=task_data.depends_on_id,
+            depends_on_id=single_dep_id,
+            depends_on_ids=dep_ids_json,
             tags=combined_tags,
             target_quarter=target_quarter,
             progress=task_data.progress or 0,
@@ -2207,6 +2266,14 @@ def create_quick_milestone(
 
         task_type_val = "roadmap" if parent.task_type == "roadmap" else (parent.task_type or "weekly")
 
+        m_dep_ids = []
+        if getattr(data, "depends_on_ids", None):
+            m_dep_ids = [int(x) for x in data.depends_on_ids if x]
+        elif getattr(data, "depends_on_id", None):
+            m_dep_ids = [int(data.depends_on_id)]
+        m_dep_ids_json = json.dumps(m_dep_ids) if m_dep_ids else None
+        m_single_dep_id = m_dep_ids[0] if m_dep_ids else None
+
         new_milestone = models.Task(
             code=code_str,
             zone=parent.zone or "Бережливое производство",
@@ -2215,7 +2282,8 @@ def create_quick_milestone(
             task_type=task_type_val,
             department_service=parent.department_service or "",
             parent_id=parent.id,
-            depends_on_id=data.depends_on_id,
+            depends_on_id=m_single_dep_id,
+            depends_on_ids=m_dep_ids_json,
             target_quarter=target_quarter,
             progress=0,
             photo_link=data.photo_link or "",
@@ -2807,6 +2875,39 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
                     update_dict["target_quarter"] = auto_q
 
         changes = []
+
+        # Обработка зависимостей (множественные блокеры)
+        if "depends_on_ids" in update_dict:
+            raw_dep_ids = update_dict.pop("depends_on_ids")
+            update_dict.pop("depends_on_id", None)
+            if raw_dep_ids is not None:
+                clean_ids = [int(x) for x in raw_dep_ids if x and int(x) != task.id]
+                new_json = json.dumps(clean_ids) if clean_ids else None
+                new_single = clean_ids[0] if clean_ids else None
+                if task.depends_on_ids != new_json or task.depends_on_id != new_single:
+                    changes.append(f"depends_on_ids: '{task.depends_on_ids}' -> '{new_json}'")
+                    task.depends_on_ids = new_json
+                    task.depends_on_id = new_single
+            else:
+                if task.depends_on_ids is not None or task.depends_on_id is not None:
+                    changes.append("depends_on_ids: очищены")
+                    task.depends_on_ids = None
+                    task.depends_on_id = None
+        elif "depends_on_id" in update_dict:
+            raw_single = update_dict.pop("depends_on_id")
+            if raw_single and int(raw_single) != task.id:
+                clean_single = int(raw_single)
+                new_json = json.dumps([clean_single])
+                if task.depends_on_id != clean_single or task.depends_on_ids != new_json:
+                    changes.append(f"depends_on_id: '{task.depends_on_id}' -> '{clean_single}'")
+                    task.depends_on_id = clean_single
+                    task.depends_on_ids = new_json
+            else:
+                if task.depends_on_id is not None or task.depends_on_ids is not None:
+                    changes.append("depends_on_id: очищен")
+                    task.depends_on_id = None
+                    task.depends_on_ids = None
+
         for key, val in update_dict.items():
             if hasattr(task, key) and val is not None:
                 old_val = getattr(task, key)
@@ -3627,6 +3728,24 @@ def patch_task(
         }
 
         changes = []
+        if "depends_on_ids" in payload:
+            raw_dep_ids = payload.pop("depends_on_ids")
+            payload.pop("depends_on_id", None)
+            clean_ids = [int(x) for x in raw_dep_ids if x and int(x) != task.id] if raw_dep_ids is not None else []
+            new_json = json.dumps(clean_ids) if clean_ids else None
+            new_single = clean_ids[0] if clean_ids else None
+            if task.depends_on_ids != new_json or task.depends_on_id != new_single:
+                changes.append(f"depends_on_ids: '{task.depends_on_ids}' -> '{new_json}'")
+                task.depends_on_ids = new_json
+                task.depends_on_id = new_single
+        elif "depends_on_id" in payload:
+            raw_single = payload.pop("depends_on_id")
+            clean_single = int(raw_single) if (raw_single and int(raw_single) != task.id) else None
+            new_json = json.dumps([clean_single]) if clean_single else None
+            if task.depends_on_id != clean_single or task.depends_on_ids != new_json:
+                changes.append(f"depends_on_id: '{task.depends_on_id}' -> '{clean_single}'")
+                task.depends_on_id = clean_single
+                task.depends_on_ids = new_json
         for field, val in payload.items():
             if field in allowed_fields and hasattr(task, field):
                 old_val = getattr(task, field)

@@ -717,6 +717,7 @@ class TaskBase(ORMBaseModel):
     department_service: Optional[str] = "" # "ОГМ", "ОГЭ", "Технологи", "ОТК", "Общий"
     parent_id: Optional[int] = None
     depends_on_id: Optional[int] = None
+    depends_on_ids: Optional[List[int]] = None
     tags: Optional[str] = ""
     target_quarter: Optional[str] = ""
     progress: Optional[int] = 0
@@ -743,6 +744,7 @@ class QuickMilestoneCreate(ORMBaseModel):
     due_date_str: Optional[str] = ""
     author_name: Optional[str] = ""
     depends_on_id: Optional[int] = None
+    depends_on_ids: Optional[List[int]] = None
     comment: Optional[str] = ""
     photo_link: Optional[str] = ""
     pin_code: Optional[str] = None
@@ -811,6 +813,7 @@ class TaskUpdate(ORMBaseModel):
     department_service: Optional[str] = None
     parent_id: Optional[int] = None
     depends_on_id: Optional[int] = None
+    depends_on_ids: Optional[List[int]] = None
     tags: Optional[str] = None
     target_quarter: Optional[str] = None
     progress: Optional[int] = None

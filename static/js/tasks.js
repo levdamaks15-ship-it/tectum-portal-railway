@@ -8219,7 +8219,9 @@ function renderProjectGraph(data) {
             statusBadge = `<span class="badge-zone" style="background: #f0fdf4; color: #166534; border-color: #bbf7d0; font-size: 0.72rem;">🟢 Выполнено</span>`;
         } else if (isBlocked) {
             statusCls = "status-blocked";
-            statusBadge = `<span class="badge-zone" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; font-size: 0.72rem;"><i class="fa-solid fa-lock"></i> Заблокировано</span>`;
+            const unfinCount = (n.blockers || []).filter(b => !b.is_done).length;
+            const blockLabel = unfinCount > 1 ? `<i class="fa-solid fa-lock"></i> Блокеры (${unfinCount})` : `<i class="fa-solid fa-lock"></i> Заблокировано`;
+            statusBadge = `<span class="badge-zone" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; font-size: 0.72rem;">${blockLabel}</span>`;
         }
 
         const prog = n.progress || 0;
@@ -8283,16 +8285,33 @@ function renderProjectGraph(data) {
         container.appendChild(nodeEl);
     });
 
-    // 2. Render SVG Bezier Edges
+    // 2. Render SVG Bezier Edges with smart offset for multiple incoming connections (Merge Nodes)
+    const incomingByTarget = new Map();
+    edges.forEach(e => {
+        const list = incomingByTarget.get(e.to_id) || [];
+        list.push(e);
+        incomingByTarget.set(e.to_id, list);
+    });
+
     edges.forEach((edge, edgeIdx) => {
         const fromCoord = nodeCoordMap.get(edge.from_id);
         const toCoord = nodeCoordMap.get(edge.to_id);
         if (!fromCoord || !toCoord) return;
 
+        const incomingList = incomingByTarget.get(edge.to_id) || [];
+        const inCount = incomingList.length;
+        const inIdx = incomingList.indexOf(edge);
+
+        // Smart spread of entry arrows across card height if node has multiple predecessors
+        let targetYOffset = 44;
+        if (inCount > 1) {
+            targetYOffset = Math.round(28 + (inIdx * (36 / (inCount - 1))));
+        }
+
         const x1 = fromCoord.x + 280;
         const y1 = fromCoord.y + 44;
         const x2 = toCoord.x;
-        const y2 = toCoord.y + 44;
+        const y2 = toCoord.y + targetYOffset;
 
         const dx = Math.max(50, Math.abs(x2 - x1) * 0.5);
         const pathData = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
@@ -8370,15 +8389,41 @@ function selectGraphNode(nodeId) {
     if (dueDateEl) {
         dueDateEl.textContent = node.due_date_str || "Не указан";
     }
-    if (dependsSelect) {
-        const otherNodes = currentGraphData.nodes.filter(n => n.id !== nodeId);
-        let depHtml = `<option value="">-- Без зависимости (первый шаг) --</option>`;
-        otherNodes.forEach(on => {
-            const isSel = (node.depends_on_id && node.depends_on_id === on.id);
-            depHtml += `<option value="${on.id}" ${isSel ? 'selected' : ''}>[${on.code || 'TSK-' + on.id}] ${escapeHtml(on.title)}</option>`;
-        });
-        dependsSelect.innerHTML = depHtml;
+
+    // Multi-Select Dependencies (Blockers) Checklist
+    const depListEl = document.getElementById("inspector-depends-list");
+    const depCountEl = document.getElementById("inspector-depends-count");
+    const currentDepIds = node.depends_on_ids || (node.depends_on_id ? [node.depends_on_id] : []);
+
+    if (depCountEl) {
+        depCountEl.textContent = `${currentDepIds.length} выбрано`;
     }
+    if (depListEl) {
+        const otherNodes = (currentGraphData?.nodes || []).filter(n => n.id !== nodeId);
+        if (!otherNodes.length) {
+            depListEl.innerHTML = `<div style="font-size: 0.72rem; color: #94a3b8; padding: 4px; font-style: italic;">Нет других этапов для связи</div>`;
+        } else {
+            depListEl.innerHTML = otherNodes.map(on => {
+                const isChecked = currentDepIds.includes(on.id);
+                const isDone = on.is_done;
+                const statusEmoji = isDone ? '🟢' : (on.status && on.status.includes('Отменено') ? '🔴' : '🟡');
+                return `
+                    <label style="display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-radius: 4px; background: ${isChecked ? '#eef2ff' : '#ffffff'}; border: 1px solid ${isChecked ? '#c7d2fe' : '#e2e8f0'}; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.borderColor='#818cf8'" onmouseout="this.style.borderColor='${isChecked ? '#c7d2fe' : '#e2e8f0'}'">
+                        <input type="checkbox" value="${on.id}" class="inspector-dep-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleInspectorDependency(${on.id}, this.checked)" style="margin-top: 2px; accent-color: #4f46e5; cursor: pointer;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; color: #1e293b;">
+                                <span style="font-family: monospace; color: #4338ca;">${on.code || 'TSK-' + on.id}</span>
+                                <span>${statusEmoji}</span>
+                                ${isDone ? '<span style="font-size: 0.65rem; color: #16a34a; font-weight: 600;">(Выполнено)</span>' : ''}
+                            </div>
+                            <div style="font-size: 0.72rem; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(on.title)}">${escapeHtml(on.title)}</div>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        }
+    }
+
     const progVal = node.progress || 0;
     if (progEl) {
         progEl.textContent = `${progVal}%`;
@@ -8389,11 +8434,21 @@ function selectGraphNode(nodeId) {
         progBarEl.style.background = progVal === 100 ? '#10b981' : '#2563eb';
     }
 
-    // Blocker info
+    // Blocker info with multi-blockers support
     if (blockerAlert) {
-        if (node.is_blocked && node.blocked_by) {
+        if (node.is_blocked) {
             blockerAlert.style.display = "block";
-            if (blockerName) blockerName.textContent = `[${node.blocked_by.code}] «${node.blocked_by.title}»`;
+            const unfinBlockers = (node.blockers || []).filter(b => !b.is_done);
+            if (unfinBlockers.length > 1) {
+                const names = unfinBlockers.map(b => `[${b.code}] «${b.title}»`).join(", ");
+                if (blockerName) blockerName.textContent = `(ждут ${unfinBlockers.length} задачи): ${names}`;
+            } else if (unfinBlockers.length === 1) {
+                if (blockerName) blockerName.textContent = `[${unfinBlockers[0].code}] «${unfinBlockers[0].title}»`;
+            } else if (node.blocked_by) {
+                if (blockerName) blockerName.textContent = `[${node.blocked_by.code}] «${node.blocked_by.title}»`;
+            } else {
+                if (blockerName) blockerName.textContent = "предшествующих этапов";
+            }
         } else {
             blockerAlert.style.display = "none";
         }
@@ -8434,6 +8489,46 @@ function selectGraphNode(nodeId) {
         detailBtn.onclick = () => {
             openTaskDetailModal(node.id);
         };
+    }
+}
+
+async function toggleInspectorDependency(depId, isChecked) {
+    if (!selectedGraphNodeId) return;
+    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+    if (!node) return;
+
+    let currentDepIds = [...(node.depends_on_ids || (node.depends_on_id ? [node.depends_on_id] : []))];
+    if (isChecked) {
+        if (!currentDepIds.includes(depId)) {
+            currentDepIds.push(depId);
+        }
+    } else {
+        currentDepIds = currentDepIds.filter(id => id !== depId);
+    }
+
+    const depCountEl = document.getElementById("inspector-depends-count");
+    if (depCountEl) {
+        depCountEl.textContent = `${currentDepIds.length} выбрано`;
+    }
+
+    try {
+        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                depends_on_ids: currentDepIds
+            })
+        });
+        if (res.ok) {
+            showToast("Связи этапа обновлены! 🔗", "success");
+            await reloadProjectGraphData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ ${err.detail || 'Ошибка сохранения связи'}`);
+        }
+    } catch (e) {
+        console.error("Error updating stage dependency:", e);
+        showToast("Ошибка сохранения связи", "error");
     }
 }
 
@@ -8667,7 +8762,7 @@ function openGraphAddStageModal(presetDependsOnId = null) {
     const titleInput = document.getElementById("graph-new-stage-title");
     const assigneeSelect = document.getElementById("graph-new-stage-assignee");
     const dateInput = document.getElementById("graph-new-stage-date");
-    const dependsSelect = document.getElementById("graph-new-stage-depends");
+    const dependsList = document.getElementById("graph-new-stage-depends-list");
 
     if (titleInput) titleInput.value = "";
     if (dateInput) dateInput.value = getDefaultQuickDateIso();
@@ -8677,18 +8772,36 @@ function openGraphAddStageModal(presetDependsOnId = null) {
         assigneeSelect.innerHTML = buildAssigneeOptions(p.assignee_name);
     }
 
-    if (dependsSelect) {
+    if (dependsList) {
         const nodes = currentGraphData?.nodes || [];
-        let html = `<option value="">-- Без зависимости (первый шаг) --</option>`;
-        nodes.forEach(n => {
-            const isSel = presetDependsOnId && (n.id === presetDependsOnId);
-            html += `<option value="${n.id}" ${isSel ? 'selected' : ''}>[${n.code || 'TSK-' + n.id}] ${escapeHtml(n.title)}</option>`;
-        });
-        dependsSelect.innerHTML = html;
+        if (!nodes.length) {
+            dependsList.innerHTML = `<div style="font-size: 0.72rem; color: #94a3b8; padding: 4px; font-style: italic;">Нет этапов для связи (это будет первый шаг)</div>`;
+        } else {
+            dependsList.innerHTML = nodes.map(n => {
+                const isChecked = Boolean(presetDependsOnId && n.id === presetDependsOnId);
+                return `
+                    <label style="display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-radius: 4px; background: ${isChecked ? '#ede9fe' : '#ffffff'}; border: 1px solid ${isChecked ? '#c4b5fd' : '#e2e8f0'}; cursor: pointer;">
+                        <input type="checkbox" value="${n.id}" class="new-stage-dep-checkbox" ${isChecked ? 'checked' : ''} onchange="updateNewStageDependsCount()" style="margin-top: 2px; accent-color: #7c3aed; cursor: pointer;">
+                        <div style="flex: 1; min-width: 0; font-size: 0.72rem;">
+                            <span style="font-family: monospace; font-weight: 700; color: #6d28d9;">${n.code || 'TSK-' + n.id}</span>
+                            <span style="color: #334155; margin-left: 4px;">${escapeHtml(n.title)}</span>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        }
+        updateNewStageDependsCount();
     }
 
     modal.style.display = "flex";
     if (titleInput) titleInput.focus();
+}
+
+function updateNewStageDependsCount() {
+    const countEl = document.getElementById("graph-new-stage-depends-count");
+    if (!countEl) return;
+    const checkedBoxes = document.querySelectorAll("#graph-new-stage-depends-list .new-stage-dep-checkbox:checked");
+    countEl.textContent = `${checkedBoxes.length} выбрано`;
 }
 
 function closeGraphNewStageModal() {
@@ -8706,7 +8819,6 @@ async function submitGraphNewStage() {
     const titleInput = document.getElementById("graph-new-stage-title");
     const assigneeSelect = document.getElementById("graph-new-stage-assignee");
     const dateInput = document.getElementById("graph-new-stage-date");
-    const dependsSelect = document.getElementById("graph-new-stage-depends");
     const btn = document.getElementById("graph-new-stage-submit-btn");
 
     const title = titleInput ? titleInput.value.trim() : "";
@@ -8718,8 +8830,8 @@ async function submitGraphNewStage() {
 
     const assignee = assigneeSelect ? assigneeSelect.value : "";
     const dateVal = dateInput ? dateInput.value : "";
-    const dependsVal = dependsSelect ? dependsSelect.value : "";
-    const dependsOnId = dependsVal ? parseInt(dependsVal, 10) : null;
+    const checkedBoxes = document.querySelectorAll("#graph-new-stage-depends-list .new-stage-dep-checkbox:checked");
+    const selectedDepIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10)).filter(id => !isNaN(id));
     const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
 
     const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
@@ -8736,7 +8848,8 @@ async function submitGraphNewStage() {
             title: title,
             assignee_name: assignee,
             due_date_str: dueDateStr,
-            depends_on_id: dependsOnId,
+            depends_on_id: selectedDepIds[0] || null,
+            depends_on_ids: selectedDepIds,
             author_name: authorName,
             pin_code: pin
         };
