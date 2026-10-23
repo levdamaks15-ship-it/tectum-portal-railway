@@ -1903,7 +1903,7 @@
         .task-detail-box {
             max-width: 820px !important;
             width: 95vw !important;
-            max-height: 88vh !important;
+            max-height: 85vh !important;
             overflow: hidden !important;
             word-break: break-word !important;
             border-radius: 14px !important;
@@ -1952,11 +1952,25 @@
         }
 
         .task-detail-title-kz {
-            font-size: 0.95rem;
-            color: #64748b;
+            font-size: 0.92rem;
+            color: #475569;
             font-style: italic;
-            margin-top: 4px;
+            margin-top: 5px;
             line-height: 1.35;
+        }
+
+        .task-title-link {
+            transition: color 0.15s ease;
+        }
+        .task-title-link:hover {
+            color: #2563eb !important;
+            text-decoration: underline !important;
+        }
+
+        .badge-horizon.horizon-milestone {
+            background: #eef2ff !important;
+            color: #4338ca !important;
+            border-color: #c7d2fe !important;
         }
 
         .task-detail-grid {
@@ -3860,10 +3874,13 @@
         <div class="modal-box task-detail-box">
             <!-- Header -->
             <div class="task-detail-header">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span class="badge-code" id="detail-task-code" style="font-size: 0.82rem; font-family: monospace; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 6px;">TSK-01</span>
-                    <span id="detail-task-status-badge" style="font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: #eff6ff; color: #1d4ed8;">🟡 В работе</span>
-                    <span id="detail-task-horizon-badge" class="badge-horizon horizon-sprint" style="font-size: 0.74rem;">Спринт</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0;">
+                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-back" onclick="navigateBackTaskDetail()" style="display: none; padding: 4px 9px; font-size: 0.76rem; border-radius: 8px; align-items: center; gap: 4px; background: #ffffff; border-color: #cbd5e1;" title="Вернуться назад">
+                        <i class="fa-solid fa-arrow-left"></i> Назад
+                    </button>
+                    <span class="badge-code" id="detail-task-code" style="font-size: 0.82rem; font-family: monospace; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 6px; flex-shrink: 0;">TSK-01</span>
+                    <span id="detail-task-status-badge" style="font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; flex-shrink: 0;">🟡 В работе</span>
+                    <span id="detail-task-horizon-badge" class="badge-horizon horizon-sprint" style="font-size: 0.74rem; flex-shrink: 0;">Спринт</span>
                     <span id="detail-task-parent-wrap" style="display: none;"></span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; flex-wrap: nowrap;">
@@ -3875,9 +3892,6 @@
                     </button>
                     <button type="button" class="btn-action btn-secondary-action" id="detail-btn-edit" onclick="openEditTaskModalFromDetail()" style="padding: 5px 9px; font-size: 0.76rem; border-radius: 8px;" title="Редактировать задачу">
                         <i class="fa-solid fa-pen"></i> Редактировать
-                    </button>
-                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-delete" onclick="deleteTaskFromDetail()" style="padding: 5px 9px; font-size: 0.76rem; border-radius: 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить задачу (требуется PIN)">
-                        <i class="fa-solid fa-trash-can"></i> Удалить
                     </button>
                     <button type="button" class="modal-close" onclick="closeTaskDetailModal()" title="Закрыть" style="margin-left: 2px;">&times;</button>
                 </div>
@@ -3985,8 +3999,8 @@
                 <!-- SUBTASKS / MILESTONES CHECKLIST -->
                 <div id="detail-subtasks-section" style="border: 1px solid var(--tbl-border); border-radius: 12px; padding: 14px; background: #ffffff;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="font-size: 0.84rem; font-weight: 700; color: #0f172a; text-transform: uppercase;">
-                            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> Чек-лист / Подзадачи (<span id="detail-subtasks-count">0</span>)
+                        <div style="font-size: 0.84rem; font-weight: 700; color: #0f172a; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+                            <i class="fa-solid fa-list-check" id="detail-subtasks-icon" style="color: #2563eb;"></i> <span id="detail-subtasks-title">Чек-лист / Подзадачи</span> (<span id="detail-subtasks-count">0</span>)
                         </div>
                         <button type="button" class="btn-action btn-secondary-action" id="detail-btn-add-subtask" onclick="openAddSubtaskFromDetail()" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; white-space: nowrap;">
                             <i class="fa-solid fa-plus"></i> <span id="detail-btn-add-subtask-label">Добавить подзадачу</span>
@@ -4000,10 +4014,15 @@
             </div>
 
             <!-- Footer -->
-            <div style="padding: 0.9rem 1.4rem; border-top: 1px solid var(--tbl-border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="openTaskHistoryModalFromDetail()" style="font-size: 0.78rem;">
-                    <i class="fa-solid fa-clock-rotate-left"></i> История изменений
-                </button>
+            <div style="padding: 0.85rem 1.4rem; border-top: 1px solid var(--tbl-border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-action btn-secondary-action" onclick="openTaskHistoryModalFromDetail()" style="font-size: 0.78rem;">
+                        <i class="fa-solid fa-clock-rotate-left"></i> История изменений
+                    </button>
+                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-delete" onclick="deleteTaskFromDetail()" style="padding: 5px 10px; font-size: 0.76rem; border-radius: 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Удалить задачу (требуется PIN)">
+                        <i class="fa-solid fa-trash-can"></i> Удалить
+                    </button>
+                </div>
                 <button type="button" class="btn-action btn-secondary-action" onclick="closeTaskDetailModal()">
                     Закрыть
                 </button>

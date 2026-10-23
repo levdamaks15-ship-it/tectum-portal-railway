@@ -6740,14 +6740,27 @@ document.addEventListener("keydown", (e) => {
 let currentDetailTaskId = null;
 let currentDetailTaskData = null;
 let currentDetailPhotoTab = 'before';
+let taskDetailNavStack = [];
 
-async function openTaskDetailModal(taskId) {
+async function openTaskDetailModal(taskId, isBack = false) {
     if (!taskId) return;
+
+    // Track navigation history if traversing to another task
+    if (!isBack && currentDetailTaskId && currentDetailTaskId !== taskId) {
+        taskDetailNavStack.push(currentDetailTaskId);
+    }
+
     currentDetailTaskId = taskId;
     currentDetailPhotoTab = 'before';
 
     const modal = document.getElementById("task-detail-modal");
     if (!modal) return;
+
+    // Update back button state
+    const backBtn = document.getElementById("detail-btn-back");
+    if (backBtn) {
+        backBtn.style.display = taskDetailNavStack.length > 0 ? "inline-flex" : "none";
+    }
 
     // Reset fields to loading state
     const codeEl = document.getElementById("detail-task-code");
@@ -6781,6 +6794,13 @@ async function openTaskDetailModal(taskId) {
     }
 }
 
+function navigateBackTaskDetail() {
+    if (taskDetailNavStack.length > 0) {
+        const prevId = taskDetailNavStack.pop();
+        openTaskDetailModal(prevId, true);
+    }
+}
+
 function closeTaskDetailModal() {
     const modal = document.getElementById("task-detail-modal");
     if (modal) {
@@ -6789,6 +6809,9 @@ function closeTaskDetailModal() {
     }
     currentDetailTaskId = null;
     currentDetailTaskData = null;
+    taskDetailNavStack = [];
+    const backBtn = document.getElementById("detail-btn-back");
+    if (backBtn) backBtn.style.display = "none";
 }
 
 function populateTaskDetailModal(task) {
@@ -6806,7 +6829,7 @@ function populateTaskDetailModal(task) {
     if (titleKzEl) {
         if (task.title_kz && task.title_kz.trim()) {
             titleKzEl.innerHTML = `<span style="font-size: 0.72rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 1px 6px; border-radius: 4px; margin-right: 6px; font-style: normal; display: inline-block;">KZ</span>«${escapeHtml(task.title_kz.trim())}»`;
-            titleKzEl.style.display = "block";
+            titleKzEl.style.display = "flex";
         } else {
             titleKzEl.style.display = "none";
         }
@@ -6834,10 +6857,22 @@ function populateTaskDetailModal(task) {
 
     // Horizon Badge & Parent Project Wrap
     const horizonBadgeEl = document.getElementById("detail-task-horizon-badge");
+    const isRoadmap = task.task_type === 'roadmap';
+    const isTopProject = isRoadmap && !task.parent_id;
+    const isMilestone = isRoadmap && !!task.parent_id;
+
     if (horizonBadgeEl) {
-        const hLabel = task.horizon_label || (task.task_type === 'roadmap' ? '🗺️ Дорожная карта' : 'Спринт');
-        horizonBadgeEl.textContent = hLabel;
-        horizonBadgeEl.className = `badge-horizon ${task.horizon_badge_class || 'horizon-sprint'}`;
+        if (isTopProject) {
+            horizonBadgeEl.textContent = '🗺️ Проект (Дорожная карта)';
+            horizonBadgeEl.className = 'badge-horizon horizon-roadmap';
+        } else if (isMilestone) {
+            horizonBadgeEl.textContent = '🚩 Этап проекта';
+            horizonBadgeEl.className = 'badge-horizon horizon-milestone';
+        } else {
+            const hLabel = task.horizon_label || 'Спринт';
+            horizonBadgeEl.textContent = hLabel;
+            horizonBadgeEl.className = `badge-horizon ${task.horizon_badge_class || 'horizon-sprint'}`;
+        }
     }
 
     const parentWrap = document.getElementById("detail-task-parent-wrap");
@@ -6845,8 +6880,8 @@ function populateTaskDetailModal(task) {
         if (task.parent && task.parent.title) {
             parentWrap.style.display = "inline-flex";
             parentWrap.innerHTML = `
-                <span class="badge-zone" style="background: #fdf4ff; color: #7e22ce; border-color: #f0abfc; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" onclick="openTaskDetailModal(${task.parent.id})" title="Открыть паспорт проекта [${escapeHtml(task.parent.code || '')}]">
-                    <i class="fa-solid fa-diagram-project"></i> Проект: ${escapeHtml(task.parent.code || '')} «${escapeHtml(task.parent.title || '')}»
+                <span class="badge-zone" style="background: #fdf4ff; color: #7e22ce; border-color: #f0abfc; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; padding: 3px 8px; border-radius: 6px; font-weight: 600;" onclick="openTaskDetailModal(${task.parent.id})" title="Перейти в паспорт проекта [${escapeHtml(task.parent.code || '')}]">
+                    <i class="fa-solid fa-diagram-project"></i> Проект: ${escapeHtml(task.parent.code || '')} «${escapeHtml(task.parent.title || '')}» <i class="fa-solid fa-arrow-right" style="font-size: 0.65rem; opacity: 0.7;"></i>
                 </span>
             `;
         } else {
@@ -6889,7 +6924,13 @@ function populateTaskDetailModal(task) {
         btnEdit.innerHTML = canEdit ? `<i class="fa-solid fa-pen"></i> Редактировать` : `<i class="fa-solid fa-eye"></i> Просмотр`;
     }
 
-    const isTopProject = task.task_type === 'roadmap' && !task.parent_id;
+    const btnDelete = document.getElementById("detail-btn-delete");
+    if (btnDelete) {
+        btnDelete.style.display = canEdit ? "inline-flex" : "none";
+        btnDelete.disabled = false;
+        btnDelete.innerHTML = '<i class="fa-solid fa-trash-can"></i> Удалить';
+    }
+
     const btnAddSubtask = document.getElementById("detail-btn-add-subtask");
     const btnAddSubtaskLabel = document.getElementById("detail-btn-add-subtask-label");
     if (btnAddSubtask) {
@@ -7034,16 +7075,26 @@ function populateTaskDetailModal(task) {
 function renderDetailSubtasks() {
     const section = document.getElementById("detail-subtasks-section");
     const countEl = document.getElementById("detail-subtasks-count");
+    const titleEl = document.getElementById("detail-subtasks-title");
+    const iconEl = document.getElementById("detail-subtasks-icon");
     const listEl = document.getElementById("detail-subtasks-list");
     if (!section || !listEl) return;
+
+    const isTopProject = currentDetailTaskData?.task_type === 'roadmap' && !currentDetailTaskData?.parent_id;
+    if (titleEl) {
+        titleEl.textContent = isTopProject ? "Этапы проекта (Дорожная карта)" : "Чек-лист / Подзадачи";
+    }
+    if (iconEl) {
+        iconEl.className = isTopProject ? "fa-solid fa-diagram-project" : "fa-solid fa-list-check";
+        iconEl.style.color = isTopProject ? "#7c3aed" : "#2563eb";
+    }
 
     const subtasks = (currentDetailTaskData && currentDetailTaskData.subtasks) || [];
     if (countEl) countEl.textContent = subtasks.length;
 
     if (!subtasks.length) {
-        const isTopProject = currentDetailTaskData?.task_type === 'roadmap' && !currentDetailTaskData?.parent_id;
         listEl.innerHTML = `
-            <div style="text-align: center; color: #94a3b8; font-size: 0.82rem; padding: 0.75rem; border: 1px dashed #e2e8f0; border-radius: 8px;">
+            <div style="text-align: center; color: #94a3b8; font-size: 0.82rem; padding: 0.85rem; border: 1px dashed #e2e8f0; border-radius: 8px;">
                 ${isTopProject ? 'Этапы проекта пока не созданы' : 'Подзадачи чек-листа пока не созданы'}
             </div>
         `;
@@ -7052,17 +7103,22 @@ function renderDetailSubtasks() {
 
     listEl.innerHTML = subtasks.map(st => {
         const isDone = st.status && st.status.includes("Выполнено");
+        const stCode = st.code || `TSK-${st.id}`;
         return `
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: ${isDone ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: ${isDone ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; gap: 8px; transition: background 0.15s ease;">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
                     <button type="button" class="roadmap-check-btn ${isDone ? 'checked' : ''}" onclick="quickToggleSubtaskFromDetail(${st.id}, '${st.status || ''}')" style="width: 20px; height: 20px; font-size: 0.7rem; flex-shrink: 0;" title="${isDone ? 'Снять отметку' : 'Отметить выполненным'}">
                         <i class="fa-solid fa-check"></i>
                     </button>
-                    <span style="font-size: 0.86rem; font-weight: 500; color: ${isDone ? '#64748b' : '#0f172a'}; text-decoration: ${isDone ? 'line-through' : 'none'}; word-break: break-word;">${escapeHtml(st.title)}</span>
+                    <span class="badge-code" style="font-size: 0.72rem; font-family: monospace; font-weight: 700; background: #e2e8f0; color: #334155; padding: 1px 5px; border-radius: 4px; flex-shrink: 0;">${escapeHtml(stCode)}</span>
+                    <span onclick="openTaskDetailModal(${st.id})" style="font-size: 0.86rem; font-weight: 500; color: ${isDone ? '#64748b' : '#0f172a'}; text-decoration: ${isDone ? 'line-through' : 'none'}; word-break: break-word; cursor: pointer;" title="Открыть паспорт ${isTopProject ? 'этапа' : 'подзадачи'}" class="task-title-link">${escapeHtml(st.title)}</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-                    <span style="font-size: 0.74rem; color: #64748b;">${escapeHtml(st.assignee_name || '—')}</span>
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <span style="font-size: 0.74rem; color: #64748b; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Исполнитель: ${escapeHtml(st.assignee_name || 'Не назначен')}">${escapeHtml(st.assignee_name || '—')}</span>
                     <span class="badge-zone" style="font-size: 0.68rem; padding: 1px 6px;">${escapeHtml(st.status || 'В работе')}</span>
+                    <button type="button" class="btn-icon-cell" onclick="openTaskDetailModal(${st.id})" title="Открыть паспорт ${isTopProject ? 'этапа' : 'подзадачи'}" style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #2563eb; cursor: pointer;">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    </button>
                 </div>
             </div>
         `;
