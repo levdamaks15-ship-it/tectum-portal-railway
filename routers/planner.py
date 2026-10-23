@@ -161,7 +161,7 @@ def check_task_access(
         if action == "accept_project":
             return False, f"Принимать проект дорожной карты может автор ({task.author_name or '—'}), руководство завода (Туматов Д., Герлинг С., Булеханов К.) или администратор"
 
-        if action == "interact_task" and is_assignee:
+        if action in ("interact_task", "add_subtask") and is_assignee:
             if verify_person_pin(db, clean_user, clean_pin):
                 return True, ""
             return False, f"Неверный PIN-код исполнителя «{clean_user}»"
@@ -171,6 +171,9 @@ def check_task_access(
 
         if action == "interact_task":
             return False, f"Взаимодействовать с задачей (смена статуса, фото, факт) может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
+
+        if action == "add_subtask":
+            return False, f"Добавлять подзадачи чек-листа может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
 
     return False, "Недостаточно прав для выполнения этого действия"
 
@@ -2168,7 +2171,7 @@ def create_quick_milestone(
         # Автор и PIN
         author_name = (data.author_name or "").strip() or parent.author_name or "Планнер"
         pin = (data.pin_code or "").strip()
-        ok, err = check_task_access(db, parent, author_name, pin, "edit_project")
+        ok, err = check_task_access(db, parent, author_name, pin, "add_subtask")
         if not ok:
             raise HTTPException(status_code=403, detail=err)
 
@@ -2195,14 +2198,21 @@ def create_quick_milestone(
         elif not target_quarter and parent.due_date_str:
             target_quarter = resolve_quarter_by_date(parent.due_date_str) or ""
 
-        assignee = (data.assignee_name or "").strip() or (parent.assignee_name or "")
+        assignee = (data.assignee_name or "").strip()
+        if not assignee:
+            if author_name and parent.assignee_name and author_name == parent.assignee_name:
+                assignee = author_name
+            else:
+                assignee = parent.assignee_name or author_name or ""
+
+        task_type_val = "roadmap" if parent.task_type == "roadmap" else (parent.task_type or "weekly")
 
         new_milestone = models.Task(
             code=code_str,
             zone=parent.zone or "Бережливое производство",
             title=title_ru,
             title_kz=title_kz,
-            task_type="roadmap",
+            task_type=task_type_val,
             department_service=parent.department_service or "",
             parent_id=parent.id,
             depends_on_id=data.depends_on_id,

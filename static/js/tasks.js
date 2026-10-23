@@ -6931,18 +6931,22 @@ function populateTaskDetailModal(task) {
         btnDelete.innerHTML = '<i class="fa-solid fa-trash-can"></i> Удалить';
     }
 
+    const isDoneOrCancelled = task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено"));
+    const isLeaderOrAdmin = (typeof isPlannerAdmin === 'function' && isPlannerAdmin()) || (typeof isPlannerTrustedLeader === 'function' && isPlannerTrustedLeader());
+    const canAddSubtasks = isGuest || ((!isDoneOrCancelled || isLeaderOrAdmin) && canInteract);
+
     const btnAddSubtask = document.getElementById("detail-btn-add-subtask");
     const btnAddSubtaskLabel = document.getElementById("detail-btn-add-subtask-label");
     const addSubtaskWrap = document.getElementById("detail-add-subtask-wrap");
     const newSubInput = document.getElementById("detail-new-subtask-input");
     if (btnAddSubtask) {
-        btnAddSubtask.style.display = canEdit ? "inline-flex" : "none";
+        btnAddSubtask.style.display = canAddSubtasks ? "inline-flex" : "none";
         if (btnAddSubtaskLabel) {
             btnAddSubtaskLabel.textContent = isTopProject ? "Добавить этап" : "Добавить подзадачу";
         }
     }
     if (addSubtaskWrap) {
-        addSubtaskWrap.style.display = canEdit ? "flex" : "none";
+        addSubtaskWrap.style.display = canAddSubtasks ? "flex" : "none";
     }
     if (newSubInput) {
         newSubInput.placeholder = isTopProject ? "+ Введите название этапа (Enter)..." : "+ Введите суть подзадачи (Enter)...";
@@ -7434,55 +7438,60 @@ async function submitDetailNewSubtask() {
     }
 
     const task = currentDetailTaskData;
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
-    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
-    try {
-        const payload = {
-            parent_id: currentDetailTaskId,
-            title: title,
-            assignee_name: task ? (task.assignee_name || "") : "",
-            due_date_str: task ? (task.due_date_str || "") : "",
-            author_name: authorName,
-            pin_code: pin
-        };
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        const authorName = (authSession && authSession.name) ? authSession.name : ((currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (task?.author_name || ""));
+        const pin = (authSession && authSession.pin) ? authSession.pin : ((currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "");
+        const assigneeName = (task && task.assignee_name) ? task.assignee_name : authorName;
 
-        const res = await fetch("/api/tasks/quick_milestone", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+        try {
+            const payload = {
+                parent_id: currentDetailTaskId,
+                title: title,
+                assignee_name: assigneeName,
+                due_date_str: task ? (task.due_date_str || "") : "",
+                author_name: authorName,
+                pin_code: pin
+            };
 
-        if (res.ok) {
-            if (input) {
-                input.value = "";
-                input.focus();
+            const res = await fetch("/api/tasks/quick_milestone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                if (input) {
+                    input.value = "";
+                    input.focus();
+                }
+                showToast("Подзадача добавлена! 🎯", "success");
+
+                // Refresh task detail modal in-place without closing!
+                const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
+                if (freshRes.ok) {
+                    currentDetailTaskData = await freshRes.json();
+                    populateTaskDetailModal(currentDetailTaskData);
+                }
+
+                // Also reload background graph or sprint list if active
+                if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
+                    reloadProjectGraphData();
+                } else if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+                    loadRoadmaps();
+                } else if (typeof loadTasks === 'function') {
+                    loadTasks();
+                }
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось добавить подзадачу'}`);
             }
-            showToast("Подзадача добавлена! 🎯", "success");
-
-            // Refresh task detail modal in-place without closing!
-            const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
-            if (freshRes.ok) {
-                currentDetailTaskData = await freshRes.json();
-                populateTaskDetailModal(currentDetailTaskData);
-            }
-
-            // Also reload background graph or sprint list if active
-            if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
-                reloadProjectGraphData();
-            } else if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
-                loadRoadmaps();
-            } else if (typeof loadTasks === 'function') {
-                loadTasks();
-            }
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось добавить подзадачу'}`);
+        } catch (e) {
+            console.error("Error submitting detail new subtask:", e);
+            showToast("Сетевая ошибка при добавлении подзадачи", "error");
         }
-    } catch (e) {
-        console.error("Error submitting detail new subtask:", e);
-        showToast("Сетевая ошибка при добавлении подзадачи", "error");
-    }
+    }, task, "interact");
 }
 
 async function deleteTaskFromDetail() {
@@ -8547,36 +8556,41 @@ async function addInspectorSubtask() {
     if (!title) return;
 
     const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
-    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+    const requiredUser = node ? (node.assignee_name || node.author_name) : null;
 
-    try {
-        const payload = {
-            parent_id: selectedGraphNodeId,
-            title: title,
-            assignee_name: node ? node.assignee_name : "",
-            due_date_str: node ? node.due_date_str : "",
-            author_name: authorName,
-            pin_code: pin
-        };
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        const authorName = (authSession && authSession.name) ? authSession.name : ((currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (node?.author_name || ""));
+        const pin = (authSession && authSession.pin) ? authSession.pin : ((currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "");
+        const assigneeName = (node && node.assignee_name) ? node.assignee_name : authorName;
 
-        const res = await fetch("/api/tasks/quick_milestone", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
+        try {
+            const payload = {
+                parent_id: selectedGraphNodeId,
+                title: title,
+                assignee_name: assigneeName,
+                due_date_str: node ? node.due_date_str : "",
+                author_name: authorName,
+                pin_code: pin
+            };
 
-        if (res.ok) {
-            if (input) input.value = "";
-            showToast("Подзадача добавлена! 🎯", "success");
-            await reloadProjectGraphData();
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось добавить подзадачу'}`);
+            const res = await fetch("/api/tasks/quick_milestone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                if (input) input.value = "";
+                showToast("Подзадача добавлена! 🎯", "success");
+                await reloadProjectGraphData();
+            } else {
+                const err = await res.json().catch(() => ({}));
+                showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось добавить подзадачу'}`);
+            }
+        } catch (e) {
+            console.error("Error adding subtask in inspector:", e);
         }
-    } catch (e) {
-        console.error("Error adding subtask in inspector:", e);
-    }
+    }, node, "interact");
 }
 
 async function deleteStageFromGraph() {
