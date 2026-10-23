@@ -1,7 +1,7 @@
 /**
  * Tectum Tasks Planner — Client Logic (Clean & Simple)
  * 3-Level Planning, Hierarchies, Dependencies, Roadmaps & Hashtags
- * Build: 2026-10-21 v2.4.1 (Graph Integrity & Inspector Toggle)
+ * Build: 2026-10-23 v2.4.2 (Deploy Post-Railway Recovery)
  */
 
 // Global click handler to open date picker when clicking anywhere in a date/month/time input
