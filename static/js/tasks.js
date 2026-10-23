@@ -6805,7 +6805,7 @@ function populateTaskDetailModal(task) {
     const titleKzEl = document.getElementById("detail-task-title-kz");
     if (titleKzEl) {
         if (task.title_kz && task.title_kz.trim()) {
-            titleKzEl.textContent = task.title_kz.trim();
+            titleKzEl.innerHTML = `<span style="font-size: 0.72rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 1px 6px; border-radius: 4px; margin-right: 6px; font-style: normal; display: inline-block;">KZ</span>«${escapeHtml(task.title_kz.trim())}»`;
             titleKzEl.style.display = "block";
         } else {
             titleKzEl.style.display = "none";
@@ -6832,12 +6832,27 @@ function populateTaskDetailModal(task) {
         }
     }
 
-    // Horizon Badge
+    // Horizon Badge & Parent Project Wrap
     const horizonBadgeEl = document.getElementById("detail-task-horizon-badge");
     if (horizonBadgeEl) {
         const hLabel = task.horizon_label || (task.task_type === 'roadmap' ? '🗺️ Дорожная карта' : 'Спринт');
         horizonBadgeEl.textContent = hLabel;
         horizonBadgeEl.className = `badge-horizon ${task.horizon_badge_class || 'horizon-sprint'}`;
+    }
+
+    const parentWrap = document.getElementById("detail-task-parent-wrap");
+    if (parentWrap) {
+        if (task.parent && task.parent.title) {
+            parentWrap.style.display = "inline-flex";
+            parentWrap.innerHTML = `
+                <span class="badge-zone" style="background: #fdf4ff; color: #7e22ce; border-color: #f0abfc; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" onclick="openTaskDetailModal(${task.parent.id})" title="Открыть паспорт проекта [${escapeHtml(task.parent.code || '')}]">
+                    <i class="fa-solid fa-diagram-project"></i> Проект: ${escapeHtml(task.parent.code || '')} «${escapeHtml(task.parent.title || '')}»
+                </span>
+            `;
+        } else {
+            parentWrap.style.display = "none";
+            parentWrap.innerHTML = "";
+        }
     }
 
     // Action buttons state
@@ -6874,28 +6889,37 @@ function populateTaskDetailModal(task) {
         btnEdit.innerHTML = canEdit ? `<i class="fa-solid fa-pen"></i> Редактировать` : `<i class="fa-solid fa-eye"></i> Просмотр`;
     }
 
+    const isTopProject = task.task_type === 'roadmap' && !task.parent_id;
     const btnAddSubtask = document.getElementById("detail-btn-add-subtask");
+    const btnAddSubtaskLabel = document.getElementById("detail-btn-add-subtask-label");
     if (btnAddSubtask) {
         btnAddSubtask.style.display = canEdit ? "inline-flex" : "none";
+        if (btnAddSubtaskLabel) {
+            btnAddSubtaskLabel.textContent = isTopProject ? "Добавить этап" : "Добавить подзадачу";
+        }
     }
 
-    // Progress Section
+    // Progress Section (only if has subtasks or is a top-level project)
     const progSection = document.getElementById("detail-progress-section");
     const progBar = document.getElementById("detail-progress-bar");
     const progPercent = document.getElementById("detail-progress-percent");
     const progLabel = document.getElementById("detail-progress-label");
     const subtasks = task.subtasks || [];
-    const hasProgress = task.task_type === 'roadmap' || subtasks.length > 0 || (task.progress !== undefined && task.progress !== null);
+    const hasProgress = subtasks.length > 0 || isTopProject;
 
     if (progSection && hasProgress) {
         progSection.style.display = "block";
         const calcProg = task.calculated_progress || task.progress || 0;
-        if (progBar) progBar.style.width = `${calcProg}%`;
+        if (progBar) {
+            progBar.style.width = `${calcProg}%`;
+            progBar.style.background = calcProg === 100 ? '#10b981' : '#2563eb';
+        }
         if (progPercent) progPercent.textContent = `${calcProg}%`;
         if (progLabel) {
             if (subtasks.length > 0) {
                 const doneSubs = subtasks.filter(s => s.status && s.status.includes("Выполнено")).length;
-                progLabel.textContent = `Прогресс: ${doneSubs} из ${subtasks.length} этапов выполнено`;
+                const unitLabel = isTopProject ? 'этапов' : 'подзадач';
+                progLabel.textContent = `Прогресс: ${doneSubs} из ${subtasks.length} ${unitLabel} выполнено`;
             } else {
                 progLabel.textContent = `Прогресс выполнения:`;
             }
@@ -6988,15 +7012,15 @@ function populateTaskDetailModal(task) {
         }
     }
 
-    // Comment
+    // Comment Box with neutral styling when empty
     const commentBox = document.getElementById("detail-task-comment");
     if (commentBox) {
         if (task.comment && task.comment.trim()) {
             commentBox.textContent = task.comment.trim();
-            commentBox.style.color = "#1e293b";
+            commentBox.classList.remove("is-empty");
         } else {
             commentBox.textContent = "Комментарий отсутствует";
-            commentBox.style.color = "#94a3b8";
+            commentBox.classList.add("is-empty");
         }
     }
 
@@ -7017,9 +7041,10 @@ function renderDetailSubtasks() {
     if (countEl) countEl.textContent = subtasks.length;
 
     if (!subtasks.length) {
+        const isTopProject = currentDetailTaskData?.task_type === 'roadmap' && !currentDetailTaskData?.parent_id;
         listEl.innerHTML = `
             <div style="text-align: center; color: #94a3b8; font-size: 0.82rem; padding: 0.75rem; border: 1px dashed #e2e8f0; border-radius: 8px;">
-                Подзадачи и промежуточные этапы пока не созданы
+                ${isTopProject ? 'Этапы проекта пока не созданы' : 'Подзадачи чек-листа пока не созданы'}
             </div>
         `;
         return;
@@ -8199,13 +8224,23 @@ function selectGraphNode(nodeId) {
 
     if (codeEl) codeEl.textContent = node.code || `TSK-${node.id}`;
     if (statusSelect) {
-        statusSelect.value = node.status || "🟡 В работе";
+        if (node.is_done) {
+            statusSelect.innerHTML = `
+                <option value="🟢 Выполнено" selected>🟢 Выполнено</option>
+                <option value="🟡 В работе">🟡 Вернуть в работу</option>
+            `;
+        } else {
+            statusSelect.innerHTML = `
+                <option value="🟡 В работе" ${node.status !== '🔴 Отменено' ? 'selected' : ''}>🟡 В работе</option>
+                <option value="🔴 Отменено" ${node.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
+            `;
+        }
     }
     if (titleInput) {
         titleInput.value = node.title || "";
     }
     if (titleKzEl) {
-        titleKzEl.textContent = node.title_kz ? `«${node.title_kz}»` : "";
+        titleKzEl.innerHTML = node.title_kz ? `<span style="font-size: 0.68rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 1px 5px; border-radius: 4px; margin-right: 4px;">KZ</span>«${escapeHtml(node.title_kz)}»` : "";
     }
     if (assigneeSelect) {
         assigneeSelect.innerHTML = buildAssigneeOptions(node.assignee_name);
@@ -8222,8 +8257,14 @@ function selectGraphNode(nodeId) {
         });
         dependsSelect.innerHTML = depHtml;
     }
+    const progVal = node.progress || 0;
     if (progEl) {
-        progEl.textContent = `${node.progress || 0}%`;
+        progEl.textContent = `${progVal}%`;
+    }
+    const progBarEl = document.getElementById("inspector-node-progress-bar");
+    if (progBarEl) {
+        progBarEl.style.width = `${progVal}%`;
+        progBarEl.style.background = progVal === 100 ? '#10b981' : '#2563eb';
     }
 
     // Blocker info
@@ -8296,12 +8337,12 @@ function selectGraphNode(nodeId) {
     }
 
     const completeBtn = document.getElementById("inspector-btn-complete");
+    const doneBadge = document.getElementById("inspector-done-badge");
     if (completeBtn) {
-        if (node.is_done) {
-            completeBtn.style.display = "none";
-        } else {
-            completeBtn.style.display = "inline-flex";
-        }
+        completeBtn.style.display = node.is_done ? "none" : "inline-flex";
+    }
+    if (doneBadge) {
+        doneBadge.style.display = node.is_done ? "flex" : "none";
     }
 }
 
@@ -8313,12 +8354,14 @@ function completeStageFromInspector() {
 function handleInspectorStatusChange(val) {
     if (val && val.includes("Выполнено")) {
         const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
-        const statusSelect = document.getElementById("inspector-edit-status");
-        if (statusSelect) {
-            statusSelect.value = node?.status || "🟡 В работе";
+        if (!node?.is_done) {
+            const statusSelect = document.getElementById("inspector-edit-status");
+            if (statusSelect) {
+                statusSelect.value = node?.status || "🟡 В работе";
+            }
+            showToast("Завершение этапа требует подтверждения факта и фото", "info");
+            completeStageFromInspector();
         }
-        showToast("Завершение этапа требует подтверждения факта и фото", "info");
-        completeStageFromInspector();
     }
 }
 
@@ -8329,8 +8372,9 @@ async function saveStageFromInspector() {
         showToast("⚠️ Название этапа не может быть пустым", "warning");
         return;
     }
+    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
     const status = document.getElementById("inspector-edit-status")?.value || "🟡 В работе";
-    if (status && status.includes("Выполнено")) {
+    if (status && status.includes("Выполнено") && !node?.is_done) {
         showToast("Завершение этапа требует подтверждения факта и фото", "info");
         completeStageFromInspector();
         return;
