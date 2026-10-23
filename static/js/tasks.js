@@ -8286,12 +8286,6 @@ function selectGraphNode(nodeId) {
         };
     }
 
-    inspector.style.display = "block";
-    const emptyState = document.getElementById("inspector-empty-state");
-    const contentWrap = document.getElementById("inspector-content-wrap");
-    if (emptyState) emptyState.style.display = "none";
-    if (contentWrap) contentWrap.style.display = "block";
-
     const completeBtn = document.getElementById("inspector-btn-complete");
     if (completeBtn) {
         if (node.is_done) {
