@@ -1,7 +1,7 @@
 /**
  * Tectum Tasks Planner — Client Logic (Clean & Simple)
  * 3-Level Planning, Hierarchies, Dependencies, Roadmaps & Hashtags
- * Build: 2026-10-23 v2.4.2 (Deploy Post-Railway Recovery)
+ * Build: 2026-10-23 v2.4.3 (Fix empty state add stage button & stop pan propagation)
  */
 
 // Global click handler to open date picker when clicking anywhere in a date/month/time input
@@ -7841,7 +7841,7 @@ function initGraphPanZoomListeners() {
 
     viewport.addEventListener("mousedown", (e) => {
         // Only start pan if clicking directly on viewport or surface, not on interactive nodes or buttons
-        if (e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap')) {
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea') || e.target.closest('a') || e.target.closest('.btn-action') || e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap')) {
             return;
         }
         isGraphPanning = true;
@@ -7869,7 +7869,7 @@ function initGraphPanZoomListeners() {
     let touchStartY = 0;
     viewport.addEventListener("touchstart", (e) => {
         if (e.touches.length === 1) {
-            if (e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-minimap-wrap')) return;
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('textarea') || e.target.closest('a') || e.target.closest('.btn-action') || e.target.closest('.graph-node') || e.target.closest('.graph-inspector') || e.target.closest('.graph-tool-btn') || e.target.closest('.graph-minimap-wrap')) return;
             isGraphPanning = true;
             touchStartX = e.touches[0].clientX - graphPanX;
             touchStartY = e.touches[0].clientY - graphPanY;
@@ -8011,11 +8011,11 @@ function renderProjectGraph(data) {
 
     if (!nodes.length) {
         container.innerHTML = `
-            <div style="position: absolute; top: 80px; left: 80px; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; max-width: 440px;">
+            <div style="position: absolute; top: 80px; left: 80px; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; max-width: 440px; cursor: default; user-select: none;" onmousedown="event.stopPropagation()">
                 <div style="font-size: 2rem; margin-bottom: 6px;">🗺️</div>
                 <h4 style="margin: 0 0 6px; color: #0f172a;">В проекте пока нет этапов</h4>
                 <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 12px;">Добавьте этапы и настройте блокирующие зависимости, чтобы увидеть интерактивную схему.</p>
-                <button type="button" class="btn-action btn-primary-action" onclick="openGraphAddStageModal()">
+                <button type="button" class="btn-action btn-primary-action graph-tool-btn" onclick="event.stopPropagation(); openGraphAddStageModal()" onmousedown="event.stopPropagation()" style="cursor: pointer;">
                     <i class="fa-solid fa-plus"></i> Добавить первый этап
                 </button>
             </div>
@@ -8530,6 +8530,9 @@ function openCurrentProjectHistory() {
 }
 
 function openGraphAddStageModal(presetDependsOnId = null) {
+    if (presetDependsOnId && typeof presetDependsOnId !== 'number') {
+        presetDependsOnId = null;
+    }
     if (!currentGraphProjectId) return;
     const modal = document.getElementById("graph-new-stage-modal");
     if (!modal) return;
