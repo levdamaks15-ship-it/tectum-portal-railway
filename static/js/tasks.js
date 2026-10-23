@@ -6933,11 +6933,19 @@ function populateTaskDetailModal(task) {
 
     const btnAddSubtask = document.getElementById("detail-btn-add-subtask");
     const btnAddSubtaskLabel = document.getElementById("detail-btn-add-subtask-label");
+    const addSubtaskWrap = document.getElementById("detail-add-subtask-wrap");
+    const newSubInput = document.getElementById("detail-new-subtask-input");
     if (btnAddSubtask) {
         btnAddSubtask.style.display = canEdit ? "inline-flex" : "none";
         if (btnAddSubtaskLabel) {
             btnAddSubtaskLabel.textContent = isTopProject ? "Добавить этап" : "Добавить подзадачу";
         }
+    }
+    if (addSubtaskWrap) {
+        addSubtaskWrap.style.display = canEdit ? "flex" : "none";
+    }
+    if (newSubInput) {
+        newSubInput.placeholder = isTopProject ? "+ Введите название этапа (Enter)..." : "+ Введите суть подзадачи (Enter)...";
     }
 
     // Progress Section (only if has subtasks or is a top-level project)
@@ -7397,22 +7405,83 @@ function openTaskHistoryModalFromDetail() {
     }
 }
 
+function focusDetailNewSubtaskInput() {
+    const input = document.getElementById("detail-new-subtask-input");
+    if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
 function openAddSubtaskFromDetail() {
+    focusDetailNewSubtaskInput();
+}
+
+function handleDetailNewSubtaskKeydown(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        submitDetailNewSubtask();
+    }
+}
+
+async function submitDetailNewSubtask() {
     if (!currentDetailTaskId) return;
-    const tid = currentDetailTaskId;
-    if (!canEditProjectOrTask(currentDetailTaskData)) {
-        if (!currentPlannerUser) {
-            openPinModal(null, () => {
-                openAddSubtaskFromDetail();
-            });
-            return;
-        }
-        showToast("Добавлять подзадачи может только автор проекта, руководство завода или администратор", "warning");
+    const input = document.getElementById("detail-new-subtask-input");
+    const title = input ? input.value.trim() : "";
+    if (!title) {
+        if (input) input.focus();
         return;
     }
-    closeTaskDetailModal();
-    if (typeof openSubtaskQuickModal === 'function') {
-        openSubtaskQuickModal(tid);
+
+    const task = currentDetailTaskData;
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
+    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
+
+    try {
+        const payload = {
+            parent_id: currentDetailTaskId,
+            title: title,
+            assignee_name: task ? (task.assignee_name || "") : "",
+            due_date_str: task ? (task.due_date_str || "") : "",
+            author_name: authorName,
+            pin_code: pin
+        };
+
+        const res = await fetch("/api/tasks/quick_milestone", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            if (input) {
+                input.value = "";
+                input.focus();
+            }
+            showToast("Подзадача добавлена! 🎯", "success");
+
+            // Refresh task detail modal in-place without closing!
+            const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
+            if (freshRes.ok) {
+                currentDetailTaskData = await freshRes.json();
+                populateTaskDetailModal(currentDetailTaskData);
+            }
+
+            // Also reload background graph or sprint list if active
+            if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
+                reloadProjectGraphData();
+            } else if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+                loadRoadmaps();
+            } else if (typeof loadTasks === 'function') {
+                loadTasks();
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ Ошибка: ${err.detail || 'Не удалось добавить подзадачу'}`);
+        }
+    } catch (e) {
+        console.error("Error submitting detail new subtask:", e);
+        showToast("Сетевая ошибка при добавлении подзадачи", "error");
     }
 }
 
@@ -8263,10 +8332,10 @@ function selectGraphNode(nodeId) {
     // Populate Inspector Fields
     const codeEl = document.getElementById("inspector-node-code");
     const statusSelect = document.getElementById("inspector-edit-status");
-    const titleInput = document.getElementById("inspector-edit-title");
+    const titleEl = document.getElementById("inspector-node-title");
     const titleKzEl = document.getElementById("inspector-node-title-kz");
-    const assigneeSelect = document.getElementById("inspector-edit-assignee");
-    const dueDateInput = document.getElementById("inspector-edit-due-date");
+    const assigneeEl = document.getElementById("inspector-node-assignee");
+    const dueDateEl = document.getElementById("inspector-node-due-date");
     const dependsSelect = document.getElementById("inspector-edit-depends");
     const progEl = document.getElementById("inspector-node-progress");
     const blockerAlert = document.getElementById("inspector-blocker-alert");
@@ -8274,35 +8343,23 @@ function selectGraphNode(nodeId) {
     const subCountEl = document.getElementById("inspector-subtasks-count");
     const subListEl = document.getElementById("inspector-subtasks-list");
     const newSubInput = document.getElementById("inspector-new-subtask-input");
-    const photosSection = document.getElementById("inspector-photos-section");
-    const photosStrip = document.getElementById("inspector-photos-strip");
     const detailBtn = document.getElementById("inspector-btn-open-detail");
 
     if (codeEl) codeEl.textContent = node.code || `TSK-${node.id}`;
     if (statusSelect) {
-        if (node.is_done) {
-            statusSelect.innerHTML = `
-                <option value="🟢 Выполнено" selected>🟢 Выполнено</option>
-                <option value="🟡 В работе">🟡 Вернуть в работу</option>
-            `;
-        } else {
-            statusSelect.innerHTML = `
-                <option value="🟡 В работе" ${node.status !== '🔴 Отменено' ? 'selected' : ''}>🟡 В работе</option>
-                <option value="🔴 Отменено" ${node.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
-            `;
-        }
+        statusSelect.value = node.is_done ? "🟢 Выполнено" : (node.status || "🟡 В работе");
     }
-    if (titleInput) {
-        titleInput.value = node.title || "";
+    if (titleEl) {
+        titleEl.textContent = node.title || "Без названия";
     }
     if (titleKzEl) {
         titleKzEl.innerHTML = node.title_kz ? `<span style="font-size: 0.68rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 1px 5px; border-radius: 4px; margin-right: 4px;">KZ</span>«${escapeHtml(node.title_kz)}»` : "";
     }
-    if (assigneeSelect) {
-        assigneeSelect.innerHTML = buildAssigneeOptions(node.assignee_name);
+    if (assigneeEl) {
+        assigneeEl.textContent = node.assignee_name || "Не назначен";
     }
-    if (dueDateInput) {
-        dueDateInput.value = convertRuDateToIso(node.due_date_str);
+    if (dueDateEl) {
+        dueDateEl.textContent = node.due_date_str || "Не указан";
     }
     if (dependsSelect) {
         const otherNodes = currentGraphData.nodes.filter(n => n.id !== nodeId);
@@ -8364,41 +8421,63 @@ function selectGraphNode(nodeId) {
         newSubInput.value = "";
     }
 
-    // Mini Photos preview
-    const photos = node.photos || { before: [], after: [] };
-    const allImgs = [...(photos.before || []), ...(photos.after || [])];
-    if (photosStrip) {
-        if (allImgs.length > 0) {
-            if (photosSection) photosSection.style.display = "block";
-            photosStrip.innerHTML = allImgs.map(item => {
-                const url = (typeof item === 'object' && item) ? (item.url || "") : String(item);
-                const caption = (typeof item === 'object' && item && item.type === 'after') ? 'ПОСЛЕ' : 'ДО';
-                return `
-                    <div style="position: relative; width: 64px; height: 48px; border-radius: 6px; overflow: hidden; background: #000; flex-shrink: 0; cursor: pointer; border: 1px solid #cbd5e1;" onclick="openPhotoViewerModal('${url}')" title="Нажмите для просмотра">
-                        <img src="${url}" alt="Фото" style="width: 100%; height: 100%; object-fit: cover;">
-                        <span style="position: absolute; bottom: 1px; left: 2px; font-size: 0.6rem; color: #fff; background: rgba(0,0,0,0.7); padding: 1px 3px; border-radius: 3px;">${caption}</span>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            if (photosSection) photosSection.style.display = "none";
-            photosStrip.innerHTML = "";
-        }
-    }
-
     if (detailBtn) {
         detailBtn.onclick = () => {
             openTaskDetailModal(node.id);
         };
     }
+}
 
-    const completeBtn = document.getElementById("inspector-btn-complete");
-    const doneBadge = document.getElementById("inspector-done-badge");
-    if (completeBtn) {
-        completeBtn.style.display = node.is_done ? "none" : "inline-flex";
+async function autoSaveInspectorDepends(depIdVal) {
+    if (!selectedGraphNodeId) return;
+    const newDepId = depIdVal ? parseInt(depIdVal, 10) : null;
+    try {
+        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                depends_on_id: newDepId
+            })
+        });
+        if (res.ok) {
+            showToast("Связь этапа обновлена! 🔗", "success");
+            await reloadProjectGraphData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ ${err.detail || 'Ошибка сохранения связи'}`);
+        }
+    } catch (e) {
+        console.error("Error updating stage dependency:", e);
+        showToast("Ошибка сохранения связи", "error");
     }
-    if (doneBadge) {
-        doneBadge.style.display = node.is_done ? "flex" : "none";
+}
+
+async function handleInspectorStatusChange(val) {
+    if (!selectedGraphNodeId) return;
+    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+    if (val && val.includes("Выполнено")) {
+        if (!node?.is_done) {
+            openCompleteTaskModal(selectedGraphNodeId);
+            return;
+        }
+    }
+    try {
+        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: val
+            })
+        });
+        if (res.ok) {
+            showToast(`Статус этапа: ${val}`, "success");
+            await reloadProjectGraphData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ ${err.detail || 'Ошибка смены статуса'}`);
+        }
+    } catch (e) {
+        console.error("Error updating status:", e);
     }
 }
 
@@ -8407,83 +8486,8 @@ function completeStageFromInspector() {
     openCompleteTaskModal(selectedGraphNodeId);
 }
 
-function handleInspectorStatusChange(val) {
-    if (val && val.includes("Выполнено")) {
-        const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
-        if (!node?.is_done) {
-            const statusSelect = document.getElementById("inspector-edit-status");
-            if (statusSelect) {
-                statusSelect.value = node?.status || "🟡 В работе";
-            }
-            showToast("Завершение этапа требует подтверждения факта и фото", "info");
-            completeStageFromInspector();
-        }
-    }
-}
-
 async function saveStageFromInspector() {
-    if (!selectedGraphNodeId) return;
-    const title = (document.getElementById("inspector-edit-title")?.value || "").trim();
-    if (!title) {
-        showToast("⚠️ Название этапа не может быть пустым", "warning");
-        return;
-    }
-    const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
-    const status = document.getElementById("inspector-edit-status")?.value || "🟡 В работе";
-    if (status && status.includes("Выполнено") && !node?.is_done) {
-        showToast("Завершение этапа требует подтверждения факта и фото", "info");
-        completeStageFromInspector();
-        return;
-    }
-    const assignee = document.getElementById("inspector-edit-assignee")?.value || "";
-    const dateVal = document.getElementById("inspector-edit-due-date")?.value || "";
-    const dependsVal = document.getElementById("inspector-edit-depends")?.value || "";
-    const dependsOnId = dependsVal ? parseInt(dependsVal, 10) : null;
-    const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
-
-    const btn = document.getElementById("inspector-btn-save-stage");
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...`;
-    }
-
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");
-    const pin = (currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "";
-
-    try {
-        const payload = {
-            title: title,
-            status: status,
-            assignee_name: assignee,
-            due_date_str: dueDateStr,
-            depends_on_id: dependsOnId,
-            user_name: authorName,
-            pin_code: pin
-        };
-
-        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.detail || "Не удалось сохранить этап");
-        }
-
-        showToast("Этап успешно сохранён! 🎯", "success");
-        await reloadProjectGraphData();
-        await loadRoadmaps();
-    } catch (e) {
-        console.error("Error saving stage from inspector:", e);
-        showToast(`⚠️ Ошибка: ${e.message}`, "error");
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Сохранить этап`;
-        }
-    }
+    // Kept as backward compatibility stub
 }
 
 async function toggleInspectorSubtask(subtaskId, currentStatus, event) {
