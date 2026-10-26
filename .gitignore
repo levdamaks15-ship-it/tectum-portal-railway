@@ -13,6 +13,7 @@ tectum_android/
 *.json
 !mcp_config.json
 !railway.json
+!static/manifest.json
 test_*.py
 find_*.py
 fix_*.py

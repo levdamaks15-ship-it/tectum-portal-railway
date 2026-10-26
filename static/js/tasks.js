@@ -533,7 +533,6 @@ function hydrateBackgroundData() {
         loadCalendarStructure(),
         loadPlannerDropdownData(),
         loadTaskTags(),
-        fetchAllHierarchyTasksBackground(),
         handleUrlDeepLinkingAsync()
     ]).catch(err => {
         console.warn("Background hydration warning:", err);
@@ -5295,7 +5294,7 @@ function fetchAllHierarchyTasksBackground(force = false) {
     }
     if (hierarchyTasksInFlight) return hierarchyTasksInFlight;
 
-    hierarchyTasksInFlight = fetch("/api/tasks?task_type=all&month=all")
+    hierarchyTasksInFlight = fetch("/api/tasks?task_type=roadmap,milestone&month=all")
         .then(res => res.ok ? res.json() : [])
         .then(data => {
             cachedAllHierarchyTasks = data;
@@ -7021,7 +7020,6 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     }
 
     populateDropdowns();
-    populateHierarchyDropdowns(null, parentId, null);
 
     document.getElementById("modal-title").textContent = "Новая задача";
     document.getElementById("task-id-input").value = "";
@@ -7051,6 +7049,10 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
         onTaskTypeChange(initType);
     }
     updateModalHorizonBadge(initType);
+
+    if (initType === 'roadmap' || currentHorizon === 'roadmaps' || parentId) {
+        populateHierarchyDropdowns(null, parentId, null);
+    }
 
     // Служба по умолчанию и видимость строки службы (только для сервисных планов)
     const deptRow = document.getElementById("task-department-row");

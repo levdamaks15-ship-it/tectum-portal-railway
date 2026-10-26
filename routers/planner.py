@@ -1494,7 +1494,11 @@ def get_tasks(
             elif task_type == "quality_day":
                 query = query.filter((models.Task.task_type == "quality_day") | (models.Task.zone == "День качества"))
             elif task_type and task_type != "all":
-                query = query.filter(models.Task.task_type == task_type)
+                if "," in task_type:
+                    type_list = [t.strip() for t in task_type.split(",") if t.strip()]
+                    query = query.filter(models.Task.task_type.in_(type_list))
+                else:
+                    query = query.filter(models.Task.task_type == task_type)
 
             # 2. Фильтрация по службам ОГМ/ОГЭ/Технологи
             if department_service and department_service != "all":

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Request, BackgroundTasks, Query, Body
 from typing import Optional
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models, schemas
@@ -453,7 +453,22 @@ def serve_manifest():
     manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "manifest.json")
     if os.path.exists(manifest_path):
         return FileResponse(manifest_path, media_type="application/manifest+json")
-    return FileResponse("static/manifest.json", media_type="application/manifest+json")
+    return JSONResponse({
+        "name": "Tectum Enterprise",
+        "short_name": "Tectum",
+        "description": "Единый мобильный портал завода Tectum",
+        "start_url": "/?source=pwa",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#950405",
+        "orientation": "portrait-primary",
+        "scope": "/",
+        "lang": "ru",
+        "icons": [
+            {"src": "/static/img/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/static/img/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+        ]
+    }, media_type="application/manifest+json")
 
 @app.get("/service-worker.js", include_in_schema=False)
 @app.get("/sw.js", include_in_schema=False)
