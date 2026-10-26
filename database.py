@@ -24,7 +24,10 @@ else:
         max_overflow=20,
         pool_timeout=10,
         pool_recycle=300,
-        pool_pre_ping=True
+        pool_pre_ping=True,
+        connect_args={
+            "options": "-c statement_timeout=25000 -c idle_in_transaction_session_timeout=30000"
+        }
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

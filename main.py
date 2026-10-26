@@ -106,22 +106,47 @@ async def lifespan(app: FastAPI):
                 conn.close()
             except: pass
             
-            # Ensure indexes for documents & document_categories
+            # Ensure indexes & columns without locking PostgreSQL tables
             try:
                 db = SessionLocal()
                 from sqlalchemy import text
                 driver = db.bind.dialect.name if db.bind else 'unknown'
+
+                def ensure_pg_column(db_sess, table, column, col_type):
+                    try:
+                        exists = db_sess.execute(text(
+                            "SELECT 1 FROM information_schema.columns WHERE table_name=:tbl AND column_name=:col"
+                        ), {"tbl": table, "col": column}).scalar()
+                        if not exists:
+                            db_sess.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type};"))
+                            db_sess.commit()
+                    except Exception as col_err:
+                        print(f"Notice: column check/add {table}.{column}: {col_err}")
+                        db_sess.rollback()
+
                 if driver == 'postgresql':
-                    db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_category_id ON documents (category_id);"))
-                    db.execute(text("CREATE INDEX IF NOT EXISTS idx_doc_categories_parent_id ON document_categories (parent_id);"))
-                    db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_synced BOOLEAN DEFAULT FALSE;"))
-                    db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_synced_at TIMESTAMP;"))
-                    db.execute(text("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS google_sync_error TEXT;"))
-                    db.execute(text("ALTER TABLE downtimes ADD COLUMN IF NOT EXISTS description_kz TEXT;"))
-                    db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS depends_on_ids TEXT;"))
-                    db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
-                    db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
-                    db.commit()
+                    try:
+                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_documents_category_id ON documents (category_id);"))
+                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_doc_categories_parent_id ON document_categories (parent_id);"))
+                        db.commit()
+                    except Exception:
+                        db.rollback()
+
+                    ensure_pg_column(db, "shifts", "google_synced", "BOOLEAN DEFAULT FALSE")
+                    ensure_pg_column(db, "shifts", "google_synced_at", "TIMESTAMP")
+                    ensure_pg_column(db, "shifts", "google_sync_error", "TEXT")
+                    ensure_pg_column(db, "downtimes", "description_kz", "TEXT")
+                    ensure_pg_column(db, "tasks", "depends_on_ids", "TEXT")
+                    ensure_pg_column(db, "tasks", "photos", "TEXT")
+                    ensure_pg_column(db, "lkc_report_items", "comp_strips_count", "INTEGER DEFAULT 0")
+                    ensure_pg_column(db, "lkc_report_items", "order_number", "VARCHAR(100)")
+
+                    try:
+                        db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
+                        db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
+                        db.commit()
+                    except Exception:
+                        db.rollback()
                 elif driver == 'sqlite':
                     db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))
                     db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 1200 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'Ночь' AND plan_sheets IN (3300, 0);"))
@@ -275,38 +300,6 @@ async def lifespan(app: FastAPI):
                 models.LKCDowntime.__table__.create(bind=engine, checkfirst=True)
                 db.commit()
 
-                # Автомиграция колонок ЛКЦ
-                driver = db.bind.dialect.name if db.bind else 'unknown'
-                try:
-                    if driver == 'postgresql':
-                        db.execute(text("ALTER TABLE lkc_report_items ADD COLUMN IF NOT EXISTS comp_strips_count INTEGER DEFAULT 0;"))
-                        db.execute(text("ALTER TABLE lkc_report_items ADD COLUMN IF NOT EXISTS order_number VARCHAR(100);"))
-                        db.execute(text("CREATE INDEX IF NOT EXISTS idx_lkc_items_order_number ON lkc_report_items (order_number);"))
-                        db.commit()
-                    elif driver == 'sqlite':
-                        with engine.connect() as conn:
-                            for col_name, col_def in [("comp_strips_count", "INTEGER DEFAULT 0"), ("order_number", "VARCHAR(100)")]:
-                                try:
-                                    conn.execute(text(f"ALTER TABLE lkc_report_items ADD COLUMN {col_name} {col_def};"))
-                                    conn.commit()
-                                except: pass
-                except Exception as mig_err:
-                    print(f"LKC columns migration notice: {mig_err}")
-
-                # Автомиграция колонки photos в tasks (мульти-фото)
-                try:
-                    if driver == 'postgresql':
-                        db.execute(text("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS photos TEXT;"))
-                        db.commit()
-                    elif driver == 'sqlite':
-                        with engine.connect() as conn:
-                            try:
-                                conn.execute(text("ALTER TABLE tasks ADD COLUMN photos TEXT;"))
-                                conn.commit()
-                            except: pass
-                except Exception as mig_err:
-                    print(f"Tasks photos migration notice: {mig_err}")
-
                 print("Seeded core master profiles (Левда М., Булеханов К., Мусаилова З., Миркасимов И.М. PIN 4321).")
             except Exception as e:
                 print(f"Error seeding users: {e}")
@@ -319,7 +312,11 @@ async def lifespan(app: FastAPI):
             # Backfill roadmap quarters for tasks without target_quarter
             try:
                 from routers.planner import backfill_missing_roadmap_quarters
-                backfill_missing_roadmap_quarters(db)
+                db_bf = SessionLocal()
+                try:
+                    backfill_missing_roadmap_quarters(db_bf)
+                finally:
+                    db_bf.close()
             except Exception as bf_err:
                 print(f"[Planner Startup] Backfill roadmap quarters error: {bf_err}")
 
