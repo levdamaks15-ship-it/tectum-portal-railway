@@ -698,7 +698,7 @@ class TaskBase(ORMBaseModel):
     code: Optional[str] = ""
     zone: Optional[str] = "Бережливое производство"
     title: str
-    title_kz: Optional[str] = ""
+    title_kz: Optional[str] = None
     photo_link: Optional[str] = ""
     photo_link_after: Optional[str] = ""
     photos: Optional[Any] = None
@@ -751,7 +751,7 @@ class QuickMilestoneCreate(ORMBaseModel):
 
 class BulkTaskItem(ORMBaseModel):
     title: str
-    title_kz: Optional[str] = ""
+    title_kz: Optional[str] = None
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
     zone: Optional[str] = None

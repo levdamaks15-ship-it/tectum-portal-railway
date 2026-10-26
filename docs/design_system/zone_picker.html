@@ -1,0 +1,25 @@
+<!--
+  @canonical-pattern ZonePickerPopover
+  @established 2026-10-26
+  @description 48px trigger with folder icon, smooth chevron, and body-portaled fixed dropdown popover with search.
+-->
+
+<!-- Trigger & Wrapper HTML -->
+<div class="zone-picker-wrapper" style="position: relative;">
+    <input type="hidden" id="task-zone-input" value="Бережливое производство">
+    <div class="zone-select-modern" id="btn-task-zone-trigger" onclick="toggleTaskZonePopover(event)" tabindex="0" title="Нажмите для выбора зоны / участка">
+        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+            <div class="zone-icon-circle" id="task-zone-icon" style="background: #eff6ff; color: #2563eb; font-size: 0.85rem;">
+                <i class="fa-solid fa-folder"></i>
+            </div>
+            <span id="task-zone-display-text" style="font-size: 0.88rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Бережливое производство</span>
+        </div>
+        <i class="fa-solid fa-chevron-down" id="task-zone-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+    </div>
+    <div class="filter-dropdown-popover zone-picker-popover task-zone-popover" id="popover-task-zone" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-task-zone" placeholder="🔍 Поиск зоны / участка..." oninput="renderTaskZonePickerList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-task-zone" style="max-height: 250px;"></div>
+    </div>
+</div>

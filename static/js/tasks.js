@@ -52,6 +52,8 @@ let lastRoadmapsDataHash = "";
 let isModalOpen = false;
 let isInitialLoading = true;
 let tasksFetchSeq = 0;
+let customDateFrom = null;
+let customDateTo = null;
 
 const CORE_NAMES = [
     "Герлинг С.",
@@ -582,6 +584,7 @@ async function handleUrlDeepLinkingAsync() {
             const zoneInput = document.getElementById("task-zone-input");
             if (zoneInput) {
                 zoneInput.value = "Документация";
+                if (typeof updateTaskZoneDisplay === 'function') updateTaskZoneDisplay("Документация");
             }
             if (createDocId) {
                 const parsedId = parseInt(createDocId, 10);
@@ -591,6 +594,26 @@ async function handleUrlDeepLinkingAsync() {
             }
         }, 400);
     }
+
+    if (urlParams.get("open_add_task") === "1" || urlParams.get("open_modal") === "1") {
+        setTimeout(async () => {
+            await openAddTaskModal();
+            if (urlParams.get("select_zone")) {
+                const zVal = decodeURIComponent(urlParams.get("select_zone"));
+                if (typeof selectTaskZone === 'function') selectTaskZone(zVal);
+            }
+            if (urlParams.get("open_zone") === "1") {
+                setTimeout(() => {
+                    if (typeof toggleTaskZonePopover === 'function') toggleTaskZonePopover();
+                }, 120);
+            }
+            if (urlParams.get("open_assignee") === "1") {
+                setTimeout(() => {
+                    if (typeof toggleTaskAssigneePopover === 'function') toggleTaskAssigneePopover();
+                }, 120);
+            }
+        }, 500);
+    }
 }
 
 function setFilterValueDirect(type, value) {
@@ -598,6 +621,9 @@ function setFilterValueDirect(type, value) {
     if (desk) desk.value = value;
     const mob = document.getElementById(`mobile-filter-${type}`);
     if (mob) mob.value = value;
+    if (typeof updateDeckFiltersVisualState === 'function') {
+        updateDeckFiltersVisualState();
+    }
 }
 
 function updateUrlParams() {
@@ -638,10 +664,15 @@ function updateUrlParams() {
 }
 
 function syncDesktopFilter(type, value) {
+    const desk = document.getElementById(`table-filter-${type}`);
+    if (desk) desk.value = value;
     const mob = document.getElementById(`mobile-filter-${type}`);
     if (mob) mob.value = value;
     if (myTasksFilterActive && (type === 'assignee' || type === 'author')) {
         myTasksFilterActive = false;
+    }
+    if (typeof updateDeckFiltersVisualState === 'function') {
+        updateDeckFiltersVisualState();
     }
     updateChipsVisualState();
     updateFilterBadge();
@@ -655,11 +686,520 @@ function syncMobileFilter(type, value) {
     if (myTasksFilterActive && (type === 'assignee' || type === 'author')) {
         myTasksFilterActive = false;
     }
+    if (typeof updateDeckFiltersVisualState === 'function') {
+        updateDeckFiltersVisualState();
+    }
     updateChipsVisualState();
     updateFilterBadge();
     updateUrlParams();
     loadTasks();
 }
+
+/* ==========================================================================
+   STICKY FILTER DECK & SEARCHABLE PERSON PICKER (Canonical Enterprise Module)
+   ========================================================================== */
+function getInitials(name) {
+    if (!name) return '??';
+    const clean = name.trim().replace(/^[^а-яa-z0-9]+/i, '');
+    const parts = clean.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase();
+}
+
+function getAvatarColorClass(name) {
+    if (!name) return 'avatar-blue';
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = (hash << 5) - hash + name.charCodeAt(i);
+        hash |= 0;
+    }
+    const classes = ['avatar-red', 'avatar-blue', 'avatar-green', 'avatar-purple', 'avatar-amber'];
+    return classes[Math.abs(hash) % classes.length];
+}
+
+function updateDeckFiltersVisualState() {
+    ['zone', 'author', 'assignee', 'status'].forEach(type => {
+        const val = document.getElementById(`table-filter-${type}`)?.value || 'all';
+        const labelEl = document.getElementById(`label-filter-${type}`);
+        const chipBtn = document.getElementById(`chip-filter-${type}`);
+        if (labelEl) {
+            if (val === 'all') {
+                labelEl.textContent = 'Все';
+            } else {
+                labelEl.textContent = val.length > 16 ? val.slice(0, 15) + '…' : val;
+            }
+        }
+        if (chipBtn) {
+            if (val !== 'all') {
+                chipBtn.classList.add('active');
+            } else {
+                chipBtn.classList.remove('active');
+            }
+        }
+    });
+
+    const resetDeckBtn = document.getElementById("btn-reset-filters-deck");
+    if (resetDeckBtn) {
+        const zone = document.getElementById("table-filter-zone")?.value || "all";
+        const author = document.getElementById("table-filter-author")?.value || "all";
+        const assignee = document.getElementById("table-filter-assignee")?.value || "all";
+        const status = document.getElementById("table-filter-status")?.value || "all";
+        const isAnyActive = zone !== 'all' || author !== 'all' || assignee !== 'all' || status !== 'all' || myTasksFilterActive;
+        resetDeckBtn.style.display = isAnyActive ? "inline-flex" : "none";
+    }
+}
+
+function renderPersonPickerList(type, filterQuery = '') {
+    const listEl = document.getElementById(`list-filter-${type}`);
+    if (!listEl) return;
+    
+    const persons = getUniquePersons();
+    const currentVal = document.getElementById(`table-filter-${type}`)?.value || 'all';
+    
+    const taskCountMap = {};
+    if (Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            const p = type === 'author' ? t.author : t.assignee;
+            if (p) taskCountMap[p] = (taskCountMap[p] || 0) + 1;
+        });
+    }
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+    
+    // "Все исполнители" / "Все авторы"
+    const allTitle = type === 'author' ? 'Все авторы' : 'Все исполнители';
+    const allSelected = currentVal === 'all' ? 'selected' : '';
+    html += `
+        <div class="filter-option-item ${allSelected}" onclick="selectDeckFilter('${type}', 'all')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-blue">🌐</div>
+                <span class="person-name-text font-bold">${allTitle}</span>
+            </div>
+            <span class="person-task-badge">${allTasks ? allTasks.length : 0}</span>
+        </div>
+    `;
+
+    let filteredPersons = persons;
+    if (q) {
+        filteredPersons = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filteredPersons.length === 0) {
+        html += `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    // Top active persons (with active tasks > 0)
+    const activePersons = filteredPersons.filter(p => (taskCountMap[p] || 0) > 0)
+        .sort((a, b) => (taskCountMap[b] || 0) - (taskCountMap[a] || 0));
+
+    if (!q && activePersons.length > 0) {
+        html += `<div class="filter-group-header">⭐ Часто выбираемые</div>`;
+        activePersons.slice(0, 5).forEach(name => {
+            const isSel = currentVal === name ? 'selected' : '';
+            const cnt = taskCountMap[name] || 0;
+            const initials = getInitials(name);
+            const avatarColor = getAvatarColorClass(name);
+            const safeName = name.replace(/'/g, "\\'");
+            html += `
+                <div class="filter-option-item ${isSel}" onclick="selectDeckFilter('${type}', '${safeName}')">
+                    <div class="filter-option-person-left">
+                        <div class="person-avatar ${avatarColor}">${initials}</div>
+                        <span class="person-name-text font-semibold">${escapeHtml(name)}</span>
+                    </div>
+                    <span class="person-task-badge busy">${cnt} ${cnt === 1 ? 'задача' : (cnt < 5 ? 'задачи' : 'задач')}</span>
+                </div>
+            `;
+        });
+    }
+
+    // All employees section
+    html += `<div class="filter-group-header">👥 ${q ? 'Результаты поиска' : 'Все сотрудники'} (${filteredPersons.length})</div>`;
+    filteredPersons.forEach(name => {
+        const isSel = currentVal === name ? 'selected' : '';
+        const cnt = taskCountMap[name] || 0;
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectDeckFilter('${type}', '${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}">${initials}</div>
+                    <span class="person-name-text">${escapeHtml(name)}</span>
+                </div>
+                ${cnt > 0 ? `<span class="person-task-badge">${cnt}</span>` : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+function renderZonePickerList(filterQuery = '') {
+    const listEl = document.getElementById('list-filter-zone');
+    if (!listEl) return;
+    const zones = getPlannerZones();
+    const currentVal = document.getElementById('table-filter-zone')?.value || 'all';
+    const q = (filterQuery || '').trim().toLowerCase();
+
+    let html = `
+        <div class="filter-option-item ${currentVal === 'all' ? 'selected' : ''}" onclick="selectDeckFilter('zone', 'all')">
+            <span class="filter-option-text font-bold">📁 Все зоны</span>
+        </div>
+    `;
+
+    const filtered = q ? zones.filter(z => z.toLowerCase().includes(q)) : zones;
+    filtered.forEach(z => {
+        const isSel = currentVal === z ? 'selected' : '';
+        const safeZ = z.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectDeckFilter('zone', '${safeZ}')">
+                <span class="filter-option-text">${escapeHtml(z)}</span>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+}
+
+function toggleDeckFilterPopover(type, event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById(`popover-filter-${type}`);
+    const chip = document.getElementById(`chip-filter-${type}`);
+    if (!popover) return;
+
+    const isVisible = popover.style.display === 'block';
+    closeAllDeckPopovers();
+    closeAllToolbarDatePopovers();
+
+    if (!isVisible) {
+        popover.style.display = 'block';
+        if (chip) chip.classList.add('popover-open');
+        if (type === 'assignee' || type === 'author') {
+            const searchInput = document.getElementById(`search-filter-${type}`);
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 60);
+            }
+            renderPersonPickerList(type, '');
+        } else if (type === 'zone') {
+            const searchInput = document.getElementById('search-filter-zone');
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 60);
+            }
+            renderZonePickerList('');
+        }
+    }
+}
+
+function closeAllDeckPopovers() {
+    ['zone', 'author', 'assignee', 'status'].forEach(t => {
+        const pop = document.getElementById(`popover-filter-${t}`);
+        const chip = document.getElementById(`chip-filter-${t}`);
+        if (pop) pop.style.display = 'none';
+        if (chip) chip.classList.remove('popover-open');
+    });
+}
+
+/* ==========================================================================
+   CUSTOM TOOLBAR DATE POPOVERS (Canonical Pattern Parity)
+   ========================================================================== */
+
+function toggleToolbarDatePopover(type, event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById(`popover-toolbar-${type}`);
+    const chip = document.getElementById(`btn-toolbar-${type}`);
+    if (!popover) return;
+
+    const isVisible = popover.style.display === 'block';
+    closeAllToolbarDatePopovers();
+    closeAllDeckPopovers();
+
+    if (!isVisible) {
+        if (type === 'month') {
+            renderMonthPopoverList();
+        } else if (type === 'week') {
+            renderWeekPopoverList();
+        }
+        popover.style.display = 'block';
+        if (chip) chip.classList.add('popover-open');
+    }
+}
+
+function closeAllToolbarDatePopovers() {
+    ['month', 'week'].forEach(t => {
+        const pop = document.getElementById(`popover-toolbar-${t}`);
+        const chip = document.getElementById(`btn-toolbar-${t}`);
+        if (pop) pop.style.display = 'none';
+        if (chip) chip.classList.remove('popover-open');
+    });
+}
+
+function selectToolbarMonth(monthVal) {
+    const monthSelect = document.getElementById('filter-month');
+    if (monthSelect) {
+        monthSelect.value = monthVal;
+    }
+    closeAllToolbarDatePopovers();
+    onMonthChange();
+}
+
+function selectToolbarWeek(weekVal) {
+    const weekSelect = document.getElementById('filter-week');
+    if (weekSelect) {
+        weekSelect.value = weekVal;
+    }
+    closeAllToolbarDatePopovers();
+    onWeekSelectChange(weekVal);
+}
+
+function renderMonthPopoverList() {
+    const listEl = document.getElementById('list-toolbar-month');
+    const monthSelect = document.getElementById('filter-month');
+    if (!listEl || !monthSelect) return;
+
+    const currentVal = monthSelect.value || currentMonth || 'all';
+    let html = '';
+
+    Array.from(monthSelect.options).forEach(opt => {
+        const val = opt.value;
+        const text = opt.textContent.replace('🌐 ', '');
+        const isSel = (val === currentVal);
+        const isAll = (val === 'all');
+        const iconClass = isAll ? 'fa-solid fa-globe' : 'fa-solid fa-calendar';
+        const iconColor = isSel ? '#2563eb' : '#64748b';
+
+        html += `
+            <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
+                 onclick="selectToolbarMonth('${val}')" style="padding: 7px 10px;">
+                <div class="week-option-left">
+                    <i class="${iconClass}" style="color: ${iconColor}; font-size: 13px; width: 16px; text-align: center;"></i>
+                    <span class="filter-option-text ${isSel ? 'font-bold' : ''}" style="font-size: 12.5px;">${escapeHtml(text)}</span>
+                </div>
+                ${isSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+    setTimeout(() => {
+        const activeItem = listEl.querySelector('.selected, .week-option-active');
+        if (activeItem) {
+            activeItem.scrollIntoView({ block: 'nearest' });
+        }
+    }, 20);
+}
+
+function renderWeekPopoverList() {
+    const listEl = document.getElementById('list-toolbar-week');
+    const weekSelect = document.getElementById('filter-week');
+    if (!listEl || !weekSelect) return;
+
+    const currentVal = weekSelect.value || currentWeek || 'all';
+    const options = Array.from(weekSelect.options);
+    if (options.length === 0) {
+        listEl.innerHTML = '<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Недели не сформированы</div>';
+        return;
+    }
+
+    if (currentMonth === 'all') {
+        const isSel = (currentVal === 'all');
+        listEl.innerHTML = `
+            <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
+                 onclick="selectToolbarWeek('all')" style="padding: 8px 10px;">
+                <div class="week-option-left">
+                    <i class="fa-solid fa-globe" style="color: #2563eb; font-size: 13px; width: 16px; text-align: center;"></i>
+                    <span class="filter-option-text font-semibold">Все недели (за всё время)</span>
+                </div>
+                ${isSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+            </div>
+        `;
+        return;
+    }
+
+    let quickItemsHtml = '';
+    let weekItemsHtml = '';
+
+    options.forEach(opt => {
+        const val = opt.value;
+        const text = opt.textContent;
+        const isSel = (val === currentVal);
+
+        if (['open_active', 'next_2_weeks', 'all'].includes(val)) {
+            let iconClass = 'fa-solid fa-globe';
+            let iconColor = '#2563eb';
+            let label = 'Все активные';
+            let badge = '';
+
+            if (val === 'open_active') {
+                iconClass = 'fa-solid fa-globe';
+                label = 'Все активные';
+                const m = text.match(/\((\d+)\s+задач\)/);
+                if (m) {
+                    badge = `<span class="scope-pill-badge">${m[1]}</span>`;
+                }
+            } else if (val === 'next_2_weeks') {
+                iconClass = 'fa-solid fa-calendar-days';
+                iconColor = '#0891b2';
+                label = 'Ближайшие 2 недели';
+            } else if (val === 'all') {
+                iconClass = 'fa-solid fa-calendar-check';
+                iconColor = '#475569';
+                label = 'Весь месяц';
+                const m = text.match(/\((\d+)\s+задач\)/);
+                if (m) {
+                    badge = `<span class="scope-pill-badge neutral">${m[1]}</span>`;
+                }
+            }
+
+            quickItemsHtml += `
+                <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
+                     onclick="selectToolbarWeek('${val}')" style="padding: 7px 10px;">
+                    <div class="week-option-left">
+                        <i class="${iconClass}" style="color: ${iconColor}; font-size: 13px; width: 16px; text-align: center;"></i>
+                        <span class="filter-option-text ${isSel ? 'font-bold' : ''}" style="font-size: 12.5px;">${escapeHtml(label)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        ${badge}
+                        ${isSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+                    </div>
+                </div>
+            `;
+        } else {
+            let weekTitle = val;
+            let badge = '';
+
+            if (text.includes('·')) {
+                const parts = text.split('·');
+                weekTitle = parts[0].trim();
+                const stats = parts.slice(1).join('·').trim();
+                badge = `<span class="scope-pill-badge ${isSel ? '' : 'neutral'}" style="font-size: 10px;">${escapeHtml(stats)}</span>`;
+            } else {
+                weekTitle = text.trim();
+            }
+
+            weekItemsHtml += `
+                <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
+                     onclick="selectToolbarWeek('${val.replace(/'/g, "\\'")}')" style="padding: 7px 10px;">
+                    <div class="week-option-left">
+                        <i class="fa-regular fa-calendar" style="color: ${isSel ? '#2563eb' : '#94a3b8'}; font-size: 12px; width: 16px; text-align: center;"></i>
+                        <span class="filter-option-text ${isSel ? 'font-bold' : ''}" style="font-size: 12px;">${escapeHtml(weekTitle)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        ${badge}
+                        ${isSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    let fullHtml = '';
+    if (quickItemsHtml) {
+        fullHtml += `<div class="popover-section-label">Быстрый охват</div>${quickItemsHtml}`;
+    }
+    if (weekItemsHtml) {
+        fullHtml += `<div class="popover-section-label" style="margin-top: 6px;">Недели (${escapeHtml(currentMonth)})</div>${weekItemsHtml}`;
+    }
+
+    listEl.innerHTML = fullHtml;
+}
+
+function syncDateToolbarUI() {
+    const monthSelect = document.getElementById('filter-month');
+    const weekSelect = document.getElementById('filter-week');
+    const labelMonth = document.getElementById('label-toolbar-month');
+    const labelWeek = document.getElementById('label-toolbar-week');
+
+    if (monthSelect && labelMonth) {
+        const mVal = monthSelect.value || currentMonth || 'all';
+        if (mVal === 'all') {
+            labelMonth.textContent = '🌐 За всё время';
+        } else {
+            labelMonth.textContent = mVal;
+        }
+    }
+
+    if (weekSelect && labelWeek) {
+        const wVal = weekSelect.value || currentWeek || 'all';
+        if (wVal === 'open_active') {
+            labelWeek.textContent = 'Все активные';
+        } else if (wVal === 'next_2_weeks') {
+            labelWeek.textContent = 'Ближайшие 2 недели';
+        } else if (wVal === 'all') {
+            labelWeek.textContent = 'Весь месяц';
+        } else {
+            const opt = Array.from(weekSelect.options).find(o => o.value === wVal);
+            if (opt) {
+                const fullText = opt.textContent;
+                if (fullText.includes('·')) {
+                    labelWeek.textContent = fullText.split('·')[0].trim();
+                } else {
+                    labelWeek.textContent = fullText.trim();
+                }
+            } else {
+                labelWeek.textContent = wVal;
+            }
+        }
+    }
+
+    const monthPop = document.getElementById('popover-toolbar-month');
+    if (monthPop && monthPop.style.display === 'block') {
+        renderMonthPopoverList();
+    }
+    const weekPop = document.getElementById('popover-toolbar-week');
+    if (weekPop && weekPop.style.display === 'block') {
+        renderWeekPopoverList();
+    }
+}
+
+function selectDeckFilter(type, value) {
+    syncDesktopFilter(type, value);
+    closeAllDeckPopovers();
+}
+
+function filterPersonList(type, query) {
+    renderPersonPickerList(type, query);
+}
+
+function filterZoneList(query) {
+    renderZonePickerList(query);
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.popover-anchor-wrap')) {
+        closeAllDeckPopovers();
+        closeAllToolbarDatePopovers();
+    }
+    if (!e.target.closest('.assignee-picker-wrapper') && !e.target.closest('#popover-task-assignee')) {
+        closeTaskAssigneePopover();
+    }
+    if (!e.target.closest('.zone-picker-wrapper') && !e.target.closest('#popover-task-zone')) {
+        closeTaskZonePopover();
+    }
+    if (!e.target.closest('#btn-bulk-author-trigger') && !e.target.closest('#popover-bulk-author')) {
+        if (typeof closeBulkAuthorPopover === 'function') closeBulkAuthorPopover();
+    }
+    if (!e.target.closest('#btn-bulk-zone-trigger') && !e.target.closest('#popover-bulk-zone')) {
+        if (typeof closeBulkZonePopover === 'function') closeBulkZonePopover();
+    }
+    if (!e.target.closest('#inspector-assignee-wrapper') && !e.target.closest('#popover-inspector-assignee')) {
+        if (typeof closeInspectorAssigneePopover === 'function') closeInspectorAssigneePopover();
+    }
+    if (!e.target.closest('.bulk-row-assignee-wrap') && !e.target.closest('#popover-bulk-row-assignee')) {
+        if (typeof closeBulkRowAssigneePopover === 'function') closeBulkRowAssigneePopover();
+    }
+    if (!e.target.closest('#graph-stage-assignee-wrapper') && !e.target.closest('#popover-graph-stage-assignee')) {
+        if (typeof closeGraphStageAssigneePopover === 'function') closeGraphStageAssigneePopover();
+    }
+    if (!e.target.closest('#quick-subtask-assignee-wrapper') && !e.target.closest('#popover-quick-subtask-assignee')) {
+        if (typeof closeQuickSubtaskAssigneePopover === 'function') closeQuickSubtaskAssigneePopover();
+    }
+});
 
 function toggleMobileFilters() {
     const panel = document.getElementById("mobile-filters-panel");
@@ -1038,6 +1578,8 @@ async function loadTasks() {
     updateUrlParams();
     
     let url = `/api/tasks?month=${encodeURIComponent(month)}&week=${encodeURIComponent(week)}&include_backlog=${showBacklog}`;
+    if (customDateFrom) url += `&date_from=${encodeURIComponent(customDateFrom)}`;
+    if (customDateTo) url += `&date_to=${encodeURIComponent(customDateTo)}`;
     
     // Горизонт планирования
     if (currentHorizon === "weekly") {
@@ -1096,7 +1638,7 @@ async function loadTasks() {
             return;
         }
         console.error("Error loading tasks:", e);
-        if (tableBody) tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</td></tr>`;
         if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align: center; color: #ef4444; padding: 1.5rem;">Ошибка загрузки задач</div>`;
     }
 }
@@ -1712,13 +2254,14 @@ function openSubtaskQuickModal(projectId, editTaskId = null, parentMilestoneId =
 
     titleModal.textContent = editTaskId ? "Редактирование этапа" : "Новый этап проекта";
 
-    // Populate assignees
-    const persons = getUniquePersons();
+    // Setup Person Picker for Quick Subtask Modal (Rule 27: Cross-Tab Parity)
     const defaultAssignee = project ? (project.assignee_name || "") : "";
-    assigneeSel.innerHTML = `<option value="">-- Без исполнителя --</option>` + persons.map(p => {
-        const isSel = defaultAssignee && p.toLowerCase().includes(defaultAssignee.toLowerCase());
-        return `<option value="${escapeHtml(p)}" ${isSel ? 'selected' : ''}>${escapeHtml(p)}</option>`;
-    }).join('');
+    let initialAssignee = defaultAssignee;
+    if (editTaskId) {
+        const milestone = project && project.milestones ? project.milestones.find(m => m.id === editTaskId) : null;
+        if (milestone && milestone.assignee_name) initialAssignee = milestone.assignee_name;
+    }
+    setupQuickSubtaskAssigneePicker(initialAssignee);
 
     let initialDepIds = [];
     if (!editTaskId) {
@@ -1765,6 +2308,7 @@ function openSubtaskQuickModal(projectId, editTaskId = null, parentMilestoneId =
 }
 
 function closeSubtaskQuickModal() {
+    closeQuickSubtaskAssigneePopover();
     const modal = document.getElementById("subtask-quick-modal");
     if (modal) modal.style.display = "none";
 }
@@ -1835,7 +2379,8 @@ function submitQuickSubtaskModal(keepOpen = false) {
         return;
     }
 
-    const assignee = assigneeSel ? assigneeSel.value : "";
+    const assigneeInp = document.getElementById("quick-subtask-assignee-input");
+    const assignee = assigneeInp ? assigneeInp.value.trim() : (assigneeSel ? assigneeSel.value : "");
     const dateVal = dateInp ? dateInp.value : "";
     const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
     const selectedBlockerIds = getMultiBlockerSelectedIds("quick-subtask-blockers");
@@ -1973,7 +2518,7 @@ async function submitQuickAddSubtask(milestoneId, projectId) {
         const authorName = authSession ? authSession.name : "Офис бережливого производства";
         const payload = {
             title: text,
-            title_kz: text,
+            title_kz: null,
             zone: "Дорожная карта",
             task_type: "weekly",
             parent_id: milestoneId,
@@ -2218,6 +2763,9 @@ function onTaskTypeChange(taskType) {
             zoneSelect.value = "Бережливое производство";
         }
     }
+    if (zoneSelect && typeof updateTaskZoneDisplay === 'function') {
+        updateTaskZoneDisplay(zoneSelect.value);
+    }
 }
 
 function addTagToModalInput(tag) {
@@ -2327,6 +2875,7 @@ function onMonthChange(forcedWeek = null) {
         weekSelect.value = "all";
         currentWeek = "all";
         if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
+        syncDateToolbarUI();
         if (!isInitialLoading) {
             loadTasks();
         }
@@ -2398,6 +2947,7 @@ function onMonthChange(forcedWeek = null) {
     }
     if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
     updateChipsVisualState();
+    syncDateToolbarUI();
     if (!isInitialLoading) {
         updateUrlParams();
         loadTasks();
@@ -2451,6 +3001,7 @@ async function loadWeeksSummaryData() {
                 opt.textContent = `${rawVal} · ${totCount} зад. (${actCount} акт.)`;
             }
         });
+        syncDateToolbarUI();
     } catch (e) {
         console.warn("Weeks summary load error:", e);
     }
@@ -2461,6 +3012,7 @@ function onWeekSelectChange(val) {
     const weekSelect = document.getElementById("filter-week");
     if (weekSelect) weekSelect.value = val;
     updateChipsVisualState();
+    syncDateToolbarUI();
     updateUrlParams();
     if (typeof syncAppleTitleHeader === 'function') syncAppleTitleHeader();
     loadTasks();
@@ -2633,6 +3185,128 @@ function setWeekScopePreset(preset) {
     }
 }
 
+/* ==========================================================
+   INTERACTIVE CUSTOM DATE RANGE PICKER
+   ========================================================== */
+function toggleDateRangePopover(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById("date-range-popover");
+    if (!pop) return;
+    const isShown = pop.style.display === "block";
+    pop.style.display = isShown ? "none" : "block";
+    if (!isShown) {
+        const df = document.getElementById("custom-date-from");
+        const dt = document.getElementById("custom-date-to");
+        if (df && customDateFrom) df.value = customDateFrom;
+        if (dt && customDateTo) dt.value = customDateTo;
+    }
+}
+
+function closeDateRangePopover() {
+    const pop = document.getElementById("date-range-popover");
+    if (pop) pop.style.display = "none";
+}
+
+function applyQuickDatePreset(preset) {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+
+    if (preset === '7d') {
+        end.setDate(today.getDate() + 7);
+    } else if (preset === '14d') {
+        end.setDate(today.getDate() + 14);
+    } else if (preset === 'this_month') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else if (preset === 'next_month') {
+        start = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    }
+
+    const formatYmd = d => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    const df = document.getElementById("custom-date-from");
+    const dt = document.getElementById("custom-date-to");
+    if (df) df.value = formatYmd(start);
+    if (dt) dt.value = formatYmd(end);
+}
+
+function applyCustomDateRange() {
+    const df = document.getElementById("custom-date-from");
+    const dt = document.getElementById("custom-date-to");
+    const valFrom = df ? df.value.trim() : "";
+    const valTo = dt ? dt.value.trim() : "";
+
+    if (!valFrom && !valTo) {
+        resetCustomDateRange();
+        return;
+    }
+
+    customDateFrom = valFrom || null;
+    customDateTo = valTo || null;
+
+    updateDateRangeBtnUI();
+    closeDateRangePopover();
+    loadTasks();
+}
+
+function resetCustomDateRange() {
+    customDateFrom = null;
+    customDateTo = null;
+    const df = document.getElementById("custom-date-from");
+    const dt = document.getElementById("custom-date-to");
+    if (df) df.value = "";
+    if (dt) dt.value = "";
+    updateDateRangeBtnUI();
+    closeDateRangePopover();
+    loadTasks();
+}
+
+function updateDateRangeBtnUI() {
+    const btn = document.getElementById("btn-custom-date-range");
+    const lbl = document.getElementById("date-range-btn-label");
+    const ind = document.getElementById("date-range-active-indicator");
+    if (!btn || !lbl) return;
+
+    if (customDateFrom || customDateTo) {
+        btn.classList.add("active");
+        if (ind) ind.style.display = "inline-block";
+        const formatDm = s => {
+            if (!s) return "";
+            const parts = s.split('-');
+            return parts.length === 3 ? `${parts[2]}.${parts[1]}` : s;
+        };
+        if (customDateFrom && customDateTo) {
+            lbl.textContent = `📅 ${formatDm(customDateFrom)} - ${formatDm(customDateTo)}`;
+        } else if (customDateFrom) {
+            lbl.textContent = `📅 от ${formatDm(customDateFrom)}`;
+        } else {
+            lbl.textContent = `📅 до ${formatDm(customDateTo)}`;
+        }
+    } else {
+        btn.classList.remove("active");
+        if (ind) ind.style.display = "none";
+        lbl.textContent = "Диапазон дат";
+    }
+}
+
+// Закрытие поповера при клике вне его области
+document.addEventListener("click", function(e) {
+    const pop = document.getElementById("date-range-popover");
+    const btn = document.getElementById("btn-custom-date-range");
+    if (pop && pop.style.display === "block") {
+        if (!pop.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            pop.style.display = "none";
+        }
+    }
+});
+
 function updateWeekPresetButtonsState() {
     const curW = currentWeek || '';
     const btnThisWeek = document.getElementById('btn-preset-this-week');
@@ -2779,25 +3453,25 @@ function populateDropdowns() {
 
     // 3. Modal Dropdowns
     const modalAuthor = document.getElementById("task-author-input");
-    if (modalAuthor) {
+    if (modalAuthor && modalAuthor.tagName === 'SELECT') {
         modalAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + 
             persons.map(n => `<option value="${n}">${n}</option>`).join('');
     }
 
     const modalAssignee = document.getElementById("task-assignee-input");
-    if (modalAssignee) {
+    if (modalAssignee && modalAssignee.tagName === 'SELECT') {
         modalAssignee.innerHTML = `<option value="">-- Выберите исполнителя --</option>` + 
             persons.map(n => `<option value="${n}">${n}</option>`).join('');
     }
 
     const modalZone = document.getElementById("task-zone-input");
-    if (modalZone) {
+    if (modalZone && modalZone.tagName === 'SELECT') {
         modalZone.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
     }
 
     // 4. Bulk Modal Dropdowns
     const bulkAuthor = document.getElementById("bulk-author-input");
-    if (bulkAuthor) {
+    if (bulkAuthor && bulkAuthor.tagName === 'SELECT') {
         const curVal = bulkAuthor.value;
         bulkAuthor.innerHTML = `<option value="">-- Выберите автора --</option>` + 
             persons.map(n => `<option value="${n}">${n}</option>`).join('');
@@ -2805,10 +3479,13 @@ function populateDropdowns() {
     }
 
     const bulkZone = document.getElementById("bulk-zone-input");
-    if (bulkZone) {
+    if (bulkZone && bulkZone.tagName === 'SELECT') {
         const curVal = bulkZone.value;
         bulkZone.innerHTML = zones.map(z => `<option value="${z}">${z}</option>`).join('');
         if (curVal && zones.includes(curVal)) bulkZone.value = curVal;
+    }
+    if (typeof updateDeckFiltersVisualState === 'function') {
+        updateDeckFiltersVisualState();
     }
 }
 
@@ -3058,11 +3735,17 @@ function renderTasksTable(tasks) {
     }
     updateServicesBulkBar();
 
+    const taskCount = tasks ? tasks.length : 0;
+    const deckCountEl = document.getElementById("deck-tasks-count-text");
+    if (deckCountEl) {
+        deckCountEl.textContent = `Найдено ${taskCount} ${taskCount === 1 ? 'задача' : (taskCount > 1 && taskCount < 5 ? 'задачи' : 'задач')}`;
+    }
+
     if (!tasks || tasks.length === 0) {
         if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="11" style="text-align: center; padding: 3rem 1.5rem; color: #64748b; font-size: 0.95rem;">
+                    <td colspan="10" style="text-align: center; padding: 3rem 1.5rem; color: #64748b; font-size: 0.95rem;">
                         <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">👤</div>
                         <div style="font-weight: 700; font-size: 1.05rem; color: #1e293b; margin-bottom: 0.35rem;">
                             Нет назначенных задач для ${escapeHtml(currentPlannerUser.name)} на этот период
@@ -3083,7 +3766,7 @@ function renderTasksTable(tasks) {
         }
         tableBody.innerHTML = `
             <tr>
-                <td colspan="11" style="text-align: center; padding: 2.5rem; color: #94a3b8; font-size: 0.95rem;">
+                <td colspan="10" style="text-align: center; padding: 2.5rem; color: #94a3b8; font-size: 0.95rem;">
                     ✨ Нет задач на выбранный период. Нажмите «+ Добавить задачу»!
                 </td>
             </tr>
@@ -3101,7 +3784,7 @@ function renderTasksTable(tasks) {
         // Вставляем визуальный разделитель недели (ровно один раз на блок)
         rowsHtml += `
             <tr class="week-divider-row">
-                <td colspan="11">
+                <td colspan="10">
                     <div class="week-divider-badge">
                         <i class="fa-solid fa-calendar-week"></i>
                         <span>${escapeHtml(currentWeekGroup)}</span>
@@ -3355,28 +4038,27 @@ function renderTasksTable(tasks) {
                     <td>
                         ${zoneAndDeptHtml}
                     </td>
-                    <td class="${titleClass}" style="font-weight: 600; min-width: 250px; color: #0f172a; line-height: 1.35; word-break: break-word;">
+                    <td class="${titleClass}" style="font-weight: 600; min-width: 320px; color: #0f172a; line-height: 1.35; word-break: break-word;">
                         <div onclick="openTaskDetailModal(${t.id})" style="cursor: pointer;" title="Подробный просмотр задачи">${t.title || '—'}</div>
                         ${docBadge}
                         ${milestoneBadge}
                         ${depBadge}
                         ${tagsHtml ? `<div style="margin-top: 4px;">${tagsHtml}</div>` : ''}
                     </td>
-                    <td class="${titleClass}" style="color: #64748b; font-size: 0.85rem; min-width: 200px; line-height: 1.35; word-break: break-word;">${t.title_kz || '—'}</td>
                     <td style="text-align: center;">${photoBtn}</td>
                     
                     <!-- Pure Text Author -->
-                    <td style="font-size: 0.82rem; color: #475569; white-space: nowrap; max-width: 85px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.author_name || '')}">
+                    <td style="font-size: 0.82rem; color: #475569; white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.author_name || '')}">
                         ${t.author_name || '—'}
                     </td>
 
                     <!-- Pure Text Assignee -->
-                    <td style="font-weight: 600; font-size: 0.82rem; color: #1d4ed8; white-space: nowrap; max-width: 95px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.assignee_name || '')}">
+                    <td style="font-weight: 600; font-size: 0.82rem; color: #1d4ed8; white-space: nowrap; max-width: 125px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(t.assignee_name || '')}">
                         ${t.assignee_name || '—'}
                     </td>
 
                     <td style="text-align: center; white-space: nowrap;">${dueDateCell}</td>
-                    <td style="text-align: center; white-space: nowrap; min-width: 110px;">
+                    <td style="text-align: center; white-space: nowrap; min-width: 115px;">
                         <select class="select-status ${statusClass}" ${isLocked ? 'disabled title="Заблокировано для изменений обычными пользователями"' : `onchange="quickUpdateStatus(${t.id}, this.value)"`}>
                             <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                             <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
@@ -3384,7 +4066,7 @@ function renderTasksTable(tasks) {
                             <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
                         </select>
                     </td>
-                    <td style="font-size: 0.82rem; color: #334155; max-width: 180px;">
+                    <td style="font-size: 0.82rem; color: #334155; max-width: 260px; word-break: break-word;">
                         ${commentCell}
                     </td>
                     <td style="text-align: center;">
@@ -3399,408 +4081,11 @@ function renderTasksTable(tasks) {
 }
 
 function renderTasksCards(tasks) {
+    // Мобильные карточки отключены в пользу единой таблицы десктопного вида на всех экранах
     const cardsContainer = document.getElementById("tasks-cards-container");
-    if (!cardsContainer) return;
-
-    if (!tasks || tasks.length === 0) {
-        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-            cardsContainer.innerHTML = `
-                <div style="text-align: center; padding: 2.5rem 1rem; color: #8E8E93; background: #ffffff; border-radius: 12px; border: 1px solid rgba(60,60,67,0.12); margin: 12px 16px;">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">👤</div>
-                    <div style="font-weight: 600; color: #1C1C1E; margin-bottom: 0.25rem;">Нет назначенных задач для ${escapeHtml(currentPlannerUser.name)}</div>
-                    <div style="font-size: 0.85rem; color: #8E8E93; margin-bottom: 1rem;">В этом разделе за выбранный период задач нет</div>
-                    <button type="button" class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" style="font-size: 0.85rem; padding: 6px 12px; margin-right: 6px;">
-                        <i class="fa-solid fa-users"></i> Все задачи
-                    </button>
-                    <button type="button" class="btn-action btn-primary-action" onclick="openAddTaskModal()" style="font-size: 0.85rem; padding: 6px 12px;">
-                        <i class="fa-solid fa-plus"></i> Добавить
-                    </button>
-                </div>
-            `;
-            return;
-        }
-        cardsContainer.innerHTML = `
-            <div style="text-align: center; padding: 2.5rem 1rem; color: #8E8E93; background: #ffffff; border-radius: 12px; border: 1px solid rgba(60,60,67,0.12); margin: 12px 16px;">
-                <div style="font-size: 2rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-list-check" style="color: #C82323;"></i></div>
-                <div style="font-weight: 600; color: #1C1C1E; margin-bottom: 0.25rem;">Нет задач на выбранный период</div>
-                <div style="font-size: 0.85rem; color: #8E8E93;">Нажмите «+», чтобы добавить первую задачу</div>
-            </div>
-        `;
-        return;
-    }
-
-    const weekGroups = groupTasksByWeekChronologically(tasks);
-    let cardsHtml = '';
-
-    weekGroups.forEach(group => {
-        const currentWeekGroup = group.weekLabel;
-        const countInWeek = group.tasks.length;
-
-        cardsHtml += `
-            <div class="week-divider-card-heading">
-                <i class="fa-solid fa-calendar-week" style="color: #2563eb; margin-right: 4px;"></i>
-                <span>${escapeHtml(currentWeekGroup)} (${countInWeek} зад.)</span>
-            </div>
-        `;
-
-        group.tasks.forEach((t, idx) => {
-            const isCompleted = t.status && t.status.includes("Выполнено");
-            const isCancelled = t.status && t.status.includes("Отменено");
-            const isMoved = t.status && t.status.includes("Перенесено");
-            const isLocked = !isPlannerAdmin() && (isCompleted || isCancelled);
-
-            let cardExtraClass = "";
-            let statusPill = "";
-            if (isCompleted) {
-                cardExtraClass = "task-card-done";
-                statusPill = `<span class="apple-card-status status-done"><i class="fa-solid fa-check"></i> Выполнено</span>`;
-            } else if (isCancelled) {
-                cardExtraClass = "task-card-cancelled";
-                statusPill = `<span class="apple-card-status status-cancelled"><i class="fa-solid fa-xmark"></i> Отменено</span>`;
-            } else if (isMoved) {
-                cardExtraClass = "task-card-moved";
-                statusPill = `<span class="apple-card-status status-moved"><i class="fa-solid fa-arrow-right"></i> Перенесено</span>`;
-            } else {
-                statusPill = `<span class="apple-card-status status-work"><span class="apple-status-dot"></span> В работе</span>`;
-            }
-
-            if (isLocked) {
-                cardExtraClass += " task-card-locked";
-            }
-
-            if (t.is_backlog) {
-                cardExtraClass += " task-card-backlog";
-            }
-
-            const backlogBadge = t.is_backlog ? `
-                <span class="badge-backlog" title="Долг прошлой недели: ${t.week_label || ''}" style="background: rgba(255, 149, 0, 0.12); color: #C97500; border: 1px solid rgba(255, 149, 0, 0.35); font-weight: 700; padding: 2px 7px; border-radius: 6px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-clock-rotate-left" style="color: #FF9500;"></i> Долг: ${t.week_label ? t.week_label.split(' ')[0] + ' ' + (t.week_label.split(' ')[1] || '') : 'Прошлая нед.'}
-                </span>
-            ` : '';
-
-            const crossWeekBadge = (t.is_cross_week && !t.is_backlog) ? `
-                <span class="badge-cross-week" title="Сквозная задача. Создана: ${t.origin_month_label ? t.origin_month_label + ', ' : ''}${t.origin_week_label || ''}">
-                    <i class="fa-solid fa-hourglass-half" style="color: #64748b;"></i> Сквозная
-                </span>
-            ` : '';
-
-            const horizonBadge = t.horizon_label ? `
-                <span class="badge-horizon ${t.horizon_badge_class || 'horizon-sprint'}" style="font-size: 10px;">${escapeHtml(t.horizon_label)}</span>
-            ` : '';
-
-            let cardZoneHtml = '';
-            if (t.is_roadmap_subtask) {
-                const projCode = t.roadmap_project_code || t.parent_code || '';
-                const projTitle = t.roadmap_project_title || t.parent_title || 'Проект';
-                cardZoneHtml = `
-                    <span class="badge-zone" style="background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; font-weight: 700;">
-                        <i class="fa-solid fa-map-location-dot"></i> Дорожная карта
-                    </span>
-                    <span class="badge-zone" style="background: #f8fafc; color: #475569; border-color: #e2e8f0; font-size: 0.7rem; font-weight: 600;" title="Проект: ${escapeHtml(projCode)} ${escapeHtml(projTitle)}">
-                        📁 ${escapeHtml(projCode)}
-                    </span>
-                `;
-            } else {
-                const cardZoneVal = t.zone || 'Бережливое производство';
-                let cardZoneClass = 'badge-zone';
-                if (cardZoneVal === 'Техсовет') cardZoneClass += ' badge-zone-tech-council';
-                else if (cardZoneVal === 'День качества') cardZoneClass += ' badge-zone-quality-day';
-
-                cardZoneHtml = `<span class="${cardZoneClass}">${escapeHtml(cardZoneVal)}</span>`;
-                if (t.department_service && t.department_service !== 'Общий' && t.department_service !== t.zone && !(t.zone && t.zone.includes(t.department_service))) {
-                    cardZoneHtml += `<span class="badge-zone" style="background: #f0fdf4; color: #15803d; border-color: #bbf7d0; font-size: 0.72rem;">${escapeHtml(t.department_service)}</span>`;
-                }
-            }
-
-            const cardDueDateItem = t.is_deadline_week ? `
-                <div class="card-meta-item">
-                    <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str}">
-                        <i class="fa-solid fa-bullseye"></i> ${t.due_date_str}
-                    </span>
-                </div>
-            ` : `
-                <div class="card-meta-item">
-                    <i class="fa-regular fa-calendar" style="color: #8E8E93;"></i>
-                    <span>${t.due_date_str || 'В теч. недели'}</span>
-                </div>
-            `;
-
-            const titleClass = isCancelled ? 'task-cancelled-text' : (isCompleted ? 'task-done-text' : '');
-            const titleKzBlock = t.title_kz ? `
-                <div class="planner-card-title-kz ${titleClass}">${escapeHtml(t.title_kz)}</div>
-            ` : '';
-
-            const commentPreview = t.comment ? `
-                <div style="font-size: 13px; color: #636366; margin-top: 4px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <i class="fa-regular fa-comment-dots" style="color: #8E8E93; font-size: 12px; flex-shrink: 0;"></i>
-                    <span style="overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.comment)}</span>
-                </div>
-            ` : '';
-
-            const hasPhotoBefore = !!(t.photo_link && t.photo_link.trim());
-            const hasPhotoAfter = !!(t.photo_link_after && t.photo_link_after.trim());
-            let mobilePhotoPreviewStrip = '';
-
-            if (hasPhotoBefore || hasPhotoAfter) {
-                mobilePhotoPreviewStrip = `
-                    <div class="apple-card-photos-strip">
-                        ${hasPhotoBefore ? `
-                            <div class="apple-photo-card" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link}', '${t.photo_link_after || ''}', 'before')" title="Фото ДО (нажмите для просмотра)">
-                                <img src="${t.photo_link}" alt="Фото ДО" loading="lazy">
-                                <span class="apple-photo-tag before">
-                                    <i class="fa-solid fa-camera"></i> ДО
-                                </span>
-                            </div>
-                        ` : ''}
-                        ${hasPhotoAfter ? `
-                            <div class="apple-photo-card" onclick="event.stopPropagation(); openPhotoViewerModal('${t.photo_link || ''}', '${t.photo_link_after}', 'after')" title="Фото ПОСЛЕ (нажмите для просмотра)">
-                                <img src="${t.photo_link_after}" alt="Фото ПОСЛЕ" loading="lazy">
-                                <span class="apple-photo-tag after">
-                                    <i class="fa-solid fa-circle-check"></i> ПОСЛЕ
-                                </span>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-
-            const isGuest = !currentPlannerUser;
-            const canEdit = isGuest || canEditProjectOrTask(t);
-            const canInteract = isGuest || canInteractWithTask(t);
-            const isSwipeLocked = isLocked || !canInteract;
-
-            const swipeLeftActionHtml = isSwipeLocked ? '' : `
-                <!-- Фоновое действие при свайпе вправо (Выполнить) -->
-                <div class="apple-swipe-action-left" onclick="quickUpdateStatus(${t.id}, '🟢 Выполнено')">
-                    <i class="fa-solid fa-check" style="font-size: 20px;"></i>
-                    <span>Выполнить</span>
-                </div>
-            `;
-
-            const swipeRightActionsHtml = isSwipeLocked ? (
-                isLocked ? '' : `
-                <!-- Фоновые действия при свайпе влево (Только инфо/просмотр для зрителей) -->
-                <div class="apple-swipe-action-right">
-                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="Просмотр">
-                        <i class="fa-solid fa-eye" style="font-size: 16px;"></i>
-                        <span>Инфо</span>
-                    </button>
-                </div>
-                `
-            ) : `
-                <!-- Фоновые действия при свайпе влево (Перенести, Передать, Редактировать) -->
-                <div class="apple-swipe-action-right">
-                    <button type="button" class="apple-swipe-btn purple" onclick="event.stopPropagation(); closeAllSwipeRows(); openRescheduleTaskModal(${t.id})" title="Перенести">
-                        <i class="fa-solid fa-arrow-right" style="font-size: 16px;"></i>
-                        <span>Перенести</span>
-                    </button>
-                    <button type="button" class="apple-swipe-btn blue" onclick="event.stopPropagation(); closeAllSwipeRows(); openReassignTaskModal(${t.id})" title="Передать">
-                        <i class="fa-solid fa-user-plus" style="font-size: 16px;"></i>
-                        <span>Передать</span>
-                    </button>
-                    <button type="button" class="apple-swipe-btn gray" onclick="event.stopPropagation(); closeAllSwipeRows(); openEditTaskModal(${t.id})" title="${canEdit ? 'Редактировать' : 'Внести факт'}">
-                        <i class="fa-solid ${canEdit ? 'fa-pen' : 'fa-pen-to-square'}" style="font-size: 16px;"></i>
-                        <span>${canEdit ? 'Правка' : 'Факт'}</span>
-                    </button>
-                </div>
-            `;
-
-            cardsHtml += `
-                <div class="apple-swipe-row ${isLocked ? 'apple-swipe-row-locked' : ''}" id="swipe-row-${t.id}">
-                    ${swipeLeftActionHtml}
-                    ${swipeRightActionsHtml}
-
-                    <!-- Карточка задачи (передний план) -->
-                    <div class="planner-card ${cardExtraClass}" id="task-card-${t.id}" data-task-id="${t.id}" data-locked="${isLocked ? 'true' : 'false'}" onclick="handleCardClick(event, ${t.id})">
-                        <div class="planner-card-header" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px;">
-                            <div class="card-header-tags" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0;">
-                                <span class="badge-code" style="font-size: 11px; color: #8E8E93; font-family: monospace; letter-spacing: 0.2px;">${t.code || ('TSK-' + (idx + 1))}</span>
-                                ${horizonBadge}
-                                ${cardZoneHtml}
-                                ${backlogBadge}
-                                ${crossWeekBadge}
-                            </div>
-                            <div style="flex-shrink: 0; margin-left: auto;">
-                                ${statusPill}
-                            </div>
-                        </div>
-
-                        <div class="planner-card-body">
-                            <div class="planner-card-title ${titleClass}" style="font-size: 16px; font-weight: 600; color: #1C1C1E; line-height: 1.35;">${escapeHtml(t.title || '—')}</div>
-                            ${titleKzBlock}
-                            ${mobilePhotoPreviewStrip}
-                        </div>
-
-                        <div class="planner-card-meta" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: #636366;">
-                            <div class="card-meta-item assignee" style="display: flex; align-items: center; gap: 5px; color: #007AFF; font-weight: 600;">
-                                <i class="fa-solid fa-user-check" style="font-size: 12px;"></i>
-                                <span title="${escapeHtml(t.assignee_name || 'Не назначен')}">${escapeHtml(t.assignee_name || 'Не назначен')}</span>
-                            </div>
-                            ${cardDueDateItem}
-                        </div>
-
-                        ${commentPreview}
-                    </div>
-                </div>
-            `;
-        });
-    });
-
-    cardsContainer.innerHTML = cardsHtml;
-    initCardSwipeGestures();
+    if (cardsContainer) cardsContainer.style.display = "none";
+    return;
 }
-
-/* ── Нативные Apple-свайпы для карточек задач ───────────────────────── */
-let activeSwipedCard = null;
-
-function closeAllSwipeRows() {
-    document.querySelectorAll('.apple-swipe-row .planner-card').forEach(c => {
-        c.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
-        c.style.transform = 'translateX(0)';
-        c.dataset.swipeOffset = '0';
-    });
-    activeSwipedCard = null;
-}
-
-function handleCardClick(e, taskId) {
-    if (activeSwipedCard) {
-        closeAllSwipeRows();
-        return;
-    }
-    closeAllSwipeRows();
-    openTaskDetailModal(taskId);
-}
-
-function initCardSwipeGestures() {
-    const rows = document.querySelectorAll('.apple-swipe-row');
-    rows.forEach(row => {
-        const card = row.querySelector('.planner-card');
-        if (!card) return;
-        if (card.dataset.locked === 'true') return;
-        const taskId = parseInt(card.dataset.taskId, 10);
-        if (!taskId) return;
-
-        let startX = 0;
-        let startY = 0;
-        let initialOffset = 0;
-        let currentOffset = 0;
-        let isSwiping = false;
-        let isScrolling = false;
-
-        card.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 1) return;
-            const touch = e.touches[0];
-            startX = touch.clientX;
-            startY = touch.clientY;
-            initialOffset = parseFloat(card.dataset.swipeOffset || '0') || 0;
-            currentOffset = initialOffset;
-            isSwiping = false;
-            isScrolling = false;
-            card.style.transition = 'none';
-
-            // Если открыта ДРУГАЯ карточка, закрываем ее
-            if (activeSwipedCard && activeSwipedCard !== card) {
-                closeAllSwipeRows();
-            }
-        }, { passive: true });
-
-        card.addEventListener('touchmove', (e) => {
-            if (e.touches.length !== 1 || isScrolling) return;
-            const touch = e.touches[0];
-            const dx = touch.clientX - startX;
-            const dy = touch.clientY - startY;
-
-            // Вертикальный скролл страницы
-            if (!isSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
-                isScrolling = true;
-                return;
-            }
-
-            // Горизонтальный свайп
-            if (Math.abs(dx) > 8 && !isScrolling) {
-                isSwiping = true;
-                let targetX = initialOffset + dx;
-
-                // Ограничения и эластичность
-                if (targetX > 0) {
-                    // Тянем вправо (действие «Выполнить»)
-                    if (targetX > 100) {
-                        targetX = 100 + (targetX - 100) * 0.25;
-                    }
-                    targetX = Math.min(targetX, 140);
-                } else {
-                    // Тянем влево (действия «Перенести / Передать / Правка»)
-                    if (targetX < -204) {
-                        targetX = -204 + (targetX + 204) * 0.25;
-                    }
-                    targetX = Math.max(targetX, -240);
-                }
-
-                currentOffset = targetX;
-                card.style.transform = `translateX(${targetX}px)`;
-            }
-        }, { passive: true });
-
-        const endOrCancel = () => {
-            if (!isSwiping) return;
-            card.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
-            const dx = currentOffset - initialOffset;
-
-            if (initialOffset < 0) {
-                // Карточка была открыта влево (меню действий на -204px)
-                // Если пользователь свайпнул вправо (dx > 30 или currentOffset > -150) -> ЗАКРЫВАЕМ В ЦЕНТР
-                if (dx > 30 || currentOffset > -150) {
-                    card.style.transform = 'translateX(0)';
-                    card.dataset.swipeOffset = '0';
-                    if (activeSwipedCard === card) activeSwipedCard = null;
-                } else {
-                    // Оставляем открытым меню
-                    card.style.transform = 'translateX(-204px)';
-                    card.dataset.swipeOffset = '-204';
-                    activeSwipedCard = card;
-                }
-            } else if (initialOffset > 0) {
-                // Карточка была открыта вправо (кнопка «Выполнить» на +100px)
-                // Если пользователь свайпнул влево (dx < -30 или currentOffset < 70) -> ЗАКРЫВАЕМ В ЦЕНТР
-                if (dx < -30 || currentOffset < 70) {
-                    card.style.transform = 'translateX(0)';
-                    card.dataset.swipeOffset = '0';
-                    if (activeSwipedCard === card) activeSwipedCard = null;
-                } else {
-                    // Оставляем открытой кнопку
-                    card.style.transform = 'translateX(100px)';
-                    card.dataset.swipeOffset = '100';
-                    activeSwipedCard = card;
-                }
-            } else {
-                // Карточка была закрыта (0px)
-                if (currentOffset > 50) {
-                    // СВАЙП ВПРАВО -> Раскрыть «Выполнить» (+100px)
-                    card.style.transform = 'translateX(100px)';
-                    card.dataset.swipeOffset = '100';
-                    activeSwipedCard = card;
-                } else if (currentOffset < -55) {
-                    // СВАЙП ВЛЕВО -> Раскрыть меню действий (-204px)
-                    card.style.transform = 'translateX(-204px)';
-                    card.dataset.swipeOffset = '-204';
-                    activeSwipedCard = card;
-                } else {
-                    // Возврат в 0
-                    card.style.transform = 'translateX(0)';
-                    card.dataset.swipeOffset = '0';
-                    if (activeSwipedCard === card) activeSwipedCard = null;
-                }
-            }
-
-            isSwiping = false;
-            isScrolling = false;
-        };
-
-        card.addEventListener('touchend', endOrCancel, { passive: true });
-        card.addEventListener('touchcancel', endOrCancel, { passive: true });
-    });
-}
-
 /* ── Свайп шторок (Bottom Sheets) вниз для закрытия ──────────────────── */
 function initBottomSheetSwipeGestures() {
     const sheets = [
@@ -4609,101 +4894,12 @@ let translateDebounceTimer = null;
 let isTranslating = false;
 
 function onTaskInputChanged(source) {
-    clearTimeout(translateDebounceTimer);
-    
-    const primaryInput = document.getElementById("task-ru-input"); // Колонка 1: Задача
-    const transInput = document.getElementById("task-kz-input");  // Колонка 2: Перевод
-    const badge = document.getElementById("translate-status-badge");
-    const langBadge = document.getElementById("detected-lang-badge");
-    const transLabel = document.getElementById("task-trans-label");
-
-    if (!primaryInput || !transInput) return;
-
-    // source: 'primary' (первая колонка) или 'secondary' (вторая колонка)
-    const isPrimary = (source === 'primary' || source === 'ru');
-    const sourceText = (isPrimary ? primaryInput.value : transInput.value).trim();
-
-    if (!sourceText) {
-        if (badge) badge.style.display = "none";
-        if (langBadge) langBadge.style.display = "none";
-        if (isPrimary && transInput) {
-            transInput.value = "";
-            if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
-        }
-        return;
-    }
-
-    if (badge) {
-        badge.style.display = "inline-flex";
-        badge.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> <span>Перевод...</span>`;
-    }
-
-    translateDebounceTimer = setTimeout(async () => {
-        try {
-            isTranslating = true;
-            const res = await fetch("/api/tasks/translate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: sourceText,
-                    source_lang: isPrimary ? "auto" : "auto"
-                })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                
-                if (isPrimary) {
-                    if (data.detected_lang === 'kk') {
-                        // Пользователь ввел казахский текст в первую колонку
-                        transInput.value = data.text_ru || "";
-                        if (transLabel) {
-                            transLabel.innerHTML = `Перевод на русский <span style="color: #2563eb; font-weight: 600; font-size: 0.75rem;">(RU)</span>`;
-                        }
-                        if (langBadge) {
-                            langBadge.style.display = "inline-block";
-                            langBadge.innerHTML = `<span style="background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px;">🇰🇿 Қазақша</span>`;
-                        }
-                        if (badge) {
-                            badge.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> <span style="color: #10b981;">Русский</span>`;
-                            badge.style.display = "inline-flex";
-                        }
-                    } else {
-                        // Обычный ввод на русском
-                        transInput.value = data.text_kz || "";
-                        if (transLabel) {
-                            transLabel.innerHTML = `Перевод на казахский <span style="color: #2563eb; font-weight: 600; font-size: 0.75rem;">(KZ)</span>`;
-                        }
-                        if (langBadge) {
-                            langBadge.style.display = "inline-block";
-                            langBadge.innerHTML = `<span style="background: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px;">🇷🇺 Русский</span>`;
-                        }
-                        if (badge) {
-                            badge.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> <span style="color: #10b981;">Қазақша</span>`;
-                            badge.style.display = "inline-flex";
-                        }
-                    }
-                } else {
-                    // Ручная правка во второй колонке
-                    if (badge) {
-                        badge.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> <span style="color: #64748b;">Отредактировано</span>`;
-                        badge.style.display = "inline-flex";
-                    }
-                }
-            }
-        } catch (e) {
-            console.error("Auto-translate error:", e);
-            if (badge) {
-                badge.innerHTML = `<span style="color: #ef4444;">Ошибка перевода</span>`;
-            }
-        } finally {
-            isTranslating = false;
-        }
-    }, 350);
+    // Автоперевод отключен по регламенту модернизации планера
+    return;
 }
 
 function debounceAutoTranslateModal() {
-    onTaskInputChanged('primary');
+    return;
 }
 
 /* ==========================================================
@@ -5127,6 +5323,1654 @@ async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId 
     }
 }
 
+function updateModalHorizonBadge(taskType) {
+    const badgeMap = {
+        weekly: { text: "⚡ Недельный спринт", cls: "badge-weekly" },
+        service_plan: { text: "🔧 План службы", cls: "badge-services" },
+        tech_council: { text: "🏛️ Техсовет", cls: "badge-tech_council" },
+        quality_day: { text: "📋 День качества", cls: "badge-quality_day" },
+        roadmap: { text: "🗺️ Дорожная карта", cls: "badge-roadmaps" },
+        milestone: { text: "📍 Этап проекта", cls: "badge-roadmaps" }
+    };
+    const bInfo = badgeMap[taskType] || badgeMap.weekly;
+    const badgeEl = document.getElementById("modal-horizon-badge");
+    if (badgeEl) {
+        badgeEl.textContent = bInfo.text;
+        badgeEl.className = `modal-horizon-badge ${bInfo.cls}`;
+    }
+}
+
+function updateTaskAuthorCard(authorName) {
+    const authorInput = document.getElementById("task-author-input");
+    const nameEl = document.getElementById("task-author-name-text");
+    const avatarEl = document.getElementById("task-author-avatar");
+    const roleEl = document.getElementById("task-author-role-text");
+
+    const name = (authorName && typeof authorName === 'string' && authorName.trim()) 
+        ? authorName.trim() 
+        : (currentPlannerUser && currentPlannerUser.name ? currentPlannerUser.name : "Пользователь");
+    
+    if (authorInput) authorInput.value = name;
+    if (nameEl) nameEl.textContent = name;
+    
+    const parts = name.split(/\s+/).filter(Boolean);
+    let initials = "";
+    if (parts.length >= 2) {
+        initials = (parts[0][0] + parts[1][0]).toUpperCase();
+    } else if (parts.length === 1) {
+        initials = parts[0].slice(0, 2).toUpperCase();
+    } else {
+        initials = "👤";
+    }
+    if (avatarEl) avatarEl.textContent = initials;
+
+    let roleText = "Автор";
+    if (typeof plannerUsers !== 'undefined' && Array.isArray(plannerUsers)) {
+        const u = plannerUsers.find(x => x.name === name);
+        if (u && (u.role_title || u.role)) {
+            roleText = u.role_title || u.role;
+        }
+    }
+    if (roleEl) roleEl.textContent = roleText;
+}
+
+/* ==========================================================================
+   CANONICAL PERSON PICKER FOR TASK MODAL (Rule 7 Single Source of Truth)
+   ========================================================================== */
+function positionTaskAssigneePopover() {
+    const popover = document.getElementById("popover-task-assignee");
+    const trigger = document.getElementById("btn-task-assignee-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 320), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 310;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 6) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 6) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+document.addEventListener('scroll', function(e) {
+    const pop = document.getElementById("popover-task-assignee");
+    if (pop && pop.style.display === "block") {
+        positionTaskAssigneePopover();
+    }
+}, true);
+
+function toggleTaskAssigneePopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-task-assignee");
+    const trigger = document.getElementById("btn-task-assignee-trigger");
+    if (!popover) return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeTaskAssigneePopover();
+    } else {
+        closeTaskZonePopover();
+        renderTaskAssigneePickerList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionTaskAssigneePopover();
+        setTimeout(positionTaskAssigneePopover, 20);
+        const searchInput = document.getElementById("search-task-assignee");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+window.addEventListener("resize", function() {
+    positionTaskAssigneePopover();
+}, { passive: true });
+window.addEventListener("scroll", function() {
+    positionTaskAssigneePopover();
+}, { passive: true });
+
+function closeTaskAssigneePopover() {
+    const popover = document.getElementById("popover-task-assignee");
+    const trigger = document.getElementById("btn-task-assignee-trigger");
+    if (popover) popover.style.display = "none";
+    if (trigger) trigger.classList.remove("popover-open");
+}
+
+function updateTaskAssigneeDisplay(assigneeName) {
+    const hiddenInput = document.getElementById("task-assignee-input");
+    const displayEl = document.getElementById("task-assignee-display-text");
+    const avatarEl = document.getElementById("task-assignee-avatar");
+
+    const name = (assigneeName && typeof assigneeName === 'string') ? assigneeName.trim() : "";
+    if (hiddenInput) hiddenInput.value = name;
+
+    if (!name) {
+        if (displayEl) {
+            displayEl.textContent = "-- Выберите исполнителя --";
+            displayEl.style.color = "#64748b";
+            displayEl.style.fontWeight = "normal";
+        }
+        if (avatarEl) {
+            avatarEl.className = "author-avatar-circle";
+            avatarEl.style.background = "#f1f5f9";
+            avatarEl.style.color = "#64748b";
+            avatarEl.innerHTML = '<i class="fa-solid fa-user"></i>';
+        }
+        return;
+    }
+
+    if (displayEl) {
+        displayEl.textContent = name;
+        displayEl.style.color = "#1e293b";
+        displayEl.style.fontWeight = "600";
+    }
+
+    if (avatarEl) {
+        const initials = getInitials(name);
+        const colorClass = getAvatarColorClass(name);
+        avatarEl.className = `author-avatar-circle ${colorClass}`;
+        avatarEl.style.background = "";
+        avatarEl.style.color = "";
+        avatarEl.textContent = initials;
+    }
+}
+
+function selectTaskAssignee(name) {
+    updateTaskAssigneeDisplay(name);
+    closeTaskAssigneePopover();
+}
+
+function renderTaskAssigneePickerList(filterQuery = '') {
+    const listEl = document.getElementById("list-task-assignee");
+    if (!listEl) return;
+
+    const persons = (typeof getUniquePersons === 'function') ? getUniquePersons() : [];
+    const currentVal = document.getElementById("task-assignee-input")?.value || "";
+
+    const taskCountMap = {};
+    if (Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            const p = t.assignee || t.assignee_name;
+            if (p) taskCountMap[p] = (taskCountMap[p] || 0) + 1;
+        });
+    }
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    // 1. Reset / unassigned option
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectTaskAssignee('')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-gray" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.75rem;"></i></div>
+                <span class="person-name-text" style="color: #64748b; font-style: italic;">-- Не назначен --</span>
+            </div>
+        </div>
+    `;
+
+    let filteredPersons = persons;
+    if (q) {
+        filteredPersons = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filteredPersons.length === 0) {
+        html += `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    // Top active persons (with active tasks > 0)
+    const activePersons = filteredPersons.filter(p => (taskCountMap[p] || 0) > 0)
+        .sort((a, b) => (taskCountMap[b] || 0) - (taskCountMap[a] || 0));
+
+    if (!q && activePersons.length > 0) {
+        html += `<div class="filter-group-header">⭐ Часто выбираемые</div>`;
+        activePersons.slice(0, 5).forEach(name => {
+            const isSel = (currentVal === name) ? 'selected' : '';
+            const cnt = taskCountMap[name] || 0;
+            const initials = getInitials(name);
+            const avatarColor = getAvatarColorClass(name);
+            const safeName = name.replace(/'/g, "\\'");
+            html += `
+                <div class="filter-option-item ${isSel}" onclick="selectTaskAssignee('${safeName}')">
+                    <div class="filter-option-person-left">
+                        <div class="person-avatar ${avatarColor}">${initials}</div>
+                        <span class="person-name-text font-semibold">${escapeHtml(name)}</span>
+                    </div>
+                    <span class="person-task-badge busy">${cnt} ${cnt === 1 ? 'задача' : (cnt < 5 ? 'задачи' : 'задач')}</span>
+                </div>
+            `;
+        });
+    }
+
+    // All employees section
+    html += `<div class="filter-group-header">👥 ${q ? 'Результаты поиска' : 'Все сотрудники'} (${filteredPersons.length})</div>`;
+    filteredPersons.forEach(name => {
+        const isSel = (currentVal === name) ? 'selected' : '';
+        const cnt = taskCountMap[name] || 0;
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectTaskAssignee('${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}">${initials}</div>
+                    <span class="person-name-text">${escapeHtml(name)}</span>
+                </div>
+                ${cnt > 0 ? `<span class="person-task-badge">${cnt}</span>` : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+/* ==========================================================================
+   CANONICAL ZONE PICKER COMPONENT (MODAL POPOVER)
+   @canonical-pattern ZonePickerPopover
+   @established 2026-10-26
+   @description 48px trigger with folder icon, smooth chevron, and body-portaled fixed dropdown popover with search.
+   ========================================================================== */
+
+function getTaskModalZones() {
+    let zones = (typeof getPlannerZones === 'function') ? getPlannerZones() : [];
+    if (!zones || zones.length === 0) {
+        zones = [
+            "Бережливое производство", "Техсовет", "День качества", "Ремонт и зоны",
+            "Инфостенды", "Обучение", "Цифровой портал", "СКК", "Документация",
+            "Цилиндры", "Дестакер", "Дозировка", "ЗО", "Зона двигателей", "Слесарная мастерская"
+        ];
+    }
+    if (Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            if (t.zone && !zones.includes(t.zone)) {
+                zones.push(t.zone);
+            }
+        });
+    }
+    return zones;
+}
+
+function positionTaskZonePopover() {
+    const popover = document.getElementById("popover-task-zone");
+    const trigger = document.getElementById("btn-task-zone-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 320), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 320;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 6) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 6) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+document.addEventListener('scroll', function(e) {
+    const pop = document.getElementById("popover-task-zone");
+    if (pop && pop.style.display === "block") {
+        positionTaskZonePopover();
+    }
+}, true);
+
+window.addEventListener("resize", function() {
+    positionTaskZonePopover();
+}, { passive: true });
+window.addEventListener("scroll", function() {
+    positionTaskZonePopover();
+}, { passive: true });
+
+function toggleTaskZonePopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-task-zone");
+    const trigger = document.getElementById("btn-task-zone-trigger");
+    if (!popover) return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeTaskZonePopover();
+    } else {
+        closeTaskAssigneePopover();
+        renderTaskZonePickerList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionTaskZonePopover();
+        setTimeout(positionTaskZonePopover, 20);
+        const searchInput = document.getElementById("search-task-zone");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeTaskZonePopover() {
+    const popover = document.getElementById("popover-task-zone");
+    const trigger = document.getElementById("btn-task-zone-trigger");
+    if (popover) popover.style.display = "none";
+    if (trigger) trigger.classList.remove("popover-open");
+}
+
+function updateTaskZoneDisplay(zoneName) {
+    const hiddenInput = document.getElementById("task-zone-input");
+    const displayEl = document.getElementById("task-zone-display-text");
+    const iconEl = document.getElementById("task-zone-icon");
+
+    const name = (zoneName && typeof zoneName === 'string') ? zoneName.trim() : "";
+    if (hiddenInput) hiddenInput.value = name;
+
+    if (!name) {
+        if (displayEl) {
+            displayEl.textContent = "-- Выберите зону / участок --";
+            displayEl.style.color = "#64748b";
+            displayEl.style.fontWeight = "normal";
+        }
+        if (iconEl) {
+            iconEl.style.background = "#f1f5f9";
+            iconEl.style.color = "#64748b";
+            iconEl.innerHTML = '<i class="fa-solid fa-folder"></i>';
+        }
+        return;
+    }
+
+    if (displayEl) {
+        displayEl.textContent = name;
+        displayEl.style.color = "#1e293b";
+        displayEl.style.fontWeight = "600";
+    }
+
+    if (iconEl) {
+        iconEl.style.background = "#eff6ff";
+        iconEl.style.color = "#2563eb";
+        iconEl.innerHTML = '<i class="fa-solid fa-folder"></i>';
+    }
+}
+
+function selectTaskZone(name) {
+    updateTaskZoneDisplay(name);
+    closeTaskZonePopover();
+}
+
+function renderTaskZonePickerList(filterQuery = '') {
+    const listEl = document.getElementById("list-task-zone");
+    if (!listEl) return;
+
+    const zones = getTaskModalZones();
+    const currentVal = document.getElementById("task-zone-input")?.value || "";
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    let filtered = zones;
+    if (q) {
+        filtered = zones.filter(z => z.toLowerCase().includes(q));
+    }
+
+    if (filtered.length === 0) {
+        html += `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    html += `<div class="filter-group-header">📁 ${q ? 'Результаты поиска' : 'Все зоны и участки'} (${filtered.length})</div>`;
+    filtered.forEach(z => {
+        const isSel = (currentVal === z) ? 'selected' : '';
+        const safeZ = z.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectTaskZone('${safeZ}')">
+                <div class="filter-option-person-left">
+                    <div class="zone-icon-circle" style="background: ${isSel ? '#dbeafe' : '#f1f5f9'}; color: #2563eb; width: 26px; height: 26px; font-size: 0.8rem;">
+                        <i class="fa-solid fa-folder"></i>
+                    </div>
+                    <span class="person-name-text ${isSel ? 'font-semibold' : ''}">${escapeHtml(z)}</span>
+                </div>
+                ${isSel ? '<i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i>' : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+/* ==========================================================================
+   CANONICAL BULK MODAL PICKERS (AUTHOR & ZONE)
+   @canonical-pattern BulkPickers
+   @established 2026-10-26
+   ========================================================================== */
+
+function positionBulkAuthorPopover() {
+    const popover = document.getElementById("popover-bulk-author");
+    const trigger = document.getElementById("btn-bulk-author-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 260), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 260;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 4) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 4) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+function toggleBulkAuthorPopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-bulk-author");
+    const trigger = document.getElementById("btn-bulk-author-trigger");
+    if (!popover) return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeBulkAuthorPopover();
+    } else {
+        closeBulkZonePopover();
+        renderBulkAuthorPickerList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionBulkAuthorPopover();
+        setTimeout(positionBulkAuthorPopover, 20);
+        const searchInput = document.getElementById("search-bulk-author");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeBulkAuthorPopover() {
+    const popover = document.getElementById("popover-bulk-author");
+    const trigger = document.getElementById("btn-bulk-author-trigger");
+    if (popover) popover.style.display = "none";
+    if (trigger) trigger.classList.remove("popover-open");
+}
+
+function updateBulkAuthorDisplay(authorName) {
+    const hiddenInput = document.getElementById("bulk-author-input");
+    const displayEl = document.getElementById("bulk-author-display-text");
+    const avatarEl = document.getElementById("bulk-author-avatar");
+
+    const name = (authorName && typeof authorName === 'string') ? authorName.trim() : "";
+    if (hiddenInput) hiddenInput.value = name;
+
+    if (!name) {
+        if (displayEl) {
+            displayEl.textContent = "-- Выберите автора --";
+            displayEl.style.color = "#64748b";
+            displayEl.style.fontWeight = "normal";
+        }
+        if (avatarEl) {
+            avatarEl.className = "author-avatar-circle";
+            avatarEl.style.background = "#f1f5f9";
+            avatarEl.style.color = "#64748b";
+            avatarEl.innerHTML = '<i class="fa-solid fa-user"></i>';
+        }
+        return;
+    }
+
+    if (displayEl) {
+        displayEl.textContent = name;
+        displayEl.style.color = "#1e293b";
+        displayEl.style.fontWeight = "600";
+    }
+
+    if (avatarEl) {
+        const initials = getInitials(name);
+        const colorClass = getAvatarColorClass(name);
+        avatarEl.className = `author-avatar-circle ${colorClass}`;
+        avatarEl.style.background = "";
+        avatarEl.style.color = "";
+        avatarEl.textContent = initials;
+    }
+}
+
+function selectBulkAuthor(name) {
+    updateBulkAuthorDisplay(name);
+    closeBulkAuthorPopover();
+}
+
+function renderBulkAuthorPickerList(filterQuery = '') {
+    const listEl = document.getElementById("list-bulk-author");
+    if (!listEl) return;
+
+    const persons = (typeof getUniquePersons === 'function') ? getUniquePersons() : [];
+    const currentVal = document.getElementById("bulk-author-input")?.value || "";
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectBulkAuthor('')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-gray" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.75rem;"></i></div>
+                <span class="person-name-text" style="color: #64748b; font-style: italic;">-- Не указан --</span>
+            </div>
+        </div>
+    `;
+
+    let filtered = persons;
+    if (q) {
+        filtered = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filtered.length === 0) {
+        html += `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    html += `<div class="filter-group-header">👥 ${q ? 'Результаты поиска' : 'Все сотрудники'} (${filtered.length})</div>`;
+    filtered.forEach(name => {
+        const isSel = (currentVal === name) ? 'selected' : '';
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectBulkAuthor('${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}">${initials}</div>
+                    <span class="person-name-text ${isSel ? 'font-semibold' : ''}">${escapeHtml(name)}</span>
+                </div>
+                ${isSel ? '<i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i>' : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+// Bulk Zone
+function positionBulkZonePopover() {
+    const popover = document.getElementById("popover-bulk-zone");
+    const trigger = document.getElementById("btn-bulk-zone-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 260), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 260;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 4) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 4) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+function toggleBulkZonePopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-bulk-zone");
+    const trigger = document.getElementById("btn-bulk-zone-trigger");
+    if (!popover) return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeBulkZonePopover();
+    } else {
+        closeBulkAuthorPopover();
+        renderBulkZonePickerList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionBulkZonePopover();
+        setTimeout(positionBulkZonePopover, 20);
+        const searchInput = document.getElementById("search-bulk-zone");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeBulkZonePopover() {
+    const popover = document.getElementById("popover-bulk-zone");
+    const trigger = document.getElementById("btn-bulk-zone-trigger");
+    if (popover) popover.style.display = "none";
+    if (trigger) trigger.classList.remove("popover-open");
+}
+
+function updateBulkZoneDisplay(zoneName) {
+    const hiddenInput = document.getElementById("bulk-zone-input");
+    const displayEl = document.getElementById("bulk-zone-display-text");
+    const iconEl = document.getElementById("bulk-zone-icon");
+
+    const name = (zoneName && typeof zoneName === 'string') ? zoneName.trim() : "";
+    if (hiddenInput) hiddenInput.value = name;
+
+    if (!name) {
+        if (displayEl) {
+            displayEl.textContent = "-- Выберите зону / участок --";
+            displayEl.style.color = "#64748b";
+            displayEl.style.fontWeight = "normal";
+        }
+        if (iconEl) {
+            iconEl.style.background = "#f1f5f9";
+            iconEl.style.color = "#64748b";
+            iconEl.innerHTML = '<i class="fa-solid fa-folder"></i>';
+        }
+        return;
+    }
+
+    if (displayEl) {
+        displayEl.textContent = name;
+        displayEl.style.color = "#1e293b";
+        displayEl.style.fontWeight = "600";
+    }
+
+    if (iconEl) {
+        iconEl.style.background = "#eff6ff";
+        iconEl.style.color = "#2563eb";
+        iconEl.innerHTML = '<i class="fa-solid fa-folder"></i>';
+    }
+}
+
+function selectBulkZone(name) {
+    updateBulkZoneDisplay(name);
+    closeBulkZonePopover();
+}
+
+function renderBulkZonePickerList(filterQuery = '') {
+    const listEl = document.getElementById("list-bulk-zone");
+    if (!listEl) return;
+
+    const zones = getTaskModalZones();
+    const currentVal = document.getElementById("bulk-zone-input")?.value || "";
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    let filtered = zones;
+    if (q) {
+        filtered = zones.filter(z => z.toLowerCase().includes(q));
+    }
+
+    if (filtered.length === 0) {
+        html += `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    html += `<div class="filter-group-header">📁 ${q ? 'Результаты поиска' : 'Все зоны и участки'} (${filtered.length})</div>`;
+    filtered.forEach(z => {
+        const isSel = (currentVal === z) ? 'selected' : '';
+        const safeZ = z.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectBulkZone('${safeZ}')">
+                <div class="filter-option-person-left">
+                    <div class="zone-icon-circle" style="background: ${isSel ? '#dbeafe' : '#f1f5f9'}; color: #2563eb; width: 24px; height: 24px; font-size: 0.75rem;">
+                        <i class="fa-solid fa-folder"></i>
+                    </div>
+                    <span class="person-name-text ${isSel ? 'font-semibold' : ''}">${escapeHtml(z)}</span>
+                </div>
+                ${isSel ? '<i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i>' : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+/* ==========================================================================
+   CANONICAL BULK ROW ASSIGNEE PICKER (Rule 7 & 27 Single Source of Truth)
+   @canonical-pattern BulkRowAssigneePicker
+   @established 2026-10-26
+   ========================================================================== */
+let activeBulkAssigneeRowId = null;
+
+function positionBulkRowAssigneePopover() {
+    const popover = document.getElementById("popover-bulk-row-assignee");
+    if (!popover || !activeBulkAssigneeRowId || popover.style.display !== "block") return;
+    const trigger = document.getElementById(`btn-bulk-row-assignee-${activeBulkAssigneeRowId}`);
+    if (!trigger) return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 280), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 260;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 4) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 4) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+document.addEventListener('scroll', function(e) {
+    const pop = document.getElementById("popover-bulk-row-assignee");
+    if (pop && pop.style.display === "block") {
+        positionBulkRowAssigneePopover();
+    }
+}, true);
+
+window.addEventListener("resize", function() {
+    positionBulkRowAssigneePopover();
+}, { passive: true });
+window.addEventListener("scroll", function() {
+    positionBulkRowAssigneePopover();
+}, { passive: true });
+
+function toggleBulkRowAssigneePopover(event, rowId) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-bulk-row-assignee");
+    if (!popover) return;
+
+    if (activeBulkAssigneeRowId && activeBulkAssigneeRowId !== rowId) {
+        closeBulkRowAssigneePopover();
+    }
+
+    const trigger = document.getElementById(`btn-bulk-row-assignee-${rowId}`);
+    const isVisible = (popover.style.display === "block" && activeBulkAssigneeRowId === rowId);
+
+    if (isVisible) {
+        closeBulkRowAssigneePopover();
+    } else {
+        closeBulkAuthorPopover();
+        closeBulkZonePopover();
+        activeBulkAssigneeRowId = rowId;
+        renderBulkRowAssigneeList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionBulkRowAssigneePopover();
+        setTimeout(positionBulkRowAssigneePopover, 20);
+
+        const searchInput = document.getElementById("search-bulk-row-assignee");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeBulkRowAssigneePopover() {
+    const popover = document.getElementById("popover-bulk-row-assignee");
+    if (activeBulkAssigneeRowId) {
+        const trigger = document.getElementById(`btn-bulk-row-assignee-${activeBulkAssigneeRowId}`);
+        if (trigger) trigger.classList.remove("popover-open");
+    }
+    if (popover) popover.style.display = "none";
+    activeBulkAssigneeRowId = null;
+}
+
+function renderBulkRowAssigneeList(filterQuery = '') {
+    const listEl = document.getElementById("list-bulk-row-assignee");
+    if (!listEl) return;
+
+    const currentRow = activeBulkAssigneeRowId ? document.getElementById(activeBulkAssigneeRowId) : null;
+    const currentVal = currentRow ? (currentRow.querySelector(".bulk-row-assignee-input")?.value || "") : "";
+    const persons = (typeof getUniquePersons === 'function') ? getUniquePersons() : [];
+
+    const taskCountMap = {};
+    if (Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            const p = t.assignee || t.assignee_name;
+            if (p) taskCountMap[p] = (taskCountMap[p] || 0) + 1;
+        });
+    }
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    // 1. Reset / unassigned option
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectBulkRowAssignee('')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-gray" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.72rem;"></i></div>
+                <span class="person-name-text" style="color: #64748b; font-style: italic;">-- Не назначен --</span>
+            </div>
+        </div>
+    `;
+
+    let filteredPersons = persons;
+    if (q) {
+        filteredPersons = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filteredPersons.length === 0) {
+        html += `<div style="padding: 10px; text-align: center; color: #94a3b8; font-size: 11px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    // Top active persons
+    const activePersons = filteredPersons.filter(p => (taskCountMap[p] || 0) > 0)
+        .sort((a, b) => (taskCountMap[b] || 0) - (taskCountMap[a] || 0));
+
+    if (!q && activePersons.length > 0) {
+        html += `<div class="filter-group-header">⭐ Часто выбираемые</div>`;
+        activePersons.slice(0, 5).forEach(name => {
+            const isSel = (currentVal === name) ? 'selected' : '';
+            const cnt = taskCountMap[name] || 0;
+            const initials = getInitials(name);
+            const avatarColor = getAvatarColorClass(name);
+            const safeName = name.replace(/'/g, "\\'");
+            html += `
+                <div class="filter-option-item ${isSel}" onclick="selectBulkRowAssignee('${safeName}')">
+                    <div class="filter-option-person-left">
+                        <div class="person-avatar ${avatarColor}" style="width: 22px; height: 22px; font-size: 0.7rem;">${initials}</div>
+                        <span class="person-name-text font-semibold" style="font-size: 0.8rem;">${escapeHtml(name)}</span>
+                    </div>
+                    <span class="person-task-badge busy">${cnt}</span>
+                </div>
+            `;
+        });
+        html += `<div class="filter-group-header">👥 Все сотрудники (${filteredPersons.length})</div>`;
+    }
+
+    filteredPersons.forEach(name => {
+        const isSel = (currentVal === name) ? 'selected' : '';
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectBulkRowAssignee('${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}" style="width: 22px; height: 22px; font-size: 0.7rem;">${initials}</div>
+                    <span class="person-name-text" style="font-size: 0.8rem;">${escapeHtml(name)}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+function selectBulkRowAssignee(name) {
+    if (!activeBulkAssigneeRowId) return;
+    const row = document.getElementById(activeBulkAssigneeRowId);
+    if (row) {
+        const hiddenInp = row.querySelector(".bulk-row-assignee-input");
+        const trigger = row.querySelector(".bulk-row-assignee-trigger");
+        const textSpan = row.querySelector(".bulk-row-assignee-text");
+        const avatarCircle = trigger ? trigger.querySelector(".author-avatar-circle") : null;
+
+        if (hiddenInp) hiddenInp.value = name;
+        if (textSpan) {
+            textSpan.textContent = name || "-- Исполнитель --";
+            textSpan.style.color = name ? "#1e293b" : "#64748b";
+            textSpan.style.fontWeight = name ? "600" : "normal";
+        }
+        if (avatarCircle) {
+            if (name) {
+                avatarCircle.className = `author-avatar-circle ${getAvatarColorClass(name)}`;
+                avatarCircle.style.background = "";
+                avatarCircle.style.color = "";
+                avatarCircle.textContent = getInitials(name);
+            } else {
+                avatarCircle.className = "author-avatar-circle";
+                avatarCircle.style.background = "#f1f5f9";
+                avatarCircle.style.color = "#64748b";
+                avatarCircle.innerHTML = '<i class="fa-solid fa-user"></i>';
+            }
+        }
+    }
+    closeBulkRowAssigneePopover();
+}
+
+function updateBulkModalHorizonBadge(taskType) {
+    const badgeEl = document.getElementById("bulk-modal-horizon-badge");
+    if (!badgeEl) return;
+    const badgeMap = {
+        'weekly': { text: '⚡ Недельный спринт', class: 'badge-weekly' },
+        'service_plan': { text: '🔧 План службы', class: 'badge-services' },
+        'tech_council': { text: '🏛️ Техсовет', class: 'badge-tech-council' },
+        'quality_day': { text: '📋 День качества', class: 'badge-quality-day' },
+        'roadmap': { text: '🗺️ Дорожные карты', class: 'badge-roadmaps' }
+    };
+    const b = badgeMap[taskType] || badgeMap['weekly'];
+    badgeEl.textContent = b.text;
+    badgeEl.className = `modal-horizon-badge ${b.class}`;
+}
+
+/* ==========================================================================
+   CANONICAL INSPECTOR ASSIGNEE PICKER (GRAPH INSPECTOR)
+   @canonical-pattern InspectorAssigneePicker
+   @established 2026-10-26
+   ========================================================================== */
+
+function positionInspectorAssigneePopover() {
+    const popover = document.getElementById("popover-inspector-assignee");
+    const trigger = document.getElementById("btn-inspector-assignee-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 280), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 280;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 4) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 4) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+function toggleInspectorAssigneePopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-inspector-assignee");
+    const trigger = document.getElementById("btn-inspector-assignee-trigger");
+    if (!popover) return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeInspectorAssigneePopover();
+    } else {
+        renderInspectorAssigneePickerList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionInspectorAssigneePopover();
+        setTimeout(positionInspectorAssigneePopover, 20);
+        const searchInput = document.getElementById("search-inspector-assignee");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeInspectorAssigneePopover() {
+    const popover = document.getElementById("popover-inspector-assignee");
+    const trigger = document.getElementById("btn-inspector-assignee-trigger");
+    if (popover) popover.style.display = "none";
+    if (trigger) trigger.classList.remove("popover-open");
+}
+
+function updateInspectorAssigneeDisplay(assigneeName) {
+    const hiddenInput = document.getElementById("inspector-node-assignee-input");
+    const displayEl = document.getElementById("inspector-node-assignee");
+    const avatarEl = document.getElementById("inspector-assignee-avatar");
+
+    const name = (assigneeName && typeof assigneeName === 'string') ? assigneeName.trim() : "";
+    if (hiddenInput) hiddenInput.value = name;
+
+    if (!name) {
+        if (displayEl) {
+            displayEl.textContent = "— Не назначен";
+            displayEl.style.color = "#94a3b8";
+            displayEl.style.fontWeight = "normal";
+        }
+        if (avatarEl) {
+            avatarEl.className = "author-avatar-circle";
+            avatarEl.style.background = "#f1f5f9";
+            avatarEl.style.color = "#94a3b8";
+            avatarEl.innerHTML = '<i class="fa-solid fa-user-slash" style="font-size: 0.65rem;"></i>';
+        }
+        return;
+    }
+
+    if (displayEl) {
+        displayEl.textContent = name;
+        displayEl.style.color = "#1e293b";
+        displayEl.style.fontWeight = "600";
+    }
+
+    if (avatarEl) {
+        const initials = getInitials(name);
+        const colorClass = getAvatarColorClass(name);
+        avatarEl.className = `author-avatar-circle ${colorClass}`;
+        avatarEl.style.background = "";
+        avatarEl.style.color = "";
+        avatarEl.textContent = initials;
+    }
+}
+
+async function selectInspectorAssignee(personName) {
+    const newName = (personName && typeof personName === 'string') ? personName.trim() : "";
+    closeInspectorAssigneePopover();
+    if (!selectedGraphNodeId) return;
+
+    const node = currentGraphData?.nodes?.find(n => n.id === selectedGraphNodeId);
+    const prevName = node ? (node.assignee_name || "") : "";
+    if (newName === prevName) return;
+
+    // Optimistic UI update
+    updateInspectorAssigneeDisplay(newName);
+    if (node) {
+        node.assignee_name = newName;
+        node.assignee = newName;
+    }
+    if (Array.isArray(allTasks)) {
+        const t = allTasks.find(x => x.id === selectedGraphNodeId);
+        if (t) {
+            t.assignee_name = newName;
+            t.assignee = newName;
+        }
+    }
+
+    try {
+        const payload = {
+            assignee_name: newName || null
+        };
+        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Не удалось сохранить исполнителя");
+        }
+
+        showToast(newName ? `Исполнитель этапа: ${newName} 👤` : "Исполнитель этапа снят", "success");
+        if (currentGraphData) {
+            renderProjectGraph(currentGraphData);
+        }
+    } catch (e) {
+        console.error("Error updating stage assignee:", e);
+        showToast(`⚠️ Ошибка смены исполнителя: ${e.message}`, "error");
+        // Rollback
+        updateInspectorAssigneeDisplay(prevName);
+        if (node) {
+            node.assignee_name = prevName;
+            node.assignee = prevName;
+        }
+        if (currentGraphData) {
+            renderProjectGraph(currentGraphData);
+        }
+    }
+}
+
+function renderInspectorAssigneePickerList(filterQuery = '') {
+    const listEl = document.getElementById("list-inspector-assignee");
+    if (!listEl) return;
+
+    const persons = (typeof getUniquePersons === 'function') ? getUniquePersons() : [];
+    const currentVal = document.getElementById("inspector-node-assignee-input")?.value || "";
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    // 1. Reset / unassigned option
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectInspectorAssignee('')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-gray" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.75rem;"></i></div>
+                <span class="person-name-text" style="color: #64748b; font-style: italic;">-- Снять исполнителя --</span>
+            </div>
+        </div>
+    `;
+
+    let filtered = persons;
+    if (q) {
+        filtered = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filtered.length === 0) {
+        html += `<div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 12px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    html += `<div class="filter-group-header">👥 ${q ? 'Результаты поиска' : 'Все сотрудники'} (${filtered.length})</div>`;
+    filtered.forEach(name => {
+        const isSel = (currentVal === name) ? 'selected' : '';
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectInspectorAssignee('${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}">${initials}</div>
+                    <span class="person-name-text ${isSel ? 'font-semibold' : ''}">${escapeHtml(name)}</span>
+                </div>
+                ${isSel ? '<i class="fa-solid fa-check" style="color: #6366f1; font-size: 0.85rem;"></i>' : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+/* @canonical-pattern GraphStagePersonPicker (Rule 27 & 7 Cross-Tab Parity) */
+let activeGraphStageAssignee = "";
+
+function setupGraphStageAssigneePicker(defaultName = "") {
+    activeGraphStageAssignee = defaultName || "";
+    const hiddenInput = document.getElementById("graph-new-stage-assignee-input");
+    const labelEl = document.getElementById("graph-stage-assignee-label");
+    const avatarEl = document.getElementById("graph-stage-assignee-avatar");
+    if (hiddenInput) hiddenInput.value = activeGraphStageAssignee;
+
+    if (activeGraphStageAssignee) {
+        if (labelEl) labelEl.textContent = activeGraphStageAssignee;
+        if (avatarEl) {
+            avatarEl.textContent = getInitials(activeGraphStageAssignee);
+            avatarEl.className = `author-avatar-circle ${getAvatarColorClass(activeGraphStageAssignee)}`;
+            avatarEl.style.background = "";
+            avatarEl.style.color = "";
+        }
+    } else {
+        if (labelEl) labelEl.textContent = "-- Исполнитель --";
+        if (avatarEl) {
+            avatarEl.innerHTML = `<i class="fa-solid fa-user"></i>`;
+            avatarEl.className = "author-avatar-circle";
+            avatarEl.style.background = "#f1f5f9";
+            avatarEl.style.color = "#64748b";
+        }
+    }
+    closeGraphStageAssigneePopover();
+}
+
+function positionGraphStageAssigneePopover() {
+    const popover = document.getElementById("popover-graph-stage-assignee");
+    const trigger = document.getElementById("btn-graph-stage-assignee-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 260), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 240;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 4) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 4) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+function toggleGraphStageAssigneePopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-graph-stage-assignee");
+    const trigger = document.getElementById("btn-graph-stage-assignee-trigger");
+    if (!popover) return;
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeGraphStageAssigneePopover();
+    } else {
+        closeQuickSubtaskAssigneePopover();
+        renderGraphStageAssigneeList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionGraphStageAssigneePopover();
+        setTimeout(positionGraphStageAssigneePopover, 20);
+
+        const searchInput = document.getElementById("search-graph-stage-assignee");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeGraphStageAssigneePopover() {
+    const popover = document.getElementById("popover-graph-stage-assignee");
+    const trigger = document.getElementById("btn-graph-stage-assignee-trigger");
+    if (trigger) trigger.classList.remove("popover-open");
+    if (popover) popover.style.display = "none";
+}
+
+function renderGraphStageAssigneeList(filterQuery = '') {
+    const listEl = document.getElementById("list-graph-stage-assignee");
+    if (!listEl) return;
+
+    const currentVal = activeGraphStageAssignee || "";
+    const persons = (typeof getUniquePersons === 'function') ? getUniquePersons() : [];
+
+    const taskCountMap = {};
+    if (Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            const p = t.assignee || t.assignee_name;
+            if (p) taskCountMap[p] = (taskCountMap[p] || 0) + 1;
+        });
+    }
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    // Reset option
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectGraphStageAssignee('')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-gray" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.72rem;"></i></div>
+                <span class="person-name-text" style="color: #64748b; font-style: italic;">-- Без исполнителя --</span>
+            </div>
+        </div>
+    `;
+
+    let filteredPersons = persons;
+    if (q) {
+        filteredPersons = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filteredPersons.length === 0) {
+        html += `<div style="padding: 10px; text-align: center; color: #94a3b8; font-size: 11px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    const activePersons = filteredPersons.filter(p => (taskCountMap[p] || 0) > 0)
+        .sort((a, b) => (taskCountMap[b] || 0) - (taskCountMap[a] || 0));
+
+    if (!q && activePersons.length > 0) {
+        html += `<div class="filter-group-header">⭐ Часто выбираемые</div>`;
+        activePersons.slice(0, 5).forEach(name => {
+            const isSel = (currentVal === name) ? 'selected' : '';
+            const cnt = taskCountMap[name] || 0;
+            const initials = getInitials(name);
+            const avatarColor = getAvatarColorClass(name);
+            const safeName = name.replace(/'/g, "\\'");
+            html += `
+                <div class="filter-option-item ${isSel}" onclick="selectGraphStageAssignee('${safeName}')">
+                    <div class="filter-option-person-left">
+                        <div class="person-avatar ${avatarColor}">${initials}</div>
+                        <span class="person-name-text">${escapeHtml(name)}</span>
+                    </div>
+                    <span class="filter-option-badge">${cnt}</span>
+                </div>
+            `;
+        });
+    }
+
+    html += `<div class="filter-group-header">👥 Все сотрудники</div>`;
+    filteredPersons.forEach(name => {
+        const isSel = (currentVal === name) ? 'selected' : '';
+        const cnt = taskCountMap[name] || 0;
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectGraphStageAssignee('${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}">${initials}</div>
+                    <span class="person-name-text">${escapeHtml(name)}</span>
+                </div>
+                ${cnt > 0 ? `<span class="filter-option-badge">${cnt}</span>` : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+function selectGraphStageAssignee(name) {
+    setupGraphStageAssigneePicker(name);
+    closeGraphStageAssigneePopover();
+}
+
+/* @canonical-pattern QuickSubtaskPersonPicker (Rule 27 & 7 Cross-Tab Parity) */
+let activeQuickSubtaskAssignee = "";
+
+function setupQuickSubtaskAssigneePicker(defaultName = "") {
+    activeQuickSubtaskAssignee = defaultName || "";
+    const hiddenInput = document.getElementById("quick-subtask-assignee-input");
+    const labelEl = document.getElementById("quick-subtask-assignee-label");
+    const avatarEl = document.getElementById("quick-subtask-assignee-avatar");
+    if (hiddenInput) hiddenInput.value = activeQuickSubtaskAssignee;
+
+    if (activeQuickSubtaskAssignee) {
+        if (labelEl) labelEl.textContent = activeQuickSubtaskAssignee;
+        if (avatarEl) {
+            avatarEl.textContent = getInitials(activeQuickSubtaskAssignee);
+            avatarEl.className = `author-avatar-circle ${getAvatarColorClass(activeQuickSubtaskAssignee)}`;
+            avatarEl.style.background = "";
+            avatarEl.style.color = "";
+        }
+    } else {
+        if (labelEl) labelEl.textContent = "-- Исполнитель --";
+        if (avatarEl) {
+            avatarEl.innerHTML = `<i class="fa-solid fa-user"></i>`;
+            avatarEl.className = "author-avatar-circle";
+            avatarEl.style.background = "#f1f5f9";
+            avatarEl.style.color = "#64748b";
+        }
+    }
+    closeQuickSubtaskAssigneePopover();
+}
+
+function positionQuickSubtaskAssigneePopover() {
+    const popover = document.getElementById("popover-quick-subtask-assignee");
+    const trigger = document.getElementById("btn-quick-subtask-assignee-trigger");
+    if (!popover || !trigger || popover.style.display !== "block") return;
+
+    if (popover.parentElement !== document.body) {
+        document.body.appendChild(popover);
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const popoverWidth = Math.min(Math.max(Math.round(rect.width), 260), window.innerWidth - 24);
+    popover.style.setProperty("width", popoverWidth + "px", "important");
+    popover.style.setProperty("position", "fixed", "important");
+    popover.style.setProperty("z-index", "99999", "important");
+    popover.style.setProperty("right", "auto", "important");
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const estimatedHeight = 240;
+
+    if (spaceBelow < estimatedHeight && rect.top > estimatedHeight) {
+        popover.style.setProperty("top", "auto", "important");
+        popover.style.setProperty("bottom", Math.round(window.innerHeight - rect.top + 4) + "px", "important");
+    } else {
+        popover.style.setProperty("bottom", "auto", "important");
+        popover.style.setProperty("top", Math.round(rect.bottom + 4) + "px", "important");
+    }
+
+    let left = Math.round(rect.left);
+    if (left + popoverWidth > window.innerWidth - 12) {
+        left = window.innerWidth - popoverWidth - 12;
+    }
+    if (left < 12) left = 12;
+    popover.style.setProperty("left", left + "px", "important");
+}
+
+function toggleQuickSubtaskAssigneePopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("popover-quick-subtask-assignee");
+    const trigger = document.getElementById("btn-quick-subtask-assignee-trigger");
+    if (!popover) return;
+
+    const isVisible = (popover.style.display === "block");
+    if (isVisible) {
+        closeQuickSubtaskAssigneePopover();
+    } else {
+        closeGraphStageAssigneePopover();
+        renderQuickSubtaskAssigneeList("");
+        popover.style.display = "block";
+        if (trigger) trigger.classList.add("popover-open");
+        positionQuickSubtaskAssigneePopover();
+        setTimeout(positionQuickSubtaskAssigneePopover, 20);
+
+        const searchInput = document.getElementById("search-quick-subtask-assignee");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => {
+                try { searchInput.focus({ preventScroll: true }); } catch(e) { searchInput.focus(); }
+            }, 60);
+        }
+    }
+}
+
+function closeQuickSubtaskAssigneePopover() {
+    const popover = document.getElementById("popover-quick-subtask-assignee");
+    const trigger = document.getElementById("btn-quick-subtask-assignee-trigger");
+    if (trigger) trigger.classList.remove("popover-open");
+    if (popover) popover.style.display = "none";
+}
+
+function renderQuickSubtaskAssigneeList(filterQuery = '') {
+    const listEl = document.getElementById("list-quick-subtask-assignee");
+    if (!listEl) return;
+
+    const currentVal = activeQuickSubtaskAssignee || "";
+    const persons = (typeof getUniquePersons === 'function') ? getUniquePersons() : [];
+
+    const taskCountMap = {};
+    if (Array.isArray(allTasks)) {
+        allTasks.forEach(t => {
+            const p = t.assignee || t.assignee_name;
+            if (p) taskCountMap[p] = (taskCountMap[p] || 0) + 1;
+        });
+    }
+
+    const q = (filterQuery || '').trim().toLowerCase();
+    let html = '';
+
+    // Reset option
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectQuickSubtaskAssignee('')">
+            <div class="filter-option-person-left">
+                <div class="person-avatar avatar-gray" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.72rem;"></i></div>
+                <span class="person-name-text" style="color: #64748b; font-style: italic;">-- Без исполнителя --</span>
+            </div>
+        </div>
+    `;
+
+    let filteredPersons = persons;
+    if (q) {
+        filteredPersons = persons.filter(p => p.toLowerCase().includes(q));
+    }
+
+    if (filteredPersons.length === 0) {
+        html += `<div style="padding: 10px; text-align: center; color: #94a3b8; font-size: 11px;">Ничего не найдено</div>`;
+        listEl.innerHTML = html;
+        return;
+    }
+
+    const activePersons = filteredPersons.filter(p => (taskCountMap[p] || 0) > 0)
+        .sort((a, b) => (taskCountMap[b] || 0) - (taskCountMap[a] || 0));
+
+    if (!q && activePersons.length > 0) {
+        html += `<div class="filter-group-header">⭐ Часто выбираемые</div>`;
+        activePersons.slice(0, 5).forEach(name => {
+            const isSel = (currentVal === name) ? 'selected' : '';
+            const cnt = taskCountMap[name] || 0;
+            const initials = getInitials(name);
+            const avatarColor = getAvatarColorClass(name);
+            const safeName = name.replace(/'/g, "\\'");
+            html += `
+                <div class="filter-option-item ${isSel}" onclick="selectQuickSubtaskAssignee('${safeName}')">
+                    <div class="filter-option-person-left">
+                        <div class="person-avatar ${avatarColor}">${initials}</div>
+                        <span class="person-name-text">${escapeHtml(name)}</span>
+                    </div>
+                    <span class="filter-option-badge">${cnt}</span>
+                </div>
+            `;
+        });
+    }
+
+    html += `<div class="filter-group-header">👥 Все сотрудники</div>`;
+    filteredPersons.forEach(name => {
+        const isSel = (currentVal === name) ? 'selected' : '';
+        const cnt = taskCountMap[name] || 0;
+        const initials = getInitials(name);
+        const avatarColor = getAvatarColorClass(name);
+        const safeName = name.replace(/'/g, "\\'");
+        html += `
+            <div class="filter-option-item ${isSel}" onclick="selectQuickSubtaskAssignee('${safeName}')">
+                <div class="filter-option-person-left">
+                    <div class="person-avatar ${avatarColor}">${initials}</div>
+                    <span class="person-name-text">${escapeHtml(name)}</span>
+                </div>
+                ${cnt > 0 ? `<span class="filter-option-badge">${cnt}</span>` : ''}
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+function selectQuickSubtaskAssignee(name) {
+    setupQuickSubtaskAssigneePicker(name);
+    closeQuickSubtaskAssigneePopover();
+}
+
+window.addEventListener('resize', function() {
+    positionGraphStageAssigneePopover();
+    positionQuickSubtaskAssigneePopover();
+}, { passive: true });
+window.addEventListener('scroll', function() {
+    positionGraphStageAssigneePopover();
+    positionQuickSubtaskAssigneePopover();
+}, { passive: true });
+
 async function openAddTaskModal(forcedType = null, parentId = null) {
     populateDropdowns();
     await populateHierarchyDropdowns(null, parentId, null);
@@ -5146,7 +6990,7 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     const photoAfterRow = document.getElementById("task-photo-after-row");
     if (photoAfterRow) photoAfterRow.style.display = "none";
     
-    // Тип задачи / Горизонт
+    // Тип задачи / Горизонт планирования (динамически определяется вкладкой)
     const typeSelect = document.getElementById("task-type-input");
     const initType = forcedType || (
         currentHorizon === 'roadmaps' ? 'roadmap' :
@@ -5158,24 +7002,35 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
         typeSelect.value = initType;
         onTaskTypeChange(initType);
     }
+    updateModalHorizonBadge(initType);
 
-    // Зона по умолчанию
-    const zoneSelect = document.getElementById("task-zone-input");
-    if (zoneSelect) {
-        if (currentHorizon === 'tech_council' || initType === 'tech_council') {
-            zoneSelect.value = "Техсовет";
-        } else if (currentHorizon === 'quality_day' || initType === 'quality_day') {
-            zoneSelect.value = "День качества";
-        } else {
-            zoneSelect.value = "Бережливое производство";
-        }
+    // Служба по умолчанию и видимость строки службы (только для сервисных планов)
+    const deptRow = document.getElementById("task-department-row");
+    if (deptRow) {
+        deptRow.style.display = (initType === 'service_plan') ? 'block' : 'none';
     }
-
-    // Служба по умолчанию
     const deptSelect = document.getElementById("task-department-input");
     if (deptSelect) {
         deptSelect.value = (currentDepartmentService !== 'all') ? currentDepartmentService : '';
     }
+
+    // Изоляция дорожной карты: родительский проект и блокеры видны ТОЛЬКО в roadmaps или при явном parentId
+    const roadmapHierarchySec = document.getElementById("task-roadmap-hierarchy-section");
+    if (roadmapHierarchySec) {
+        roadmapHierarchySec.style.display = (currentHorizon === 'roadmaps' || initType === 'roadmap' || parentId) ? 'block' : 'none';
+    }
+
+    // Зона по умолчанию
+    let defaultZone = "Бережливое производство";
+    if (currentHorizon === 'tech_council' || initType === 'tech_council') {
+        defaultZone = "Техсовет";
+    } else if (currentHorizon === 'quality_day' || initType === 'quality_day') {
+        defaultZone = "День качества";
+    }
+    const zoneInput = document.getElementById("task-zone-input");
+    if (zoneInput) zoneInput.value = defaultZone;
+    updateTaskZoneDisplay(defaultZone);
+    closeTaskZonePopover();
 
     // Квартал и прогресс
     const quarterSelect = document.getElementById("task-quarter-input");
@@ -5185,17 +7040,12 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     const progDisp = document.getElementById("task-progress-display");
     if (progDisp) progDisp.textContent = "0%";
 
-    // Автоподстановка авторизованного пользователя
-    const authorSelect = document.getElementById("task-author-input");
-    if (authorSelect) {
-        if (currentPlannerUser && currentPlannerUser.name) {
-            authorSelect.value = currentPlannerUser.name;
-        } else {
-            authorSelect.value = "";
-        }
-    }
+    // Автоподстановка авторизованного пользователя в карточку автора
+    updateTaskAuthorCard(currentPlannerUser ? currentPlannerUser.name : "");
 
     document.getElementById("task-assignee-input").value = "";
+    updateTaskAssigneeDisplay("");
+    closeTaskAssigneePopover();
     
     // По умолчанию ставим сегодняшнюю дату в календарь
     const today = new Date();
@@ -5209,7 +7059,6 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     // По умолчанию статус «В работе» и пустой факт
     document.getElementById("task-status-input").value = "🟡 В работе";
     document.getElementById("task-comment-input").value = "";
-    onPhotoInputChanged('task-photo-input');
 
     // Скрываем блок Статуса и блок Факта при создании обычной задачи (но показываем для дорожных карт)
     const statusContainer = document.getElementById("task-status-container");
@@ -5229,9 +7078,11 @@ async function openAddTaskModal(forcedType = null, parentId = null) {
     // Сброс прикрепленного документа
     clearSelectedDocAttachment();
 
-    // Скрываем кнопку переадресации при создании новой задачи
+    // Скрываем контейнер и кнопку переадресации при создании новой задачи
+    const reassignCont = document.getElementById("task-reassign-container");
+    if (reassignCont) reassignCont.style.setProperty("display", "none", "important");
     const btnReassign = document.getElementById("btn-modal-reassign-task");
-    if (btnReassign) btnReassign.style.display = "none";
+    if (btnReassign) btnReassign.style.setProperty("display", "none", "important");
 
     setTaskModalLockState(false);
     document.getElementById("modal-title").textContent = "Новая задача";
@@ -5269,6 +7120,36 @@ function setTaskModalLockState(mode, bannerText = "") {
         }
     });
 
+    const assigneeTrigger = document.getElementById("btn-task-assignee-trigger");
+    if (assigneeTrigger) {
+        if (isFullLock || isInteractOnly) {
+            assigneeTrigger.style.pointerEvents = "none";
+            assigneeTrigger.style.opacity = "0.7";
+            assigneeTrigger.style.background = "#f8fafc";
+            assigneeTrigger.style.cursor = "not-allowed";
+        } else {
+            assigneeTrigger.style.pointerEvents = "auto";
+            assigneeTrigger.style.opacity = "1";
+            assigneeTrigger.style.background = "#ffffff";
+            assigneeTrigger.style.cursor = "pointer";
+        }
+    }
+
+    const zoneTrigger = document.getElementById("btn-task-zone-trigger");
+    if (zoneTrigger) {
+        if (isFullLock || isInteractOnly) {
+            zoneTrigger.style.pointerEvents = "none";
+            zoneTrigger.style.opacity = "0.7";
+            zoneTrigger.style.background = "#f8fafc";
+            zoneTrigger.style.cursor = "not-allowed";
+        } else {
+            zoneTrigger.style.pointerEvents = "auto";
+            zoneTrigger.style.opacity = "1";
+            zoneTrigger.style.background = "#ffffff";
+            zoneTrigger.style.cursor = "pointer";
+        }
+    }
+
     interactionInputs.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -5283,6 +7164,10 @@ function setTaskModalLockState(mode, bannerText = "") {
 
     const photoGalleryBtns = document.querySelectorAll("#task-modal button[onclick*='gallery']");
     photoGalleryBtns.forEach(btn => btn.style.display = isFullLock ? "none" : "inline-flex");
+    const attachBtn = document.getElementById("btn-attach-photo-do");
+    if (attachBtn) attachBtn.style.display = isFullLock ? "none" : "flex";
+    const photoDelBtns = document.querySelectorAll("#task-modal .photo-thumb-del, #task-modal .photo-thumb-del-modern");
+    photoDelBtns.forEach(btn => btn.style.display = isFullLock ? "none" : "inline-block");
 
     const duePresetBtns = document.querySelectorAll("#task-modal .due-presets-bar button");
     duePresetBtns.forEach(btn => btn.style.display = (isFullLock || isInteractOnly) ? "none" : "inline-block");
@@ -5367,14 +7252,19 @@ async function openEditTaskModal(taskId) {
     document.getElementById("task-ru-input").value = task.title || "";
     document.getElementById("task-kz-input").value = task.title_kz || "";
     const tagsInput = document.getElementById("task-tags-input");
-    if (tagsInput) tagsInput.value = task.tags || "";
-    document.getElementById("task-zone-input").value = task.zone || "Бережливое производство";
+    const taskZone = task.zone || "Бережливое производство";
+    document.getElementById("task-zone-input").value = taskZone;
+    updateTaskZoneDisplay(taskZone);
+    closeTaskZonePopover();
     document.getElementById("task-photo-input").value = task.photo_link || "";
     if (document.getElementById("task-photo-after-input")) document.getElementById("task-photo-after-input").value = task.photo_link_after || "";
     const photoAfterRow = document.getElementById("task-photo-after-row");
     if (photoAfterRow) photoAfterRow.style.display = "block";
     document.getElementById("task-author-input").value = task.author_name || "";
+    updateTaskAuthorCard(task.author_name || "");
     document.getElementById("task-assignee-input").value = task.assignee_name || "";
+    updateTaskAssigneeDisplay(task.assignee_name || "");
+    closeTaskAssigneePopover();
     
     // Тип задачи, служба, квартал и прогресс
     const taskType = task.task_type || "weekly";
@@ -5383,9 +7273,20 @@ async function openEditTaskModal(taskId) {
         typeSelect.value = taskType;
         onTaskTypeChange(taskType);
     }
+    updateModalHorizonBadge(taskType);
+
+    const deptRow = document.getElementById("task-department-row");
+    if (deptRow) {
+        deptRow.style.display = (taskType === 'service_plan') ? 'block' : 'none';
+    }
 
     const deptSelect = document.getElementById("task-department-input");
     if (deptSelect) deptSelect.value = task.department_service || "";
+
+    const roadmapHierarchySec = document.getElementById("task-roadmap-hierarchy-section");
+    if (roadmapHierarchySec) {
+        roadmapHierarchySec.style.display = (taskType === 'roadmap' || taskType === 'milestone' || task.parent_id) ? 'block' : 'none';
+    }
 
     const quarterSelect = document.getElementById("task-quarter-input");
     if (quarterSelect) quarterSelect.value = task.target_quarter || currentQuarter;
@@ -5427,17 +7328,24 @@ async function openEditTaskModal(taskId) {
     const langBadge = document.getElementById("detected-lang-badge");
     if (langBadge) langBadge.style.display = "none";
     const transLabel = document.getElementById("task-trans-label");
-    if (transLabel) transLabel.innerHTML = `Перевод <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span>`;
-
-    // Если нет KZ перевода - запускаем фоновый перевод
-    if (!task.title_kz && task.title && !isLocked) {
-        onTaskInputChanged('primary');
-    }
+    // Автоперевод отключен по регламенту модернизации
 
     // Показываем кнопку переадресации только при редактировании незаблокированной активной задачи
+    const reassignCont = document.getElementById("task-reassign-container");
+    if (reassignCont) {
+        if (isLocked) {
+            reassignCont.style.setProperty("display", "none", "important");
+        } else {
+            reassignCont.style.display = "block";
+        }
+    }
     const btnReassign = document.getElementById("btn-modal-reassign-task");
     if (btnReassign) {
-        btnReassign.style.display = isLocked ? "none" : "inline-flex";
+        if (isLocked) {
+            btnReassign.style.setProperty("display", "none", "important");
+        } else {
+            btnReassign.style.display = "inline-flex";
+        }
     }
 
     const taskModal = document.getElementById("task-modal");
@@ -5448,6 +7356,8 @@ async function openEditTaskModal(taskId) {
 }
 
 function closeTaskModal() {
+    closeTaskAssigneePopover();
+    closeTaskZonePopover();
     document.getElementById("task-modal").style.display = "none";
 }
 
@@ -5549,7 +7459,7 @@ async function saveTaskModal() {
 
         const payload = {
             title: titleRu,
-            title_kz: titleKz,
+            title_kz: null,
             zone: zone,
             task_type: taskType,
             department_service: (deptService && deptService !== 'Общий' && taskType !== 'weekly') ? deptService : null,
@@ -5640,7 +7550,7 @@ function updateBulkColumnsLayout() {
             header.style.gridTemplateColumns = "32px 1fr 130px 36px";
             if (headerAssignee) headerAssignee.style.display = "none";
         } else {
-            header.style.gridTemplateColumns = "32px 1fr 170px 135px 36px";
+            header.style.gridTemplateColumns = "32px 1fr 180px 135px 36px";
             if (headerAssignee) headerAssignee.style.display = "block";
         }
     }
@@ -5648,12 +7558,15 @@ function updateBulkColumnsLayout() {
     // 2. Все текущие строки
     const rows = document.querySelectorAll(".bulk-task-row");
     rows.forEach(row => {
+        const assigneeWrap = row.querySelector(".bulk-row-assignee-wrap");
         const assigneeSel = row.querySelector(".bulk-row-assignee");
         if (isServicePlan) {
             row.style.gridTemplateColumns = "32px 1fr 130px 36px";
+            if (assigneeWrap) assigneeWrap.style.display = "none";
             if (assigneeSel) assigneeSel.style.display = "none";
         } else {
-            row.style.gridTemplateColumns = "32px 1fr 170px 135px 36px";
+            row.style.gridTemplateColumns = "32px 1fr 180px 135px 36px";
+            if (assigneeWrap) assigneeWrap.style.display = "block";
             if (assigneeSel) assigneeSel.style.display = "block";
         }
     });
@@ -5663,73 +7576,82 @@ function openBulkTasksModal() {
     populateDropdowns();
     bulkRowCounter = 0;
 
-    // Подстановка типа задачи и службы в зависимости от активного горизонта
-    const typeSelect = document.getElementById("bulk-type-input");
+    // Автоматическая привязка к открытой вкладке (горизонту)
+    const typeInput = document.getElementById("bulk-type-input");
+    const deptContainer = document.getElementById("bulk-department-container");
     const deptSelect = document.getElementById("bulk-department-input");
-    const authorSelect = document.getElementById("bulk-author-input");
-    
+
+    let taskType = "weekly";
+    if (currentHorizon === "services") {
+        taskType = "service_plan";
+    } else if (currentHorizon === "tech_council") {
+        taskType = "tech_council";
+    } else if (currentHorizon === "quality_day") {
+        taskType = "quality_day";
+    } else if (currentHorizon === "roadmaps") {
+        taskType = "roadmap";
+    } else {
+        taskType = "weekly";
+    }
+
+    if (typeInput) typeInput.value = taskType;
+    updateBulkModalHorizonBadge(taskType);
+
+    // Селектор службы: скрыт в недельном спринте, отображается только в службах
+    if (deptContainer) {
+        deptContainer.style.display = (taskType === "service_plan") ? "block" : "none";
+    }
+
     // Автоподстановка автора
     let defaultAuthor = "";
     if (currentPlannerUser && currentPlannerUser.name) {
         defaultAuthor = currentPlannerUser.name;
     }
 
-    if (typeSelect) {
-        if (currentHorizon === "services") {
-            typeSelect.value = "service_plan";
-        } else if (currentHorizon === "tech_council") {
-            typeSelect.value = "tech_council";
-        } else if (currentHorizon === "quality_day") {
-            typeSelect.value = "quality_day";
-        } else if (currentHorizon === "roadmaps") {
-            typeSelect.value = "roadmap";
-        } else {
-            typeSelect.value = "weekly";
-        }
-    }
-
     if (deptSelect) {
-        if (currentDepartmentService && currentDepartmentService !== "all") {
-            deptSelect.value = currentDepartmentService;
-        } else if (defaultAuthor === "Курилова С.") {
-            deptSelect.value = "ОГЭ";
-        } else if (defaultAuthor === "Солонцов Ю." || defaultAuthor === "Сазонов С.") {
-            deptSelect.value = "ОГМ";
-        } else if (defaultAuthor === "Косумов Р.") {
-            deptSelect.value = "Технологи";
-        } else if (defaultAuthor === "Зарина") {
-            deptSelect.value = "ОТК";
+        if (taskType === "service_plan") {
+            if (currentDepartmentService && currentDepartmentService !== "all") {
+                deptSelect.value = currentDepartmentService;
+            } else if (defaultAuthor === "Курилова С.") {
+                deptSelect.value = "ОГЭ";
+            } else if (defaultAuthor === "Солонцов Ю." || defaultAuthor === "Сазонов С.") {
+                deptSelect.value = "ОГМ";
+            } else if (defaultAuthor === "Косумов Р.") {
+                deptSelect.value = "Технологи";
+            } else if (defaultAuthor === "Зарина") {
+                deptSelect.value = "ОТК";
+            } else {
+                deptSelect.value = "ОГМ";
+            }
         } else {
-            deptSelect.value = (typeSelect && typeSelect.value === "service_plan") ? "ОГМ" : "";
+            deptSelect.value = "";
         }
     }
 
-    if (authorSelect) {
-        if (defaultAuthor) {
-            authorSelect.value = defaultAuthor;
-        } else {
-            // Если автор не выбран, но служба ОГЭ -> предлагаем Курилову С.
-            if (deptSelect && deptSelect.value === "ОГЭ") {
-                authorSelect.value = "Курилова С.";
-            } else if (deptSelect && deptSelect.value === "ОГМ") {
-                authorSelect.value = "Солонцов Ю.";
-            } else {
-                authorSelect.value = "";
-            }
+    let defaultAuthorVal = "";
+    if (defaultAuthor) {
+        defaultAuthorVal = defaultAuthor;
+    } else {
+        if (deptSelect && deptSelect.value === "ОГЭ") {
+            defaultAuthorVal = "Курилова С.";
+        } else if (deptSelect && deptSelect.value === "ОГМ") {
+            defaultAuthorVal = "Солонцов Ю.";
         }
     }
+    updateBulkAuthorDisplay(defaultAuthorVal);
+    closeBulkAuthorPopover();
 
     // Подстановка зоны по умолчанию в зависимости от активного горизонта
-    const bulkZoneSelect = document.getElementById("bulk-zone-input");
-    if (bulkZoneSelect) {
-        if (currentHorizon === "tech_council") {
-            bulkZoneSelect.value = "Техсовет";
-        } else if (currentHorizon === "quality_day") {
-            bulkZoneSelect.value = "День качества";
-        } else {
-            bulkZoneSelect.value = "Бережливое производство";
-        }
+    let defaultZoneVal = "Бережливое производство";
+    if (taskType === "service_plan") {
+        defaultZoneVal = (deptSelect && deptSelect.value) ? deptSelect.value : "ОГМ";
+    } else if (taskType === "tech_council") {
+        defaultZoneVal = "Техсовет";
+    } else if (taskType === "quality_day") {
+        defaultZoneVal = "День качества";
     }
+    updateBulkZoneDisplay(defaultZoneVal);
+    closeBulkZonePopover();
 
     // Подстановка даты по умолчанию (сегодня)
     const today = new Date();
@@ -5763,6 +7685,9 @@ function openBulkTasksModal() {
 }
 
 function closeBulkTasksModal() {
+    closeBulkAuthorPopover();
+    closeBulkZonePopover();
+    closeBulkRowAssigneePopover();
     const modal = document.getElementById("bulk-tasks-modal");
     if (modal) modal.style.display = "none";
 }
@@ -5770,48 +7695,47 @@ function closeBulkTasksModal() {
 
 function onBulkTypeChange(typeVal) {
     const deptSelect = document.getElementById("bulk-department-input");
-    const authorSelect = document.getElementById("bulk-author-input");
-    const zoneSelect = document.getElementById("bulk-zone-input");
+    const authorInput = document.getElementById("bulk-author-input");
+    const zoneInput = document.getElementById("bulk-zone-input");
 
     if (typeVal === "service_plan") {
         if (deptSelect && !deptSelect.value) {
             deptSelect.value = "ОГМ";
         }
-        if (deptSelect && deptSelect.value === "ОГЭ" && authorSelect && !authorSelect.value) {
-            authorSelect.value = "Курилова С.";
+        if (deptSelect && deptSelect.value === "ОГЭ" && (!authorInput || !authorInput.value)) {
+            updateBulkAuthorDisplay("Курилова С.");
         }
-        if (zoneSelect) zoneSelect.value = (deptSelect && deptSelect.value) ? deptSelect.value : "ОГМ";
+        updateBulkZoneDisplay((deptSelect && deptSelect.value) ? deptSelect.value : "ОГМ");
     } else if (typeVal === "tech_council") {
-        if (zoneSelect) zoneSelect.value = "Техсовет";
+        updateBulkZoneDisplay("Техсовет");
     } else if (typeVal === "quality_day") {
-        if (zoneSelect) zoneSelect.value = "День качества";
+        updateBulkZoneDisplay("День качества");
     } else if (typeVal === "weekly") {
-        if (zoneSelect && (zoneSelect.value === "Техсовет" || zoneSelect.value === "День качества")) {
-            zoneSelect.value = "Бережливое производство";
+        if (zoneInput && (zoneInput.value === "Техсовет" || zoneInput.value === "День качества")) {
+            updateBulkZoneDisplay("Бережливое производство");
         }
     }
     updateBulkColumnsLayout();
 }
 
 function onBulkDepartmentChange(deptVal) {
-    const authorSelect = document.getElementById("bulk-author-input");
-    const zoneSelect = document.getElementById("bulk-zone-input");
+    const authorInput = document.getElementById("bulk-author-input");
 
     if (deptVal === "ОГЭ") {
-        if (authorSelect && (!authorSelect.value || authorSelect.value === "Солонцов Ю.")) {
-            authorSelect.value = "Курилова С.";
+        if (!authorInput || !authorInput.value || authorInput.value === "Солонцов Ю.") {
+            updateBulkAuthorDisplay("Курилова С.");
         }
-        if (zoneSelect) zoneSelect.value = "ОГЭ";
+        updateBulkZoneDisplay("ОГЭ");
     } else if (deptVal === "ОГМ") {
-        if (authorSelect && (!authorSelect.value || authorSelect.value === "Курилова С.")) {
-            authorSelect.value = "Солонцов Ю.";
+        if (!authorInput || !authorInput.value || authorInput.value === "Курилова С.") {
+            updateBulkAuthorDisplay("Солонцов Ю.");
         }
-        if (zoneSelect) zoneSelect.value = "ОГМ";
+        updateBulkZoneDisplay("ОГМ");
     } else if (deptVal === "Технологи") {
-        if (authorSelect) authorSelect.value = "Косумов Р.";
+        updateBulkAuthorDisplay("Косумов Р.");
     } else if (deptVal === "ОТК") {
-        if (authorSelect) authorSelect.value = "Зарина";
-        if (zoneSelect) zoneSelect.value = "СКК";
+        updateBulkAuthorDisplay("Зарина");
+        updateBulkZoneDisplay("СКК");
     }
 }
 
@@ -6111,7 +8035,7 @@ async function processBulkOcrFiles(filesOrBlobs) {
     if (window.isBulkOcrRunning) return;
     window.isBulkOcrRunning = true;
 
-    const appendMode = document.getElementById("bulk-ocr-append-mode") ? document.getElementById("bulk-ocr-append-mode").checked : true;
+    const appendMode = true; // Always append per user rule
     const container = document.getElementById("bulk-tasks-rows-container");
 
     if (container) {
@@ -6281,7 +8205,7 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     rowDiv.className = "bulk-task-row";
     rowDiv.id = rowId;
     rowDiv.style.display = "grid";
-    rowDiv.style.gridTemplateColumns = isServicePlan ? "32px 1fr 130px 36px" : "32px 1fr 170px 135px 36px";
+    rowDiv.style.gridTemplateColumns = isServicePlan ? "32px 1fr 130px 36px" : "32px 1fr 180px 135px 36px";
     rowDiv.style.gap = "0.5rem";
     rowDiv.style.alignItems = "start";
     rowDiv.style.background = "#f8fafc";
@@ -6290,14 +8214,26 @@ function addBulkTaskRow(initTitle = "", initAssignee = "", initDue = "") {
     rowDiv.style.padding = "0.45rem 0.6rem";
 
     const selectedPerson = matchedAssignee || initAssignee;
+    const avatarColor = selectedPerson ? getAvatarColorClass(selectedPerson) : "";
+    const avatarInitials = selectedPerson ? getInitials(selectedPerson) : '<i class="fa-solid fa-user"></i>';
 
     rowDiv.innerHTML = `
         <span class="bulk-row-num" style="font-size: 0.8rem; font-weight: 700; color: #64748b; text-align: center; margin-top: 6px;"></span>
         <textarea class="form-textarea bulk-row-title" rows="2" placeholder="Суть задачи..." style="font-size: 0.85rem; padding: 0.35rem 0.55rem; resize: vertical; line-height: 1.35; width: 100%; word-break: break-word; min-height: 38px;" oninput="autoResizeBulkTextarea(this)" onkeydown="handleBulkRowKeydown(event, '${rowId}')">${escapeHtml(initTitle)}</textarea>
-        <select class="form-select bulk-row-assignee" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px; ${isServicePlan ? 'display: none;' : ''}">
-            <option value="">-- Исполнитель --</option>
-            ${persons.map(p => `<option value="${escapeHtml(p)}" ${p === selectedPerson ? 'selected' : ''}>${escapeHtml(p)}</option>`).join('')}
-        </select>
+        <div class="bulk-row-assignee-wrap" style="${isServicePlan ? 'display: none;' : ''}">
+            <input type="hidden" class="bulk-row-assignee-input" value="${escapeHtml(selectedPerson || '')}">
+            <div class="bulk-row-assignee-trigger" id="btn-bulk-row-assignee-${rowId}" onclick="toggleBulkRowAssigneePopover(event, '${rowId}')" tabindex="0" title="Нажмите для выбора исполнителя">
+                <div style="display: flex; align-items: center; gap: 0.45rem; min-width: 0;">
+                    <div class="author-avatar-circle ${avatarColor}" style="${selectedPerson ? '' : 'background: #f1f5f9; color: #64748b;'} font-size: 0.7rem; width: 22px; height: 22px; flex-shrink: 0;">
+                        ${avatarInitials}
+                    </div>
+                    <span class="bulk-row-assignee-text" style="font-size: 0.8rem; color: ${selectedPerson ? '#1e293b' : '#64748b'}; font-weight: ${selectedPerson ? '600' : 'normal'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${selectedPerson ? escapeHtml(selectedPerson) : '-- Исполнитель --'}
+                    </span>
+                </div>
+                <i class="fa-solid fa-chevron-down" style="color: #94a3b8; font-size: 0.7rem; transition: transform 0.2s ease;"></i>
+            </div>
+        </div>
         <input type="date" class="form-input bulk-row-due" value="${defDue}" style="font-size: 0.82rem; padding: 0.4rem 0.45rem; margin-top: 2px;">
         <button type="button" class="btn-icon-cell" onclick="removeBulkTaskRow('${rowId}')" title="Удалить строку" style="color: #ef4444; border-color: #fecaca; background: #fff; margin-top: 3px;">
             <i class="fa-solid fa-trash-can" style="font-size: 0.82rem;"></i>
@@ -6376,11 +8312,12 @@ async function saveBulkTasksModal() {
 
     rows.forEach(r => {
         const titleInput = r.querySelector(".bulk-row-title");
+        const assigneeInput = r.querySelector(".bulk-row-assignee-input");
         const assigneeSelect = r.querySelector(".bulk-row-assignee");
         const dueInput = r.querySelector(".bulk-row-due");
 
         const title = titleInput ? titleInput.value.trim() : "";
-        let assignee = assigneeSelect ? assigneeSelect.value.trim() : "";
+        let assignee = assigneeInput ? assigneeInput.value.trim() : (assigneeSelect ? assigneeSelect.value.trim() : "");
         const dueRaw = dueInput ? dueInput.value.trim() : "";
         const due = formatIsoToDisplayDate(dueRaw) || defDueFormatted;
 
@@ -6856,16 +8793,31 @@ function onPhotoInputChanged(inputId, hintId, previewBtnId, thumbContainerId) {
     const isValidUrl = val && (val.startsWith("http://") || val.startsWith("https://") || val.startsWith("/static/") || val.startsWith("/uploads/"));
 
     if (isValidUrl) {
-        if (previewBtn) previewBtn.style.display = "inline-flex";
-        if (hint) hint.style.display = "inline-flex";
+        if (previewBtn && inputId !== 'task-photo-input') previewBtn.style.display = "inline-flex";
+        if (hint && inputId !== 'task-photo-input') hint.style.display = "inline-flex";
         if (thumbContainer) {
             thumbContainer.style.display = "flex";
-            thumbContainer.innerHTML = `
-                <div class="photo-thumb-card">
-                    <img src="${val}" alt="Превью" onclick="openPhotoViewerModal('${val}')" title="Кликните для просмотра в полном размере">
-                    <button type="button" class="photo-thumb-del" onclick="removeAttachedPhoto('${inputId}', '${hintId || ''}', '${previewBtnId || ''}', '${thumbContainerId || ''}')" title="Удалить прикрепленное фото">&times;</button>
-                </div>
-            `;
+            if (inputId === 'task-photo-input') {
+                thumbContainer.innerHTML = `
+                    <div class="photo-thumb-card-modern" id="task-photo-thumb-card">
+                        <img src="${val}" alt="Превью ДО" onclick="openPhotoViewerModal('${val}')" title="Кликните для полноэкранного просмотра">
+                        <div class="photo-thumb-meta">
+                            <span class="photo-thumb-name"><i class="fa-solid fa-circle-check" style="color: #16a34a; margin-right: 4px;"></i>Фото ДО загружено</span>
+                            <span class="photo-thumb-action" onclick="openPhotoViewerModal('${val}')">Нажмите для просмотра</span>
+                        </div>
+                        <button type="button" class="photo-thumb-del-modern" onclick="removeAttachedPhoto('${inputId}', '${hintId || ''}', '${previewBtnId || ''}', '${thumbContainerId || ''}')" title="Удалить прикрепленное фото">&times;</button>
+                    </div>
+                `;
+                const attachWrap = document.getElementById("task-photo-attach-wrapper");
+                if (attachWrap) attachWrap.classList.add("has-photo");
+            } else {
+                thumbContainer.innerHTML = `
+                    <div class="photo-thumb-card">
+                        <img src="${val}" alt="Превью" onclick="openPhotoViewerModal('${val}')" title="Кликните для просмотра в полном размере">
+                        <button type="button" class="photo-thumb-del" onclick="removeAttachedPhoto('${inputId}', '${hintId || ''}', '${previewBtnId || ''}', '${thumbContainerId || ''}')" title="Удалить прикрепленное фото">&times;</button>
+                    </div>
+                `;
+            }
         }
     } else {
         if (previewBtn) previewBtn.style.display = "none";
@@ -6873,6 +8825,10 @@ function onPhotoInputChanged(inputId, hintId, previewBtnId, thumbContainerId) {
         if (thumbContainer) {
             thumbContainer.style.display = "none";
             thumbContainer.innerHTML = "";
+            if (inputId === 'task-photo-input') {
+                const attachWrap = document.getElementById("task-photo-attach-wrapper");
+                if (attachWrap) attachWrap.classList.remove("has-photo");
+            }
         }
     }
 }
@@ -7044,6 +9000,14 @@ let currentDetailTaskData = null;
 let currentDetailPhotoTab = 'before';
 let taskDetailNavStack = [];
 
+/**
+ * @canonical-pattern TaskDetailCleanHeaderAndPropertiesStrip
+ * @established 2026-10-26
+ * @description Чистая двухполюсная шапка (статус слева, действия 36px справа) и 4-колоночная полоса свойств задачи.
+ * @compliance Rule 27, Rule 30, No-Wrap Status Badge, Compact 4-Col Grid, Canonical 36px Height Standard
+ * @param {number|string} taskId - Идентификатор задачи
+ * @param {boolean} isBack - Признак возврата по стеку навигации
+ */
 async function openTaskDetailModal(taskId, isBack = false) {
     if (!taskId) return;
 
@@ -7075,7 +9039,13 @@ async function openTaskDetailModal(taskId, isBack = false) {
     if (codeEl) codeEl.textContent = `TSK-${taskId}`;
     if (titleRuEl) titleRuEl.textContent = "Загрузка данных задачи...";
     if (titleKzEl) titleKzEl.textContent = "";
-    if (statusBadgeEl) statusBadgeEl.textContent = "Загрузка...";
+    if (statusBadgeEl) {
+        statusBadgeEl.className = "task-detail-status-pill";
+        statusBadgeEl.style.background = "#f1f5f9";
+        statusBadgeEl.style.color = "#64748b";
+        statusBadgeEl.style.borderColor = "#e2e8f0";
+        statusBadgeEl.innerHTML = `<span class="task-detail-status-dot" style="background: #94a3b8;"></span><span>Загрузка...</span>`;
+    }
     if (commentEl) commentEl.textContent = "—";
 
     modal.style.display = "flex";
@@ -7104,6 +9074,7 @@ function navigateBackTaskDetail() {
 }
 
 function closeTaskDetailModal() {
+    cancelDetailCommentEdit();
     const modal = document.getElementById("task-detail-modal");
     if (modal) {
         modal.style.display = "none";
@@ -7118,6 +9089,7 @@ function closeTaskDetailModal() {
 
 function populateTaskDetailModal(task) {
     if (!task) return;
+    cancelDetailCommentEdit();
 
     // Header & Codes
     const codeEl = document.getElementById("detail-task-code");
@@ -7129,67 +9101,72 @@ function populateTaskDetailModal(task) {
 
     const titleKzEl = document.getElementById("detail-task-title-kz");
     if (titleKzEl) {
-        if (task.title_kz && task.title_kz.trim()) {
-            titleKzEl.innerHTML = `<span style="font-size: 0.72rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 1px 6px; border-radius: 4px; margin-right: 6px; font-style: normal; display: inline-block;">KZ</span>«${escapeHtml(task.title_kz.trim())}»`;
-            titleKzEl.style.display = "flex";
-        } else {
-            titleKzEl.style.display = "none";
-        }
+        titleKzEl.style.display = "none";
     }
 
-    // Status Badge
+    // Status Badge (Strict Single Row, Glowing Dot, No Wrap)
     const statusBadgeEl = document.getElementById("detail-task-status-badge");
     if (statusBadgeEl) {
-        const st = task.status || "⚪ В очереди";
-        statusBadgeEl.textContent = st;
-        if (st.includes("Выполнено")) {
-            statusBadgeEl.style.background = "#dcfce7";
-            statusBadgeEl.style.color = "#15803d";
-        } else if (st.includes("Отменено")) {
-            statusBadgeEl.style.background = "#fee2e2";
-            statusBadgeEl.style.color = "#b91c1c";
-        } else if (st.includes("Перенесено")) {
-            statusBadgeEl.style.background = "#e0f2fe";
-            statusBadgeEl.style.color = "#0369a1";
+        const rawSt = task.status || "В очереди";
+        let cleanSt = rawSt.replace(/^[🟢🟡🔵🔴⚪\s]+/, "").trim();
+        let dotColor = "#d97706";
+        let bg = "#fef3c7";
+        let textCol = "#92400e";
+        let borderCol = "#fde68a";
+        let variantClass = "status-in-progress";
+
+        if (rawSt.includes("Выполнено")) {
+            dotColor = "#16a34a";
+            bg = "#dcfce7";
+            textCol = "#166534";
+            borderCol = "#bbf7d0";
+            cleanSt = "Выполнено";
+            variantClass = "status-done";
+        } else if (rawSt.includes("Отменено")) {
+            dotColor = "#dc2626";
+            bg = "#fee2e2";
+            textCol = "#991b1b";
+            borderCol = "#fecaca";
+            cleanSt = "Отменено";
+            variantClass = "status-cancelled";
+        } else if (rawSt.includes("Перенесено")) {
+            dotColor = "#0284c7";
+            bg = "#e0f2fe";
+            textCol = "#075985";
+            borderCol = "#bae6fd";
+            cleanSt = "Перенесено";
+            variantClass = "status-rescheduled";
         } else {
-            statusBadgeEl.style.background = "#fef3c7";
-            statusBadgeEl.style.color = "#b45309";
+            dotColor = "#d97706";
+            bg = "#fef3c7";
+            textCol = "#92400e";
+            borderCol = "#fde68a";
+            cleanSt = "В работе";
+            variantClass = "status-in-progress";
         }
+
+        statusBadgeEl.className = `task-detail-status-pill ${variantClass}`;
+        statusBadgeEl.style.background = bg;
+        statusBadgeEl.style.color = textCol;
+        statusBadgeEl.style.borderColor = borderCol;
+        statusBadgeEl.style.whiteSpace = "nowrap";
+        statusBadgeEl.innerHTML = `<span class="task-detail-status-dot" style="background: ${dotColor}; box-shadow: 0 0 0 3px ${dotColor}33;"></span><span>${escapeHtml(cleanSt)}</span>`;
     }
 
-    // Horizon Badge & Parent Project Wrap
-    const horizonBadgeEl = document.getElementById("detail-task-horizon-badge");
+    // Horizon Badge & Parent Project Wrap (Hidden per clean redesign request)
     const isRoadmap = task.task_type === 'roadmap';
     const isTopProject = isRoadmap && !task.parent_id;
     const isMilestone = isRoadmap && !!task.parent_id;
 
+    const horizonBadgeEl = document.getElementById("detail-task-horizon-badge");
     if (horizonBadgeEl) {
-        if (isTopProject) {
-            horizonBadgeEl.textContent = '🗺️ Проект (Дорожная карта)';
-            horizonBadgeEl.className = 'badge-horizon horizon-roadmap';
-        } else if (isMilestone) {
-            horizonBadgeEl.textContent = '🚩 Этап проекта';
-            horizonBadgeEl.className = 'badge-horizon horizon-milestone';
-        } else {
-            const hLabel = task.horizon_label || 'Спринт';
-            horizonBadgeEl.textContent = hLabel;
-            horizonBadgeEl.className = `badge-horizon ${task.horizon_badge_class || 'horizon-sprint'}`;
-        }
+        horizonBadgeEl.style.display = "none";
     }
 
     const parentWrap = document.getElementById("detail-task-parent-wrap");
     if (parentWrap) {
-        if (task.parent && task.parent.title) {
-            parentWrap.style.display = "inline-flex";
-            parentWrap.innerHTML = `
-                <span class="badge-zone" style="background: #fdf4ff; color: #7e22ce; border-color: #f0abfc; font-size: 0.74rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; padding: 3px 8px; border-radius: 6px; font-weight: 600;" onclick="openTaskDetailModal(${task.parent.id})" title="Перейти в паспорт проекта [${escapeHtml(task.parent.code || '')}]">
-                    <i class="fa-solid fa-diagram-project"></i> Проект: ${escapeHtml(task.parent.code || '')} «${escapeHtml(task.parent.title || '')}» <i class="fa-solid fa-arrow-right" style="font-size: 0.65rem; opacity: 0.7;"></i>
-                </span>
-            `;
-        } else {
-            parentWrap.style.display = "none";
-            parentWrap.innerHTML = "";
-        }
+        parentWrap.style.display = "none";
+        parentWrap.innerHTML = "";
     }
 
     // Action buttons state
@@ -7283,31 +9260,59 @@ function populateTaskDetailModal(task) {
         progSection.style.display = "none";
     }
 
-    // Metadata Grid
+    // 4-Column Property Strip
     const assigneeEl = document.getElementById("detail-task-assignee");
+    const avatarEl = document.getElementById("detail-assignee-avatar");
     if (assigneeEl) {
-        assigneeEl.innerHTML = task.assignee_name ? `<strong style="color: #007AFF;">${escapeHtml(task.assignee_name)}</strong>` : `<span style="color: #94a3b8;">Не назначен</span>`;
-    }
-
-    const authorEl = document.getElementById("detail-task-author");
-    if (authorEl) {
-        authorEl.textContent = task.author_name || "Не указан";
+        if (task.assignee_name) {
+            assigneeEl.textContent = task.assignee_name;
+            assigneeEl.style.color = "#0f172a";
+            if (avatarEl) {
+                const initials = typeof getInitials === 'function' ? getInitials(task.assignee_name) : task.assignee_name.slice(0, 2);
+                const colorClass = typeof getAvatarColorClass === 'function' ? getAvatarColorClass(task.assignee_name) : 'avatar-blue';
+                avatarEl.className = `person-avatar ${colorClass}`;
+                avatarEl.style.background = "";
+                avatarEl.style.color = "";
+                avatarEl.textContent = initials;
+            }
+        } else {
+            assigneeEl.textContent = "Не назначен";
+            assigneeEl.style.color = "#94a3b8";
+            if (avatarEl) {
+                avatarEl.className = "person-avatar";
+                avatarEl.style.background = "#f1f5f9";
+                avatarEl.style.color = "#94a3b8";
+                avatarEl.innerHTML = '<i class="fa-solid fa-user-slash" style="font-size: 10px;"></i>';
+            }
+        }
     }
 
     const dueDateEl = document.getElementById("detail-task-due-date");
     if (dueDateEl) {
         if (task.due_date_str) {
-            dueDateEl.innerHTML = `<span style="color: #0f172a;">${escapeHtml(task.due_date_str)}</span>`;
+            dueDateEl.textContent = task.due_date_str;
+            dueDateEl.style.color = "#0f172a";
         } else {
-            dueDateEl.innerHTML = `<span style="color: #94a3b8;">В течение недели</span>`;
+            dueDateEl.textContent = "В течение недели";
+            dueDateEl.style.color = "#94a3b8";
         }
+    }
+
+    const authorEl = document.getElementById("detail-task-author");
+    if (authorEl) {
+        authorEl.textContent = task.author_name || "Не указан";
+        authorEl.style.color = "#0f172a";
     }
 
     const zoneServiceEl = document.getElementById("detail-task-zone-service");
     if (zoneServiceEl) {
-        const zoneBadge = `<span class="badge-zone">${escapeHtml(task.zone || 'Бережливое производство')}</span>`;
-        const deptBadge = task.department_service ? `<span class="badge-zone" style="background:#f0fdf4; color:#15803d; border-color:#bbf7d0;">${escapeHtml(task.department_service)}</span>` : '';
-        zoneServiceEl.innerHTML = `${zoneBadge} ${deptBadge}`;
+        const textParts = [];
+        if (task.department_service) textParts.push(task.department_service);
+        if (task.zone && task.zone !== 'Бережливое производство' && task.zone !== task.department_service) {
+            textParts.push(task.zone);
+        }
+        zoneServiceEl.textContent = textParts.join(" / ") || (task.zone || 'Бережливое производство');
+        zoneServiceEl.title = zoneServiceEl.textContent;
     }
 
     const periodEl = document.getElementById("detail-task-period");
@@ -7325,13 +9330,13 @@ function populateTaskDetailModal(task) {
         if (task.attached_doc && task.attached_doc.title) {
             docCell.style.display = "flex";
             docEl.innerHTML = `
-                <a href="${task.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #1d4ed8; text-decoration: none;">
-                    <i class="fa-solid fa-file-lines"></i>
+                <a href="${task.attached_doc.link}" target="_blank" class="badge-doc-attachment" style="display: inline-flex; align-items: center; gap: 5px; text-decoration: none; color: #1d4ed8; font-weight: 600;">
                     <span>${escapeHtml(task.attached_doc.title)}</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 0.7rem; opacity: 0.7;"></i>
                 </a>
             `;
         } else {
-            docEl.innerHTML = `<span style="color: #94a3b8;">Нет прикрепленного регламента</span>`;
+            docCell.style.display = "none";
         }
     }
 
@@ -7392,6 +9397,111 @@ function populateTaskDetailModal(task) {
 
     // Render Subtasks
     renderDetailSubtasks();
+}
+
+/* @canonical-pattern TaskDetailInlineComment (One-Click Inline Edit) */
+function enableDetailCommentEdit() {
+    const commentBox = document.getElementById("detail-task-comment");
+    const editWrap = document.getElementById("detail-comment-edit-wrap");
+    const textarea = document.getElementById("detail-comment-textarea");
+    const btnEdit = document.getElementById("btn-edit-detail-comment");
+    if (!commentBox || !editWrap || !textarea) return;
+
+    const currentText = (currentDetailTaskData && currentDetailTaskData.comment) ? currentDetailTaskData.comment.trim() : "";
+    textarea.value = currentText;
+    commentBox.style.display = "none";
+    editWrap.style.display = "block";
+    if (btnEdit) btnEdit.style.display = "none";
+    textarea.focus();
+
+    textarea.style.height = "auto";
+    textarea.style.height = Math.max(textarea.scrollHeight + 4, 75) + "px";
+
+    textarea.onkeydown = function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            saveDetailCommentEdit();
+        } else if (e.key === "Escape") {
+            e.preventDefault();
+            cancelDetailCommentEdit();
+        }
+    };
+}
+
+function cancelDetailCommentEdit() {
+    const commentBox = document.getElementById("detail-task-comment");
+    const editWrap = document.getElementById("detail-comment-edit-wrap");
+    const btnEdit = document.getElementById("btn-edit-detail-comment");
+    if (commentBox) commentBox.style.display = "block";
+    if (editWrap) editWrap.style.display = "none";
+    if (btnEdit) btnEdit.style.display = "inline-flex";
+}
+
+async function saveDetailCommentEdit() {
+    if (!currentDetailTaskId) return;
+    const textarea = document.getElementById("detail-comment-textarea");
+    const saveBtn = document.getElementById("btn-save-detail-comment");
+    if (!textarea) return;
+
+    const newText = textarea.value.trim();
+    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Сотрудник завода");
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...`;
+    }
+
+    try {
+        const payload = {
+            author_name: authorName,
+            text: newText,
+            comment_type: "comment"
+        };
+        const res = await fetch(`/api/tasks/${currentDetailTaskId}/comments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || "Не удалось сохранить комментарий");
+        }
+
+        if (currentDetailTaskData) {
+            currentDetailTaskData.comment = newText;
+        }
+        if (Array.isArray(allTasks)) {
+            const t = allTasks.find(x => x.id === currentDetailTaskId);
+            if (t) t.comment = newText;
+        }
+        if (currentGraphData?.nodes) {
+            const n = currentGraphData.nodes.find(x => x.id === currentDetailTaskId);
+            if (n) n.comment = newText;
+        }
+
+        const commentBox = document.getElementById("detail-task-comment");
+        if (commentBox) {
+            if (newText) {
+                commentBox.textContent = newText;
+                commentBox.classList.remove("is-empty");
+            } else {
+                commentBox.textContent = "Комментарий отсутствует";
+                commentBox.classList.add("is-empty");
+            }
+        }
+
+        cancelDetailCommentEdit();
+        showToast("Комментарий успешно сохранён! 💬", "success");
+    } catch (err) {
+        console.error("Error saving detail comment:", err);
+        showToast(`⚠️ Ошибка сохранения: ${err.message}`, "error");
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<i class="fa-solid fa-check"></i> Сохранить`;
+        }
+    }
 }
 
 function renderDetailSubtasks() {
@@ -8684,23 +10794,40 @@ function selectGraphNode(nodeId) {
     const detailBtn = document.getElementById("inspector-btn-open-detail");
 
     if (codeEl) codeEl.textContent = node.code || `TSK-${node.id}`;
+    const statusBadge = document.getElementById("inspector-node-status-badge");
+    const isDone = node.is_done || (node.status && node.status.includes("Выполнено"));
+    const statusText = isDone ? "🟢 Выполнено" : (node.status || "🟡 В работе");
+    if (statusBadge) {
+        statusBadge.textContent = statusText;
+        if (isDone) {
+            statusBadge.style.background = "#dcfce7";
+            statusBadge.style.color = "#15803d";
+            statusBadge.style.border = "1px solid #bbf7d0";
+        } else if (statusText.includes("Отменено")) {
+            statusBadge.style.background = "#fee2e2";
+            statusBadge.style.color = "#dc2626";
+            statusBadge.style.border = "1px solid #fecaca";
+        } else {
+            statusBadge.style.background = "#fef3c7";
+            statusBadge.style.color = "#b45309";
+            statusBadge.style.border = "1px solid #fde68a";
+        }
+    }
     if (statusSelect) {
-        statusSelect.value = node.is_done ? "🟢 Выполнено" : (node.status || "🟡 В работе");
+        statusSelect.value = statusText;
     }
     if (titleEl) {
         titleEl.textContent = node.title || "Без названия";
     }
     if (titleKzEl) {
-        titleKzEl.innerHTML = node.title_kz ? `<span style="font-size: 0.68rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 1px 5px; border-radius: 4px; margin-right: 4px;">KZ</span>«${escapeHtml(node.title_kz)}»` : "";
+        titleKzEl.style.display = "none";
     }
-    if (assigneeEl) {
-        assigneeEl.textContent = node.assignee_name || "Не назначен";
-    }
+    updateInspectorAssigneeDisplay(node.assignee_name || node.assignee || "");
     if (dueDateEl) {
         dueDateEl.textContent = node.due_date_str || "Не указан";
     }
 
-    // Universal Multi-Blocker Picker (Rule 27: Cross-Tab Parity) with Instant Auto-Save
+    // Clean Informational Predecessors List with Click-to-Focus on Graph (HUD Standard)
     const currentDepIds = (node.depends_on_ids && node.depends_on_ids.length > 0)
         ? node.depends_on_ids 
         : (node.depends_on_id ? [node.depends_on_id] : []);
@@ -8708,18 +10835,42 @@ function selectGraphNode(nodeId) {
     const inspectorBlockersContainer = document.getElementById("inspector-blockers-picker-container") || document.getElementById("inspector-depends-list");
     if (inspectorBlockersContainer) {
         const otherNodes = (currentGraphData?.nodes || []).filter(n => n.id !== nodeId);
-        renderMultiBlockerPicker(inspectorBlockersContainer, {
-            pickerId: "inspector-blockers",
-            currentTaskId: nodeId,
-            selectedIds: currentDepIds,
-            parentProjectId: currentGraphProjectId,
-            allTasksList: otherNodes,
-            labelText: "Зависит от этапов (блокеры):",
-            compact: true,
-            onChange: async (newIds) => {
-                await saveInspectorDependencies(nodeId, newIds);
-            }
-        });
+        const depNodes = otherNodes.filter(n => currentDepIds.includes(n.id));
+        
+        let blockersHtml = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <span style="font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px;">
+                    <i class="fa-solid fa-link" style="color: #6366f1; margin-right: 3px;"></i> Связи и предшественники:
+                </span>
+                <span style="font-size: 0.70rem; color: #64748b; font-weight: 600;">${depNodes.length}</span>
+            </div>
+        `;
+        if (depNodes.length === 0) {
+            blockersHtml += `
+                <div style="font-size: 0.74rem; color: #94a3b8; font-style: italic; padding: 6px 8px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;">
+                    Нет предшественников (этап выполняется сразу)
+                </div>
+            `;
+        } else {
+            blockersHtml += `<div style="display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto;">`;
+            depNodes.forEach(dn => {
+                const isDnDone = dn.is_done || (dn.status && dn.status.includes("Выполнено"));
+                const badgeBg = isDnDone ? '#dcfce7' : '#fef3c7';
+                const badgeColor = isDnDone ? '#15803d' : '#b45309';
+                const badgeText = isDnDone ? '✓ Выполнен' : '🔒 Блокирует';
+                blockersHtml += `
+                    <div onclick="selectGraphNode(${dn.id})" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 5px 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.borderColor='#6366f1'; this.style.background='#f5f3ff';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#ffffff';" title="Нажмите для перехода к этапу ${dn.code || dn.id}">
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
+                            <span style="font-family: monospace; font-size: 0.68rem; font-weight: 700; color: #4338ca; background: #eef2ff; padding: 1px 4px; border-radius: 4px; flex-shrink: 0;">${dn.code || `TSK-${dn.id}`}</span>
+                            <span style="font-size: 0.75rem; color: #1e293b; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(dn.title)}</span>
+                        </div>
+                        <span style="font-size: 0.65rem; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; padding: 1px 6px; border-radius: 4px; flex-shrink: 0;">${badgeText}</span>
+                    </div>
+                `;
+            });
+            blockersHtml += `</div>`;
+        }
+        inspectorBlockersContainer.innerHTML = blockersHtml;
     }
 
     const progVal = node.progress || 0;
@@ -9066,9 +11217,7 @@ function openGraphAddStageModal(presetDependsOnId = null) {
     if (dateInput) dateInput.value = getDefaultQuickDateIso();
 
     const p = currentGraphData?.project || {};
-    if (assigneeSelect) {
-        assigneeSelect.innerHTML = buildAssigneeOptions(p.assignee_name);
-    }
+    setupGraphStageAssigneePicker(p.assignee_name || "");
 
     const presetIds = (presetDependsOnId && typeof presetDependsOnId === 'number') ? [presetDependsOnId] : [];
     const stagePickerContainer = document.getElementById("graph-new-stage-blockers-picker-container") || document.getElementById("graph-new-stage-depends-list");
@@ -9096,6 +11245,7 @@ function updateNewStageDependsCount() {
 }
 
 function closeGraphNewStageModal() {
+    closeGraphStageAssigneePopover();
     const modal = document.getElementById("graph-new-stage-modal");
     if (modal) modal.style.display = "none";
 }
@@ -9119,7 +11269,8 @@ async function submitGraphNewStage() {
         return;
     }
 
-    const assignee = assigneeSelect ? assigneeSelect.value : "";
+    const assigneeInp = document.getElementById("graph-new-stage-assignee-input");
+    const assignee = assigneeInp ? assigneeInp.value.trim() : (assigneeSelect ? assigneeSelect.value : "");
     const dateVal = dateInput ? dateInput.value : "";
     let selectedDepIds = getMultiBlockerSelectedIds("graph-new-stage-blockers");
     if (!selectedDepIds.length) {
@@ -9180,6 +11331,7 @@ async function submitGraphNewStage() {
 }
 
 function showGraphInspectorEmpty() {
+    closeInspectorAssigneePopover();
     const inspector = document.getElementById("graph-inspector");
     if (!inspector) return;
     inspector.style.display = "block";
@@ -9192,6 +11344,7 @@ function showGraphInspectorEmpty() {
 }
 
 function closeGraphInspector() {
+    closeInspectorAssigneePopover();
     const inspector = document.getElementById("graph-inspector");
     if (inspector) inspector.style.display = "none";
     document.querySelectorAll(".graph-node").forEach(el => el.classList.remove("selected"));

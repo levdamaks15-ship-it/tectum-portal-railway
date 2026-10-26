@@ -24,6 +24,7 @@
 
   // 2. Inject Splash Screen into DOM if not present
   function ensureSplashScreen() {
+    if (window.location.search && window.location.search.includes('no_splash')) return;
     if (document.getElementById('tectum-splash-screen')) return;
 
     const splash = document.createElement('div');

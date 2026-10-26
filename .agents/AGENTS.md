@@ -24,8 +24,8 @@
   3. Запросить подтверждение пользователя.
 - **Старт реализации:** Приступать к модификации файлов и написанию кода разрешено **только после явного одобрения** от пользователя, подтверждающего общее понимание задачи.
 
-### Канонический двухфазный регламент разработки (Strict Backend-First Protocol)
-При реализации любых новых модулей, функций или доработок агент обязан строго соблюдать двухфазную инженерную последовательность:
+### Канонический трехфазный регламент разработки (Strict Backend-First & Stitch Visual Gate Protocol)
+При реализации любых новых модулей, функций, интерфейсов или редизайна агент обязан строго соблюдать последовательность:
 
 #### Фаза 1. Бэкенд (Backend First)
 1. **Проектирование данных:** Определение сущностей БД (`models.py`), подготовка автомиграций схемы для PostgreSQL в `lifespan()` (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`). Для любых произвольных пользовательских текстовых полей всегда использовать тип `TEXT` (исключение переполнения `VARCHAR(255)`).
@@ -35,11 +35,18 @@
 5. **Шлюз верификации бэкенда (Backend Gate):** Проверка синтаксиса, импортов (`python -c "import main"`) и автономный тест API.
 > ⛔ **Категорический запрет:** Запрещено приступать к верстке или клиентскому коду (HTML/CSS/JS) до тех пор, пока бэкенд не реализован, не проверен и контракт API не зафиксирован!
 
-#### Фаза 2. Фронтенд (Frontend Second)
-1. **Семантика и стили:** Разметка (HTML) и визуальные компоненты (CSS) по дизайн-системе проекта (с обязательным соблюдением стандарта анимации модалок `.modal-centered`).
-2. **Интеграция API:** Подключение вызовов API в JS строго по утверждённому контракту Фазы 1.
+#### Фаза 1.5. Визуальный шлюз Ститча (Stitch Visual Artifact Gate)
+1. **Генерация визуального эталона:** Перед написанием верстки или редизайном агент обязан сформировать визуальный макет и скриншот через Stitch MCP (`generate_screen_from_text` / `edit_screens`) с применением дизайн-системы проекта.
+2. **Предъявление артефакта пользователю:** Макет встраивается в планирующий артефакт (`implementation_plan.md`) и демонстрируется пользователю до внесения правок в код шаблонов.
+3. **Утверждение дизайна:** Пользователь видит и утверждает реальный визуальный результат (типографику, кнопки, отступы, цветовую гамму).
+> ⛔ **Категорический запрет:** Запрещено верстать компоненты или внедрять клиентский код «вслепую» без предварительной генерации и утверждения визуального артефакта из Ститча!
+
+#### Фаза 2. Фронтенд (Frontend Second & Code Integration)
+1. **Перенос разметки и стилей:** Перенос утвержденного кода, классов и CSS-токенов из артефакта Ститча в рабочие файлы (`.html`, `.css`).
+2. **Интеграция API:** Подключение вызовов JS строго по утверждённому контракту Фазы 1.
 3. **UI/UX состояния:** Обязательная обработка индикаторов загрузки (loading spinners), информативных уведомлений (toasts/modals) и пустых состояний (empty states).
 4. **Сквозная E2E-приёмка:** Проверка пользовательских сценариев.
+
 
 ### Фундаментальные инженерные законы и инварианты кода (Enterprise Code Invariants)
 1. **Атомарность транзакций (Atomic Mutations):**
@@ -213,15 +220,36 @@
         2. **Где найдено:** точные файлы, строки кода, экраны или модальные окна.
         3. **Прямой вопрос на подтверждение:** *«Я обнаружил устаревший вариант этого элемента в [...]. Перевести его на новый общесистемный эталон?»*
       - Замена устаревшего участка выполняется **строго после явного согласия** пользователя.
+    - **Канонический протокол фиксации и тиражирования дизайнов (Design Standard & Reusability Law):**
+      - При разработке, улучшении или редизайне любого визуального компонента (селектор, карточка, поле ввода, модальное окно, бейдж, кнопка), который потенциально может быть применен в других частях портала, агент **в обязательном порядке обязан спросить пользователя**:
+        1. *«Нужно ли зафиксировать этот дизайн в правилах как общесистемный стандарт?»*
+        2. *«Сохранить ли эталонный код компонента (HTML/CSS/JS) локально в библиотеку компонентов (`docs/design_system/` или `components/`)?»*
+        3. *«Выполнить ли сквозной аудит (Grep-Sweep) и тиражировать этот дизайн на все родственные элементы портала?»*
+      - Без согласия пользователя перевод остальных элементов или перезапись стандарта не производится.
     - **Каталог системных эталонов проекта (Canonical Standards Registry):**
       - Каждый утвержденный эталон помечается в коде тегом `@canonical-pattern <Name>`.
 
       | Домен / Сущность | Канонический эталон | Первоисточник (Source of Truth) | Гарантии и свойства эталона |
       |---|---|---|---|
+      | **Шапка модального окна** | `TaskDetailCleanHeader` | [`planner.css:3792`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3792), [`tasks.html:4322`](file:///d:/Antigravity_Project/tectum_portal_railway/static/tasks.html#L4322), [`modal_clean_header.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/modal_clean_header.html) | Двухполюсная чистая шапка (статус слева, действия 36px справа), устранение кодов TSK и вторичных плашек из заголовка. |
+      | **Статусный чип (бейдж)** | `StatusNoWrapPill` | [`planner.css:3812`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3812) | Высота 36px, `white-space: nowrap !important;`, 8px индикаторная точка со свечением, 4 пастельных тона светофора. |
+      | **Полоса свойств** | `CompactPropertiesStrip` | [`planner.css:3878`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3878), [`tasks.html:4368`](file:///d:/Antigravity_Project/tectum_portal_railway/static/tasks.html#L4368), [`properties_strip.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/properties_strip.html) | 4-колоночная сетка на `#f8fafc` с брейкпоинтом в 2 колонки `<= 720px`, аватар с инициалами, дата с днем недели, автор, служба с `ellipsis`. |
+      | **Единая высота контролов** | `CanonicalControl36px` | [`.detail-btn-action`, `.detail-btn-close`, `.task-detail-status-pill`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3812) | Строгая высота 36px и скругление 8px для всех кнопок действий, кнопок закрытия, статусных бейджей и триггеров на одной линии. |
+      | **Выпадающие списки (Поповеры)** | `AlignedDropdownPopover` | [`planner.css:3770`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3770), [`aligned_dropdown_popover.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/aligned_dropdown_popover.html) | Компактная ширина 180-200px, выравнивание влево, фиксированная 20px ось центрирования иконок. |
       | **Выбор связей / Блокеров** | `MultiBlockerPicker` | [`tasks.js:4842`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L4842), [`.multi-blocker-picker`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L2532) | Чипы выбранных задач, живой поиск, группировка этапов текущего проекта, авто-обрезка текста `ellipsis`. |
-      | **Выпадающие списки** | `Anti-Overflow Select` | [`planner.css:2520`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L2520) | `select.form-select`, `max-width: 100% !important`, `text-overflow: ellipsis !important`. |
+      | **Выбор сотрудника (Person Picker)** | `PersonPickerPopover` | [`planner.css:3446`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3446), [`tasks.js:5380`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L5380), [`person_picker.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/person_picker.html) | 48px триггер, круглая аватарка, инициалы, всплывающий дропдаун через портал в `document.body` с `position: fixed` и `z-index: 99999` без обрезки модальным окном. |
+      | **Выбор зоны / участка (Zone Picker)** | `ZonePickerPopover` | [`planner.css:3530`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3530), [`tasks.js:5480`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L5480), [`zone_picker.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/zone_picker.html) | 48px триггер с иконкой папки, живой поиск `🔍`, всплывающий дропдаун в `document.body` с `position: fixed` и `z-index: 99999` без обрезки модальным окном. |
+      | **Выпадающие списки (HTML Select)** | `Anti-Overflow Select` | [`planner.css:2520`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L2520) | `select.form-select`, `max-width: 100% !important`, `text-overflow: ellipsis !important`. |
       | **Центрированные модалки** | `Centered Safe Modal` | `.modal-overlay`, `.modal-box`, `.modal-centered` | `max-height: 85vh`, `overflow-y: auto`, ключевые кадры без перетирания `translate(-50%, -50%)`. |
       | **Сетевая устойчивость API** | `Resilient Fetcher` | [`tasks.js:65`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L65) | Жесткий таймаут 12 сек через `AbortController`, 2 автоповтора при ошибках 502/503/504. |
+28. **Инвариант невидимости аутентификационных данных и сквозной защиты секретов (Secret Non-Exposure & Cross-Module Redaction Invariant):**
+    - **Серверный запрет на выдачу секретов (Backend Non-Exposure):**
+      - PIN-коды, пароли, токены авторизации сотрудников категорически запрещено включать в схемы ответов API (`GET /api/tasks`, `GET /api/users`, `GET /api/docs`, `GET /api/roadmaps` и др.). Бэкенд возвращает только булевый признак наличия (`has_pin: true`, `is_protected: true`).
+      - Секретные данные никогда не должны попадать в клиентский DOM, сетевые логи DevTools или JSON-ответы браузеру.
+    - **Паритет секретности и сквозной аудит (Cross-Module Secret Parity):**
+      - Если конфиденциальное поле скрывается или маскируется на одной вкладке (например, в Базе Знаний), агент обязан автоматически выполнить поиск (`grep`) по всему репозиторию и гарантировать его полное скрытие на всех остальных экранах системы (в Дорожных картах, Канбане, Спринте, Админ-панели).
+    - **Сквозная маскировка в UI:**
+      - Любые поля ввода PIN/паролей обязаны иметь тип `password` с символами-масками (`••••`) и защитой от отображения открытым текстом.
 
 ### База данных и миграции (Database & Migrations)
 - **Продакшн:** Используется исключительно облачная PostgreSQL на Railway (переменная окружения `DATABASE_URL`).
@@ -1144,6 +1172,99 @@ web: uvicorn main:app --host 0.0.0.0 --port $PORT
   - Кнопка «Сохранить» скрывается, а в верхней части формы отображается визуальный бейдж безопасности:
     `🔒 Задача завершена / отменена и защищена от изменений. Редактирование доступно только администратору.`
   - Заголовок окна динамически меняется на `Просмотр задачи [TSK-XX] (Заблокировано)`.
+
+---
+
+## 29. Закон визуального прототипирования и предварительного шлюза артефактов Ститча (Stitch Visual Artifact Protocol & UI Gate)
+
+> **Главный закон визуальной дисциплины:** Запрещено писать или модифицировать клиентский код верстки (HTML, CSS, JS компонентов) «вслепую» на основе лишь текстовых описаний. Любая доработка, редизайн или создание нового UI-модуля обязаны начинаться с предварительной генерации визуального артефакта через Stitch.
+
+### 29.1. Обязательный предварительный визуальный шлюз (Stitch Pre-Code Gate)
+- Перед модификацией клиентских файлов агент обязан вызвать инструмент Stitch MCP (`generate_screen_from_text` / `edit_screens`), передав дизайн-систему проекта (`assets/...`) и структурированный инженерный промпт.
+- Сгенерированный экран (скриншот высокого разрешения и HTML/CSS макет) сохраняется в артефактах задачи.
+- Скриншот макета в обязательном порядке встраивается в `implementation_plan.md` и предъявляется пользователю в чате.
+
+### 29.2. Двусторонний паритет «Макет ➔ Рабочий код»
+- Код компонентов, типографика (`font-size`, `letter-spacing`, `line-height`), цвета и геометрические размеры (высота кнопок `38px`, скругления `8px`, внутренние отступы) переносятся в проектную кодовую базу (`.html`, `.css`) строго из утвержденного артефакта Ститча.
+- Никаких самовольных отклонений от сгенерированного и одобренного пользователем макета.
+
+---
+
+## 30. Канонические стандарты интерфейса и Реестр эталонов (Enterprise UI Design Standards & Canonical Registry)
+
+> **Главный закон дизайн-системы:** Все экраны, модальные окна, карточки и выпадающие списки системы обязаны следовать единой дизайн-системе Tectum Enterprise, исключая визуальный шум, неаккуратные переносы строк, разнобой высот элементов управления и перегруженность интерфейса.
+
+### 30.1. Стандарт чистоты и лаконичности модальных окон (Modal Visual Purity Invariant)
+- **Принцип двух полюсов в шапке окна (Two-Pole Header Layout):**
+  - Шапка любого модального окна (`.task-detail-header-clean` и аналоги) обязана содержать строго два смысловых полюса:
+    - **Левый полюс:** исключительно ключевой статус сущности (либо крупная иконка с заголовком окна). Никаких вторичных плашек, кодов задач или ссылок на внешние связи в шапку не помещается.
+    - **Правый полюс:** компактный кластер кнопок действий на единой горизонтальной оси + кнопка закрытия `[✕]`.
+  - **Запрет визуального шума:** Категорически запрещено перегружать шапку более чем двумя сущностями. Номера задач (`TSK-342`), наименования служб и привязки к родительским проектам размещаются в теле документа или на полосе свойств.
+
+### 30.2. Стандарт статусного бейджа и запрет переноса строк (Status Badge & No-Wrap Law)
+- **Инвариант однострочного статуса:**
+  - Любой статусный бейдж в интерфейсе (`.task-detail-status-pill`) обязан иметь свойство `white-space: nowrap !important;`. Перенос статуса на две строки (например, «В \n работе») считается дефектом верстки и недопустим.
+- **Геометрия и визуальное оформление:**
+  - Высота: строго `36px` (`box-sizing: border-box`).
+  - Внутренние отступы: `padding: 0 16px`.
+  - Скругление: `border-radius: 8px`.
+  - Типографика: `font-size: 0.85rem`, `font-weight: 700`.
+  - Индикаторная точка (`.task-detail-status-dot`): диаметр `8px`, круглая (`border-radius: 50%`), с мягким полупрозрачным ореолом (`box-shadow: 0 0 0 3px rgba(...)`).
+  - Цветовая палитра: мягкие пастельные фоны с контрастным текстом и гармоничной рамкой:
+    - *В работе:* фон `#fef3c7`, текст `#92400e`, рамка `#fde68a`, точка `#d97706`.
+    - *Выполнено:* фон `#dcfce7`, текст `#166534`, рамка `#bbf7d0`, точка `#16a34a`.
+    - *Перенесено:* фон `#e0f2fe`, текст `#075985`, рамка `#bae6fd`, точка `#0284c7`.
+    - *Отменено:* фон `#fee2e2`, текст `#991b1b`, рамка `#fecaca`, точка `#dc2626`.
+
+### 30.3. Стандарт 4-колоночной полосы ключевых свойств (Compact 4-Column Properties Strip)
+- **Назначение:** Размещается непосредственно под заголовком сущности как компактная сводка ключевых метаданных (`.detail-properties-strip`).
+- **Сетка и геометрия:**
+  - Фон: `#f8fafc`, рамка `1px solid #e2e8f0`, скругление `12px`, внутренние отступы `12px 14px`, внешний нижний отступ `18px`.
+  - Сетка: `grid-template-columns: repeat(4, 1fr); gap: 12px;`.
+  - Адаптивность: на мобильных экранах (`@media screen and (max-width: 720px)`) автоматически переключается в 2 колонки (`grid-template-columns: repeat(2, 1fr); gap: 10px;`).
+- **Состав 4 колонок:**
+  1. **Исполнитель (`detail-property-col`):** Круглый аватар сотрудника (`.person-avatar`, 26-30px) с контрастными двухбуквенными инициалами + ФИО.
+  2. **Дедлайн (`detail-property-col`):** Квадратный иконочный контейнер (34×34px) с пиктограммой календаря (`fa-regular fa-calendar`) + форматированная дата со днем недели (`ДД.ММ (Дн)`).
+  3. **Инициатор (`detail-property-col`):** Квадратный иконочный контейнер с пиктограммой пользователя (`fa-regular fa-user`) + ФИО автора.
+  4. **Служба / Зона (`detail-property-col`):** Квадратный иконочный контейнер с пиктограммой цеха (`fa-solid fa-industry`) + название службы с обязательным усечением переполнения (`text-overflow: ellipsis; white-space: nowrap; overflow: hidden;`).
+
+### 30.4. Унифицированный стандарт высоты элементов управления 36px (Canonical 36px Control Height Standard)
+- Все активные интерактивные элементы в карточках, полосах управления и модальных окнах обязаны подчиняться единой сетке высоты **36px**:
+  - Кнопки основных действий (`.detail-btn-action`): `height: 36px !important; padding: 0 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600;`.
+  - Квадратные сервисные кнопки (`.detail-btn-close`): `height: 36px !important; width: 36px !important; border-radius: 8px; font-size: 1.4rem;`.
+  - Статусные чипы (`.task-detail-status-pill`): `height: 36px !important; border-radius: 8px;`.
+  - Триггеры выпадающих списков выбора персоны (`.bulk-row-assignee-trigger`): `height: 36px !important; border-radius: 8px;`.
+- **Запрет разнобоя:** Запрещено на одной строке размещать элементы разной высоты (например, кнопку 32px рядом с полем 42px).
+
+### 30.5. Стандарт выравнивания выпадающих списков и поповеров (Compact & Aligned Dropdown Popovers)
+- **Левое выравнивание контента:** Текст в элементах выпадающих меню (статусы, авторы, службы) всегда выравнивается по левому краю (`justify-content: flex-start !important; gap: 10px !important;`).
+- **Фиксированная ширина иконки (20px):** Пиктограммы в строках выпадающего списка обязаны иметь фиксированную ширину `20px` с центрированием, обеспечивая безупречную единую вертикальную ось названий без «пляшущих» отступов.
+- **Ширина по фактическому контенту:** Поповеры фильтров и селекторов статусов задаются компактно (`width: 180-200px`), исключая неоправданно широкие пустые окна по 260-300px.
+
+### 30.6. Реестр канонических эталонов интерфейса (Canonical Pattern Registry Table)
+
+| Имя эталона (Tag) | CSS-классы / Селекторы | Source of Truth (Файлы) | Функционал и гарантии |
+|---|---|---|---|
+| `@canonical-pattern TaskDetailCleanHeader` | `.task-detail-header-clean`, `.detail-btn-action`, `.detail-btn-close` | [`planner.css:3792`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3792), [`tasks.html:4322`](file:///d:/Antigravity_Project/tectum_portal_railway/static/tasks.html#L4322), [`modal_clean_header.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/modal_clean_header.html) | Однострочная шапка (статус слева 36px, действия справа), устранение кодов TSK и вторичных плашек из заголовка |
+| `@canonical-pattern StatusNoWrapPill` | `.task-detail-status-pill`, `.task-detail-status-dot` | [`planner.css:3812`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3812) | Высота 36px, `white-space: nowrap !important;`, 8px индикаторная точка со свечением, 4 пастельных тона светофора |
+| `@canonical-pattern CompactPropertiesStrip` | `.detail-properties-strip`, `.detail-property-col` | [`planner.css:3878`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3878), [`tasks.html:4368`](file:///d:/Antigravity_Project/tectum_portal_railway/static/tasks.html#L4368), [`properties_strip.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/properties_strip.html) | 4-колоночная сетка на `#f8fafc` с брейкпоинтом в 2 колонки `<= 720px`, аватар с инициалами, дата с днем недели, автор, служба с `ellipsis` |
+| `@canonical-pattern CanonicalControl36px` | `.detail-btn-action`, `.detail-btn-close`, `.task-detail-status-pill` | [`planner.css:3812`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3812) | Строгая высота 36px и скругление 8px для всех кнопок действий, кнопок закрытия, статусных бейджей и триггеров на одной линии |
+| `@canonical-pattern AlignedDropdownPopover` | `#popover-filter-status`, `.filter-popover-item` | [`planner.css:3770`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3770), [`aligned_dropdown_popover.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/aligned_dropdown_popover.html) | Компактный список статусов (190px) с левым выравниванием и фиксированной 20px осью иконок |
+| `@canonical-pattern PersonPickerPopover` | `.person-picker-popover`, `.bulk-row-assignee-trigger` | [`planner.css:3446`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3446), [`tasks.js:5380`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L5380), [`person_picker.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/person_picker.html) | Универсальный fixed-поповер поиска сотрудника с аватарами и клавиатурной навигацией |
+| `@canonical-pattern ZonePickerPopover` | `.zone-picker-popover`, `.zone-select-modern` | [`planner.css:3530`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3530), [`tasks.js:5480`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L5480), [`zone_picker.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/zone_picker.html) | Селектор зоны/службы с иконкой папки, живым поиском и fixed-поповером в `document.body` |
+| `@canonical-pattern AppleBottomSheet` | `.apple-filter-panel`, `.apple-date-panel` | [`tasks.html:4820`](file:///d:/Antigravity_Project/tectum_portal_railway/static/tasks.html#L4820), [`planner.css:2900`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L2900) | Мобильная шторка с плавным закрытием без отскоков (`cubic-bezier`, `translateY(100%)`) |
+| `@canonical-pattern InlineCommentEditor` | `.task-detail-comment-box`, `#detail-comment-edit-wrap` | [`planner.css:3680`](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3680), [`tasks.js:9300`](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L9300) | Быстрое редактирование рабочего комментария в 1 клик с поддержкой горячих клавиш `Ctrl + Enter` |
+
+### 30.7. Локальная библиотека канонических шаблонов (`docs/design_system/`)
+Для исключения повторного проектирования и сохранения эталонной верстки все ключевые модули сохраняются в виде чистых автономных HTML/CSS шаблонов в директории `docs/design_system/`:
+1. [`modal_clean_header.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/modal_clean_header.html) — Двухполюсная шапка модального окна (статус слева, действия 36px справа).
+2. [`properties_strip.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/properties_strip.html) — 4-колоночная полоса свойств задачи (Исполнитель, Срок, Автор, Служба).
+3. [`aligned_dropdown_popover.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/aligned_dropdown_popover.html) — Выпадающий поповер 190px с левым выравниванием и фиксированной 20px осью иконок.
+4. [`person_picker.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/person_picker.html) — Селектор ответственного сотрудника с аватаром и портальным поповером.
+5. [`zone_picker.html`](file:///d:/Antigravity_Project/tectum_portal_railway/docs/design_system/zone_picker.html) — Селектор зоны / участка с иконкой и живым поиском.
+
+
+
 
 
 

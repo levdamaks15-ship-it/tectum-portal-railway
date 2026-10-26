@@ -18,7 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20260928_desc_weeks_v2">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20261026_passport_redesign_v2">
 
     <style>
         :root {
@@ -60,12 +60,72 @@
             z-index: 100;
             background: #ffffff;
             border-bottom: 1px solid var(--tbl-border);
-            padding: 0.75rem 1.5rem;
+            padding: 0 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 1rem;
+            position: relative;
+            min-height: 56px;
+            height: 56px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        /* Brand Block Left: Strictly 38px height matching right action buttons */
+        .planner-brand-left {
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-title-tectum {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            color: #0f172a;
+            text-transform: uppercase;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .brand-badge-tasks {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 9px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            background: #fee2e2;
+            color: #c82323;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .brand-divider {
+            height: 16px;
+            width: 1px;
+            background: #cbd5e1;
+            margin: 0 4px;
+        }
+
+        .brand-subtitle {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            text-transform: uppercase;
+            user-select: none;
+        }
+
+        @media screen and (max-width: 900px) {
+            .brand-subtitle,
+            .brand-divider {
+                display: none;
+            }
         }
 
         .header-brand {
@@ -1586,12 +1646,14 @@
                 word-break: normal !important;
             }
 
-            /* Скрываем столбцы Фото (5-й), Факт/Комментарий (10-й) и Действия (последний), а также чекбоксы и тулбар */
+            /* Скрываем столбцы Фото (4-й), Факт/Комментарий (9-й) и Действия (10-й / последний), а также чекбоксы и тулбар */
             #services-bulk-bar,
             #th-select-all-services,
             .task-row-checkbox,
-            .planner-table th:nth-child(5),
-            .planner-table td:nth-child(5),
+            .planner-table th:nth-child(4),
+            .planner-table td:nth-child(4),
+            .planner-table th:nth-child(9),
+            .planner-table td:nth-child(9),
             .planner-table th:nth-child(10),
             .planner-table td:nth-child(10),
             .planner-table th:last-child,
@@ -1613,52 +1675,42 @@
 
             .planner-table th:nth-child(3),
             .planner-table td:nth-child(3) {
-                width: 32% !important;
+                width: 55% !important;
             }
 
-            .planner-table th:nth-child(4),
-            .planner-table td:nth-child(4) {
-                width: 25% !important;
+            .planner-table th:nth-child(5),
+            .planner-table td:nth-child(5) {
+                width: 105px !important;
             }
 
             .planner-table th:nth-child(6),
             .planner-table td:nth-child(6) {
-                width: 100px !important;
+                width: 110px !important;
             }
 
             .planner-table th:nth-child(7),
             .planner-table td:nth-child(7) {
-                width: 95px !important;
-            }
-
-            .planner-table th:nth-child(8),
-            .planner-table td:nth-child(8) {
                 width: 75px !important;
                 white-space: nowrap !important;
                 text-align: center !important;
             }
 
-            .planner-table th:nth-child(9),
-            .planner-table td:nth-child(9) {
+            .planner-table th:nth-child(8),
+            .planner-table td:nth-child(8) {
                 width: 95px !important;
                 white-space: nowrap !important;
                 text-align: center !important;
             }
 
-            /* При печати планов служб (ОГЭ / ОГМ) скрываем пустую колонку Исполнителя */
-            body.print-hide-assignee .planner-table th:nth-child(7),
-            body.print-hide-assignee .planner-table td:nth-child(7) {
+            /* При печати планов служб (ОГЭ / ОГМ) скрываем колонку Исполнителя (6-я) */
+            body.print-hide-assignee .planner-table th:nth-child(6),
+            body.print-hide-assignee .planner-table td:nth-child(6) {
                 display: none !important;
             }
 
             body.print-hide-assignee .planner-table th:nth-child(3),
             body.print-hide-assignee .planner-table td:nth-child(3) {
-                width: 38% !important;
-            }
-
-            body.print-hide-assignee .planner-table th:nth-child(4),
-            body.print-hide-assignee .planner-table td:nth-child(4) {
-                width: 30% !important;
+                width: 68% !important;
             }
 
             .select-status {
@@ -2503,6 +2555,299 @@
             border-radius: 2px;
         }
 
+        /* ==========================================================================
+           MODERN PLANNER CSS (CANONICAL 38px BUTTON STANDARD & SCADA BEACON)
+           ========================================================================== */
+        .scada-status-beacon {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            font-size: 11px;
+            font-weight: 700;
+            color: #047857;
+            user-select: none;
+            letter-spacing: 0.3px;
+        }
+
+        .scada-beacon-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+            animation: pulse-beacon 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-beacon {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.55; transform: scale(0.9); }
+        }
+
+        /* Rule 7 Standard: All action buttons & selects strictly 38px */
+        .btn-action,
+        .btn-preset-chip,
+        .date-pill-select,
+        .user-session-badge,
+        .horizon-tab-btn {
+            height: 38px !important;
+            min-height: 38px !important;
+            box-sizing: border-box !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            font-size: 13px !important;
+            border-radius: 8px !important;
+        }
+
+        .btn-action {
+            padding: 0 14px !important;
+            font-weight: 600 !important;
+            white-space: nowrap !important;
+        }
+
+        .btn-primary-action {
+            background: #c82323 !important;
+            border: 1px solid #b01c1c !important;
+            color: #ffffff !important;
+            padding: 0 16px !important;
+            box-shadow: 0 1px 3px rgba(200, 35, 35, 0.25) !important;
+        }
+
+        .btn-primary-action:hover {
+            background: #b01c1c !important;
+            box-shadow: 0 4px 12px rgba(200, 35, 35, 0.35) !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary-action {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }
+
+        .btn-secondary-action:hover {
+            background: #f8fafc !important;
+            border-color: #94a3b8 !important;
+            color: #0f172a !important;
+        }
+
+        .btn-preset-chip {
+            padding: 0 13px !important;
+            border: 1px solid #cbd5e1 !important;
+            background: #ffffff !important;
+            color: #334155 !important;
+            cursor: pointer !important;
+            font-weight: 600 !important;
+            transition: all 0.15s ease !important;
+            gap: 6px !important;
+        }
+
+        .btn-preset-chip:hover {
+            background: #f8fafc !important;
+            border-color: #94a3b8 !important;
+            color: #0f172a !important;
+        }
+
+        .btn-preset-chip.active {
+            background: #eff6ff !important;
+            border-color: #3b82f6 !important;
+            color: #1d4ed8 !important;
+            box-shadow: 0 0 0 1px #3b82f6 !important;
+        }
+
+        /* Segmented Horizon Deck */
+        .horizon-nav-bar {
+            background: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            padding: 0.5rem 1.5rem !important;
+        }
+
+        .horizon-tab-btn {
+            padding: 0 14px !important;
+            color: #64748b !important;
+            font-weight: 600 !important;
+            background: transparent !important;
+            border: 1px solid transparent !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease !important;
+            gap: 6px !important;
+            text-decoration: none !important;
+        }
+
+        .horizon-tab-btn:hover {
+            color: #0f172a !important;
+            background: #f1f5f9 !important;
+        }
+
+        .horizon-tab-btn.active {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07) !important;
+            font-weight: 700 !important;
+        }
+
+        /* Floating Date Range Popover */
+        .date-range-popover {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            width: 320px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            padding: 14px;
+            z-index: 1000;
+        }
+
+        .popover-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .popover-close-btn {
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            color: #94a3b8;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+        }
+
+        .popover-close-btn:hover {
+            color: #0f172a;
+        }
+
+        .date-input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .date-input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .popover-date-input {
+            width: 100%;
+            height: 36px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+            box-sizing: border-box;
+        }
+
+        .popover-presets {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .popover-preset-chip {
+            height: 28px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .popover-preset-chip:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .popover-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .btn-popover-reset {
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .btn-popover-reset:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .btn-popover-apply {
+            height: 32px;
+            padding: 0 14px;
+            border: none;
+            background: #2563eb;
+            color: #ffffff;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-popover-apply:hover {
+            background: #1d4ed8;
+        }
+
+        /* Completely Disable Mobile Cards / Apple Chrome - Desktop Table on All Screens */
+        .apple-large-title-header,
+        .apple-ghost-row,
+        .apple-fab,
+        .apple-bottom-nav,
+        #apple-filter-sheet,
+        .planner-cards-container,
+        #tasks-cards-container {
+            display: none !important;
+        }
+
+        #planner-table-wrapper {
+            display: block !important;
+            width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+
+        .planner-table {
+            display: table !important;
+            width: 100% !important;
+            min-width: 1100px !important;
+        }
     </style>
 </head>
 
@@ -2543,32 +2888,33 @@
 
     <!-- Header Navigation -->
     <header class="planner-header">
-        <a href="/static/tasks.html" class="header-brand">
-            <img src="/static/img/Logo.png" alt="Tectum Logo">
-            <div>
-                <h1>TECTUM TASKS</h1>
-                <span>ПЛАННЕР ПО БЕРЕЖЛИВОМУ ПРОИЗВОДСТВУ</span>
-            </div>
-        </a>
+        <!-- Brand Title Left: Strictly 38px height to match action buttons -->
+        <div class="planner-brand-left">
+            <span class="brand-title-tectum">TECTUM</span>
+            <span class="brand-badge-tasks">ЗАДАЧИ</span>
+            <span class="brand-divider"></span>
+            <span class="brand-subtitle">ПЛАННЕР ПО БЕРЕЖЛИВОМУ ПРОИЗВОДСТВУ</span>
+        </div>
 
-        <div class="planner-header-actions" style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: nowrap;">
+        <!-- Right User Actions -->
+        <div class="planner-header-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: nowrap;">
             <!-- Planner User Session Badge -->
             <div id="planner-user-badge" class="user-session-badge" onclick="promptChangePlannerUser()"
-                style="display: flex; align-items: center; gap: 5px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 4px 8px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: #1d4ed8; cursor: pointer;"
+                style="height: 38px; display: inline-flex; align-items: center; gap: 7px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 0 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #1d4ed8; cursor: pointer;"
                 title="Нажмите, чтобы войти под своим именем">
-                <i class="fa-solid fa-user-lock" style="font-size: 0.75rem;"></i>
+                <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
                 <span id="planner-user-name" class="user-session-name">Войти (PIN)</span>
                 <button type="button" id="btn-planner-logout" onclick="event.stopPropagation(); logoutPlannerUser();"
-                    style="display: none; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.85rem;"
+                    style="display: none; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 0 2px; font-size: 0.95rem; line-height: 1;"
                     title="Выйти / Сменить пользователя">&times;</button>
             </div>
 
             <a href="/static/docs.html" class="btn-action btn-secondary-action btn-action-header" title="База знаний"
-                style="white-space: nowrap;">
+                style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
             <a href="/" class="btn-action btn-secondary-action btn-action-header" title="На главную"
-                style="white-space: nowrap;">
+                style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;">
                 <i class="fa-solid fa-house"></i>
             </a>
         </div>
@@ -2625,27 +2971,53 @@
     <!-- Toolbar: Month/Week Selector & Action Buttons -->
     <div class="toolbar" id="main-toolbar">
         <div class="toolbar-group toolbar-group-dates">
-            <!-- Month Selector -->
-            <select class="select-filter date-pill-select" id="filter-month" onchange="onMonthChange()">
-                <option value="all">🌐 За всё время</option>
-                <option value="Январь 2026">Январь 2026</option>
-                <option value="Февраль 2026">Февраль 2026</option>
-                <option value="Март 2026">Март 2026</option>
-                <option value="Апрель 2026">Апрель 2026</option>
-                <option value="Май 2026">Май 2026</option>
-                <option value="Июнь 2026">Июнь 2026</option>
-                <option value="Июль 2026">Июль 2026</option>
-                <option value="Август 2026">Август 2026</option>
-                <option value="Сентябрь 2026">Сентябрь 2026</option>
-                <option value="Октябрь 2026" selected>Октябрь 2026</option>
-                <option value="Ноябрь 2026">Ноябрь 2026</option>
-                <option value="Декабрь 2026">Декабрь 2026</option>
-            </select>
+            <!-- Hidden synced selects to guarantee 100% backward compatibility for all legacy scripts -->
+            <div style="display: none;" aria-hidden="true">
+                <select id="filter-month" onchange="onMonthChange()">
+                    <option value="all">🌐 За всё время</option>
+                    <option value="Январь 2026">Январь 2026</option>
+                    <option value="Февраль 2026">Февраль 2026</option>
+                    <option value="Март 2026">Март 2026</option>
+                    <option value="Апрель 2026">Апрель 2026</option>
+                    <option value="Май 2026">Май 2026</option>
+                    <option value="Июнь 2026">Июнь 2026</option>
+                    <option value="Июль 2026">Июль 2026</option>
+                    <option value="Август 2026">Август 2026</option>
+                    <option value="Сентябрь 2026">Сентябрь 2026</option>
+                    <option value="Октябрь 2026" selected>Октябрь 2026</option>
+                    <option value="Ноябрь 2026">Ноябрь 2026</option>
+                    <option value="Декабрь 2026">Декабрь 2026</option>
+                </select>
+                <select id="filter-week" onchange="onWeekSelectChange(this.value)"></select>
+            </div>
 
-            <!-- Week Selector (Clean dropdown, no arrows) -->
-            <select class="select-filter date-pill-select" id="filter-week" onchange="onWeekSelectChange(this.value)">
-                <!-- Populated dynamically with task counts -->
-            </select>
+            <!-- Custom Month Trigger Chip & Popover -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="toolbar-date-chip" id="btn-toolbar-month" onclick="toggleToolbarDatePopover('month', event)" title="Выбрать месяц">
+                    <i class="fa-solid fa-calendar" style="color: #64748b; font-size: 13px;"></i>
+                    <span id="label-toolbar-month">Октябрь 2026</span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <div class="filter-dropdown-popover month-picker-popover" id="popover-toolbar-month" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-list custom-scroll" id="list-toolbar-month" style="max-height: 320px;">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Week Trigger Chip & Popover -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="toolbar-date-chip" id="btn-toolbar-week" onclick="toggleToolbarDatePopover('week', event)" title="Выбрать неделю или диапазон задач">
+                    <i class="fa-solid fa-calendar-week" style="color: #2563eb; font-size: 13px;"></i>
+                    <span id="label-toolbar-week">Неделя 4 (26.10 - 30.10)</span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <div class="filter-dropdown-popover week-picker-popover" id="popover-toolbar-week" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-list custom-scroll" id="list-toolbar-week" style="max-height: 380px;">
+                        <!-- Populated dynamically with Quick scopes & Monthly weeks -->
+                    </div>
+                </div>
+            </div>
 
             <!-- Quick Reset to Current Week / Today -->
             <button type="button" class="btn-preset-chip" id="btn-nav-today" onclick="resetToCurrentWeek()" title="Вернуться к сегодняшнему дню">
@@ -2655,20 +3027,45 @@
             <!-- Vertical divider -->
             <div class="toolbar-divider-v hide-mobile"></div>
 
-            <!-- Fast Presets Bar: Эта нед. / След. нед. / 2 недели / Весь месяц -->
-            <div class="week-presets-bar hide-mobile" id="week-presets-container">
-                <button type="button" class="btn-preset-chip" id="btn-preset-this-week" onclick="setWeekScopePreset('this_week')" title="Показать задачи текущей недели">
-                    <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> <span>Эта неделя</span>
+            <!-- Custom Date Range Button & Floating Popover -->
+            <div style="position: relative; display: inline-block;">
+                <button type="button" class="btn-preset-chip" id="btn-custom-date-range" onclick="toggleDateRangePopover(event)" title="Выбрать произвольный диапазон дат">
+                    <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i>
+                    <span id="date-range-btn-label">Диапазон дат</span>
+                    <span id="date-range-active-indicator" style="display: none; width: 7px; height: 7px; background: #2563eb; border-radius: 50%; margin-left: 2px;"></span>
                 </button>
-                <button type="button" class="btn-preset-chip" id="btn-preset-next-week" onclick="setWeekScopePreset('next_week')" title="Показать задачи следующей недели">
-                    <i class="fa-solid fa-forward" style="color: #3b82f6;"></i> <span>След. неделя</span>
-                </button>
-                <button type="button" class="btn-preset-chip" id="btn-preset-2-weeks" onclick="setWeekScopePreset('next_2_weeks')" title="Показать текущую и следующую недели вместе">
-                    <i class="fa-solid fa-calendar-week" style="color: #6366f1;"></i> <span>2 недели</span>
-                </button>
-                <button type="button" class="btn-preset-chip" id="btn-preset-month" onclick="setWeekScopePreset('whole_month')" title="Показать все недели выбранного месяца">
-                    <i class="fa-solid fa-calendar" style="color: #10b981;"></i> <span>Весь месяц</span>
-                </button>
+
+                <!-- Floating Date Range Card Popover -->
+                <div id="date-range-popover" class="date-range-popover" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="popover-header">
+                        <span><i class="fa-solid fa-calendar-range" style="color: #2563eb; margin-right: 6px;"></i>Выбор периода дат</span>
+                        <button type="button" class="popover-close-btn" onclick="closeDateRangePopover()">&times;</button>
+                    </div>
+                    <div class="popover-body">
+                        <div class="date-input-row">
+                            <div class="date-input-group">
+                                <label>От даты:</label>
+                                <input type="date" id="custom-date-from" class="popover-date-input">
+                            </div>
+                            <div class="date-input-group">
+                                <label>До даты:</label>
+                                <input type="date" id="custom-date-to" class="popover-date-input">
+                            </div>
+                        </div>
+                        
+                        <!-- Quick presets -->
+                        <div class="popover-presets">
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('7d')">7 дней</button>
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('14d')">14 дней</button>
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('this_month')">Текущий месяц</button>
+                            <button type="button" class="popover-preset-chip" onclick="applyQuickDatePreset('next_month')">След. месяц</button>
+                        </div>
+                    </div>
+                    <div class="popover-footer">
+                        <button type="button" class="btn-popover-reset" onclick="resetCustomDateRange()">Сбросить</button>
+                        <button type="button" class="btn-popover-apply" onclick="applyCustomDateRange()">Применить</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Roadmap State Chips & Quarter Selector -->
@@ -2717,13 +3114,6 @@
             <button class="btn-action btn-secondary-action hide-mobile" onclick="printTasksPlanner()"
                 title="Печать текущей таблицы задач для инфостенда">
                 <i class="fa-solid fa-print"></i> <span>Печать</span>
-            </button>
-
-            <!-- Mobile Filters Toggle Button -->
-            <button class="btn-action btn-secondary-action mobile-only" id="btn-toggle-filters"
-                onclick="toggleMobileFilters()" title="Фильтры">
-                <i class="fa-solid fa-filter"></i> <span>Фильтры</span>
-                <span id="mobile-filter-badge" class="filter-count-badge" style="display: none;">0</span>
             </button>
 
             <!-- Add Task Button (Primary Red) -->
@@ -2908,13 +3298,126 @@
         </button>
     </div>
 
+    <!-- Sticky Quick-Filter Deck (Pinned directly above table) -->
+    <div class="planner-filter-deck" id="planner-filter-deck">
+        <div class="filter-deck-chips">
+            <!-- Chip Зона -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-zone" onclick="toggleDeckFilterPopover('zone', event)">
+                    <i class="fa-solid fa-folder" style="color: #f59e0b;"></i>
+                    <span>Зона: <b id="label-filter-zone">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Zone Popover -->
+                <div class="filter-dropdown-popover" id="popover-filter-zone" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-search-wrap">
+                        <input type="text" class="filter-popover-search-input" id="search-filter-zone" placeholder="🔍 Поиск зоны / службы..." oninput="filterZoneList(this.value)">
+                    </div>
+                    <div class="filter-popover-list custom-scroll" id="list-filter-zone">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chip Автор -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-author" onclick="toggleDeckFilterPopover('author', event)">
+                    <i class="fa-solid fa-pen-nib" style="color: #6366f1;"></i>
+                    <span>Автор: <b id="label-filter-author">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Author Person Picker Popover -->
+                <div class="filter-dropdown-popover person-picker-popover" id="popover-filter-author" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-search-wrap">
+                        <input type="text" class="filter-popover-search-input" id="search-filter-author" placeholder="🔍 Поиск сотрудника..." oninput="filterPersonList('author', this.value)">
+                    </div>
+                    <div class="filter-popover-list custom-scroll" id="list-filter-author">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chip Исполнитель (Searchable Person Picker) -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-assignee" onclick="toggleDeckFilterPopover('assignee', event)">
+                    <i class="fa-solid fa-user" style="color: #2563eb;"></i>
+                    <span>Исполнитель: <b id="label-filter-assignee">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Assignee Person Picker Popover -->
+                <div class="filter-dropdown-popover person-picker-popover" id="popover-filter-assignee" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-search-wrap">
+                        <input type="text" class="filter-popover-search-input" id="search-filter-assignee" placeholder="🔍 Поиск сотрудника или службы..." oninput="filterPersonList('assignee', this.value)">
+                    </div>
+                    <div class="filter-popover-list custom-scroll" id="list-filter-assignee">
+                        <!-- Populated dynamically with top/groups/avatars -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chip Статус -->
+            <div class="popover-anchor-wrap">
+                <button type="button" class="filter-deck-chip" id="chip-filter-status" onclick="toggleDeckFilterPopover('status', event)">
+                    <i class="fa-solid fa-bolt" style="color: #ea580c;"></i>
+                    <span>Статус: <b id="label-filter-status">Все</b></span>
+                    <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                </button>
+                <!-- Status Popover -->
+                <div class="filter-dropdown-popover" id="popover-filter-status" style="display: none;" onclick="event.stopPropagation()">
+                    <div class="filter-popover-list custom-scroll" id="list-filter-status">
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', 'all')">
+                            <span class="filter-option-icon">⚡</span>
+                            <span class="filter-option-text font-bold">Все статусы</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🟡 В работе')">
+                            <span class="filter-option-icon">🟡</span>
+                            <span class="filter-option-text">В работе</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🟢 Выполнено')">
+                            <span class="filter-option-icon">🟢</span>
+                            <span class="filter-option-text">Выполнено</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🔵 Перенесено')">
+                            <span class="filter-option-icon">🔵</span>
+                            <span class="filter-option-text">Перенесено</span>
+                        </div>
+                        <div class="filter-option-item" onclick="selectDeckFilter('status', '🔴 Отменено')">
+                            <span class="filter-option-icon">🔴</span>
+                            <span class="filter-option-text">Отменено</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reset Filters Button -->
+            <button type="button" class="btn-reset-deck" id="btn-reset-filters-deck" onclick="resetAllFilters()" style="display: none;" title="Сбросить все активные фильтры">
+                <i class="fa-solid fa-xmark"></i> <span>Сбросить</span>
+            </button>
+        </div>
+
+        <!-- Meta: Task Counter -->
+        <div class="filter-deck-meta">
+            <span class="filter-results-badge" id="deck-results-counter">
+                <i class="fa-solid fa-circle" style="color: #2563eb; font-size: 7px;"></i> <span id="deck-tasks-count-text">Найдено 0 задач</span>
+            </span>
+        </div>
+    </div>
+
     <!-- Main Container: Table (Weekly / Services) + Cards + Roadmaps Tree -->
     <main class="table-container">
+        <!-- Hidden synced select elements to guarantee 100% compatibility across all legacy scripts -->
+        <div style="display: none;" aria-hidden="true">
+            <select id="table-filter-zone"><option value="all">all</option></select>
+            <select id="table-filter-author"><option value="all">all</option></select>
+            <select id="table-filter-assignee"><option value="all">all</option></select>
+            <select id="table-filter-status"><option value="all">all</option></select>
+        </div>
+
         <!-- 1. Weekly & Services Table (Desktop/Print) -->
         <div id="planner-table-wrapper">
             <table class="planner-table">
                 <thead>
-                    <tr>
+                    <tr class="planner-thead-row">
                         <th style="width: 60px;" id="th-col-id">
                             <div style="display: flex; align-items: center; gap: 4px;">
                                 <input type="checkbox" id="th-select-all-services"
@@ -2924,53 +3427,20 @@
                                 <span>ID</span>
                             </div>
                         </th>
-                        <th style="width: 105px; min-width: 105px;">
-                            <div class="th-title" style="margin-bottom: 4px;">Зона / Служба</div>
-                            <select class="select-filter" id="table-filter-zone"
-                                onchange="syncDesktopFilter('zone', this.value)"
-                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                                <option value="all">📁 Все зоны</option>
-                            </select>
-                        </th>
-                        <th style="width: 28%; min-width: 250px;">Суть задачи (RU)</th>
-                        <th style="width: 22%; min-width: 200px;">Суть задачи (KZ)</th>
-                        <th style="width: 40px; text-align: center;">Фото</th>
-                        <th style="width: 85px; min-width: 85px;">
-                            <div class="th-title" style="margin-bottom: 4px;">Автор</div>
-                            <select class="select-filter" id="table-filter-author"
-                                onchange="syncDesktopFilter('author', this.value)"
-                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                                <option value="all">✍️ Все авторы</option>
-                            </select>
-                        </th>
-                        <th style="width: 95px; min-width: 95px;">
-                            <div class="th-title" style="margin-bottom: 4px;">Исполнитель</div>
-                            <select class="select-filter" id="table-filter-assignee"
-                                onchange="syncDesktopFilter('assignee', this.value)"
-                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                                <option value="all">👤 Все исполн.</option>
-                            </select>
-                        </th>
-                        <th style="width: 68px; white-space: nowrap; text-align: center;">Срок</th>
-                        <th style="width: 110px; min-width: 110px; text-align: center; white-space: nowrap;">
-                            <div class="th-title" style="margin-bottom: 4px;">Статус</div>
-                            <select class="select-filter" id="table-filter-status"
-                                onchange="syncDesktopFilter('status', this.value)"
-                                style="width: 100%; font-size: 0.72rem; padding: 2px 4px;">
-                                <option value="all">⚡ Все статусы</option>
-                                <option value="🟡 В работе">🟡 В работе</option>
-                                <option value="🟢 Выполнено">🟢 Выполнено</option>
-                                <option value="🔵 Перенесено">🔵 Перенесено</option>
-                                <option value="🔴 Отменено">🔴 Отменено</option>
-                            </select>
-                        </th>
-                        <th style="width: 12%; min-width: 110px;">Факт / Комментарий</th>
-                        <th style="width: 65px; text-align: center;">Действия</th>
+                        <th style="width: 120px; min-width: 120px;">ЗОНА / СЛУЖБА</th>
+                        <th style="width: 38%; min-width: 320px;">СУТЬ ЗАДАЧИ</th>
+                        <th style="width: 50px; text-align: center;">ФОТО</th>
+                        <th style="width: 110px; min-width: 110px;">АВТОР</th>
+                        <th style="width: 125px; min-width: 125px;">ИСПОЛНИТЕЛЬ</th>
+                        <th style="width: 80px; white-space: nowrap; text-align: center;">СРОК</th>
+                        <th style="width: 115px; min-width: 115px; text-align: center; white-space: nowrap;">СТАТУС</th>
+                        <th style="width: 18%; min-width: 170px;">ФАКТ / КОММЕНТАРИЙ</th>
+                        <th style="width: 85px; text-align: center;">ДЕЙСТВИЯ</th>
                     </tr>
                 </thead>
                 <tbody id="tasks-table-body">
                     <tr>
-                        <td colspan="11" style="text-align: center; padding: 2rem; color: #64748b;">
+                        <td colspan="10" style="text-align: center; padding: 2rem; color: #64748b;">
                             <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
                         </td>
                     </tr>
@@ -3000,49 +3470,44 @@
     <div class="modal-overlay" id="task-modal" style="z-index: 6500;">
         <div class="modal-box" style="max-width: 680px;">
             <div class="modal-header">
-                <h3 id="modal-title">Новая задача</h3>
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <h3 id="modal-title" style="margin: 0;">Новая задача</h3>
+                    <span id="modal-horizon-badge" class="modal-horizon-badge">⚡ Недельный спринт</span>
+                </div>
                 <button class="modal-close" onclick="closeTaskModal()">&times;</button>
             </div>
 
             <input type="hidden" id="task-id-input" value="">
 
-            <!-- Planning Horizon Selector (2 Levels) -->
-            <div class="form-row"
-                style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem;">
-                <label style="margin-bottom: 0.35rem; font-weight: 700; color: #0f172a;"><i
-                        class="fa-solid fa-layer-group" style="color: #2563eb;"></i> Горизонт планирования</label>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem;">
-                    <select class="form-select" id="task-type-input" onchange="onTaskTypeChange(this.value)"
-                        style="font-weight: 600;">
-                        <option value="weekly">⚡ Недельный спринт</option>
-                        <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
-                        <option value="tech_council">🏛️ Техсовет</option>
-                        <option value="quality_day">📋 День качества</option>
-                        <option value="roadmap">🗺️ Дорожная карта</option>
-                    </select>
-                    <select class="form-select" id="task-department-input" style="font-weight: 600;">
-                        <option value="">-- Без привязки к службе --</option>
-                        <option value="ОГМ">🔧 ОГМ (Механики)</option>
-                        <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
-                        <option value="Технологи">🔬 Технологи</option>
-                        <option value="ОТК">📋 ОТК / СКК</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Hierarchy: Parent Project -->
-            <div class="form-row" id="task-parent-row">
-                <label id="task-parent-label" style="font-weight: 700; color: #0f172a;"><i class="fa-solid fa-folder-tree" style="color: #6366f1;"></i> Родительский проект / Дорожная карта</label>
-                <select class="form-select" id="task-parent-input" onchange="onTaskParentInputChange(this.value)">
-                    <option value="">-- Без родительского проекта --</option>
+            <!-- Hidden Planning Horizon & Conditional Department Row -->
+            <input type="hidden" id="task-type-input" value="weekly">
+            <div class="form-row" id="task-department-row" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 0.6rem 0.75rem;">
+                <label style="margin-bottom: 0.35rem; font-weight: 700; color: #92400e;"><i class="fa-solid fa-screwdriver-wrench" style="color: #ea580c;"></i> Служба</label>
+                <select class="form-select" id="task-department-input" style="font-weight: 600; height: 42px;">
+                    <option value="">-- Без привязки к службе --</option>
+                    <option value="ОГМ">🔧 ОГМ (Механики)</option>
+                    <option value="ОГЭ">⚡ ОГЭ (Электрики)</option>
+                    <option value="Технологи">🔬 Технологи</option>
+                    <option value="ОТК">📋 ОТК / СКК</option>
                 </select>
-                <!-- Hidden legacy input for backwards compatibility -->
-                <input type="hidden" id="task-depends-input" value="">
             </div>
 
-            <!-- Multi-Blockers Picker (Rule 27 Component) -->
-            <div class="form-row" id="task-blockers-picker-container" style="margin-bottom: 0.85rem;">
-                <!-- Populated dynamically via renderMultiBlockerPicker -->
+            <!-- Roadmap Hierarchy Section: Parent Project & Multi-Blockers (Shown ONLY in Roadmaps) -->
+            <div id="task-roadmap-hierarchy-section" style="display: none;">
+                <!-- Hierarchy: Parent Project -->
+                <div class="form-row" id="task-parent-row">
+                    <label id="task-parent-label" style="font-weight: 700; color: #0f172a;"><i class="fa-solid fa-folder-tree" style="color: #6366f1;"></i> Родительский проект / Дорожная карта</label>
+                    <select class="form-select" id="task-parent-input" onchange="onTaskParentInputChange(this.value)">
+                        <option value="">-- Без родительского проекта --</option>
+                    </select>
+                    <!-- Hidden legacy input for backwards compatibility -->
+                    <input type="hidden" id="task-depends-input" value="">
+                </div>
+
+                <!-- Multi-Blockers Picker (Rule 27 Component) -->
+                <div class="form-row" id="task-blockers-picker-container" style="margin-bottom: 0.85rem;">
+                    <!-- Populated dynamically via renderMultiBlockerPicker -->
+                </div>
             </div>
 
             <!-- Roadmap Specific Fields (Quarter & Progress) -->
@@ -3067,112 +3532,64 @@
                 </div>
             </div>
 
-            <!-- Task text & Auto-Translation (2 Columns) -->
-            <div class="form-row"
-                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.85rem; align-items: start;">
-                <!-- Column 1: Task (Any language) -->
-                <div>
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                        <label id="task-primary-label" style="margin-bottom: 0;">Суть задачи *</label>
-                        <span id="detected-lang-badge"
-                            style="display: none; font-size: 0.72rem; color: #64748b; font-weight: 500;"></span>
-                    </div>
-                    <textarea class="form-textarea" id="task-ru-input" rows="3"
-                        placeholder="Формулировка задачи..."
-                        oninput="onTaskInputChanged('primary')" required
-                        style="resize: vertical; min-height: 78px;"></textarea>
-                </div>
-
-                <!-- Column 2: Translation (Auto) -->
-                <div>
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                        <label id="task-trans-label" style="margin-bottom: 0;">Перевод <span
-                                style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(Авто)</span></label>
-                        <div id="translate-status-badge"
-                            style="display: none; font-size: 0.75rem; color: #2563eb; align-items: center; gap: 4px;">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Перевод...</span>
-                        </div>
-                    </div>
-                    <textarea class="form-textarea" id="task-kz-input" rows="3" placeholder="Автоматический перевод..."
-                        oninput="onTaskInputChanged('secondary')"
-                        style="resize: vertical; min-height: 78px; background: #f8fafc; color: #334155;"></textarea>
-                </div>
-            </div>
-
-            <!-- Tags Field & Quick Chips -->
+            <!-- Task text (Full Width) -->
             <div class="form-row">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-tags" style="color: #2563eb;"></i> Хэштеги задачи</label>
-                    <span style="font-size: 0.72rem; color: #64748b;">(через запятую или кликните чип)</span>
-                </div>
-                <input type="text" class="form-input" id="task-tags-input" placeholder="#ОГМ, #ППР, #ЛФМ, #Закупки...">
-                <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px;">
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ОГМ')">#ОГМ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ОГЭ')">#ОГЭ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ППР')">#ППР</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#ЛФМ')">#ЛФМ</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#Дестакер')">#Дестакер</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#Закупки')">#Закупки</span>
-                    <span class="filter-chip" style="font-size: 0.72rem; padding: 2px 7px; cursor: pointer;" onclick="addTagToModalInput('#Срочно')">#Срочно</span>
-                </div>
+                <label id="task-primary-label" style="display: block; margin-bottom: 0.35rem; font-weight: 600;">Суть задачи *</label>
+                <textarea class="form-textarea" id="task-ru-input" rows="3"
+                    placeholder="Введите четкую формулировку задачи..."
+                    oninput="onTaskInputChanged('primary')" required
+                    style="resize: vertical; min-height: 82px; width: 100%; box-sizing: border-box;"></textarea>
+                <input type="hidden" id="task-kz-input" value="">
             </div>
+
+            <!-- Hidden Tags Input for Backwards Compatibility -->
+            <input type="hidden" id="task-tags-input" value="">
 
             <!-- Zone -->
             <div class="form-row">
-                <label>Зона / Участок</label>
-                <select class="form-select" id="task-zone-input">
-                    <option value="Бережливое производство" selected>Бережливое производство</option>
-                    <option value="Техсовет">Техсовет</option>
-                    <option value="День качества">День качества</option>
-                    <option value="Ремонт и зоны">Ремонт и зоны</option>
-                    <option value="Инфостенды">Инфостенды</option>
-                    <option value="Обучение">Обучение</option>
-                    <option value="Цифровой портал">Цифровой портал</option>
-                    <option value="СКК">СКК</option>
-                    <option value="Документация">Документация</option>
-                    <option value="Цилиндры">Цилиндры</option>
-                    <option value="Дестакер">Дестакер</option>
-                    <option value="Дозировка">Дозировка</option>
-                    <option value="ЗО">ЗО</option>
-                    <option value="Зона двигателей">Зона двигателей</option>
-                    <option value="Слесарная мастерская">Слесарная мастерская</option>
-                </select>
-            </div>
-
-            <!-- Photo BEFORE (Исходное состояние / Дефект) -->
-            <div class="form-row">
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                    <label style="margin-bottom: 0;"><i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото ДО
-                        <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(исходное состояние / проблема)</span></label>
-                    <div style="display: flex; gap: 6px;">
-                        <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;"
-                            onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container')">
-                        <button type="button" class="btn-action btn-secondary-action"
-                            style="font-size: 0.75rem; padding: 4px 10px;"
-                            onclick="document.getElementById('task-photo-gallery').click()"
-                            title="Выбрать фото из галереи или файлов">
-                            <i class="fa-solid fa-images"></i> <span>Выбрать фото ДО</span>
-                        </button>
+                <label style="margin-bottom: 0.35rem; font-weight: 600;">Зона / Участок</label>
+                <div class="zone-picker-wrapper" style="position: relative;">
+                    <input type="hidden" id="task-zone-input" value="Бережливое производство">
+                    <div class="zone-select-modern" id="btn-task-zone-trigger" onclick="toggleTaskZonePopover(event)" tabindex="0" title="Нажмите для выбора зоны / участка">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="zone-icon-circle" id="task-zone-icon" style="background: #eff6ff; color: #2563eb; font-size: 0.85rem;">
+                                <i class="fa-solid fa-folder"></i>
+                            </div>
+                            <span id="task-zone-display-text" style="font-size: 0.88rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Бережливое производство</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" id="task-zone-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="filter-dropdown-popover zone-picker-popover task-zone-popover" id="popover-task-zone" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-task-zone" placeholder="🔍 Поиск зоны / участка..." oninput="renderTaskZonePickerList(this.value)">
+                        </div>
+                        <div class="filter-popover-list" id="list-task-zone" style="max-height: 250px;"></div>
                     </div>
                 </div>
-                <div style="position: relative; display: flex; align-items: center;">
-                    <input type="url" class="form-input" id="task-photo-input"
-                        placeholder="Ссылка на фото ДО или загрузите через кнопку выше..."
-                        oninput="onPhotoInputChanged('task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container')" style="padding-right: 85px;">
-                    <button type="button" id="task-photo-preview-btn" class="btn-action btn-secondary-action"
-                        style="position: absolute; right: 4px; font-size: 0.72rem; padding: 3px 8px; display: none;"
-                        onclick="openPhotoViewerModal(document.getElementById('task-photo-input').value, document.getElementById('task-photo-after-input')?.value, 'before')">
-                        <i class="fa-solid fa-eye"></i> Просмотр
+            </div>
+
+            <!-- Photo BEFORE (Clean direct picker & preview card, exact 56px height) -->
+            <div class="form-row">
+                <label style="margin-bottom: 0.35rem; font-weight: 600;"><i class="fa-solid fa-camera" style="color: #2563eb;"></i> Фото ДО <span style="color: #64748b; font-weight: normal; font-size: 0.75rem;">(исходное состояние / проблема)</span></label>
+                <input type="file" id="task-photo-gallery" accept="image/*" style="display: none;"
+                    onchange="handlePhotoFileUpload(this, 'task-photo-input', 'task-photo-preview-hint', 'task-photo-preview-btn', 'task-photo-thumb-container')">
+                <input type="hidden" id="task-photo-input" value="">
+                
+                <div class="photo-attach-wrapper" id="task-photo-attach-wrapper">
+                    <button type="button" class="photo-attach-btn-modern" id="btn-attach-photo-do"
+                        onclick="document.getElementById('task-photo-gallery').click()"
+                        title="Выбрать фото из галереи или камеры">
+                        <div class="photo-attach-icon"><i class="fa-solid fa-camera"></i></div>
+                        <div class="photo-attach-content">
+                            <span class="photo-attach-title">Прикрепить фото ДО</span>
+                            <span class="photo-attach-sub">До 15 МБ, авто-сжатие WebP</span>
+                        </div>
                     </button>
+                    <div id="task-photo-thumb-container" style="display: none;"></div>
                 </div>
-                <div id="task-photo-thumb-container" style="display: none; margin-top: 6px; align-items: center; gap: 8px;"></div>
-                <div id="task-photo-preview-hint"
-                    style="display: none; font-size: 0.75rem; color: #16a34a; margin-top: 4px; align-items: center; gap: 4px;">
-                    <i class="fa-solid fa-circle-check"></i> <span>Фото ДО прикреплено</span>
-                </div>
+                <!-- Hidden legacy elements for compatibility -->
+                <div id="task-photo-preview-hint" style="display: none !important;"></div>
+                <button type="button" id="task-photo-preview-btn" style="display: none !important;"></button>
             </div>
 
             <!-- Photo AFTER (Факт выполнения / Результат) -->
@@ -3209,19 +3626,45 @@
                 </div>
             </div>
 
-            <!-- Author & Assignee -->
+            <!-- Author & Assignee (Exact 48px height aligned) -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row">
                 <div>
-                    <label>Автор задачи</label>
-                    <select class="form-select" id="task-author-input">
-                        <option value="">-- Выберите автора --</option>
-                    </select>
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Автор задачи</label>
+                    <div class="author-lock-card" id="task-author-card" title="Автор задачи определяется автоматически">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="task-author-avatar">👤</div>
+                            <div style="display: flex; flex-direction: column; min-width: 0;">
+                                <div style="display: flex; align-items: center; gap: 0.35rem;">
+                                    <span id="task-author-name-text" style="font-weight: 600; font-size: 0.88rem; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">—</span>
+                                    <span id="task-author-role-text" class="author-role-pill">Автор</span>
+                                </div>
+                                <span style="font-size: 0.68rem; color: #94a3b8; line-height: 1.1;">Авторизованный профиль</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-lock" style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem; flex-shrink: 0;" title="Автор определяется текущей сессией"></i>
+                    </div>
+                    <input type="hidden" id="task-author-input" value="">
                 </div>
                 <div>
-                    <label>Исполнитель</label>
-                    <select class="form-select" id="task-assignee-input">
-                        <option value="">-- Выберите исполнителя --</option>
-                    </select>
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Исполнитель</label>
+                    <div class="assignee-picker-wrapper" style="position: relative;">
+                        <input type="hidden" id="task-assignee-input" value="">
+                        <div class="assignee-select-modern" id="btn-task-assignee-trigger" onclick="toggleTaskAssigneePopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                            <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                                <div class="author-avatar-circle" id="task-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.75rem;">
+                                    <i class="fa-solid fa-user"></i>
+                                </div>
+                                <span id="task-assignee-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите исполнителя --</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down" id="task-assignee-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                        </div>
+                        <div class="filter-dropdown-popover person-picker-popover task-assignee-popover" id="popover-task-assignee" style="display: none;" onclick="event.stopPropagation()">
+                            <div class="filter-popover-search-wrap">
+                                <input type="text" class="filter-popover-search-input" id="search-task-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderTaskAssigneePickerList(this.value)">
+                            </div>
+                            <div class="filter-popover-list" id="list-task-assignee" style="max-height: 250px;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -3229,22 +3672,13 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="form-row"
                 id="task-due-status-row">
                 <div id="task-due-container">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 4px;">
-                        <label style="margin-bottom: 0;">Срок выполнения (Дата)</label>
-                        <div class="due-presets-bar">
-                            <button type="button" class="btn-due-preset" onclick="setDuePreset('today')">Сегодня</button>
-                            <button type="button" class="btn-due-preset" onclick="setDuePreset('this_fri')">Пт (эта нед.)</button>
-                            <button type="button" class="btn-due-preset" onclick="setDuePreset('next_fri')" id="btn-due-preset-next-fri" style="font-weight: 700; color: #1d4ed8; background: #eff6ff;">Пт (след. нед.)</button>
-                            <button type="button" class="btn-due-preset" onclick="setDuePreset('plus_2w')">+2 нед.</button>
-                            <button type="button" class="btn-due-preset" onclick="setDuePreset('month_end')">Конец мес.</button>
-                        </div>
-                    </div>
-                    <input type="date" class="form-input" id="task-due-input" onchange="onDueDateInputChanged(this.value)" oninput="onDueDateInputChanged(this.value)">
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Срок выполнения (Дата)</label>
+                    <input type="date" class="form-input due-date-input-modern" id="task-due-input" onchange="onDueDateInputChanged(this.value)" oninput="onDueDateInputChanged(this.value)">
                     <div id="task-due-target-badge" class="due-date-target-badge" style="display: none;"></div>
                 </div>
                 <div id="task-status-container">
-                    <label>Статус</label>
-                    <select class="form-select" id="task-status-input">
+                    <label style="margin-bottom: 0.35rem; font-weight: 600;">Статус</label>
+                    <select class="form-select" id="task-status-input" style="height: 44px;">
                         <option value="🟡 В работе">🟡 В работе</option>
                         <option value="🟢 Выполнено">🟢 Выполнено</option>
                         <option value="🔵 Перенесено">🔵 Перенесено</option>
@@ -3255,16 +3689,16 @@
 
             <!-- Comment / Fact -->
             <div class="form-row" id="task-comment-container">
-                <label>Факт / Комментарий</label>
+                <label style="margin-bottom: 0.35rem; font-weight: 600;">Факт / Комментарий</label>
                 <input type="text" class="form-input" id="task-comment-input"
-                    placeholder="Ход выполнения, замечания...">
+                    placeholder="Ход выполнения, замечания..." style="height: 44px;">
             </div>
 
             <div
                 style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                <div>
+                <div id="task-reassign-container" style="display: none !important;">
                     <button type="button" class="btn-action" id="btn-modal-reassign-task"
-                        style="display: none; background: #6366f1; color: #ffffff; font-weight: 600;"
+                        style="display: none !important; background: #6366f1; color: #ffffff; font-weight: 600;"
                         onclick="openReassignModalFromEdit()">
                         <i class="fa-solid fa-share-nodes"></i> <span>Переадресовать</span>
                     </button>
@@ -3312,9 +3746,18 @@
                         <label style="display: block; font-weight: 600; font-size: 0.82rem; color: #1e293b; margin-bottom: 0.35rem;">
                             <i class="fa-solid fa-user" style="color: #6366f1;"></i> Исполнитель
                         </label>
-                        <select id="quick-subtask-assignee" class="form-select" style="width: 100%; font-size: 0.85rem;">
-                            <!-- populated dynamically -->
-                        </select>
+                        <div class="assignee-picker-wrapper" id="quick-subtask-assignee-wrapper" style="position: relative;">
+                            <input type="hidden" id="quick-subtask-assignee-input" value="">
+                            <div class="assignee-select-modern quick-subtask-assignee-trigger" id="btn-quick-subtask-assignee-trigger" onclick="toggleQuickSubtaskAssigneePopover(event)" tabindex="0" title="Выберите исполнителя">
+                                <div style="display: flex; align-items: center; gap: 0.45rem; min-width: 0;">
+                                    <div class="author-avatar-circle" id="quick-subtask-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.65rem; width: 22px; height: 22px; flex-shrink: 0;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="quick-subtask-assignee-label" style="font-size: 0.82rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Исполнитель --</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="quick-subtask-assignee-chevron" style="color: #94a3b8; font-size: 0.68rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label style="display: block; font-weight: 600; font-size: 0.82rem; color: #1e293b; margin-bottom: 0.35rem;">
@@ -3371,9 +3814,10 @@
     <div class="modal-overlay" id="bulk-tasks-modal" style="display: none;">
         <div class="modal-box" style="max-width: 1040px; width: 96vw;">
             <div class="modal-header">
-                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
                     <i class="fa-solid fa-layer-group" style="color: #2563eb; font-size: 1.25rem;"></i>
                     <h3 style="margin: 0;">Массовое добавление задач</h3>
+                    <span id="bulk-modal-horizon-badge" class="modal-horizon-badge">⚡ Недельный спринт</span>
                 </div>
                 <button class="modal-close" onclick="closeBulkTasksModal()">&times;</button>
             </div>
@@ -3390,22 +3834,10 @@
                         1</span>
                 </div>
 
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.65rem;">
-                    <div>
-                        <label
-                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Горизонт
-                            / Тип</label>
-                        <select class="form-select" id="bulk-type-input" onchange="onBulkTypeChange(this.value)"
-                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
-                            <option value="weekly">⚡ Недельный спринт</option>
-                            <option value="service_plan">🔧 План службы (ОГМ / ОГЭ)</option>
-                            <option value="tech_council">🏛️ Техсовет</option>
-                            <option value="quality_day">📋 День качества</option>
-                            <option value="roadmap">🗺️ Дорожные карты и проекты</option>
-                        </select>
-                    </div>
+                <input type="hidden" id="bulk-type-input" value="weekly">
 
-                    <div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.65rem;">
+                    <div id="bulk-department-container" style="display: none;">
                         <label
                             style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Служба</label>
                         <select class="form-select" id="bulk-department-input"
@@ -3420,22 +3852,47 @@
                     </div>
 
                     <div>
-                        <label
-                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Автор
-                            задач *</label>
-                        <select class="form-select" id="bulk-author-input"
-                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
-                            <option value="">-- Выберите автора --</option>
-                        </select>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Автор задач *</label>
+                        <div class="assignee-picker-wrapper" style="position: relative;">
+                            <input type="hidden" id="bulk-author-input" value="">
+                            <div class="assignee-select-modern bulk-select-modern" id="btn-bulk-author-trigger" onclick="toggleBulkAuthorPopover(event)" tabindex="0" title="Нажмите для выбора автора пачки">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+                                    <div class="author-avatar-circle" id="bulk-author-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.7rem; width: 24px; height: 24px;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="bulk-author-display-text" style="font-size: 0.82rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите автора --</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="bulk-author-chevron" style="color: #94a3b8; font-size: 0.72rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                            <div class="filter-dropdown-popover person-picker-popover bulk-author-popover" id="popover-bulk-author" style="display: none;" onclick="event.stopPropagation()">
+                                <div class="filter-popover-search-wrap">
+                                    <input type="text" class="filter-popover-search-input" id="search-bulk-author" placeholder="🔍 Поиск автора..." oninput="renderBulkAuthorPickerList(this.value)">
+                                </div>
+                                <div class="filter-popover-list" id="list-bulk-author" style="max-height: 250px;"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
-                        <label
-                            style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Зона
-                            по умолчанию</label>
-                        <select class="form-select" id="bulk-zone-input"
-                            style="font-size: 0.82rem; padding: 0.4rem 0.6rem;">
-                        </select>
+                        <label style="font-size: 0.75rem; font-weight: 600; color: #334155; margin-bottom: 2px; display: block;">Зона по умолчанию</label>
+                        <div class="zone-picker-wrapper" style="position: relative;">
+                            <input type="hidden" id="bulk-zone-input" value="Бережливое производство">
+                            <div class="zone-select-modern bulk-select-modern" id="btn-bulk-zone-trigger" onclick="toggleBulkZonePopover(event)" tabindex="0" title="Нажмите для выбора зоны по умолчанию">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+                                    <div class="zone-icon-circle" id="bulk-zone-icon" style="background: #eff6ff; color: #2563eb; font-size: 0.75rem; width: 24px; height: 24px;">
+                                        <i class="fa-solid fa-folder"></i>
+                                    </div>
+                                    <span id="bulk-zone-display-text" style="font-size: 0.82rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Бережливое производство</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="bulk-zone-chevron" style="color: #94a3b8; font-size: 0.72rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                            <div class="filter-dropdown-popover zone-picker-popover bulk-zone-popover" id="popover-bulk-zone" style="display: none;" onclick="event.stopPropagation()">
+                                <div class="filter-popover-search-wrap">
+                                    <input type="text" class="filter-popover-search-input" id="search-bulk-zone" placeholder="🔍 Поиск зоны..." oninput="renderBulkZonePickerList(this.value)">
+                                </div>
+                                <div class="filter-popover-list" id="list-bulk-zone" style="max-height: 250px;"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -3462,11 +3919,6 @@
                         <i class="fa-solid fa-camera" style="color: #16a34a;"></i> <span>📷 Распознать скриншот / фото (AI)</span>
                     </button>
                     <input type="file" id="bulk-ocr-file-input" accept="image/*" multiple style="display: none;" onchange="handleBulkOcrFileSelect(this)">
-                    
-                    <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600; color: #475569; cursor: pointer; user-select: none; margin-left: 2px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 8px; border-radius: 6px;" title="Если включено, новые фото дополняют список, не стирая уже добавленные задачи">
-                        <input type="checkbox" id="bulk-ocr-append-mode" checked style="accent-color: #16a34a; cursor: pointer;">
-                        <span>Дополнять список</span>
-                    </label>
                 </div>
                 <div style="font-size: 0.75rem; color: #64748b;">
                     💡 Вставьте скриншот через <b>Ctrl + V</b> или выберите сразу несколько фото
@@ -3497,7 +3949,7 @@
             <div
                 style="max-height: 420px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.5rem; background: #ffffff;">
                 <div id="bulk-tasks-table-header"
-                    style="display: grid; grid-template-columns: 32px 1fr 170px 135px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
+                    style="display: grid; grid-template-columns: 32px 1fr 180px 135px 36px; gap: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; margin-bottom: 0.35rem;">
                     <span>№</span>
                     <span>Суть задачи *</span>
                     <span id="bulk-header-assignee">Исполнитель</span>
@@ -3866,28 +4318,30 @@
     <!-- TASK DETAIL VIEW MODAL (WITH MULTI-PHOTO GALLERY & SUBTASKS) -->
     <div class="modal-overlay" id="task-detail-modal" style="z-index: 6500;">
         <div class="modal-box task-detail-box">
-            <!-- Header -->
-            <div class="task-detail-header">
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0;">
-                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-back" onclick="navigateBackTaskDetail()" style="display: none; padding: 4px 9px; font-size: 0.76rem; border-radius: 8px; align-items: center; gap: 4px; background: #ffffff; border-color: #cbd5e1;" title="Вернуться назад">
-                        <i class="fa-solid fa-arrow-left"></i> Назад
-                    </button>
-                    <span class="badge-code" id="detail-task-code" style="font-size: 0.82rem; font-family: monospace; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 6px; flex-shrink: 0;">TSK-01</span>
-                    <span id="detail-task-status-badge" style="font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; flex-shrink: 0;">🟡 В работе</span>
-                    <span id="detail-task-horizon-badge" class="badge-horizon horizon-sprint" style="font-size: 0.74rem; flex-shrink: 0;">Спринт</span>
+            <!-- Header (Strict Single Clean Row: Status on left, Actions on right) -->
+            <div class="task-detail-header-clean">
+                <div class="task-detail-header-left">
+                    <span id="detail-task-status-badge" class="task-detail-status-pill">
+                        <span class="task-detail-status-dot" style="background: #d97706; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);"></span>
+                        <span>В работе</span>
+                    </span>
+                    <!-- Hidden elements for backward compatibility -->
+                    <button type="button" id="detail-btn-back" style="display: none;" onclick="navigateBackTaskDetail()"></button>
+                    <span id="detail-task-code" style="display: none;"></span>
+                    <span id="detail-task-horizon-badge" style="display: none;"></span>
                     <span id="detail-task-parent-wrap" style="display: none;"></span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; flex-wrap: nowrap;">
-                    <button type="button" class="btn-action" id="detail-btn-complete" onclick="openCompleteTaskModalFromDetail()" style="background: #10b981; color: #fff; padding: 5px 11px; font-size: 0.76rem; font-weight: 600; border-radius: 8px;" title="Завершить задачу">
+                <div class="task-detail-header-right">
+                    <button type="button" class="btn-action detail-btn-action" id="detail-btn-complete" onclick="openCompleteTaskModalFromDetail()" style="background: #10b981; color: #fff;" title="Завершить задачу">
                         <i class="fa-solid fa-check"></i> Завершить
                     </button>
-                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-reschedule" onclick="openRescheduleModalFromDetail()" style="padding: 5px 9px; font-size: 0.76rem; border-radius: 8px;" title="Перенести срок">
+                    <button type="button" class="btn-action btn-secondary-action detail-btn-action" id="detail-btn-reschedule" onclick="openRescheduleModalFromDetail()" title="Перенести срок">
                         <i class="fa-solid fa-calendar-day"></i> Перенести
                     </button>
-                    <button type="button" class="btn-action btn-secondary-action" id="detail-btn-edit" onclick="openEditTaskModalFromDetail()" style="padding: 5px 9px; font-size: 0.76rem; border-radius: 8px;" title="Редактировать задачу">
+                    <button type="button" class="btn-action btn-secondary-action detail-btn-action" id="detail-btn-edit" onclick="openEditTaskModalFromDetail()" title="Редактировать задачу">
                         <i class="fa-solid fa-pen"></i> Редактировать
                     </button>
-                    <button type="button" class="modal-close" onclick="closeTaskDetailModal()" title="Закрыть" style="margin-left: 2px;">&times;</button>
+                    <button type="button" class="detail-btn-close" onclick="closeTaskDetailModal()" title="Закрыть">&times;</button>
                 </div>
             </div>
 
@@ -3895,8 +4349,8 @@
             <div class="task-detail-content">
                 <!-- Titles -->
                 <div>
-                    <h2 class="task-detail-title-ru" id="detail-task-title-ru">Название задачи</h2>
-                    <div class="task-detail-title-kz" id="detail-task-title-kz">Тапсырманың атауы</div>
+                    <h2 class="task-detail-title-ru" id="detail-task-title-ru" style="margin-bottom: 0;">Название задачи</h2>
+                    <div id="detail-task-title-kz" style="display: none;"></div>
                 </div>
 
                 <!-- Progress Bar (if project or has subtasks) -->
@@ -3910,32 +4364,60 @@
                     </div>
                 </div>
 
-                <!-- Metadata Grid -->
-                <div class="task-detail-grid">
-                    <div class="task-detail-cell">
-                        <span class="task-detail-cell-label">👤 Исполнитель</span>
-                        <span class="task-detail-cell-value" id="detail-task-assignee">—</span>
+                <!-- 4-COLUMN PROPERTY STRIP -->
+                <div class="detail-properties-strip">
+                    <!-- Col 1: Исполнитель -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap" id="detail-assignee-avatar-wrap">
+                            <div class="person-avatar avatar-blue" id="detail-assignee-avatar" style="width: 26px !important; height: 26px !important; font-size: 11px !important;">👤</div>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Исполнитель</span>
+                            <span class="detail-property-value" id="detail-task-assignee">—</span>
+                        </div>
                     </div>
-                    <div class="task-detail-cell">
-                        <span class="task-detail-cell-label">✍️ Автор / Инициатор</span>
-                        <span class="task-detail-cell-value" id="detail-task-author">—</span>
+
+                    <!-- Col 2: Дедлайн -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap">
+                            <i class="fa-regular fa-calendar" style="color: #64748b; font-size: 0.95rem;"></i>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Дедлайн</span>
+                            <span class="detail-property-value" id="detail-task-due-date">—</span>
+                        </div>
                     </div>
-                    <div class="task-detail-cell">
-                        <span class="task-detail-cell-label">📅 Срок сдачи (Дедлайн)</span>
-                        <span class="task-detail-cell-value" id="detail-task-due-date">—</span>
+
+                    <!-- Col 3: Инициатор -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap">
+                            <i class="fa-regular fa-user" style="color: #64748b; font-size: 0.95rem;"></i>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Инициатор</span>
+                            <span class="detail-property-value" id="detail-task-author">—</span>
+                        </div>
                     </div>
-                    <div class="task-detail-cell">
-                        <span class="task-detail-cell-label">🏢 Зона / Служба</span>
-                        <span class="task-detail-cell-value" id="detail-task-zone-service">—</span>
+
+                    <!-- Col 4: Служба / Зона -->
+                    <div class="detail-property-col">
+                        <div class="detail-property-icon-wrap">
+                            <i class="fa-solid fa-industry" style="color: #64748b; font-size: 0.9rem;"></i>
+                        </div>
+                        <div class="detail-property-info">
+                            <span class="detail-property-label">Служба / Зона</span>
+                            <span class="detail-property-value" id="detail-task-zone-service">—</span>
+                        </div>
                     </div>
-                    <div class="task-detail-cell">
-                        <span class="task-detail-cell-label">🗓️ Календарный период</span>
-                        <span class="task-detail-cell-value" id="detail-task-period">—</span>
-                    </div>
-                    <div class="task-detail-cell" id="detail-doc-cell">
-                        <span class="task-detail-cell-label">📎 Регламент / Документ</span>
-                        <span class="task-detail-cell-value" id="detail-task-doc">—</span>
-                    </div>
+                </div>
+
+                <!-- Backward compatibility stub for period -->
+                <span id="detail-task-period" style="display: none;"></span>
+
+                <!-- Attached Document Cell (shown only when doc exists) -->
+                <div id="detail-doc-cell" style="display: none; margin-top: -6px; margin-bottom: 6px; padding: 7px 12px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: #1e40af;"><i class="fa-solid fa-file-lines"></i> Регламент:</span>
+                    <span id="detail-task-doc" style="font-size: 0.82rem; font-weight: 600; color: #1d4ed8;">—</span>
                 </div>
 
                 <!-- Tags & Blockers -->
@@ -3944,12 +4426,33 @@
                     <div id="detail-tags-wrap" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
                 </div>
 
-                <!-- Comment / Note -->
+                <!-- Comment / Note with One-Click Inline Editor -->
                 <div id="detail-comment-section">
-                    <div style="font-size: 0.76rem; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px;">
-                        <i class="fa-regular fa-comment-dots"></i> Комментарий / Описание:
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="font-size: 0.76rem; text-transform: uppercase; font-weight: 700; color: #64748b; display: flex; align-items: center; gap: 5px;">
+                            <i class="fa-regular fa-comment-dots"></i> Комментарий / Факт выполнения:
+                        </div>
+                        <button type="button" class="btn-action" id="btn-edit-detail-comment" onclick="enableDetailCommentEdit()" style="font-size: 0.72rem; padding: 2px 7px; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-pen" style="font-size: 0.65rem;"></i> Изменить
+                        </button>
                     </div>
-                    <div class="task-detail-comment-box" id="detail-task-comment">Нет комментариев</div>
+                    <!-- View Mode (Click to Edit) -->
+                    <div class="task-detail-comment-box" id="detail-task-comment" onclick="enableDetailCommentEdit()" title="Нажмите для добавления или редактирования комментария">
+                        Комментарий отсутствует
+                    </div>
+                    <!-- Edit Mode (Inline Textarea with Save / Cancel) -->
+                    <div id="detail-comment-edit-wrap" style="display: none; margin-top: 4px;">
+                        <textarea id="detail-comment-textarea" class="form-input" rows="3" placeholder="Введите комментарий или рабочий факт выполнения (например: замеры сняты, чертеж в раскрое)..." style="width: 100%; box-sizing: border-box; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #3b82f6; resize: vertical; line-height: 1.45;"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; flex-wrap: wrap; gap: 6px;">
+                            <span style="font-size: 0.72rem; color: #94a3b8;">Нажмите <kbd style="background: #f1f5f9; padding: 1px 4px; border-radius: 3px; border: 1px solid #cbd5e1; font-size: 0.7rem;">Ctrl + Enter</kbd> для сохранения</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" class="btn-action btn-secondary-action" onclick="cancelDetailCommentEdit()" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px;">Отмена</button>
+                                <button type="button" class="btn-action btn-primary-action" id="btn-save-detail-comment" onclick="saveDetailCommentEdit()" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 6px; background: #2563eb; border-color: #2563eb;">
+                                    <i class="fa-solid fa-check"></i> Сохранить
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- PHOTO GALLERY (ДО / ПОСЛЕ) -->
@@ -4233,37 +4736,47 @@
                 <div class="graph-inspector" id="graph-inspector" style="display: block;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
                         <span style="font-size: 0.74rem; font-weight: 700; color: #4338ca; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 5px;">
-                            <i class="fa-solid fa-sliders"></i> Управление этапом
+                            <i class="fa-solid fa-circle-info"></i> Информация об этапе
                         </span>
-                        <button type="button" class="btn-icon-cell" onclick="closeGraphInspector()" style="font-size: 0.85rem; padding: 2px 6px;" title="Скрыть инспектор">&times;</button>
+                        <button type="button" class="btn-icon-cell" onclick="closeGraphInspector()" style="font-size: 0.85rem; padding: 2px 6px; cursor: pointer;" title="Скрыть инспектор">&times;</button>
                     </div>
 
                     <!-- Empty State Placeholder when no node is selected -->
                     <div id="inspector-empty-state" style="display: none; padding: 2.5rem 1rem; text-align: center; color: #64748b;">
                         <i class="fa-solid fa-hand-pointer fa-2x" style="color: #818cf8; margin-bottom: 12px; display: block;"></i>
                         <div style="font-weight: 700; color: #334155; font-size: 0.85rem; margin-bottom: 4px;">Этап не выбран</div>
-                        <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4;">Кликните на карточку любого этапа на схеме, чтобы настроить параметры, связи или удалить этап.</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4;">Кликните на карточку любого этапа на схеме, чтобы просмотреть параметры, связи или открыть паспорт.</div>
                     </div>
 
                     <!-- Inspector Active Body -->
                     <div id="inspector-content-wrap">
-                        <!-- Header with Status Badge/Dropdown -->
+                        <!-- Header with Status Badge (Purely Informational, Read-Only) -->
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px;">
                             <span class="badge-code" id="inspector-node-code">TSK-00</span>
-                            <select id="inspector-edit-status" class="form-select" onchange="handleInspectorStatusChange(this.value)" style="font-size: 0.75rem; font-weight: 600; padding: 3px 6px; border-radius: 6px; max-width: 155px;" title="Статус этапа">
-                                <option value="🟡 В работе">🟡 В работе</option>
-                                <option value="🟢 Выполнено">🟢 Выполнено</option>
-                                <option value="🔴 Отменено">🔴 Отменено</option>
-                            </select>
+                            <span id="inspector-node-status-badge" style="font-size: 0.74rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #b45309; border: 1px solid #fde68a;">🟡 В работе</span>
                         </div>
 
                         <!-- Stage Title & Meta Info -->
                         <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;">
                             <div id="inspector-node-title" style="font-size: 0.94rem; font-weight: 700; color: #0f172a; line-height: 1.35; margin-bottom: 4px; word-break: break-word;"></div>
                             <div id="inspector-node-title-kz" style="font-size: 0.76rem; color: #64748b; font-style: italic; margin-bottom: 6px; word-break: break-word;"></div>
-                            <div style="display: flex; gap: 8px; font-size: 0.74rem; color: #64748b; flex-wrap: wrap;">
-                                <span>👤 <strong id="inspector-node-assignee" style="color: #334155;">—</strong></span>
-                                <span>📅 <span id="inspector-node-due-date" style="color: #334155;">—</span></span>
+                            <div style="display: flex; gap: 8px; font-size: 0.74rem; color: #64748b; flex-wrap: wrap; align-items: center; margin-top: 4px;">
+                                <div class="inspector-meta-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 34px; flex: 1;">
+                                    <div class="author-avatar-circle" id="inspector-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.65rem; width: 22px; height: 22px; flex-shrink: 0; font-weight: 700;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; min-width: 0;">
+                                        <span style="font-size: 0.64rem; color: #94a3b8; line-height: 1; text-transform: uppercase; font-weight: 600;">Исполнитель</span>
+                                        <span id="inspector-node-assignee" style="font-size: 0.76rem; color: #1e293b; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">—</span>
+                                    </div>
+                                </div>
+                                <div class="inspector-meta-pill" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 34px;">
+                                    <span style="font-size: 0.85rem;">📅</span>
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 0.64rem; color: #94a3b8; line-height: 1; text-transform: uppercase; font-weight: 600;">Дедлайн</span>
+                                        <span id="inspector-node-due-date" style="color: #1e293b; font-weight: 600; font-size: 0.76rem;">—</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -4272,16 +4785,16 @@
                             <i class="fa-solid fa-lock" style="margin-right: 4px;"></i> <strong>Блокировка:</strong> ждет завершения <span id="inspector-blocker-name" style="font-weight: 700;"></span>
                         </div>
 
-                        <!-- Graph-Specific: Arrow Dependency (Multi-Blockers) with Auto-Save -->
+                        <!-- Graph-Specific: Arrow Dependency (Informational Predecessors List with Click-to-Focus) -->
                         <div style="margin-bottom: 10px;" id="inspector-blockers-picker-container">
-                            <!-- Multi-blocker picker with chips, search, and auto-save rendered dynamically -->
+                            <!-- Predecessors rendered dynamically as clickable cards -->
                         </div>
 
                         <!-- Subtasks / Checklist section with Integrated Progress -->
                         <div style="padding-top: 8px; border-top: 1px solid #e2e8f0;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                                 <span style="font-size: 0.72rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.3px;">
-                                    <i class="fa-solid fa-list-check" style="color: #6366f1; margin-right: 3px;"></i> Подзадачи этапа:
+                                    <i class="fa-solid fa-list-check" style="color: #6366f1; margin-right: 3px;"></i> Чек-лист этапа:
                                 </span>
                                 <span style="font-size: 0.72rem; font-weight: 700; color: #2563eb;">
                                     <span id="inspector-subtasks-count">0/0</span> • <span id="inspector-node-progress">0%</span>
@@ -4293,23 +4806,14 @@
                             <div id="inspector-subtasks-list" style="display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; margin-bottom: 6px;">
                                 <!-- subtasks rendered dynamically -->
                             </div>
-                            <div style="display: flex; gap: 4px;">
-                                <input type="text" id="inspector-new-subtask-input" class="form-input" placeholder="+ Подзадача (Enter)..." style="flex: 1; font-size: 0.76rem; padding: 4px 6px; border-radius: 6px;" onkeydown="handleInspectorNewSubtaskKeydown(event)">
-                                <button type="button" class="btn-action btn-primary-action" onclick="addInspectorSubtask()" style="padding: 4px 8px; font-size: 0.76rem; border-radius: 6px;" title="Добавить подзадачу">
-                                    <i class="fa-solid fa-plus"></i>
-                                </button>
-                            </div>
                         </div>
 
                         <!-- Action buttons -->
                         <div style="display: flex; gap: 6px; flex-direction: column; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
-                            <button type="button" class="btn-action btn-secondary-action" onclick="addNextStageAfterSelected()" style="font-size: 0.76rem; padding: 6px 8px; width: 100%; justify-content: center; background: #eef2ff; color: #4338ca; border-color: #c7d2fe; font-weight: 600;" title="Создать следующий этап с привязкой стрелкой от этого">
-                                <i class="fa-solid fa-arrow-right"></i> + Следующий этап по цепочке
+                            <button type="button" class="btn-action btn-primary-action" id="inspector-btn-open-detail" style="font-size: 0.78rem; padding: 8px 10px; width: 100%; justify-content: center; font-weight: 700; border-radius: 8px; background: #0f172a; color: #ffffff; border: none; box-shadow: 0 4px 12px rgba(15,23,42,0.15); cursor: pointer;" title="Открыть полный паспорт задачи">
+                                <i class="fa-solid fa-folder-open" style="margin-right: 6px; color: #38bdf8;"></i> Открыть полный паспорт задачи
                             </button>
-                            <button type="button" class="btn-action btn-secondary-action" id="inspector-btn-open-detail" style="font-size: 0.76rem; padding: 6px 8px; width: 100%; justify-content: center; background: #ffffff; border-color: #cbd5e1; font-weight: 600;" title="Открыть полный паспорт задачи">
-                                <i class="fa-solid fa-folder-open" style="color: #2563eb;"></i> Паспорт этапа
-                            </button>
-                            <button type="button" class="btn-action btn-secondary-action" id="inspector-delete-btn" onclick="deleteStageFromGraph()" style="width: 100%; justify-content: center; font-size: 0.74rem; font-weight: 600; padding: 5px 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2; border-radius: 6px; margin-top: 4px;" title="Удалить этап (требуется PIN-код автора или руководства)">
+                            <button type="button" class="btn-action btn-secondary-action" id="inspector-delete-btn" onclick="deleteStageFromGraph()" style="width: 100%; justify-content: center; font-size: 0.74rem; font-weight: 600; padding: 5px 8px; color: #dc2626; border-color: #fecaca; background: #fef2f2; border-radius: 6px; margin-top: 4px; cursor: pointer;" title="Удалить этап (требуется PIN-код автора или руководства)">
                                 <i class="fa-solid fa-trash-can" style="margin-right: 4px;"></i> Удалить этап (через PIN)
                             </button>
                         </div>
@@ -4348,7 +4852,18 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                     <div>
                         <label style="font-size: 0.74rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Исполнитель</label>
-                        <select id="graph-new-stage-assignee" class="form-select" style="width: 100%; font-size: 0.8rem; padding: 5px 6px; border-radius: 6px;"></select>
+                        <div class="assignee-picker-wrapper" id="graph-stage-assignee-wrapper" style="position: relative;">
+                            <input type="hidden" id="graph-new-stage-assignee-input" value="">
+                            <div class="assignee-select-modern graph-stage-assignee-trigger" id="btn-graph-stage-assignee-trigger" onclick="toggleGraphStageAssigneePopover(event)" tabindex="0" title="Выберите исполнителя этапа">
+                                <div style="display: flex; align-items: center; gap: 0.45rem; min-width: 0;">
+                                    <div class="author-avatar-circle" id="graph-stage-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.65rem; width: 22px; height: 22px; flex-shrink: 0;">
+                                        <i class="fa-solid fa-user"></i>
+                                    </div>
+                                    <span id="graph-stage-assignee-label" style="font-size: 0.8rem; color: #334155; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Исполнитель --</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-down" id="graph-stage-assignee-chevron" style="color: #94a3b8; font-size: 0.68rem; transition: transform 0.2s ease;"></i>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label style="font-size: 0.74rem; font-weight: 700; color: #475569; display: block; margin-bottom: 3px;">Срок выполнения</label>
@@ -4450,7 +4965,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20261021_rbac_v2"></script>
+    <script src="/static/js/tasks.js?v=20261026_syntax_fix_v3"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
@@ -4842,9 +5357,142 @@
                 obs.observe(el, { childList: true, subtree: false });
             }
         });
+
+        // URL deep-link to auto-open task modals (useful for shortcuts and verification)
+        try {
+            const p = new URLSearchParams(window.location.search);
+            const m = p.get('open_modal');
+            if (m === 'add') {
+                setTimeout(() => {
+                    const h = p.get('horizon');
+                    if (h && typeof switchHorizon === 'function') {
+                        switchHorizon(h);
+                    }
+                    if (typeof openAddTaskModal === 'function') {
+                        const pr = openAddTaskModal(h ? (h === 'services' ? 'service_plan' : h === 'roadmaps' ? 'roadmap' : h) : null);
+                        Promise.resolve(pr).then(() => {
+                            if (p.get('photo')) {
+                                setTimeout(() => {
+                                    const photoInput = document.getElementById('task-photo-input');
+                                    if (photoInput) {
+                                        photoInput.value = '/static/img/Logo.png';
+                                        if (typeof onPhotoInputChanged === 'function') onPhotoInputChanged('task-photo-input');
+                                    }
+                                }, 150);
+                            }
+                            if (p.get('open_assignee')) {
+                                setTimeout(() => {
+                                    if (typeof toggleTaskAssigneePopover === 'function') {
+                                        toggleTaskAssigneePopover();
+                                    }
+                                }, 250);
+                            } else if (p.get('assignee')) {
+                                setTimeout(() => {
+                                    if (typeof selectTaskAssignee === 'function') {
+                                        selectTaskAssignee(p.get('assignee'));
+                                    }
+                                }, 250);
+                            }
+                        });
+                    }
+                }, 350);
+            } else if (m === 'bulk') {
+                setTimeout(() => {
+                    if (typeof openBulkTasksModal === 'function') {
+                        openBulkTasksModal();
+                        if (p.get('open_zone')) {
+                            setTimeout(() => {
+                                if (typeof toggleBulkZonePopover === 'function') toggleBulkZonePopover();
+                            }, 200);
+                        } else if (p.get('open_author')) {
+                            setTimeout(() => {
+                                if (typeof toggleBulkAuthorPopover === 'function') toggleBulkAuthorPopover();
+                            }, 200);
+                        } else if (p.get('open_row_assignee')) {
+                            setTimeout(() => {
+                                const firstRow = document.querySelector('.bulk-task-row');
+                                if (firstRow && typeof toggleBulkRowAssigneePopover === 'function') {
+                                    toggleBulkRowAssigneePopover(null, firstRow.id);
+                                }
+                            }, 250);
+                        }
+                    }
+                }, 350);
+            }
+            if (p.get('open_graph')) {
+                setTimeout(() => {
+                    const gid = parseInt(p.get('open_graph'), 10);
+                    if (typeof openProjectGraphModal === 'function' && gid) {
+                        openProjectGraphModal(gid);
+                        if (p.get('select_node')) {
+                            setTimeout(() => {
+                                const nid = parseInt(p.get('select_node'), 10);
+                                if (typeof selectGraphNode === 'function') selectGraphNode(nid);
+                            }, 600);
+                        }
+                        if (p.get('open_new_stage')) {
+                            setTimeout(() => {
+                                if (typeof openGraphAddStageModal === 'function') {
+                                    openGraphAddStageModal();
+                                    if (p.get('open_stage_assignee')) {
+                                        setTimeout(() => {
+                                            if (typeof toggleGraphStageAssigneePopover === 'function') toggleGraphStageAssigneePopover();
+                                        }, 250);
+                                    }
+                                }
+                            }, 600);
+                        }
+                    }
+                }, 450);
+            }
+            if (p.get('open_detail')) {
+                const tid = parseInt(p.get('open_detail'), 10);
+                setTimeout(() => {
+                    if (typeof openTaskDetailModal === 'function' && tid) {
+                        openTaskDetailModal(tid);
+                        if (p.get('edit_comment')) {
+                            setTimeout(() => {
+                                if (typeof enableDetailCommentEdit === 'function') enableDetailCommentEdit();
+                            }, 200);
+                        }
+                    }
+                }, 50);
+            }
+            if (p.get('open_status')) {
+                setTimeout(() => {
+                    if (typeof toggleDeckFilterPopover === 'function') {
+                        toggleDeckFilterPopover('status', { stopPropagation: () => {} });
+                    }
+                }, 350);
+            }
+        } catch(e) {}
     });
     </script>
     
+    <!-- SHARED BULK ROW ASSIGNEE POPOVER (Rule 7 & 27 Canonical Component) -->
+    <div class="filter-dropdown-popover person-picker-popover bulk-row-assignee-popover" id="popover-bulk-row-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-bulk-row-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderBulkRowAssigneeList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-bulk-row-assignee" style="max-height: 240px;"></div>
+    </div>
+
+    <!-- GRAPH NEW STAGE ASSIGNEE POPOVER (Rule 7 & 27 Canonical Component) -->
+    <div class="filter-dropdown-popover person-picker-popover graph-stage-assignee-popover" id="popover-graph-stage-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-graph-stage-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderGraphStageAssigneeList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-graph-stage-assignee" style="max-height: 240px;"></div>
+    </div>
+
+    <!-- QUICK SUBTASK ASSIGNEE POPOVER (Rule 7 & 27 Canonical Component) -->
+    <div class="filter-dropdown-popover person-picker-popover quick-subtask-assignee-popover" id="popover-quick-subtask-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-quick-subtask-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderQuickSubtaskAssigneeList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-quick-subtask-assignee" style="max-height: 240px;"></div>
+    </div>
+
     <script src="/static/js/splash.js"></script>
 </body>
 

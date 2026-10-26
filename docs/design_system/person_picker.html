@@ -1,0 +1,25 @@
+<!--
+  @canonical-pattern PersonPickerPopover
+  @established 2026-10-26
+  @description 48px trigger with initials avatar, smooth chevron, and body-portaled fixed dropdown popover with search.
+-->
+
+<!-- Trigger & Wrapper HTML -->
+<div class="assignee-picker-wrapper" style="position: relative;">
+    <input type="hidden" id="task-assignee-input" value="">
+    <div class="assignee-select-modern" id="btn-task-assignee-trigger" onclick="toggleTaskAssigneePopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+            <div class="author-avatar-circle" id="task-assignee-avatar" style="background: #f1f5f9; color: #64748b; font-size: 0.75rem;">
+                <i class="fa-solid fa-user"></i>
+            </div>
+            <span id="task-assignee-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите исполнителя --</span>
+        </div>
+        <i class="fa-solid fa-chevron-down" id="task-assignee-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+    </div>
+    <div class="filter-dropdown-popover person-picker-popover task-assignee-popover" id="popover-task-assignee" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+            <input type="text" class="filter-popover-search-input" id="search-task-assignee" placeholder="🔍 Поиск сотрудника..." oninput="renderTaskAssigneePickerList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-task-assignee" style="max-height: 250px;"></div>
+    </div>
+</div>

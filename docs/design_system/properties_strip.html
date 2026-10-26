@@ -1,0 +1,53 @@
+<!--
+  @canonical-pattern CompactPropertiesStrip
+  @established 2026-10-26
+  @description 4-колоночная адаптивная полоса ключевых свойств сущности (Исполнитель, Срок, Автор, Служба/Зона).
+  @compliance Rule 27, Rule 30, Responsive Grid (4 col -> 2 col <= 720px), Initials Avatar, Overflow Ellipsis
+-->
+
+<!-- 4-Column Properties Strip HTML -->
+<div class="detail-properties-strip">
+    <!-- Col 1: Исполнитель (Круглый аватар с инициалами) -->
+    <div class="detail-property-col">
+        <div class="detail-property-icon-wrap" id="detail-assignee-avatar-wrap">
+            <div class="person-avatar avatar-blue" id="detail-assignee-avatar" style="width: 26px !important; height: 26px !important; font-size: 11px !important;">👤</div>
+        </div>
+        <div class="detail-property-info">
+            <span class="detail-property-label">Исполнитель</span>
+            <span class="detail-property-value" id="detail-task-assignee">Иванов И.И.</span>
+        </div>
+    </div>
+
+    <!-- Col 2: Дедлайн (Календарная иконка + форматированная дата) -->
+    <div class="detail-property-col">
+        <div class="detail-property-icon-wrap">
+            <i class="fa-regular fa-calendar" style="color: #64748b; font-size: 0.95rem;"></i>
+        </div>
+        <div class="detail-property-info">
+            <span class="detail-property-label">Дедлайн</span>
+            <span class="detail-property-value" id="detail-task-due-date">28.08 (Пт)</span>
+        </div>
+    </div>
+
+    <!-- Col 3: Инициатор (Иконка пользователя + автор) -->
+    <div class="detail-property-col">
+        <div class="detail-property-icon-wrap">
+            <i class="fa-regular fa-user" style="color: #64748b; font-size: 0.95rem;"></i>
+        </div>
+        <div class="detail-property-info">
+            <span class="detail-property-label">Инициатор</span>
+            <span class="detail-property-value" id="detail-task-author">Петров П.П.</span>
+        </div>
+    </div>
+
+    <!-- Col 4: Служба / Зона (Иконка завода + усечение текста) -->
+    <div class="detail-property-col">
+        <div class="detail-property-icon-wrap">
+            <i class="fa-solid fa-industry" style="color: #64748b; font-size: 0.95rem;"></i>
+        </div>
+        <div class="detail-property-info">
+            <span class="detail-property-label">Служба / Зона</span>
+            <span class="detail-property-value" id="detail-task-zone" title="Бережливое производство">Бережливое производство</span>
+        </div>
+    </div>
+</div>

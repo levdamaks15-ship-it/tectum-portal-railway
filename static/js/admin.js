@@ -3620,7 +3620,7 @@ function renderAdminTasksTable(tasks) {
         }
 
         const titleRu = escapeHtml(t.title || '—');
-        const titleKz = t.title_kz ? `<div style="font-size: 0.74rem; color: #64748b; margin-top: 3px; font-style: italic; line-height: 1.25;">${escapeHtml(t.title_kz)}</div>` : '';
+        const titleKz = '';
         const isChecked = selectedAdminTaskIds.has(t.id);
 
         let zoneBadge = `<span style="background: #f1f5f9; padding: 2px 6px; border-radius: 5px; font-weight: 600; color: #334155; border: 1px solid #e2e8f0; font-size: 0.76rem; white-space: nowrap;">${escapeHtml(t.zone || '—')}</span>`;
@@ -3854,8 +3854,8 @@ async function saveAdminTask() {
     const formattedDue = formatIsoToRuDueDate(rawDue);
 
     const payload = {
-        title: titleRu || titleKz,
-        title_kz: titleKz || titleRu,
+        title: titleRu,
+        title_kz: null,
         task_type: taskType,
         zone: zone,
         department_service: dept || null,

@@ -618,40 +618,8 @@ def detect_and_translate_task_text(text: str, forced_source: Optional[str] = Non
         }
 
 def backfill_missing_task_translations(db: Session, limit: int = 150) -> int:
-    """
-    Фоновый воркер для автоматического перевода задач с отсутствующим title_kz.
-    Находит все задачи без казахского перевода, переводит и сохраняет в БД.
-    """
-    try:
-        tasks_to_translate = db.query(models.Task).filter(
-            (models.Task.title_kz.is_(None) | (models.Task.title_kz == "")),
-            models.Task.title.isnot(None),
-            models.Task.title != "",
-            models.Task.is_archived == False
-        ).order_by(models.Task.id.desc()).limit(limit).all()
-
-        if not tasks_to_translate:
-            return 0
-
-        translated_count = 0
-        for task in tasks_to_translate:
-            raw_title = (task.title or "").strip()
-            if not raw_title:
-                continue
-            trans_res = detect_and_translate_task_text(raw_title)
-            kz_text = trans_res.get("text_kz", "")
-            if kz_text:
-                task.title_kz = kz_text
-                translated_count += 1
-
-        if translated_count > 0:
-            db.commit()
-            print(f"[Planner Auto-Translate] Successfully backfilled KZ translations for {translated_count} tasks.")
-        return translated_count
-    except Exception as e:
-        db.rollback()
-        print(f"[Planner Auto-Translate] Error backfilling task translations: {e}")
-        return 0
+    """Фоновый воркер автоперевода отключен по регламенту модернизации."""
+    return 0
 
 def auto_translate_text_internal(text: str) -> str:
     """Внутренний хелпер для автоперевода RU -> KZ."""
@@ -1442,6 +1410,8 @@ def get_tasks_weeks_summary(
 def get_tasks(
     month: Optional[str] = None,
     week: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
     task_type: Optional[str] = None, # "weekly", "service_plan", "roadmap", "milestone", "all"
     department_service: Optional[str] = None, # "ОГМ", "ОГЭ", "Технологи", "ОТК", "all"
     tag: Optional[str] = None,
@@ -1533,15 +1503,22 @@ def get_tasks(
             query = query.filter(models.Task.status == status)
 
         # 7. Фильтрация по неделям и диапазонам
-        is_open_active_mode = (week == "open_active")
-        is_next_2_weeks_mode = (week == "next_2_weeks")
+        custom_range_start = parse_date_dm_or_full(date_from) if date_from else None
+        custom_range_end = parse_date_dm_or_full(date_to) if date_to else None
+        is_custom_range_mode = bool(custom_range_start or custom_range_end)
+
+        is_open_active_mode = (week == "open_active") and not is_custom_range_mode
+        is_next_2_weeks_mode = (week == "next_2_weeks") and not is_custom_range_mode
 
         sel_week_start, sel_week_end = None, None
         prev_week_start, prev_week_end = None, None
         prev_patt = None
         two_weeks_start, two_weeks_end = None, None
 
-        if is_open_active_mode:
+        if is_custom_range_mode:
+            # Произвольный диапазон дат: в SQL не ограничиваем конкретным месяцем/неделей
+            pass
+        elif is_open_active_mode:
             # Все активные задачи (в работе, перенесено, в очереди)
             query = query.filter(models.Task.status.in_(["🟡 В работе", "🔵 Перенесено", "⚪ В очереди"]))
             if month and month != "all":
@@ -1587,6 +1564,37 @@ def get_tasks(
         # Фильтрация задач по временному диапазону в памяти
         filtered_tasks = []
         for t in raw_tasks:
+            if is_custom_range_mode:
+                t_due = parse_date_dm_or_full(t.due_date_str)
+                t_orig_start, t_orig_end = parse_week_label_range(t.week_label, t.month_label)
+                if not t_orig_start and t.created_at:
+                    t_orig_start = t.created_at.date()
+                if not t_due and t_orig_end:
+                    t_due = t_orig_end
+                if not t_orig_start and t_due:
+                    t_orig_start = t_due
+
+                is_in_range = False
+                if custom_range_start and custom_range_end:
+                    if t_due and (custom_range_start <= t_due <= custom_range_end):
+                        is_in_range = True
+                    elif t_orig_start and (custom_range_start <= t_orig_start <= custom_range_end):
+                        is_in_range = True
+                    elif t_orig_start and t_due and (t_orig_start <= custom_range_end and t_due >= custom_range_start):
+                        is_in_range = True
+                elif custom_range_start:
+                    if (t_due and t_due >= custom_range_start) or (t_orig_start and t_orig_start >= custom_range_start):
+                        is_in_range = True
+                elif custom_range_end:
+                    if (t_orig_start and t_orig_start <= custom_range_end) or (t_due and t_due <= custom_range_end):
+                        is_in_range = True
+
+                if is_in_range:
+                    if custom_range_start and t.status == "🟢 Выполнено" and t.completed_at and t.completed_at.date() < custom_range_start:
+                        continue
+                    filtered_tasks.append(t)
+                continue
+
             if is_open_active_mode or not week or week == "all":
                 filtered_tasks.append(t)
                 continue
@@ -2105,20 +2113,10 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
         code_str = task_data.code or f"TSK-{next_num:02d}"
 
         title_ru = (task_data.title or "").strip()
-        title_kz = (task_data.title_kz or "").strip()
+        title_kz = (task_data.title_kz or "").strip() or None
 
         # Парсинг хэштегов из заголовка
         combined_tags = extract_hashtags_from_title(title_ru, task_data.tags)
-
-        # Интеллектуальное выравнивание языков
-        if title_ru and not title_kz:
-            trans_info = detect_and_translate_task_text(title_ru)
-            title_ru = trans_info.get("text_ru", title_ru)
-            title_kz = trans_info.get("text_kz", "")
-        elif not title_ru and title_kz:
-            trans_info = detect_and_translate_task_text(title_kz, forced_source="kk")
-            title_ru = trans_info.get("text_ru", "")
-            title_kz = trans_info.get("text_kz", title_kz)
 
         task_month = task_data.month_label or "Сентябрь 2026"
         task_week = task_data.week_label or "Неделя 3 (21.09 - 25.09)"
@@ -2244,10 +2242,8 @@ def create_quick_milestone(
         last_task = db.query(models.Task).order_by(models.Task.id.desc()).first()
         next_num = (last_task.id + 1) if last_task else 1
         code_str = f"TSK-{next_num:02d}"
-
-        # Автоперевод на казахский
-        trans_res = detect_and_translate_task_text(title_ru)
-        title_kz = trans_res.get("text_kz", "")
+        # Автоперевод отключен по регламенту модернизации
+        title_kz = None
 
         # Определение дат и квартала
         due_date = (data.due_date_str or "").strip()
@@ -2422,15 +2418,9 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
             # Парсинг хэштегов из названия
             combined_tags = extract_hashtags_from_title(title_raw, item.tags)
 
-            # Автоматический интеллектуальный перевод названия (RU <-> KZ)
-            title_kz_candidate = (item.title_kz or "").strip()
-            if title_kz_candidate:
-                title_ru = title_raw
-                title_kz = title_kz_candidate
-            else:
-                trans_info = detect_and_translate_task_text(title_raw)
-                title_ru = trans_info.get("text_ru", title_raw)
-                title_kz = trans_info.get("text_kz", "")
+            # Перевод отключен по регламенту модернизации
+            title_ru = title_raw
+            title_kz = (item.title_kz or "").strip() or None
 
             # Определение срока задачи
             due_date = item.due_date_str or bulk_data.default_due_date_str or ""
@@ -4078,10 +4068,9 @@ def quick_add_task(data: schemas.TaskQuickCreate, db: Session = Depends(get_db))
     # Парсинг хэштегов из заголовка
     combined_tags = extract_hashtags_from_title(title_clean, None)
 
-    # Интеллектуальное выравнивание и автоперевод
-    trans_info = detect_and_translate_task_text(title_clean)
-    title_ru = trans_info.get("text_ru", title_clean)
-    title_kz = trans_info.get("text_kz", "")
+    # Автоперевод отключен по регламенту модернизации
+    title_ru = title_clean
+    title_kz = None
 
     # Определение order_index
     max_order = db.query(func.max(models.Task.order_index)).filter(

@@ -1,0 +1,31 @@
+<!--
+  @canonical-pattern TaskDetailCleanHeader
+  @established 2026-10-26
+  @description Двухполюсная чистая шапка модального окна (статус слева, действия 36px справа) без визуального шума.
+  @compliance Rule 27, Rule 30, Canonical 36px Control Height Standard, No-Wrap Status Badge
+-->
+
+<!-- Two-Pole Modal Header HTML -->
+<div class="task-detail-header-clean">
+    <!-- Левый полюс: Исключительно ключевой статус (36px, без переноса строк) -->
+    <div class="task-detail-header-left">
+        <span id="detail-task-status-badge" class="task-detail-status-pill status-in-progress">
+            <span class="task-detail-status-dot" style="background: #d97706; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);"></span>
+            <span>В работе</span>
+        </span>
+    </div>
+
+    <!-- Правый полюс: Кластер действий единой высоты 36px + кнопка закрытия -->
+    <div class="task-detail-header-right">
+        <button type="button" class="btn-action detail-btn-action" id="detail-btn-complete" style="background: #10b981; color: #fff;" title="Завершить">
+            <i class="fa-solid fa-check"></i> Завершить
+        </button>
+        <button type="button" class="btn-action btn-secondary-action detail-btn-action" id="detail-btn-reschedule" title="Перенести срок">
+            <i class="fa-solid fa-calendar-day"></i> Перенести
+        </button>
+        <button type="button" class="btn-action btn-secondary-action detail-btn-action" id="detail-btn-edit" title="Редактировать">
+            <i class="fa-solid fa-pen"></i> Редактировать
+        </button>
+        <button type="button" class="detail-btn-close" onclick="closeTaskDetailModal()" title="Закрыть">&times;</button>
+    </div>
+</div>
