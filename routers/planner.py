@@ -1028,8 +1028,45 @@ def get_project_dependency_graph(project_id: int, db: Session = Depends(get_db))
         for st in subtasks:
             sub_by_m.setdefault(st.parent_id, []).append(st)
 
+        milestone_rows = {}
+
         for col_idx, m_list in sorted(cols_map.items()):
-            for row_idx, m in enumerate(m_list):
+            occupied_rows = set()
+
+            def get_preferred_row(m_item):
+                m_deps = get_task_depends_on_ids(m_item)
+                pred_rows = []
+                for did in m_deps:
+                    if did in milestone_rows:
+                        pred_rows.append(milestone_rows[did])
+                    else:
+                        d_obj = local_map.get(did)
+                        if d_obj and d_obj.parent_id in milestone_rows:
+                            pred_rows.append(milestone_rows[d_obj.parent_id])
+                if pred_rows:
+                    return min(pred_rows)
+                return None
+
+            sorted_m_list = sorted(m_list, key=lambda x: (
+                0 if get_preferred_row(x) is not None else 1,
+                get_preferred_row(x) if get_preferred_row(x) is not None else 999,
+                x.order_index if x.order_index is not None else 999,
+                x.id
+            ))
+
+            for m in sorted_m_list:
+                pref = get_preferred_row(m)
+                if pref is not None and pref not in occupied_rows:
+                    assigned_row = pref
+                else:
+                    r = 0
+                    while r in occupied_rows:
+                        r += 1
+                    assigned_row = r
+
+                occupied_rows.add(assigned_row)
+                milestone_rows[m.id] = assigned_row
+                row_idx = assigned_row
                 m_done = is_task_done(m)
                 if m_done:
                     done_milestones += 1

@@ -7374,6 +7374,7 @@ async function saveTaskModal() {
     let titleRu = document.getElementById("task-ru-input").value.trim();
     let titleKz = document.getElementById("task-kz-input").value.trim();
     const taskType = document.getElementById("task-type-input") ? document.getElementById("task-type-input").value : "weekly";
+    const deptService = document.getElementById("task-department-input") ? document.getElementById("task-department-input").value : "";
     const parentIdVal = document.getElementById("task-parent-input") && document.getElementById("task-parent-input").value ? parseInt(document.getElementById("task-parent-input").value, 10) : null;
     const selectedBlockerIds = getMultiBlockerSelectedIds("task-modal-blockers");
     const dependsIdVal = selectedBlockerIds.length > 0 ? selectedBlockerIds[0] : (document.getElementById("task-depends-input") && document.getElementById("task-depends-input").value ? parseInt(document.getElementById("task-depends-input").value, 10) : null);
@@ -7511,7 +7512,7 @@ async function saveTaskModal() {
                 showToast(taskId ? "Задача обновлена" : "Задача добавлена в план");
                 loadTaskTags();
                 if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
-                    reloadProjectGraphData();
+                    await reloadProjectGraphData();
                 }
                 if (currentHorizon === "roadmaps") {
                     loadRoadmaps();
