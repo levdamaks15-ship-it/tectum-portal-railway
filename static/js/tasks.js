@@ -1720,16 +1720,7 @@ function openSubtaskQuickModal(projectId, editTaskId = null, parentMilestoneId =
         return `<option value="${escapeHtml(p)}" ${isSel ? 'selected' : ''}>${escapeHtml(p)}</option>`;
     }).join('');
 
-    // Populate depends blockers
-    dependsSel.innerHTML = `<option value="">-- Без блокировки --</option>`;
-    if (project && project.milestones) {
-        project.milestones.forEach(m => {
-            if (m.id !== editTaskId) {
-                dependsSel.innerHTML += `<option value="${m.id}">${escapeHtml(m.code || 'TSK-' + m.id)}: ${escapeHtml(m.title)}</option>`;
-            }
-        });
-    }
-
+    let initialDepIds = [];
     if (!editTaskId) {
         titleInp.value = "";
         commentInp.value = "";
@@ -1740,10 +1731,26 @@ function openSubtaskQuickModal(projectId, editTaskId = null, parentMilestoneId =
             titleInp.value = milestone.title || "";
             if (milestone.assignee_name) assigneeSel.value = milestone.assignee_name;
             commentInp.value = milestone.comment || "";
-            if (milestone.depends_on && milestone.depends_on.id) {
-                dependsSel.value = milestone.depends_on.id;
+            if (milestone.depends_on_ids && milestone.depends_on_ids.length > 0) {
+                initialDepIds = milestone.depends_on_ids;
+            } else if (milestone.depends_on_id) {
+                initialDepIds = [milestone.depends_on_id];
+            } else if (milestone.depends_on && milestone.depends_on.id) {
+                initialDepIds = [milestone.depends_on.id];
             }
         }
+    }
+
+    // Universal Multi-Blocker Picker (Rule 27: Cross-Tab Parity)
+    renderMultiBlockerPicker("quick-subtask-blockers-picker-container", {
+        pickerId: "quick-subtask-blockers",
+        currentTaskId: editTaskId,
+        selectedIds: initialDepIds,
+        parentProjectId: projectId,
+        allTasksList: (typeof allTasks !== 'undefined' && allTasks.length > 0) ? allTasks : (project ? (project.milestones || []) : [])
+    });
+    if (dependsSel) {
+        dependsSel.value = initialDepIds.length > 0 ? initialDepIds[0] : "";
     }
 
     const extraContent = document.getElementById("quick-subtask-extra-content");
@@ -1831,7 +1838,8 @@ function submitQuickSubtaskModal(keepOpen = false) {
     const assignee = assigneeSel ? assigneeSel.value : "";
     const dateVal = dateInp ? dateInp.value : "";
     const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
-    const dependsOnId = dependsSel && dependsSel.value ? parseInt(dependsSel.value, 10) : null;
+    const selectedBlockerIds = getMultiBlockerSelectedIds("quick-subtask-blockers");
+    const dependsOnId = selectedBlockerIds.length > 0 ? selectedBlockerIds[0] : (dependsSel && dependsSel.value ? parseInt(dependsSel.value, 10) : null);
     const comment = commentInp ? commentInp.value.trim() : "";
 
     const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Офис бережливого производства");
@@ -1847,6 +1855,7 @@ function submitQuickSubtaskModal(keepOpen = false) {
                     assignee_name: assignee,
                     due_date_str: dueDateStr,
                     depends_on_id: dependsOnId,
+                    depends_on_ids: selectedBlockerIds,
                     comment: comment,
                     pin_code: authSession ? authSession.pin : ""
                 };
@@ -1870,6 +1879,7 @@ function submitQuickSubtaskModal(keepOpen = false) {
                     assignee_name: assignee,
                     due_date_str: dueDateStr,
                     depends_on_id: dependsOnId,
+                    depends_on_ids: selectedBlockerIds,
                     comment: comment,
                     author_name: authorName,
                     pin_code: authSession ? authSession.pin : ""
@@ -1888,6 +1898,13 @@ function submitQuickSubtaskModal(keepOpen = false) {
                             titleInp.focus();
                         }
                         if (commentInp) commentInp.value = "";
+                        renderMultiBlockerPicker("quick-subtask-blockers-picker-container", {
+                            pickerId: "quick-subtask-blockers",
+                            currentTaskId: null,
+                            selectedIds: [],
+                            parentProjectId: parentId,
+                            allTasksList: (typeof allTasks !== 'undefined' && allTasks.length > 0) ? allTasks : []
+                        });
                         loadRoadmaps();
                     } else {
                         closeSubtaskQuickModal();
@@ -3245,13 +3262,32 @@ function renderTasksTable(tasks) {
                 return `<span class="tag-pill" onclick="filterByTag('${cleanT}')">${cleanT}</span>`;
             }).join('');
 
-            const depBadge = t.depends_on ? `
-                <div style="margin-top: 3px;">
-                    <span class="dep-blocker-badge" title="Заблокировано задачей ${t.depends_on.code}: ${escapeHtml(t.depends_on.title)}">
-                        <i class="fa-solid fa-lock"></i> Блокер: ${t.depends_on.code}
-                    </span>
-                </div>
-            ` : '';
+            let depBadge = '';
+            const blks = (t.blockers && t.blockers.length > 0)
+                ? t.blockers
+                : (t.depends_on && t.depends_on.code ? [t.depends_on] : []);
+            if (blks.length > 1) {
+                const unfin = blks.filter(b => !b.is_done && !(b.status && b.status.includes('Выполнено')));
+                const bCount = unfin.length > 0 ? unfin.length : blks.length;
+                const codes = blks.map(b => b.code || ('TSK-' + b.id)).join(', ');
+                depBadge = `
+                    <div style="margin-top: 3px;">
+                        <span class="dep-blocker-badge" title="Блокирующие этапы (${codes}): ${blks.map(b => (b.code || 'TSK-' + b.id) + ' ' + (b.title || '')).join('; ')}">
+                            <i class="fa-solid fa-lock" style="color: ${unfin.length > 0 ? '#dc2626' : '#16a34a'};"></i> ${bCount} блокера: ${codes}
+                        </span>
+                    </div>
+                `;
+            } else if (blks.length === 1) {
+                const b = blks[0];
+                const isDone = b.is_done || (b.status && b.status.includes('Выполнено'));
+                depBadge = `
+                    <div style="margin-top: 3px;">
+                        <span class="dep-blocker-badge" title="Заблокировано задачей ${b.code || ('TSK-' + b.id)}: ${escapeHtml(b.title || '')}">
+                            <i class="fa-solid fa-lock" style="color: ${isDone ? '#16a34a' : '#dc2626'};"></i> Блокер: ${b.code || ('TSK-' + b.id)}
+                        </span>
+                    </div>
+                `;
+            }
 
             let zoneAndDeptHtml = '';
             if (t.is_roadmap_subtask) {
@@ -4796,12 +4832,262 @@ async function onDueDateInputChanged(dateVal) {
    MODAL CREATE & EDIT
    ========================================================== */
 /* ==========================================================
+   UNIVERSAL MULTI-BLOCKER PICKER COMPONENT (Rule 27)
+   Cross-Tab Parity: Unifies blocker selection across
+   Task Modal, Inspector, New Stage Modal, and Quick Subtask Modal
+   ========================================================== */
+
+const blockerPickerRegistries = new Map();
+
+function renderMultiBlockerPicker(containerOrId, options = {}) {
+    const container = typeof containerOrId === 'string' ? document.getElementById(containerOrId) : containerOrId;
+    if (!container) return;
+
+    const pickerId = options.pickerId || container.id || ('picker_' + Math.random().toString(36).substr(2, 9));
+    const currentTaskId = options.currentTaskId ? parseInt(options.currentTaskId, 10) : null;
+    let selectedIds = new Set(
+        Array.isArray(options.selectedIds) 
+            ? options.selectedIds.map(x => parseInt(x, 10)).filter(x => !isNaN(x))
+            : (options.selectedIds ? [parseInt(options.selectedIds, 10)] : [])
+    );
+    const parentProjectId = options.parentProjectId ? parseInt(options.parentProjectId, 10) : null;
+    const allCandidates = (options.allTasksList && options.allTasksList.length > 0)
+        ? options.allTasksList 
+        : ((typeof allTasks !== 'undefined' && allTasks.length > 0) ? allTasks : (typeof currentGraphData !== 'undefined' ? (currentGraphData?.nodes || []) : []));
+    const onChange = typeof options.onChange === 'function' ? options.onChange : null;
+    const compact = Boolean(options.compact);
+    const labelText = options.label || "Зависит от этапов (Блокеры)";
+
+    const state = {
+        pickerId,
+        container,
+        currentTaskId,
+        selectedIds,
+        parentProjectId,
+        allCandidates,
+        onChange,
+        compact,
+        labelText,
+        filterText: ""
+    };
+
+    blockerPickerRegistries.set(pickerId, state);
+    renderBlockerPickerDOM(state);
+}
+
+function getMultiBlockerSelectedIds(pickerIdOrContainer) {
+    let state = null;
+    if (typeof pickerIdOrContainer === 'string') {
+        state = blockerPickerRegistries.get(pickerIdOrContainer);
+        if (!state) {
+            const el = document.getElementById(pickerIdOrContainer);
+            if (el) state = blockerPickerRegistries.get(el.id);
+        }
+    } else if (pickerIdOrContainer && pickerIdOrContainer.id) {
+        state = blockerPickerRegistries.get(pickerIdOrContainer.id);
+    }
+    if (state && state.selectedIds) {
+        return Array.from(state.selectedIds);
+    }
+    const cEl = typeof pickerIdOrContainer === 'string' ? document.getElementById(pickerIdOrContainer) : pickerIdOrContainer;
+    if (cEl) {
+        const cbs = cEl.querySelectorAll(".blocker-item-checkbox:checked");
+        return Array.from(cbs).map(cb => parseInt(cb.value, 10)).filter(x => !isNaN(x));
+    }
+    return [];
+}
+
+function renderBlockerPickerDOM(state) {
+    const { pickerId, container, currentTaskId, selectedIds, parentProjectId, allCandidates, labelText, filterText } = state;
+    
+    // Filter candidates (exclude self)
+    const candidates = (allCandidates || []).filter(t => t && t.id && t.id !== currentTaskId);
+
+    // Grouping: current project stages vs other tasks
+    let projectStages = [];
+    let otherTasks = [];
+
+    if (parentProjectId) {
+        projectStages = candidates.filter(t => t.parent_id === parentProjectId || t.id === parentProjectId);
+        const stageIds = new Set(projectStages.map(s => s.id));
+        otherTasks = candidates.filter(t => !stageIds.has(t.id));
+    } else {
+        projectStages = candidates.filter(t => t.task_type === 'roadmap' || t.task_type === 'milestone');
+        const stageIds = new Set(projectStages.map(s => s.id));
+        otherTasks = candidates.filter(t => !stageIds.has(t.id));
+    }
+
+    const query = (filterText || "").trim().toLowerCase();
+    const matchesFilter = (t) => {
+        if (!query) return true;
+        const code = (t.code || `TSK-${t.id}`).toLowerCase();
+        const title = (t.title || "").toLowerCase();
+        const assignee = (t.assignee_name || "").toLowerCase();
+        return code.includes(query) || title.includes(query) || assignee.includes(query);
+    };
+
+    const filteredProjectStages = projectStages.filter(matchesFilter);
+    const filteredOtherTasks = otherTasks.filter(matchesFilter);
+
+    // Selected chips
+    const chipsHtml = Array.from(selectedIds).map(id => {
+        const item = candidates.find(t => t.id === id) || { id, code: `TSK-${id}`, title: `Задача #${id}` };
+        return `
+            <div class="blocker-chip" title="${escapeHtml(item.title)}">
+                <span class="blocker-chip-code">${item.code || 'TSK-' + item.id}</span>
+                <span class="blocker-chip-title">${escapeHtml(item.title)}</span>
+                <span class="blocker-chip-del" onclick="removeMultiBlockerItem('${pickerId}', ${item.id})" title="Удалить блокер">&times;</span>
+            </div>
+        `;
+    }).join('');
+
+    const count = selectedIds.size;
+
+    const renderRow = (t) => {
+        const isChecked = selectedIds.has(t.id);
+        const isDone = (t.status || "").includes("Выполнено");
+        const statusEmoji = isDone ? '🟢' : ((t.status || "").includes("Отменено") ? '🔴' : '🟡');
+        return `
+            <label class="blocker-item-label ${isChecked ? 'is-checked' : ''}" title="${escapeHtml(t.title)}">
+                <input type="checkbox" class="blocker-item-checkbox" value="${t.id}" ${isChecked ? 'checked' : ''} onchange="toggleMultiBlockerItem('${pickerId}', ${t.id}, this.checked)">
+                <span class="blocker-item-code">${t.code || ('TSK-' + t.id)}</span>
+                <span>${statusEmoji}</span>
+                <span class="blocker-item-title">${escapeHtml(t.title)}</span>
+                ${isDone ? '<span class="blocker-item-status" style="color: #16a34a; background: #dcfce7; font-weight: 600;">Готово</span>' : ''}
+            </label>
+        `;
+    };
+
+    let listContentHtml = '';
+
+    if (projectStages.length > 0) {
+        listContentHtml += `
+            <div class="blocker-group-divider" style="color: #6d28d9;">
+                <span><i class="fa-solid fa-flag-checkered"></i> Этапы текущего проекта (${filteredProjectStages.length})</span>
+            </div>
+        `;
+        if (filteredProjectStages.length === 0) {
+            listContentHtml += `<div style="font-size: 0.72rem; color: #94a3b8; padding: 4px; font-style: italic;">Не найдено по запросу «${escapeHtml(query)}»</div>`;
+        } else {
+            listContentHtml += filteredProjectStages.map(renderRow).join('');
+        }
+    }
+
+    if (otherTasks.length > 0) {
+        const otherCheckedCount = otherTasks.filter(t => selectedIds.has(t.id)).length;
+        const isOpen = query.length > 0 || otherCheckedCount > 0 || projectStages.length === 0;
+        listContentHtml += `
+            <details class="blocker-other-details" ${isOpen ? 'open' : ''} style="margin-top: 4px;">
+                <summary style="cursor: pointer; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; color: #64748b; padding: 4px 2px; list-style: none; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-list-ul"></i> Другие проекты и задачи (${filteredOtherTasks.length})</span>
+                    ${otherCheckedCount > 0 ? `<span style="color: #7c3aed; font-size: 0.66rem; background: #ede9fe; padding: 1px 6px; border-radius: 4px;">${otherCheckedCount} выбрано</span>` : '<span style="font-size: 0.68rem; color: #94a3b8;">Развернуть</span>'}
+                </summary>
+                <div style="display: flex; flex-direction: column; gap: 3px; padding-top: 3px;">
+                    ${filteredOtherTasks.length === 0 ? `<div style="font-size: 0.72rem; color: #94a3b8; padding: 4px; font-style: italic;">Не найдено</div>` : filteredOtherTasks.map(renderRow).join('')}
+                </div>
+            </details>
+        `;
+    }
+
+    if (!projectStages.length && !otherTasks.length) {
+        listContentHtml = `<div style="font-size: 0.72rem; color: #94a3b8; padding: 6px; font-style: italic;">Нет доступных задач для связывания</div>`;
+    }
+
+    container.innerHTML = `
+        <div class="multi-blocker-picker">
+            <div class="multi-blocker-header">
+                <label class="multi-blocker-label">
+                    <i class="fa-solid fa-link" style="color: #f59e0b;"></i> ${escapeHtml(labelText)}
+                </label>
+                <span class="multi-blocker-count ${count > 0 ? 'has-selected' : ''}">${count} выбрано</span>
+            </div>
+
+            <div class="multi-blocker-chips" id="${pickerId}_chips">
+                ${chipsHtml || '<span class="multi-blocker-empty-hint">Нет блокеров (этап выполняется сразу)</span>'}
+            </div>
+
+            <div class="multi-blocker-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="Поиск этапа по коду или названию..." value="${escapeHtml(filterText || '')}" oninput="onMultiBlockerSearch('${pickerId}', this.value)">
+            </div>
+
+            <div class="multi-blocker-list" id="${pickerId}_list">
+                ${listContentHtml}
+            </div>
+
+            <div style="font-size: 0.67rem; color: #94a3b8; line-height: 1.3; margin-top: 2px;">
+                💡 Отметьте один или несколько этапов. Задача разблокируется только когда <strong>все</strong> выбранные этапы будут выполнены.
+            </div>
+        </div>
+    `;
+}
+
+function onMultiBlockerSearch(pickerId, query) {
+    const state = blockerPickerRegistries.get(pickerId);
+    if (!state) return;
+    state.filterText = query;
+    renderBlockerPickerDOM(state);
+    const searchInput = state.container.querySelector('.multi-blocker-search input');
+    if (searchInput) {
+        searchInput.focus();
+        searchInput.setSelectionRange(query.length, query.length);
+    }
+}
+
+function toggleMultiBlockerItem(pickerId, id, isChecked) {
+    const state = blockerPickerRegistries.get(pickerId);
+    if (!state) return;
+    id = parseInt(id, 10);
+    if (isChecked) {
+        state.selectedIds.add(id);
+    } else {
+        state.selectedIds.delete(id);
+    }
+    renderBlockerPickerDOM(state);
+    if (typeof state.onChange === 'function') {
+        state.onChange(Array.from(state.selectedIds));
+    }
+}
+
+function removeMultiBlockerItem(pickerId, id) {
+    const state = blockerPickerRegistries.get(pickerId);
+    if (!state) return;
+    id = parseInt(id, 10);
+    state.selectedIds.delete(id);
+    renderBlockerPickerDOM(state);
+    if (typeof state.onChange === 'function') {
+        state.onChange(Array.from(state.selectedIds));
+    }
+}
+
+function onTaskParentInputChange(newParentId) {
+    const parentId = newParentId ? parseInt(newParentId, 10) : null;
+    const pickerContainer = document.getElementById("task-blockers-picker-container");
+    if (pickerContainer) {
+        const curIds = getMultiBlockerSelectedIds("task-modal-blockers");
+        const taskId = document.getElementById("task-id-input").value ? parseInt(document.getElementById("task-id-input").value, 10) : null;
+        renderMultiBlockerPicker(pickerContainer, {
+            pickerId: "task-modal-blockers",
+            currentTaskId: taskId,
+            selectedIds: curIds,
+            parentProjectId: parentId
+        });
+    }
+}
+
+/* ==========================================================
    MODAL CREATE & EDIT (3 HORIZONS, ROADMAPS, SERVICES)
    ========================================================== */
-async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId = null, defaultDependsId = null) {
+async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId = null, defaultDependsIds = null) {
     const parentSelect = document.getElementById("task-parent-input");
-    const dependsSelect = document.getElementById("task-depends-input");
-    if (!parentSelect && !dependsSelect) return;
+    const pickerContainer = document.getElementById("task-blockers-picker-container");
+
+    let initialDepIds = [];
+    if (Array.isArray(defaultDependsIds)) {
+        initialDepIds = defaultDependsIds;
+    } else if (defaultDependsIds) {
+        initialDepIds = [defaultDependsIds];
+    }
 
     try {
         const res = await fetch("/api/tasks?task_type=all&month=all");
@@ -4816,12 +5102,16 @@ async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId 
                 if (defaultParentId) parentSelect.value = defaultParentId;
             }
 
-            // 2. Блокирующие задачи
-            if (dependsSelect) {
-                const otherTasks = allT.filter(t => t.id !== currentTaskId);
-                dependsSelect.innerHTML = `<option value="">-- Нет блокирующих задач --</option>` +
-                    otherTasks.map(d => `<option value="${d.id}">🔒 [${d.code || ('TSK-' + d.id)}] ${escapeHtml(d.title)} (${d.status})</option>`).join('');
-                if (defaultDependsId) dependsSelect.value = defaultDependsId;
+            // 2. Универсальный мульти-селектор блокеров в task-modal
+            if (pickerContainer) {
+                const effectiveParentId = defaultParentId || (parentSelect && parentSelect.value ? parseInt(parentSelect.value, 10) : null);
+                renderMultiBlockerPicker(pickerContainer, {
+                    pickerId: "task-modal-blockers",
+                    currentTaskId: currentTaskId,
+                    selectedIds: initialDepIds,
+                    parentProjectId: effectiveParentId,
+                    allTasksList: allT
+                });
             }
         }
     } catch (e) {
@@ -5037,7 +5327,10 @@ async function openEditTaskModal(taskId) {
     }
     if (!task) return;
 
-    await populateHierarchyDropdowns(task.id, task.parent_id, task.depends_on_id);
+    const taskDepIds = (task.depends_on_ids && task.depends_on_ids.length > 0) 
+        ? task.depends_on_ids 
+        : (task.depends_on_id ? [task.depends_on_id] : []);
+    await populateHierarchyDropdowns(task.id, task.parent_id, taskDepIds);
 
     const isCompleted = task.status && task.status.includes("Выполнено");
     const isCancelled = task.status && task.status.includes("Отменено");
@@ -5163,9 +5456,9 @@ async function saveTaskModal() {
     let titleRu = document.getElementById("task-ru-input").value.trim();
     let titleKz = document.getElementById("task-kz-input").value.trim();
     const taskType = document.getElementById("task-type-input") ? document.getElementById("task-type-input").value : "weekly";
-    const deptService = document.getElementById("task-department-input") ? document.getElementById("task-department-input").value : "";
     const parentIdVal = document.getElementById("task-parent-input") && document.getElementById("task-parent-input").value ? parseInt(document.getElementById("task-parent-input").value, 10) : null;
-    const dependsIdVal = document.getElementById("task-depends-input") && document.getElementById("task-depends-input").value ? parseInt(document.getElementById("task-depends-input").value, 10) : null;
+    const selectedBlockerIds = getMultiBlockerSelectedIds("task-modal-blockers");
+    const dependsIdVal = selectedBlockerIds.length > 0 ? selectedBlockerIds[0] : (document.getElementById("task-depends-input") && document.getElementById("task-depends-input").value ? parseInt(document.getElementById("task-depends-input").value, 10) : null);
     const tagsVal = document.getElementById("task-tags-input") ? document.getElementById("task-tags-input").value.trim() : "";
     const quarterVal = document.getElementById("task-quarter-input") ? document.getElementById("task-quarter-input").value : "";
     const progressVal = document.getElementById("task-progress-input") ? parseInt(document.getElementById("task-progress-input").value, 10) : 0;
@@ -5254,6 +5547,7 @@ async function saveTaskModal() {
             department_service: (deptService && deptService !== 'Общий' && taskType !== 'weekly') ? deptService : null,
             parent_id: parentIdVal,
             depends_on_id: dependsIdVal,
+            depends_on_ids: selectedBlockerIds,
             tags: tagsVal,
             target_quarter: quarterVal,
             progress: progressVal,
@@ -7033,16 +7327,24 @@ function populateTaskDetailModal(task) {
         }
     }
 
-    // Tags & Blockers
+    // Tags & Blockers (Multi-Blockers support)
     const blockerWrap = document.getElementById("detail-blocker-wrap");
     if (blockerWrap) {
-        if (task.depends_on && task.depends_on.code) {
-            blockerWrap.style.display = "inline-flex";
-            blockerWrap.innerHTML = `
-                <span class="dep-blocker-badge" style="font-size: 0.78rem; padding: 4px 10px;" title="${escapeHtml(task.depends_on.title || '')}">
-                    <i class="fa-solid fa-lock"></i> Блокируется задачей ${task.depends_on.code}: ${escapeHtml(task.depends_on.title || '')}
-                </span>
-            `;
+        const blks = (task.blockers && task.blockers.length > 0)
+            ? task.blockers
+            : (task.depends_on && task.depends_on.code ? [task.depends_on] : []);
+        if (blks.length > 0) {
+            blockerWrap.style.display = "flex";
+            blockerWrap.style.flexWrap = "wrap";
+            blockerWrap.style.gap = "6px";
+            blockerWrap.innerHTML = blks.map(b => {
+                const isDone = b.is_done || (b.status && b.status.includes("Выполнено"));
+                return `
+                    <span class="dep-blocker-badge" style="font-size: 0.78rem; padding: 4px 10px; cursor: pointer;" onclick="openTaskDetailModal(${b.id})" title="${escapeHtml(b.title || '')}">
+                        <i class="fa-solid fa-lock" style="color: ${isDone ? '#16a34a' : '#dc2626'};"></i> ${isDone ? '🟢' : '🔒'} Блокер: <strong>${b.code || ('TSK-' + b.id)}</strong> <span style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom;">${escapeHtml(b.title || '')}</span>
+                    </span>
+                `;
+            }).join('');
         } else {
             blockerWrap.style.display = "none";
             blockerWrap.innerHTML = "";
@@ -8390,38 +8692,26 @@ function selectGraphNode(nodeId) {
         dueDateEl.textContent = node.due_date_str || "Не указан";
     }
 
-    // Multi-Select Dependencies (Blockers) Checklist
-    const depListEl = document.getElementById("inspector-depends-list");
-    const depCountEl = document.getElementById("inspector-depends-count");
-    const currentDepIds = node.depends_on_ids || (node.depends_on_id ? [node.depends_on_id] : []);
+    // Universal Multi-Blocker Picker (Rule 27: Cross-Tab Parity) with Instant Auto-Save
+    const currentDepIds = (node.depends_on_ids && node.depends_on_ids.length > 0)
+        ? node.depends_on_ids 
+        : (node.depends_on_id ? [node.depends_on_id] : []);
 
-    if (depCountEl) {
-        depCountEl.textContent = `${currentDepIds.length} выбрано`;
-    }
-    if (depListEl) {
+    const inspectorBlockersContainer = document.getElementById("inspector-blockers-picker-container") || document.getElementById("inspector-depends-list");
+    if (inspectorBlockersContainer) {
         const otherNodes = (currentGraphData?.nodes || []).filter(n => n.id !== nodeId);
-        if (!otherNodes.length) {
-            depListEl.innerHTML = `<div style="font-size: 0.72rem; color: #94a3b8; padding: 4px; font-style: italic;">Нет других этапов для связи</div>`;
-        } else {
-            depListEl.innerHTML = otherNodes.map(on => {
-                const isChecked = currentDepIds.includes(on.id);
-                const isDone = on.is_done;
-                const statusEmoji = isDone ? '🟢' : (on.status && on.status.includes('Отменено') ? '🔴' : '🟡');
-                return `
-                    <label style="display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-radius: 4px; background: ${isChecked ? '#eef2ff' : '#ffffff'}; border: 1px solid ${isChecked ? '#c7d2fe' : '#e2e8f0'}; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.borderColor='#818cf8'" onmouseout="this.style.borderColor='${isChecked ? '#c7d2fe' : '#e2e8f0'}'">
-                        <input type="checkbox" value="${on.id}" class="inspector-dep-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleInspectorDependency(${on.id}, this.checked)" style="margin-top: 2px; accent-color: #4f46e5; cursor: pointer;">
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; color: #1e293b;">
-                                <span style="font-family: monospace; color: #4338ca;">${on.code || 'TSK-' + on.id}</span>
-                                <span>${statusEmoji}</span>
-                                ${isDone ? '<span style="font-size: 0.65rem; color: #16a34a; font-weight: 600;">(Выполнено)</span>' : ''}
-                            </div>
-                            <div style="font-size: 0.72rem; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(on.title)}">${escapeHtml(on.title)}</div>
-                        </div>
-                    </label>
-                `;
-            }).join('');
-        }
+        renderMultiBlockerPicker(inspectorBlockersContainer, {
+            pickerId: "inspector-blockers",
+            currentTaskId: nodeId,
+            selectedIds: currentDepIds,
+            parentProjectId: currentGraphProjectId,
+            allTasksList: otherNodes,
+            labelText: "Зависит от этапов (блокеры):",
+            compact: true,
+            onChange: async (newIds) => {
+                await saveInspectorDependencies(nodeId, newIds);
+            }
+        });
     }
 
     const progVal = node.progress || 0;
@@ -8492,6 +8782,30 @@ function selectGraphNode(nodeId) {
     }
 }
 
+async function saveInspectorDependencies(nodeId, newDepIds) {
+    if (!nodeId) return;
+    try {
+        const res = await fetch(`/api/tasks/${nodeId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                depends_on_ids: newDepIds,
+                depends_on_id: newDepIds.length > 0 ? newDepIds[0] : null
+            })
+        });
+        if (res.ok) {
+            showToast("Связи этапа обновлены! 🔗", "success");
+            await reloadProjectGraphData();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            showToast(`⚠️ ${err.detail || 'Ошибка сохранения связи'}`);
+        }
+    } catch (e) {
+        console.error("Error updating stage dependencies:", e);
+        showToast("Ошибка сохранения связи", "error");
+    }
+}
+
 async function toggleInspectorDependency(depId, isChecked) {
     if (!selectedGraphNodeId) return;
     const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
@@ -8505,31 +8819,7 @@ async function toggleInspectorDependency(depId, isChecked) {
     } else {
         currentDepIds = currentDepIds.filter(id => id !== depId);
     }
-
-    const depCountEl = document.getElementById("inspector-depends-count");
-    if (depCountEl) {
-        depCountEl.textContent = `${currentDepIds.length} выбрано`;
-    }
-
-    try {
-        const res = await fetch(`/api/tasks/${selectedGraphNodeId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                depends_on_ids: currentDepIds
-            })
-        });
-        if (res.ok) {
-            showToast("Связи этапа обновлены! 🔗", "success");
-            await reloadProjectGraphData();
-        } else {
-            const err = await res.json().catch(() => ({}));
-            showToast(`⚠️ ${err.detail || 'Ошибка сохранения связи'}`);
-        }
-    } catch (e) {
-        console.error("Error updating stage dependency:", e);
-        showToast("Ошибка сохранения связи", "error");
-    }
+    await saveInspectorDependencies(selectedGraphNodeId, currentDepIds);
 }
 
 async function autoSaveInspectorDepends(depIdVal) {
@@ -8772,25 +9062,18 @@ function openGraphAddStageModal(presetDependsOnId = null) {
         assigneeSelect.innerHTML = buildAssigneeOptions(p.assignee_name);
     }
 
-    if (dependsList) {
-        const nodes = currentGraphData?.nodes || [];
-        if (!nodes.length) {
-            dependsList.innerHTML = `<div style="font-size: 0.72rem; color: #94a3b8; padding: 4px; font-style: italic;">Нет этапов для связи (это будет первый шаг)</div>`;
-        } else {
-            dependsList.innerHTML = nodes.map(n => {
-                const isChecked = Boolean(presetDependsOnId && n.id === presetDependsOnId);
-                return `
-                    <label style="display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px; border-radius: 4px; background: ${isChecked ? '#ede9fe' : '#ffffff'}; border: 1px solid ${isChecked ? '#c4b5fd' : '#e2e8f0'}; cursor: pointer;">
-                        <input type="checkbox" value="${n.id}" class="new-stage-dep-checkbox" ${isChecked ? 'checked' : ''} onchange="updateNewStageDependsCount()" style="margin-top: 2px; accent-color: #7c3aed; cursor: pointer;">
-                        <div style="flex: 1; min-width: 0; font-size: 0.72rem;">
-                            <span style="font-family: monospace; font-weight: 700; color: #6d28d9;">${n.code || 'TSK-' + n.id}</span>
-                            <span style="color: #334155; margin-left: 4px;">${escapeHtml(n.title)}</span>
-                        </div>
-                    </label>
-                `;
-            }).join('');
-        }
-        updateNewStageDependsCount();
+    const presetIds = (presetDependsOnId && typeof presetDependsOnId === 'number') ? [presetDependsOnId] : [];
+    const stagePickerContainer = document.getElementById("graph-new-stage-blockers-picker-container") || document.getElementById("graph-new-stage-depends-list");
+    if (stagePickerContainer) {
+        renderMultiBlockerPicker(stagePickerContainer, {
+            pickerId: "graph-new-stage-blockers",
+            currentTaskId: null,
+            selectedIds: presetIds,
+            parentProjectId: currentGraphProjectId,
+            allTasksList: currentGraphData?.nodes || [],
+            labelText: "Зависит от этапов (блокеры):",
+            compact: true
+        });
     }
 
     modal.style.display = "flex";
@@ -8800,8 +9083,8 @@ function openGraphAddStageModal(presetDependsOnId = null) {
 function updateNewStageDependsCount() {
     const countEl = document.getElementById("graph-new-stage-depends-count");
     if (!countEl) return;
-    const checkedBoxes = document.querySelectorAll("#graph-new-stage-depends-list .new-stage-dep-checkbox:checked");
-    countEl.textContent = `${checkedBoxes.length} выбрано`;
+    const selected = getMultiBlockerSelectedIds("graph-new-stage-blockers");
+    countEl.textContent = `${selected.length} выбрано`;
 }
 
 function closeGraphNewStageModal() {
@@ -8830,8 +9113,11 @@ async function submitGraphNewStage() {
 
     const assignee = assigneeSelect ? assigneeSelect.value : "";
     const dateVal = dateInput ? dateInput.value : "";
-    const checkedBoxes = document.querySelectorAll("#graph-new-stage-depends-list .new-stage-dep-checkbox:checked");
-    const selectedDepIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10)).filter(id => !isNaN(id));
+    let selectedDepIds = getMultiBlockerSelectedIds("graph-new-stage-blockers");
+    if (!selectedDepIds.length) {
+        const checkedBoxes = document.querySelectorAll("#graph-new-stage-depends-list .new-stage-dep-checkbox:checked");
+        selectedDepIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value, 10)).filter(id => !isNaN(id));
+    }
     const dueDateStr = dateVal ? formatDateToRuStr(dateVal) : "";
 
     const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "");

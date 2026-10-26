@@ -1778,7 +1778,9 @@ def get_tasks(
 
             doc_info = doc_map.get(t.attached_document_id) if t.attached_document_id else None
             parent_info = ref_map.get(t.parent_id) if t.parent_id else None
-            dep_info = ref_map.get(t.depends_on_id) if t.depends_on_id else None
+            t_dep_ids = get_task_depends_on_ids(t)
+            blockers_info = [ref_map[did] for did in t_dep_ids if did in ref_map]
+            dep_info = blockers_info[0] if blockers_info else (ref_map.get(t.depends_on_id) if t.depends_on_id else None)
 
             subs_data = subtask_counts.get(t.id, {"total": 0, "done": 0})
             calc_prog = int((subs_data["done"] / subs_data["total"]) * 100) if subs_data["total"] > 0 else (t.progress or 0)
@@ -1800,8 +1802,10 @@ def get_tasks(
                 "roadmap_project_id": root_project["id"] if root_project else None,
                 "roadmap_project_code": root_project["code"] if root_project else "",
                 "roadmap_project_title": root_project["title"] if root_project else "",
-                "depends_on_id": t.depends_on_id,
+                "depends_on_id": t_dep_ids[0] if t_dep_ids else t.depends_on_id,
                 "depends_on": dep_info,
+                "depends_on_ids": t_dep_ids,
+                "blockers": blockers_info,
                 "tags": t.tags or "",
                 "target_quarter": t.target_quarter or "",
                 "progress": t.progress or 0,
@@ -1982,11 +1986,12 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         if p:
             parent_info = {"id": p.id, "code": p.code or f"TSK-{p.id}", "title": p.title}
 
-    dep_info = None
-    if task.depends_on_id:
-        dep = db.query(models.Task).filter(models.Task.id == task.depends_on_id).first()
-        if dep:
-            dep_info = {"id": dep.id, "code": dep.code or f"TSK-{dep.id}", "title": dep.title, "status": dep.status}
+    dep_ids = get_task_depends_on_ids(task)
+    blockers_list = []
+    if dep_ids:
+        b_tasks = db.query(models.Task).filter(models.Task.id.in_(dep_ids)).all()
+        blockers_list = [{"id": b.id, "code": b.code or f"TSK-{b.id}", "title": b.title, "status": b.status} for b in b_tasks]
+    dep_info = blockers_list[0] if blockers_list else None
 
     # Подзадачи
     subtasks = db.query(models.Task).filter(
@@ -2019,8 +2024,10 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "department_service": task.department_service or "",
         "parent_id": task.parent_id,
         "parent": parent_info,
-        "depends_on_id": task.depends_on_id,
+        "depends_on_id": dep_ids[0] if dep_ids else task.depends_on_id,
         "depends_on": dep_info,
+        "depends_on_ids": dep_ids,
+        "blockers": blockers_list,
         "tags": task.tags or "",
         "target_quarter": task.target_quarter or "",
         "progress": task.progress or 0,

@@ -34,3 +34,5 @@ Tectum-tasks/
 birthday-app/
 
 .kilo/
+.agents/mcp_config.json
+.agents/plugins/
