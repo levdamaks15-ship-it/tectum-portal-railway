@@ -4839,6 +4839,14 @@ async function onDueDateInputChanged(dateVal) {
 
 const blockerPickerRegistries = new Map();
 
+/**
+ * @canonical-pattern MultiBlockerPicker
+ * @established 2026-10-26 (commit 50b45c7)
+ * @description Общесистемный эталон выбора связанных сущностей / блокеров.
+ * @compliance Rule 27, Anti-Overflow Guard, Multi-Select Chips, Live Search
+ * @param {string|HTMLElement} containerOrId - Контейнер для рендеринга
+ * @param {Object} options - Параметры конфигурации
+ */
 function renderMultiBlockerPicker(containerOrId, options = {}) {
     const container = typeof containerOrId === 'string' ? document.getElementById(containerOrId) : containerOrId;
     if (!container) return;
