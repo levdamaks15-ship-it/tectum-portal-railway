@@ -533,6 +533,7 @@ function hydrateBackgroundData() {
         loadCalendarStructure(),
         loadPlannerDropdownData(),
         loadTaskTags(),
+        fetchAllHierarchyTasksBackground(),
         handleUrlDeepLinkingAsync()
     ]).catch(err => {
         console.warn("Background hydration warning:", err);
@@ -5282,10 +5283,60 @@ function onTaskParentInputChange(newParentId) {
 /* ==========================================================
    MODAL CREATE & EDIT (3 HORIZONS, ROADMAPS, SERVICES)
    ========================================================== */
-async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId = null, defaultDependsIds = null) {
+let cachedAllHierarchyTasks = null;
+let lastHierarchyTasksFetchTime = 0;
+const HIERARCHY_CACHE_TTL = 60000;
+let hierarchyTasksInFlight = null;
+
+function fetchAllHierarchyTasksBackground(force = false) {
+    const now = Date.now();
+    if (!force && cachedAllHierarchyTasks && (now - lastHierarchyTasksFetchTime < HIERARCHY_CACHE_TTL)) {
+        return Promise.resolve(cachedAllHierarchyTasks);
+    }
+    if (hierarchyTasksInFlight) return hierarchyTasksInFlight;
+
+    hierarchyTasksInFlight = fetch("/api/tasks?task_type=all&month=all")
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+            cachedAllHierarchyTasks = data;
+            lastHierarchyTasksFetchTime = Date.now();
+            hierarchyTasksInFlight = null;
+            return data;
+        })
+        .catch(err => {
+            console.warn("Background fetch hierarchy tasks error:", err);
+            hierarchyTasksInFlight = null;
+            return cachedAllHierarchyTasks || allTasks || [];
+        });
+    return hierarchyTasksInFlight;
+}
+
+function renderHierarchyDropdownsFromData(allT, currentTaskId, defaultParentId, initialDepIds) {
     const parentSelect = document.getElementById("task-parent-input");
     const pickerContainer = document.getElementById("task-blockers-picker-container");
 
+    if (parentSelect) {
+        const curParentVal = parentSelect.value;
+        const targetParentVal = (defaultParentId !== null && defaultParentId !== undefined) ? defaultParentId : curParentVal;
+        const roadmapsAndMilestones = allT.filter(t => (t.task_type === 'roadmap' || t.task_type === 'milestone') && t.id !== currentTaskId);
+        parentSelect.innerHTML = `<option value="">-- Без родительского проекта --</option>` +
+            roadmapsAndMilestones.map(p => `<option value="${p.id}">${p.task_type === 'roadmap' ? '🗺️' : '📍'} [${p.code || ('TSK-' + p.id)}] ${escapeHtml(p.title)}</option>`).join('');
+        if (targetParentVal) parentSelect.value = targetParentVal;
+    }
+
+    if (pickerContainer) {
+        const effectiveParentId = (defaultParentId !== null && defaultParentId !== undefined) ? defaultParentId : (parentSelect && parentSelect.value ? parseInt(parentSelect.value, 10) : null);
+        renderMultiBlockerPicker(pickerContainer, {
+            pickerId: "task-modal-blockers",
+            currentTaskId: currentTaskId,
+            selectedIds: initialDepIds,
+            parentProjectId: effectiveParentId,
+            allTasksList: allT
+        });
+    }
+}
+
+async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId = null, defaultDependsIds = null) {
     let initialDepIds = [];
     if (Array.isArray(defaultDependsIds)) {
         initialDepIds = defaultDependsIds;
@@ -5293,33 +5344,23 @@ async function populateHierarchyDropdowns(currentTaskId = null, defaultParentId 
         initialDepIds = [defaultDependsIds];
     }
 
-    try {
-        const res = await fetch("/api/tasks?task_type=all&month=all");
-        if (res.ok) {
-            const allT = await res.json();
-            
-            // 1. Родительские проекты (Дорожные карты и этапы)
-            if (parentSelect) {
-                const roadmapsAndMilestones = allT.filter(t => (t.task_type === 'roadmap' || t.task_type === 'milestone') && t.id !== currentTaskId);
-                parentSelect.innerHTML = `<option value="">-- Без родительского проекта --</option>` +
-                    roadmapsAndMilestones.map(p => `<option value="${p.id}">${p.task_type === 'roadmap' ? '🗺️' : '📍'} [${p.code || ('TSK-' + p.id)}] ${escapeHtml(p.title)}</option>`).join('');
-                if (defaultParentId) parentSelect.value = defaultParentId;
-            }
+    // Мгновенная синхронная отрисовка (0 мс) из кэша или локального списка
+    const fastTasks = cachedAllHierarchyTasks || (allTasks && allTasks.length > 0 ? allTasks : null);
+    if (fastTasks && fastTasks.length > 0) {
+        renderHierarchyDropdownsFromData(fastTasks, currentTaskId, defaultParentId, initialDepIds);
+    }
 
-            // 2. Универсальный мульти-селектор блокеров в task-modal
-            if (pickerContainer) {
-                const effectiveParentId = defaultParentId || (parentSelect && parentSelect.value ? parseInt(parentSelect.value, 10) : null);
-                renderMultiBlockerPicker(pickerContainer, {
-                    pickerId: "task-modal-blockers",
-                    currentTaskId: currentTaskId,
-                    selectedIds: initialDepIds,
-                    parentProjectId: effectiveParentId,
-                    allTasksList: allT
-                });
+    // Фоновая актуализация, если кэш пуст или устарел (> 60 сек)
+    const now = Date.now();
+    if (!cachedAllHierarchyTasks || (now - lastHierarchyTasksFetchTime >= HIERARCHY_CACHE_TTL)) {
+        fetchAllHierarchyTasksBackground().then(freshData => {
+            if (freshData && freshData.length) {
+                const modal = document.getElementById("task-modal");
+                if (modal && modal.style.display !== "none") {
+                    renderHierarchyDropdownsFromData(freshData, currentTaskId, defaultParentId, initialDepIds);
+                }
             }
-        }
-    } catch (e) {
-        console.error("Error populating hierarchy dropdowns:", e);
+        });
     }
 }
 
@@ -6972,8 +7013,15 @@ window.addEventListener('scroll', function() {
 }, { passive: true });
 
 async function openAddTaskModal(forcedType = null, parentId = null) {
+    // 1. Мгновенно отображаем модальное окно (0 мс задержки для пользователя)
+    const taskModal = document.getElementById("task-modal");
+    if (taskModal) {
+        taskModal.style.display = "flex";
+        taskModal.style.zIndex = "6500";
+    }
+
     populateDropdowns();
-    await populateHierarchyDropdowns(null, parentId, null);
+    populateHierarchyDropdowns(null, parentId, null);
 
     document.getElementById("modal-title").textContent = "Новая задача";
     document.getElementById("task-id-input").value = "";
@@ -7220,10 +7268,17 @@ async function openEditTaskModal(taskId) {
     }
     if (!task) return;
 
+    // Мгновенно отображаем окно
+    const taskModal = document.getElementById("task-modal");
+    if (taskModal) {
+        taskModal.style.display = "flex";
+        taskModal.style.zIndex = "6500";
+    }
+
     const taskDepIds = (task.depends_on_ids && task.depends_on_ids.length > 0) 
         ? task.depends_on_ids 
         : (task.depends_on_id ? [task.depends_on_id] : []);
-    await populateHierarchyDropdowns(task.id, task.parent_id, taskDepIds);
+    populateHierarchyDropdowns(task.id, task.parent_id, taskDepIds);
 
     const isCompleted = task.status && task.status.includes("Выполнено");
     const isCancelled = task.status && task.status.includes("Отменено");
@@ -7509,6 +7564,7 @@ async function saveTaskModal() {
 
             if (res.ok) {
                 closeTaskModal();
+                cachedAllHierarchyTasks = null;
                 showToast(taskId ? "Задача обновлена" : "Задача добавлена в план");
                 loadTaskTags();
                 if (typeof currentGraphProjectId !== 'undefined' && currentGraphProjectId && typeof reloadProjectGraphData === 'function') {
