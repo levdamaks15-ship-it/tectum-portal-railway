@@ -450,6 +450,9 @@ def favicon():
 
 @app.get("/manifest.json", include_in_schema=False)
 def serve_manifest():
+    manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "manifest.json")
+    if os.path.exists(manifest_path):
+        return FileResponse(manifest_path, media_type="application/manifest+json")
     return FileResponse("static/manifest.json", media_type="application/manifest+json")
 
 @app.get("/service-worker.js", include_in_schema=False)

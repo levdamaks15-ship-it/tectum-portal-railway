@@ -7402,12 +7402,6 @@ async function openEditTaskModal(taskId) {
             btnReassign.style.display = "inline-flex";
         }
     }
-
-    const taskModal = document.getElementById("task-modal");
-    if (taskModal) {
-        taskModal.style.display = "flex";
-        taskModal.style.zIndex = "6500";
-    }
 }
 
 function closeTaskModal() {
