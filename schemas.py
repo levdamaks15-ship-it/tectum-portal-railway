@@ -1194,6 +1194,7 @@ class TaskCommentCreate(BaseModel):
     author_name: Optional[str] = "Сотрудник"
     photo_url: Optional[str] = None
     comment_type: Optional[str] = "message"
+    pin_code: Optional[str] = None
 
 class TaskCommentOut(ORMBaseModel):
     id: int

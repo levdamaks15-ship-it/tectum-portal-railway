@@ -174,11 +174,21 @@ function isPlannerTrustedLeader(user = currentPlannerUser) {
     return PLANNER_TRUSTED_LEADERS.includes(user.name.trim());
 }
 
+function canDeleteProjectOrTask(task, user = currentPlannerUser) {
+    if (!user || !user.name) return false;
+    if (isPlannerAdmin(user)) return true;
+    if (isPlannerTrustedLeader(user)) return true;
+    return false; // 🔒 Удалять имеют право ТОЛЬКО доверенные лица руководства и админ! Авторам запрещено.
+}
+
 function canEditProjectOrTask(task, user = currentPlannerUser) {
     if (!user || !user.name) return false;
     if (isPlannerAdmin(user)) return true;
     if (isPlannerTrustedLeader(user)) return true;
-    if (task && task.author_name && task.author_name.trim() === user.name.trim()) return true;
+    const uName = user.name.trim();
+    if (task && task.author_name && task.author_name.trim() === uName) return true;
+    if (task && task.parent_author && task.parent_author.trim() === uName) return true;
+    if (typeof currentGraphData !== 'undefined' && currentGraphData?.project?.author_name && currentGraphData.project.author_name.trim() === uName) return true;
     return false;
 }
 
@@ -401,12 +411,15 @@ function ensureUserAuthorized(requiredUser = null, onSuccess, task = null, actio
         const projectAuthor = currentGraphData?.project?.author_name;
         const isProjectAuthor = Boolean(projectAuthor && projectAuthor.trim() === uName);
 
-        if (actionType === "edit_project" || actionType === "delete_task") {
+        if (actionType === "delete_task") {
+            showToast(`🔒 Удалять задачи, проекты и этапы разрешено исключительно руководству завода (Туматов Д., Герлинг С., Булеханов К.) или администратору`, "warning");
+            return;
+        } else if (actionType === "edit_project") {
             if (isAuthor || isProjectAuthor) {
                 onSuccess(currentPlannerUser);
                 return;
             } else {
-                showToast(`🔒 Редактировать суть и удалять задачу/этап может только автор (${task.author_name || projectAuthor || '—'}), руководство завода или администратор`, "warning");
+                showToast(`🔒 Редактировать суть и этапы проекта/задачи может только автор (${task.author_name || projectAuthor || '—'}), руководство завода или администратор`, "warning");
                 return;
             }
         } else if (actionType === "accept_project") {
@@ -429,13 +442,25 @@ function ensureUserAuthorized(requiredUser = null, onSuccess, task = null, actio
         }
     }
 
-    // 4. Если сессия совпадает с requiredUser (или requiredUser не задан)
+    // 4. Если действие — удаление, разрешаем ТОЛЬКО руководству завода или админу
+    if (actionType === "delete_task") {
+        openPinModal(null, (authedUser) => {
+            if (isPlannerAdmin(authedUser) || isPlannerTrustedLeader(authedUser)) {
+                onSuccess(authedUser);
+            } else {
+                showToast(`🔒 Удалять задачи разрешено исключительно руководству завода (Туматов Д., Герлинг С., Булеханов К.) или администратору`, "warning");
+            }
+        });
+        return;
+    }
+
+    // 5. Если сессия совпадает с requiredUser (или requiredUser не задан)
     if (currentPlannerUser && (!requiredUser || currentPlannerUser.name === (typeof requiredUser === 'string' ? requiredUser.trim() : requiredUser))) {
         onSuccess(currentPlannerUser);
         return;
     }
 
-    // 5. Если пользователь залогинен под другим именем или сессии нет — открываем ввод PIN
+    // 6. Если пользователь залогинен под другим именем или сессии нет — открываем ввод PIN
     openPinModal(requiredUser, onSuccess);
 }
 
@@ -1928,9 +1953,14 @@ function renderRoadmaps(projects) {
                         <div class="roadmap-title" onclick="openTaskDetailModal(${p.id})" style="cursor: pointer;" title="Подробный просмотр проекта">${escapeHtml(p.title)}</div>
                     </div>
                     <div style="display: flex; gap: 4px;">
-                        <button class="btn-icon-cell" onclick="openEditTaskModal(${p.id})" title="${canEdit ? 'Редактировать проект' : 'Просмотр проекта'}">
-                            <i class="${canEdit ? 'fa-solid fa-pen' : 'fa-solid fa-eye'}" style="${canEdit ? '' : 'color: #64748b;'}"></i>
+                        <button class="btn-icon-cell" onclick="printRoadmapProject(${p.id})" title="Печать паспорта проекта">
+                            <i class="fa-solid fa-print" style="color: #64748b;"></i>
                         </button>
+                        ${canEdit ? `
+                            <button class="btn-icon-cell" onclick="openEditTaskModal(${p.id})" title="Редактировать проект">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
 
@@ -3875,11 +3905,11 @@ function renderTasksTable(tasks) {
 
             const titleClass = isCancelled ? 'task-cancelled-text' : '';
 
-            const isGuest = !currentPlannerUser;
-            const canEdit = isGuest || canEditProjectOrTask(t);
-            const canInteract = isGuest || canInteractWithTask(t);
+            const canEdit = canEditProjectOrTask(t);
+            const canInteract = canInteractWithTask(t);
+            const canDelete = canDeleteProjectOrTask(t);
 
-            const commentCell = (isLocked || (!isGuest && !canInteract)) ? `
+            const commentCell = (isLocked || !canInteract) ? `
                 <span class="comment-locked" title="${isLocked ? (isCancelled ? 'Отменённая задача заблокирована' : 'Завершённая задача заблокирована') : 'Только для исполнителя/руководства'}">
                     ${t.comment || '—'}
                 </span>
@@ -8668,6 +8698,43 @@ function preparePrintMetaHeader() {
     }
     if (!metaContainer) return;
 
+    // Специфика горизонта Дорожных карт (Roadmaps)
+    if (currentHorizon === 'roadmaps' && !singleProjectPrintActive) {
+        const quarterSelect = document.getElementById("filter-quarter");
+        let quarterLabel = "Активные проекты";
+        if (quarterSelect && quarterSelect.selectedIndex >= 0) {
+            const selOpt = quarterSelect.options[quarterSelect.selectedIndex];
+            if (selOpt) quarterLabel = selOpt.textContent;
+        }
+
+        const filterDetails = [];
+        filterDetails.push(`Срез: ${quarterLabel}`);
+        if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+            filterDetails.push(`Мои проекты: ${currentPlannerUser.name}`);
+        }
+
+        const filterText = filterDetails.join(" • ");
+        const now = new Date();
+        const nowStr = now.toLocaleDateString("ru-RU") + " " + now.toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' });
+
+        let totalMilestones = 0;
+        (allRoadmaps || []).forEach(p => {
+            totalMilestones += (p.milestones || []).length;
+        });
+
+        metaContainer.innerHTML = `
+            <div style="font-weight: 700; font-size: 8.5pt; color: #0f172a;">${filterText}</div>
+            <div style="font-size: 7.5pt; color: #334155; margin: 1px 0;">Всего проектов: ${(allRoadmaps || []).length} | Всего этапов: ${totalMilestones}</div>
+            <div style="font-size: 7pt; color: #64748b;">Сформировано: ${nowStr}</div>
+        `;
+
+        buildRoadmapsPrintView(allRoadmaps, false);
+        return;
+    }
+    if (singleProjectPrintActive) {
+        return;
+    }
+
     const month = document.getElementById("filter-month") ? document.getElementById("filter-month").value : currentMonth;
     const week = document.getElementById("filter-week") ? document.getElementById("filter-week").value : currentWeek;
     
@@ -8707,6 +8774,230 @@ function preparePrintMetaHeader() {
 
 // Автоматический перехват печати по Ctrl+P или через системное меню браузера
 window.addEventListener("beforeprint", preparePrintMetaHeader);
+
+/**
+ * @canonical-pattern RoadmapPrintReport
+ * @established 2026-10-27 (Phase 2 Roadmap Print Release)
+ * @description Единый генератор печатной формы дорожных карт (А4 Landscape): сводный реестр и паспорт проекта.
+ */
+let singleProjectPrintActive = false;
+
+function buildRoadmapsPrintView(projects, isSingleProject = false) {
+    const tbody = document.getElementById("roadmap-print-table-body");
+    if (!tbody) return;
+
+    if (!projects || projects.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem; color: #64748b; font-size: 8pt;">
+                    Нет проектов дорожных карт для отображения по выбранным критериям.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = "";
+    projects.forEach(p => {
+        const prog = p.calculated_progress !== undefined ? p.calculated_progress : (p.progress || 0);
+        const pCode = p.code || ('TSK-' + p.id);
+        const pStatus = p.status || '🟡 В работе';
+        const pService = p.department_service ? `[${p.department_service}]` : '';
+        const pCurator = p.assignee_name || p.author_name || 'Не назначен';
+        const pDue = p.due_date_str || p.target_quarter || '—';
+        const milestones = p.milestones || [];
+
+        // Заголовочная строка проекта
+        html += `
+            <tr class="roadmap-print-project-row" style="background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-top: 2px solid #0f172a !important; font-weight: 700;">
+                <td style="text-align: center; font-weight: 800; font-family: monospace; font-size: 8pt; background: #e2e8f0 !important;">${escapeHtml(pCode)}</td>
+                <td style="font-weight: 800; font-size: 8.5pt; color: #0f172a; background: #e2e8f0 !important;">
+                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                        <span>${escapeHtml(p.title)}</span>
+                        ${pService ? `<span style="font-size: 7pt; color: #475569; font-weight: 600;">${escapeHtml(pService)}</span>` : ''}
+                    </div>
+                    ${p.attached_doc ? `<div style="font-size: 6.5pt; color: #2563eb; font-weight: 600;">📄 Регламент: ${escapeHtml(p.attached_doc.title || 'Документ')}</div>` : ''}
+                </td>
+                <td style="text-align: center; color: #64748b; font-size: 7.5pt; background: #e2e8f0 !important;">Проект целиком</td>
+                <td style="background: #e2e8f0 !important;"><strong style="color: #0f172a;">${escapeHtml(pCurator)}</strong></td>
+                <td style="text-align: center; white-space: nowrap; font-weight: 700; background: #e2e8f0 !important;">${escapeHtml(pDue)}</td>
+                <td style="text-align: center; font-weight: 700; background: #e2e8f0 !important;">
+                    <span style="display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 7.5pt; border: 1px solid #cbd5e1; background: #ffffff;">
+                        ${prog}% (${escapeHtml(pStatus)})
+                    </span>
+                </td>
+                <td style="text-align: center; font-size: 7pt; color: #475569; background: #e2e8f0 !important;">
+                    <div style="border: 1px dashed #94a3b8; background: #ffffff; padding: 2px 4px; border-radius: 3px; font-size: 6.5pt;">
+                        Куратор: ________
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        if (milestones.length === 0) {
+            html += `
+                <tr class="roadmap-print-stage-row">
+                    <td></td>
+                    <td colspan="6" style="color: #64748b; font-style: italic; font-size: 7pt; padding-left: 14px;">
+                        (Этапы проекта пока не добавлены)
+                    </td>
+                </tr>
+            `;
+        } else {
+            milestones.forEach((m, mIdx) => {
+                const mCode = m.code || `${pCode}.${mIdx + 1}`;
+                const mTitle = m.title || '—';
+                const mAssignee = m.assignee_name || pCurator || '—';
+                const mDue = m.due_date_str || '—';
+                const mProg = m.calculated_progress !== undefined ? m.calculated_progress : (m.status === '🟢 Выполнено' ? 100 : (m.progress || 0));
+                const isDone = m.status === '🟢 Выполнено' || mProg === 100;
+
+                // Блокеры / Предшественники
+                let blockersHtml = '—';
+                const bList = (m.blockers && m.blockers.length > 0) ? m.blockers : (m.depends_on ? [m.depends_on] : []);
+                if (bList.length > 0) {
+                    blockersHtml = bList.map(b => {
+                        const bDone = b.status && b.status.includes('Выполнено');
+                        return `<span style="display: inline-block; padding: 1px 4px; border-radius: 3px; font-size: 6.5pt; margin: 1px; ${bDone ? 'background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;' : 'background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;'}">
+                            ${bDone ? '✓' : '🔒'} ждет: ${escapeHtml(b.code || b.title || 'этап')}
+                        </span>`;
+                    }).join(' ');
+                }
+
+                html += `
+                    <tr class="roadmap-print-stage-row" style="${isDone ? 'background: #f8fafc;' : ''}">
+                        <td style="text-align: center; font-size: 7pt; color: #64748b; font-family: monospace;">${escapeHtml(mCode)}</td>
+                        <td style="padding-left: 14px !important;">
+                            <div style="font-weight: 600; color: #1e293b;">
+                                <span style="color: #6366f1; margin-right: 4px;">↳</span>${escapeHtml(mTitle)}
+                            </div>
+                        </td>
+                        <td style="font-size: 7pt;">${blockersHtml}</td>
+                        <td style="font-size: 7.5pt; color: #334155;">${escapeHtml(mAssignee)}</td>
+                        <td style="text-align: center; white-space: nowrap; font-size: 7.5pt;">${escapeHtml(mDue)}</td>
+                        <td style="text-align: center; font-size: 7pt;">
+                            <span style="font-weight: 700; ${isDone ? 'color: #16a34a;' : 'color: #2563eb;'}">
+                                ${isDone ? '🟢 Выполнено' : `${mProg}% (${escapeHtml(m.status || 'В работе')})`}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <div style="display: inline-block; width: 13px; height: 13px; border: 1.5px solid ${isDone ? '#16a34a' : '#94a3b8'}; border-radius: 3px; line-height: 11px; font-weight: 700; font-size: 8pt; color: #16a34a;">
+                                ${isDone ? '✓' : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+
+                // Дочерние подзадачи этапа (если есть)
+                if (m.subtasks && m.subtasks.length > 0) {
+                    m.subtasks.forEach(sub => {
+                        const subDone = sub.status === '🟢 Выполнено' || sub.progress === 100;
+                        html += `
+                            <tr class="roadmap-print-subtask-row" style="background: #fafafa; font-size: 6.8pt; color: #64748b;">
+                                <td style="text-align: center; font-family: monospace; font-size: 6.5pt; color: #94a3b8;">${escapeHtml(sub.code || '—')}</td>
+                                <td style="padding-left: 28px !important;">
+                                    <span style="color: #94a3b8; margin-right: 3px;">•</span> ${escapeHtml(sub.title)}
+                                </td>
+                                <td>—</td>
+                                <td>${escapeHtml(sub.assignee_name || mAssignee)}</td>
+                                <td style="text-align: center;">${escapeHtml(sub.due_date_str || '—')}</td>
+                                <td style="text-align: center;">${subDone ? '🟢 100%' : `${sub.progress || 0}%`}</td>
+                                <td style="text-align: center;">
+                                    <div style="display: inline-block; width: 10px; height: 10px; border: 1px solid ${subDone ? '#16a34a' : '#cbd5e1'}; border-radius: 2px; line-height: 8px; font-size: 6.5pt; color: #16a34a;">
+                                        ${subDone ? '✓' : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+        }
+
+        // Если режим одиночного паспорта проекта — добавляем блок подписания и утверждения
+        if (isSingleProject) {
+            html += `
+                <tr class="roadmap-print-sign-row" style="border-top: 2px solid #0f172a !important; background: #ffffff !important;">
+                    <td colspan="7" style="padding: 12px 14px !important;">
+                        <div style="font-size: 7.5pt; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">Лист утверждения и контроля исполнения проекта</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 7.8pt; font-weight: 600; color: #0f172a; gap: 12px;">
+                            <div>Куратор проекта: ____________________ / ${escapeHtml(pCurator)} /</div>
+                            <div>Главный инженер: ____________________ / ____________________ /</div>
+                            <div>Директор завода: ____________________ / ____________________ /</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+
+    tbody.innerHTML = html;
+}
+
+/**
+ * Печать паспорта одного конкретного проекта Дорожной карты
+ */
+async function printRoadmapProject(projectId) {
+    if (!projectId) return;
+
+    let project = (allRoadmaps || []).find(p => p.id == projectId || String(p.id) === String(projectId));
+    if (!project) {
+        try {
+            showToast("Загрузка данных проекта для печати... ⏳");
+            const res = await fetch(`/api/tasks/roadmaps?quarter=all`);
+            if (res.ok) {
+                const list = await res.json();
+                project = list.find(p => p.id == projectId || String(p.id) === String(projectId));
+            }
+        } catch (e) {
+            console.error("Error loading project for print:", e);
+        }
+    }
+
+    if (!project) {
+        showToast("Не удалось найти данные проекта для печати", "error");
+        return;
+    }
+
+    singleProjectPrintActive = true;
+    document.body.classList.add("print-single-project");
+
+    const subtitleEl = document.getElementById("print-header-subtitle");
+    if (subtitleEl) {
+        subtitleEl.textContent = `ПАСПОРТ ПРОЕКТА: ${project.code || ('TSK-' + project.id)} — ${project.title.toUpperCase()}`;
+    }
+
+    const metaContainer = document.getElementById("print-meta-info");
+    if (metaContainer) {
+        const now = new Date();
+        const nowStr = now.toLocaleDateString("ru-RU") + " " + now.toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' });
+        const curator = project.assignee_name || project.author_name || '—';
+        const svc = project.department_service || 'Общезаводской';
+        const qtr = project.target_quarter || 'Бессрочный';
+        const prog = project.calculated_progress !== undefined ? project.calculated_progress : (project.progress || 0);
+
+        metaContainer.innerHTML = `
+            <div style="font-weight: 700; font-size: 8.5pt; color: #0f172a;">Служба: ${escapeHtml(svc)} | Период: ${escapeHtml(qtr)}</div>
+            <div style="font-size: 7.5pt; color: #334155; margin: 1px 0;">Куратор: ${escapeHtml(curator)} • Готовность: ${prog}% (${escapeHtml(project.status || 'В работе')})</div>
+            <div style="font-size: 7pt; color: #64748b;">Этапов: ${(project.milestones || []).length} | Сформировано: ${nowStr}</div>
+        `;
+    }
+
+    buildRoadmapsPrintView([project], true);
+
+    setTimeout(() => {
+        window.print();
+    }, 150);
+}
+
+// Восстановление состояния после закрытия окна печати
+window.addEventListener("afterprint", () => {
+    if (singleProjectPrintActive) {
+        singleProjectPrintActive = false;
+        document.body.classList.remove("print-single-project");
+        preparePrintMetaHeader();
+    }
+});
 
 /* ==========================================================
    PHOTO UPLOAD & CLIENT-SIDE WEBP COMPRESSOR
@@ -9236,9 +9527,9 @@ function populateTaskDetailModal(task) {
     }
 
     // Action buttons state
-    const isGuest = !currentPlannerUser;
-    const canInteract = isGuest || canInteractWithTask(task);
-    const canEdit = isGuest || canEditProjectOrTask(task);
+    const canInteract = canInteractWithTask(task);
+    const canEdit = canEditProjectOrTask(task);
+    const canDelete = canDeleteProjectOrTask(task);
 
     const btnComplete = document.getElementById("detail-btn-complete");
     const isDone = task.status && task.status.includes("Выполнено");
@@ -9266,19 +9557,20 @@ function populateTaskDetailModal(task) {
 
     const btnEdit = document.getElementById("detail-btn-edit");
     if (btnEdit) {
-        btnEdit.innerHTML = canEdit ? `<i class="fa-solid fa-pen"></i> Редактировать` : `<i class="fa-solid fa-eye"></i> Просмотр`;
+        btnEdit.style.display = canEdit ? "inline-flex" : "none";
+        btnEdit.innerHTML = `<i class="fa-solid fa-pen"></i> Редактировать`;
     }
 
     const btnDelete = document.getElementById("detail-btn-delete");
     if (btnDelete) {
-        btnDelete.style.display = canEdit ? "inline-flex" : "none";
+        btnDelete.style.display = canDelete ? "inline-flex" : "none";
         btnDelete.disabled = false;
         btnDelete.innerHTML = '<i class="fa-solid fa-trash-can"></i> Удалить';
     }
 
     const isDoneOrCancelled = task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено"));
     const isLeaderOrAdmin = (typeof isPlannerAdmin === 'function' && isPlannerAdmin()) || (typeof isPlannerTrustedLeader === 'function' && isPlannerTrustedLeader());
-    const canAddSubtasks = isGuest || ((!isDoneOrCancelled || isLeaderOrAdmin) && canInteract);
+    const canAddSubtasks = (!isDoneOrCancelled || isLeaderOrAdmin) && canInteract;
 
     const btnAddSubtask = document.getElementById("detail-btn-add-subtask");
     const btnAddSubtaskLabel = document.getElementById("detail-btn-add-subtask-label");
@@ -9448,7 +9740,29 @@ function populateTaskDetailModal(task) {
 
     // Comment Box with neutral styling when empty
     const commentBox = document.getElementById("detail-task-comment");
+    const btnEditComment = document.getElementById("btn-edit-detail-comment");
+    const editWrap = document.getElementById("detail-comment-edit-wrap");
+
+    if (btnEditComment) {
+        btnEditComment.style.display = canInteract ? "inline-flex" : "none";
+    }
+
+    if (editWrap) {
+        editWrap.style.display = "none";
+    }
+
     if (commentBox) {
+        commentBox.style.display = "block";
+        if (canInteract) {
+            commentBox.onclick = enableDetailCommentEdit;
+            commentBox.style.cursor = "pointer";
+            commentBox.title = "Нажмите для добавления или редактирования комментария";
+        } else {
+            commentBox.onclick = null;
+            commentBox.style.cursor = "default";
+            commentBox.title = "";
+        }
+
         if (task.comment && task.comment.trim()) {
             commentBox.textContent = task.comment.trim();
             commentBox.classList.remove("is-empty");
@@ -9467,6 +9781,10 @@ function populateTaskDetailModal(task) {
 
 /* @canonical-pattern TaskDetailInlineComment (One-Click Inline Edit) */
 function enableDetailCommentEdit() {
+    if (!canInteractWithTask(currentDetailTaskData)) {
+        showToast("🔒 Редактирование факта и комментариев доступно только исполнителю, автору или руководству завода", "warning");
+        return;
+    }
     const commentBox = document.getElementById("detail-task-comment");
     const editWrap = document.getElementById("detail-comment-edit-wrap");
     const textarea = document.getElementById("detail-comment-textarea");
@@ -9498,76 +9816,88 @@ function cancelDetailCommentEdit() {
     const commentBox = document.getElementById("detail-task-comment");
     const editWrap = document.getElementById("detail-comment-edit-wrap");
     const btnEdit = document.getElementById("btn-edit-detail-comment");
+    const canInteract = canInteractWithTask(currentDetailTaskData);
     if (commentBox) commentBox.style.display = "block";
     if (editWrap) editWrap.style.display = "none";
-    if (btnEdit) btnEdit.style.display = "inline-flex";
+    if (btnEdit) btnEdit.style.display = canInteract ? "inline-flex" : "none";
 }
 
 async function saveDetailCommentEdit() {
     if (!currentDetailTaskId) return;
+    if (!canInteractWithTask(currentDetailTaskData)) {
+        showToast("🔒 Редактирование факта и комментариев доступно только исполнителю, автору или руководству завода", "warning");
+        return;
+    }
     const textarea = document.getElementById("detail-comment-textarea");
     const saveBtn = document.getElementById("btn-save-detail-comment");
     if (!textarea) return;
 
     const newText = textarea.value.trim();
-    const authorName = (currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : (localStorage.getItem("tectum_current_user_name") || "Сотрудник завода");
+    const task = currentDetailTaskData;
+    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
-    if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...`;
-    }
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        const authorName = (authSession && authSession.name) ? authSession.name : ((currentPlannerUser && currentPlannerUser.name) ? currentPlannerUser.name : "Сотрудник завода");
+        const pin = (authSession && authSession.pin) ? authSession.pin : ((currentPlannerUser && currentPlannerUser.pin) ? currentPlannerUser.pin : "");
 
-    try {
-        const payload = {
-            author_name: authorName,
-            text: newText,
-            comment_type: "comment"
-        };
-        const res = await fetch(`/api/tasks/${currentDetailTaskId}/comments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.detail || "Не удалось сохранить комментарий");
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...`;
         }
 
-        if (currentDetailTaskData) {
-            currentDetailTaskData.comment = newText;
-        }
-        if (Array.isArray(allTasks)) {
-            const t = allTasks.find(x => x.id === currentDetailTaskId);
-            if (t) t.comment = newText;
-        }
-        if (currentGraphData?.nodes) {
-            const n = currentGraphData.nodes.find(x => x.id === currentDetailTaskId);
-            if (n) n.comment = newText;
-        }
+        try {
+            const payload = {
+                author_name: authorName,
+                pin_code: pin,
+                text: newText,
+                comment_type: "comment"
+            };
+            const res = await fetch(`/api/tasks/${currentDetailTaskId}/comments`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
 
-        const commentBox = document.getElementById("detail-task-comment");
-        if (commentBox) {
-            if (newText) {
-                commentBox.textContent = newText;
-                commentBox.classList.remove("is-empty");
-            } else {
-                commentBox.textContent = "Комментарий отсутствует";
-                commentBox.classList.add("is-empty");
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Не удалось сохранить комментарий");
+            }
+
+            if (currentDetailTaskData) {
+                currentDetailTaskData.comment = newText;
+            }
+            if (Array.isArray(allTasks)) {
+                const t = allTasks.find(x => x.id === currentDetailTaskId);
+                if (t) t.comment = newText;
+            }
+            if (currentGraphData?.nodes) {
+                const n = currentGraphData.nodes.find(x => x.id === currentDetailTaskId);
+                if (n) n.comment = newText;
+            }
+
+            const commentBox = document.getElementById("detail-task-comment");
+            if (commentBox) {
+                if (newText) {
+                    commentBox.textContent = newText;
+                    commentBox.classList.remove("is-empty");
+                } else {
+                    commentBox.textContent = "Комментарий отсутствует";
+                    commentBox.classList.add("is-empty");
+                }
+            }
+
+            cancelDetailCommentEdit();
+            showToast("Комментарий успешно сохранён! 💬", "success");
+        } catch (err) {
+            console.error("Error saving detail comment:", err);
+            showToast(`⚠️ Ошибка сохранения: ${err.message}`, "error");
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = `<i class="fa-solid fa-check"></i> Сохранить`;
             }
         }
-
-        cancelDetailCommentEdit();
-        showToast("Комментарий успешно сохранён! 💬", "success");
-    } catch (err) {
-        console.error("Error saving detail comment:", err);
-        showToast(`⚠️ Ошибка сохранения: ${err.message}`, "error");
-    } finally {
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = `<i class="fa-solid fa-check"></i> Сохранить`;
-        }
-    }
+    }, task, "interact");
 }
 
 function renderDetailSubtasks() {
@@ -9599,13 +9929,20 @@ function renderDetailSubtasks() {
         return;
     }
 
+    const canInteractParent = canInteractWithTask(currentDetailTaskData);
+
     listEl.innerHTML = subtasks.map(st => {
         const isDone = st.status && st.status.includes("Выполнено");
         const stCode = st.code || `TSK-${st.id}`;
+        const canInteractSt = canInteractParent || canInteractWithTask(st);
+        const checkAction = canInteractSt ? `onclick="quickToggleSubtaskFromDetail(${st.id}, '${st.status || ''}')"` : `disabled="disabled"`;
+        const checkStyle = canInteractSt ? `cursor: pointer;` : `cursor: default; opacity: 0.6; pointer-events: none;`;
+        const checkTitle = canInteractSt ? (isDone ? 'Снять отметку' : 'Отметить выполненным') : 'Только для чтения';
+
         return `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: ${isDone ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; gap: 8px; transition: background 0.15s ease;">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
-                    <button type="button" class="roadmap-check-btn ${isDone ? 'checked' : ''}" onclick="quickToggleSubtaskFromDetail(${st.id}, '${st.status || ''}')" style="width: 20px; height: 20px; font-size: 0.7rem; flex-shrink: 0;" title="${isDone ? 'Снять отметку' : 'Отметить выполненным'}">
+                    <button type="button" class="roadmap-check-btn ${isDone ? 'checked' : ''}" ${checkAction} style="width: 20px; height: 20px; font-size: 0.7rem; flex-shrink: 0; ${checkStyle}" title="${checkTitle}">
                         <i class="fa-solid fa-check"></i>
                     </button>
                     <span class="badge-code" style="font-size: 0.72rem; font-family: monospace; font-weight: 700; background: #e2e8f0; color: #334155; padding: 1px 5px; border-radius: 4px; flex-shrink: 0;">${escapeHtml(stCode)}</span>
@@ -9624,11 +9961,15 @@ function renderDetailSubtasks() {
 }
 
 async function quickToggleSubtaskFromDetail(subtaskId, currentStatus) {
-    const isDone = currentStatus && currentStatus.includes("Выполнено");
-    const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
-
     const subtasks = (currentDetailTaskData && currentDetailTaskData.subtasks) || [];
     const st = subtasks.find(s => s.id === subtaskId);
+    if (!canInteractWithTask(st) && !canInteractWithTask(currentDetailTaskData)) {
+        showToast("🔒 Отметка выполнения подзадач доступна только исполнителю, автору или руководству", "warning");
+        return;
+    }
+
+    const isDone = currentStatus && currentStatus.includes("Выполнено");
+    const nextStatus = isDone ? "🟡 В работе" : "🟢 Выполнено";
     const requiredUser = st ? (st.assignee_name || st.author_name || (currentDetailTaskData ? currentDetailTaskData.assignee_name : null)) : null;
 
     ensureUserAuthorized(requiredUser, async (authSession) => {
@@ -9862,6 +10203,11 @@ async function deleteDetailPhoto(event, photoUrl, photoType) {
 
 function openCompleteTaskModalFromDetail() {
     if (!currentDetailTaskId) return;
+    const task = currentDetailTaskData;
+    if (!canInteractWithTask(task)) {
+        showToast("🔒 Завершение задачи доступно только исполнителю, автору или руководству", "warning");
+        return;
+    }
     const tid = currentDetailTaskId;
     closeTaskDetailModal();
     if (typeof openCompleteTaskModal === 'function') {
@@ -9871,6 +10217,11 @@ function openCompleteTaskModalFromDetail() {
 
 function openRescheduleModalFromDetail() {
     if (!currentDetailTaskId) return;
+    const task = currentDetailTaskData;
+    if (!canInteractWithTask(task)) {
+        showToast("🔒 Перенос срока доступен только исполнителю, автору или руководству", "warning");
+        return;
+    }
     const tid = currentDetailTaskId;
     closeTaskDetailModal();
     if (typeof openRescheduleTaskModal === 'function') {
@@ -9880,6 +10231,11 @@ function openRescheduleModalFromDetail() {
 
 function openEditTaskModalFromDetail() {
     if (!currentDetailTaskId) return;
+    const task = currentDetailTaskData;
+    if (!canEditProjectOrTask(task)) {
+        showToast("🔒 Редактирование паспорта задачи доступно только автору или руководству", "warning");
+        return;
+    }
     const tid = currentDetailTaskId;
     closeTaskDetailModal();
     if (typeof openEditTaskModal === 'function') {
@@ -9904,6 +10260,11 @@ function focusDetailNewSubtaskInput() {
 }
 
 function openAddSubtaskFromDetail() {
+    const task = currentDetailTaskData;
+    if (!canInteractWithTask(task)) {
+        showToast("🔒 Добавление подзадач доступно только исполнителю, автору или руководству", "warning");
+        return;
+    }
     focusDetailNewSubtaskInput();
 }
 
@@ -9916,6 +10277,12 @@ function handleDetailNewSubtaskKeydown(event) {
 
 async function submitDetailNewSubtask() {
     if (!currentDetailTaskId) return;
+    const task = currentDetailTaskData;
+    if (!canInteractWithTask(task)) {
+        showToast("🔒 Добавление подзадач доступно только исполнителю, автору или руководству", "warning");
+        return;
+    }
+
     const input = document.getElementById("detail-new-subtask-input");
     const title = input ? input.value.trim() : "";
     if (!title) {
@@ -9923,7 +10290,6 @@ async function submitDetailNewSubtask() {
         return;
     }
 
-    const task = currentDetailTaskData;
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
     ensureUserAuthorized(requiredUser, async (authSession) => {
@@ -9984,10 +10350,15 @@ async function deleteTaskFromDetail() {
     if (!currentDetailTaskId) return;
     const tid = currentDetailTaskId;
     const task = currentDetailTaskData || allTasks.find(t => t.id == tid) || null;
-    const targetAuthor = task ? task.author_name : null;
+
+    if (!canDeleteProjectOrTask(task)) {
+        showToast("🔒 Удаление задач разрешено исключительно руководству завода (Туматов Д., Герлинг С., Булеханов К.) или администратору", "warning");
+        return;
+    }
+
     const taskTitle = task ? `[${task.code || ('TSK-' + task.id)}] «${task.title}»` : `TSK-${tid}`;
 
-    ensureUserAuthorized(targetAuthor, async (authedUser) => {
+    ensureUserAuthorized(null, async (authedUser) => {
         if (!confirm(`Вы действительно хотите удалить задачу ${taskTitle}?\n\nДействие подтверждается сотрудником «${authedUser.name}» через PIN-код и будет зафиксировано в истории аудита.`)) {
             return;
         }
@@ -10420,6 +10791,12 @@ async function openProjectGraphModal(projectId) {
         const prog = summary.overall_progress || p.progress || 0;
         if (progBar) progBar.style.width = `${prog}%`;
         if (progVal) progVal.textContent = `${prog}%`;
+
+        const canEditGraph = canEditProjectOrTask(p);
+        const addStageBtn = document.getElementById("graph-btn-add-stage");
+        if (addStageBtn) {
+            addStageBtn.style.display = canEditGraph ? "inline-flex" : "none";
+        }
 
         renderProjectGraph(currentGraphData);
         
@@ -10971,6 +11348,14 @@ function selectGraphNode(nodeId) {
 
     // Subtasks Checklist
     const subs = node.subtasks || [];
+    const canInteractNode = canInteractWithTask(node);
+    const canDeleteNode = canDeleteProjectOrTask(node);
+
+    const inspectorDelBtn = document.getElementById("inspector-delete-btn");
+    if (inspectorDelBtn) {
+        inspectorDelBtn.style.display = canDeleteNode ? "inline-flex" : "none";
+    }
+
     if (subCountEl) {
         subCountEl.textContent = `${node.subtasks_done_count || 0}/${subs.length}`;
     }
@@ -10980,17 +11365,28 @@ function selectGraphNode(nodeId) {
         } else {
             subListEl.innerHTML = subs.map(st => {
                 const isStDone = st.is_done;
+                const checkBtnHtml = canInteractNode ? `
+                    <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" onclick="toggleInspectorSubtask(${st.id}, '${st.status || ''}', event)" style="width: 16px; height: 16px; font-size: 0.55rem; flex-shrink: 0;" title="${isStDone ? 'Снять выполнение' : 'Выполнено'}">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                ` : `
+                    <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" disabled="disabled" style="width: 16px; height: 16px; font-size: 0.55rem; flex-shrink: 0; cursor: default; opacity: 0.65; pointer-events: none;" title="${isStDone ? 'Выполнено' : 'В работе'}">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                `;
+                const delSubHtml = canDeleteNode ? `
+                    <button type="button" class="btn-icon-cell" onclick="deleteInspectorSubtask(${st.id}, event)" style="font-size: 0.68rem; color: #94a3b8; padding: 2px 4px;" title="Удалить подзадачу">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                ` : '';
+
                 return `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 6px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
                         <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
-                            <button type="button" class="roadmap-check-btn ${isStDone ? 'checked' : ''}" onclick="toggleInspectorSubtask(${st.id}, '${st.status || ''}', event)" style="width: 16px; height: 16px; font-size: 0.55rem; flex-shrink: 0;" title="${isStDone ? 'Снять выполнение' : 'Выполнено'}">
-                                <i class="fa-solid fa-check"></i>
-                            </button>
+                            ${checkBtnHtml}
                             <span style="font-size: 0.76rem; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(st.title)}">${escapeHtml(st.title)}</span>
                         </div>
-                        <button type="button" class="btn-icon-cell" onclick="deleteInspectorSubtask(${st.id}, event)" style="font-size: 0.68rem; color: #94a3b8; padding: 2px 4px;" title="Удалить подзадачу">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
+                        ${delSubHtml}
                     </div>
                 `;
             }).join('');
@@ -11123,11 +11519,14 @@ async function deleteInspectorSubtask(subtaskId, event) {
     if (event) event.stopPropagation();
     if (!selectedGraphNodeId) return;
     const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
+    if (!canDeleteProjectOrTask(node)) {
+        showToast("🔒 Удалять подзадачи имеет право только руководство завода (Туматов Д., Герлинг С., Булеханов К.) или администратор", "warning");
+        return;
+    }
     const subtask = (node?.subtasks || []).find(st => st.id === subtaskId);
     const subtaskTitle = subtask ? `«${subtask.title}»` : "подзадачу";
-    const targetAuthor = subtask?.author_name || node?.author_name || currentGraphData?.project?.author_name || null;
 
-    ensureUserAuthorized(targetAuthor, async (authedUser) => {
+    ensureUserAuthorized(null, async (authedUser) => {
         if (!confirm(`Вы действительно хотите удалить ${subtaskTitle}?\n\nДействие подтверждается сотрудником «${authedUser.name}» через PIN-код и запишется в журнал истории проекта.`)) {
             return;
         }
@@ -11208,10 +11607,14 @@ async function deleteStageFromGraph() {
     const node = (currentGraphData?.nodes || []).find(n => n.id === selectedGraphNodeId);
     if (!node) return;
 
-    const stageTitle = `[${node.code || ('TSK-' + node.id)}] «${node.title}»`;
-    const targetAuthor = node.author_name || currentGraphData?.project?.author_name || null;
+    if (!canDeleteProjectOrTask(node)) {
+        showToast("🔒 Удалять этапы имеет право только руководство завода (Туматов Д., Герлинг С., Булеханов К.) или администратор", "warning");
+        return;
+    }
 
-    ensureUserAuthorized(targetAuthor, async (authedUser) => {
+    const stageTitle = `[${node.code || ('TSK-' + node.id)}] «${node.title}»`;
+
+    ensureUserAuthorized(null, async (authedUser) => {
         if (!confirm(`Вы действительно хотите удалить этап ${stageTitle}?\n\nДействие подтверждается сотрудником «${authedUser.name}» через PIN-код и будет зафиксировано в истории аудита проекта.`)) {
             return;
         }

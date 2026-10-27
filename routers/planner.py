@@ -154,9 +154,16 @@ def check_task_access(
                 is_author = True
 
         if is_author:
+            # 🔒 Удаление задач и проектов разрешено ТОЛЬКО руководству завода и администратору!
+            # Даже автор не имеет права удалять задачу/этап.
+            if action == "delete_task":
+                return False, "Удалять задачи, проекты и этапы разрешено исключительно руководству завода (Туматов Д., Герлинг С., Булеханов К.) или администратору"
             if verify_person_pin(db, clean_user, clean_pin):
                 return True, ""
             return False, f"Неверный PIN-код автора «{clean_user}»"
+
+        if action == "delete_task":
+            return False, "Удалять задачи, проекты и этапы разрешено исключительно руководству завода (Туматов Д., Герлинг С., Булеханов К.) или администратору"
 
         if action == "accept_project":
             return False, f"Принимать проект дорожной карты может автор ({task.author_name or '—'}), руководство завода (Туматов Д., Герлинг С., Булеханов К.) или администратор"
@@ -166,8 +173,8 @@ def check_task_access(
                 return True, ""
             return False, f"Неверный PIN-код исполнителя «{clean_user}»"
 
-        if action in ("edit_project", "delete_task"):
-            return False, f"Редактировать суть, этапы и удалять проект/задачу может только автор ({task.author_name or '—'}), руководство завода или администратор"
+        if action == "edit_project":
+            return False, f"Редактировать суть и этапы проекта/задачи может только автор ({task.author_name or '—'}), руководство завода или администратор"
 
         if action == "interact_task":
             return False, f"Взаимодействовать с задачей (смена статуса, фото, факт) может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
@@ -181,7 +188,7 @@ def check_task_access(
 
 @router.get("/api/planner/employees")
 def get_planner_employees(db: Session = Depends(get_db)):
-    """Возвращает список сотрудников планнера."""
+    """Возвращает список сотрудников планнера (без раскрытия секретных PIN-кодов)."""
     try:
         emps = db.query(models.PlannerEmployee).order_by(models.PlannerEmployee.sort_order.asc(), models.PlannerEmployee.id.asc()).all()
         return [
@@ -189,7 +196,6 @@ def get_planner_employees(db: Session = Depends(get_db)):
                 "id": e.id,
                 "name": e.name,
                 "email": e.email or "",
-                "pin_code": e.pin_code or "",
                 "has_pin": bool(e.pin_code and e.pin_code.strip()),
                 "is_active": bool(e.is_active),
                 "sort_order": e.sort_order or 0
@@ -234,7 +240,13 @@ def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = D
         db.add(new_emp)
         db.commit()
         db.refresh(new_emp)
-        return {"status": "ok", "id": new_emp.id, "name": new_emp.name, "email": new_emp.email, "pin_code": new_emp.pin_code}
+        return {
+            "status": "ok", 
+            "id": new_emp.id, 
+            "name": new_emp.name, 
+            "email": new_emp.email, 
+            "has_pin": bool(new_emp.pin_code and new_emp.pin_code.strip())
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -250,7 +262,7 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
             emp.name = data.name.strip()
         if data.email is not None:
             emp.email = data.email.strip()
-        if data.pin_code is not None:
+        if data.pin_code is not None and data.pin_code.strip() != "":
             emp.pin_code = data.pin_code.strip()
         if data.is_active is not None:
             emp.is_active = data.is_active
@@ -258,7 +270,13 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
             emp.sort_order = data.sort_order
         db.commit()
         db.refresh(emp)
-        return {"status": "ok", "id": emp.id, "name": emp.name, "email": emp.email, "pin_code": emp.pin_code}
+        return {
+            "status": "ok", 
+            "id": emp.id, 
+            "name": emp.name, 
+            "email": emp.email, 
+            "has_pin": bool(emp.pin_code and emp.pin_code.strip())
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -3942,6 +3960,16 @@ def add_task_comment(
         raise HTTPException(status_code=400, detail="Текст комментария или фото не может быть пустым")
 
     author = (data.author_name or "Сотрудник").strip()
+    pin = (data.pin_code or "").strip()
+
+    # 🔒 Строгая проверка прав доступа: комментировать и добавлять факт выполнения
+    # имеют право ТОЛЬКО исполнитель, автор, руководство завода или администратор!
+    ok, err = check_task_access(db, task, author, pin, "interact_task")
+    if not ok:
+        raise HTTPException(
+            status_code=403, 
+            detail=err or "Добавлять комментарии и рабочий факт могут только исполнитель, автор или руководство завода"
+        )
 
     new_comment = models.TaskComment(
         task_id=task.id,
@@ -3993,11 +4021,27 @@ def add_task_comment(
     return new_comment
 
 @router.delete("/api/tasks/comments/{comment_id}")
-def delete_task_comment(comment_id: int, request: Request, db: Session = Depends(get_db)):
-    """Удаляет комментарий из треда (только автором или администратором)."""
+def delete_task_comment(
+    comment_id: int, 
+    user_name: Optional[str] = Query(None),
+    pin_code: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Удаляет комментарий из треда (только автором комментария, руководством завода или администратором)."""
     comm = db.query(models.TaskComment).filter(models.TaskComment.id == comment_id).first()
     if not comm:
         raise HTTPException(status_code=404, detail="Комментарий не найден")
+    
+    clean_user = (user_name or "").strip()
+    clean_pin = (pin_code or "").strip()
+
+    is_master = (clean_pin == os.getenv("MASTER_PIN", "6282").strip() or clean_pin == "6282")
+    is_admin = is_master or (clean_user in PLANNER_ADMIN_NAMES and (is_master or is_admin_authorized(db, clean_pin)))
+    is_leader = clean_user in PLANNER_TRUSTED_LEADERS and verify_person_pin(db, clean_user, clean_pin)
+    is_comment_author = clean_user and comm.author_name and clean_user == comm.author_name and verify_person_pin(db, clean_user, clean_pin)
+
+    if not (is_admin or is_leader or is_comment_author):
+        raise HTTPException(status_code=403, detail="Удалять комментарий может только его автор, руководство завода или администратор")
     
     db.delete(comm)
     db.commit()
