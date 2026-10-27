@@ -18,7 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20261027_print_layout_v1">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20261027_print_layout_v2">
 
     <style>
         :root {
@@ -1552,7 +1552,9 @@
             .btn-reset-deck,
             #btn-reset-filters-deck,
             .filter-dropdown-popover,
-            .popover-anchor-wrap {
+            .popover-anchor-wrap,
+            #netguard-pill,
+            .netguard-pill {
                 display: none !important;
             }
 
@@ -1690,7 +1692,7 @@
                 display: none !important;
             }
 
-            /* Пропорциональные ширины столбцов под А4 Landscape (строго 100% ширины листа, без скролла) */
+            /* Пропорциональные ширины столбцов под А4 Landscape (строго 100% ширины листа, без скролла и наложений) */
             .planner-table th:nth-child(1),
             .planner-table td:nth-child(1) {
                 width: 6% !important;
@@ -1700,17 +1702,18 @@
 
             .planner-table th:nth-child(2),
             .planner-table td:nth-child(2) {
-                width: 12% !important;
+                width: 16% !important;
+                box-sizing: border-box !important;
             }
 
             .planner-table th:nth-child(3),
             .planner-table td:nth-child(3) {
-                width: 44% !important;
+                width: 37% !important;
             }
 
             .planner-table th:nth-child(5),
             .planner-table td:nth-child(5) {
-                width: 11% !important;
+                width: 10% !important;
             }
 
             .planner-table th:nth-child(6),
@@ -1727,7 +1730,7 @@
 
             .planner-table th:nth-child(8),
             .planner-table td:nth-child(8) {
-                width: 9% !important;
+                width: 13% !important;
                 white-space: nowrap !important;
                 text-align: center !important;
             }
@@ -1740,7 +1743,7 @@
 
             body.print-hide-assignee .planner-table th:nth-child(3),
             body.print-hide-assignee .planner-table td:nth-child(3) {
-                width: 55% !important;
+                width: 48% !important;
             }
 
             .select-status {
@@ -1749,18 +1752,27 @@
                 -moz-appearance: none !important;
                 border: none !important;
                 background: transparent !important;
-                font-size: 7pt !important;
+                font-size: 7.5pt !important;
                 font-weight: 700 !important;
                 padding: 0 !important;
                 text-align: center !important;
                 pointer-events: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                white-space: nowrap !important;
             }
 
             .badge-zone {
                 display: inline-block !important;
                 border: 1px solid #94a3b8 !important;
                 font-size: 7pt !important;
-                padding: 1px 3px !important;
+                padding: 1px 4px !important;
+                max-width: 100% !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow-wrap: break-word !important;
+                line-height: 1.2 !important;
+                box-sizing: border-box !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -5006,7 +5018,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20261027_print_layout_v1"></script>
+    <script src="/static/js/tasks.js?v=20261027_print_layout_v2"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

@@ -1706,7 +1706,9 @@
     .filter-deck-meta,
     .btn-reset-deck,
     .filter-dropdown-popover,
-    .popover-anchor-wrap {
+    .popover-anchor-wrap,
+    #netguard-pill,
+    .netguard-pill {
         display: none !important;
     }
 
