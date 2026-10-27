@@ -880,6 +880,7 @@ def get_roadmaps_tree(
                 "depends_on": dep_info,
                 "blockers": blockers_info,
                 "is_my": is_my_item,
+                "completed_at": item.completed_at.strftime("%d.%m.%Y") if item.completed_at else None,
                 "created_at": item.created_at.strftime("%d.%m.%Y %H:%M") if item.created_at else "",
                 "created_date": item.created_at.strftime("%d.%m.%Y") if item.created_at else ""
             }
@@ -2073,6 +2074,7 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "status": st.status,
         "assignee_name": st.assignee_name or "",
         "due_date_str": st.due_date_str or "",
+        "completed_at": st.completed_at.strftime("%d.%m.%Y") if st.completed_at else None,
         "progress": st.progress or 0
     } for st in subtasks]
 
@@ -2970,6 +2972,13 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
                 if old_val != val:
                     changes.append(f"{key}: '{old_val}' -> '{val}'")
                 setattr(task, key, val)
+
+        if "status" in update_dict:
+            new_st = update_dict["status"] or ""
+            if "Выполнено" in new_st and (not old_status or "Выполнено" not in old_status):
+                task.completed_at = datetime.utcnow()
+            elif "Выполнено" not in new_st and (old_status and "Выполнено" in old_status):
+                task.completed_at = None
 
         task.updated_at = datetime.utcnow()
 

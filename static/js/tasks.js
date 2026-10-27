@@ -8892,6 +8892,8 @@ function buildRoadmapsPrintView(projects, isSingleProject = false) {
                 if (m.subtasks && m.subtasks.length > 0) {
                     m.subtasks.forEach(sub => {
                         const subDone = sub.status === '🟢 Выполнено' || sub.progress === 100;
+                        const subDue = sub.due_date_str ? escapeHtml(sub.due_date_str) : '—';
+                        const subFact = (subDone && sub.completed_at) ? `<div style="font-size: 5.8pt; color: #166534; font-weight: 600;">факт: ${escapeHtml(sub.completed_at)}</div>` : '';
                         html += `
                             <tr class="roadmap-print-subtask-row" style="background: #fafafa; font-size: 6.8pt; color: #64748b;">
                                 <td style="text-align: center; font-family: monospace; font-size: 6.5pt; color: #94a3b8;">${escapeHtml(sub.code || '—')}</td>
@@ -8900,7 +8902,10 @@ function buildRoadmapsPrintView(projects, isSingleProject = false) {
                                 </td>
                                 <td>—</td>
                                 <td>${escapeHtml(sub.assignee_name || mAssignee)}</td>
-                                <td style="text-align: center;">${escapeHtml(sub.due_date_str || '—')}</td>
+                                <td style="text-align: center; white-space: nowrap; font-weight: 600; color: #334155;">
+                                    ${subDue}
+                                    ${subFact}
+                                </td>
                                 <td style="text-align: center;">${subDone ? '🟢 100%' : `${sub.progress || 0}%`}</td>
                                 <td style="text-align: center;">
                                     <div style="display: inline-block; width: 10px; height: 10px; border: 1px solid ${subDone ? '#16a34a' : '#cbd5e1'}; border-radius: 2px; line-height: 8px; font-size: 6.5pt; color: #16a34a;">
@@ -9939,6 +9944,17 @@ function renderDetailSubtasks() {
         const checkStyle = canInteractSt ? `cursor: pointer;` : `cursor: default; opacity: 0.6; pointer-events: none;`;
         const checkTitle = canInteractSt ? (isDone ? 'Снять отметку' : 'Отметить выполненным') : 'Только для чтения';
 
+        const stDue = st.due_date_str ? st.due_date_str.trim() : "";
+        const dateBadge = canInteractSt ? `
+            <span onclick="quickEditSubtaskDate(${st.id}, '${escapeHtml(stDue)}', event)" style="font-size: 0.70rem; padding: 2px 7px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background 0.15s ease;" title="Нажмите, чтобы изменить срок исполнения подзадачи">
+                <i class="fa-regular fa-calendar-days" style="font-size: 0.65rem; margin-right: 3px;"></i>${escapeHtml(stDue || 'Указать срок')}
+            </span>
+        ` : (stDue ? `
+            <span style="font-size: 0.70rem; padding: 2px 7px; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; border-radius: 4px; font-weight: 600; white-space: nowrap;" title="Срок исполнения подзадачи">
+                <i class="fa-regular fa-calendar-days" style="font-size: 0.65rem; margin-right: 3px;"></i>${escapeHtml(stDue)}
+            </span>
+        ` : '');
+
         return `
             <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: ${isDone ? '#f0fdf4' : '#f8fafc'}; border: 1px solid ${isDone ? '#bbf7d0' : '#e2e8f0'}; border-radius: 8px; gap: 8px; transition: background 0.15s ease;">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
@@ -9949,7 +9965,8 @@ function renderDetailSubtasks() {
                     <span onclick="openTaskDetailModal(${st.id})" style="font-size: 0.86rem; font-weight: 500; color: ${isDone ? '#64748b' : '#0f172a'}; text-decoration: ${isDone ? 'line-through' : 'none'}; word-break: break-word; cursor: pointer;" title="Открыть паспорт ${isTopProject ? 'этапа' : 'подзадачи'}" class="task-title-link">${escapeHtml(st.title)}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                    <span style="font-size: 0.74rem; color: #64748b; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Исполнитель: ${escapeHtml(st.assignee_name || 'Не назначен')}">${escapeHtml(st.assignee_name || '—')}</span>
+                    ${dateBadge}
+                    <span style="font-size: 0.74rem; color: #64748b; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Исполнитель: ${escapeHtml(st.assignee_name || 'Не назначен')}">${escapeHtml(st.assignee_name || '—')}</span>
                     <span class="badge-zone" style="font-size: 0.68rem; padding: 1px 6px;">${escapeHtml(st.status || 'В работе')}</span>
                     <button type="button" class="btn-icon-cell" onclick="openTaskDetailModal(${st.id})" title="Открыть паспорт ${isTopProject ? 'этапа' : 'подзадачи'}" style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #2563eb; cursor: pointer;">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -9958,6 +9975,56 @@ function renderDetailSubtasks() {
             </div>
         `;
     }).join("");
+}
+
+async function quickEditSubtaskDate(subtaskId, currentDate, event) {
+    if (event) event.stopPropagation();
+    const subtasks = (currentDetailTaskData && currentDetailTaskData.subtasks) || [];
+    const st = subtasks.find(s => s.id === subtaskId);
+    if (!canInteractWithTask(st) && !canInteractWithTask(currentDetailTaskData)) {
+        showToast("🔒 Изменение срока подзадачи доступно только исполнителю, автору или руководству", "warning");
+        return;
+    }
+
+    const newDate = prompt(`Укажите срок исполнения для подзадачи [${st ? (st.code || 'TSK-' + st.id) : ''}]:`, currentDate || "");
+    if (newDate === null) return;
+    const cleanDate = newDate.trim();
+
+    const requiredUser = st ? (st.assignee_name || st.author_name || (currentDetailTaskData ? currentDetailTaskData.assignee_name : null)) : null;
+
+    ensureUserAuthorized(requiredUser, async (authSession) => {
+        try {
+            const res = await fetch(`/api/tasks/${subtaskId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    due_date_str: cleanDate,
+                    pin_code: authSession ? authSession.pin : "",
+                    user_name: authSession ? authSession.name : ""
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || "Не удалось обновить срок подзадачи");
+            }
+            showToast("Срок подзадачи обновлен 📅", "success");
+            if (currentDetailTaskId) {
+                const freshRes = await fetch(`/api/tasks/${currentDetailTaskId}`);
+                if (freshRes.ok) {
+                    currentDetailTaskData = await freshRes.json();
+                    populateTaskDetailModal(currentDetailTaskData);
+                }
+            }
+            if (typeof loadRoadmaps === 'function' && typeof currentHorizon !== 'undefined' && currentHorizon === 'roadmaps') {
+                loadRoadmaps();
+            } else if (typeof loadTasks === 'function') {
+                loadTasks();
+            }
+        } catch (err) {
+            console.error("Error updating subtask date:", err);
+            showToast(err.message, "error");
+        }
+    }, st || currentDetailTaskData, "interact");
 }
 
 async function quickToggleSubtaskFromDetail(subtaskId, currentStatus) {
@@ -10290,6 +10357,10 @@ async function submitDetailNewSubtask() {
         return;
     }
 
+    const dateInput = document.getElementById("detail-new-subtask-date");
+    const customDate = dateInput ? dateInput.value.trim() : "";
+    const effectiveDate = customDate || (task ? (task.due_date_str || "") : "");
+
     const requiredUser = task ? (task.assignee_name || task.author_name) : null;
 
     ensureUserAuthorized(requiredUser, async (authSession) => {
@@ -10302,7 +10373,7 @@ async function submitDetailNewSubtask() {
                 parent_id: currentDetailTaskId,
                 title: title,
                 assignee_name: assigneeName,
-                due_date_str: task ? (task.due_date_str || "") : "",
+                due_date_str: effectiveDate,
                 author_name: authorName,
                 pin_code: pin
             };
@@ -10317,6 +10388,9 @@ async function submitDetailNewSubtask() {
                 if (input) {
                     input.value = "";
                     input.focus();
+                }
+                if (dateInput) {
+                    dateInput.value = "";
                 }
                 showToast("Подзадача добавлена! 🎯", "success");
 
@@ -11380,13 +11454,18 @@ function selectGraphNode(nodeId) {
                     </button>
                 ` : '';
 
+                const stDateBadge = st.due_date_str ? `<span style="font-size: 0.65rem; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; padding: 1px 4px; border-radius: 3px; font-weight: 600; white-space: nowrap;">📅 ${escapeHtml(st.due_date_str)}</span>` : '';
+
                 return `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 6px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
                         <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
                             ${checkBtnHtml}
                             <span style="font-size: 0.76rem; color: #1e293b; text-decoration: ${isStDone ? 'line-through' : 'none'}; opacity: ${isStDone ? '0.65' : '1'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(st.title)}">${escapeHtml(st.title)}</span>
                         </div>
-                        ${delSubHtml}
+                        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                            ${stDateBadge}
+                            ${delSubHtml}
+                        </div>
                     </div>
                 `;
             }).join('');

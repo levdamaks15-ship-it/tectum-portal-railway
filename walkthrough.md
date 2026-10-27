@@ -483,6 +483,30 @@
 - JSDoc аннотации добавлены к функциям в [tasks.js](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js#L9003).
 - CSS-комментарии добавлены в [planner.css](file:///d:/Antigravity_Project/tectum_portal_railway/static/css/planner.css#L3789).
 
+---
+
+## 28. Чистая печать паспорта проекта (A4) и поддержка сроков исполнения в подзадачах
+
+### 1. Устранение наложения карточки проекта в печатной версии (Print Layout Fix)
+- **Проблема:** При выводе на печать паспорта проекта (`printSingleProjectPassport`) интерактивная карточка проекта (`.roadmap-card` / `#roadmaps-view-container`) занимала верхнюю половину первого листа А4, смещая таблицу этапов вниз.
+- **Причина:** Правило отображения `body.horizon-roadmaps #roadmaps-view-container { display: block !important; }` находилось вне медиа-запроса `@media screen` и перебивало печатные стили.
+- **Решение:**
+  - Обернули показ контейнера в `@media screen`.
+  - В `@media print` добавили строгое сокрытие `#roadmaps-view-container, .roadmap-card, .roadmaps-grid, #roadmaps-cards-grid { display: none !important; }`.
+  - В печатной версии теперь выводятся исключительно строгий заголовок «ПАСПОРТ ПРОЕКТА / ДОРОЖНАЯ КАРТА», метаданные, чистая структурированная таблица этапов и подзадач, а также блок подписей.
+
+### 2. Сроки исполнения и дата завершения подзадач (Subtask Due Dates & Completion Tracking)
+- **Бэкенд ([routers/planner.py](file:///d:/Antigravity_Project/tectum_portal_railway/routers/planner.py)):**
+  - При смене статуса задачи/подзадачи на `"🟢 Выполнено"` автоматически фиксируется дата фактического завершения: `task.completed_at = datetime.utcnow()`. При возврате из выполненного статус сбрасывается в `None`.
+  - В эндпоинтах `/api/tasks/roadmaps` и `GET /api/tasks/{task_id}` в DTO подзадач добавлено поле `completed_at` (в формате `ДД.ММ.ГГГГ`).
+- **Интерфейс паспорта задачи ([static/tasks.html](file:///d:/Antigravity_Project/tectum_portal_railway/static/tasks.html), [static/js/tasks.js](file:///d:/Antigravity_Project/tectum_portal_railway/static/js/tasks.js)):**
+  - **Быстрый ввод при создании:** В форму добавления подзадачи добавлен инпут `#detail-new-subtask-date` («Срок: ДД.ММ»). Если поле не заполнено, срок по умолчанию наследуется от этапа/родительской задачи.
+  - **Интерактивный бейдж срока:** В списке подзадач отображается бейдж `📅 ДД.ММ` (или `📅 Указать срок`). При клике на него вызывается функция `quickEditSubtaskDate`, позволяющая в один клик скорректировать срок подзадачи.
+  - **Отображение в печатном паспорте:** В колонке «СРОК» для подзадач печатается плановый срок (например, `28.10`), а для завершенных пунктов — также фактическая дата выполнения (`факт: 27.10.2026`).
+  - **Отображение в инспекторе графа:** В узлах графа также выводится компактный бейдж со сроком подзадачи.
+- **Сброс кэша браузера:**
+  - Обновлен хэш скрипта: `tasks.js?v=20261027_subtask_date_v2`.
+
 
 
 

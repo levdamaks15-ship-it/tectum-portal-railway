@@ -1752,7 +1752,13 @@
             }
 
             body.horizon-roadmaps #planner-table-wrapper,
-            body.print-single-project #planner-table-wrapper {
+            body.print-single-project #planner-table-wrapper,
+            body.horizon-roadmaps #roadmaps-view-container,
+            body.print-single-project #roadmaps-view-container,
+            #roadmaps-view-container,
+            .roadmap-card,
+            .roadmaps-grid,
+            #roadmaps-cards-grid {
                 display: none !important;
             }
 
@@ -2084,8 +2090,10 @@
             display: none !important;
         }
 
-        body.horizon-roadmaps #roadmaps-view-container {
-            display: block !important;
+        @media screen {
+            body.horizon-roadmaps #roadmaps-view-container {
+                display: block !important;
+            }
         }
 
         body.horizon-roadmaps #roadmap-status-chips {
@@ -4684,8 +4692,9 @@
                     </div>
 
                     <!-- Inline quick add row -->
-                    <div id="detail-add-subtask-wrap" style="display: none; gap: 6px; margin-bottom: 8px;">
-                        <input type="text" id="detail-new-subtask-input" class="form-input" placeholder="+ Добавить подзадачу (нажмите Enter)..." style="flex: 1; font-size: 0.82rem; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff;" onkeydown="handleDetailNewSubtaskKeydown(event)">
+                    <div id="detail-add-subtask-wrap" style="display: none; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="detail-new-subtask-input" class="form-input" placeholder="+ Суть подзадачи (нажмите Enter)..." style="flex: 2; min-width: 170px; font-size: 0.82rem; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff;" onkeydown="handleDetailNewSubtaskKeydown(event)">
+                        <input type="text" id="detail-new-subtask-date" class="form-input" placeholder="Срок: ДД.ММ" style="width: 105px; font-size: 0.82rem; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; text-align: center;" title="Плановый срок исполнения подзадачи (например: 28.10)">
                         <button type="button" class="btn-action" onclick="submitDetailNewSubtask()" style="background: #2563eb; color: #fff; font-size: 0.78rem; font-weight: 600; padding: 6px 12px; border-radius: 6px; white-space: nowrap;">
                             <i class="fa-solid fa-plus"></i> Добавить
                         </button>
@@ -5147,7 +5156,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20261027_rbac_security_v4"></script>
+    <script src="/static/js/tasks.js?v=20261027_subtask_date_v2"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
