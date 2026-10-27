@@ -18,7 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20261026_passport_redesign_v2">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20261027_print_layout_v1">
 
     <style>
         :root {
@@ -1543,7 +1543,16 @@
             .btn-action,
             .select-filter,
             .filter-chip,
-            #planner-user-badge {
+            #planner-user-badge,
+            .planner-filter-deck,
+            #planner-filter-deck,
+            .filter-deck-chips,
+            .filter-deck-meta,
+            .filter-deck-chip,
+            .btn-reset-deck,
+            #btn-reset-filters-deck,
+            .filter-dropdown-popover,
+            .popover-anchor-wrap {
                 display: none !important;
             }
 
@@ -1552,12 +1561,27 @@
                 margin: 0 !important;
                 overflow: visible !important;
                 display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
             }
 
             #planner-table-wrapper {
                 display: block !important;
                 overflow: visible !important;
+                overflow-x: visible !important;
+                overflow-y: visible !important;
                 width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                scrollbar-width: none !important;
+                -ms-overflow-style: none !important;
+            }
+
+            #planner-table-wrapper::-webkit-scrollbar {
+                display: none !important;
+                width: 0 !important;
+                height: 0 !important;
             }
 
             .print-only-header {
@@ -1603,10 +1627,13 @@
             .planner-table {
                 display: table !important;
                 width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
                 border-collapse: collapse !important;
                 border: 1.5px solid #000000 !important;
                 box-shadow: none !important;
-                table-layout: auto !important;
+                table-layout: fixed !important;
+                margin: 0 !important;
             }
 
             .planner-table tr {
@@ -1624,6 +1651,7 @@
                 print-color-adjust: exact;
                 text-align: left;
                 white-space: nowrap;
+                box-sizing: border-box !important;
             }
 
             .planner-table th select {
@@ -1637,13 +1665,14 @@
             .planner-table td {
                 border: 1px solid #94a3b8 !important;
                 color: #000000 !important;
-                padding: 4px 3px !important;
+                padding: 4px 4px !important;
                 font-size: 7.5pt !important;
                 line-height: 1.25 !important;
                 vertical-align: top !important;
                 white-space: normal !important;
                 overflow-wrap: break-word !important;
-                word-break: normal !important;
+                word-break: break-word !important;
+                box-sizing: border-box !important;
             }
 
             /* Скрываем столбцы Фото (4-й), Факт/Комментарий (9-й) и Действия (10-й / последний), а также чекбоксы и тулбар */
@@ -1661,48 +1690,49 @@
                 display: none !important;
             }
 
-            /* Пропорциональные ширины столбцов под А4 Landscape (заканчивается на Статусе) */
+            /* Пропорциональные ширины столбцов под А4 Landscape (строго 100% ширины листа, без скролла) */
             .planner-table th:nth-child(1),
             .planner-table td:nth-child(1) {
-                width: 55px !important;
+                width: 6% !important;
                 white-space: nowrap !important;
+                text-align: center !important;
             }
 
             .planner-table th:nth-child(2),
             .planner-table td:nth-child(2) {
-                width: 115px !important;
+                width: 12% !important;
             }
 
             .planner-table th:nth-child(3),
             .planner-table td:nth-child(3) {
-                width: 55% !important;
+                width: 44% !important;
             }
 
             .planner-table th:nth-child(5),
             .planner-table td:nth-child(5) {
-                width: 105px !important;
+                width: 11% !important;
             }
 
             .planner-table th:nth-child(6),
             .planner-table td:nth-child(6) {
-                width: 110px !important;
+                width: 11% !important;
             }
 
             .planner-table th:nth-child(7),
             .planner-table td:nth-child(7) {
-                width: 75px !important;
+                width: 7% !important;
                 white-space: nowrap !important;
                 text-align: center !important;
             }
 
             .planner-table th:nth-child(8),
             .planner-table td:nth-child(8) {
-                width: 95px !important;
+                width: 9% !important;
                 white-space: nowrap !important;
                 text-align: center !important;
             }
 
-            /* При печати планов служб (ОГЭ / ОГМ) скрываем колонку Исполнителя (6-я) */
+            /* При печати планов служб (ОГЭ / ОГМ) скрываем колонку Исполнителя (6-я) и отдаем ширину сути задачи */
             body.print-hide-assignee .planner-table th:nth-child(6),
             body.print-hide-assignee .planner-table td:nth-child(6) {
                 display: none !important;
@@ -1710,7 +1740,7 @@
 
             body.print-hide-assignee .planner-table th:nth-child(3),
             body.print-hide-assignee .planner-table td:nth-child(3) {
-                width: 68% !important;
+                width: 55% !important;
             }
 
             .select-status {
@@ -1731,6 +1761,15 @@
                 border: 1px solid #94a3b8 !important;
                 font-size: 7pt !important;
                 padding: 1px 3px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .badge-horizon {
+                display: inline-block !important;
+                font-size: 6.5pt !important;
+                padding: 1px 3px !important;
+                border: 1px solid #cbd5e1 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -2836,17 +2875,19 @@
             display: none !important;
         }
 
-        #planner-table-wrapper {
-            display: block !important;
-            width: 100% !important;
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-        }
+        @media screen {
+            #planner-table-wrapper {
+                display: block !important;
+                width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
 
-        .planner-table {
-            display: table !important;
-            width: 100% !important;
-            min-width: 1100px !important;
+            .planner-table {
+                display: table !important;
+                width: 100% !important;
+                min-width: 1100px !important;
+            }
         }
     </style>
 </head>
@@ -4965,7 +5006,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
-    <script src="/static/js/tasks.js?v=20261027_perf_and_lock_fix_v7"></script>
+    <script src="/static/js/tasks.js?v=20261027_print_layout_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

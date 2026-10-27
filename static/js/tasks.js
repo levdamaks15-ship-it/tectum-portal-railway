@@ -8629,6 +8629,16 @@ function exportTasksToPdf() {
 }
 
 function preparePrintMetaHeader() {
+    // Гарантируем сброс горизонтального скролла перед печатью на любом разрешении и мониторе
+    const tableWrapper = document.getElementById("planner-table-wrapper");
+    if (tableWrapper) {
+        tableWrapper.scrollLeft = 0;
+    }
+    const tableContainer = document.querySelector(".table-container");
+    if (tableContainer) {
+        tableContainer.scrollLeft = 0;
+    }
+
     const metaContainer = document.getElementById("print-meta-info");
     const subtitleEl = document.getElementById("print-header-subtitle");
     
@@ -8694,6 +8704,9 @@ function preparePrintMetaHeader() {
         <div style="font-size: 7pt; color: #64748b;">Всего задач: ${allTasks.length} | Сформировано: ${nowStr}</div>
     `;
 }
+
+// Автоматический перехват печати по Ctrl+P или через системное меню браузера
+window.addEventListener("beforeprint", preparePrintMetaHeader);
 
 /* ==========================================================
    PHOTO UPLOAD & CLIENT-SIDE WEBP COMPRESSOR

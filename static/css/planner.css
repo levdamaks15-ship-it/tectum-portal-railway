@@ -1090,7 +1090,7 @@
 }
 
 /* ── Phase Б (мобиль): навигация и шапка скрыты только на ≤767px ─────────── */
-@media (max-width: 767px) {
+@media screen and (max-width: 767px) {
     .planner-header,
     #planner-user-badge,
     #main-toolbar,
@@ -1102,7 +1102,7 @@
 }
 
 /* ── Phase Б (десктоп): шапка и навигация явно восстановлены на ≥768px ──── */
-@media (min-width: 768px) {
+@media screen and (min-width: 768px) {
     .planner-header   { display: flex !important; }
     #planner-user-badge { display: flex !important; }
     .horizon-nav-bar  { display: flex !important; }
@@ -1699,8 +1699,27 @@
     .apple-bottom-nav,
     .planner-bottom-nav,
     .task-drawer,
-    .task-drawer-backdrop {
+    .task-drawer-backdrop,
+    .planner-filter-deck,
+    #planner-filter-deck,
+    .filter-deck-chips,
+    .filter-deck-meta,
+    .btn-reset-deck,
+    .filter-dropdown-popover,
+    .popover-anchor-wrap {
         display: none !important;
+    }
+
+    #planner-table-wrapper {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        scrollbar-width: none !important;
+    }
+
+    #planner-table-wrapper::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
     }
 }
 
