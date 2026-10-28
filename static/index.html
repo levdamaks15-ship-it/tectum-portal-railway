@@ -1853,7 +1853,7 @@
                         </h3>
                         <p id="crew-plans-print-subtitle"
                             style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
-                            Сводка выполнения нормы формовки ЛФМ по утвержденному графику сменности (до 07.09: ☀️ День ≥ 2 700 / 🌙 Ночь ≥ 3 300 шт.; с 07.09 на ЛФМ-1: ☀️ День ≥ 800 / 🌙 Ночь ≥ 1 200 шт.)
+                            Сводка выполнения нормы формовки ЛФМ по утвержденному графику сменности (Норма: ☀️ День ≥ 2 700 / 🌙 Ночь ≥ 3 300 шт. | Перевыполнение: ☀️ День ≥ 3 000 / 🌙 Ночь ≥ 3 500 шт.)
                         </p>
                     </div>
                     <button onclick="window.print()" class="btn-secondary"
@@ -1893,6 +1893,7 @@
                             style="padding: 0.5rem 0.75rem; border-radius: 8px; width: 100%; border: 1px solid var(--glass-border); background: var(--input-bg); color: var(--text-primary); box-sizing: border-box; height: 38px; margin-bottom: 0;">
                             <option value="">Все результаты</option>
                             <option value="met">✅ Только выполненные</option>
+                            <option value="overachieved">🚀 Только перевыполненные</option>
                             <option value="unmet">❌ Только невыполненные</option>
                         </select>
                     </div>
@@ -2297,7 +2298,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/app.js?v=20261028_crew_plans_escape_fix"></script>
+    <script src="/static/js/app.js?v=20261028_crew_plans_overachieved"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>

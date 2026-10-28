@@ -5062,7 +5062,7 @@ function renderCrewPlansTable() {
             }
         }
         const crewText = filterCrew ? ` | Бригада: Смена №${filterCrew}` : ' | Все смены (1..4)';
-        subtitleEl.innerText = `Отчетный период: ${displayMonth}${crewText} | Норма формовки: ☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.`;
+        subtitleEl.innerText = `Отчетный период: ${displayMonth}${crewText} | Норма формовки: ☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт. (Перевыполнение: ☀️ День ≥ 3 000 шт., 🌙 Ночь ≥ 3 500 шт.)`;
     }
 
     let rows = currentCrewPlansData.days;
@@ -5073,6 +5073,8 @@ function renderCrewPlansTable() {
 
     if (filterStatus === 'met') {
         rows = rows.filter(r => r.is_met);
+    } else if (filterStatus === 'overachieved') {
+        rows = rows.filter(r => r.is_overachieved);
     } else if (filterStatus === 'unmet') {
         rows = rows.filter(r => !r.is_met && !r.is_future);
     }
@@ -5090,11 +5092,16 @@ function renderCrewPlansTable() {
             : `<span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 3px;">🌙 Ночь</span>`;
 
         // Status badge
-        const statusBadge = r.is_future
-            ? `<span style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-block;">Запланирована</span>`
-            : (r.is_met
-                ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`
-                : `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-block;">Не выполнен</span>`);
+        let statusBadge = '';
+        if (r.is_future) {
+            statusBadge = `<span style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-block;">Запланирована</span>`;
+        } else if (r.is_overachieved) {
+            statusBadge = `<span style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; display: inline-block;">🚀 ПЕРЕВЫПОЛНЕН</span>`;
+        } else if (r.is_met) {
+            statusBadge = `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`;
+        } else {
+            statusBadge = `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-block;">Не выполнен</span>`;
+        }
 
         // Diff formatted
         const diffColor = r.is_future ? 'var(--text-secondary)' : (r.diff >= 0 ? '#047857' : '#b91c1c');

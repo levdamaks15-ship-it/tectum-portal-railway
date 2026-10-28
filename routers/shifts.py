@@ -331,6 +331,7 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
                 is_future = not is_elapsed
 
                 is_met = fact_lfm >= plan if is_elapsed else False
+                is_overachieved = ((s_name == 'День' and fact_lfm >= 3000) or (s_name == 'Ночь' and fact_lfm >= 3500)) if is_elapsed else False
                 diff = fact_lfm - plan
 
                 if is_elapsed:
@@ -370,6 +371,7 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
                     "plan": plan,
                     "diff": diff,
                     "is_met": is_met,
+                    "is_overachieved": is_overachieved,
                     "is_future": is_future,
                     "master": masters,
                     "products": products,
