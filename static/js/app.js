@@ -2010,9 +2010,9 @@ function renderSummaryTable(rows) {
 
         let cloudSyncBadge = '';
         if (r.google_synced) {
-            cloudSyncBadge = `<span title="Синхронизировано в Google Таблицы (${r.google_synced_at || 'Да'})" onclick="openGoogleSheetBottom()" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; background: #ecfdf5; color: #059669; font-size: 0.7rem; cursor: pointer; margin-left: 5px;"><i class="fa-solid fa-cloud-check"></i></span>`;
+            cloudSyncBadge = `<span title="Синхронизировано в Google Таблицы (${r.google_synced_at || 'Да'})" onclick="openGoogleSheetBottom()" style="display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 4px; background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; font-size: 0.72rem; cursor: pointer; margin-left: 5px;" title="Синхронизировано в Google Таблицы"><i class="fas fa-check" style="font-size: 0.65rem; margin-right: 2px;"></i><i class="fas fa-cloud" style="font-size: 0.7rem;"></i></span>`;
         } else {
-            cloudSyncBadge = `<span title="${r.google_sync_error ? 'Ошибка: ' + r.google_sync_error + ' (Нажмите для повтора)' : 'Не выгружено в Google (Нажмите для выгрузки)'}" onclick="retryShiftGoogleSync(${r.shift_id})" style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 4px; background: #fef2f2; color: #dc2626; font-size: 0.7rem; cursor: pointer; margin-left: 5px;"><i class="fa-solid fa-cloud-arrow-up"></i></span>`;
+            cloudSyncBadge = `<span title="${r.google_sync_error ? 'Ошибка: ' + r.google_sync_error + ' (Нажмите для повтора)' : 'Не выгружено в Google (Нажмите для выгрузки)'}" onclick="retryShiftGoogleSync(${r.shift_id})" style="display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 4px; border-radius: 4px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 0.72rem; cursor: pointer; margin-left: 5px;"><i class="fas fa-cloud-arrow-up" style="font-size: 0.7rem;"></i></span>`;
         }
 
         tbody.innerHTML += `

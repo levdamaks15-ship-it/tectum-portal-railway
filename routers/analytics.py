@@ -1425,13 +1425,17 @@ def get_report_summary(
             
             created_at_iso = shift.created_at.isoformat() if shift.created_at else None
             remaining_secs = 0
-            # Only the latest shift gets the 30-minute window for masters
             is_the_latest = (shift.id == latest_shift_id)
-            if shift.created_at and is_the_latest:
+
+            if user_role == "admin":
+                remaining_secs = 999999
+                can_edit = True
+            elif shift.created_at and is_the_latest:
                 diff = (datetime.utcnow() - shift.created_at).total_seconds()
                 remaining_secs = max(0, int(1800 - diff))
-            elif user_role == "admin":
-                remaining_secs = 999999
+                can_edit = remaining_secs > 0
+            else:
+                can_edit = False
             
             result.append({
                 "shift_id": shift.id,
@@ -1449,7 +1453,7 @@ def get_report_summary(
                 "google_sync_error": getattr(shift, "google_sync_error", None),
                 "created_at": created_at_iso,
                 "remaining_edit_seconds": remaining_secs,
-                "can_edit": (user_role == "admin" or (is_the_latest and remaining_secs > 0)),
+                "can_edit": can_edit,
             
                 "plan_sheets": shift.plan_sheets or 0,
                 "plan_tons": shift.plan_tons or 0.0,
