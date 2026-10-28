@@ -6,6 +6,17 @@ let productNorms = {};
 let mastersList = [];
 window.currentLoadedShiftId = null;
 
+// Universal XSS Sanitizer
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // Global handler: prevent mouse wheel from changing input[type="number"] values
 document.addEventListener('wheel', function (e) {
     if (document.activeElement && document.activeElement.type === 'number') {
