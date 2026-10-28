@@ -708,8 +708,10 @@ function setupTimePickers() {
                 locale: "ru",
                 dateFormat: "Y-m",
                 altInput: true,
-                altFormat: "F Y", // e.g. "Сентябрь 2026"
-                allowInput: true,
+                altFormat: "F Y", // e.g. "Октябрь 2026"
+                altInputClass: "flatpickr-input date-input-modern",
+                allowInput: false,
+                defaultDate: el.value || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
                 onChange: function(selectedDates, dateStr, instance) {
                     if (cfg.onChange) cfg.onChange(dateStr);
                 }
@@ -4380,6 +4382,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!summaryMonthEl.value) summaryMonthEl.value = yearMonth;
         updateWeekOptions(summaryMonthEl.value, 'summary-filter-week');
     }
+    const crewMonthEl = document.getElementById('crew-plans-month');
+    if (crewMonthEl && !crewMonthEl.value) {
+        crewMonthEl.value = yearMonth;
+    }
 
     init().then(() => {
         attachDraftListeners();
@@ -4932,12 +4938,12 @@ async function loadCrewPlansFulfillment() {
     if (!month) {
         const now = new Date();
         month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        if (monthInput) monthInput.value = month;
+        setDateInputValue('crew-plans-month', month, false);
     }
 
     const tbody = document.getElementById('crew-plans-table-body');
     if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-secondary);">⏳ Загрузка данных за ' + month + '...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-secondary);">⏳ Загрузка данных за ' + escapeHtml(month) + '...</td></tr>';
     }
 
     try {
@@ -4952,7 +4958,7 @@ async function loadCrewPlansFulfillment() {
     } catch (e) {
         console.error("Error loading crew plans:", e);
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--danger-color);">❌ Ошибка при загрузке: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--danger-color);">❌ Ошибка при загрузке: ${escapeHtml(e.message)}</td></tr>`;
         }
     }
 }
@@ -5032,11 +5038,20 @@ function renderCrewPlansTable() {
     const filterStatus = document.getElementById('crew-plans-filter-status')?.value || '';
     const monthInput = document.getElementById('crew-plans-month')?.value || '';
 
-    // Update subtitle for printout
+    // Update subtitle for printout with readable Russian month name
     const subtitleEl = document.getElementById('crew-plans-print-subtitle');
     if (subtitleEl) {
+        let displayMonth = monthInput;
+        if (monthInput && monthInput.includes('-')) {
+            const [y, m] = monthInput.split('-');
+            const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+            const mIdx = parseInt(m, 10) - 1;
+            if (monthNames[mIdx]) {
+                displayMonth = `${monthNames[mIdx]} ${y} г.`;
+            }
+        }
         const crewText = filterCrew ? ` | Бригада: Смена №${filterCrew}` : ' | Все смены (1..4)';
-        subtitleEl.innerText = `Отчетный период: ${monthInput}${crewText} | Норма формовки: ☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.`;
+        subtitleEl.innerText = `Отчетный период: ${displayMonth}${crewText} | Норма формовки: ☀️ День ≥ 2 700 шт., 🌙 Ночь ≥ 3 300 шт.`;
     }
 
     let rows = currentCrewPlansData.days;
@@ -5052,7 +5067,7 @@ function renderCrewPlansTable() {
     }
 
     if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem; color: var(--text-secondary);">По заданным фильтрам смены не найдены</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-secondary);">По заданным фильтрам смены не найдены</td></tr>';
         return;
     }
 
@@ -5060,15 +5075,15 @@ function renderCrewPlansTable() {
         // Shift badge
         const isDay = r.shift_name === 'День';
         const shiftBadge = isDay 
-            ? `<span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;">☀️ День</span>`
-            : `<span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px;">🌙 Ночь</span>`;
+            ? `<span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 2px 6px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 3px;">☀️ День</span>`
+            : `<span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 3px;">🌙 Ночь</span>`;
 
         // Status badge
         const statusBadge = r.is_future
-            ? `<span style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-block;">Запланирована</span>`
+            ? `<span style="background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-block;">Запланирована</span>`
             : (r.is_met
-                ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`
-                : `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; display: inline-block;">Не выполнен</span>`);
+                ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; display: inline-block;">✓ ВЫПОЛНЕН</span>`
+                : `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-size: 0.78rem; display: inline-block;">Не выполнен</span>`);
 
         // Diff formatted
         const diffColor = r.is_future ? 'var(--text-secondary)' : (r.diff >= 0 ? '#047857' : '#b91c1c');
@@ -5076,23 +5091,34 @@ function renderCrewPlansTable() {
         const diffText = r.is_future ? '-' : (r.fact_lfm > 0 ? `${diffPrefix}${r.diff.toLocaleString()} шт.` : '-');
 
         const crewBadge = r.crew_name 
-            ? `<strong style="color: #0f172a; font-size: 0.9rem;">${r.crew_name}</strong>` 
-            : `<span style="color: var(--text-secondary); font-style: italic;">Не назначена</span>`;
+            ? `<strong style="color: #0f172a; font-size: 0.88rem;">${escapeHtml(r.crew_name)}</strong>` 
+            : `<span style="color: var(--text-secondary); font-style: italic; font-size: 0.82rem;">Не назначена</span>`;
 
         const rowBg = r.is_met ? 'rgba(236, 253, 245, 0.25)' : '#ffffff';
 
+        // Compact Batch & Product formatting with clean wrapping and title
+        let batchProdHtml = '<span style="color: #94a3b8;">-</span>';
+        if (r.batches || r.products) {
+            const batchBadge = r.batches 
+                ? `<span style="display: inline-block; font-weight: 600; font-size: 0.76rem; color: #334155; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 1px 5px; margin-bottom: 2px;">Партия: ${escapeHtml(r.batches)}</span>` 
+                : '';
+            const prodText = r.products 
+                ? `<div style="font-size: 0.76rem; color: #64748b; line-height: 1.25; word-break: break-word;" title="${escapeHtml(r.products)}">${escapeHtml(r.products)}</div>` 
+                : '';
+            batchProdHtml = `<div style="max-width: 250px;">${batchBadge}${prodText}</div>`;
+        }
+
         return `
             <tr style="background: ${rowBg}; border-bottom: 1px solid var(--glass-border);">
-                <td style="font-weight: 600; color: #0f172a; white-space: nowrap;">${r.date_display}</td>
-                <td style="color: var(--text-secondary); font-size: 0.8rem;">${r.day_of_week || ''}</td>
-                <td>${shiftBadge}</td>
+                <td style="font-weight: 600; color: #0f172a; white-space: nowrap; font-size: 0.85rem;">${escapeHtml(r.date_display)}</td>
+                <td style="text-align: center;">${shiftBadge}</td>
                 <td>${crewBadge}</td>
-                <td style="text-align: right; font-weight: 700; font-size: 0.95rem; color: #0f172a;">${(r.fact_lfm || 0).toLocaleString()}</td>
-                <td style="text-align: right; color: var(--text-secondary); font-size: 0.88rem;">${(r.plan || 0).toLocaleString()}</td>
-                <td style="text-align: center;">${statusBadge}</td>
-                <td style="text-align: right; font-weight: 600; font-size: 0.85rem; color: ${diffColor};">${diffText}</td>
-                <td style="color: #334155; font-size: 0.85rem;">${r.master || '<span style="color:#94a3b8;">-</span>'}</td>
-                <td style="color: #64748b; font-size: 0.8rem;">${r.batches ? 'Партия: ' + r.batches : ''} ${r.products ? '(' + r.products + ')' : ''}</td>
+                <td style="text-align: right; font-weight: 700; font-size: 0.88rem; color: #0f172a; white-space: nowrap;">${(r.fact_lfm || 0).toLocaleString()}</td>
+                <td style="text-align: right; color: var(--text-secondary); font-size: 0.84rem; white-space: nowrap;">${(r.plan || 0).toLocaleString()}</td>
+                <td style="text-align: center; white-space: nowrap;">${statusBadge}</td>
+                <td style="text-align: right; font-weight: 600; font-size: 0.83rem; color: ${diffColor}; white-space: nowrap;">${diffText}</td>
+                <td style="color: #334155; font-size: 0.83rem; white-space: nowrap;">${r.master ? escapeHtml(r.master) : '<span style="color:#94a3b8;">-</span>'}</td>
+                <td style="white-space: normal; vertical-align: middle;">${batchProdHtml}</td>
             </tr>
         `;
     }).join('');

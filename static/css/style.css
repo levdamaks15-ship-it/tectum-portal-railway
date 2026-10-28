@@ -1605,6 +1605,15 @@ button.btn-cancel:hover {
     z-index: 10;
 }
 
+.crew-plans-table th,
+.crew-plans-table td {
+    padding: 0.45rem 0.55rem !important;
+}
+
+.crew-plans-table td:last-child {
+    white-space: normal !important;
+}
+
 @keyframes spin {
     to {
         transform: rotate(360deg);

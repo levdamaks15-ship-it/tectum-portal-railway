@@ -211,6 +211,19 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
             models.Shift.date <= end_date
         ).order_by(models.Shift.date.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
 
+        shift_ids = [s.id for s in shifts]
+
+        # Пакетно извлекаем отчеты ЛФМ за месяц (устранение N+1)
+        shift_lfm_map = defaultdict(list)
+        if shift_ids:
+            all_lfm = db.query(models.LFMReport).filter(models.LFMReport.shift_id.in_(shift_ids)).all()
+            for r in all_lfm:
+                shift_lfm_map[r.shift_id].append(r)
+
+        # Пакетно извлекаем мастеров в in-memory справочник (устранение N+1)
+        all_masters = db.query(models.Master).all()
+        masters_map = {m.id: getattr(m, 'full_name', getattr(m, 'name', str(m.id))) for m in all_masters}
+
         # Суммируем выработку ЛФМ по слотам (date, shift_type)
         # Учитываем переход продукции / несколько партий в смене
         slot_lfm = defaultdict(int)
@@ -218,10 +231,10 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
         slot_all_masters = defaultdict(set)
         slot_products = defaultdict(list)
         slot_batches = defaultdict(list)
-
         slot_lines = defaultdict(set)
+
         for s in shifts:
-            lfm_reports = db.query(models.LFMReport).filter(models.LFMReport.shift_id == s.id).all()
+            lfm_reports = shift_lfm_map.get(s.id, [])
             total_lfm = sum(r.lfm_sheets or 0 for r in lfm_reports)
             
             s_val = s.shift_name.strip() if s.shift_name else ""
@@ -240,9 +253,8 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
                 slot_lines[(d_str, s_name)].add(s.line)
             
             if s.master_id:
-                m = db.query(models.Master).filter(models.Master.id == s.master_id).first()
-                if m:
-                    m_name = getattr(m, 'full_name', getattr(m, 'name', str(m.id)))
+                m_name = masters_map.get(s.master_id)
+                if m_name:
                     if total_lfm > 0:
                         slot_prod_masters[(d_str, s_name)].add(m_name)
                     slot_all_masters[(d_str, s_name)].add(m_name)
@@ -251,8 +263,9 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
             if s.batch_number:
                 slot_batches[(d_str, s_name)].append(s.batch_number)
 
-        # 2. Извлекаем утвержденный график сменности
-        entries = db.query(models.ShiftScheduleEntry).all()
+        # 2. Извлекаем утвержденный график сменности за целевой месяц
+        month_date_strs = [f"{day:02d}.{month_num:02d}.{year:04d}" for day in range(1, days_in_month + 1)]
+        entries = db.query(models.ShiftScheduleEntry).filter(models.ShiftScheduleEntry.date_str.in_(month_date_strs)).all()
         entry_map = {e.date_str: e for e in entries}
 
         days_data = []
