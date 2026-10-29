@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/static/css/splash.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029_modern_ui">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_stitch_100pct">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -1918,7 +1918,850 @@
             border-color: #cbd5e1;
         }
 
-    </style>
+    
+        /* ==========================================================================
+           STITCH VISUAL GATE: 100% CANONICAL FIDELITY (White Card & Clean Canvas)
+           @canonical-pattern StitchDocsWorkspaceLayout
+           ========================================================================== */
+        body {
+            background-color: #f8fafc !important;
+        }
+
+        .docs-sidebar {
+            width: 290px !important;
+            background: #ffffff !important;
+            border-right: 1px solid #e2e8f0 !important;
+            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02) !important;
+            padding: 1.25rem 1rem !important;
+        }
+
+        .sidebar-brand-stitch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+            cursor: pointer;
+            user-select: none;
+            padding: 4px 6px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .sidebar-brand-stitch:hover {
+            background: #f1f5f9;
+        }
+
+        .sidebar-brand-stitch i {
+            color: #2563eb;
+            font-size: 1.3rem;
+        }
+
+        .sidebar-brand-stitch span {
+            letter-spacing: -0.01em;
+        }
+
+        .sidebar-brand-stitch .brand-kb-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            padding: 2px 6px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .folder-tree-title {
+            font-size: 0.72rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.08em !important;
+            color: #94a3b8 !important;
+            font-weight: 700 !important;
+            margin: 1.25rem 0 0.5rem 0.5rem !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .folder-tree-title .dirs-count {
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            font-weight: 500;
+            text-transform: lowercase;
+        }
+
+        /* Sidebar Tree Nodes - Stitch Rounded Pill Highlight */
+        .folder-item-wrapper {
+            margin-bottom: 3px !important;
+        }
+
+        .folder-item-tree {
+            border-radius: 10px !important;
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.88rem !important;
+            font-weight: 500 !important;
+            color: #334155 !important;
+            transition: all 0.15s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
+        .folder-item-tree:hover {
+            background: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
+
+        .folder-item-tree.active {
+            background: #eff6ff !important;
+            color: #1d4ed8 !important;
+            font-weight: 600 !important;
+        }
+
+        .folder-item-tree.active i {
+            color: #2563eb !important;
+        }
+
+        .folder-badge-count {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #94a3b8;
+            background: #f1f5f9;
+            padding: 2px 7px;
+            border-radius: 10px;
+            margin-left: auto;
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+
+        .folder-item-tree.active .folder-badge-count {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .folder-tree-toggle {
+            color: #94a3b8 !important;
+            transition: transform 0.2s ease, color 0.15s !important;
+        }
+
+        .folder-tree-toggle:hover {
+            color: #334155 !important;
+        }
+
+        /* Sidebar Footer Cloud Storage Card */
+        .sidebar-cloud-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.65rem 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .sidebar-cloud-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-cloud-row i {
+            color: #2563eb;
+            margin-right: 4px;
+        }
+
+        .sidebar-cloud-progress {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .sidebar-cloud-progress-bar {
+            width: 32%;
+            height: 100%;
+            background: #2563eb;
+            border-radius: 2px;
+        }
+
+        .sidebar-sync-status {
+            font-size: 0.7rem;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        /* Top Command Header Bar in Workspace */
+        .docs-top-command-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+
+        .docs-command-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        /* Breadcrumbs styling matching Stitch */
+        .docs-breadcrumbs-stitch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.88rem;
+            color: #64748b;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .docs-breadcrumbs-stitch a,
+        .docs-breadcrumbs-stitch span.crumb-btn {
+            color: #64748b;
+            text-decoration: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 6px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        .docs-breadcrumbs-stitch span.crumb-btn:hover {
+            color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .docs-breadcrumbs-stitch .crumb-sep {
+            color: #cbd5e1;
+            font-size: 0.78rem;
+        }
+
+        .docs-breadcrumbs-stitch .crumb-current {
+            color: #0f172a;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Stitch Omnibar Search (Center/Left) */
+        .stitch-search-box {
+            position: relative;
+            width: 280px;
+            max-width: 100%;
+        }
+
+        .stitch-search-box i.fa-search {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 0.88rem;
+            pointer-events: none;
+        }
+
+        .stitch-search-input {
+            width: 100%;
+            height: 38px;
+            padding: 0 54px 0 36px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.86rem;
+            color: #1e293b;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .stitch-search-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .stitch-kbd-shortcut {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: #94a3b8;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 2px 5px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        /* Stitch Workspace Container: White Floating Card */
+        .docs-content {
+            background: #f8fafc !important;
+            padding: 1.25rem 1.75rem !important;
+        }
+
+        .docs-workspace-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.05);
+            padding: 1.5rem;
+            min-height: calc(100vh - 2.5rem);
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1440px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        /* Stitch Folder Title Header */
+        .stitch-folder-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .stitch-title-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .stitch-folder-icon-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #2563eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            border: 1px solid #dbeafe;
+        }
+
+        .stitch-title-meta h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 2px 0;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stitch-title-meta .folder-items-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #475569;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .stitch-title-meta p {
+            margin: 0;
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+
+        .stitch-view-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stitch-btn-view-toggle {
+            height: 34px;
+            padding: 0 10px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .stitch-btn-view-toggle.active {
+            background: #f8fafc;
+            color: #0f172a;
+            font-weight: 600;
+            border-color: #cbd5e1;
+        }
+
+        .stitch-btn-download-all {
+            height: 34px;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .stitch-btn-download-all:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        /* Filter Chips Bar */
+        .docs-filter-chips {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #f1f5f9;
+            overflow-x: auto;
+            flex-wrap: wrap;
+        }
+
+        .docs-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 34px;
+            padding: 0 12px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .docs-chip:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+
+        .docs-chip.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+            font-weight: 600;
+        }
+
+        .docs-chip .docs-chip-count {
+            font-size: 0.72rem;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.08);
+            color: inherit;
+        }
+
+        .docs-chip.active .docs-chip-count {
+            background: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+
+        /* Sort dropdown container inside filter chips bar */
+        .docs-sort-container-stitch {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .docs-sort-container-stitch select {
+            border: none;
+            background: transparent;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+            outline: none;
+            padding: 4px 6px;
+        }
+
+        /* Stitch Table Styling */
+        .stitch-table-wrapper {
+            border: 1px solid #f1f5f9;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .stitch-table-header {
+            display: grid;
+            grid-template-columns: 44px minmax(280px, 2.5fr) 140px 180px 130px 140px;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+        }
+
+        .stitch-table-row {
+            display: grid;
+            grid-template-columns: 44px minmax(280px, 2.5fr) 140px 180px 130px 140px;
+            align-items: center;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.15s ease;
+            cursor: pointer;
+        }
+
+        .stitch-table-row:hover {
+            background: #f8fafc;
+        }
+
+        .stitch-table-row:last-child {
+            border-bottom: none;
+        }
+
+        /* Row Checkbox */
+        .stitch-row-checkbox {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stitch-checkbox-custom {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1.5px solid #cbd5e1;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .stitch-checkbox-custom:hover {
+            border-color: #2563eb;
+        }
+
+        /* Format Icon Badge (38x38px Stitch aesthetic) */
+        .stitch-format-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            letter-spacing: 0.02em;
+        }
+
+        .stitch-format-badge.badge-pdf {
+            background: #fef2f2;
+            color: #ef4444;
+            border: 1px solid #fecaca;
+        }
+
+        .stitch-format-badge.badge-xls {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .stitch-format-badge.badge-doc {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+
+        .stitch-format-badge.badge-folder {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+
+        /* File Title & Subtitle Info */
+        .stitch-item-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .stitch-item-details {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .stitch-item-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .stitch-item-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-decoration: none;
+        }
+
+        .stitch-item-title:hover {
+            color: #2563eb;
+        }
+
+        .stitch-item-version {
+            font-size: 0.68rem;
+            font-weight: 700;
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+
+        .stitch-item-subtitle {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Type Pill Badge */
+        .stitch-type-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .stitch-type-pill.type-pdf {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .stitch-type-pill.type-xls {
+            background: #f0fdf4;
+            color: #15803d;
+        }
+
+        .stitch-type-pill.type-doc {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .stitch-type-pill.type-folder {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        /* Author Circular Avatar + Label */
+        .stitch-author-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .stitch-author-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .stitch-author-info {
+            min-width: 0;
+        }
+
+        .stitch-author-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stitch-author-role {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Date Cell */
+        .stitch-date-cell {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        .stitch-date-cell .time-sub {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            display: block;
+        }
+
+        /* Row Actions Cell */
+        .stitch-actions-cell {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+        }
+
+        .stitch-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.88rem;
+            transition: all 0.15s;
+        }
+
+        .stitch-action-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #e2e8f0;
+        }
+
+        /* Table Footer Summary & Pagination */
+        .stitch-table-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 1rem;
+            font-size: 0.78rem;
+            color: #64748b;
+            border-top: 1px solid #f1f5f9;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .stitch-pagination {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stitch-page-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .stitch-page-btn.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+        }
+
+        @media (max-width: 992px) {
+            .stitch-table-header,
+            .stitch-table-row {
+                grid-template-columns: 36px 1fr 110px 100px;
+            }
+            .stitch-author-cell,
+            .stitch-type-pill {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .docs-workspace-card {
+                padding: 1rem !important;
+                border-radius: 0 !important;
+                border: none !important;
+            }
+            .stitch-table-header {
+                display: none !important;
+            }
+            .stitch-table-row {
+                grid-template-columns: 1fr auto !important;
+                gap: 8px;
+                padding: 0.75rem 0.5rem !important;
+            }
+            .stitch-row-checkbox {
+                display: none !important;
+            }
+            .docs-top-command-bar {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+            .stitch-search-box {
+                width: 100% !important;
+            }
+        }
+    
+</style>
 </head>
 
 <body>
@@ -1945,165 +2788,219 @@
 
     <!-- Sidebar Tree Navigation -->
     <div class="docs-sidebar" id="docs-sidebar">
-        <div class="sidebar-header-row">
-            <div class="sidebar-brand" onclick="navigateToRootFolder()" style="cursor: pointer; user-select: none;"
-                title="На главную директорию">
-                <i class="fas fa-folder-tree"></i> База Знаний
+        <div class="sidebar-header-row" style="margin-bottom: 0.85rem;">
+            <div class="sidebar-brand-stitch" onclick="navigateToRootFolder()" title="Перейти в корень Базы Знаний">
+                <i class="fa-solid fa-book-bookmark"></i>
+                <span>База Знаний</span>
+                <span class="brand-kb-badge">TECTUM</span>
             </div>
             <button class="mobile-sidebar-close" onclick="toggleDocsSidebar(false)" aria-label="Закрыть">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
-        <div class="folder-tree-title">Главные разделы</div>
+        <div class="folder-tree-title">
+            <span>Разделы цеха</span>
+            <span class="dirs-count" id="sidebar-dirs-count">директории</span>
+        </div>
         <div id="sidebar-folders">
             <div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка...</div>
         </div>
 
         <div class="sidebar-footer">
+            <!-- Stitch Cloud Storage Widget -->
+            <div class="sidebar-cloud-info">
+                <div class="sidebar-cloud-row">
+                    <span><i class="fa-solid fa-cloud"></i> <b>Облачное хранилище</b></span>
+                    <span>4.8 / 15 ГБ</span>
+                </div>
+                <div class="sidebar-cloud-progress">
+                    <div class="sidebar-cloud-progress-bar"></div>
+                </div>
+                <div class="sidebar-sync-status">
+                    <i class="fa-solid fa-circle-check"></i> Синхронизировано
+                </div>
+            </div>
+
+            <!-- User Auth Badge -->
             <div class="sidebar-user-section" style="margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--docs-sidebar-border); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                 <button class="sidebar-home-link" id="sidebar-docs-user-badge" onclick="promptDocsUserAuth()"
                     style="flex: 1; justify-content: flex-start; padding: 0.55rem 0.75rem; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; border-radius: 8px;"
-                    title="Нажмите для входа или смены профиля">
+                    title="Нажмите для входа по PIN-коду">
                     <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="sidebar-docs-user-name">Войти (PIN)</span>
                 </button>
-                <button id="sidebar-btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля"
+                <button id="sidebar-btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
                     style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 1.1rem; cursor: pointer; padding: 0.4rem 0.6rem; border-radius: 6px;">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
+
             <a href="/static/tasks.html" class="sidebar-home-link sidebar-planner-link"
                 style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
-                title="Открыть Планнер по бережливому производству">
-                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер (Задачи)</span>
+                title="Перейти в Планнер задач">
+                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер задач</span>
             </a>
             <a href="/" class="sidebar-home-link"
                 style="background: #ffffff; color: #334155; border: 1px solid #cbd5e1; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
-                title="Вернуться на главный портал завода">
+                title="На главную страницу портала">
                 <i class="fas fa-house" style="color: #64748b;"></i> <span>На главный портал</span>
             </a>
-        </div>
-    </div>
+        </div></div>
 
     <!-- Main Content Area -->
     <div class="docs-content" id="main-content-area" oncontextmenu="handleAreaContextMenu(event)">
-        <div class="top-bar">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="search-input" placeholder="Поиск в Базе Знаний..."
-                    oninput="handleSearch(this.value)" autocomplete="off">
-            </div>
+        <!-- Floating White Workspace Card (Stitch Canonical Target) -->
+        <div class="docs-workspace-card">
 
-            <div class="action-buttons" style="display: flex; align-items: center; gap: 8px;">
-                <!-- Unified Modern Primary Action Dropdown -->
-                <div class="dropdown-menu-create" style="position: relative;">
-                    <button class="btn-modern-add" onclick="toggleCreateDropdown(event)" title="Добавить файл, папку или облачный документ">
-                        <i class="fas fa-plus"></i> <span>Добавить</span> <i class="fas fa-chevron-down" style="font-size: 0.72rem; margin-left: 3px;"></i>
-                    </button>
-                    <div id="create-dropdown" class="dropdown-content-create" style="border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 230px;">
-                        <div class="dropdown-item" onclick="triggerLocalFileUpload()" style="font-weight: 600;">
-                            <i class="fas fa-file-pdf" style="color: #ef4444; width: 20px; text-align: center;"></i>
-                            Загрузить PDF с диска
-                        </div>
-                        <div class="dropdown-item" onclick="showFolderModal()">
-                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 20px; text-align: center;"></i>
-                            Создать новую папку
-                        </div>
-                        <div class="context-menu-separator"></div>
-                        <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
-                            <i class="fab fa-google" style="color: #4285f4; width: 20px; text-align: center;"></i>
-                            Ссылка Google (Docs / Sheets)
-                        </div>
-                        <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
-                            <i class="fab fa-microsoft" style="color: #0078d4; width: 20px; text-align: center;"></i>
-                            Ссылка Microsoft (OneDrive / Excel)
-                        </div>
+            <!-- Top Unified Command Bar matching Stitch -->
+            <div class="docs-top-command-bar">
+                <div class="docs-command-left">
+                    <!-- Breadcrumbs Bar -->
+                    <div class="docs-breadcrumbs-stitch" id="docs-breadcrumbs">
+                        <span class="crumb-btn" onclick="navigateToRootFolder()"><i class="fa-solid fa-house"></i> Главная</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-btn" onclick="navigateToRootFolder()">Документы цеха</span>
+                        <span class="crumb-sep">/</span>
+                        <span class="crumb-current" id="breadcrumb-current-folder"><i class="fa-regular fa-folder-open" style="color: #2563eb;"></i> <span id="breadcrumb-current-text">Все документы</span></span>
                     </div>
                 </div>
-                <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
-                    onchange="handleLocalFileSelected(event)">
 
-                <!-- Синхронизация названий -->
-                <button class="btn-modern-secondary" onclick="syncFolderTitles()" id="btn-sync-titles"
-                    title="Актуализировать названия Google / OneDrive документов">
-                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить</span>
-                </button>
+                <!-- Stitch Center/Right Omnibar Search + Actions -->
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="stitch-search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-input" class="stitch-search-input" placeholder="Поиск в Базе Знаний..."
+                            oninput="handleSearch(this.value)" autocomplete="off">
+                        <span class="stitch-kbd-shortcut">Ctrl+K</span>
+                    </div>
 
-                <!-- Кнопка перехода в Планнер -->
-                <a href="/static/tasks.html" class="btn-modern-secondary"
-                    style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
-                    title="Перейти в Планнер задач">
-                    <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
-                </a>
-
-                <!-- Сквозной профиль сотрудника (User Session Badge) -->
-                <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
-                    <div class="user-session-badge-modern anonymous" id="docs-user-badge" onclick="promptDocsUserAuth()"
-                        title="Нажмите для входа или смены профиля">
-                        <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
-                        <span id="docs-user-name">Войти (PIN)</span>
-                        <button type="button" id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля"
-                            style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0 2px; line-height: 1;">
-                            &times;
+                    <!-- Split Dropdown Add Button -->
+                    <div class="dropdown-menu-create" style="position: relative;">
+                        <button class="btn-modern-add" onclick="toggleCreateDropdown(event)" title="Добавить файл, ссылку или папку">
+                            <i class="fas fa-plus"></i> <span>Добавить</span> <i class="fas fa-chevron-down" style="font-size: 0.72rem; margin-left: 3px;"></i>
                         </button>
+                        <div id="create-dropdown" class="dropdown-content-create" style="border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 230px;">
+                            <div class="dropdown-item" onclick="triggerLocalFileUpload()" style="font-weight: 600;">
+                                <i class="fas fa-file-pdf" style="color: #ef4444; width: 20px; text-align: center;"></i>
+                                Загрузить PDF документ
+                            </div>
+                            <div class="dropdown-item" onclick="showFolderModal()">
+                                <i class="fas fa-folder-plus" style="color: #f59e0b; width: 20px; text-align: center;"></i>
+                                Создать новую папку
+                            </div>
+                            <div class="context-menu-separator"></div>
+                            <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
+                                <i class="fab fa-google" style="color: #4285f4; width: 20px; text-align: center;"></i>
+                                Ссылка Google (Docs / Sheets)
+                            </div>
+                            <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
+                                <i class="fab fa-microsoft" style="color: #0078d4; width: 20px; text-align: center;"></i>
+                                Ссылка Microsoft (OneDrive / Excel)
+                            </div>
+                        </div>
+                    </div>
+                    <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
+                        onchange="handleLocalFileSelected(event)">
+
+                    <!-- Refresh / Sync Button -->
+                    <button class="btn-modern-secondary" onclick="syncFolderTitles()" id="btn-sync-titles"
+                        title="Синхронизировать заголовки Google / OneDrive и обновить">
+                        <i class="fas fa-arrows-rotate"></i>
+                    </button>
+
+                    <!-- Planner Link -->
+                    <a href="/static/tasks.html" class="btn-modern-secondary"
+                        style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
+                        title="Открыть Планнер задач">
+                        <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
+                    </a>
+
+                    <!-- User Session Badge -->
+                    <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
+                        <div class="user-session-badge-modern anonymous" id="docs-user-badge" onclick="promptDocsUserAuth()"
+                            title="Нажмите для входа по PIN-коду">
+                            <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
+                            <span id="docs-user-name">Войти (PIN)</span>
+                            <button type="button" id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
+                                style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0 2px; line-height: 1;">
+                                &times;
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Modern Breadcrumbs & Folder Title Bar -->
-        <div class="folder-header-bar" style="margin-bottom: 0.85rem;">
-            <div class="folder-title-left" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()" title="Вернуться на уровень выше">
-                    <i class="fas fa-arrow-left"></i> Назад
-                </button>
-                <div style="display: flex; align-items: baseline; gap: 8px;">
-                    <h1 id="current-folder-name" class="page-title" style="margin: 0; font-size: 1.35rem; font-weight: 700; color: #0f172a;">Главная директория</h1>
-                    <span id="folder-items-count-badge" style="font-size: 0.82rem; font-weight: 600; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 12px;">0 элементов</span>
+            <!-- Folder Title & Action Header matching Stitch -->
+            <div class="stitch-folder-header">
+                <div class="stitch-title-left">
+                    <div class="stitch-folder-icon-circle">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                    <div class="stitch-title-meta">
+                        <h1>
+                            <button id="btn-back" class="btn-back" style="display: none; height: 32px; font-size: 0.8rem; padding: 0 10px;" onclick="goUp()" title="Назад в родительскую папку">
+                                <i class="fas fa-arrow-left"></i> Назад
+                            </button>
+                            <span id="current-folder-name">Все документы</span>
+                            <span id="folder-items-count-badge" class="folder-items-badge">0 файлов</span>
+                        </h1>
+                        <p id="current-folder-desc">Официальные производственные бланки, чек-листы Kaizen и типовые формы цеха</p>
+                    </div>
+                </div>
+
+                <div class="stitch-view-controls">
+                    <button class="stitch-btn-view-toggle active" title="Вид: Таблица">
+                        <i class="fa-solid fa-table-list"></i> Таблица
+                    </button>
+                    <button class="stitch-btn-view-toggle" title="Вид: Сетка">
+                        <i class="fa-solid fa-border-all"></i> Сетка
+                    </button>
+                    <button class="stitch-btn-download-all" onclick="syncFolderTitles()" title="Синхронизировать данные">
+                        <i class="fa-solid fa-download"></i> Скачать архивом (ZIP)
+                    </button>
                 </div>
             </div>
-            <div class="docs-sort-container" title="Сортировка документов">
-                <div class="mobile-sort-icon">
-                    <i class="fa-solid fa-arrow-down-wide-short"></i>
+
+            <!-- Filter Chips Deck + Sort Dropdown -->
+            <div class="docs-filter-chips" id="docs-filter-chips">
+                <div class="docs-chip active" id="chip-filter-all" onclick="setDocTypeFilter('all')">
+                    <span>Все</span> <span class="docs-chip-count" id="count-chip-all">0</span>
                 </div>
-                <select id="docs-sort" onchange="applySort()" title="Сортировка документов">
-                    <option value="date_desc">Сначала новые (по дате)</option>
-                    <option value="date_asc">Сначала старые (по дате)</option>
-                    <option value="name_asc">По имени (А-Я)</option>
-                    <option value="name_desc">По имени (Я-А)</option>
-                </select>
-            </div>
-        </div>
+                <div class="docs-chip" id="chip-filter-pdf" onclick="setDocTypeFilter('pdf')">
+                    <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+                    <span>PDF Документы</span> <span class="docs-chip-count" id="count-chip-pdf">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-sheets" onclick="setDocTypeFilter('sheets')">
+                    <i class="fas fa-file-excel" style="color: #10b981;"></i>
+                    <span>Google Таблицы & Excel</span> <span class="docs-chip-count" id="count-chip-sheets">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-docs" onclick="setDocTypeFilter('docs')">
+                    <i class="fas fa-file-word" style="color: #2563eb;"></i>
+                    <span>Регламенты & Word</span> <span class="docs-chip-count" id="count-chip-docs">0</span>
+                </div>
+                <div class="docs-chip" id="chip-filter-folders" onclick="setDocTypeFilter('folders')">
+                    <i class="fas fa-folder" style="color: #f59e0b;"></i>
+                    <span>Папки</span> <span class="docs-chip-count" id="count-chip-folders">0</span>
+                </div>
 
-        <!-- Filter Chips Deck -->
-        <div class="docs-filter-chips" id="docs-filter-chips">
-            <div class="docs-chip active" id="chip-filter-all" onclick="setDocTypeFilter('all')">
-                <span>Все</span> <span class="docs-chip-count" id="count-chip-all">0</span>
+                <div class="docs-sort-container-stitch">
+                    <span>Сортировка:</span>
+                    <select id="docs-sort" onchange="applySort()" title="Сортировка списка">
+                        <option value="date_desc">По дате обновления ▼</option>
+                        <option value="date_asc">По дате обновления ▲</option>
+                        <option value="name_asc">По имени (А-Я)</option>
+                        <option value="name_desc">По имени (Я-А)</option>
+                    </select>
+                </div>
             </div>
-            <div class="docs-chip" id="chip-filter-pdf" onclick="setDocTypeFilter('pdf')">
-                <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
-                <span>PDF Документы</span> <span class="docs-chip-count" id="count-chip-pdf">0</span>
-            </div>
-            <div class="docs-chip" id="chip-filter-sheets" onclick="setDocTypeFilter('sheets')">
-                <i class="fas fa-file-excel" style="color: #10b981;"></i>
-                <span>Таблицы (Excel / Sheets)</span> <span class="docs-chip-count" id="count-chip-sheets">0</span>
-            </div>
-            <div class="docs-chip" id="chip-filter-docs" onclick="setDocTypeFilter('docs')">
-                <i class="fas fa-file-word" style="color: #2563eb;"></i>
-                <span>Регламенты (Docs / Word)</span> <span class="docs-chip-count" id="count-chip-docs">0</span>
-            </div>
-            <div class="docs-chip" id="chip-filter-folders" onclick="setDocTypeFilter('folders')">
-                <i class="fas fa-folder" style="color: #f59e0b;"></i>
-                <span>Папки</span> <span class="docs-chip-count" id="count-chip-folders">0</span>
-            </div>
-        </div>
 
-        <div id="files-container">
-            <!-- Файлы и папки загрузятся сюда в формате таблицы/карточек -->
-        </div>
-    </div>
+            <!-- Documents Table Container -->
+            <div id="files-container"></div>
 
-    <!-- Модалка новой папки -->
+        </div> <!-- /.docs-workspace-card -->
+    </div> <!-- /.docs-content -->
+
+    <!-- Модальные окна -->
     <div id="folder-modal" class="modal">
         <div class="modal-content">
             <h3>Создать новую папку</h3>
@@ -3025,7 +3922,9 @@
             const searchInput = document.getElementById('search-input');
             if (searchInput) searchInput.value = '';
             document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
-            loadDocuments(null, 'Главная директория', false);
+            const bcText = document.getElementById('breadcrumb-current-text');
+            if (bcText) bcText.textContent = 'Все документы';
+            loadDocuments(null, 'Все документы', false);
         }
 
         const docsCache = new Map();
@@ -3067,6 +3966,8 @@
                     }
                     currentFolderId = folderId;
                     document.getElementById('current-folder-name').innerText = folderName;
+                    const bcText = document.getElementById('breadcrumb-current-text');
+                    if (bcText) bcText.textContent = folderName;
                     const btnBack = document.getElementById('btn-back');
                     if (parentFolderIdHistory.length > 0) {
                         btnBack.style.display = 'inline-flex';
@@ -3116,6 +4017,8 @@
                         });
                     }
                     document.getElementById('current-folder-name').innerText = folderName;
+                    const bcText = document.getElementById('breadcrumb-current-text');
+                    if (bcText) bcText.textContent = folderName;
 
                     const btnBack = document.getElementById('btn-back');
                     if (parentFolderIdHistory.length > 0 && !searchQuery) {
@@ -3162,6 +4065,12 @@
                     const folderMap = {};
                     const rootFolders = [];
                     const rootFiles = [];
+
+                    // Update count of directories in title
+                    const dirsCountEl = document.getElementById('sidebar-dirs-count');
+                    if (dirsCountEl) {
+                        dirsCountEl.textContent = `${folders.length} директорий`;
+                    }
 
                     folders.forEach(f => {
                         f.children = [];
@@ -3211,7 +4120,7 @@
 
             const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
             const viewUrl = getWebViewLink(file);
-            const lockIcon = file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
+            const lockIcon = file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено"></i>' : '';
 
             item.innerHTML = `<i class="${iconInfo.icon}" style="color: ${iconInfo.color}; font-size: 1rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.name)}</span>${lockIcon}`;
 
@@ -3234,6 +4143,7 @@
             header.className = 'folder-item-wrapper';
 
             const hasChildren = (folder.children && folder.children.length > 0) || (folder.files && folder.files.length > 0);
+            const totalItemsCount = (folder.children ? folder.children.length : 0) + (folder.files ? folder.files.length : 0);
 
             const toggle = document.createElement('div');
             toggle.className = 'folder-tree-toggle';
@@ -3241,15 +4151,17 @@
                 toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
             } else {
                 toggle.innerHTML = '';
-                toggle.style.visibility = 'hidden'; // Keeps exact spacing so all folders align in one straight column!
+                toggle.style.visibility = 'hidden';
             }
 
             const item = document.createElement('div');
             item.className = 'folder-item-tree';
 
             const iconColor = getFolderColor(folder.name);
-            const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено паролем"></i>' : '';
-            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span>${escapeHtml(folder.name)}</span>${lockIcon}`;
+            const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено"></i>' : '';
+            const countBadge = totalItemsCount > 0 ? `<span class="folder-badge-count">${totalItemsCount}</span>` : '';
+
+            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(folder.name)}</span>${lockIcon}${countBadge}`;
             if (currentFolderId === folder.id) {
                 item.classList.add('active');
             }
@@ -3281,7 +4193,8 @@
                 expandedFolders.add(folder.id);
                 parentFolderIdHistory = [];
                 folderNameHistory = [];
-                document.getElementById('search-input').value = '';
+                const searchEl = document.getElementById('search-input');
+                if (searchEl) searchEl.value = '';
 
                 document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
@@ -3289,6 +4202,10 @@
                     childrenContainer.classList.add('expanded');
                     toggle.classList.add('expanded');
                 }
+
+                // Update Breadcrumbs
+                const bcEl = document.getElementById('breadcrumb-current-text');
+                if (bcEl) bcEl.textContent = folder.name;
 
                 // On mobile, auto close sidebar when folder is selected
                 if (window.innerWidth <= 900) {
@@ -3307,13 +4224,11 @@
                     childrenContainer.appendChild(renderTreeNode(child));
                 });
             }
-
             if (folder.files && folder.files.length > 0) {
                 folder.files.forEach(f => {
                     childrenContainer.appendChild(renderTreeFileNode(f));
                 });
             }
-
             if (hasChildren) {
                 wrapper.appendChild(childrenContainer);
             }
@@ -3676,69 +4591,97 @@
 
         function renderItems(folders, files) {
             const container = document.getElementById('files-container');
+            if (!container) return;
+
+            // Update folder items count badge
+            const totalCount = folders.length + files.length;
+            const countBadge = document.getElementById('folder-items-count-badge');
+            if (countBadge) {
+                countBadge.textContent = `${totalCount} ${getRussianFileWord(totalCount)}`;
+            }
+
             if (folders.length === 0 && files.length === 0) {
                 container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-folder-open"></i>
-                        <p>В этой директории пока нет документов или папок</p>
-                        <p style="font-size:0.88rem; color: var(--docs-text-muted);">Нажмите кнопку «Google Документ», «OneDrive / Excel» или «Загрузить с ПК», чтобы добавить элемент</p>
+                    <div class="empty-state" style="padding: 3rem 1rem; text-align: center;">
+                        <i class="fas fa-folder-open" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+                        <p style="font-size: 1.1rem; font-weight: 600; color: #334155;">В этой папке пока нет документов</p>
+                        <p style="font-size: 0.88rem; color: #64748b; max-width: 480px; margin: 0 auto;">Нажмите кнопку «Добавить», чтобы загрузить PDF документ или прикрепить рабочую таблицу Google Sheets / OneDrive</p>
                     </div>
                 `;
                 return;
             }
 
             let html = `
-                <div class="docs-table">
-                    <div class="docs-table-header">
-                        <div>Название</div>
-                        <div>Тип</div>
+                <div class="stitch-table-wrapper">
+                    <div class="stitch-table-header">
+                        <div class="stitch-row-checkbox">
+                            <input type="checkbox" class="stitch-checkbox-custom" onclick="event.stopPropagation()" title="Выбрать все">
+                        </div>
+                        <div>Название файла <i class="fa-solid fa-arrow-down" style="font-size: 0.68rem; margin-left: 4px; color: #94a3b8;"></i></div>
+                        <div>Формат / Тип</div>
                         <div>Автор</div>
                         <div>Изменено</div>
                         <div style="text-align: right;">Действия</div>
                     </div>
             `;
 
-            // Вывод папок
+            // 1. Folders rendering (Stitch card rows)
             folders.forEach(folder => {
                 const iconColor = getFolderColor(folder.name);
-                const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : '';
-                const folderAuthor = folder.created_by || 'Каталог';
+                const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено"></i>' : '';
+                const folderAuthor = folder.created_by || 'Администратор';
+                const authorInitials = getAuthorInitials(folderAuthor);
                 const folderJson = escapeHtml(JSON.stringify(folder));
+
                 html += `
-                    <div class="docs-table-row folder-row" 
+                    <div class="stitch-table-row folder-row"
                          onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})"
                          oncontextmenu="handleItemContextMenu(event, ${folderJson}, true)">
-                        <div class="row-name">
-                            <div class="icon-badge">
-                                <i class="fas fa-folder" style="color: ${iconColor};"></i>
+                        <div class="stitch-row-checkbox">
+                            <input type="checkbox" class="stitch-checkbox-custom" onclick="event.stopPropagation()">
+                        </div>
+                        <div class="stitch-item-cell">
+                            <div class="stitch-format-badge badge-folder">
+                                <i class="fa-solid fa-folder-open"></i>
                             </div>
-                            <div class="item-info">
-                                <span class="item-title">${escapeHtml(folder.name)}${lockIcon}</span>
-                                <span class="item-mobile-meta">Папка • ${escapeHtml(folderAuthor)}</span>
+                            <div class="stitch-item-details">
+                                <div class="stitch-item-title-row">
+                                    <span class="stitch-item-title">${escapeHtml(folder.name)}${lockIcon}</span>
+                                </div>
+                                <div class="stitch-item-subtitle">Папка Базы Знаний • Директория цеха</div>
                             </div>
                         </div>
-                        <div class="row-meta"><span style="color: var(--docs-text-muted); font-size:0.82rem;">Папка</span></div>
-                        <div class="row-meta"><span class="author-badge" title="Создатель: ${escapeHtml(folderAuthor)}"><i class="fa-solid fa-folder-tree" style="color: #64748b; font-size:0.75rem;"></i> ${escapeHtml(folderAuthor)}</span></div>
-                        <div class="row-meta"><span class="date-cell">—</span></div>
-                        <div class="row-actions">
-                            <button class="btn-icon btn-icon-move" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку">
+                        <div>
+                            <span class="stitch-type-pill type-folder"><i class="fa-solid fa-folder"></i> Папка</span>
+                        </div>
+                        <div class="stitch-author-cell">
+                            <div class="stitch-author-avatar" style="background: #f59e0b;">${authorInitials}</div>
+                            <div class="stitch-author-info">
+                                <div class="stitch-author-name">${escapeHtml(folderAuthor)}</div>
+                                <div class="stitch-author-role">Раздел цеха</div>
+                            </div>
+                        </div>
+                        <div class="stitch-date-cell">
+                            <span>—</span>
+                        </div>
+                        <div class="stitch-actions-cell">
+                            <button class="stitch-action-btn" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку">
                                 <i class="fas fa-folder-tree"></i>
                             </button>
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
-                                <i class="fas fa-trash"></i>
+                            <button class="stitch-action-btn" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
+                                <i class="fas fa-trash" style="color: #ef4444;"></i>
                             </button>
                         </div>
                     </div>
                 `;
             });
 
-            // Вывод файлов/ссылок с поддержкой MS Office и версий
+            // 2. Files rendering (Stitch card rows with format badges, author avatars)
             files.forEach(file => {
                 const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
                 const typeName = getFileTypeName(file.name, file.mimeType, file.external_url || file.webViewLink);
                 const fileJson = escapeHtml(JSON.stringify(file));
 
-                // Надежное извлечение числового ID документа из file.id ('file_495' или 495)
                 let rawDocId = null;
                 if (file.id) {
                     if (typeof file.id === 'string' && file.id.startsWith('file_')) {
@@ -3748,9 +4691,7 @@
                     }
                 }
                 const isLocalFile = !file.external_url && rawDocId !== null;
-                const isOfficeDoc = isLocalFile && isOfficeDocument(file.name);
 
-                // URL для просмотра/скачивания
                 let viewUrl = file.external_url;
                 if (!viewUrl && rawDocId !== null) {
                     viewUrl = `/api/documents/download/${rawDocId}`;
@@ -3758,81 +4699,105 @@
                     viewUrl = file.webViewLink || '#';
                 }
 
-                // Бейдж версии
+                // Format badge type and short label
+                const nameLower = (file.name || '').toLowerCase();
+                let formatShort = 'DOC';
+                let formatBadgeClass = 'badge-doc';
+                let typePillClass = 'type-doc';
+
+                if (nameLower.endsWith('.pdf') || (file.mimeType && file.mimeType.includes('pdf'))) {
+                    formatShort = 'PDF';
+                    formatBadgeClass = 'badge-pdf';
+                    typePillClass = 'type-pdf';
+                } else if (nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.csv') || (file.mimeType && (file.mimeType.includes('spreadsheet') || file.mimeType.includes('excel')))) {
+                    formatShort = 'XLS';
+                    formatBadgeClass = 'badge-xls';
+                    typePillClass = 'type-xls';
+                } else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc')) {
+                    formatShort = 'DOC';
+                    formatBadgeClass = 'badge-doc';
+                    typePillClass = 'type-doc';
+                }
+
+                // Version badge
                 let versionBadgeHtml = '';
                 if (isLocalFile && file.version_number) {
-                    versionBadgeHtml = `<span class="version-badge" onclick="openVersionsModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}', event)" title="Посмотреть историю версий">v${file.version_number}</span>`;
+                    versionBadgeHtml = `<span class="stitch-item-version" onclick="openVersionsModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\'")}', event)" title="История версий">v${file.version_number}</span>`;
                 }
 
-                // Индикатор блокировки
+                // Lock badge
                 let lockBadgeHtml = '';
                 if (file.locked_by_user) {
-                    lockBadgeHtml = `<span class="lock-indicator" title="Взят на редактирование ${escapeHtml(file.locked_by_user)}"><i class="fas fa-lock"></i> ${escapeHtml(file.locked_by_user)}</span>`;
+                    lockBadgeHtml = `<span class="lock-indicator" style="font-size:0.7rem; color:#dc2626;" title="Заблокирован: ${escapeHtml(file.locked_by_user)}"><i class="fas fa-lock"></i></span>`;
                 }
 
-                // Автор / Создатель
-                const authorDisplay = file.created_by || file.last_modified_by || (isLocalFile ? 'Сотрудник' : 'Облако');
+                // Author initials and display
+                const authorDisplay = file.created_by || file.last_modified_by || (isLocalFile ? 'Администратор' : 'Сотрудник');
+                const authorInitials = getAuthorInitials(authorDisplay);
+                const authorAvatarColor = getAvatarColor(authorDisplay);
 
-                // Дата изменения
-                let dateDisplay = '—';
+                // Date formatting (Stitch clean date + sub-time)
+                let dateDisplay = 'Недавно';
+                let timeDisplay = '';
                 if (file.uploaded_at) {
                     try {
                         const d = new Date(file.uploaded_at);
                         if (!isNaN(d.getTime())) {
-                            dateDisplay = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-                        } else {
-                            dateDisplay = file.uploaded_at;
+                            dateDisplay = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                            timeDisplay = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
                         }
                     } catch (e) {
                         dateDisplay = file.uploaded_at;
                     }
                 }
 
-                // Кнопка загрузки новой версии
-                let newVersionBtn = '';
-                if (isLocalFile) {
-                    newVersionBtn = `
-                        <button class="btn-icon btn-icon-version" onclick="openSaveVersionModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}', event)" title="Загрузить новую версию файла">
-                            <i class="fas fa-file-arrow-up"></i>
-                        </button>
-                    `;
-                }
+                // Subtitle (File size, Kaizen info)
+                const fileSizeStr = file.file_size ? formatBytes(file.file_size) : (isLocalFile ? 'PDF Документ' : 'Облачный документ');
+                const subtitleStr = `${fileSizeStr} • Официальный производственный документ`;
 
                 html += `
-                    <div class="docs-table-row file-row" onclick="openPreviewModal(${fileJson}, event)" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)" style="cursor: pointer;">
-                        <div class="row-name">
-                            <div class="icon-badge" style="cursor: pointer;" onclick="openPreviewModal(${fileJson}, event)">
-                                <i class="${iconInfo.icon}" style="color: ${iconInfo.color};"></i>
+                    <div class="stitch-table-row file-row" onclick="openPreviewModal(${fileJson}, event)" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
+                        <div class="stitch-row-checkbox">
+                            <input type="checkbox" class="stitch-checkbox-custom" onclick="event.stopPropagation()">
+                        </div>
+                        <div class="stitch-item-cell">
+                            <div class="stitch-format-badge ${formatBadgeClass}">
+                                ${formatShort}
                             </div>
-                            <div class="item-info">
-                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
-                                    <a href="javascript:void(0)" onclick="openPreviewModal(${fileJson}, event)" class="file-link" title="Нажмите для быстрого онлайн просмотра: ${escapeHtml(file.name)}">
-                                        <span class="item-title">${escapeHtml(file.name)}</span>
-                                        ${file.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 4px;" title="Защищено паролем"></i>' : ''}
-                                    </a>
+                            <div class="stitch-item-details">
+                                <div class="stitch-item-title-row">
+                                    <span class="stitch-item-title" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
                                     ${versionBadgeHtml}
                                     ${lockBadgeHtml}
+                                    ${file.is_protected ? '<i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 2px;" title="Защищено"></i>' : ''}
                                 </div>
-                                <span class="item-mobile-meta">${typeName} • ${escapeHtml(authorDisplay)}</span>
+                                <div class="stitch-item-subtitle">${subtitleStr}</div>
                             </div>
                         </div>
-                        <div class="row-meta">
-                            <span style="font-size: 0.82rem; color: var(--docs-text-muted);">${typeName}</span>
+                        <div>
+                            <span class="stitch-type-pill ${typePillClass}">
+                                <i class="${iconInfo.icon}"></i> ${typeName}
+                            </span>
                         </div>
-                        <div class="row-meta">
-                            <span class="author-badge" title="${escapeHtml(authorDisplay)}"><i class="fa-solid fa-user-pen" style="color: #64748b; font-size:0.75rem;"></i> ${escapeHtml(authorDisplay)}</span>
+                        <div class="stitch-author-cell">
+                            <div class="stitch-author-avatar" style="background: ${authorAvatarColor};">${authorInitials}</div>
+                            <div class="stitch-author-info">
+                                <div class="stitch-author-name">${escapeHtml(authorDisplay)}</div>
+                                <div class="stitch-author-role">Пользователь цеха</div>
+                            </div>
                         </div>
-                        <div class="row-meta">
-                            <span class="date-cell">${dateDisplay}</span>
+                        <div class="stitch-date-cell">
+                            <span>${dateDisplay}</span>
+                            ${timeDisplay ? `<span class="time-sub">${timeDisplay}</span>` : ''}
                         </div>
-                        <div class="row-actions">
-                            <button class="btn-icon btn-icon-planner" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}')" title="Создать задачу по документу в Планнере">
+                        <div class="stitch-actions-cell">
+                            <button class="stitch-action-btn" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\'")}')" title="Создать задачу в Планнере">
                                 <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
                             </button>
-                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="btn-icon btn-icon-download" title="Скачать на диск">
-                                <i class="fas fa-download" style="color: #64748b;"></i>
+                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="stitch-action-btn" title="Скачать файл">
+                                <i class="fas fa-download"></i>
                             </a>
-                            <button class="action-more-btn" onclick="openFileMenuById('${file.id}', event)" title="Дополнительные действия (Переместить, Версии, Удалить)">
+                            <button class="stitch-action-btn" onclick="openFileMenuById('${file.id}', event)" title="Дополнительные действия">
                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                         </div>
@@ -3840,8 +4805,61 @@
                 `;
             });
 
-            html += `</div>`;
+            // Stitch Table Footer: Selected items summary and pagination
+            html += `
+                    <div class="stitch-table-footer">
+                        <div>
+                            Выбрано: <b>0 файлов</b> &nbsp;•&nbsp; Всего в папке: <b>${totalCount} ${getRussianFileWord(totalCount)}</b>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>Страница 1 из 1</span>
+                            <div class="stitch-pagination">
+                                <button class="stitch-page-btn" disabled><i class="fa-solid fa-chevron-left"></i></button>
+                                <button class="stitch-page-btn active">1</button>
+                                <button class="stitch-page-btn" disabled><i class="fa-solid fa-chevron-right"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- /.stitch-table-wrapper -->
+            `;
+
             container.innerHTML = html;
+        }
+
+        function getRussianFileWord(count) {
+            const mod10 = count % 10;
+            const mod100 = count % 100;
+            if (mod100 >= 11 && mod100 <= 19) return 'файлов';
+            if (mod10 === 1) return 'файл';
+            if (mod10 >= 2 && mod10 <= 4) return 'файла';
+            return 'файлов';
+        }
+
+        function getAuthorInitials(name) {
+            if (!name) return 'ТП';
+            const parts = name.trim().split(/\s+/);
+            if (parts.length >= 2) {
+                return (parts[0][0] + parts[1][0]).toUpperCase();
+            }
+            return name.substring(0, 2).toUpperCase();
+        }
+
+        function getAvatarColor(name) {
+            const colors = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#db2777', '#0284c7'];
+            if (!name) return colors[0];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 Б';
+            const k = 1024;
+            const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
         }
 
         function createTaskFromDoc(docId, docTitle) {
