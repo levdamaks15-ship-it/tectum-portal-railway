@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/static/css/splash.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029_stitch_100pct">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_stitch_parity_v4">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -1928,7 +1928,9 @@
         }
 
         .docs-sidebar {
-            width: 290px !important;
+            width: 240px !important;
+            min-width: 210px !important;
+            max-width: 260px !important;
             background: #ffffff !important;
             border-right: 1px solid #e2e8f0 !important;
             box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02) !important;
@@ -2028,14 +2030,19 @@
         }
 
         .folder-badge-count {
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 600;
-            color: #94a3b8;
+            color: #64748b;
             background: #f1f5f9;
-            padding: 2px 7px;
+            padding: 0 5px;
             border-radius: 10px;
             margin-left: auto;
             flex-shrink: 0;
+            min-width: 18px;
+            height: 18px;
+            line-height: 18px;
+            text-align: center;
+            box-sizing: border-box;
             transition: all 0.15s;
         }
 
@@ -2177,12 +2184,13 @@
             color: #94a3b8;
             font-size: 0.88rem;
             pointer-events: none;
+            z-index: 2;
         }
 
         .stitch-search-input {
             width: 100%;
             height: 38px;
-            padding: 0 54px 0 36px;
+            padding: 0 52px 0 38px !important;
             background: #ffffff;
             border: 1px solid #cbd5e1;
             border-radius: 8px;
@@ -2761,7 +2769,39 @@
             }
         }
     
-</style>
+
+        /* Windows Scaling 125%-150% and small screen resilience */
+        .stitch-table-wrapper {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        .stitch-table-header,
+        .stitch-table-row {
+            min-width: 680px;
+        }
+        @media (max-width: 1280px) {
+            .stitch-table-header,
+            .stitch-table-row {
+                grid-template-columns: 36px minmax(200px, 2.5fr) 110px 140px 105px 85px !important;
+            }
+            .docs-top-command-bar {
+                gap: 8px !important;
+            }
+            .stitch-search-box {
+                width: 220px !important;
+            }
+        }
+        @media (max-width: 1100px) {
+            .stitch-table-header,
+            .stitch-table-row {
+                grid-template-columns: 36px minmax(200px, 2fr) 110px 130px 80px !important;
+            }
+            .stitch-date-cell {
+                display: none !important;
+            }
+        }
+
+        </style>
 </head>
 
 <body>
@@ -2808,20 +2848,6 @@
         </div>
 
         <div class="sidebar-footer">
-            <!-- Stitch Cloud Storage Widget -->
-            <div class="sidebar-cloud-info">
-                <div class="sidebar-cloud-row">
-                    <span><i class="fa-solid fa-cloud"></i> <b>Облачное хранилище</b></span>
-                    <span>4.8 / 15 ГБ</span>
-                </div>
-                <div class="sidebar-cloud-progress">
-                    <div class="sidebar-cloud-progress-bar"></div>
-                </div>
-                <div class="sidebar-sync-status">
-                    <i class="fa-solid fa-circle-check"></i> Синхронизировано
-                </div>
-            </div>
-
             <!-- User Auth Badge -->
             <div class="sidebar-user-section" style="margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--docs-sidebar-border); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                 <button class="sidebar-home-link" id="sidebar-docs-user-badge" onclick="promptDocsUserAuth()"
@@ -2955,9 +2981,7 @@
                     <button class="stitch-btn-view-toggle" title="Вид: Сетка">
                         <i class="fa-solid fa-border-all"></i> Сетка
                     </button>
-                    <button class="stitch-btn-download-all" onclick="syncFolderTitles()" title="Синхронизировать данные">
-                        <i class="fa-solid fa-download"></i> Скачать архивом (ZIP)
-                    </button>
+                    
                 </div>
             </div>
 
@@ -3929,7 +3953,17 @@
 
         const docsCache = new Map();
 
-        async function loadDocuments(folderId = null, folderName = 'Главная директория', addToHistory = true, searchQuery = null, isProtected = false) {
+        async function loadDocuments(folderId = null, folderName = 'Все документы', addToHistory = true, searchQuery = null, isProtected = false) {
+            // Optimistic update of title, breadcrumbs and count badge immediately before network fetch
+            const folderTitleEl = document.getElementById('current-folder-name');
+            if (folderTitleEl) folderTitleEl.innerText = folderName;
+            const bcText = document.getElementById('breadcrumb-current-text');
+            if (bcText) bcText.textContent = folderName;
+
+            const countBadge = document.getElementById('folder-items-count-badge');
+            if (countBadge && !searchQuery) {
+                countBadge.textContent = '...';
+            }
             if (isProtected) {
                 if (!await ensurePassword(true, folderId)) {
                     return;
