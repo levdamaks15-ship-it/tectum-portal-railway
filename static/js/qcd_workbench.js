@@ -80,7 +80,8 @@ async function loadRecentBatches() {
         const res = await fetch('/api/qcd/batches/recent?limit=40');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        allRecentBatches = data.batches || [];
+        // API возвращает либо массив напрямую, либо { batches: [...] }
+        allRecentBatches = Array.isArray(data) ? data : (data.batches || []);
 
         renderBatchPickerList(allRecentBatches);
 
