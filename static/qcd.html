@@ -524,14 +524,10 @@
             text-align: right;
             color: #0f172a;
             box-sizing: border-box;
-            background: #ffffff;
+            background: #f8fafc;
             outline: none;
-            transition: all 0.15s ease;
-        }
-
-        .qcd-num-input:focus {
-            border-color: var(--primary-red);
-            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
+            cursor: default;
+            user-select: none;
         }
 
         /* Дельты (+ / -) */
@@ -1142,26 +1138,26 @@
                     <div class="qcd-main-inputs-grid">
                         <div class="qcd-field-box box-gp">
                             <div class="qcd-field-header">
-                                <span class="qcd-field-label">Кондиция ГП</span>
+                                <span class="qcd-field-label">🟢 Кондиция ГП</span>
                                 <span id="delta-condition" class="delta-pill delta-zero">0</span>
                             </div>
-                            <input type="number" id="qcd-condition-input" class="qcd-num-input mono" min="0" value="0">
+                            <input type="text" id="qcd-condition-input" class="qcd-num-input mono" value="0" readonly title="Рассчитывается автоматически">
                         </div>
 
                         <div class="qcd-field-box box-fg">
                             <div class="qcd-field-header">
-                                <span class="qcd-field-label">1-й сорт</span>
+                                <span class="qcd-field-label">🔵 1-й сорт</span>
                                 <span id="delta-first-grade" class="delta-pill delta-zero">0</span>
                             </div>
-                            <input type="number" id="qcd-first-grade-input" class="qcd-num-input mono" min="0" value="0">
+                            <input type="text" id="qcd-first-grade-input" class="qcd-num-input mono" value="0" readonly title="Сумма дефектов 1-го сорта">
                         </div>
 
                         <div class="qcd-field-box box-defect">
                             <div class="qcd-field-header">
-                                <span class="qcd-field-label">Брак</span>
+                                <span class="qcd-field-label">🔴 Брак</span>
                                 <span id="delta-defect" class="delta-pill delta-zero">0</span>
                             </div>
-                            <input type="number" id="qcd-defect-input" class="qcd-num-input mono" min="0" value="0">
+                            <input type="text" id="qcd-defect-input" class="qcd-num-input mono" value="0" readonly title="Сумма браковочных дефектов">
                         </div>
                     </div>
 
@@ -1369,7 +1365,7 @@
 
         document.addEventListener('DOMContentLoaded', initQcdUser);
     </script>
-    <script src="/static/js/qcd_workbench.js?v=1793286104_qcd_searchable_v2"></script>
+    <script src="/static/js/qcd_workbench.js?v=1793286251_qcd_searchable_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>
