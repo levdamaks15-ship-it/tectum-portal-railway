@@ -1026,7 +1026,7 @@
                 <div class="searchable-picker-anchor" id="batch-picker-anchor">
                     <button type="button" class="searchable-picker-btn" id="btn-batch-picker-trigger" onclick="toggleBatchPickerPopover(event)">
                         <div class="picker-btn-content">
-                            <span class="picker-badge-party mono" id="picker-trigger-badge">№ —</span>
+                            <span class="picker-badge-party mono" id="picker-trigger-batch-badge">№ —</span>
                             <div style="display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
                                 <span class="picker-btn-title" id="picker-trigger-title">Загрузка партий...</span>
                                 <span class="picker-btn-sub" id="picker-trigger-sub">—</span>
@@ -1045,7 +1045,7 @@
                         <div class="popover-search-wrap">
                             <i class="fa-solid fa-magnifying-glass popover-search-icon"></i>
                             <input type="text" class="popover-search-input" id="search-batch-input" 
-                                   placeholder="🔍 Поиск по номеру партии, дате, мастеру или продукту..." 
+                                   placeholder="Поиск по номеру партии, дате, мастеру или продукту..." 
                                    oninput="filterBatchList(this.value)">
                             <button type="button" class="popover-search-clear" id="btn-clear-batch-search" onclick="clearBatchSearch()">
                                 <i class="fa-solid fa-xmark"></i>
