@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/static/css/splash.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029_sidebar_expanded_v5">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_clean_header_v6">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -2984,22 +2984,13 @@
                                 <i class="fas fa-arrow-left"></i> Назад
                             </button>
                             <span id="current-folder-name">Все документы</span>
-                            <span id="folder-items-count-badge" class="folder-items-badge">0 файлов</span>
+                            
                         </h1>
                         <p id="current-folder-desc">Официальные производственные бланки, чек-листы Kaizen и типовые формы цеха</p>
                     </div>
                 </div>
 
-                <div class="stitch-view-controls">
-                    <button class="stitch-btn-view-toggle active" title="Вид: Таблица">
-                        <i class="fa-solid fa-table-list"></i> Таблица
-                    </button>
-                    <button class="stitch-btn-view-toggle" title="Вид: Сетка">
-                        <i class="fa-solid fa-border-all"></i> Сетка
-                    </button>
-                    
                 </div>
-            </div>
 
             <!-- Filter Chips Deck + Sort Dropdown -->
             <div class="docs-filter-chips" id="docs-filter-chips">
@@ -3976,10 +3967,7 @@
             const bcText = document.getElementById('breadcrumb-current-text');
             if (bcText) bcText.textContent = folderName;
 
-            const countBadge = document.getElementById('folder-items-count-badge');
-            if (countBadge && !searchQuery) {
-                countBadge.textContent = '...';
-            }
+            
             if (isProtected) {
                 if (!await ensurePassword(true, folderId)) {
                     return;
@@ -4645,10 +4633,7 @@
 
             // Update folder items count badge
             const totalCount = folders.length + files.length;
-            const countBadge = document.getElementById('folder-items-count-badge');
-            if (countBadge) {
-                countBadge.textContent = `${totalCount} ${getRussianFileWord(totalCount)}`;
-            }
+            
 
             if (folders.length === 0 && files.length === 0) {
                 container.innerHTML = `
