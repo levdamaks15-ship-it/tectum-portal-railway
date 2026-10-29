@@ -4192,10 +4192,115 @@ function setMyTasksPage(page) {
 }
 
 function renderTasksCards(tasks) {
-    // Мобильные карточки отключены в пользу единой таблицы десктопного вида на всех экранах
     const cardsContainer = document.getElementById("tasks-cards-container");
-    if (cardsContainer) cardsContainer.style.display = "none";
-    return;
+    if (!cardsContainer) return;
+
+    if (!tasks || tasks.length === 0) {
+        cardsContainer.innerHTML = `
+            <div style="text-align: center; padding: 2.5rem 1rem; color: #64748b; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">👤</div>
+                <div style="font-weight: 700; font-size: 1rem; color: #1e293b; margin-bottom: 0.25rem;">
+                    ${myTasksFilterActive && currentPlannerUser ? escapeHtml(currentPlannerUser.name) : 'Нет задач'}
+                </div>
+                <div style="font-size: 0.85rem; color: #64748b;">
+                    ${myTasksFilterActive ? 'На ближайший месяц и будущее задач пока нет' : 'На выбранный период задач нет'}
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let tasksToRender = tasks;
+    if (myTasksFilterActive) {
+        const totalCount = tasks.length;
+        const totalPages = Math.ceil(totalCount / MY_TASKS_PAGE_SIZE) || 1;
+        if (myTasksCurrentPage > totalPages) myTasksCurrentPage = totalPages;
+        if (myTasksCurrentPage < 1) myTasksCurrentPage = 1;
+
+        const startIndex = (myTasksCurrentPage - 1) * MY_TASKS_PAGE_SIZE;
+        const endIndex = Math.min(startIndex + MY_TASKS_PAGE_SIZE, totalCount);
+        tasksToRender = tasks.slice(startIndex, endIndex);
+    }
+
+    const weekGroups = groupTasksByWeekChronologically(tasksToRender);
+    let html = '';
+
+    // Mobile Focus Info Bar
+    if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
+        html += `
+            <div class="mobile-user-focus-bar">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-user-check" style="color: #2563eb;"></i>
+                    <span>${escapeHtml(currentPlannerUser.name)}</span>
+                </div>
+                <span style="font-size: 0.76rem; color: #64748b; font-weight: 500;">
+                    ${tasks.length} ${tasks.length === 1 ? 'задача' : (tasks.length < 5 ? 'задачи' : 'задач')}
+                </span>
+            </div>
+        `;
+    }
+
+    weekGroups.forEach(group => {
+        const weekLabel = group.weekLabel;
+        const weekTasks = group.tasks;
+
+        html += `
+            <div class="mobile-week-header">
+                <i class="fa-solid fa-calendar-week" style="color: #64748b;"></i>
+                <span>${escapeHtml(weekLabel)}</span>
+                <span style="opacity: 0.7; font-size: 0.75rem; font-weight: 500;">(${weekTasks.length} зад.)</span>
+            </div>
+        `;
+
+        weekTasks.forEach(t => {
+            const code = t.code || ('TSK-' + t.id);
+            const dept = t.department_service || t.zone || 'Цех';
+            const status = t.status || '🟡 В работе';
+
+            let statusClass = 'status-badge-work';
+            if (status.includes('Выполнено')) statusClass = 'status-badge-done';
+            else if (status.includes('Перенесено')) statusClass = 'status-badge-rescheduled';
+            else if (status.includes('Отменено')) statusClass = 'status-badge-canceled';
+
+            let dueStr = t.due_date_str || '';
+            if (!dueStr && t.due_date) {
+                try {
+                    const d = new Date(t.due_date);
+                    if (!isNaN(d.getTime())) {
+                        dueStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+                    }
+                } catch(e) {}
+            }
+            if (!dueStr) dueStr = 'В теч. недели';
+
+            html += `
+                <div class="mobile-task-card" id="task-card-${t.id}" onclick="openTaskDetailModal(${t.id})">
+                    <div class="mobile-card-top">
+                        <div class="mobile-card-tags">
+                            <span class="mobile-badge-code">${escapeHtml(code)}</span>
+                            <span class="mobile-badge-dept">${escapeHtml(dept)}</span>
+                        </div>
+                        <span class="mobile-status-badge ${statusClass}">${escapeHtml(status)}</span>
+                    </div>
+
+                    <div class="mobile-card-title">
+                        ${escapeHtml(t.title || 'Без описания')}
+                    </div>
+
+                    <div class="mobile-card-bottom">
+                        <span class="mobile-due-badge">
+                            <i class="fa-regular fa-calendar"></i> ${escapeHtml(dueStr)}
+                        </span>
+                        <span style="color: #94a3b8; font-size: 0.74rem;">
+                            ${t.assignee_name ? escapeHtml(t.assignee_name) : ''}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    cardsContainer.innerHTML = html;
 }
 /* ── Свайп шторок (Bottom Sheets) вниз для закрытия ──────────────────── */
 function initBottomSheetSwipeGestures() {

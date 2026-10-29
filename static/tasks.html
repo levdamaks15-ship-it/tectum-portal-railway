@@ -2986,18 +2986,17 @@
             background: #1d4ed8;
         }
 
-        /* Completely Disable Mobile Cards / Apple Chrome - Desktop Table on All Screens */
+        /* Desktop View (Default) */
         .apple-large-title-header,
         .apple-ghost-row,
         .apple-fab,
         .apple-bottom-nav,
         #apple-filter-sheet,
-        .planner-cards-container,
         #tasks-cards-container {
-            display: none !important;
+            display: none;
         }
 
-        @media screen {
+        @media screen and (min-width: 769px) {
             #planner-table-wrapper {
                 display: block !important;
                 width: 100% !important;
@@ -3009,6 +3008,165 @@
                 display: table !important;
                 width: 100% !important;
                 min-width: 1100px !important;
+            }
+            #tasks-cards-container {
+                display: none !important;
+            }
+        }
+
+        /* Mobile Feed View (<= 768px): Stitch Minimalist Task Cards */
+        @media screen and (max-width: 768px) {
+            /* Hide heavy desktop table & complex desktop controls */
+            .horizon-nav-bar,
+            .planner-filter-deck,
+            #planner-filter-deck,
+            .planner-table,
+            .toolbar-actions-right {
+                display: none !important;
+            }
+
+            /* Container padding & safe layout */
+            body {
+                background: #f8fafc !important;
+                padding-bottom: 72px !important;
+            }
+
+            .table-container {
+                padding: 10px 12px !important;
+            }
+
+            #planner-table-wrapper {
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                display: block !important;
+            }
+
+            /* Mobile Task Cards Container */
+            #tasks-cards-container {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 10px !important;
+                width: 100% !important;
+            }
+
+            .mobile-task-card {
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                padding: 12px 14px;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+
+            .mobile-task-card:active {
+                transform: scale(0.99);
+            }
+
+            .mobile-card-top {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 6px;
+            }
+
+            .mobile-card-tags {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+
+            .mobile-badge-code {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.72rem;
+                font-weight: 700;
+                color: #2563eb;
+                background: #eff6ff;
+                padding: 2px 6px;
+                border-radius: 5px;
+                border: 1px solid #bfdbfe;
+            }
+
+            .mobile-badge-dept {
+                font-size: 0.72rem;
+                font-weight: 600;
+                color: #475569;
+                background: #f1f5f9;
+                padding: 2px 7px;
+                border-radius: 5px;
+            }
+
+            .mobile-status-badge {
+                font-size: 0.72rem;
+                font-weight: 700;
+                padding: 3px 8px;
+                border-radius: 6px;
+                white-space: nowrap;
+            }
+
+            .status-badge-work { background: #fef9c3; color: #854d0e; }
+            .status-badge-done { background: #dcfce7; color: #166534; }
+            .status-badge-rescheduled { background: #e0f2fe; color: #075985; }
+            .status-badge-canceled { background: #fee2e2; color: #991b1b; }
+
+            .mobile-card-title {
+                font-size: 0.95rem;
+                font-weight: 600;
+                color: #0f172a;
+                line-height: 1.35;
+                word-break: break-word;
+            }
+
+            .mobile-card-bottom {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                font-size: 0.78rem;
+                color: #64748b;
+                border-top: 1px dashed #f1f5f9;
+                padding-top: 6px;
+                margin-top: 2px;
+            }
+
+            .mobile-due-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                font-weight: 600;
+                color: #b91c1c;
+            }
+
+            .mobile-week-header {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 12px;
+                background: #f1f5f9;
+                border-radius: 8px;
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: #334155;
+                margin-top: 6px;
+                margin-bottom: 2px;
+            }
+
+            .mobile-user-focus-bar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: 8px 12px;
+                margin-bottom: 10px;
+                font-size: 0.82rem;
+                color: #1e293b;
+                font-weight: 600;
             }
         }
     
@@ -5199,7 +5357,7 @@
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/tasks.js?v=20261029_popover_pos_fix"></script>
+    <script src="/static/js/tasks.js?v=20261029_mobile_cards_v1"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
