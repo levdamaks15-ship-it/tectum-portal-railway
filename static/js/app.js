@@ -4485,6 +4485,14 @@ async function init() {
     }
 
     if (cachedUser && cachedUser.name && cachedUser.role) {
+        if (cachedUser.role === 'qcd' || cachedUser.name.includes('Мусаилова') || cachedUser.name === 'Зарина') {
+            window.location.replace('/static/qcd.html');
+            return;
+        }
+        if (cachedUser.role === 'lkc_master' || cachedUser.name.includes('Миркасимов') || cachedUser.name === 'Мастер ЛКЦ') {
+            window.location.replace('/static/lkc.html');
+            return;
+        }
         currentUser = cachedUser;
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
@@ -4504,6 +4512,16 @@ async function init() {
                 try {
                     localStorage.setItem('tectum_auth_user', JSON.stringify(currentUser));
                 } catch(e) {}
+                
+                if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
+                    window.location.replace('/static/qcd.html');
+                    return;
+                }
+                if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
+                    window.location.replace('/static/lkc.html');
+                    return;
+                }
+                
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
                 document.getElementById('user-info-container').style.display = 'flex';
