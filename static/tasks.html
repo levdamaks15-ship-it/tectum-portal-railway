@@ -3011,7 +3011,40 @@
                 min-width: 1100px !important;
             }
         }
-    </style>
+    
+        /* Canonical Stitch Pagination Styles */
+        .stitch-pagination {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stitch-page-btn {
+            min-width: 28px;
+            height: 28px;
+            padding: 0 6px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .stitch-page-btn:hover:not(:disabled) {
+            border-color: #cbd5e1;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+        .stitch-page-btn.active {
+            background: #2563eb !important;
+            color: #ffffff !important;
+            border-color: #2563eb !important;
+        }
+</style>
 </head>
 
 <body>
@@ -3614,6 +3647,15 @@
             <div id="tasks-cards-container" class="planner-cards-container">
                 <div style="text-align: center; padding: 2rem; color: #64748b;">
                     <i class="fa-solid fa-spinner fa-spin"></i> Загрузка задач...
+                </div>
+            </div>
+
+            <!-- My Tasks Pagination Bar -->
+            <div id="my-tasks-pagination-bar" style="display: none; padding: 12px 18px; background: #ffffff; border-top: 1px solid #e2e8f0; border-radius: 0 0 12px 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <div id="my-tasks-pagination-info" style="font-size: 0.85rem; color: #475569; font-weight: 500;">
+                    Показано 0 из 0 задач
+                </div>
+                <div id="my-tasks-pagination-controls" class="stitch-pagination" style="display: flex; align-items: center; gap: 6px;">
                 </div>
             </div>
         </div>
@@ -5157,7 +5199,7 @@
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/tasks.js?v=20261029_fluid_toast"></script>
+    <script src="/static/js/tasks.js?v=20261029_my_tasks_pagination"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

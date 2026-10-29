@@ -46,6 +46,8 @@ let allPlannerZones = [];
 
 let activeQuickPreset = "all"; // "all" | "my" | "in_work" | "zone"
 let myTasksFilterActive = false;
+let myTasksCurrentPage = 1;
+const MY_TASKS_PAGE_SIZE = 25;
 let liveSyncIntervalId = null;
 let lastTasksDataHash = "";
 let lastRoadmapsDataHash = "";
@@ -1238,6 +1240,7 @@ function toggleMyTasksFilter() {
         openPinModal(null, (user) => {
             currentPlannerUser = user;
             myTasksFilterActive = true;
+            myTasksCurrentPage = 1;
             setFilterValueDirect('assignee', 'all');
             setFilterValueDirect('author', 'all');
             updatePlannerUserBadge();
@@ -1255,6 +1258,7 @@ function toggleMyTasksFilter() {
     }
 
     myTasksFilterActive = !myTasksFilterActive;
+    myTasksCurrentPage = 1;
     if (myTasksFilterActive) {
         setFilterValueDirect('assignee', 'all');
         setFilterValueDirect('author', 'all');
@@ -1275,6 +1279,7 @@ function toggleMyTasksFilter() {
 
 function applyGlobalAllFilter() {
     myTasksFilterActive = false;
+    myTasksCurrentPage = 1;
     ['zone', 'author', 'assignee', 'status'].forEach(type => {
         setFilterValueDirect(type, 'all');
     });
@@ -1624,7 +1629,7 @@ async function loadTasks() {
     }
 
     if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-        url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+        url += `&my_all_horizons=true&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
     } else {
         if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
         if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
@@ -3771,20 +3776,23 @@ function renderTasksTable(tasks) {
         deckCountEl.textContent = `Найдено ${taskCount} ${taskCount === 1 ? 'задача' : (taskCount > 1 && taskCount < 5 ? 'задачи' : 'задач')}`;
     }
 
+    const paginationBar = document.getElementById("my-tasks-pagination-bar");
+
     if (!tasks || tasks.length === 0) {
+        if (paginationBar) paginationBar.style.display = "none";
         if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
             tableBody.innerHTML = `
                 <tr>
                     <td colspan="10" style="text-align: center; padding: 3rem 1.5rem; color: #64748b; font-size: 0.95rem;">
                         <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">👤</div>
                         <div style="font-weight: 700; font-size: 1.05rem; color: #1e293b; margin-bottom: 0.35rem;">
-                            Нет назначенных задач для ${escapeHtml(currentPlannerUser.name)} на этот период
+                            Нет назначенных задач для ${escapeHtml(currentPlannerUser.name)}
                         </div>
                         <div style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.25rem;">
-                            В этом разделе за выбранный период для вас пока нет задач.
+                            За последний месяц и на будущие даты задач пока нет.
                         </div>
                         <button type="button" class="btn-action btn-secondary-action" onclick="toggleMyTasksFilter()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;">
-                            <i class="fa-solid fa-users"></i> Показать все задачи раздела
+                            <i class="fa-solid fa-users"></i> Показать все задачи завода
                         </button>
                         <button type="button" class="btn-action btn-primary-action" onclick="openAddTaskModal()">
                             <i class="fa-solid fa-plus"></i> Добавить задачу
@@ -3804,7 +3812,23 @@ function renderTasksTable(tasks) {
         return;
     }
 
-    const weekGroups = groupTasksByWeekChronologically(tasks);
+    let tasksToRender = tasks;
+    if (myTasksFilterActive) {
+        const totalCount = tasks.length;
+        const totalPages = Math.ceil(totalCount / MY_TASKS_PAGE_SIZE) || 1;
+        if (myTasksCurrentPage > totalPages) myTasksCurrentPage = totalPages;
+        if (myTasksCurrentPage < 1) myTasksCurrentPage = 1;
+
+        const startIndex = (myTasksCurrentPage - 1) * MY_TASKS_PAGE_SIZE;
+        const endIndex = Math.min(startIndex + MY_TASKS_PAGE_SIZE, totalCount);
+        tasksToRender = tasks.slice(startIndex, endIndex);
+
+        renderMyTasksPagination(totalCount, totalPages, startIndex + 1, endIndex);
+    } else {
+        if (paginationBar) paginationBar.style.display = "none";
+    }
+
+    const weekGroups = groupTasksByWeekChronologically(tasksToRender);
     let rowsHtml = '';
 
     weekGroups.forEach(group => {
@@ -4108,6 +4132,63 @@ function renderTasksTable(tasks) {
     });
 
     tableBody.innerHTML = rowsHtml;
+}
+
+function renderMyTasksPagination(totalCount, totalPages, fromNum, toNum) {
+    const bar = document.getElementById("my-tasks-pagination-bar");
+    const info = document.getElementById("my-tasks-pagination-info");
+    const controls = document.getElementById("my-tasks-pagination-controls");
+    if (!bar || !info || !controls) return;
+
+    if (totalCount <= MY_TASKS_PAGE_SIZE && totalPages <= 1) {
+        bar.style.display = "none";
+        return;
+    }
+
+    bar.style.display = "flex";
+    info.innerHTML = `Показано <b>${fromNum}–${toNum}</b> из <b>${totalCount}</b> задач`;
+
+    let html = `
+        <button class="stitch-page-btn" ${myTasksCurrentPage <= 1 ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : 'onclick="setMyTasksPage(' + (myTasksCurrentPage - 1) + ')"'} title="Предыдущая страница">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+    `;
+
+    for (let p = 1; p <= totalPages; p++) {
+        // Show all if pages <= 7, else show window
+        if (totalPages <= 7 || p === 1 || p === totalPages || Math.abs(p - myTasksCurrentPage) <= 1) {
+            const isActive = (p === myTasksCurrentPage);
+            html += `
+                <button class="stitch-page-btn ${isActive ? 'active' : ''}" onclick="setMyTasksPage(${p})" style="${isActive ? 'background:#2563eb;color:#fff;font-weight:700;' : ''}">
+                    ${p}
+                </button>
+            `;
+        } else if (p === 2 && myTasksCurrentPage > 3) {
+            html += `<span style="color:#94a3b8;font-size:0.8rem;padding:0 2px;">…</span>`;
+        } else if (p === totalPages - 1 && myTasksCurrentPage < totalPages - 2) {
+            html += `<span style="color:#94a3b8;font-size:0.8rem;padding:0 2px;">…</span>`;
+        }
+    }
+
+    html += `
+        <button class="stitch-page-btn" ${myTasksCurrentPage >= totalPages ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : 'onclick="setMyTasksPage(' + (myTasksCurrentPage + 1) + ')"'} title="Следующая страница">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    `;
+
+    controls.innerHTML = html;
+}
+
+function setMyTasksPage(page) {
+    myTasksCurrentPage = page;
+    if (allTasks) {
+        renderTasksTable(allTasks);
+        // Smooth scroll to top of table
+        const tableWrapper = document.getElementById("planner-table-wrapper");
+        if (tableWrapper) {
+            tableWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
 }
 
 function renderTasksCards(tasks) {

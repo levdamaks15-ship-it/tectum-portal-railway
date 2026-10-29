@@ -1518,7 +1518,8 @@ def get_tasks(
         query = db.query(models.Task).filter(models.Task.is_archived == is_archived)
 
         # 1. Фильтрация по типу задачи / горизонту (если не включен сквозной режим «Мои задачи»)
-        if not (my_all_horizons and my_person):
+        is_my_all_mode = bool(my_all_horizons and my_person)
+        if not is_my_all_mode:
             if task_type == "weekly":
                 query = query.filter((models.Task.task_type == "weekly") | (models.Task.task_type.is_(None)))
                 query = query.filter(
@@ -1605,7 +1606,10 @@ def get_tasks(
         prev_patt = None
         two_weeks_start, two_weeks_end = None, None
 
-        if is_custom_range_mode:
+        if is_my_all_mode:
+            # В режиме «Мои задачи» охватываем все вкладки, не ограничиваем по конкретному week/month в SQL
+            pass
+        elif is_custom_range_mode:
             # Произвольный диапазон дат: в SQL не ограничиваем конкретным месяцем/неделей
             pass
         elif is_open_active_mode:
@@ -1653,7 +1657,44 @@ def get_tasks(
 
         # Фильтрация задач по временному диапазону в памяти
         filtered_tasks = []
+        today_date = date.today()
+        one_month_ago = today_date - timedelta(days=30)
+
         for t in raw_tasks:
+            # Особый режим «Мои задачи» по всем вкладкам:
+            # Задний диапазон: не старше 1 месяца (30 дней), будущие задачи — без ограничений по дате.
+            # Если задача не завершена (В работе, В очереди, Перенесено) — всегда актуальна и видна.
+            if is_my_all_mode:
+                t_due = parse_date_dm_or_full(t.due_date_str)
+                t_orig_start, t_orig_end = parse_week_label_range(t.week_label, t.month_label)
+                if not t_orig_start and t.created_at:
+                    t_orig_start = t.created_at.date()
+                if not t_due and t_orig_end:
+                    t_due = t_orig_end
+                if not t_due and t_orig_start:
+                    t_due = t_orig_start
+
+                # Проверяем даты:
+                # 1. Если задача уже выполнена или отменена: проверяем, чтобы она была завершена / создана не более 30 дней назад
+                if t.status in ["🟢 Выполнено", "🔴 Отменено"]:
+                    t_finish_date = t.completed_at.date() if t.completed_at else None
+                    if not t_finish_date:
+                        t_finish_date = t_due or t_orig_start or (t.created_at.date() if t.created_at else None)
+                    if t_finish_date and t_finish_date < one_month_ago:
+                        continue
+                else:
+                    # Незавершенные задачи (активные):
+                    # Если срок или дата создания сильно в прошлом (более месяца назад) и при этом нет будущих дат —
+                    # но для активных долгов мы хотим видеть задачи, либо если задача создана / назначена не более 30 дней назад,
+                    # либо срок в будущем. Если срок в будущем (>= one_month_ago) — включаем!
+                    latest_relevant_date = t_due or t_orig_end or t_orig_start or (t.created_at.date() if t.created_at else None)
+                    if latest_relevant_date and latest_relevant_date < one_month_ago:
+                        # Слишком старая задача (создана и должна была выполниться более 30 дней назад)
+                        continue
+
+                filtered_tasks.append(t)
+                continue
+
             if is_custom_range_mode:
                 t_due = parse_date_dm_or_full(t.due_date_str)
                 t_orig_start, t_orig_end = parse_week_label_range(t.week_label, t.month_label)
