@@ -17,7 +17,6 @@
 }
 
 .header-user-container {
-    display: inline-flex;
     align-items: center;
     gap: 0.75rem;
 }
@@ -1051,7 +1050,7 @@ button.btn-cancel:hover {
         gap: 6px !important;
     }
 
-    .header-user-container {
+    .header-user-container:not([style*="display: none"]) {
         display: inline-flex !important;
         align-items: center !important;
         gap: 0.5rem !important;
