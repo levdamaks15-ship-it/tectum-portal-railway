@@ -392,7 +392,7 @@ function renderBatchData(data) {
     renderActiveDefectsList();
 
     // Причина и замечания
-    selectRootCause(data.qcd_root_cause || '');
+    // root_cause selector removed
     const notesText = document.getElementById('qcd-notes-text');
     if (notesText) {
         notesText.value = data.qcd_notes || '';
@@ -611,7 +611,7 @@ function resetToMasterValues() {
     if (m.defect_broken) activeDefectsState['def_broken'] = m.defect_broken;
 
     renderActiveDefectsList();
-    selectRootCause('');
+    // reset cause
     recalcQcdBalance();
     showQcdToast('Значения возвращены к первичному рапорту мастера', 'info');
 }
@@ -653,7 +653,10 @@ async function submitQcdVerification() {
         def_broken: activeDefectsState['def_broken'] || 0,
         def_tech: activeDefectsState['def_tech'] || 0,
 
-        root_cause: document.getElementById('qcd-root-cause')?.value || null,
+        root_cause: Object.keys(activeDefectsState).filter(k => (activeDefectsState[k] || 0) > 0).map(k => {
+            const meta = FACTORY_DEFECTS_CATALOG.find(d => d.key === k);
+            return meta ? meta.title : k;
+        }).join(', ') || null,
         notes: document.getElementById('qcd-notes-text')?.value || null,
         inspector_name: document.getElementById('user-greeting-name')?.textContent || 'Инспектор СКК'
     };
