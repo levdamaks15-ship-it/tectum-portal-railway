@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/static/css/splash.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_modern_ui">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -1638,6 +1638,286 @@
                 display: none !important;
             }
         }
+    
+        /* ==========================================================
+           MODERN DESIGN SYSTEM & APPLE INDUSTRIAL STYLES
+           ========================================================== */
+        /* PersonPickerPopover for Auth Modal */
+        .person-picker-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .person-select-modern {
+            height: 48px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 0 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .person-select-modern:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+        .person-select-modern:focus,
+        .person-select-modern.popover-open {
+            border-color: #2563eb;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+            background: #ffffff;
+        }
+        .person-select-modern.popover-open #docs-user-picker-chevron {
+            transform: rotate(180deg);
+            color: #2563eb;
+        }
+        .person-picker-popover {
+            position: fixed !important;
+            z-index: 99999 !important;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 12px !important;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22), 0 6px 14px rgba(0, 0, 0, 0.08) !important;
+            padding: 8px !important;
+            box-sizing: border-box !important;
+            width: 340px;
+        }
+        .person-picker-popover .filter-popover-search-wrap {
+            padding: 4px 4px 8px;
+            border-bottom: 1px solid #f1f5f9;
+            margin-bottom: 6px;
+        }
+        .person-picker-popover .filter-popover-search-input {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.88rem;
+            box-sizing: border-box;
+        }
+        .person-picker-popover .filter-popover-search-input:focus {
+            border-color: #2563eb;
+            outline: none;
+        }
+        .person-picker-popover .filter-popover-list {
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .filter-option-item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            transition: background 0.12s ease;
+            user-select: none;
+            font-size: 0.88rem;
+        }
+        .filter-option-item:hover {
+            background: #f1f5f9;
+        }
+        .filter-option-item.selected {
+            background: #eff6ff;
+            font-weight: 600;
+        }
+        .filter-option-person-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+            min-width: 0;
+        }
+        .author-avatar-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* 4-Box PIN Input */
+        .pin-boxes-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 0.6rem 0;
+        }
+        .pin-digit-box {
+            width: 48px;
+            height: 52px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 1.6rem;
+            text-align: center;
+            font-weight: 700;
+            background: #ffffff;
+            color: #0f172a;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            box-sizing: border-box;
+        }
+        .pin-digit-box:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            outline: none;
+            background: #f8fafc;
+        }
+
+        /* Modern Filter Chips Deck */
+        .docs-filter-chips {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 1.1rem;
+            flex-wrap: wrap;
+        }
+        .docs-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .docs-chip:hover {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        .docs-chip.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+        .docs-chip-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.06);
+            border-radius: 12px;
+            padding: 1px 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+        .docs-chip.active .docs-chip-count {
+            background: rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+        }
+
+        /* Modern Top Bar Buttons */
+        .btn-modern-add {
+            background: #2563eb !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 8px !important;
+            height: 38px !important;
+            padding: 0 14px !important;
+            font-weight: 600 !important;
+            font-size: 0.88rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 7px !important;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25) !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+        }
+        .btn-modern-add:hover {
+            background: #1d4ed8 !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35) !important;
+        }
+        .btn-modern-secondary {
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            border-radius: 8px !important;
+            height: 38px !important;
+            padding: 0 12px !important;
+            font-weight: 600 !important;
+            font-size: 0.85rem !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            cursor: pointer !important;
+            text-decoration: none !important;
+            transition: all 0.15s ease !important;
+        }
+        .btn-modern-secondary:hover {
+            background: #f8fafc !important;
+            border-color: #94a3b8 !important;
+            color: #0f172a !important;
+        }
+
+        /* User session badge canonical styling */
+        .user-session-badge-modern {
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 0 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #1d4ed8;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .user-session-badge-modern:hover {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+        .user-session-badge-modern.anonymous {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+        .user-session-badge-modern.anonymous:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+            color: #1e293b;
+        }
+
+        /* Modern Table Row Actions */
+        .action-more-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            background: #ffffff;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .action-more-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+
     </style>
 </head>
 
@@ -1683,7 +1963,7 @@
         <div class="sidebar-footer">
             <div class="sidebar-user-section" style="margin-bottom: 0.65rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--docs-sidebar-border); display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                 <button class="sidebar-home-link" id="sidebar-docs-user-badge" onclick="promptDocsUserAuth()"
-                    style="flex: 1; justify-content: flex-start; padding: 0.55rem 0.75rem; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600;"
+                    style="flex: 1; justify-content: flex-start; padding: 0.55rem 0.75rem; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; border-radius: 8px;"
                     title="Нажмите для входа или смены профиля">
                     <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="sidebar-docs-user-name">Войти (PIN)</span>
                 </button>
@@ -1693,12 +1973,14 @@
                 </button>
             </div>
             <a href="/static/tasks.html" class="sidebar-home-link sidebar-planner-link"
-                style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-weight: 600;"
+                style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
                 title="Открыть Планнер по бережливому производству">
-                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> Планнер (Задачи)
+                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер (Задачи)</span>
             </a>
-            <a href="/static/index.html" class="sidebar-home-link">
-                <i class="fas fa-home"></i> На главный портал
+            <a href="/" class="sidebar-home-link"
+                style="background: #ffffff; color: #334155; border: 1px solid #cbd5e1; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
+                title="Вернуться на главный портал завода">
+                <i class="fas fa-house" style="color: #64748b;"></i> <span>На главный портал</span>
             </a>
         </div>
     </div>
@@ -1712,75 +1994,73 @@
                     oninput="handleSearch(this.value)" autocomplete="off">
             </div>
 
-            <div class="action-buttons">
-                <!-- Dropdown Создать -->
-                <div class="dropdown-menu-create">
-                    <button class="btn-action btn-upload-file" onclick="toggleCreateDropdown(event)"
-                        style="background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); color: #fff; box-shadow: 0 4px 14px rgba(200,35,35,0.25);">
-                        <i class="fas fa-plus"></i> <span>Создать</span> <i class="fas fa-chevron-down"
-                            style="font-size:0.75rem; margin-left:4px;"></i>
+            <div class="action-buttons" style="display: flex; align-items: center; gap: 8px;">
+                <!-- Unified Modern Primary Action Dropdown -->
+                <div class="dropdown-menu-create" style="position: relative;">
+                    <button class="btn-modern-add" onclick="toggleCreateDropdown(event)" title="Добавить файл, папку или облачный документ">
+                        <i class="fas fa-plus"></i> <span>Добавить</span> <i class="fas fa-chevron-down" style="font-size: 0.72rem; margin-left: 3px;"></i>
                     </button>
-                    <div id="create-dropdown" class="dropdown-content-create">
+                    <div id="create-dropdown" class="dropdown-content-create" style="border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 230px;">
+                        <div class="dropdown-item" onclick="triggerLocalFileUpload()" style="font-weight: 600;">
+                            <i class="fas fa-file-pdf" style="color: #ef4444; width: 20px; text-align: center;"></i>
+                            Загрузить PDF с диска
+                        </div>
                         <div class="dropdown-item" onclick="showFolderModal()">
-                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 18px; text-align: center;"></i>
-                            Новую папку
+                            <i class="fas fa-folder-plus" style="color: #f59e0b; width: 20px; text-align: center;"></i>
+                            Создать новую папку
                         </div>
                         <div class="context-menu-separator"></div>
                         <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
-                            <i class="fab fa-google" style="color: #4285f4; width: 18px; text-align: center;"></i>
+                            <i class="fab fa-google" style="color: #4285f4; width: 20px; text-align: center;"></i>
                             Ссылка Google (Docs / Sheets)
                         </div>
                         <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
-                            <i class="fab fa-microsoft" style="color: #0078d4; width: 18px; text-align: center;"></i>
+                            <i class="fab fa-microsoft" style="color: #0078d4; width: 20px; text-align: center;"></i>
                             Ссылка Microsoft (OneDrive / Excel)
                         </div>
                     </div>
                 </div>
-
-                <!-- Быстрая загрузка PDF с ПК -->
-                <button class="btn-action btn-upload-pc" onclick="triggerLocalFileUpload()"
-                    style="background: #10b981; color: #fff;" title="Загрузить PDF-документ или регламент с компьютера">
-                    <i class="fas fa-file-pdf"></i> <span>Загрузить PDF</span>
-                </button>
                 <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
                     onchange="handleLocalFileSelected(event)">
 
-                <!-- Синхронизация облачных названий -->
-                <button class="btn-action btn-sync-cloud" onclick="syncFolderTitles()" id="btn-sync-titles"
-                    title="Актуализировать названия Google/OneDrive документов"
-                    style="background: var(--docs-btn-bg); border: 1px solid var(--docs-btn-border); color: var(--docs-text-primary);">
-                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить названия</span>
+                <!-- Синхронизация названий -->
+                <button class="btn-modern-secondary" onclick="syncFolderTitles()" id="btn-sync-titles"
+                    title="Актуализировать названия Google / OneDrive документов">
+                    <i class="fas fa-arrows-rotate"></i> <span class="btn-sync-text">Обновить</span>
                 </button>
 
                 <!-- Кнопка перехода в Планнер -->
-                <a href="/static/tasks.html" class="btn-action btn-nav-planner"
-                    style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; text-decoration: none;"
+                <a href="/static/tasks.html" class="btn-modern-secondary"
+                    style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
                     title="Перейти в Планнер задач">
                     <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
                 </a>
 
                 <!-- Сквозной профиль сотрудника (User Session Badge) -->
                 <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
-                    <button class="btn-action btn-user-badge" id="docs-user-badge" onclick="promptDocsUserAuth()"
-                        style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-weight: 600; padding: 0.55rem 0.85rem;"
+                    <div class="user-session-badge-modern anonymous" id="docs-user-badge" onclick="promptDocsUserAuth()"
                         title="Нажмите для входа или смены профиля">
-                        <i class="fa-solid fa-user" style="color: #2563eb;"></i> <span id="docs-user-name">Войти
-                            (PIN)</span>
-                    </button>
-                    <button id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля"
-                        style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0.35rem 0.5rem; border-radius: 6px;">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                        <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
+                        <span id="docs-user-name">Войти (PIN)</span>
+                        <button type="button" id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из профиля"
+                            style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0 2px; line-height: 1;">
+                            &times;
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="folder-header-bar">
-            <div class="folder-title-left">
-                <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()">
+        <!-- Modern Breadcrumbs & Folder Title Bar -->
+        <div class="folder-header-bar" style="margin-bottom: 0.85rem;">
+            <div class="folder-title-left" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <button id="btn-back" class="btn-back" style="display: none;" onclick="goUp()" title="Вернуться на уровень выше">
                     <i class="fas fa-arrow-left"></i> Назад
                 </button>
-                <h1 id="current-folder-name" class="page-title">Главная директория</h1>
+                <div style="display: flex; align-items: baseline; gap: 8px;">
+                    <h1 id="current-folder-name" class="page-title" style="margin: 0; font-size: 1.35rem; font-weight: 700; color: #0f172a;">Главная директория</h1>
+                    <span id="folder-items-count-badge" style="font-size: 0.82rem; font-weight: 600; color: #64748b; background: #e2e8f0; padding: 2px 8px; border-radius: 12px;">0 элементов</span>
+                </div>
             </div>
             <div class="docs-sort-container" title="Сортировка документов">
                 <div class="mobile-sort-icon">
@@ -1792,6 +2072,29 @@
                     <option value="name_asc">По имени (А-Я)</option>
                     <option value="name_desc">По имени (Я-А)</option>
                 </select>
+            </div>
+        </div>
+
+        <!-- Filter Chips Deck -->
+        <div class="docs-filter-chips" id="docs-filter-chips">
+            <div class="docs-chip active" id="chip-filter-all" onclick="setDocTypeFilter('all')">
+                <span>Все</span> <span class="docs-chip-count" id="count-chip-all">0</span>
+            </div>
+            <div class="docs-chip" id="chip-filter-pdf" onclick="setDocTypeFilter('pdf')">
+                <i class="fas fa-file-pdf" style="color: #ef4444;"></i>
+                <span>PDF Документы</span> <span class="docs-chip-count" id="count-chip-pdf">0</span>
+            </div>
+            <div class="docs-chip" id="chip-filter-sheets" onclick="setDocTypeFilter('sheets')">
+                <i class="fas fa-file-excel" style="color: #10b981;"></i>
+                <span>Таблицы (Excel / Sheets)</span> <span class="docs-chip-count" id="count-chip-sheets">0</span>
+            </div>
+            <div class="docs-chip" id="chip-filter-docs" onclick="setDocTypeFilter('docs')">
+                <i class="fas fa-file-word" style="color: #2563eb;"></i>
+                <span>Регламенты (Docs / Word)</span> <span class="docs-chip-count" id="count-chip-docs">0</span>
+            </div>
+            <div class="docs-chip" id="chip-filter-folders" onclick="setDocTypeFilter('folders')">
+                <i class="fas fa-folder" style="color: #f59e0b;"></i>
+                <span>Папки</span> <span class="docs-chip-count" id="count-chip-folders">0</span>
             </div>
         </div>
 
@@ -2086,42 +2389,60 @@
         </div>
     </div>
 
-    <!-- Модальное окно сквозной PIN-авторизации сотрудника -->
+    <!-- @canonical-pattern PersonPickerPopover & Apple Auth Modal -->
     <div id="docs-pin-modal" class="modal" style="z-index: 10050;">
-        <div class="modal-content" style="max-width: 400px; padding: 1.5rem; text-align: center;">
-            <div
-                style="width: 52px; height: 52px; border-radius: 50%; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 0.8rem;">
-                <i class="fa-solid fa-id-card-clip"></i>
+        <div class="modal-content" style="max-width: 440px; padding: 2rem 1.8rem; text-align: center; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-id-badge"></i>
             </div>
-            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.25rem;">Вход сотрудника</h3>
-            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.2rem;">
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.4rem; line-height: 1.4;">
                 Выберите своё имя и введите 4-значный PIN-код для работы с Базой Знаний и Планнером
             </p>
 
-            <div class="form-group" style="text-align: left; margin-bottom: 1rem;">
-                <label
-                    style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">Сотрудник</label>
-                <select id="docs-pin-user-select" onchange="onDocsPinUserSelectChanged()"
-                    style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem; background: #fff;">
-                    <option value="">-- Выберите сотрудника --</option>
-                </select>
+            <!-- PersonPickerPopover Field -->
+            <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+                <div class="person-picker-wrapper">
+                    <input type="hidden" id="docs-pin-user-input" value="">
+                    <select id="docs-pin-user-select" style="display: none;"></select>
+                    <div class="person-select-modern" id="docs-user-picker-trigger" onclick="toggleDocsUserPickerPopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="docs-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="docs-user-picker-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите сотрудника --</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down" id="docs-user-picker-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="person-picker-popover" id="docs-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-docs-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderDocsUserPickerList(this.value)">
+                        </div>
+                        <div class="filter-popover-list" id="list-docs-user-picker"></div>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group" id="docs-pin-input-group" style="text-align: left; margin-bottom: 1.4rem;">
-                <label
-                    style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">4-значный
-                    PIN-код</label>
-                <input type="password" id="docs-pin-input" maxlength="4" placeholder="••••"
-                    style="width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1.2rem; letter-spacing: 0.35rem; text-align: center; background: #fff;"
-                    onkeydown="if(event.key==='Enter') submitDocsPinAuth()">
+            <!-- 4-Box PIN Input -->
+            <div class="form-group" id="docs-pin-input-group" style="text-align: left; margin-bottom: 1.6rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+                </label>
+                <input type="hidden" id="docs-pin-input" value="">
+                <div class="pin-boxes-container">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-1" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(1, event)" onkeydown="handlePinBoxKeydown(1, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-2" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(2, event)" onkeydown="handlePinBoxKeydown(2, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-3" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(3, event)" onkeydown="handlePinBoxKeydown(3, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-4" maxlength="1" autocomplete="off" oninput="handlePinBoxInput(4, event)" onkeydown="handlePinBoxKeydown(4, event)">
+                </div>
             </div>
 
             <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-                <button class="btn-cancel" onclick="closeDocsPinModal()"
-                    style="flex: 1; min-height: 42px;">Отмена</button>
-                <button class="btn-action" onclick="submitDocsPinAuth()"
-                    style="flex: 1.2; min-height: 42px; background: #2563eb; color: #fff; justify-content: center;">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Войти
+                <button type="button" class="btn-cancel" onclick="closeDocsPinModal()" style="flex: 1; min-height: 44px; border-radius: 10px; font-weight: 600;">Отмена</button>
+                <button type="button" class="btn-action" id="btn-submit-docs-pin" onclick="submitDocsPinAuth()" style="flex: 1.3; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
                 </button>
             </div>
         </div>
@@ -2202,6 +2523,32 @@
         let expandedFolders = new Set();
         let currentFoldersData = [];
         let currentFilesData = [];
+        let currentDocTypeFilter = 'all';
+
+        function setDocTypeFilter(filterKey) {
+            currentDocTypeFilter = filterKey;
+            document.querySelectorAll('.docs-chip').forEach(chip => chip.classList.remove('active'));
+            const activeChip = document.getElementById(`chip-filter-${filterKey}`);
+            if (activeChip) activeChip.classList.add('active');
+            applySort();
+        }
+
+        function getFileCategoryGroup(file) {
+            const m = (file.mimeType || '').toLowerCase();
+            const name = (file.name || '').toLowerCase();
+            const url = (file.external_url || file.webViewLink || '').toLowerCase();
+
+            if (m.includes('pdf') || name.endsWith('.pdf') || url.endsWith('.pdf') || url.includes('.pdf')) {
+                return 'pdf';
+            }
+            if (m.includes('spreadsheet') || m.includes('excel') || m.includes('csv') || url.includes('spreadsheets') || name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
+                return 'sheets';
+            }
+            if (m.includes('document') || m.includes('word') || url.includes('document/d/') || name.endsWith('.docx') || name.endsWith('.doc')) {
+                return 'docs';
+            }
+            return 'other';
+        }
 
         /* ==========================================================
            SIDEBAR DRAWER TOGGLING (MOBILE)
@@ -2225,8 +2572,49 @@
 
         function applySort() {
             const sortVal = document.getElementById('docs-sort').value;
-            let folders = [...currentFoldersData];
-            let files = [...currentFilesData];
+            let allFolders = [...currentFoldersData];
+            let allFiles = [...currentFilesData];
+
+            // 1. Update filter chip counters
+            let countPdf = 0;
+            let countSheets = 0;
+            let countDocs = 0;
+            allFiles.forEach(f => {
+                const grp = getFileCategoryGroup(f);
+                if (grp === 'pdf') countPdf++;
+                else if (grp === 'sheets') countSheets++;
+                else if (grp === 'docs') countDocs++;
+            });
+
+            const countAllEl = document.getElementById('count-chip-all');
+            const countPdfEl = document.getElementById('count-chip-pdf');
+            const countSheetsEl = document.getElementById('count-chip-sheets');
+            const countDocsEl = document.getElementById('count-chip-docs');
+            const countFoldersEl = document.getElementById('count-chip-folders');
+            const folderBadgeEl = document.getElementById('folder-items-count-badge');
+
+            if (countAllEl) countAllEl.textContent = allFolders.length + allFiles.length;
+            if (countPdfEl) countPdfEl.textContent = countPdf;
+            if (countSheetsEl) countSheetsEl.textContent = countSheets;
+            if (countDocsEl) countDocsEl.textContent = countDocs;
+            if (countFoldersEl) countFoldersEl.textContent = allFolders.length;
+            if (folderBadgeEl) folderBadgeEl.textContent = `${allFolders.length + allFiles.length} элементов`;
+
+            // 2. Filter by selected chip
+            let folders = allFolders;
+            let files = allFiles;
+            if (currentDocTypeFilter === 'pdf') {
+                folders = [];
+                files = allFiles.filter(f => getFileCategoryGroup(f) === 'pdf');
+            } else if (currentDocTypeFilter === 'sheets') {
+                folders = [];
+                files = allFiles.filter(f => getFileCategoryGroup(f) === 'sheets');
+            } else if (currentDocTypeFilter === 'docs') {
+                folders = [];
+                files = allFiles.filter(f => getFileCategoryGroup(f) === 'docs');
+            } else if (currentDocTypeFilter === 'folders') {
+                files = [];
+            }
 
             const sortBy = (arr, isFolder) => {
                 arr.sort((a, b) => {
@@ -2936,7 +3324,21 @@
         let currentTargetItem = null;
         let createDocType = 'document';
 
-        function showToast(text) {
+        function showToast(text, type = 'success', subtitle = '') {
+            if (window.toast && typeof window.toast.show === 'function') {
+                let actualType = type;
+                const lower = (text || '').toLowerCase();
+                if (lower.includes('ошибка') || lower.includes('неверн') || lower.includes('сбой')) {
+                    actualType = 'error';
+                } else if (lower.includes('укажите') || lower.includes('выберите')) {
+                    actualType = 'warning';
+                }
+                return window.toast.show({
+                    type: actualType,
+                    title: text,
+                    message: subtitle
+                });
+            }
             const toast = document.getElementById('toast');
             const toastText = document.getElementById('toast-text');
             if (toast && toastText) {
@@ -3425,17 +3827,13 @@
                         </div>
                         <div class="row-actions">
                             <button class="btn-icon btn-icon-planner" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\\'")}')" title="Создать задачу по документу в Планнере">
-                                <i class="fa-solid fa-list-check"></i>
+                                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
                             </button>
-                            ${newVersionBtn}
                             <a href="${escapeHtml(viewUrl)}" target="_blank" download class="btn-icon btn-icon-download" title="Скачать на диск">
-                                <i class="fas fa-download"></i>
+                                <i class="fas fa-download" style="color: #64748b;"></i>
                             </a>
-                            <button class="btn-icon btn-icon-move" onclick="event.stopPropagation(); openMoveModal('${file.id}', '${escapeHtml(file.name).replace(/'/g, "\\'")}', false, '${file.category_id || ''}', ${file.is_protected})" title="Переместить файл">
-                                <i class="fas fa-folder-tree"></i>
-                            </button>
-                            <button class="btn-icon btn-icon-delete" onclick="deleteItem('${file.id}', event, ${file.is_protected})" title="Удалить">
-                                <i class="fas fa-trash"></i>
+                            <button class="action-more-btn" onclick="openFileMenuById('${file.id}', event)" title="Дополнительные действия (Переместить, Версии, Удалить)">
+                                <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                         </div>
                     </div>
@@ -4187,22 +4585,18 @@
             if (nameEl && badgeEl) {
                 if (currentDocsUser && currentDocsUser.name) {
                     nameEl.textContent = currentDocsUser.name;
-                    badgeEl.style.background = "#eff6ff";
-                    badgeEl.style.color = "#1d4ed8";
-                    badgeEl.style.borderColor = "#bfdbfe";
-                    badgeEl.title = `Авторизован: ${currentDocsUser.name}. Нажмите для смены`;
+                    badgeEl.className = "user-session-badge-modern";
+                    badgeEl.title = `Авторизован: ${currentDocsUser.name}. Нажмите для смены профиля`;
                     if (logoutBtn) logoutBtn.style.display = "inline-block";
                 } else {
                     nameEl.textContent = "Войти (PIN)";
-                    badgeEl.style.background = "#f8fafc";
-                    badgeEl.style.color = "#334155";
-                    badgeEl.style.borderColor = "#cbd5e1";
+                    badgeEl.className = "user-session-badge-modern anonymous";
                     badgeEl.title = "Нажмите, чтобы войти под своим именем";
                     if (logoutBtn) logoutBtn.style.display = "none";
                 }
             }
 
-            // Синхронизация профиля в мобильном боковом меню (Sidebar)
+            // Синхронизация профиля в боковом меню (Sidebar)
             const sidebarNameEl = document.getElementById("sidebar-docs-user-name");
             const sidebarBadgeEl = document.getElementById("sidebar-docs-user-badge");
             const sidebarLogoutBtn = document.getElementById("sidebar-btn-docs-logout");
@@ -4240,29 +4634,211 @@
             showToast("Вы вышли из профиля");
         }
 
+        /* --- Canonical PersonPickerPopover & 4-Box PIN Auth Handlers --- */
+        function getInitialsAvatar(name) {
+            if (!name) return '??';
+            const parts = name.trim().split(/\s+/);
+            if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+            return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+        }
+
+        function toggleDocsUserPickerPopover(event) {
+            if (event) event.stopPropagation();
+            const popover = document.getElementById("docs-user-picker-popover");
+            const trigger = document.getElementById("docs-user-picker-trigger");
+            if (!popover || !trigger) return;
+
+            const isOpen = popover.style.display === "block";
+            if (isOpen) {
+                closeDocsUserPickerPopover();
+            } else {
+                renderDocsUserPickerList("");
+                popover.style.display = "block";
+                trigger.classList.add("popover-open");
+                positionDocsUserPickerPopover();
+                const searchInput = document.getElementById("search-docs-user-picker");
+                if (searchInput) {
+                    searchInput.value = "";
+                    setTimeout(() => { searchInput.focus(); }, 50);
+                }
+            }
+        }
+
+        function closeDocsUserPickerPopover() {
+            const popover = document.getElementById("docs-user-picker-popover");
+            const trigger = document.getElementById("docs-user-picker-trigger");
+            if (popover) popover.style.display = "none";
+            if (trigger) trigger.classList.remove("popover-open");
+        }
+
+        function positionDocsUserPickerPopover() {
+            const popover = document.getElementById("docs-user-picker-popover");
+            const trigger = document.getElementById("docs-user-picker-trigger");
+            if (!popover || !trigger || popover.style.display !== "block") return;
+
+            const rect = trigger.getBoundingClientRect();
+            popover.style.top = `${rect.bottom + 6}px`;
+            popover.style.left = `${rect.left}px`;
+            popover.style.width = `${Math.max(rect.width, 320)}px`;
+        }
+
+        window.addEventListener("resize", positionDocsUserPickerPopover, { passive: true });
+        window.addEventListener("scroll", positionDocsUserPickerPopover, { passive: true });
+        window.addEventListener("click", () => { closeDocsUserPickerPopover(); });
+
+        function selectDocsUser(empName) {
+            const input = document.getElementById("docs-pin-user-input");
+            const select = document.getElementById("docs-pin-user-select");
+            const displayText = document.getElementById("docs-user-picker-display-text");
+            const avatar = document.getElementById("docs-user-picker-avatar");
+
+            if (input) input.value = empName || "";
+            if (select) select.value = empName || "";
+
+            if (empName) {
+                const emp = (plannerEmployeesList || []).find(e => e.name === empName);
+                if (displayText) {
+                    displayText.textContent = emp ? `${emp.name} ${emp.position ? '(' + emp.position + ')' : ''}` : empName;
+                    displayText.style.color = "#0f172a";
+                    displayText.style.fontWeight = "600";
+                }
+                if (avatar) {
+                    avatar.innerHTML = getInitialsAvatar(empName);
+                    avatar.style.background = "#eff6ff";
+                    avatar.style.color = "#1d4ed8";
+                }
+            } else {
+                if (displayText) {
+                    displayText.textContent = "-- Выберите сотрудника --";
+                    displayText.style.color = "#64748b";
+                    displayText.style.fontWeight = "normal";
+                }
+                if (avatar) {
+                    avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
+                    avatar.style.background = "#f1f5f9";
+                    avatar.style.color = "#64748b";
+                }
+            }
+
+            closeDocsUserPickerPopover();
+            onDocsPinUserSelectChanged();
+        }
+
+        function renderDocsUserPickerList(filterQuery = '') {
+            const listEl = document.getElementById("list-docs-user-picker");
+            if (!listEl) return;
+
+            const q = (filterQuery || '').trim().toLowerCase();
+            const currentVal = document.getElementById("docs-pin-user-input")?.value || "";
+
+            let html = '';
+            // Reset option
+            const isUnassigned = !currentVal;
+            html += `
+                <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectDocsUser('')">
+                    <div class="filter-option-person-left">
+                        <div class="author-avatar-circle" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.75rem;"></i></div>
+                        <span style="color: #64748b; font-style: italic;">-- Выберите сотрудника --</span>
+                    </div>
+                </div>
+            `;
+
+            const list = Array.isArray(plannerEmployeesList) ? plannerEmployeesList : [];
+            const filtered = list.filter(emp => {
+                if (!q) return true;
+                return (emp.name || '').toLowerCase().includes(q) || (emp.position || '').toLowerCase().includes(q);
+            });
+
+            filtered.forEach(emp => {
+                const isSelected = emp.name === currentVal;
+                const initials = getInitialsAvatar(emp.name);
+                html += `
+                    <div class="filter-option-item ${isSelected ? 'selected' : ''}" onclick="selectDocsUser('${escapeHtml(emp.name).replace(/'/g, "\'")}')">
+                        <div class="filter-option-person-left">
+                            <div class="author-avatar-circle" style="background: ${isSelected ? '#2563eb' : '#eff6ff'}; color: ${isSelected ? '#fff' : '#1d4ed8'};">
+                                ${initials}
+                            </div>
+                            <div style="display: flex; flex-direction: column; min-width: 0;">
+                                <span style="color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isSelected ? '700' : '500'};">${escapeHtml(emp.name)}</span>
+                                ${emp.position ? `<span style="font-size: 0.72rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(emp.position)}</span>` : ''}
+                            </div>
+                        </div>
+                        ${isSelected ? '<i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i>' : ''}
+                    </div>
+                `;
+            });
+
+            if (filtered.length === 0) {
+                html += `<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">Сотрудник не найден</div>`;
+            }
+
+            listEl.innerHTML = html;
+        }
+
+        /* 4-Box PIN Input Helpers */
+        function getPinBoxValue() {
+            let val = '';
+            for (let i = 1; i <= 4; i++) {
+                const box = document.getElementById(`pin-box-${i}`);
+                if (box) val += box.value.trim();
+            }
+            return val;
+        }
+
+        function clearPinBoxes() {
+            for (let i = 1; i <= 4; i++) {
+                const box = document.getElementById(`pin-box-${i}`);
+                if (box) box.value = '';
+            }
+            const hidden = document.getElementById('docs-pin-input');
+            if (hidden) hidden.value = '';
+        }
+
+        function handlePinBoxInput(index, event) {
+            const box = document.getElementById(`pin-box-${index}`);
+            if (!box) return;
+
+            // Allow only numbers
+            box.value = box.value.replace(/[^0-9]/g, '');
+
+            if (box.value && index < 4) {
+                const nextBox = document.getElementById(`pin-box-${index + 1}`);
+                if (nextBox) nextBox.focus();
+            }
+
+            const fullPin = getPinBoxValue();
+            const hidden = document.getElementById('docs-pin-input');
+            if (hidden) hidden.value = fullPin;
+
+            if (fullPin.length === 4) {
+                submitDocsPinAuth();
+            }
+        }
+
+        function handlePinBoxKeydown(index, event) {
+            if (event.key === 'Backspace') {
+                const box = document.getElementById(`pin-box-${index}`);
+                if (box && !box.value && index > 1) {
+                    const prevBox = document.getElementById(`pin-box-${index - 1}`);
+                    if (prevBox) {
+                        prevBox.focus();
+                        prevBox.value = '';
+                    }
+                }
+            } else if (event.key === 'Enter') {
+                submitDocsPinAuth();
+            }
+        }
+
         async function openDocsPinModal(preselectedUser = null, onSuccess = null) {
             pendingDocsAuthCallback = onSuccess;
             await loadPlannerEmployeesOnce();
 
             const modal = document.getElementById("docs-pin-modal");
-            const select = document.getElementById("docs-pin-user-select");
-            const pinInput = document.getElementById("docs-pin-input");
+            clearPinBoxes();
 
-            if (select) {
-                select.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
-                plannerEmployeesList.forEach(emp => {
-                    const opt = document.createElement('option');
-                    opt.value = emp.name;
-                    opt.textContent = emp.name + (emp.position ? ` (${emp.position})` : '');
-                    if ((preselectedUser && emp.name === preselectedUser) || (currentDocsUser && emp.name === currentDocsUser.name)) {
-                        opt.selected = true;
-                    }
-                    select.appendChild(opt);
-                });
-            }
-
-            if (pinInput) pinInput.value = "";
-            onDocsPinUserSelectChanged();
+            const targetUser = preselectedUser || (currentDocsUser ? currentDocsUser.name : '');
+            selectDocsUser(targetUser);
 
             if (modal) {
                 modal.style.display = "flex";
@@ -4271,21 +4847,25 @@
             }
 
             setTimeout(() => {
-                if (pinInput && pinInput.style.display !== "none") pinInput.focus();
-            }, 100);
+                const b1 = document.getElementById("pin-box-1");
+                const pinGroup = document.getElementById("docs-pin-input-group");
+                if (b1 && pinGroup && pinGroup.style.display !== "none") {
+                    b1.focus();
+                }
+            }, 120);
         }
 
         function closeDocsPinModal() {
             const modal = document.getElementById("docs-pin-modal");
             if (modal) modal.style.display = "none";
+            closeDocsUserPickerPopover();
             pendingDocsAuthCallback = null;
         }
 
         function onDocsPinUserSelectChanged() {
-            const select = document.getElementById("docs-pin-user-select");
+            const input = document.getElementById("docs-pin-user-input");
             const pinGroup = document.getElementById("docs-pin-input-group");
-            const pinInput = document.getElementById("docs-pin-input");
-            const name = select ? select.value.trim() : "";
+            const name = input ? input.value.trim() : "";
             if (!name) return;
 
             const emp = plannerEmployeesList.find(e => e.name === name);
@@ -4293,26 +4873,35 @@
                 if (pinGroup) pinGroup.style.display = "none";
             } else {
                 if (pinGroup) pinGroup.style.display = "block";
-                if (pinInput) pinInput.focus();
+                const b1 = document.getElementById("pin-box-1");
+                if (b1) setTimeout(() => b1.focus(), 50);
             }
         }
 
         async function submitDocsPinAuth() {
-            const select = document.getElementById("docs-pin-user-select");
-            const pinInput = document.getElementById("docs-pin-input");
-            const name = select ? select.value.trim() : "";
-            const pin = pinInput ? pinInput.value.trim() : "";
+            const input = document.getElementById("docs-pin-user-input");
+            const name = input ? input.value.trim() : "";
+            const pin = getPinBoxValue();
+            const btnSubmit = document.getElementById("btn-submit-docs-pin");
 
             if (!name) {
-                alert("Пожалуйста, выберите сотрудника!");
+                showToast("Пожалуйста, выберите сотрудника!");
+                toggleDocsUserPickerPopover();
                 return;
             }
 
             const pinGroup = document.getElementById("docs-pin-input-group");
-            if (pinGroup && pinGroup.style.display !== "none" && !pin) {
-                alert("Пожалуйста, введите 4-значный PIN-код!");
-                if (pinInput) pinInput.focus();
+            if (pinGroup && pinGroup.style.display !== "none" && pin.length < 4) {
+                showToast("Пожалуйста, введите 4-значный PIN-код!");
+                const b1 = document.getElementById("pin-box-1");
+                if (b1) b1.focus();
                 return;
+            }
+
+            // Double submit guard
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Проверка...</span>';
             }
 
             try {
@@ -4330,21 +4919,26 @@
 
                     const cb = pendingDocsAuthCallback;
                     closeDocsPinModal();
+                    showToast(`Авторизован: ${name}`);
 
                     if (cb && typeof cb === "function") {
                         cb(currentDocsUser);
                     }
                 } else {
                     const err = await res.json();
-                    alert("Ошибка авторизации: " + (err.detail || "Неверный PIN-код"));
-                    if (pinInput) {
-                        pinInput.value = "";
-                        pinInput.focus();
-                    }
+                    showToast("Ошибка: " + (err.detail || "Неверный PIN-код"));
+                    clearPinBoxes();
+                    const b1 = document.getElementById("pin-box-1");
+                    if (b1) b1.focus();
                 }
             } catch (e) {
                 console.error("PIN verification error:", e);
-                alert("Ошибка сети при проверке PIN-кода");
+                showToast("Ошибка сети при проверке PIN-кода");
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>';
+                }
             }
         }
 
@@ -4931,6 +5525,7 @@
     </script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
+<script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
 </body>
 
 </html>

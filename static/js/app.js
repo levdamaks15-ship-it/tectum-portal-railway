@@ -2861,12 +2861,22 @@ async function addJournalDowntime() {
     const isEquipmentStop = document.getElementById('journal-dt-is-equipment-stop')?.checked ?? true;
 
     if (!desc && !descKz) {
-        showNotification('error', 'Ошибка', "Введите описание поломки или выполненных работ!");
+        if (window.toast) {
+            window.toast.warning('Введите описание', 'Укажите причину простой или выполненные работы');
+        } else {
+            showNotification('error', 'Ошибка', "Введите описание поломки или выполненных работ!");
+        }
+        document.getElementById('journal-dt-desc')?.focus();
         return;
     }
     const finalDesc = desc || descKz;
     if (!startTime) {
-        showNotification('error', 'Ошибка', "Укажите время начала простоя!");
+        if (window.toast) {
+            window.toast.warning('Укажите время начала', 'Время начала простоя обязательно для фиксации');
+        } else {
+            showNotification('error', 'Ошибка', "Укажите время начала простоя!");
+        }
+        document.getElementById('journal-dt-start')?.focus();
         return;
     }
 
@@ -2895,7 +2905,13 @@ async function addJournalDowntime() {
         
         if (res.ok) {
             saveLastLineAndShift(line, shift_name);
-            showNotification('success', 'Отлично!', 'Простой успешно зафиксирован в журнале.');
+            if (window.toast) {
+                const durationMinutes = parseDurationMinutes(startTime, endTime);
+                const durationText = durationMinutes > 0 ? ` • ${formatDurationHM(durationMinutes)}` : '';
+                window.toast.success('Простой зафиксирован в журнале', `${line} | Смена: ${shift_name}${durationText}`);
+            } else {
+                showNotification('success', 'Отлично!', 'Простой успешно зафиксирован в журнале.');
+            }
             // Очищаем поля ввода и состояние Flatpickr
             document.getElementById('journal-dt-desc').value = '';
             const descKzInput = document.getElementById('journal-dt-desc-kz');
