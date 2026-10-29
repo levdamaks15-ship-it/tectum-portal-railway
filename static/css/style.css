@@ -2473,3 +2473,21 @@ input[type="text"][readonly] {
     outline: none;
     background: #f8fafc;
 }
+
+
+/* Hide mobile header quick links on mobile (because bottom nav handles it) */
+@media screen and (max-width: 768px) {
+    .header-quick-links {
+        display: none !important;
+    }
+}
+
+/* Hide mobile bottom navigation bar when user is on login screen (not yet authenticated) */
+body:has(#login-screen:not([style*="display: none"])) .tectum-mobile-bottom-nav,
+body.not-authenticated .tectum-mobile-bottom-nav {
+    display: none !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) {
+    padding-bottom: 0 !important;
+}

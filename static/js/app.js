@@ -1105,6 +1105,11 @@ async function logout() {
     const loginScreen = document.getElementById('login-screen');
     if (loginScreen) loginScreen.style.display = 'block';
     
+    // Hide mobile bottom nav on logout
+    const bNavLogout = document.querySelector('.tectum-mobile-bottom-nav');
+    if (bNavLogout) bNavLogout.style.display = 'none';
+    document.body.classList.add('not-authenticated');
+    
     try {
         sessionStorage.removeItem('planner_user_session');
     } catch(e) {}
@@ -4522,6 +4527,10 @@ async function init() {
                     return;
                 }
                 
+                document.body.classList.remove('not-authenticated');
+                const bNavRestore = document.querySelector('.tectum-mobile-bottom-nav');
+                if (bNavRestore) bNavRestore.style.display = '';
+
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
                 document.getElementById('user-info-container').style.display = 'flex';
@@ -4559,6 +4568,11 @@ async function init() {
             document.getElementById('login-screen').style.display = 'block';
         }
         
+        // Hide mobile bottom navigation until user logs in
+        const bNav = document.querySelector('.tectum-mobile-bottom-nav');
+        if (bNav) bNav.style.display = 'none';
+        document.body.classList.add('not-authenticated');
+
         await loadUserGrid();
     } catch(e) {
         console.error("Init error:", e);
@@ -5578,7 +5592,11 @@ async function submitCanonicalLogin() {
             shopSubtitle.innerText = 'ЦЕХ ХРИЗОТИЛЦЕМЕНТНЫХ ИЗДЕЛИЙ';
         }
 
-        // Show working area in XCI
+        // Show working area in XCI and reveal mobile bottom nav for authenticated employee
+        document.body.classList.remove('not-authenticated');
+        const bNav = document.querySelector('.tectum-mobile-bottom-nav');
+        if (bNav) bNav.style.display = '';
+
         const loginScreen = document.getElementById('login-screen');
         if (loginScreen) loginScreen.style.display = 'none';
         
