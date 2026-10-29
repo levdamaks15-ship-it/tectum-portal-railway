@@ -788,7 +788,7 @@ function renderPersonPickerList(type, filterQuery = '') {
     const taskCountMap = {};
     if (Array.isArray(allTasks)) {
         allTasks.forEach(t => {
-            const p = type === 'author' ? t.author : t.assignee;
+            const p = type === 'author' ? (t.author_name || t.author) : (t.assignee_name || t.assignee);
             if (p) taskCountMap[p] = (taskCountMap[p] || 0) + 1;
         });
     }

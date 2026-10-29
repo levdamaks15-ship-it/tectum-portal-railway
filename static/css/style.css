@@ -2364,7 +2364,7 @@ input[type="text"][readonly] {
     color: #2563eb;
 }
 
-.person-picker-popover {
+.person-picker-wrapper .person-picker-popover {
     position: fixed !important;
     z-index: 99999 !important;
     background: #ffffff !important;
