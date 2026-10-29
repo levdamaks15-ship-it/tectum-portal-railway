@@ -2501,15 +2501,15 @@ body.not-authenticated #app-container {
     flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
-    padding-top: 1rem !important;
-    padding-bottom: 2rem !important;
+    padding-top: 2rem !important;
+    padding-bottom: 2.5rem !important;
 }
 
 body:has(#login-screen:not([style*="display: none"])) .header-main,
 body.not-authenticated .header-main {
     width: 100% !important;
-    max-width: 440px !important;
-    margin: 0 auto 1.5rem auto !important;
+    max-width: 600px !important;
+    margin: 0 auto 2.75rem auto !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
@@ -2524,22 +2524,57 @@ body.not-authenticated .header-top-row {
 
 body:has(#login-screen:not([style*="display: none"])) .header-brand-left,
 body.not-authenticated .header-brand-left {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
     justify-content: center !important;
-    gap: 8px !important;
+    gap: 12px !important;
     height: auto !important;
 }
 
+/* Enlarge brand title: TECTUM ENGINEERING */
 body:has(#login-screen:not([style*="display: none"])) .brand-title-tectum,
 body.not-authenticated .brand-title-tectum {
-    font-size: 1.5rem !important;
-    letter-spacing: 0.04em !important;
+    font-size: 2.15rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.06em !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+    line-height: 1.15 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
+/* Dynamic suffix ENGINEERING on login screen */
+body:has(#login-screen:not([style*="display: none"])) .brand-title-tectum::after,
+body.not-authenticated .brand-title-tectum::after {
+    content: " ENGINEERING";
+    color: #2563eb;
+    margin-left: 0.35em;
+    font-weight: 800;
+}
+
+/* Hide small divider and subtitle on login screen to keep it pure and focused */
+body:has(#login-screen:not([style*="display: none"])) .brand-divider,
+body:has(#login-screen:not([style*="display: none"])) .brand-subtitle,
+body.not-authenticated .brand-divider,
+body.not-authenticated .brand-subtitle {
+    display: none !important;
+}
+
+/* Prominent Corporate Portal Badge */
 body:has(#login-screen:not([style*="display: none"])) .badge-shop-portal,
 body.not-authenticated .badge-shop-portal {
-    font-size: 0.8rem !important;
-    padding: 5px 12px !important;
-    border-radius: 8px !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    padding: 6px 18px !important;
+    border-radius: 9999px !important;
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border: 1px solid #bfdbfe !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12) !important;
 }
 
 body:has(#login-screen:not([style*="display: none"])) #login-screen,
