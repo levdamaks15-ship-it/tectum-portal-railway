@@ -186,9 +186,10 @@ def check_task_access(
 
 # --- PLANNER SETTINGS (EMPLOYEES & ZONES) ENDPOINTS ---
 
-@router.get("/api/planner/employees")
-def get_planner_employees(db: Session = Depends(get_db)):
-    """Возвращает список сотрудников планнера (без раскрытия секретных PIN-кодов)."""
+@router.get("/api/admin/planner-employees")
+def get_admin_planner_employees(request: Request, db: Session = Depends(get_db)):
+    """Возвращает список сотрудников планнера с PIN-кодами исключительно для панели администратора."""
+    check_admin_session(request, db)
     try:
         emps = db.query(models.PlannerEmployee).order_by(models.PlannerEmployee.sort_order.asc(), models.PlannerEmployee.id.asc()).all()
         return [
@@ -196,6 +197,35 @@ def get_planner_employees(db: Session = Depends(get_db)):
                 "id": e.id,
                 "name": e.name,
                 "email": e.email or "",
+                "pin_code": e.pin_code or "",
+                "has_pin": bool(e.pin_code and e.pin_code.strip()),
+                "is_active": bool(e.is_active),
+                "sort_order": e.sort_order or 0
+            }
+            for e in emps
+        ]
+    except Exception as e:
+        print(f"Error getting admin planner employees: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/planner/employees")
+def get_planner_employees(request: Request, db: Session = Depends(get_db)):
+    """Возвращает список сотрудников планнера (без раскрытия секретных PIN-кодов для обычных пользователей)."""
+    is_admin = False
+    try:
+        check_admin_session(request, db)
+        is_admin = True
+    except Exception:
+        is_admin = False
+
+    try:
+        emps = db.query(models.PlannerEmployee).order_by(models.PlannerEmployee.sort_order.asc(), models.PlannerEmployee.id.asc()).all()
+        return [
+            {
+                "id": e.id,
+                "name": e.name,
+                "email": e.email or "",
+                "pin_code": (e.pin_code or "") if is_admin else "",
                 "has_pin": bool(e.pin_code and e.pin_code.strip()),
                 "is_active": bool(e.is_active),
                 "sort_order": e.sort_order or 0

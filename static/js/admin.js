@@ -3065,10 +3065,26 @@ async function loadPlannerSettings() {
 
 async function loadPlannerEmployees() {
     try {
-        const res = await fetch('/api/planner/employees');
+        const pin = (typeof currentAdmin !== 'undefined' && currentAdmin?.pin) ? currentAdmin.pin : '';
+        const res = await fetch('/api/admin/planner-employees', {
+            headers: {
+                'X-Admin-PIN': pin
+            }
+        });
         if (res.ok) {
             adminPlannerEmployees = await res.json();
             renderPlannerEmployeesTable();
+        } else {
+            // Резервный вызов общего эндпоинта
+            const fallbackRes = await fetch('/api/planner/employees', {
+                headers: {
+                    'X-Admin-PIN': pin
+                }
+            });
+            if (fallbackRes.ok) {
+                adminPlannerEmployees = await fallbackRes.json();
+                renderPlannerEmployeesTable();
+            }
         }
     } catch (e) {
         console.error("Error loading planner employees:", e);
@@ -3080,36 +3096,40 @@ function renderPlannerEmployeesTable() {
     if (!tbody) return;
 
     if (adminPlannerEmployees.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">Нет добавленных сотрудников</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">Нет добавленных сотрудников</td></tr>`;
         return;
     }
 
     tbody.innerHTML = adminPlannerEmployees.map((emp, idx) => `
         <tr>
             <td style="color: var(--text-secondary); width: 35px;">${idx + 1}</td>
-            <td style="font-weight: 600; color: var(--text-primary);">${emp.name}</td>
+            <td style="font-weight: 600; color: var(--text-primary);">${escapeHtml(emp.name)}</td>
             <td style="color: ${emp.email ? 'var(--accent-color)' : 'var(--text-secondary)'};">
-                ${emp.email ? `<i class="fa-regular fa-envelope"></i> ${emp.email}` : '—'}
+                ${emp.email ? `<i class="fa-regular fa-envelope"></i> ${escapeHtml(emp.email)}` : '—'}
             </td>
             <td>
-                ${emp.has_pin ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;"><i class="fa-solid fa-lock"></i> Задан (••••)</span>` : '<span style="color: #94a3b8; font-size: 0.75rem;">Не задан</span>'}
+                ${emp.pin_code 
+                    ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">🔑 ${escapeHtml(emp.pin_code)}</span>` 
+                    : (emp.has_pin 
+                        ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;"><i class="fa-solid fa-lock"></i> Задан</span>` 
+                        : '<span style="color: #94a3b8; font-size: 0.75rem;">Не задан</span>')}
             </td>
             <td style="text-align: right; white-space: nowrap;">
-                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.pin_code || '').replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deletePlannerEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
 }
 
-function openPlannerEmployeeModal(id = null, name = '', email = '') {
+function openPlannerEmployeeModal(id = null, name = '', email = '', pin = '') {
     document.getElementById('planner-emp-id').value = id || '';
     document.getElementById('planner-emp-name').value = name || '';
     document.getElementById('planner-emp-email').value = email || '';
     const pinInput = document.getElementById('planner-emp-pin');
     if (pinInput) {
-        pinInput.value = '';
-        pinInput.placeholder = id ? '•••• (оставьте пустым, чтобы не менять)' : '4 цифры';
+        pinInput.value = pin || '';
+        pinInput.placeholder = 'Например: 1234';
     }
     document.getElementById('planner-emp-modal-title').innerHTML = id ? `<i class="fa-solid fa-pen"></i> Редактировать сотрудника` : `<i class="fa-solid fa-user-plus"></i> Добавить сотрудника`;
     
