@@ -1081,6 +1081,17 @@ async function logout() {
         localStorage.removeItem('tectum_current_user_name');
     } catch(e) {}
     
+    // Restore header brand to Portal
+    const shopBadge = document.getElementById('header-shop-badge');
+    if (shopBadge) {
+        shopBadge.className = 'brand-badge-shop badge-shop-portal';
+        shopBadge.innerText = 'ПОРТАЛ';
+    }
+    const shopSubtitle = document.getElementById('header-shop-subtitle');
+    if (shopSubtitle) {
+        shopSubtitle.innerText = 'ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ';
+    }
+
     // Hide Checklists button upon logout
     const checklistsBtn = document.getElementById('header-checklists-btn');
     if (checklistsBtn) checklistsBtn.style.display = 'none';
@@ -4502,6 +4513,16 @@ async function init() {
                 const checklistsBtn = document.getElementById('header-checklists-btn');
                 if (checklistsBtn) checklistsBtn.style.display = 'inline-flex';
                 
+                const shopBadge = document.getElementById('header-shop-badge');
+                if (shopBadge) {
+                    shopBadge.className = 'brand-badge-shop badge-shop-xci';
+                    shopBadge.innerText = 'ХЦИ';
+                }
+                const shopSubtitle = document.getElementById('header-shop-subtitle');
+                if (shopSubtitle) {
+                    shopSubtitle.innerText = 'ЦЕХ ХРИЗОТИЛЦЕМЕНТНЫХ ИЗДЕЛИЙ';
+                }
+                
                 applyRoleVisibility();
                 await loadData();
                 return;
@@ -5526,6 +5547,17 @@ async function submitCanonicalLogin() {
         if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
             window.location.href = '/static/lkc.html';
             return;
+        }
+
+        // Switch header brand to XCI workshop
+        const shopBadge = document.getElementById('header-shop-badge');
+        if (shopBadge) {
+            shopBadge.className = 'brand-badge-shop badge-shop-xci';
+            shopBadge.innerText = 'ХЦИ';
+        }
+        const shopSubtitle = document.getElementById('header-shop-subtitle');
+        if (shopSubtitle) {
+            shopSubtitle.innerText = 'ЦЕХ ХРИЗОТИЛЦЕМЕНТНЫХ ИЗДЕЛИЙ';
         }
 
         // Show working area in XCI
