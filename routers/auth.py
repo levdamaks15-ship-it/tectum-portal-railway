@@ -32,19 +32,60 @@ class AdminLoginRequest(BaseModel):
 
 @router.post("/api/login/")
 def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    master = db.query(models.Master).filter(models.Master.name == data.name, models.Master.pin == data.pin).first()
+    clean_name = data.name.strip()
+    clean_pin = data.pin.strip()
+    
+    # 1. Поиск в таблице Master (мастера смен цехов ХЦИ/ЛКЦ/СКК, админ)
+    master = db.query(models.Master).filter(models.Master.name == clean_name).first()
+    
+    # 2. Если не найден в Master, поиск в PlannerEmployee (сотрудники ИТР/завода)
+    planner_emp = None
     if not master:
-        raise HTTPException(status_code=400, detail="Неверное имя или ПИН-код")
-    request.session["user_id"] = master.id
-    request.session["user_name"] = master.name
-    request.session["user_role"] = master.role
-    return {"id": master.id, "name": master.name, "role": master.role}
+        planner_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_name).first()
+    
+    # Сверка PIN-кода
+    matched = False
+    user_id = 0
+    user_name = clean_name
+    user_role = "itr"
+    
+    if master:
+        # Проверка мастер-PIN 6282 либо собственного PIN мастера
+        if master.pin == clean_pin or (clean_pin == "6282" and master.role == "admin"):
+            matched = True
+            user_id = master.id
+            user_name = master.name
+            user_role = master.role
+    elif planner_emp:
+        # Если у сотрудника установлен PIN — сверяем (либо мастер-PIN 6282 для админа)
+        if not planner_emp.pin_code or not planner_emp.pin_code.strip() or planner_emp.pin_code.strip() == clean_pin or clean_pin == "6282":
+            matched = True
+            user_id = 10000 + planner_emp.id
+            user_name = planner_emp.name
+            user_role = "admin" if (clean_name.startswith("Левда") and clean_pin == "6282") else "itr"
+            
+    if not matched:
+        raise HTTPException(status_code=400, detail="Неверное имя сотрудника или ПИН-код")
+        
+    request.session["user_id"] = user_id
+    request.session["user_name"] = user_name
+    request.session["user_role"] = user_role
+    return {"id": user_id, "name": user_name, "role": user_role}
 
 @router.post("/api/admin/login")
 def admin_login(data: AdminLoginRequest, request: Request, db: Session = Depends(get_db)):
-    admin = db.query(models.Master).filter(models.Master.pin == data.pin, models.Master.role.in_(["admin", "director", "technologist"])).first()
+    clean_pin = data.pin.strip()
+    admin = None
+    if clean_pin == "6282":
+        admin = db.query(models.Master).filter(models.Master.pin == "6282").first()
+        if not admin:
+            admin = db.query(models.Master).filter(models.Master.role == "admin").first()
+    else:
+        admin = db.query(models.Master).filter(models.Master.pin == clean_pin, models.Master.role == "admin").first()
+
     if not admin:
-        raise HTTPException(status_code=400, detail="Неверный ПИН-код или нет прав администратора")
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Вход в панель управления разрешен только системному администратору (Левда М.).")
+
     request.session["user_id"] = admin.id
     request.session["user_name"] = admin.name
     request.session["user_role"] = admin.role

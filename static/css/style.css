@@ -2133,3 +2133,310 @@ input[type="text"][readonly] {
     cursor: default !important;
     box-shadow: none !important;
 }
+/* ==========================================================================
+   CANONICAL HEADER & AUTH MODAL SYSTEM (TECTUM UNIFIED STANDARD)
+   ========================================================================== */
+
+/* Brand Title Left: Strictly 38px height matching Planner & Knowledge Base */
+.planner-brand-left,
+.header-brand-left {
+    height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-shrink: 0 !important;
+}
+
+.brand-title-tectum {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    color: #0f172a !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+    user-select: none !important;
+}
+
+/* Badges for workshops/services */
+.brand-badge-shop {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px 9px !important;
+    border-radius: 6px !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+    user-select: none !important;
+}
+
+.badge-shop-xci,
+.brand-badge-tasks {
+    background: #fee2e2 !important;
+    color: #c82323 !important;
+}
+
+.badge-shop-skk {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+}
+
+.badge-shop-lkc {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+}
+
+.badge-shop-admin {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+}
+
+.badge-shop-portal {
+    background: #fee2e2 !important;
+    color: #c82323 !important;
+}
+
+.brand-divider {
+    height: 16px !important;
+    width: 1px !important;
+    background: #cbd5e1 !important;
+    margin: 0 4px !important;
+}
+
+.brand-subtitle {
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    color: #64748b !important;
+    text-transform: uppercase !important;
+    user-select: none !important;
+}
+
+@media screen and (max-width: 900px) {
+    .brand-subtitle,
+    .brand-divider {
+        display: none !important;
+    }
+}
+
+/* PersonPickerPopover & 4-Box PIN Auth Modal (Canonical from static/docs.html) */
+.auth-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10050;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.auth-modal-card {
+    background: #ffffff;
+    max-width: 440px;
+    width: 100%;
+    padding: 2.2rem 2rem;
+    text-align: center;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e2e8f0;
+    box-sizing: border-box;
+    animation: authModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes authModalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.auth-badge-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    margin-bottom: 1rem;
+    border: 1px solid #bfdbfe;
+}
+
+.auth-title {
+    margin-top: 0;
+    margin-bottom: 0.4rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.auth-subtitle {
+    color: #64748b;
+    font-size: 0.88rem;
+    margin-bottom: 1.4rem;
+    line-height: 1.4;
+}
+
+/* PersonPickerPopover for Auth Modal */
+.person-picker-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.person-select-modern {
+    height: 48px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.person-select-modern:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.person-select-modern:focus,
+.person-select-modern.popover-open {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    background: #ffffff;
+}
+
+.person-select-modern.popover-open .person-picker-chevron {
+    transform: rotate(180deg);
+    color: #2563eb;
+}
+
+.person-picker-popover {
+    position: fixed !important;
+    z-index: 99999 !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22), 0 6px 14px rgba(0, 0, 0, 0.08) !important;
+    padding: 8px !important;
+    box-sizing: border-box !important;
+    width: 360px;
+    max-width: 90vw;
+}
+
+.person-picker-popover .filter-popover-search-wrap {
+    padding: 4px 4px 8px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 6px;
+}
+
+.person-picker-popover .filter-popover-search-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    font-size: 0.88rem;
+    box-sizing: border-box;
+}
+
+.person-picker-popover .filter-popover-search-input:focus {
+    border-color: #2563eb;
+    outline: none;
+}
+
+.person-picker-popover .filter-popover-list {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.filter-option-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    user-select: none;
+    font-size: 0.88rem;
+}
+
+.filter-option-item:hover {
+    background: #f1f5f9;
+}
+
+.filter-option-item.selected {
+    background: #eff6ff;
+    font-weight: 600;
+}
+
+.filter-option-person-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.author-avatar-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* 4-Box PIN Input */
+.pin-boxes-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 0.6rem 0;
+}
+
+.pin-digit-box {
+    width: 48px;
+    height: 52px;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 1.6rem;
+    text-align: center;
+    font-weight: 700;
+    background: #ffffff;
+    color: #0f172a;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+}
+
+.pin-digit-box:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    outline: none;
+    background: #f8fafc;
+}

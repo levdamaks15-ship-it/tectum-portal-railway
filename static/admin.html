@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
+    <link rel="stylesheet" href="/static/css/style.css?v=202610291">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <style>
         :root {
@@ -1152,8 +1152,7 @@
             style="width: 100%; max-width: 400px; text-align: center; padding: 2rem 1.5rem; background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
             <h2 style="margin-bottom: 1.2rem; color: var(--danger-color);"><i class="fa-solid fa-user-shield"></i> Вход
                 для Администратора</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">Введите ПИН-код для
-                доступа к админ-панели</p>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.4;">Вход в панель управления разрешен исключительно системному администратору (Левда М.)</p>
             <input type="password" id="admin-pin" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
                 placeholder="••••" maxlength="4"
                 style="text-align: center; font-size: 2.2rem; letter-spacing: 15px; font-weight: bold; padding: 0.8rem; margin-bottom: 1.5rem; width: 85%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px;">
@@ -1169,12 +1168,14 @@
 
 
     <!-- Mobile Top Navigation Header -->
-    <div class="mobile-admin-header" id="mobile-admin-header" style="display: none;">
+    <div class="mobile-admin-header" id="mobile-admin-header" style="display: none; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: #ffffff; border-bottom: 1px solid #e2e8f0;">
         <button class="mobile-menu-btn" onclick="toggleAdminSidebar()" aria-label="Открыть меню">
             <i class="fa-solid fa-bars"></i>
         </button>
-        <span style="font-weight: 700; color: var(--primary-color); font-size: 1.1rem;"><i
-                class="fa-solid fa-user-shield"></i> Админка</span>
+        <div style="display: inline-flex; align-items: center; gap: 6px;">
+            <span class="brand-title-tectum" style="font-size: 1rem;">TECTUM</span>
+            <span class="brand-badge-shop badge-shop-admin" style="font-size: 0.65rem; padding: 2px 6px;">АДМИН</span>
+        </div>
         <button onclick="window.location.href='/'" class="mobile-menu-btn" style="font-size: 1rem;" title="На портал">
             <i class="fa-solid fa-arrow-left"></i>
         </button>
@@ -1186,9 +1187,13 @@
     <!-- Main Admin App -->
     <div id="admin-app" style="display: none; width: 100%;">
         <div class="admin-sidebar" id="admin-sidebar">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-                <h2 style="color: var(--primary-color); margin: 0; font-size: 1.1rem;"><i
-                        class="fa-solid fa-user-shield"></i> Админ-Панель</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e2e8f0;">
+                <div class="header-brand-left" style="height: 32px;">
+                    <a href="/" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                        <span class="brand-title-tectum" style="font-size: 1.05rem;">TECTUM</span>
+                        <span class="brand-badge-shop badge-shop-admin" style="font-size: 0.68rem; padding: 3px 7px;">АДМИН</span>
+                    </a>
+                </div>
                 <button class="mobile-menu-btn" onclick="toggleAdminSidebar(false)"
                     style="display: none; border: 1px solid #e2e8f0; font-size: 1.1rem; padding: 0.2rem;"
                     id="mobile-close-sidebar-btn">
@@ -3883,7 +3888,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/admin.js?v=1793286983_admin_pin_view_v1"></script>
+    <script src="/static/js/admin.js?v=202610291"></script>
     <script src="/static/js/ai_assistant.js?v=20260910_ai_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>

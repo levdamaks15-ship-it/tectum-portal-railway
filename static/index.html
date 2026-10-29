@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261028_crew_plans_table_opt">
+    <link rel="stylesheet" href="/static/css/style.css?v=202610291">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -332,34 +332,36 @@
         }).catch(e => console.error('Sandbox check failed:', e));
     </script>
     <div class="container">
-        <header class="header-main">
-            <div class="header-logo-container">
-                <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 50px;">
-                <div class="header-title-block">
-                    <h1 class="header-title">TECTUM ENGINEERING</h1>
-                    <p class="header-subtitle">ПРОИЗВОДСТВЕННЫЙ ПОРТАЛ</p>
-                </div>
+        <header class="header-main" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
+            <!-- Brand Title Left: Strictly 38px height matching Planner & Knowledge Base -->
+            <div class="header-brand-left">
+                <span class="brand-title-tectum">TECTUM</span>
+                <span class="brand-badge-shop badge-shop-xci" id="header-shop-badge">ХЦИ</span>
+                <span class="brand-divider"></span>
+                <span class="brand-subtitle" id="header-shop-subtitle">ЦЕХ ХРИЗОТИЛЦЕМЕНТНЫХ ИЗДЕЛИЙ</span>
             </div>
-            <div class="header-actions">
-                <div class="header-quick-links">
-                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks">
-                        🎯 <span>Планнер задач</span> <i
-                            class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+
+            <div class="header-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; flex-wrap: nowrap;">
+                <div class="header-quick-links" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                     </a>
-                    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists">
+                    <!-- Кнопка Чек-листы отображается ТОЛЬКО внутри рабочего кабинета после авторизации -->
+                    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists" id="header-checklists-btn" style="display: none;" title="Чек-листы смен и ТО">
                         ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                     </a>
-                    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs">
+                    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
                         📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                     </a>
                 </div>
-                <div id="user-info-container" class="header-user-container" style="display: none;">
-                    <div class="user-greeting-text">
-                        <p id="user-greeting-name" style="margin: 0; font-weight: 600; color: var(--text-primary);"></p>
-                        <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
-                        </p>
+
+                <!-- User profile / logout block -->
+                <div id="user-info-container" class="header-user-container" style="display: none; align-items: center; gap: 0.75rem; margin-left: 0.5rem;">
+                    <div class="user-greeting-text" style="text-align: right;">
+                        <p id="user-greeting-name" style="margin: 0; font-weight: 700; color: #0f172a; font-size: 0.88rem;"></p>
+                        <p id="user-greeting-role" style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 600;"></p>
                     </div>
-                    <button onclick="logout()" class="btn-logout" title="Выйти из системы">
+                    <button onclick="logout()" class="btn-logout" title="Выйти из системы" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #64748b; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         <span>Выйти</span>
                     </button>
@@ -367,81 +369,59 @@
             </div>
         </header>
 
-        <div id="login-screen" class="glass-panel"
-            style="max-width: 800px; margin: 2.5rem auto; padding: 2.5rem 2rem; border-radius: 20px; box-shadow: var(--stripe-shadow-hover); border: 1px solid var(--stripe-border); background: #ffffff; transition: 0.3s;">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <h2
-                    style="margin-bottom: 0.35rem; font-weight: 800; font-size: 1.65rem; letter-spacing: -0.02em; color: var(--text-primary);">
-                    Вход в систему</h2>
-                <p style="color: var(--text-secondary); margin: 0; font-size: 0.92rem;">Портал операционного управления
-                    Tectum Engineering</p>
+        <div id="login-screen" style="max-width: 440px; margin: 2.5rem auto; padding: 2rem 1.8rem; text-align: center; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); background: #ffffff; border: 1px solid #e2e8f0; animation: authModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-id-badge"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.4rem; line-height: 1.4;">
+                Выберите своё имя и введите 4-значный PIN-код для входа в рабочий кабинет
+            </p>
+
+            <!-- PersonPickerPopover Field -->
+            <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+                <div class="person-picker-wrapper">
+                    <input type="hidden" id="login-user-input" value="">
+                    <div class="person-select-modern" id="login-user-picker-trigger" onclick="toggleLoginUserPickerPopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="login-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="login-user-picker-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите сотрудника --</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down person-picker-chevron" id="login-user-picker-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="person-picker-popover" id="login-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-login-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderLoginUserPickerList(this.value)">
+                        </div>
+                        <div class="filter-popover-list" id="list-login-user-picker"></div>
+                    </div>
+                </div>
             </div>
 
-            <!-- SSO Section -->
-            <div id="sso-section" style="display: none; text-align: center; padding: 1rem 0;">
-                <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Вход с корпоративной учетной записью
-                    Microsoft 365</p>
-                <button onclick="window.location.href='/api/auth/login'"
-                    style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: auto; padding: 0.8rem 2rem; margin-bottom: 1.5rem; background: #0078d4; color: white; font-weight: bold; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);">
-                    <svg width="20" height="20" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M0 0H11V11H0V0Z" fill="#F25022" />
-                        <path d="M12 0H23V11H12V0Z" fill="#7FBA00" />
-                        <path d="M0 12H11V23H0V12Z" fill="#00A4EF" />
-                        <path d="M12 12H23V23H12V12Z" fill="#FFB900" />
-                    </svg>
-                    Войти через Microsoft 365
+            <!-- 4-Box PIN Input -->
+            <div class="form-group" id="login-pin-input-group" style="text-align: left; margin-bottom: 1.6rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+                </label>
+                <input type="hidden" id="login-pin-hidden" value="">
+                <div class="pin-boxes-container">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-1" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(1, event)" onkeydown="handleLoginPinKeydown(1, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-2" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(2, event)" onkeydown="handleLoginPinKeydown(2, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-3" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(3, event)" onkeydown="handleLoginPinKeydown(3, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-4" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(4, event)" onkeydown="handleLoginPinKeydown(4, event)">
+                </div>
+            </div>
+
+            <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn-action" id="btn-submit-login" onclick="submitCanonicalLogin()" style="width: 100%; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
                 </button>
-                <div style="margin-top: 1rem;">
-                    <button class="btn-secondary" onclick="showPinLoginLegacy()"
-                        style="width: auto; padding: 0.5rem 1.5rem;">Войти по ПИН-коду</button>
-                </div>
             </div>
-
-            <div id="user-selection-section">
-                <div
-                    style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 1.25rem;">
-                    <span class="stripe-badge badge-steel" id="selection-title">Выберите раздел</span>
-                </div>
-                <div id="user-grid"
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 1.1rem; max-height: 55vh; overflow-y: auto; padding: 6px;">
-                    <!-- User cards injected by JS -->
-                </div>
-                <div id="back-to-main-container" style="display: none; text-align: center; margin-top: 1.5rem;">
-                    <button class="btn-secondary" onclick="renderMainScreenGrid()"
-                        style="width: auto; padding: 0.55rem 1.5rem;">← Назад в главное меню</button>
-                </div>
-                <div id="back-to-sso-container" style="display: none; text-align: center; margin-top: 1.5rem;">
-                    <button class="btn-secondary" onclick="showSsoLogin()"
-                        style="width: auto; padding: 0.55rem 1.5rem;">Вернуться к входу Microsoft 365</button>
-                </div>
-            </div>
-
-            <div id="pin-section" style="display: none; text-align: center; animation: fadeIn 0.3s ease-out;">
-                <div style="margin-bottom: 1.5rem;">
-                    <span class="stripe-badge badge-brand" style="margin-bottom: 0.5rem;">Авторизация профиля</span>
-                    <h3 id="selected-user-display"
-                        style="color: var(--text-primary); font-size: 1.5rem; font-weight: 800; margin-top: 0.4rem;">
-                    </h3>
-                </div>
-                <input type="hidden" id="selected-user-name" value="">
-
-                <div class="input-group" style="max-width: 260px; margin: 0 auto;">
-                    <label
-                        style="text-align: center; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.75rem;">Введите
-                        4-значный ПИН-код</label>
-                    <input type="password" id="pin-input" placeholder="••••" maxlength="4"
-                        style="text-align: center; font-size: 2.2rem; letter-spacing: 16px; font-weight: 800; padding: 0.9rem; border-radius: 12px; background: #f8fafc; border: 1.5px solid var(--stripe-border);">
-                </div>
-
-                <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
-                    <button onclick="login()" style="width: auto; padding: 0.8rem 2.5rem; font-weight: 700;">Войти в
-                        систему →</button>
-                    <button onclick="resetLoginSelection()" class="btn-secondary"
-                        style="width: auto; padding: 0.8rem 2rem;">Назад</button>
-                </div>
-                <p id="login-error"
-                    style="color: var(--danger-color); margin-top: 1rem; display: none; font-weight: 600;"></p>
-            </div>
+            <p id="login-error-msg" style="color: #ef4444; font-size: 0.85rem; margin-top: 0.85rem; display: none; font-weight: 600;"></p>
         </div>
 
         <!-- Main App Screen -->
@@ -2299,7 +2279,7 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=1793286983_toast_integration"></script>
+    <script src="/static/js/app.js?v=202610291"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>
