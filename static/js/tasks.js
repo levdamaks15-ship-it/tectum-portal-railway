@@ -4215,16 +4215,19 @@ function renderTasksCards(tasks) {
         return;
     }
 
-    let tasksToRender = tasks;
+    // В мобильной версии отображаем только оперативные задачи (без дорожных карт и проектов)
+    let nonRoadmapTasks = (tasks || []).filter(t => !t.is_roadmap_subtask && t.task_type !== 'roadmap' && t.task_type !== 'milestone');
+
+    let tasksToRender = nonRoadmapTasks;
     if (myTasksFilterActive) {
-        const totalCount = tasks.length;
+        const totalCount = nonRoadmapTasks.length;
         const totalPages = Math.ceil(totalCount / MY_TASKS_PAGE_SIZE) || 1;
         if (myTasksCurrentPage > totalPages) myTasksCurrentPage = totalPages;
         if (myTasksCurrentPage < 1) myTasksCurrentPage = 1;
 
         const startIndex = (myTasksCurrentPage - 1) * MY_TASKS_PAGE_SIZE;
         const endIndex = Math.min(startIndex + MY_TASKS_PAGE_SIZE, totalCount);
-        tasksToRender = tasks.slice(startIndex, endIndex);
+        tasksToRender = nonRoadmapTasks.slice(startIndex, endIndex);
     }
 
     const weekGroups = groupTasksByWeekChronologically(tasksToRender);
@@ -4239,7 +4242,7 @@ function renderTasksCards(tasks) {
                     <span>${escapeHtml(currentPlannerUser.name)}</span>
                 </div>
                 <span style="font-size: 0.76rem; color: #64748b; font-weight: 500;">
-                    ${tasks.length} ${tasks.length === 1 ? 'задача' : (tasks.length < 5 ? 'задачи' : 'задач')}
+                    ${nonRoadmapTasks.length} ${nonRoadmapTasks.length === 1 ? 'задача' : (nonRoadmapTasks.length < 5 ? 'задачи' : 'задач')}
                 </span>
             </div>
         `;
@@ -4316,7 +4319,7 @@ function renderTasksCards(tasks) {
             if (!dueStr) dueStr = 'В теч. недели';
 
             html += `
-                <div class="mobile-task-card" id="task-card-${t.id}" onclick="openTaskDetailModal(${t.id})">
+                <div class="mobile-task-card" id="task-card-${t.id}">
                     <div class="mobile-card-top">
                         <div class="mobile-card-tags" style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
                             <span class="mobile-badge-code">${escapeHtml(code)}</span>
