@@ -1085,7 +1085,7 @@ async function logout() {
     const shopBadge = document.getElementById('header-shop-badge');
     if (shopBadge) {
         shopBadge.className = 'brand-badge-shop badge-shop-portal';
-        shopBadge.innerText = 'ПОРТАЛ';
+        shopBadge.innerText = 'КОРПОРАТИВНЫЙ ПОРТАЛ';
     }
     const shopSubtitle = document.getElementById('header-shop-subtitle');
     if (shopSubtitle) {

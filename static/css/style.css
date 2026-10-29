@@ -2228,8 +2228,9 @@ input[type="text"][readonly] {
 }
 
 .badge-shop-portal {
-    background: #fee2e2 !important;
-    color: #c82323 !important;
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border: 1px solid #bfdbfe !important;
 }
 
 .brand-divider {
@@ -2490,4 +2491,58 @@ body.not-authenticated .tectum-mobile-bottom-nav {
 
 body:has(#login-screen:not([style*="display: none"])) {
     padding-bottom: 0 !important;
+}
+
+/* ══ Canonical Login Screen Centering & Enhanced Brand Header ═════════════════ */
+body:has(#login-screen:not([style*="display: none"])) #app-container,
+body.not-authenticated #app-container {
+    min-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding-top: 1rem !important;
+    padding-bottom: 2rem !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) .header-main,
+body.not-authenticated .header-main {
+    width: 100% !important;
+    max-width: 440px !important;
+    margin: 0 auto 1.5rem auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) .header-top-row,
+body.not-authenticated .header-top-row {
+    justify-content: center !important;
+    width: 100% !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) .header-brand-left,
+body.not-authenticated .header-brand-left {
+    justify-content: center !important;
+    gap: 8px !important;
+    height: auto !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) .brand-title-tectum,
+body.not-authenticated .brand-title-tectum {
+    font-size: 1.5rem !important;
+    letter-spacing: 0.04em !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) .badge-shop-portal,
+body.not-authenticated .badge-shop-portal {
+    font-size: 0.8rem !important;
+    padding: 5px 12px !important;
+    border-radius: 8px !important;
+}
+
+body:has(#login-screen:not([style*="display: none"])) #login-screen,
+body.not-authenticated #login-screen {
+    margin: 0 auto !important;
 }
