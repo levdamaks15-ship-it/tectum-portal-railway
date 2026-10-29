@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="/static/css/splash.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029_clean_header_v6">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_batch_selection_v7">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -2817,6 +2817,69 @@
             display: none !important;
         }
 
+        
+        /* Batch Selection Styling */
+        .stitch-table-row.selected {
+            background: #eff6ff !important;
+            border-bottom-color: #bfdbfe !important;
+        }
+
+        .stitch-table-row.selected:hover {
+            background: #dbeafe !important;
+        }
+
+        .stitch-table-footer-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 14px;
+        }
+
+        .btn-batch-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            height: 28px;
+            padding: 0 10px;
+            border-radius: 6px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
+        }
+
+        .btn-batch-action:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        .btn-batch-action.danger {
+            color: #dc2626;
+            border-color: #fca5a5;
+            background: #fef2f2;
+        }
+
+        .btn-batch-action.danger:hover {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .btn-batch-action.btn-clear-selection {
+            background: transparent;
+            border-color: transparent;
+            color: #64748b;
+            padding: 0 6px;
+        }
+
+        .btn-batch-action.btn-clear-selection:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
         </style>
 </head>
 
@@ -3961,6 +4024,7 @@
         const docsCache = new Map();
 
         async function loadDocuments(folderId = null, folderName = 'Все документы', addToHistory = true, searchQuery = null, isProtected = false) {
+            clearSelection();
             // Optimistic update of title, breadcrumbs and count badge immediately before network fetch
             const folderTitleEl = document.getElementById('current-folder-name');
             if (folderTitleEl) folderTitleEl.innerText = folderName;
@@ -4627,13 +4691,200 @@
             // Быстрый доступ удален для минималистичного мобильного и десктопного интерфейса
         }
 
+        
+        // ==========================================================================
+        // BATCH SELECTION & ACTIONS SYSTEM
+        // @canonical-pattern UniversalTableBatchSelection
+        // ==========================================================================
+        let selectedItems = new Map(); // id -> { id, name, isFolder, viewUrl, isProtected }
+
+        function toggleSelectAll(masterCheckbox) {
+            const isChecked = masterCheckbox.checked;
+            const checkboxes = document.querySelectorAll('.stitch-table-row .stitch-checkbox-custom');
+            
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+                const row = cb.closest('.stitch-table-row');
+                if (row) {
+                    if (isChecked) {
+                        row.classList.add('selected');
+                        const itemData = JSON.parse(cb.getAttribute('data-item') || '{}');
+                        if (itemData.id) {
+                            selectedItems.set(String(itemData.id), itemData);
+                        }
+                    } else {
+                        row.classList.remove('selected');
+                    }
+                }
+            });
+
+            if (!isChecked) {
+                selectedItems.clear();
+            }
+
+            updateSelectionUI();
+        }
+
+        function toggleItemSelection(id, event, itemData) {
+            if (event) event.stopPropagation();
+            const strId = String(id);
+            const row = document.getElementById(`doc-row-${strId}`);
+            const cb = document.getElementById(`doc-cb-${strId}`);
+            
+            const isChecked = cb ? cb.checked : !selectedItems.has(strId);
+
+            if (isChecked) {
+                selectedItems.set(strId, itemData);
+                if (row) row.classList.add('selected');
+                if (cb) cb.checked = true;
+            } else {
+                selectedItems.delete(strId);
+                if (row) row.classList.remove('selected');
+                if (cb) cb.checked = false;
+            }
+
+            // Sync master checkbox
+            const masterCb = document.getElementById('select-all-checkbox');
+            const allCbs = document.querySelectorAll('.stitch-table-row .stitch-checkbox-custom');
+            if (masterCb) {
+                if (selectedItems.size === 0) {
+                    masterCb.checked = false;
+                    masterCb.indeterminate = false;
+                } else if (selectedItems.size === allCbs.length && allCbs.length > 0) {
+                    masterCb.checked = true;
+                    masterCb.indeterminate = false;
+                } else {
+                    masterCb.checked = false;
+                    masterCb.indeterminate = true;
+                }
+            }
+
+            updateSelectionUI();
+        }
+
+        function clearSelection() {
+            selectedItems.clear();
+            const masterCb = document.getElementById('select-all-checkbox');
+            if (masterCb) {
+                masterCb.checked = false;
+                masterCb.indeterminate = false;
+            }
+            document.querySelectorAll('.stitch-table-row .stitch-checkbox-custom').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.stitch-table-row').forEach(row => row.classList.remove('selected'));
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedItems.size;
+            const countLabel = document.getElementById('selected-count-label');
+            const actionsPanel = document.getElementById('stitch-batch-actions-panel');
+
+            if (countLabel) {
+                countLabel.innerHTML = `Выбрано: <b>${count} ${getRussianFileWord(count)}</b>`;
+            }
+
+            if (actionsPanel) {
+                if (count > 0) {
+                    actionsPanel.style.display = 'inline-flex';
+                } else {
+                    actionsPanel.style.display = 'none';
+                }
+            }
+        }
+
+        async function bulkDownloadSelected() {
+            if (selectedItems.size === 0) return;
+            const items = Array.from(selectedItems.values());
+            const files = items.filter(i => !i.isFolder);
+
+            if (files.length === 0) {
+                if (window.toast) {
+                    toast.info("В выделенном нет файлов для скачивания (только папки)");
+                } else {
+                    alert("В выделенном нет файлов для скачивания");
+                }
+                return;
+            }
+
+            let downloadedCount = 0;
+            for (const file of files) {
+                if (file.viewUrl && file.viewUrl !== '#') {
+                    const a = document.createElement('a');
+                    a.href = file.viewUrl;
+                    a.target = '_blank';
+                    a.download = file.name || '';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    downloadedCount++;
+                    await new Promise(r => setTimeout(r, 200)); // небольшая пауза для браузера
+                }
+            }
+
+            if (window.toast) {
+                toast.success(`Скачивание запущено (${downloadedCount} ${getRussianFileWord(downloadedCount)})`);
+            }
+        }
+
+        async function bulkDeleteSelected() {
+            if (selectedItems.size === 0) return;
+            const items = Array.from(selectedItems.values());
+            const count = items.length;
+
+            const auth = await ensureAuthForAction();
+            if (!auth) return;
+
+            if (!confirm(`Вы действительно хотите удалить ${count} выбранных ${getRussianFileWord(count)}? Это действие необратимо.`)) {
+                return;
+            }
+
+            const curUser = auth.user;
+            const curPin = auth.pin;
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const item of items) {
+                let delUrl = `/api/documents/${item.id}`;
+                const params = new URLSearchParams();
+                if (curUser) params.append('user_name', curUser);
+                if (curPin) params.append('user_pin', curPin);
+                if (params.toString()) delUrl += '?' + params.toString();
+
+                try {
+                    const res = await fetch(delUrl, {
+                        method: 'DELETE',
+                        headers: getFolderPasswordHeader()
+                    });
+                    if (res.ok) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (e) {
+                    failCount++;
+                }
+            }
+
+            clearSelection();
+            docsCache.clear();
+            loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+            loadSidebarTree();
+
+            if (window.toast) {
+                if (failCount === 0) {
+                    toast.success(`Успешно удалено: ${successCount} ${getRussianFileWord(successCount)}`);
+                } else {
+                    toast.warning(`Удалено: ${successCount}, ошибок: ${failCount}`);
+                }
+            }
+        }
+
+
         function renderItems(folders, files) {
             const container = document.getElementById('files-container');
             if (!container) return;
 
-            // Update folder items count badge
             const totalCount = folders.length + files.length;
-            
 
             if (folders.length === 0 && files.length === 0) {
                 container.innerHTML = `
@@ -4650,7 +4901,7 @@
                 <div class="stitch-table-wrapper">
                     <div class="stitch-table-header">
                         <div class="stitch-row-checkbox">
-                            <input type="checkbox" class="stitch-checkbox-custom" onclick="event.stopPropagation()" title="Выбрать все">
+                            <input type="checkbox" id="select-all-checkbox" class="stitch-checkbox-custom" onchange="toggleSelectAll(this)" title="Выбрать все">
                         </div>
                         <div>Название файла <i class="fa-solid fa-arrow-down" style="font-size: 0.68rem; margin-left: 4px; color: #94a3b8;"></i></div>
                         <div>Формат / Тип</div>
@@ -4666,14 +4917,31 @@
                 const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.75rem; margin-left: 4px;" title="Защищено"></i>' : '';
                 const folderAuthor = folder.created_by || 'Администратор';
                 const authorInitials = getAuthorInitials(folderAuthor);
+                const isSelected = selectedItems.has(String(folder.id));
+
+                const itemDataObj = {
+                    id: String(folder.id),
+                    name: folder.name,
+                    isFolder: true,
+                    viewUrl: '',
+                    isProtected: !!folder.is_protected
+                };
+                const itemDataJson = escapeHtml(JSON.stringify(itemDataObj));
                 const folderJson = escapeHtml(JSON.stringify(folder));
 
                 html += `
-                    <div class="stitch-table-row folder-row"
+                    <div class="stitch-table-row folder-row ${isSelected ? 'selected' : ''}"
+                         id="doc-row-${folder.id}"
                          onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})"
                          oncontextmenu="handleItemContextMenu(event, ${folderJson}, true)">
-                        <div class="stitch-row-checkbox">
-                            <input type="checkbox" class="stitch-checkbox-custom" onclick="event.stopPropagation()">
+                        <div class="stitch-row-checkbox" onclick="event.stopPropagation()">
+                            <input type="checkbox" 
+                                   id="doc-cb-${folder.id}"
+                                   class="stitch-checkbox-custom" 
+                                   data-item="${itemDataJson}"
+                                   ${isSelected ? 'checked' : ''}
+                                   onchange="toggleItemSelection('${folder.id}', event, ${itemDataJson})" 
+                                   title="Выбрать папку">
                         </div>
                         <div class="stitch-item-cell">
                             <div class="stitch-format-badge badge-folder">
@@ -4711,7 +4979,7 @@
                 `;
             });
 
-            // 2. Files rendering (Stitch card rows with format badges, author avatars)
+            // 2. Files rendering
             files.forEach(file => {
                 const iconInfo = getFileIcon(file.mimeType, file.name, file.external_url || file.webViewLink);
                 const typeName = getFileTypeName(file.name, file.mimeType, file.external_url || file.webViewLink);
@@ -4734,7 +5002,6 @@
                     viewUrl = file.webViewLink || '#';
                 }
 
-                // Format badge type and short label
                 const nameLower = (file.name || '').toLowerCase();
                 let formatShort = 'DOC';
                 let formatBadgeClass = 'badge-doc';
@@ -4754,24 +5021,20 @@
                     typePillClass = 'type-doc';
                 }
 
-                // Version badge
                 let versionBadgeHtml = '';
                 if (isLocalFile && file.version_number) {
                     versionBadgeHtml = `<span class="stitch-item-version" onclick="openVersionsModal(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\'")}', event)" title="История версий">v${file.version_number}</span>`;
                 }
 
-                // Lock badge
                 let lockBadgeHtml = '';
                 if (file.locked_by_user) {
                     lockBadgeHtml = `<span class="lock-indicator" style="font-size:0.7rem; color:#dc2626;" title="Заблокирован: ${escapeHtml(file.locked_by_user)}"><i class="fas fa-lock"></i></span>`;
                 }
 
-                // Author initials and display
                 const authorDisplay = file.created_by || file.last_modified_by || (isLocalFile ? 'Администратор' : 'Сотрудник');
                 const authorInitials = getAuthorInitials(authorDisplay);
                 const authorAvatarColor = getAvatarColor(authorDisplay);
 
-                // Date formatting (Stitch clean date + sub-time)
                 let dateDisplay = 'Недавно';
                 let timeDisplay = '';
                 if (file.uploaded_at) {
@@ -4786,14 +5049,32 @@
                     }
                 }
 
-                // Subtitle (File size, Kaizen info)
                 const fileSizeStr = file.file_size ? formatBytes(file.file_size) : (isLocalFile ? 'PDF Документ' : 'Облачный документ');
                 const subtitleStr = `${fileSizeStr} • Официальный производственный документ`;
 
+                const isSelected = selectedItems.has(String(file.id));
+                const itemDataObj = {
+                    id: String(file.id),
+                    name: file.name,
+                    isFolder: false,
+                    viewUrl: viewUrl,
+                    isProtected: !!file.is_protected
+                };
+                const itemDataJson = escapeHtml(JSON.stringify(itemDataObj));
+
                 html += `
-                    <div class="stitch-table-row file-row" onclick="openPreviewModal(${fileJson}, event)" oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
-                        <div class="stitch-row-checkbox">
-                            <input type="checkbox" class="stitch-checkbox-custom" onclick="event.stopPropagation()">
+                    <div class="stitch-table-row file-row ${isSelected ? 'selected' : ''}"
+                         id="doc-row-${file.id}"
+                         onclick="openPreviewModal(${fileJson}, event)" 
+                         oncontextmenu="handleItemContextMenu(event, ${fileJson}, false)">
+                        <div class="stitch-row-checkbox" onclick="event.stopPropagation()">
+                            <input type="checkbox" 
+                                   id="doc-cb-${file.id}"
+                                   class="stitch-checkbox-custom" 
+                                   data-item="${itemDataJson}"
+                                   ${isSelected ? 'checked' : ''}
+                                   onchange="toggleItemSelection('${file.id}', event, ${itemDataJson})" 
+                                   title="Выбрать документ">
                         </div>
                         <div class="stitch-item-cell">
                             <div class="stitch-format-badge ${formatBadgeClass}">
@@ -4826,9 +5107,6 @@
                             ${timeDisplay ? `<span class="time-sub">${timeDisplay}</span>` : ''}
                         </div>
                         <div class="stitch-actions-cell">
-                            <button class="stitch-action-btn" onclick="event.stopPropagation(); createTaskFromDoc(${rawDocId}, '${escapeHtml(file.name).replace(/'/g, "\'")}')" title="Создать задачу в Планнере">
-                                <i class="fa-solid fa-list-check" style="color: #2563eb;"></i>
-                            </button>
                             <a href="${escapeHtml(viewUrl)}" target="_blank" download class="stitch-action-btn" title="Скачать файл">
                                 <i class="fas fa-download"></i>
                             </a>
@@ -4840,11 +5118,27 @@
                 `;
             });
 
-            // Stitch Table Footer: Selected items summary and pagination
+            // Stitch Table Footer with interactive Batch Actions Panel
+            const count = selectedItems.size;
             html += `
                     <div class="stitch-table-footer">
-                        <div>
-                            Выбрано: <b>0 файлов</b> &nbsp;•&nbsp; Всего в папке: <b>${totalCount} ${getRussianFileWord(totalCount)}</b>
+                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span id="selected-count-label">Выбрано: <b>${count} ${getRussianFileWord(count)}</b></span>
+                            <span style="color: #cbd5e1;">•</span>
+                            <span>Всего в папке: <b>${totalCount} ${getRussianFileWord(totalCount)}</b></span>
+
+                            <!-- Batch Actions Toolbar -->
+                            <div class="stitch-table-footer-actions" id="stitch-batch-actions-panel" style="${count > 0 ? 'display: inline-flex;' : 'display: none;'}">
+                                <button class="btn-batch-action" onclick="bulkDownloadSelected()" title="Скачать все выбранные файлы">
+                                    <i class="fa-solid fa-download"></i> Скачать выбранные
+                                </button>
+                                <button class="btn-batch-action danger" onclick="bulkDeleteSelected()" title="Удалить выбранные элементы">
+                                    <i class="fa-solid fa-trash"></i> Удалить
+                                </button>
+                                <button class="btn-batch-action btn-clear-selection" onclick="clearSelection()" title="Снять выделение">
+                                    <i class="fa-solid fa-xmark"></i> Сбросить
+                                </button>
+                            </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span>Страница 1 из 1</span>
