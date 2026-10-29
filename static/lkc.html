@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=1793291043">
+    <link rel="stylesheet" href="/static/css/style.css?v=1793291328">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1390,42 +1390,39 @@
     <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem 3rem;">
 
         <!-- Header: Matching Production Master Cabinet exactly -->
-        <header class="header-main" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
-            <!-- Brand Title Left: Strictly 38px height matching Planner & Knowledge Base -->
-            <div class="header-brand-left">
-                <a href="/static/lkc.html" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px;">
-                    <span class="brand-title-tectum">TECTUM</span>
-                    <span class="brand-badge-shop badge-shop-lkc">ЛКЦ</span>
-                    <span class="brand-divider"></span>
-                    <span class="brand-subtitle">ЛАКОКРАСОЧНЫЙ ЦЕХ</span>
-                </a>
-            </div>
-
-            <div class="header-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; flex-wrap: nowrap;">
-                <!-- Быстрые ссылки-чипы (включая Чек-листы внутри кабинета) -->
-                <div class="header-quick-links" style="display: inline-flex; align-items: center; gap: 0.5rem;">
-                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
-                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists" title="Чек-листы смен и ТО">
-                        ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
-                        📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+        <header class="header-main">
+            <div class="header-top-row">
+                <div class="header-brand-left">
+                    <a href="/static/lkc.html" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px;">
+                        <span class="brand-title-tectum">TECTUM</span>
+                        <span class="brand-badge-shop badge-shop-lkc">ЛКЦ</span>
+                        <span class="brand-divider"></span>
+                        <span class="brand-subtitle">ЛАКОКРАСОЧНЫЙ ЦЕХ</span>
                     </a>
                 </div>
 
-                <!-- Блок авторизованного пользователя -->
-                <div id="user-info-container" class="header-user-container" style="display: inline-flex; align-items: center; gap: 0.75rem; margin-left: 0.5rem;">
-                    <div class="user-greeting-text" style="text-align: right;">
-                        <p id="lkc-user-name" style="margin: 0; font-weight: 700; color: #0f172a; font-size: 0.88rem;">Миркасимов И.М.</p>
+                <div id="user-info-container" class="header-user-container">
+                    <div class="user-greeting-text">
+                        <p id="lkc-user-name">Миркасимов И.М.</p>
                         <p style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 600;">Мастер ЛКЦ</p>
                     </div>
-                    <button onclick="logoutLKC()" class="btn-logout" title="Выйти из системы" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #64748b; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <button onclick="logoutLKC()" class="btn-logout" title="Выйти из системы">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         <span>Выйти</span>
                     </button>
                 </div>
+            </div>
+
+            <div class="header-quick-links">
+                <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                    🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists" title="Чек-листы смен и ТО">
+                    ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                    📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
             </div>
         </header>
 

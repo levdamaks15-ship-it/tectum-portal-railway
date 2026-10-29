@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=1793291043">
+    <link rel="stylesheet" href="/static/css/style.css?v=1793291328">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -332,40 +332,40 @@
         }).catch(e => console.error('Sandbox check failed:', e));
     </script>
     <div class="container" id="app-container" style="max-width: 1360px; margin: 0 auto; padding: 1.5rem 2rem; min-height: 90vh; display: flex; flex-direction: column;">
-        <header class="header-main" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
-            <!-- Brand Title Left: Strictly 38px height matching Planner & Knowledge Base -->
-            <div class="header-brand-left">
-                <span class="brand-title-tectum">TECTUM</span>
-                <span class="brand-badge-shop badge-shop-portal" id="header-shop-badge">ПОРТАЛ</span>
-                <span class="brand-divider"></span>
-                <span class="brand-subtitle" id="header-shop-subtitle">ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</span>
-            </div>
-
-            <div class="header-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; flex-wrap: nowrap;">
-                <div class="header-quick-links" style="display: inline-flex; align-items: center; gap: 0.5rem;">
-                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
-                        🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    <!-- Кнопка Чек-листы отображается ТОЛЬКО внутри рабочего кабинета после авторизации -->
-                    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists" id="header-checklists-btn" style="display: none;" title="Чек-листы смен и ТО">
-                        ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
-                    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
-                        📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
-                    </a>
+        <header class="header-main">
+            <!-- Верхняя строка шапки: Бренд слева, Профиль сотрудника справа (всегда на одном уровне!) -->
+            <div class="header-top-row">
+                <div class="header-brand-left">
+                    <span class="brand-title-tectum">TECTUM</span>
+                    <span class="brand-badge-shop badge-shop-portal" id="header-shop-badge">ПОРТАЛ</span>
+                    <span class="brand-divider"></span>
+                    <span class="brand-subtitle" id="header-shop-subtitle">ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</span>
                 </div>
 
-                <!-- User profile / logout block -->
-                <div id="user-info-container" class="header-user-container" style="display: none; align-items: center; gap: 0.75rem; margin-left: 0.5rem;">
-                    <div class="user-greeting-text" style="text-align: right;">
-                        <p id="user-greeting-name" style="margin: 0; font-weight: 700; color: #0f172a; font-size: 0.88rem;"></p>
-                        <p id="user-greeting-role" style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 600;"></p>
+                <!-- Блок пользователя: имя и выход строго справа от названия -->
+                <div id="user-info-container" class="header-user-container" style="display: none;">
+                    <div class="user-greeting-text">
+                        <p id="user-greeting-name"></p>
+                        <p id="user-greeting-role"></p>
                     </div>
-                    <button onclick="logout()" class="btn-logout" title="Выйти из системы" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #64748b; font-weight: 600; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <button onclick="logout()" class="btn-logout" title="Выйти из системы">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         <span>Выйти</span>
                     </button>
                 </div>
+            </div>
+
+            <!-- Вторая строка шапки: Быстрые ссылки-чипы -->
+            <div class="header-quick-links">
+                <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                    🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists" id="header-checklists-btn" style="display: none;" title="Чек-листы смен и ТО">
+                    ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                    📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
             </div>
         </header>
 
@@ -2279,7 +2279,7 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=1793290742"></script>
+    <script src="/static/js/app.js?v=1793291328"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>
