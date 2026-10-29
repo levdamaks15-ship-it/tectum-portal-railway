@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Кабинет СКК — Переборка и контроль качества | Tectum Engineering</title>
+    <title>Кабинет СКК — Переборка партии | Tectum Engineering</title>
     <meta name="theme-color" content="#950405">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,1656 +13,959 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_qcd_workbench_v1">
+
     <style>
         :root {
-            --qcd-navy: #0f2744;
-            --qcd-blue: #0284c7;
-            --qcd-accent: #C82323;
-            --qcd-success: #16a34a;
-            --qcd-warning: #d97706;
-            --qcd-danger: #dc2626;
-            --qcd-card-bg: #ffffff;
-            --qcd-border: #e2e8f0;
-            --qcd-subtext: #64748b;
+            --tbl-border: #e2e8f0;
+            --tbl-border-subtle: #cbd5e1;
+            --primary-red: #c82323;
+            --primary-dark-red: #950405;
+            --success-green: #16a34a;
+            --warning-amber: #d97706;
+            --card-bg: #ffffff;
+            --canvas-bg: #f8fafc;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--canvas-bg);
             color: #0f172a;
             margin: 0;
             padding: 0;
             -webkit-tap-highlight-color: transparent;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        .qcd-wrapper {
-            max-width: 1100px;
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .qcd-page-container {
+            max-width: 1400px;
+            width: 100%;
             margin: 0 auto;
-            padding: 1rem;
+            padding: 1rem 1.25rem 3rem 1.25rem;
             box-sizing: border-box;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
 
-        .qcd-header {
+        /* Навигационная панель */
+        .qcd-nav-bar {
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 12px;
+            padding: 0.5rem 1rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0.85rem 1.25rem;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+
+        .horizon-tab-btn {
+            height: 38px;
+            min-height: 38px;
+            padding: 0 16px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: #64748b;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+
+        .horizon-tab-btn.active {
             background: #ffffff;
-            border: 1px solid var(--qcd-border);
-            border-radius: 16px;
-            margin-bottom: 1.25rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+            color: var(--primary-red);
+            border-color: #fecaca;
+            box-shadow: 0 1px 3px rgba(200, 35, 35, 0.08);
+            font-weight: 700;
+        }
+
+        /* 1. Верхний селектор партии */
+        .batch-selector-panel {
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 14px;
+            padding: 0.85rem 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             flex-wrap: wrap;
             gap: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
 
-        .qcd-header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .qcd-header-title h1 {
-            margin: 0;
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: var(--qcd-navy);
-            letter-spacing: -0.02em;
-        }
-
-        .qcd-header-title p {
-            margin: 2px 0 0 0;
-            font-size: 0.78rem;
-            color: var(--qcd-subtext);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        .qcd-header-right {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .user-chip {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: #f1f5f9;
-            padding: 6px 12px;
-            border-radius: 10px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--qcd-navy);
-            border: 1px solid var(--qcd-border);
-        }
-
-        .nav-tabs-qcd {
-            display: flex;
-            gap: 8px;
-            background: #ffffff;
-            padding: 6px;
-            border-radius: 14px;
-            border: 1px solid var(--qcd-border);
-            margin-bottom: 1.25rem;
-        }
-
-        .qcd-tab-btn {
+        .batch-selector-select {
             flex: 1;
-            padding: 10px 14px;
+            min-width: 280px;
+            height: 40px;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 8px;
+            padding: 0 12px;
             font-size: 0.9rem;
-            font-weight: 700;
-            border: none;
-            background: transparent;
-            color: var(--qcd-subtext);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .qcd-tab-btn.active {
-            background: var(--qcd-navy);
-            color: #ffffff;
-            box-shadow: 0 4px 12px rgba(15, 39, 68, 0.25);
-        }
-
-        .bento-card {
+            font-weight: 600;
+            color: #0f172a;
             background: #ffffff;
-            border: 1px solid var(--qcd-border);
-            border-radius: 16px;
-            padding: 1.35rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .batch-selector-select:focus {
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.15);
+        }
+
+        /* 2. Двухколоночный верстак */
+        .workbench-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.35fr;
+            gap: 16px;
             margin-bottom: 1.25rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
 
-        .bento-card-header {
+        @media (max-width: 992px) {
+            .workbench-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .workbench-card {
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid #f1f5f9;
-            padding-bottom: 0.65rem;
+            flex-direction: column;
+            gap: 14px;
         }
 
-        .bento-card-title {
+        .card-header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+
+        .card-title {
             margin: 0;
             font-size: 1.05rem;
             font-weight: 800;
-            color: var(--qcd-navy);
+            color: #0f172a;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        /* 5 Shifts Selector Grid */
-        .shifts-picker-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: 10px;
-            margin-top: 0.5rem;
+        /* Чипы и статусы */
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.76rem;
+            font-weight: 700;
         }
 
-        .shift-check-card {
-            border: 1.5px solid var(--qcd-border);
-            border-radius: 12px;
+        .status-verified {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+
+        /* Метрики мастера (Readonly) */
+        .master-metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .metric-tile {
+            background: #f8fafc;
+            border: 1px solid var(--tbl-border);
+            border-radius: 10px;
             padding: 10px 12px;
-            background: #ffffff;
-            cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
-        .shift-check-card:hover {
-            border-color: var(--qcd-blue);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);
-        }
-
-        .shift-check-card.selected {
-            border-color: var(--qcd-navy);
-            background: #f8fafc;
-            box-shadow: 0 4px 14px rgba(15, 39, 68, 0.12);
-        }
-
-        .shift-card-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .shift-badge {
+        .metric-tile-label {
             font-size: 0.72rem;
-            font-weight: 800;
+            font-weight: 700;
+            color: #64748b;
             text-transform: uppercase;
-            padding: 2px 6px;
-            border-radius: 6px;
-        }
-
-        .badge-day { background: #fef3c7; color: #b45309; }
-        .badge-night { background: #e0e7ff; color: #3730a3; }
-
-        .shift-lfm-val {
-            font-size: 1.15rem;
-            font-weight: 800;
-            color: var(--qcd-navy);
-            margin-top: 4px;
-        }
-
-        .shift-details-sub {
-            font-size: 0.75rem;
-            color: var(--qcd-subtext);
-            line-height: 1.3;
-        }
-
-        /* KPI Banner */
-        .qcd-kpi-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-            gap: 12px;
-            margin-bottom: 1.25rem;
-        }
-
-        .kpi-mini-card {
-            background: #ffffff;
-            border: 1px solid var(--qcd-border);
-            border-radius: 14px;
-            padding: 0.85rem 1rem;
-            text-align: center;
-        }
-
-        .kpi-mini-val {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--qcd-navy);
-            line-height: 1.1;
-        }
-
-        .kpi-mini-lbl {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--qcd-subtext);
-            text-transform: uppercase;
-            margin-top: 4px;
             letter-spacing: 0.03em;
         }
 
-        /* Defects & Grade 1 Inputs Grid */
-        .defects-two-cols {
+        .metric-tile-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        /* Интерактивные поля СКК */
+        .qcd-main-inputs-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
         }
 
-        @media (min-width: 768px) {
-            .defects-two-cols {
-                grid-template-columns: 1.1fr 0.9fr;
-            }
-        }
-
-        .compact-input-row {
+        .qcd-field-box {
+            background: #f8fafc;
+            border: 1px solid var(--tbl-border);
+            border-radius: 10px;
+            padding: 10px 12px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 6px 8px;
-            border-bottom: 1px solid #f1f5f9;
-            gap: 10px;
-        }
-
-        .compact-input-row:last-child {
-            border-bottom: none;
-        }
-
-        .compact-input-lbl {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #334155;
-            display: flex;
-            align-items: center;
+            flex-direction: column;
             gap: 6px;
+            position: relative;
+        }
+
+        .qcd-field-box.box-gp {
+            border-left: 4px solid var(--success-green);
+        }
+
+        .qcd-field-box.box-fg {
+            border-left: 4px solid #0284c7;
+        }
+
+        .qcd-field-box.box-defect {
+            border-left: 4px solid var(--primary-red);
+        }
+
+        .qcd-field-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .qcd-field-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #334155;
         }
 
         .qcd-num-input {
-            width: 90px;
-            padding: 6px 8px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            text-align: right;
-            border: 1px solid var(--qcd-border);
+            width: 100%;
+            height: 38px;
+            border: 1px solid var(--tbl-border-subtle);
             border-radius: 8px;
-            background: #f8fafc;
-            color: var(--qcd-navy);
-            transition: 0.15s;
+            padding: 4px 10px;
+            font-size: 1.15rem;
+            font-weight: 800;
+            text-align: right;
+            color: #0f172a;
+            box-sizing: border-box;
+            background: #ffffff;
+            outline: none;
+            transition: all 0.15s ease;
         }
 
         .qcd-num-input:focus {
-            outline: none;
-            border-color: var(--qcd-blue);
-            background: #ffffff;
-            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
         }
 
-        /* Action Buttons */
-        .qcd-btn-primary {
-            background: linear-gradient(135deg, var(--qcd-navy) 0%, #1e3a8a 100%);
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 1rem;
-            padding: 12px 24px;
-            border-radius: 12px;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 4px 14px rgba(15, 39, 68, 0.3);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-        }
-
-        .qcd-btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 18px rgba(15, 39, 68, 0.4);
-        }
-
-        .qcd-btn-secondary {
-            background: #f1f5f9;
-            color: #334155;
-            font-weight: 700;
-            font-size: 0.9rem;
-            padding: 10px 18px;
-            border-radius: 10px;
-            border: 1px solid var(--qcd-border);
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .qcd-btn-secondary:hover {
-            background: #e2e8f0;
-        }
-
-        /* Print Document Sheet (A4 Style) */
-        #printable-act-preview {
-            display: none;
-            background: #ffffff;
-            padding: 2.5rem;
-            border-radius: 16px;
-            border: 1px solid var(--qcd-border);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-            margin-top: 1.5rem;
-        }
-
-        .act-doc-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-            margin-top: 1rem;
-        }
-
-        .act-doc-table th, .act-doc-table td {
-            border: 1px solid #cbd5e1;
-            padding: 8px 10px;
-            text-align: left;
-        }
-
-        .act-doc-table th {
-            background: #f1f5f9;
-            font-weight: 700;
-            color: var(--qcd-navy);
-        }
-
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printable-act-preview, #printable-act-preview * {
-                visibility: visible;
-            }
-            #printable-act-preview {
-                display: block !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 0;
-                border: none;
-                box-shadow: none;
-        }
-        
-        /* High-Density Lab Styles */
-        .norm-tag {
+        /* Дельты (+ / -) */
+        .delta-pill {
             font-size: 0.7rem;
-            font-weight: 700;
-            color: #0284c7;
-            background: #e0f2fe;
-            padding: 1px 5px;
-            border-radius: 4px;
-            white-space: nowrap;
-        }
-        .norm-warning {
-            border-color: #f59e0b !important;
-            background: #fffbeb !important;
-            color: #b45309 !important;
-        }
-        .norm-danger {
-            border-color: #ef4444 !important;
-            background: #fef2f2 !important;
-            color: #b91c1c !important;
-        }
-        .lab-grid-dense-4 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 8px;
-        }
-        .lab-grid-dense-3 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 8px;
-        }
-        .lab-dense-field {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .lab-dense-field label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #475569;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .lab-dense-field input, .lab-dense-field select {
-            width: 100%;
-            height: 32px;
-            padding: 4px 8px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            border: 1px solid var(--qcd-border);
-            border-radius: 7px;
-            background: #f8fafc;
-            color: var(--qcd-navy);
-            box-sizing: border-box;
-            transition: all 0.15s;
-        }
-        .lab-dense-field input:focus, .lab-dense-field select:focus {
-            outline: none;
-            border-color: var(--qcd-blue);
-            background: #ffffff;
-            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
-        }
-        
-        /* 2. Raw Materials Grid */
-        .lab-raw-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 8px;
-        }
-        .lab-raw-card {
-            background: #f8fafc;
-            border: 1px solid var(--qcd-border);
-            border-radius: 8px;
-            padding: 6px 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            transition: border-color 0.15s;
-        }
-        .lab-raw-card:focus-within {
-            border-color: #8b5cf6;
-            background: #ffffff;
-            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.12);
-        }
-        .lab-raw-card .raw-lbl {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: #475569;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .lab-raw-card input {
-            width: 100%;
-            height: 28px;
-            padding: 2px 6px;
-            font-size: 0.9rem;
             font-weight: 800;
-            text-align: right;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            background: #ffffff;
-            color: var(--qcd-navy);
-            box-sizing: border-box;
-        }
-
-        /* 3. Preparation 3-Columns Layout */
-        .lab-prep-3cols {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-        }
-        @media (min-width: 992px) {
-            .lab-prep-3cols {
-                grid-template-columns: 1fr 1.15fr 1.05fr;
-            }
-        }
-        .prep-subcol {
-            background: #f8fafc;
-            border: 1px solid var(--qcd-border);
-            border-radius: 10px;
-            padding: 8px 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .prep-subcol-title {
-            font-size: 0.78rem;
-            font-weight: 800;
-            color: var(--qcd-navy);
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            margin-bottom: 4px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .prep-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 6px;
-            padding: 2px 0;
-            border-bottom: 1px dashed #edf2f7;
-        }
-        .prep-row:last-child {
-            border-bottom: none;
-        }
-        .prep-label {
-            font-size: 0.76rem;
-            font-weight: 600;
-            color: #334155;
-            line-height: 1.2;
-            display: flex;
-            flex-direction: column;
-            gap: 1px;
-        }
-        .prep-subcol input {
-            width: 72px;
-            height: 26px;
-            padding: 2px 5px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            text-align: right;
-            border: 1px solid #cbd5e1;
-            border-radius: 5px;
-            background: #ffffff;
-            color: var(--qcd-navy);
-            box-sizing: border-box;
-            flex-shrink: 0;
-        }
-
-        /* Vats Matrix Mini-Table */
-        .lab-vats-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.76rem;
-            margin-top: 2px;
-        }
-        .lab-vats-table th {
-            background: #e2e8f0;
-            color: var(--qcd-navy);
-            font-weight: 700;
-            padding: 4px 4px;
-            border: 1px solid #cbd5e1;
-            text-align: center;
-            font-size: 0.72rem;
-        }
-        .lab-vats-table td {
-            padding: 3px 2px;
-            border: 1px solid #cbd5e1;
-            text-align: center;
-            background: #ffffff;
-        }
-        .lab-vats-table input {
-            width: 100% !important;
-            height: 24px !important;
-            padding: 2px 3px !important;
-            font-size: 0.8rem !important;
-            text-align: center !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 4px !important;
-            box-sizing: border-box !important;
-        }
-
-        /* Bento 2-Col Grid for Tables 4 & 5 */
-        .lab-bento-2col {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            margin-bottom: 1.25rem;
-        }
-        @media (min-width: 960px) {
-            .lab-bento-2col {
-                grid-template-columns: 1fr 1.18fr;
-            }
-        }
-
-        /* High-Density Tables (Excel style) */
-        .lab-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.78rem;
-            background: #ffffff;
-        }
-        .lab-table th {
-            background: #f1f5f9;
-            color: var(--qcd-navy);
-            font-weight: 700;
-            padding: 4px 3px;
-            border: 1px solid #cbd5e1;
-            text-align: center;
-            font-size: 0.74rem;
-            line-height: 1.2;
-            word-break: break-word;
-        }
-        .lab-table td {
-            padding: 2px 2px;
-            border: 1px solid #e2e8f0;
-            vertical-align: middle;
-            text-align: center;
-            height: 28px;
-        }
-        .lab-table tr:nth-child(even) td {
-            background-color: #fafbfd;
-        }
-        .lab-table input {
-            width: 100%;
-            height: 26px;
-            padding: 2px 3px;
-            border: 1px solid #cbd5e1;
+            padding: 1px 6px;
             border-radius: 4px;
-            box-sizing: border-box;
-            font-family: inherit;
-            font-size: 0.82rem;
-            font-weight: 700;
-            text-align: center;
-            background: #ffffff;
-            color: var(--qcd-navy);
         }
-        .lab-table input:focus, .lab-table select:focus {
-            border-color: var(--qcd-blue);
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
-            background: #ffffff;
+
+        .delta-plus {
+            background: #dcfce7;
+            color: #16a34a;
         }
-        .lab-table select.hourly-visual {
-            width: 100%;
-            height: 26px;
-            padding: 2px 4px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-family: inherit;
-            font-size: 0.76rem;
-            font-weight: 700;
-            background: #ffffff;
-            color: var(--qcd-navy);
-            cursor: pointer;
-        }
-        .lab-del-btn {
-            width: 22px;
-            height: 22px;
-            padding: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.72rem;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
+
+        .delta-minus {
             background: #fee2e2;
             color: #dc2626;
-            font-weight: 700;
-            transition: all 0.15s;
-        }
-        .lab-del-btn:hover {
-            background: #ef4444;
-            color: #ffffff;
         }
 
-        /* Sticky Action Footer */
-        .sticky-lab-bar {
-            position: sticky;
-            bottom: 12px;
-            z-index: 99;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
-            padding: 0.75rem 1.25rem;
-            border-radius: 14px;
-            border: 1px solid var(--qcd-border);
-            box-shadow: 0 6px 20px rgba(15, 39, 68, 0.12);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 1rem;
+        .delta-zero {
+            background: #f1f5f9;
+            color: #64748b;
         }
 
-        /* ===== ОБЪЕДИНЁННАЯ 3-ПАНЕЛЬНАЯ ШАПКА (Данные смены + Продукция + Сырьё) ===== */
-        .lab-header-3panel {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-        }
-        @media (max-width: 900px) {
-            .lab-header-3panel { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 600px) {
-            .lab-header-3panel { grid-template-columns: 1fr; }
-        }
-        .lab-panel {
-            background: #f8fafc;
-            border: 1px solid var(--qcd-border);
+        /* Сетка дефектов (11 пунктов 1 сорта + Брак) */
+        .defects-accordion {
+            border: 1px solid var(--tbl-border);
             border-radius: 10px;
-            padding: 8px 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            overflow: hidden;
+            background: #ffffff;
         }
-        .lab-panel-title {
-            font-size: 0.72rem;
-            font-weight: 800;
-            color: var(--qcd-subtext);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 3px;
-            padding-bottom: 4px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .lab-raw-row {
+
+        .defects-header {
+            background: #f8fafc;
+            padding: 10px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 6px;
-            padding: 2px 0;
-            border-bottom: 1px dashed #edf2f7;
+            cursor: pointer;
+            border-bottom: 1px solid var(--tbl-border);
+            user-select: none;
         }
-        .lab-raw-row:last-child { border-bottom: none; }
-        .lab-raw-row .raw-lbl {
-            font-size: 0.76rem;
-            font-weight: 600;
-            color: #334155;
-            white-space: nowrap;
+
+        .defects-header:hover {
+            background: #f1f5f9;
         }
-        .lab-raw-row input {
-            width: 80px;
-            height: 26px;
-            padding: 2px 6px;
-            font-size: 0.85rem;
-            font-weight: 800;
-            text-align: right;
-            border: 1px solid #cbd5e1;
-            border-radius: 5px;
-            background: #ffffff;
-            color: var(--qcd-navy);
-            box-sizing: border-box;
-            flex-shrink: 0;
-        }
-        .lab-total-row {
+
+        .defects-header-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #0f172a;
             display: flex;
-            justify-content: flex-end;
             align-items: center;
-            gap: 6px;
-            margin-top: 4px;
-            padding-top: 4px;
-            border-top: 2px solid #e2e8f0;
-            font-size: 0.82rem;
-            font-weight: 800;
-            color: #7e22ce;
+            gap: 8px;
         }
-        /* Sticky контекстная строка при скролле */
-        .lab-sticky-context {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            background: rgba(15, 39, 68, 0.95);
-            color: #ffffff;
-            padding: 5px 14px;
-            border-radius: 0 0 12px 12px;
-            display: none;
-            gap: 14px;
+
+        .defects-list-body {
+            padding: 10px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .defects-list-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .defect-row-item {
+            display: flex;
             align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 4px 6px;
+            background: #f8fafc;
+            border: 1px solid #edf2f7;
+            border-radius: 6px;
+        }
+
+        .defect-item-label {
             font-size: 0.74rem;
             font-weight: 600;
-            backdrop-filter: blur(6px);
-            flex-wrap: wrap;
-            margin-bottom: 6px;
+            color: #334155;
+            line-height: 1.2;
         }
-        .lab-sticky-context span {
+
+        .defect-item-input {
+            width: 65px;
+            height: 28px;
+            padding: 2px 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-align: right;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 6px;
+            box-sizing: border-box;
+            background: #ffffff;
+            outline: none;
+            flex-shrink: 0;
+        }
+
+        .defect-item-input:focus {
+            border-color: #0284c7;
+        }
+
+        /* Баннер баланса партии */
+        .balance-banner {
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
             display: flex;
             align-items: center;
-            gap: 4px;
-            white-space: nowrap;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: border-color 0.2s ease;
         }
-        .ctx-sep {
-            color: rgba(255,255,255,0.35);
+
+        .balance-equation {
+            font-size: 0.88rem;
+            color: #334155;
+        }
+
+        .balance-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .balance-match {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #86efac;
+        }
+
+        .balance-buffer {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid var(--tbl-border-subtle);
+        }
+
+        .balance-excess {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fca5a5;
+        }
+
+        /* Нижний командный бар */
+        .bottom-action-bar {
+            position: sticky;
+            bottom: 12px;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--tbl-border);
+            border-radius: 14px;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-qcd-primary {
+            height: 38px;
+            padding: 0 18px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #ffffff;
+            background: var(--primary-dark-red);
+            border: 1px solid #7a0304;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(149, 4, 5, 0.25);
+            font-family: inherit;
+        }
+
+        .btn-qcd-primary:hover:not(:disabled) {
+            background: #7a0304;
+            transform: translateY(-1px);
+        }
+
+        .btn-qcd-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-qcd-secondary {
+            height: 38px;
+            padding: 0 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .btn-qcd-secondary:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        /* Toasts */
+        #qcd-toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .qcd-toast {
+            min-width: 280px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+            transition: all 0.3s ease;
+        }
+
+        .qcd-toast-success {
+            background: #0f2744;
+            color: #ffffff;
+            border-left: 4px solid var(--success-green);
+        }
+
+        .qcd-toast-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .qcd-toast-info {
+            background: #ffffff;
+            color: #0f172a;
+            border-left: 4px solid #0284c7;
+            border: 1px solid var(--tbl-border);
         }
     </style>
 </head>
 
 <body>
-    <div class="qcd-wrapper">
-        <!-- Header -->
-        <header class="qcd-header no-print">
-            <div class="qcd-header-left">
-                <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 44px;">
-                <div class="qcd-header-title">
-                    <h1>TECTUM ENGINEERING</h1>
-                    <p>Кабинет СКК — Переборка и лабораторные анализы</p>
-                </div>
+    <div class="qcd-page-container">
+        <!-- Каноническая шапка портала (Кабинет мастера / Главный портал) -->
+        <header class="header-main">
+            <div class="header-logo-container">
+                <a href="/" style="display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit;">
+                    <img src="/static/img/Logo.png" alt="Tectum Logo" style="height: 50px;">
+                    <div class="header-title-block">
+                        <h1 class="header-title">TECTUM ENGINEERING</h1>
+                        <p class="header-subtitle">КАБИНЕТ СКК</p>
+                    </div>
+                </a>
             </div>
-            <div class="qcd-header-right">
-                <div class="user-chip">
-                    <i class="fa-solid fa-user-shield" style="color: var(--qcd-blue);"></i>
-                    <span id="qcd-inspector-display">Мусаилова З.</span>
+
+            <div class="header-actions">
+                <!-- Быстрые ссылки-чипы -->
+                <div class="header-quick-links">
+                    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks">
+                        🎯 <span>Планнер задач</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists">
+                        ✅ <span>Чек-листы</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
+                    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs">
+                        📚 <span>База знаний</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                    </a>
                 </div>
-                <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=qcd_dedicated&redirect=true" 
-                   target="_blank" class="qcd-btn-secondary" title="Открыть таблицу СКК на последних строках">
-                    <i class="fa-solid fa-table" style="color: #16a34a;"></i>
-                    <span>Таблица СКК</span>
-                </a>
-                <a href="https://drive.google.com/drive/u/0/folders/1zPFe5Oftca0wfQIZ-f-U6Ml3VdDz7MJe" 
-                   target="_blank" class="qcd-btn-secondary" title="Открыть папку 'Анализы СКК' на Google Диске">
-                    <i class="fa-brands fa-google-drive" style="color: #ea4335;"></i>
-                    <span>Папка СКК (Drive)</span>
-                </a>
-                <a href="/static/index.html" class="qcd-btn-secondary" title="Вернуться в общий портал">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span>Портал</span>
-                </a>
+
+                <!-- Блок авторизованного пользователя -->
+                <div id="user-info-container" class="header-user-container">
+                    <div class="user-greeting-text">
+                        <p id="user-greeting-name" style="margin: 0; font-weight: 600; color: var(--text-primary);">Инспектор СКК</p>
+                        <p id="user-greeting-role" style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Служба СКК</p>
+                    </div>
+                    <button onclick="logoutQcd()" class="btn-logout" title="Выйти из системы">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Выйти</span>
+                    </button>
+                </div>
             </div>
         </header>
 
-        <!-- Navigation Tabs -->
-        <div class="nav-tabs-qcd no-print">
-            <button class="qcd-tab-btn active" id="tab-btn-create" onclick="switchQcdTab('create')">
-                <i class="fa-solid fa-pen-to-square"></i>
-                <span>Акт переборки</span>
-            </button>
-            <button class="qcd-tab-btn" id="tab-btn-journal" onclick="switchQcdTab('journal')">
-                <i class="fa-solid fa-book-open"></i>
-                <span>Журнал переборок</span>
-            </button>
-            <button class="qcd-tab-btn" id="tab-btn-lab" onclick="switchQcdTab('lab')" style="border-left: 2px solid var(--qcd-border);">
-                <i class="fa-solid fa-flask-vial" style="color: #0284c7;"></i>
-                <span>Анализы СКК (Журнал)</span>
-            </button>
-            <button class="qcd-tab-btn" id="tab-btn-lab-journal" onclick="switchQcdTab('lab-journal')">
-                <i class="fa-solid fa-table-cells"></i>
-                <span>Реестр анализов & Google</span>
-            </button>
+        <!-- Навигационная панель -->
+        <nav class="qcd-nav-bar">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="horizon-tab-btn active" id="tab-btn-sorting">
+                    <i class="fa-solid fa-boxes-packing" style="color: var(--primary-red);"></i>
+                    <span>Переборка (Текущая партия)</span>
+                </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=reports&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 32px; font-size: 0.78rem;" title="Открыть Google Таблицу на листе Переборка">
+                    <i class="fa-solid fa-table" style="color: #16a34a;"></i>
+                    <span>Лист «Переборка» (Google)</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- 1. Панель выбора партии -->
+        <div class="batch-selector-panel">
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                <label for="qcd-batch-select" style="font-size: 0.85rem; font-weight: 700; color: #334155; white-space: nowrap;">
+                    📦 Выберите смену/партию:
+                </label>
+                <select id="qcd-batch-select" class="batch-selector-select" onchange="onBatchSelectChange()">
+                    <option value="">Загрузка списка партий...</option>
+                </select>
+                <span id="qcd-loading-badge" style="display: none; font-size: 0.75rem; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin"></i>
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="btn-qcd-secondary" style="height: 36px;" onclick="loadRecentBatches()" title="Обновить список смен">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Обновить</span>
+                </button>
+            </div>
         </div>
 
-
-        <!-- TAB 1: CREATE ACT -->
-        <div id="qcd-tab-create">
-            <!-- 1. Selection of 5 Shifts -->
-            <div class="bento-card no-print">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-calendar-check" style="color: var(--qcd-blue);"></i>
-                        1. Выбор смен для проверки-переборки (диапазон 5 смен)
-                    </h3>
-                    <span class="stripe-badge badge-brand" id="selected-shifts-count-badge">Выбрано: 0 смен</span>
+        <!-- 2. Двухколоночный верстак -->
+        <div id="qcd-workbench-area" style="transition: opacity 0.2s ease;">
+            
+            <!-- Заголовок партии и статус верификации -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <h2 id="batch-hero-title" style="margin: 0; font-size: 1.35rem; font-weight: 800; color: #0f172a;">Партия №—</h2>
+                    <p id="batch-hero-meta" style="margin: 2px 0 0 0; font-size: 0.84rem; color: #64748b; font-weight: 500;">Загрузка данных...</p>
                 </div>
-                <p style="font-size: 0.82rem; color: var(--qcd-subtext); margin: 0 0 0.5rem 0;">
-                    Отметьте чекбоксами смены, продукция которых подверглась переборке. Данные формовки (ЛФМ) подтягиваются автоматически из сменных рапортов.
-                </p>
-                <div class="shifts-picker-grid" id="shifts-container">
-                    <div style="text-align: center; padding: 1.5rem; color: var(--qcd-subtext);">Загрузка смен...</div>
+                <div id="batch-status-badge" class="status-chip status-pending">
+                    <i class="fa-solid fa-clock"></i> Ожидает проверки СКК
                 </div>
             </div>
 
-            <!-- KPI Banner -->
-            <div class="qcd-kpi-bar no-print">
-                <div class="kpi-mini-card">
-                    <div class="kpi-mini-val" id="kpi-total-formed" style="color: var(--qcd-navy);">0</div>
-                    <div class="kpi-mini-lbl">Формовка ЛФМ (база)</div>
-                </div>
-                <div class="kpi-mini-card">
-                    <div class="kpi-mini-val" id="kpi-first-grade" style="color: var(--qcd-success);">0</div>
-                    <div class="kpi-mini-lbl">1 Сорт (Годные)</div>
-                </div>
-                <div class="kpi-mini-card">
-                    <div class="kpi-mini-val" id="kpi-defect-total" style="color: var(--qcd-danger);">0</div>
-                    <div class="kpi-mini-lbl">Итого Брак</div>
-                </div>
-                <div class="kpi-mini-card">
-                    <div class="kpi-mini-val" id="kpi-defect-percent" style="color: var(--qcd-warning);">0.0%</div>
-                    <div class="kpi-mini-lbl">% Брака от перебранного</div>
-                </div>
-                <div class="kpi-mini-card">
-                    <div class="kpi-mini-val" id="kpi-total-sorted" style="color: var(--qcd-blue);">0</div>
-                    <div class="kpi-mini-lbl">Всего перебрано</div>
-                </div>
-            </div>
+            <div class="workbench-grid">
+                
+                <!-- ЛЕВАЯ КАРТОЧКА: Первичный рапорт мастера (Readonly) -->
+                <div class="workbench-card">
+                    <div class="card-header-bar">
+                        <h3 class="card-title">
+                            <i class="fa-solid fa-clipboard-user" style="color: #64748b;"></i>
+                            <span>Рапорт мастера смены (Базовый)</span>
+                        </h3>
+                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Исходные данные цеха</span>
+                    </div>
 
-            <!-- 2. Defects and First Grade Categorization (from PDF Checklist) -->
-            <div class="bento-card no-print">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-list-check" style="color: var(--qcd-accent);"></i>
-                        2. Классификация отклонений (Категории 1 сорта и Брака по чек-листу)
-                    </h3>
-                </div>
-
-                <div class="defects-two-cols">
-                    <!-- Column 1: 1st Grade Categories (12 items) -->
-                    <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid var(--qcd-border);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                            <h4 style="margin: 0; color: var(--qcd-navy); font-size: 0.95rem; font-weight: 800;">
-                                🟢 1-й сорт (Допустимые отклонения)
-                            </h4>
-                            <span class="stripe-badge" style="background: #dcfce7; color: #15803d; font-weight: 800;" id="sum-badge-fg">0 шт</span>
+                    <div class="master-metrics-grid">
+                        <div class="metric-tile">
+                            <span class="metric-tile-label">Формовка (База ЛФМ)</span>
+                            <span class="metric-tile-value mono" id="m-formed">0</span>
                         </div>
-
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">1. Скол (до 50×50 мм) / Ұшпа</span>
-                            <input type="number" id="fg-chip" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
+                        <div class="metric-tile">
+                            <span class="metric-tile-label">Всего предъявлено цехом</span>
+                            <span class="metric-tile-value mono" id="m-total-sorted">0</span>
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">2. Сдир / Бетінің сыдырылуы</span>
-                            <input type="number" id="fg-scratch" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
+                        <div class="metric-tile" style="border-left: 3px solid var(--success-green);">
+                            <span class="metric-tile-label">🟢 Кондиция ГП (Склад)</span>
+                            <span class="metric-tile-value mono" id="m-condition" style="color: var(--success-green);">0</span>
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">3. Плохой рез / Нашар кесілген</span>
-                            <input type="number" id="fg-bad-cut" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
+                        <div class="metric-tile" style="border-left: 3px solid #0284c7;">
+                            <span class="metric-tile-label">🔵 1-й сорт мастера</span>
+                            <span class="metric-tile-value mono" id="m-first-grade" style="color: #0284c7;">0</span>
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">4. Налип снизу / Төменгі жабысу</span>
-                            <input type="number" id="fg-stick-bottom" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
+                        <div class="metric-tile" style="border-left: 3px solid var(--primary-red);">
+                            <span class="metric-tile-label">🔴 Брак мастера</span>
+                            <span class="metric-tile-value mono" id="m-defect" style="color: var(--primary-red);">0</span>
                         </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">5. Налип сверху / Үстінен жабысу</span>
-                            <input type="number" id="fg-stick-top" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">6. Кривой край / Қыры қисық (бұрыш)</span>
-                            <input type="number" id="fg-curved-edge" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">7. Нет рисунка / Өрнегі жоқ</span>
-                            <input type="number" id="fg-no-pattern" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">8. Вмятина / Майысқан / Ойық</span>
-                            <input type="number" id="fg-dent" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">9. Не соотв. толщине / Қалыңдығы</span>
-                            <input type="number" id="fg-thickness" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">10. Расслоение / Қабатталу</span>
-                            <input type="number" id="fg-delamination" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">11. Выпирание кромок / Бүртіктенуі</span>
-                            <input type="number" id="fg-edge-bulge" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
-                        </div>
-                        <div class="compact-input-row">
-                            <span class="compact-input-lbl">12. Без видимых дефектов / Прочее 1 сорт</span>
-                            <input type="number" id="fg-other" class="qcd-num-input fg-input" value="0" min="0" oninput="recalcQcdTotals()">
+                        <div class="metric-tile">
+                            <span class="metric-tile-label">% Брака мастера</span>
+                            <span class="metric-tile-value mono" id="m-pct-defect">0.00%</span>
                         </div>
                     </div>
 
-                    <!-- Column 2: Defect Categories (Жарамсыз) & Notes -->
-                    <div style="display: flex; flex-direction: column; gap: 14px;">
-                        <div style="background: #fff5f5; padding: 1rem; border-radius: 14px; border: 1px solid rgba(220, 38, 38, 0.2);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                                <h4 style="margin: 0; color: var(--qcd-danger); font-size: 0.95rem; font-weight: 800;">
-                                    🔴 Жарамсыз / БРАК
-                                </h4>
-                                <span class="stripe-badge" style="background: #fee2e2; color: #b91c1c; font-weight: 800;" id="sum-badge-defect">0 шт</span>
-                            </div>
+                    <div style="background: #f8fafc; border: 1px solid var(--tbl-border); border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; color: #64748b; line-height: 1.4;">
+                        <i class="fa-solid fa-circle-info" style="color: #0284c7; margin-right: 4px;"></i>
+                        Эти исходные значения мастера сохраняются на листе «Переборка». При утверждении СКК обновленный результат скорректирует итоговый сменный рапорт и склад.
+                    </div>
+                </div>
 
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">12. Упал с коробки / Қораптан құлаған</span>
-                                <input type="number" id="def-fell-box" class="qcd-num-input def-input" value="0" min="0" oninput="recalcQcdTotals()">
+                <!-- ПРАВАЯ КАРТОЧКА: Проверка и корректировка СКК (Интерактивная) -->
+                <div class="workbench-card" style="border-color: #cbd5e1;">
+                    <div class="card-header-bar">
+                        <h3 class="card-title">
+                            <i class="fa-solid fa-shield-halved" style="color: var(--primary-red);"></i>
+                            <span>Проверка и корректировка СКК</span>
+                        </h3>
+                        <span style="font-size: 0.75rem; color: var(--primary-dark-red); font-weight: 700;">Итоговая партия</span>
+                    </div>
+
+                    <!-- 3 Главных поля ввода -->
+                    <div class="qcd-main-inputs-grid">
+                        <div class="qcd-field-box box-gp">
+                            <div class="qcd-field-header">
+                                <span class="qcd-field-label">Кондиция (ГП)</span>
+                                <span id="delta-condition" class="delta-pill delta-zero">0</span>
                             </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">13. Сломан доводчиком / Сломан</span>
-                                <input type="number" id="def-broken" class="qcd-num-input def-input" value="0" min="0" oninput="recalcQcdTotals()">
+                            <input type="number" id="qcd-condition-input" class="qcd-num-input mono" min="0" value="0">
+                        </div>
+
+                        <div class="qcd-field-box box-fg">
+                            <div class="qcd-field-header">
+                                <span class="qcd-field-label">1-й сорт</span>
+                                <span id="delta-first-grade" class="delta-pill delta-zero">0</span>
                             </div>
-                            <div class="compact-input-row">
-                                <span class="compact-input-lbl">14. Технологический / Прочий брак</span>
-                                <input type="number" id="def-tech-defect" class="qcd-num-input def-input" value="0" min="0" oninput="recalcQcdTotals()">
+                            <input type="number" id="qcd-first-grade-input" class="qcd-num-input mono" min="0" value="0">
+                        </div>
+
+                        <div class="qcd-field-box box-defect">
+                            <div class="qcd-field-header">
+                                <span class="qcd-field-label">Итого Брак</span>
+                                <span id="delta-defect" class="delta-pill delta-zero">0</span>
+                            </div>
+                            <input type="number" id="qcd-defect-input" class="qcd-num-input mono" min="0" value="0">
+                        </div>
+                    </div>
+
+                    <!-- Аккордеон дефектов (11 пунктов 1 сорта + Брак) -->
+                    <div class="defects-accordion">
+                        <div class="defects-header" onclick="document.getElementById('defects-body-wrap').style.display = document.getElementById('defects-body-wrap').style.display === 'none' ? 'block' : 'none'">
+                            <span class="defects-header-title">
+                                <i class="fa-solid fa-list-check" style="color: var(--primary-red);"></i>
+                                <span>Классификация отклонений (11 пунктов 1-го сорта + Брак)</span>
+                            </span>
+                            <div style="display: flex; gap: 6px;">
+                                <span class="delta-pill delta-zero" id="badge-sum-fg" title="Сумма 1 сорта">0 шт</span>
+                                <span class="delta-pill delta-minus" id="badge-sum-def" title="Сумма брака">0 шт</span>
+                                <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: #64748b;"></i>
                             </div>
                         </div>
 
-                        <!-- Notes, causes and culprits -->
-                        <div style="background: #f8fafc; padding: 1rem; border-radius: 14px; border: 1px solid var(--qcd-border); flex: 1;">
-                            <label style="font-size: 0.85rem; font-weight: 700; color: var(--qcd-navy); display: block; margin-bottom: 6px;">
-                                📝 Указать причину, виновников и замечания СКК:
+                        <div id="defects-body-wrap" style="display: block;">
+                            <div style="padding: 6px 12px; background: #eff6ff; font-size: 0.74rem; font-weight: 700; color: #1e40af; border-bottom: 1px solid #dbeafe;">
+                                🟢 1-й СОРТ (ДОПУСТИМЫЕ ОТКЛОНЕНИЯ ПО СТАНДАРТУ ЗАВОДА):
+                            </div>
+                            <div class="defects-list-body">
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">1. Скол (до 50×50 мм) / Ұшпа</span>
+                                    <input type="number" id="fg-chip" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">2. Сдир / Бетінің сыдырылуы</span>
+                                    <input type="number" id="fg-scratch" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">3. Плохой рез / Нашар кесілген</span>
+                                    <input type="number" id="fg-bad-cut" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">4. Налип снизу / Төменгі жабысу</span>
+                                    <input type="number" id="fg-stick-bottom" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">5. Налип сверху / Үстінен жабысу</span>
+                                    <input type="number" id="fg-stick-top" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">6. Кривой край / Қыры қисық (бұрыш)</span>
+                                    <input type="number" id="fg-curved-edge" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">7. Нет рисунка / Өрнегі жоқ</span>
+                                    <input type="number" id="fg-no-pattern" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">8. Вмятина / Майысқан / Ойық</span>
+                                    <input type="number" id="fg-dent" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">9. Не соотв. толщине / Қалыңдығы</span>
+                                    <input type="number" id="fg-thickness" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">10. Расслоение / Қабатталу</span>
+                                    <input type="number" id="fg-delamination" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">11. Выпирание кромок / Бүртіктенуі</span>
+                                    <input type="number" id="fg-edge" class="defect-item-input fg-input mono" min="0" value="0">
+                                </div>
+                            </div>
+
+                            <div style="padding: 6px 12px; background: #fff1f2; font-size: 0.74rem; font-weight: 700; color: #be123c; border-top: 1px solid #ffe4e6; border-bottom: 1px solid #ffe4e6;">
+                                🔴 ЖАРАМСЫЗ / БРАК (ОТБРАКОВКА):
+                            </div>
+                            <div class="defects-list-body">
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">12. Упал с коробки / Қораптан құлаған</span>
+                                    <input type="number" id="def-fell-box" class="defect-item-input def-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">13. Сломан доводчиком / Сломан</span>
+                                    <input type="number" id="def-broken" class="defect-item-input def-input mono" min="0" value="0">
+                                </div>
+                                <div class="defect-row-item">
+                                    <span class="defect-item-label">14. Технологический / Прочий брак</span>
+                                    <input type="number" id="def-tech" class="defect-item-input def-input mono" min="0" value="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Причина брака и примечания -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                                ⚠️ Причина брака / отклонения:
                             </label>
-                            <textarea id="qcd-notes" rows="4" style="width: 100%; border: 1px solid var(--qcd-border); border-radius: 10px; padding: 8px 10px; font-family: inherit; font-size: 0.88rem; box-sizing: border-box; resize: vertical;" 
-                                      placeholder="Например: Смена №2 (мастер Бекбосынов), налип пленки вызван загрязнением формующего барабана..."></textarea>
+                            <select id="qcd-root-cause" style="width: 100%; height: 36px; border: 1px solid var(--tbl-border-subtle); border-radius: 8px; padding: 0 8px; font-size: 0.82rem; font-weight: 600; outline: none; background: #ffffff;">
+                                <option value="">— Не выбрано (в пределах нормы) —</option>
+                                <option value="Загрязнение калибровочного барабана">Загрязнение калибровочного барабана</option>
+                                <option value="Сбой доводчика / толкателя">Сбой доводчика / толкателя</option>
+                                <option value="Ошибка оператора / перекос стопы">Ошибка оператора / перекос стопы</option>
+                                <option value="Нарушение рецептуры / распушки">Нарушение рецептуры / распушки</option>
+                                <option value="Затупление ножа поперечной резки">Затупление ножа поперечной резки</option>
+                                <option value="Повреждение при транспортировке">Повреждение при транспортировке</option>
+                                <option value="Прочее технологическое отклонение">Прочее технологическое отклонение</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
+                                📝 Замечание / предписание инспектора СКК:
+                            </label>
+                            <input type="text" id="qcd-notes-text" placeholder="Например: продуть форсунки на линии №1..." style="width: 100%; height: 36px; border: 1px solid var(--tbl-border-subtle); border-radius: 8px; padding: 0 10px; font-size: 0.82rem; box-sizing: border-box; outline: none;">
                         </div>
                     </div>
+
                 </div>
 
-                <!-- Footer Submit Bar -->
-                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 1.5rem; border-top: 1px solid #f1f5f9; padding-top: 1rem;">
-                    <button class="qcd-btn-secondary" onclick="previewActBeforeSave()">
-                        <i class="fa-solid fa-eye"></i>
-                        <span>Предпросмотр Акта</span>
-                    </button>
-                    <button class="qcd-btn-primary" id="btn-save-qcd-act" onclick="submitQcdAct()">
-                        <i class="fa-solid fa-check-double"></i>
-                        <span>Сформировать и сохранить Акт СКК</span>
-                    </button>
-                </div>
             </div>
 
-            <!-- PREVIEW / PRINTABLE ACT DOCUMENT (A4 Template) -->
-            <div id="printable-act-preview">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f2744; padding-bottom: 12px; margin-bottom: 16px;">
-                    <div>
-                        <h2 style="margin: 0; font-size: 1.4rem; color: #0f2744; font-weight: 800;">ТЕКТУМ ИНЖИНИРИНГ (TECTUM ENGINEERING)</h2>
-                        <h3 style="margin: 4px 0 0 0; font-size: 1.1rem; color: #334155; font-weight: 700;" id="print-act-title">
-                            АКТ ПЕРЕБОРКИ И КОНТРОЛЯ КАЧЕСТВА ПРОДУКЦИИ (СКК)
-                        </h3>
+            <!-- 3. Баннер живого баланса партии -->
+            <div class="balance-banner" id="qcd-balance-banner">
+                <div>
+                    <div style="font-size: 0.74rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px;">
+                        ⚖️ Уравнение сходимости партии:
                     </div>
+                    <div class="balance-equation" id="balance-equation-text">
+                        Формовка 0 шт = ГП 0 + 1-й сорт 0 + Брак 0
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
                     <div style="text-align: right;">
-                        <div style="font-weight: 800; font-size: 1.1rem; color: #C82323;" id="print-act-number">№ СКК-2026/09-001</div>
-                        <div style="font-size: 0.85rem; color: #64748b;" id="print-act-date">Дата: 09.09.2026</div>
+                        <div style="font-size: 0.72rem; color: #64748b; font-weight: 600;">% Брака СКК:</div>
+                        <div class="mono" id="qcd-pct-defect" style="font-size: 1.1rem; font-weight: 800; color: var(--primary-red);">0.00%</div>
                     </div>
-                </div>
-
-                <div style="margin-bottom: 14px; font-size: 0.9rem; line-height: 1.5;">
-                    <div><strong>Инспектор СКК:</strong> <span id="print-inspector">Мусаилова З.</span></div>
-                    <div><strong>Продукция:</strong> <span id="print-product">Шифер 8 волн</span></div>
-                    <div><strong>Проверенные смены:</strong> <span id="print-shifts-list">-</span></div>
-                </div>
-
-                <!-- Table 1: Base & Result -->
-                <table class="act-doc-table">
-                    <thead>
-                        <tr>
-                            <th>Показатель</th>
-                            <th style="text-align: right; width: 140px;">Количество (шт)</th>
-                            <th style="text-align: right; width: 120px;">Доля / Процент</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Формовка ЛФМ (база по выбранным сменам)</strong></td>
-                            <td style="text-align: right; font-weight: 800;" id="print-total-formed">0</td>
-                            <td style="text-align: right;">100%</td>
-                        </tr>
-                        <tr>
-                            <td><strong>1-й СОРТ (ГОДНАЯ ПРОДУКЦИЯ)</strong></td>
-                            <td style="text-align: right; font-weight: 800; color: #16a34a;" id="print-fg-total">0</td>
-                            <td style="text-align: right; font-weight: 700;" id="print-fg-percent">0.0%</td>
-                        </tr>
-                        <tr>
-                            <td><strong>ЖАРАМСЫЗ / БРАК</strong></td>
-                            <td style="text-align: right; font-weight: 800; color: #dc2626;" id="print-def-total">0</td>
-                            <td style="text-align: right; font-weight: 700; color: #dc2626;" id="print-def-percent">0.0%</td>
-                        </tr>
-                        <tr style="background: #f8fafc;">
-                            <td><strong>ИТОГО ПЕРЕБРАНО СКК</strong></td>
-                            <td style="text-align: right; font-weight: 800;" id="print-total-sorted">0</td>
-                            <td style="text-align: right;">—</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <!-- Table 2: Breakdown of Deviations -->
-                <h4 style="margin: 16px 0 6px 0; font-size: 0.95rem; color: #0f2744;">Детализация дефектов и категорий:</h4>
-                <div id="print-breakdown-details" style="font-size: 0.85rem; line-height: 1.4;"></div>
-
-                <div style="margin-top: 14px; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                    <strong>Причины, виновники и заключение СКК:</strong>
-                    <div id="print-notes" style="margin-top: 4px; font-style: italic; color: #334155;">—</div>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 16px; border-top: 1px solid #cbd5e1; font-size: 0.85rem;">
-                    <div>
-                        Руководитель СКК: _________________ (Мусаилова З.)
+                    <div id="balance-status-badge" class="balance-badge balance-match">
+                        <i class="fa-solid fa-circle-check"></i> Баланс сошелся
                     </div>
-                    <div>
-                        Начальник производства: _________________ (Булеханов К.)
-                    </div>
-                </div>
-
-                <div style="margin-top: 20px; text-align: center;" class="no-print">
-                    <button class="qcd-btn-primary" onclick="window.print()">
-                        <i class="fa-solid fa-print"></i>
-                        <span>Распечатать документ (Печать / PDF)</span>
-                    </button>
-                    <button class="qcd-btn-secondary" onclick="document.getElementById('printable-act-preview').style.display='none'">
-                        Закрыть предпросмотр
-                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- TAB 2: JOURNAL OF REPORTS -->
-        <div id="qcd-tab-journal" style="display: none;">
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-book" style="color: var(--qcd-navy);"></i>
-                        Журнал актов переборки продукции СКК
-                    </h3>
-                    <button class="qcd-btn-secondary" onclick="loadQcdReportsJournal()">
-                        <i class="fa-solid fa-rotate"></i>
-                        <span>Обновить</span>
-                    </button>
-                </div>
-
-                <div style="overflow-x: auto;">
-                    <table class="act-doc-table" id="journal-table">
-                        <thead>
-                            <tr>
-                                <th>№ Акта</th>
-                                <th>Дата</th>
-                                <th>Инспектор</th>
-                                <th>Смены / Партии</th>
-                                <th style="text-align: right;">Формовка</th>
-                                <th style="text-align: right;">1 Сорт</th>
-                                <th style="text-align: right;">Брак</th>
-                                <th style="text-align: right;">% Брака</th>
-                                <th style="text-align: center;">Google Таблица</th>
-                                <th style="text-align: center;">Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody id="journal-tbody">
-                            <tr><td colspan="10" style="text-align: center; color: var(--qcd-subtext);">Загрузка журнала...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 3: QCD LAB ANALYSES (ЖУРНАЛ АНАЛИЗОВ СКК) -->
-        <div id="qcd-tab-lab" style="display: none;">
-            <!-- Active Draft Info & Quick Switch -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px;">
+            <!-- 4. Нижний командный бар -->
+            <div class="bottom-action-bar">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="stripe-badge" id="lab-active-status-badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 0.82rem;">
-                        📝 Новый бланк смены (Черновик)
-                    </span>
-                    <span id="lab-current-id-display" style="font-size: 0.8rem; color: var(--qcd-subtext); font-weight: 600;"></span>
-                </div>
-                <div style="display: flex; gap: 6px;">
-                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="resetLabForm()" title="Очистить форму и начать новую смену">
-                        <i class="fa-solid fa-file-circle-plus"></i>
-                        <span>Новый анализ</span>
+                    <button type="button" class="btn-qcd-secondary" onclick="resetToMasterValues()" title="Вернуть цифры мастера">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span>Сбросить к значениям мастера</span>
                     </button>
-                    <button class="qcd-btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;" onclick="switchQcdTab('lab-journal')">
-                        <i class="fa-solid fa-list-check"></i>
-                        <span>Все анализы месяца</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" class="btn-qcd-primary" id="btn-submit-qcd-verify" onclick="submitQcdVerification()">
+                        <i class="fa-solid fa-check-double"></i>
+                        <span>Утвердить и синхронизировать с листом «Переборка»</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Sticky контекстная шапка при скролле -->
-            <div class="lab-sticky-context" id="lab-sticky-bar">
-                <span>📅 <span id="ctx-date">—</span></span>
-                <span class="ctx-sep">|</span>
-                <span>☀️ <span id="ctx-shift">—</span></span>
-                <span class="ctx-sep">|</span>
-                <span>🏭 <span id="ctx-line">—</span></span>
-                <span class="ctx-sep">|</span>
-                <span>📦 <span id="ctx-product">—</span></span>
-                <span class="ctx-sep">|</span>
-                <span>🔬 <span id="ctx-specialist">—</span></span>
-            </div>
-
-            <!-- 1+2. Объединённая шапка: Параметры смены + Продукция + Расход сырья -->
-            <div class="bento-card" id="lab-header-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
-                <div class="bento-card-header" style="margin-bottom: 0.6rem; padding-bottom: 0.4rem;">
-                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
-                        <i class="fa-solid fa-sliders" style="color: var(--qcd-blue);"></i>
-                        1. Параметры смены, линии, продукции и расход сырья
-                    </h3>
-                    <span class="norm-tag">Лабораторный контроль СКК</span>
-                </div>
-
-                <input type="hidden" id="lab-analysis-id" value="">
-
-                <div class="lab-header-3panel">
-
-                    <!-- Панель 1: Данные смены -->
-                    <div class="lab-panel">
-                        <div class="lab-panel-title">📋 Данные смены</div>
-                        <div class="lab-dense-field">
-                            <label>📅 Дата смены:</label>
-                            <input type="date" id="lab-report-date" onchange="onLabHeaderChange()">
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>☀️ Смена:</label>
-                            <select id="lab-shift-type" onchange="onLabHeaderChange()">
-                                <option value="День">☀️ Дневная (08:00-20:00)</option>
-                                <option value="Ночь">🌙 Ночная (20:00-08:00)</option>
-                            </select>
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>🏭 Линия формовки:</label>
-                            <select id="lab-line-number" onchange="onLabHeaderChange()">
-                                <option value="ЛФМ-1">ЛФМ-1</option>
-                                <option value="ЛФМ-2">ЛФМ-2</option>
-                            </select>
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>🌊 Поток:</label>
-                            <input type="number" id="lab-flow-number" value="1" min="1" max="4">
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>👷 Мастер смены:</label>
-                            <input type="text" id="lab-master-name" placeholder="ФИО мастера">
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>⚙️ Машинист ЛФМ:</label>
-                            <input type="text" id="lab-machinist-name" placeholder="ФИО машиниста">
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>🔬 Специалист СКК:</label>
-                            <input type="text" id="lab-inspector-name" value="Мусаилова З." onchange="updateStickyContext()">
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>⏰ Время запуска:</label>
-                            <input type="text" id="lab-start-time" value="08:00" placeholder="08:00">
-                        </div>
-                    </div>
-
-                    <!-- Панель 2: Параметры продукции -->
-                    <div class="lab-panel">
-                        <div class="lab-panel-title">📦 Параметры продукции</div>
-                        <div class="lab-dense-field">
-                            <label>📦 Номенклатура / Продукция:</label>
-                            <select id="lab-product-name" onchange="onLabProductChange()">
-                                <option value="Шифер 8 волн серый">Шифер 8 волн серый</option>
-                                <option value="Шифер 8 волн окрашенный">Шифер 8 волн окрашенный</option>
-                                <option value="Шифер 8 волн рифленый">Шифер 8 волн рифленый</option>
-                                <option value="Шифер 7 волн">Шифер 7 волн</option>
-                                <option value="Плоский лист 1750х1200х6">Плоский лист 1750х1200х6</option>
-                                <option value="Плоский лист 1750х1200х8">Плоский лист 1750х1200х8</option>
-                                <option value="Плоский лист 1750х1200х10">Плоский лист 1750х1200х10</option>
-                            </select>
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>📏 Номинал толщины:</label>
-                            <input type="text" id="lab-thickness-spec" value="5.8 мм" placeholder="5.8 мм">
-                        </div>
-                        <div class="lab-dense-field">
-                            <label>🏷️ Партия / №:</label>
-                            <input type="text" id="lab-batch-number" placeholder="Партия 1">
-                        </div>
-                    </div>
-
-                    <!-- Панель 3: Расход сырья (кг) -->
-                    <div class="lab-panel">
-                        <div class="lab-panel-title">⚖️ Расход сырья (кг)</div>
-                        <div class="lab-raw-row">
-                            <span class="raw-lbl">Асбест:</span>
-                            <input type="number" step="0.1" id="lab-raw-asbestos" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
-                        </div>
-                        <div class="lab-raw-row">
-                            <span class="raw-lbl">Цемент:</span>
-                            <input type="number" step="0.1" id="lab-raw-cement" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
-                        </div>
-                        <div class="lab-raw-row">
-                            <span class="raw-lbl">Целлюлоза:</span>
-                            <input type="number" step="0.1" id="lab-raw-cellulose" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
-                        </div>
-                        <div class="lab-raw-row">
-                            <span class="raw-lbl">Асбозурит:</span>
-                            <input type="number" step="0.1" id="lab-raw-asbozurite" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
-                        </div>
-                        <div class="lab-raw-row">
-                            <span class="raw-lbl">Дробл. шифер:</span>
-                            <input type="number" step="0.1" id="lab-raw-crushed-slate" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
-                        </div>
-                        <div class="lab-raw-row">
-                            <span class="raw-lbl">Стекловолокно:</span>
-                            <input type="number" step="0.1" id="lab-raw-fiberglass" class="lab-raw-inp" placeholder="0" oninput="recalcLabRawMaterialsTotal()">
-                        </div>
-                        <div class="lab-total-row">
-                            ИТОГО: <span id="lab-raw-total-badge" style="background: #f3e8ff; color: #7e22ce; padding: 2px 8px; border-radius: 6px; font-weight: 800;">0 кг</span>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- 3. Технологические параметры подготовки массы (3 параллельные колонки) -->
-            <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
-                <div class="bento-card-header" style="margin-bottom: 0.5rem; padding-bottom: 0.4rem;">
-                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
-                        <i class="fa-solid fa-gears" style="color: #d97706;"></i>
-                        3. Технологические параметры подготовки массы
-                    </h3>
-                    <span class="norm-tag">Контроль распушки, концентраций и температур</span>
-                </div>
-
-                <div class="lab-prep-3cols">
-                    <!-- Колонка 1: Гидропушение и бегун -->
-                    <div class="prep-subcol">
-                        <div class="prep-subcol-title">
-                            ⚙️ Гидропушение и бегун
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Бегун (время, мин):</span>
-                            <input type="number" step="0.5" id="lab-begun-time" placeholder="10">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Влажн. хризотила (%) <span class="norm-tag">29–35%</span></span>
-                            <input type="number" step="0.1" id="lab-chrysotile-moist" placeholder="32" oninput="validateNormInput(this, 29, 35)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Распушка (%) <span class="norm-tag">≥ 30%</span></span>
-                            <input type="number" step="0.1" id="lab-fluffing" placeholder="32" oninput="validateNormInput(this, 30, 100)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Г/пушитель (время, мин):</span>
-                            <input type="number" step="0.5" id="lab-hydropulper-time" placeholder="15">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Конц. в г/пуш. (%) <span class="norm-tag">3.5–4.5%</span></span>
-                            <input type="number" step="0.1" id="lab-hydropulper-conc" placeholder="4.0" oninput="validateNormInput(this, 3.5, 4.5)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Турбосмеситель (%) <span class="norm-tag">21–26%</span></span>
-                            <input type="number" step="0.1" id="lab-turbomixer-conc" placeholder="23" oninput="validateNormInput(this, 21, 26)">
-                        </div>
-                    </div>
-
-                    <!-- Колонка 2: Концентрации и температуры -->
-                    <div class="prep-subcol">
-                        <div class="prep-subcol-title">
-                            🧪 Концентрации и бассейны
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Ковшевая (%) <span class="norm-tag">21–26%</span></span>
-                            <input type="number" step="0.1" id="lab-bucket-mixer" placeholder="24" oninput="validateNormInput(this, 21, 26)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Бракомешалка (%) <span class="norm-tag">15–20%</span></span>
-                            <input type="number" step="0.1" id="lab-defective-mixer" placeholder="18" oninput="validateNormInput(this, 15, 20)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Разжижение (%) <span class="norm-tag">≤ 17%</span></span>
-                            <input type="number" step="0.1" id="lab-dilution-water" placeholder="15" oninput="validateNormInput(this, 0, 17)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Чист. рекупер. (%) <span class="norm-tag">≤ 17%</span></span>
-                            <input type="number" step="0.1" id="lab-clean-recuperator" placeholder="12" oninput="validateNormInput(this, 0, 17)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Темп. рекупер. (°C) <span class="norm-tag">35–45°C</span></span>
-                            <input type="number" step="0.5" id="lab-recuperator-temp" placeholder="40" oninput="validateNormInput(this, 35, 45)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Темп. бассейна (°C) <span class="norm-tag">≥ 45°C</span></span>
-                            <input type="number" step="0.5" id="lab-pool-temp" placeholder="46" oninput="validateNormInput(this, 45, 100)">
-                        </div>
-                        <div class="prep-row">
-                            <span class="prep-label">Целлюлоза (сух. ост.):</span>
-                            <input type="text" id="lab-cellulose-dry-residue" style="width: 85px; text-align: left;" placeholder="Значение">
-                        </div>
-                    </div>
-
-                    <!-- Колонка 3: Формовочные ванны 1–4 (Матричная мини-таблица) -->
-                    <div class="prep-subcol">
-                        <div class="prep-subcol-title">
-                            🌊 Ванны 1–4
-                        </div>
-                        <table class="lab-vats-table">
-                            <thead>
-                                <tr>
-                                    <th style="width: 50px;">Ванна</th>
-                                    <th>Конц. <span class="norm-tag">7–12%</span></th>
-                                    <th>Осадок <span class="norm-tag">≤ 3%</span></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><b>№ 1</b></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-1-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-1-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
-                                </tr>
-                                <tr>
-                                    <td><b>№ 2</b></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-2-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-2-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
-                                </tr>
-                                <tr>
-                                    <td><b>№ 3</b></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-3-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-3-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
-                                </tr>
-                                <tr>
-                                    <td><b>№ 4</b></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-4-conc" placeholder="9.5" oninput="validateNormInput(this, 7, 12)"></td>
-                                    <td><input type="number" step="0.1" id="lab-vat-4-sediment" placeholder="2.0" oninput="validateNormInput(this, 0, 3)"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bento 2-Col Grid: 4. Влажность пленки + 5. Объемный вес и влажность наката -->
-            <div class="lab-bento-2col">
-                <!-- 4. Влажность пленки -->
-                <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0;">
-                    <div class="bento-card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.35rem;">
-                        <h3 class="bento-card-title" style="font-size: 0.92rem;">
-                            <i class="fa-solid fa-droplet" style="color: #0284c7;"></i>
-                            4. Влажность пленки (%)
-                        </h3>
-                        <button class="qcd-btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="addLabFilmRow()">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>Замер</span>
-                        </button>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table class="lab-table" id="lab-film-table">
-                            <thead>
-                                <tr>
-                                    <th rowspan="2" style="width: 58px;">Время</th>
-                                    <th colspan="2">До вакуума <span class="norm-tag">39–48%</span></th>
-                                    <th colspan="2">После вакуума <span class="norm-tag">32–35%</span></th>
-                                    <th rowspan="2" style="width: 26px;">✕</th>
-                                </tr>
-                                <tr>
-                                    <th style="width: 52px;">Лево</th>
-                                    <th style="width: 52px;">Право</th>
-                                    <th style="width: 52px;">Лево</th>
-                                    <th style="width: 52px;">Право</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lab-film-tbody">
-                                <!-- Динамические строки замеров -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 5. Объемный вес и влажность наката -->
-                <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0;">
-                    <div class="bento-card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.35rem;">
-                        <h3 class="bento-card-title" style="font-size: 0.92rem;">
-                            <i class="fa-solid fa-weight-hanging" style="color: #059669;"></i>
-                            5. Вес и влажность наката
-                        </h3>
-                        <button class="qcd-btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="addLabDensityRow()">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>Замер</span>
-                        </button>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table class="lab-table" id="lab-density-table">
-                            <thead>
-                                <tr>
-                                    <th rowspan="2" style="width: 55px;">Время</th>
-                                    <th colspan="3">Объемный вес (г/см³) <span class="norm-tag">≥ 1.42</span></th>
-                                    <th colspan="3">Влажность (%) <span class="norm-tag">20–24%</span></th>
-                                    <th rowspan="2" style="width: 26px;">✕</th>
-                                </tr>
-                                <tr>
-                                    <th style="width: 46px;">Л</th>
-                                    <th style="width: 46px;">Ц</th>
-                                    <th style="width: 46px;">П</th>
-                                    <th style="width: 46px;">Л</th>
-                                    <th style="width: 46px;">Ц</th>
-                                    <th style="width: 46px;">П</th>
-                                </tr>
-                            </thead>
-                            <tbody id="lab-density-tbody">
-                                <!-- Динамические строки замеров -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 6. Почасовой журнал контроля толщины и геометрии ГП (Компактный вид) -->
-            <div class="bento-card" style="padding: 0.85rem 1rem; margin-top: 0.85rem; margin-bottom: 0.85rem;">
-                <div class="bento-card-header" style="margin-bottom: 0.4rem; padding-bottom: 0.35rem;">
-                    <h3 class="bento-card-title" style="font-size: 0.95rem;">
-                        <i class="fa-solid fa-ruler-combined" style="color: #7c3aed;"></i>
-                        6. Почасовой журнал контроля толщины и геометрии ГП
-                    </h3>
-                    <div style="display: flex; gap: 6px;">
-                        <button class="qcd-btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="fillAllHourlyAsNorm()" title="Установить 'Норма' для всех строк внешнего вида и заполнить толщины из номинала">
-                            <i class="fa-solid fa-wand-magic-sparkles" style="color: #16a34a;"></i>
-                            <span>Заполнить все: Норма</span>
-                        </button>
-                        <button class="qcd-btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;" onclick="addLabHourlyRow()">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>Добавить час</span>
-                        </button>
-                    </div>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table class="lab-table" id="lab-hourly-table">
-                        <thead>
-                            <tr>
-                                <th rowspan="2" style="width: 65px;">Время</th>
-                                <th colspan="3">Толщина наката (мм)</th>
-                                <th rowspan="2" style="width: 145px;">Внешний вид листа</th>
-                                <th colspan="2">ГП пачки (мм)</th>
-                                <th rowspan="2" style="width: 28px;">✕</th>
-                            </tr>
-                            <tr>
-                                <th style="width: 58px;">Лево</th>
-                                <th style="width: 58px;">Центр</th>
-                                <th style="width: 58px;">Право</th>
-                                <th style="width: 65px;">Длина</th>
-                                <th style="width: 65px;">Ширина</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lab-hourly-tbody">
-                            <!-- Динамические строки замеров -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 7. Замечания и заключение СКК -->
-            <div class="bento-card" style="padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
-                <h3 class="bento-card-title" style="margin-bottom: 6px; font-size: 0.92rem;">
-                    📝 Замечания лаборанта / Специалиста СКК по смене:
-                </h3>
-                <textarea id="lab-notes" rows="2" style="width: 100%; border: 1px solid var(--qcd-border); border-radius: 8px; padding: 6px 10px; font-family: inherit; font-size: 0.85rem; box-sizing: border-box; resize: vertical;" 
-                          placeholder="Укажите отклонения по температуре, плотности, распушке или рекомендации по корректировке дозировок..."></textarea>
-            </div>
-
-            <!-- Sticky Action Footer Bar -->
-            <div class="sticky-lab-bar">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span id="lab-google-link-container"></span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="qcd-btn-secondary" id="btn-save-lab-draft" style="padding: 8px 16px; font-size: 0.88rem;" onclick="saveLabAnalysisDraft()">
-                        <i class="fa-solid fa-floppy-disk" style="color: #0284c7;"></i>
-                        <span>Сохранить черновик</span>
-                    </button>
-                    <button class="qcd-btn-primary" id="btn-submit-lab-complete" style="padding: 8px 18px; font-size: 0.88rem;" onclick="submitLabAnalysisComplete()">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>
-                        <span>Завершить и выгрузить в Google</span>
-                    </button>
-                </div>
-            </div>
         </div>
 
-        <!-- TAB 4: REESTR / JOURNAL OF LAB ANALYSES -->
-        <div id="qcd-tab-lab-journal" style="display: none;">
-            <!-- Folder link card -->
-            <div class="bento-card" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-color: #bae6fd;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.15rem; color: var(--qcd-navy); font-weight: 800;">
-                            <i class="fa-brands fa-google-drive" style="color: #0284c7;"></i>
-                            Ежемесячные Google Таблицы «Анализы СКК»
-                        </h3>
-                        <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #334155;">
-                            Все лабораторные замеры автоматически сохраняются в отдельные листы внутри файлов месяцев на Google Диске.
-                        </p>
-                    </div>
-                    <a href="https://drive.google.com/drive/u/0/folders/1zPFe5Oftca0wfQIZ-f-U6Ml3VdDz7MJe" target="_blank" class="qcd-btn-primary" style="background: #0284c7;">
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                        <span>Открыть папку СКК на Диске</span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- List of monthly spreadsheets -->
-            <div class="bento-card" id="monthly-sheets-card" style="display: none;">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-folder-tree" style="color: var(--qcd-blue);"></i>
-                        Созданные Google Таблицы по месяцам
-                    </h3>
-                </div>
-                <div id="monthly-sheets-container" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-            </div>
-
-            <!-- Table of Lab Analyses -->
-            <div class="bento-card">
-                <div class="bento-card-header">
-                    <h3 class="bento-card-title">
-                        <i class="fa-solid fa-list-check" style="color: var(--qcd-navy);"></i>
-                        Реестр сменных лабораторных анализов
-                    </h3>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="qcd-btn-secondary" onclick="loadLabReportsJournal()">
-                            <i class="fa-solid fa-rotate"></i>
-                            <span>Обновить</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div style="overflow-x: auto;">
-                    <table class="act-doc-table" id="lab-journal-table">
-                        <thead>
-                            <tr>
-                                <th>Дата</th>
-                                <th>Смена</th>
-                                <th>Линия</th>
-                                <th>Мастер</th>
-                                <th>Лаборант СКК</th>
-                                <th>Продукция / Партия</th>
-                                <th style="text-align: center;">Замеров</th>
-                                <th style="text-align: center;">Статус</th>
-                                <th style="text-align: center;">Google Лист</th>
-                                <th style="text-align: center;">Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lab-journal-tbody">
-                            <tr><td colspan="10" style="text-align: center; color: var(--qcd-subtext); padding: 1.5rem;">Загрузка реестра анализов...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Notification / Confirm Modal -->
-    <div id="qcd-alert-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99999; align-items: center; justify-content: center;">
-        <div style="background: white; border-radius: 16px; padding: 1.5rem; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-height: 85vh; overflow-y: auto; word-break: break-word;">
-            <div id="qcd-alert-icon" style="font-size: 2.5rem; margin-bottom: 0.5rem; color: #16a34a;">✓</div>
-            <h3 id="qcd-alert-title" style="margin: 0 0 0.5rem 0; color: #0f2744;">Успешно</h3>
-            <p id="qcd-alert-msg" style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.25rem;"></p>
-            <div style="display: flex; gap: 8px; justify-content: center;">
-                <button id="qcd-alert-cancel-btn" class="qcd-btn-secondary" style="display: none; flex: 1; justify-content: center;" onclick="document.getElementById('qcd-alert-modal').style.display='none'">Отмена</button>
-                <button id="qcd-alert-ok-btn" class="qcd-btn-primary" style="flex: 1; justify-content: center;" onclick="document.getElementById('qcd-alert-modal').style.display='none'">Понятно</button>
-            </div>
-        </div>
-    </div>
+    <!-- Контейнер Toast-уведомлений -->
+    <div id="qcd-toast-container"></div>
 
-    <script src="/static/js/qcd.js?v=20260923_redesign_v1"></script>
+    <script>
+        // Инициализация данных пользователя из кэша портала
+        function initQcdUser() {
+            try {
+                let user = null;
+                const cachedUserStr = localStorage.getItem('tectum_auth_user') || localStorage.getItem('tectum_portal_user');
+                if (cachedUserStr) {
+                    user = JSON.parse(cachedUserStr);
+                } else {
+                    const fallbackName = localStorage.getItem('tectum_current_user_name');
+                    if (fallbackName) {
+                        user = { name: fallbackName, role: 'Специалист СКК' };
+                    }
+                }
+
+                if (user && user.name) {
+                    const nameEl = document.getElementById('user-greeting-name');
+                    const roleEl = document.getElementById('user-greeting-role');
+                    if (nameEl) nameEl.textContent = user.name;
+                    if (roleEl) {
+                        const roleNames = {
+                            'qcd': 'Специалист СКК',
+                            'master': 'Мастер смены',
+                            'admin': 'Администратор',
+                            'director': 'Директор',
+                            'technologist': 'Технолог'
+                        };
+                        roleEl.textContent = roleNames[user.role] || user.role || 'Служба СКК';
+                    }
+                }
+
+                fetch('/api/me/').then(res => {
+                    if (res.ok) return res.json();
+                    return null;
+                }).then(data => {
+                    if (data && data.authenticated && data.user) {
+                        const nameEl = document.getElementById('user-greeting-name');
+                        const roleEl = document.getElementById('user-greeting-role');
+                        if (nameEl) nameEl.textContent = data.user.name;
+                        if (roleEl) roleEl.textContent = data.user.role || 'Специалист СКК';
+                    }
+                }).catch(() => {});
+            } catch (e) {
+                console.warn('QCD user init warning:', e);
+            }
+        }
+
+        async function logoutQcd() {
+            try {
+                await fetch('/api/auth/logout');
+            } catch (e) {}
+
+            try {
+                localStorage.removeItem('tectum_auth_user');
+                localStorage.removeItem('tectum_portal_user');
+                localStorage.removeItem('tectum_current_user_name');
+                sessionStorage.removeItem('planner_user_session');
+            } catch (e) {}
+
+            window.location.href = '/';
+        }
+
+        document.addEventListener('DOMContentLoaded', initQcdUser);
+    </script>
+    <script src="/static/js/qcd_workbench.js?v=20261029_qcd_workbench_v1"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>

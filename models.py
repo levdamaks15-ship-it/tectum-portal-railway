@@ -309,6 +309,16 @@ class Batch(Base):
     qcd_defect_thickness = Column(Integer, default=0)
     qcd_defect_delamination = Column(Integer, default=0)
     qcd_defect_edge = Column(Integer, default=0)
+    qcd_defect_curved_edge = Column(Integer, default=0)   # Кривой край (загнут угол)
+    qcd_defect_no_pattern = Column(Integer, default=0)    # Нет рисунка (г/гофро)
+    qcd_defect_tech = Column(Integer, default=0)          # Технологический / Прочий брак
+
+    # Верификация СКК
+    qcd_verified = Column(Boolean, default=False)
+    qcd_verified_at = Column(DateTime, nullable=True)
+    qcd_verified_by = Column(String(150), nullable=True)
+    qcd_root_cause = Column(Text, nullable=True)
+    qcd_notes = Column(Text, nullable=True)
     
     shift = relationship("Shift", back_populates="batches")
 

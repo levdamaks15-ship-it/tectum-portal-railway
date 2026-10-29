@@ -140,6 +140,14 @@ async def lifespan(app: FastAPI):
                     ensure_pg_column(db, "tasks", "photos", "TEXT")
                     ensure_pg_column(db, "lkc_report_items", "comp_strips_count", "INTEGER DEFAULT 0")
                     ensure_pg_column(db, "lkc_report_items", "order_number", "VARCHAR(100)")
+                    ensure_pg_column(db, "batches", "qcd_verified", "BOOLEAN DEFAULT FALSE")
+                    ensure_pg_column(db, "batches", "qcd_verified_at", "TIMESTAMP")
+                    ensure_pg_column(db, "batches", "qcd_verified_by", "VARCHAR(150)")
+                    ensure_pg_column(db, "batches", "qcd_root_cause", "TEXT")
+                    ensure_pg_column(db, "batches", "qcd_notes", "TEXT")
+                    ensure_pg_column(db, "batches", "qcd_defect_curved_edge", "INTEGER DEFAULT 0")
+                    ensure_pg_column(db, "batches", "qcd_defect_no_pattern", "INTEGER DEFAULT 0")
+                    ensure_pg_column(db, "batches", "qcd_defect_tech", "INTEGER DEFAULT 0")
 
                     try:
                         db.execute(text("UPDATE monthly_plan_board SET plan_sheets = 800 WHERE line = 'ЛФМ-1' AND date >= '2026-09-07' AND shift_name = 'День' AND plan_sheets IN (2700, 0);"))

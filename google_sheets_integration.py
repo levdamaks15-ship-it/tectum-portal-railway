@@ -1615,6 +1615,24 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         total_first_all = ds_first + prev_f
         total_def_all = ds_def + prev_d
         
+        # Данные верификации СКК
+        is_qcd_v = bool(b.qcd_verified)
+        qcd_status = "Проверено СКК" if is_qcd_v else "Не проверено"
+        qcd_gp = b.qcd_condition if is_qcd_v else ""
+        qcd_fg = b.qcd_first_grade if is_qcd_v else ""
+        qcd_def_val = b.qcd_defect if is_qcd_v else ""
+        
+        qcd_notes_full = ""
+        if is_qcd_v:
+            parts = []
+            if b.qcd_root_cause:
+                parts.append(f"Причина: {b.qcd_root_cause}")
+            if b.qcd_notes:
+                parts.append(b.qcd_notes)
+            qcd_notes_full = " // ".join(parts)
+            
+        qcd_inspector = b.qcd_verified_by or "" if is_qcd_v else ""
+
         rows_data.append([
             b.batch_number or "",
             date_str_fmt,
@@ -1637,7 +1655,13 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             prev_note,
             total_gp_all,
             total_first_all,
-            total_def_all
+            total_def_all,
+            qcd_status,
+            qcd_gp,
+            qcd_fg,
+            qcd_def_val,
+            qcd_notes_full,
+            qcd_inspector
         ])
         
     service.spreadsheets().values().clear(
