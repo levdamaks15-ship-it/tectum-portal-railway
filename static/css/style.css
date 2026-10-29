@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
 /* Header Two-Tier Structured Layout */
 .header-main {
@@ -49,7 +50,6 @@
     flex-wrap: wrap;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
 :root {
     /* Tectum Brand Palette (Derived from Logo) */

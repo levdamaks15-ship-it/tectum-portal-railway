@@ -1554,7 +1554,7 @@ function startTasksLiveSync() {
             }
 
             if (myTasksFilterActive && currentPlannerUser && currentPlannerUser.name) {
-                url += `&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
+                url += `&my_all_horizons=true&my_person=${encodeURIComponent(currentPlannerUser.name)}`;
             } else {
                 if (author !== "all") url += `&author=${encodeURIComponent(author)}`;
                 if (assignee !== "all") url += `&assignee=${encodeURIComponent(assignee)}`;
