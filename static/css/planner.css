@@ -1091,13 +1091,17 @@
 
 /* ── Phase Б (мобиль): навигация и шапка скрыты только на ≤767px ─────────── */
 @media screen and (max-width: 767px) {
-    .planner-header,
-    #planner-user-badge,
     #main-toolbar,
     .toolbar:not(.print-toolbar),
     .horizon-nav-bar,
     .quick-add-bar {
         display: none !important;
+    }
+    .planner-header {
+        display: flex !important;
+    }
+    #planner-user-badge {
+        display: inline-flex !important;
     }
 }
 

@@ -95,6 +95,11 @@ document.addEventListener("DOMContentLoaded", () => {
     populateDropdowns();
     // 2. Мгновенный синхронный парсинг URL-фильтров и даты
     syncInitUrlAndFilters();
+    // На мобильных устройствах по умолчанию активируем режим «Мои задачи»
+    if (window.innerWidth <= 768 && currentPlannerUser && currentPlannerUser.name) {
+        myTasksFilterActive = true;
+    }
+
     // 3. Немедленный старт загрузки задач (первый параллельный запрос)
     isInitialLoading = false;
     loadTasks();
@@ -4254,8 +4259,45 @@ function renderTasksCards(tasks) {
 
         weekTasks.forEach(t => {
             const code = t.code || ('TSK-' + t.id);
-            const dept = t.department_service || t.zone || 'Цех';
             const status = t.status || '🟡 В работе';
+
+            // Определение источника/вкладки задачи для наглядного отображения в карточке
+            let tabBadgeHtml = '';
+            if (t.is_roadmap_subtask || t.task_type === 'roadmap' || t.task_type === 'milestone') {
+                const projCode = t.roadmap_project_code || t.parent_code || '';
+                const projTitle = t.roadmap_project_title || t.parent_title || '';
+                const fullProj = (projCode || projTitle) ? ` ${escapeHtml(projCode)} ${escapeHtml(projTitle)}`.trim() : '';
+                tabBadgeHtml = `
+                    <span class="mobile-badge-dept" style="background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; font-weight: 600;" title="Дорожная карта">
+                        <i class="fa-solid fa-map-location-dot"></i> Проект${fullProj ? ': ' + fullProj : ''}
+                    </span>
+                `;
+            } else if (t.zone === 'Техсовет' || t.task_type === 'tech_council') {
+                tabBadgeHtml = `
+                    <span class="mobile-badge-dept" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600;">
+                        <i class="fa-solid fa-landmark"></i> Техсовет
+                    </span>
+                `;
+            } else if (t.zone === 'День качества' || t.task_type === 'quality_day') {
+                tabBadgeHtml = `
+                    <span class="mobile-badge-dept" style="background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; font-weight: 600;">
+                        <i class="fa-solid fa-clipboard-check"></i> День качества
+                    </span>
+                `;
+            } else if (t.department_service && ['ОГМ', 'ОГЭ', 'Технологи', 'ОТК', 'СКК'].includes(t.department_service)) {
+                tabBadgeHtml = `
+                    <span class="mobile-badge-dept" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; font-weight: 600;">
+                        <i class="fa-solid fa-wrench"></i> ${escapeHtml(t.department_service)}
+                    </span>
+                `;
+            } else {
+                const zoneText = t.zone || t.department_service || 'Спринт';
+                tabBadgeHtml = `
+                    <span class="mobile-badge-dept" style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; font-weight: 600;">
+                        ⚡ ${escapeHtml(zoneText)}
+                    </span>
+                `;
+            }
 
             let statusClass = 'status-badge-work';
             if (status.includes('Выполнено')) statusClass = 'status-badge-done';
@@ -4276,9 +4318,9 @@ function renderTasksCards(tasks) {
             html += `
                 <div class="mobile-task-card" id="task-card-${t.id}" onclick="openTaskDetailModal(${t.id})">
                     <div class="mobile-card-top">
-                        <div class="mobile-card-tags">
+                        <div class="mobile-card-tags" style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
                             <span class="mobile-badge-code">${escapeHtml(code)}</span>
-                            <span class="mobile-badge-dept">${escapeHtml(dept)}</span>
+                            ${tabBadgeHtml}
                         </div>
                         <span class="mobile-status-badge ${statusClass}">${escapeHtml(status)}</span>
                     </div>

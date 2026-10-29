@@ -18,7 +18,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20261029_popover_scope_fix">
-    <link rel="stylesheet" href="/static/css/planner.css?v=20261027_roadmap_print_v1">
+    <link rel="stylesheet" href="/static/css/planner.css?v=20261029_mobile_header_v1">
 
     <style>
         :root {
@@ -3018,6 +3018,19 @@
 
         /* Mobile Feed View (<= 768px): Stitch Minimalist Task Cards */
         @media screen and (max-width: 768px) {
+            /* Hide duplicate top buttons (since bottom nav already has Home & Knowledge Base) */
+            .btn-action-header {
+                display: none !important;
+            }
+
+            /* Make User Profile Badge visible and primary on mobile header */
+            #planner-user-badge {
+                display: inline-flex !important;
+                height: 34px !important;
+                padding: 0 10px !important;
+                font-size: 0.8rem !important;
+            }
+
             /* Hide heavy desktop table & complex desktop controls */
             .horizon-nav-bar,
             .planner-filter-deck,
@@ -5359,7 +5372,7 @@
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/tasks.js?v=20261029_pure_mobile_feed_v2"></script>
+    <script src="/static/js/tasks.js?v=20261029_user_header_feed_v3"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">
