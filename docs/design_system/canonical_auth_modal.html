@@ -1,0 +1,58 @@
+<!--
+  @canonical-pattern CanonicalAuthModal4BoxPin
+  @established 2026-10-29
+  @description Единая карточка входа сотрудника с выпадающим поиском (PersonPickerPopover) и 4-значным PIN-кодом в отдельных боксах
+-->
+<div id="login-screen" class="auth-modal-card">
+  <div class="auth-badge-icon">
+    <i class="fa-solid fa-id-badge"></i>
+  </div>
+  <h3 class="auth-title">Вход сотрудника</h3>
+  <p class="auth-subtitle">
+    Выберите своё имя и введите 4-значный PIN-код для входа в рабочий кабинет
+  </p>
+
+  <!-- Выбор сотрудника через PersonPickerPopover -->
+  <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+    <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+    <div class="person-picker-wrapper">
+      <input type="hidden" id="login-user-input" value="">
+      <div class="person-select-modern" id="login-user-picker-trigger" onclick="toggleLoginUserPickerPopover(event)" tabindex="0">
+        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+          <div class="author-avatar-circle" id="login-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+            <i class="fa-solid fa-user"></i>
+          </div>
+          <span id="login-user-picker-display-text" style="font-size: 0.88rem; color: #64748b;">-- Выберите сотрудника --</span>
+        </div>
+        <i class="fa-solid fa-chevron-down person-picker-chevron" id="login-user-picker-chevron"></i>
+      </div>
+      <div class="person-picker-popover" id="login-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+        <div class="filter-popover-search-wrap">
+          <input type="text" class="filter-popover-search-input" id="search-login-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderLoginUserPickerList(this.value)">
+        </div>
+        <div class="filter-popover-list" id="list-login-user-picker"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4-Box PIN Input -->
+  <div class="form-group" style="text-align: left; margin-bottom: 1.6rem;">
+    <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+      <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+      <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+    </label>
+    <input type="hidden" id="login-pin-hidden" value="">
+    <div class="pin-boxes-container">
+      <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-1" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(1, event)" onkeydown="handleLoginPinKeydown(1, event)">
+      <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-2" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(2, event)" onkeydown="handleLoginPinKeydown(2, event)">
+      <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-3" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(3, event)" onkeydown="handleLoginPinKeydown(3, event)">
+      <input type="password" inputmode="numeric" class="pin-digit-box" id="pin-box-4" maxlength="1" autocomplete="off" oninput="handleLoginPinInput(4, event)" onkeydown="handleLoginPinKeydown(4, event)">
+    </div>
+  </div>
+
+  <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+    <button type="button" class="btn-action" id="btn-submit-login" onclick="submitCanonicalLogin()" style="width: 100%; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+      <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
+    </button>
+  </div>
+</div>

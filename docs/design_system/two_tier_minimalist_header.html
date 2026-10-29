@@ -1,0 +1,41 @@
+<!--
+  @canonical-pattern TwoTierMinimalistHeader
+  @established 2026-10-29
+  @description Двухуровневая экосистемная шапка Tectum с разделением на верхнюю строку (Бренд слева + Профиль/Выход справа) и строку быстрых чипов
+-->
+<header class="header-main">
+  <!-- Верхняя строка: Бренд слева и Профиль справа (всегда на одном уровне, в т.ч. на мобильных) -->
+  <div class="header-top-row">
+    <div class="header-brand-left">
+      <span class="brand-title-tectum">TECTUM</span>
+      <span class="brand-badge-shop badge-shop-portal" id="header-shop-badge">ПОРТАЛ</span>
+      <span class="brand-divider"></span>
+      <span class="brand-subtitle" id="header-shop-subtitle">ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</span>
+    </div>
+
+    <!-- Блок пользователя: скрыт до входа, показывается внутри кабинета -->
+    <div id="user-info-container" class="header-user-container">
+      <div class="user-greeting-text">
+        <p id="user-greeting-name">Левда М.</p>
+        <p id="user-greeting-role">ADMIN</p>
+      </div>
+      <button onclick="logout()" class="btn-logout" title="Выйти из системы">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        <span>Выйти</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Вторая строка: Быстрые ссылки-чипы (на мобильных скрываются, т.к. управление в нижнем таб-баре) -->
+  <div class="header-quick-links">
+    <a href="/static/tasks.html" target="_blank" class="header-chip-btn chip-tasks">
+      🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+    </a>
+    <a href="/static/checklists.html" target="_blank" class="header-chip-btn chip-checklists" id="header-checklists-btn">
+      ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+    </a>
+    <a href="/static/docs.html" target="_blank" class="header-chip-btn chip-docs">
+      📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+    </a>
+  </div>
+</header>
