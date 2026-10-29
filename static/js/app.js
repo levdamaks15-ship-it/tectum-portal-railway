@@ -1094,10 +1094,11 @@ async function logout() {
     const loginScreen = document.getElementById('login-screen');
     if (loginScreen) loginScreen.style.display = 'block';
     
-    clearLoginPinBoxes();
-    selectLoginUser('');
+    try {
         sessionStorage.removeItem('planner_user_session');
     } catch(e) {}
+    clearLoginPinBoxes();
+    selectLoginUser('');
 
     document.getElementById('user-info-container').style.display = 'none';
     document.getElementById('main-app').style.display = 'none';
