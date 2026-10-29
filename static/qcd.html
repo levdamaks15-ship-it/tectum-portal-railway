@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029_qcd_workbench_v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261029_qcd_searchable_v2">
 
     <style>
         :root {
@@ -102,7 +102,9 @@
             font-weight: 700;
         }
 
-        /* 1. Верхний селектор партии */
+        /* ==========================================================================
+           КАНОНИЧЕСКИЙ ВЫПАДАЮЩИЙ СПИСОК С ПОИСКОМ (SEARCHABLE PICKER POPOVER)
+           ========================================================================== */
         .batch-selector-panel {
             background: #ffffff;
             border: 1px solid var(--tbl-border);
@@ -115,27 +117,261 @@
             flex-wrap: wrap;
             gap: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+            position: relative;
+            z-index: 100;
         }
 
-        .batch-selector-select {
+        .searchable-picker-anchor {
+            position: relative;
             flex: 1;
-            min-width: 280px;
-            height: 40px;
+            min-width: 320px;
+        }
+
+        .searchable-picker-btn {
+            width: 100%;
+            height: 44px;
+            min-height: 44px;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 10px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-sizing: border-box;
+            text-align: left;
+        }
+
+        .searchable-picker-btn:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+
+        .searchable-picker-btn.active {
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.12);
+            background: #ffffff;
+        }
+
+        .picker-btn-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .picker-badge-party {
+            background: #fee2e2;
+            color: #991b1b;
+            font-size: 0.85rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .picker-btn-title {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .picker-btn-sub {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Выпадающий поповер */
+        .searchable-picker-popover {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            width: 100%;
+            max-width: 640px;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15), 0 4px 10px rgba(15, 23, 42, 0.05);
+            padding: 10px;
+            z-index: 1000;
+            display: none;
+            box-sizing: border-box;
+            animation: fadeInPopover 0.15s ease-out;
+        }
+
+        @keyframes fadeInPopover {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .popover-search-wrap {
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .popover-search-input {
+            width: 100%;
+            height: 38px;
+            background: #f8fafc;
             border: 1px solid var(--tbl-border-subtle);
             border-radius: 8px;
-            padding: 0 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
+            padding: 0 36px 0 36px;
+            font-size: 0.88rem;
             color: #0f172a;
-            background: #ffffff;
-            cursor: pointer;
+            box-sizing: border-box;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.15s ease;
+            font-family: inherit;
         }
 
-        .batch-selector-select:focus {
+        .popover-search-input:focus {
+            background: #ffffff;
             border-color: var(--primary-red);
-            box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.15);
+            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
+        }
+
+        .popover-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 0.85rem;
+            pointer-events: none;
+        }
+
+        .popover-search-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .popover-items-list {
+            max-height: 340px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-right: 4px;
+        }
+
+        /* Тонкий кастомный скроллбар */
+        .popover-items-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .popover-items-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .picker-item-card {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            user-select: none;
+        }
+
+        .picker-item-card:hover {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+
+        .picker-item-card.selected {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .picker-item-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .picker-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            color: #ffffff;
+        }
+
+        .avatar-red { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+        .avatar-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .avatar-green { background: linear-gradient(135deg, #10b981, #047857); }
+        .avatar-purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .avatar-amber { background: linear-gradient(135deg, #f59e0b, #b45309); }
+
+        .picker-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+
+        .picker-item-line1 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .picker-item-batch {
+            font-size: 0.86rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .picker-item-date {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .picker-item-line2 {
+            font-size: 0.74rem;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .picker-item-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
         /* 2. Двухколоночный верстак */
@@ -321,86 +557,243 @@
             color: #64748b;
         }
 
-        /* Сетка дефектов (11 пунктов 1 сорта + Брак) */
-        .defects-accordion {
+        /* Сетка дефектов: компактный динамический селектор */
+        .defects-compact-container {
             border: 1px solid var(--tbl-border);
             border-radius: 10px;
-            overflow: hidden;
             background: #ffffff;
+            overflow: visible;
+            position: relative;
         }
 
-        .defects-header {
+        .defects-compact-header {
             background: #f8fafc;
-            padding: 10px 14px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--tbl-border);
+            border-top-left-radius: 9px;
+            border-top-right-radius: 9px;
+        }
+
+        .defects-chip-list {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 48px;
+        }
+
+        .defect-active-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 6px 10px;
+            background: #f8fafc;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 8px;
+            animation: fadeInPopover 0.15s ease-out;
+        }
+
+        .defect-active-row.is-brak {
+            border-left: 3px solid #e11d48;
+            background: #fff1f2;
+        }
+
+        .defect-active-row.is-fg {
+            border-left: 3px solid #0284c7;
+            background: #f0f9ff;
+        }
+
+        .defect-active-title {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #1e293b;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .defect-active-sub {
+            font-size: 0.72rem;
+            color: #64748b;
+            margin-left: 6px;
+            font-weight: 500;
+        }
+
+        .defect-active-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .defect-active-input {
+            width: 75px;
+            height: 32px;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 6px;
+            text-align: right;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0f172a;
+            padding: 0 6px;
+            outline: none;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .defect-active-input:focus {
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
+        }
+
+        .btn-remove-defect {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .btn-remove-defect:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .btn-add-defect-trigger {
+            height: 32px;
+            padding: 0 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #0369a1;
+            background: #e0f2fe;
+            border: 1px solid #bae6fd;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .btn-add-defect-trigger:hover {
+            background: #bae6fd;
+            color: #0284c7;
+        }
+
+        /* Выпадающий поповер выбора дефектов */
+        .defects-picker-popover {
+            position: absolute;
+            top: 42px;
+            right: 10px;
+            width: 380px;
+            max-width: 95vw;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18), 0 4px 10px rgba(15, 23, 42, 0.05);
+            padding: 8px;
+            z-index: 1000;
+            display: none;
+            animation: fadeInPopover 0.15s ease-out;
+        }
+
+        .defects-picker-item {
+            padding: 8px 10px;
+            border-radius: 6px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             cursor: pointer;
-            border-bottom: 1px solid var(--tbl-border);
-            user-select: none;
+            transition: background 0.1s;
         }
 
-        .defects-header:hover {
+        .defects-picker-item:hover {
             background: #f1f5f9;
         }
 
-        .defects-header-title {
-            font-size: 0.84rem;
-            font-weight: 700;
-            color: #0f172a;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        /* Фирменный поповер причин брака */
+        .cause-picker-wrapper {
+            position: relative;
         }
 
-        .defects-list-body {
-            padding: 10px 12px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        @media (max-width: 600px) {
-            .defects-list-body {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .defect-row-item {
+        .cause-picker-btn {
+            width: 100%;
+            height: 38px;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border-subtle);
+            border-radius: 8px;
+            padding: 0 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
-            padding: 4px 6px;
-            background: #f8fafc;
-            border: 1px solid #edf2f7;
-            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #1e293b;
+            transition: all 0.15s;
+            box-sizing: border-box;
+            text-align: left;
         }
 
-        .defect-item-label {
-            font-size: 0.74rem;
+        .cause-picker-btn:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+        }
+
+        .cause-picker-btn.active {
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 2px rgba(200, 35, 35, 0.15);
+        }
+
+        .cause-picker-popover {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            width: 100%;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+            padding: 6px;
+            z-index: 1000;
+            display: none;
+            box-sizing: border-box;
+            animation: fadeInPopover 0.15s ease-out;
+        }
+
+        .cause-picker-item {
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 0.82rem;
             font-weight: 600;
             color: #334155;
-            line-height: 1.2;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.1s;
         }
 
-        .defect-item-input {
-            width: 65px;
-            height: 28px;
-            padding: 2px 6px;
-            font-size: 0.85rem;
+        .cause-picker-item:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .cause-picker-item.selected {
+            background: #fee2e2;
+            color: #991b1b;
             font-weight: 700;
-            text-align: right;
-            border: 1px solid var(--tbl-border-subtle);
-            border-radius: 6px;
-            box-sizing: border-box;
-            background: #ffffff;
-            outline: none;
-            flex-shrink: 0;
-        }
-
-        .defect-item-input:focus {
-            border-color: #0284c7;
         }
 
         /* Баннер баланса партии */
@@ -615,7 +1008,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
                 <button type="button" class="horizon-tab-btn active" id="tab-btn-sorting">
                     <i class="fa-solid fa-boxes-packing" style="color: var(--primary-red);"></i>
-                    <span>Переборка (Текущая партия)</span>
+                    <span>Переборка</span>
                 </button>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -626,21 +1019,54 @@
             </div>
         </nav>
 
-        <!-- 1. Панель выбора партии -->
+        <!-- 1. КАНОНИЧЕСКИЙ СЕЛЕКТОР ПАРТИИ (SEARCHABLE PICKER) -->
         <div class="batch-selector-panel">
-            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                <label for="qcd-batch-select" style="font-size: 0.85rem; font-weight: 700; color: #334155; white-space: nowrap;">
-                    📦 Выберите смену/партию:
+            <div style="display: flex; align-items: center; gap: 10px; flex: 1; position: relative;">
+                <label style="font-size: 0.85rem; font-weight: 700; color: #334155; white-space: nowrap;">
+                    📦 Партия / Смена:
                 </label>
-                <select id="qcd-batch-select" class="batch-selector-select" onchange="onBatchSelectChange()">
-                    <option value="">Загрузка списка партий...</option>
-                </select>
+
+                <!-- Searchable Picker Anchor -->
+                <div class="searchable-picker-anchor" id="batch-picker-anchor">
+                    <button type="button" class="searchable-picker-btn" id="btn-batch-picker-trigger" onclick="toggleBatchPickerPopover(event)">
+                        <div class="picker-btn-content">
+                            <span class="picker-badge-party mono" id="picker-trigger-badge">№ —</span>
+                            <div style="display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                                <span class="picker-btn-title" id="picker-trigger-title">Загрузка партий...</span>
+                                <span class="picker-btn-sub" id="picker-trigger-sub">—</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                            <span id="picker-trigger-status" class="status-chip status-pending" style="padding: 2px 8px; font-size: 0.72rem;">
+                                Ожидает
+                            </span>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: #64748b;"></i>
+                        </div>
+                    </button>
+
+                    <!-- Выпадающий поповер со списком и живым поиском -->
+                    <div class="searchable-picker-popover" id="popover-batch-picker" onclick="event.stopPropagation()">
+                        <div class="popover-search-wrap">
+                            <i class="fa-solid fa-magnifying-glass popover-search-icon"></i>
+                            <input type="text" class="popover-search-input" id="search-batch-input" 
+                                   placeholder="🔍 Поиск по номеру партии, дате, мастеру или продукту..." 
+                                   oninput="filterBatchList(this.value)">
+                            <button type="button" class="popover-search-clear" id="btn-clear-batch-search" onclick="clearBatchSearch()">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="popover-items-list" id="list-batch-picker-items">
+                            <!-- Заполняется динамически -->
+                        </div>
+                    </div>
+                </div>
+
                 <span id="qcd-loading-badge" style="display: none; font-size: 0.75rem; color: #64748b;">
                     <i class="fa-solid fa-spinner fa-spin"></i>
                 </span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-                <button class="btn-qcd-secondary" style="height: 36px;" onclick="loadRecentBatches()" title="Обновить список смен">
+                <button class="btn-qcd-secondary" style="height: 40px;" onclick="loadRecentBatches()" title="Обновить список смен">
                     <i class="fa-solid fa-rotate"></i>
                     <span>Обновить</span>
                 </button>
@@ -668,34 +1094,30 @@
                     <div class="card-header-bar">
                         <h3 class="card-title">
                             <i class="fa-solid fa-clipboard-user" style="color: #64748b;"></i>
-                            <span>Рапорт мастера смены (Базовый)</span>
+                            <span>Рапорт мастера смены</span>
                         </h3>
                         <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Исходные данные цеха</span>
                     </div>
 
                     <div class="master-metrics-grid">
-                        <div class="metric-tile">
-                            <span class="metric-tile-label">Формовка (База ЛФМ)</span>
+                        <div class="metric-tile" style="grid-column: span 2;">
+                            <span class="metric-tile-label">Формовка</span>
                             <span class="metric-tile-value mono" id="m-formed">0</span>
                         </div>
-                        <div class="metric-tile">
-                            <span class="metric-tile-label">Всего предъявлено цехом</span>
-                            <span class="metric-tile-value mono" id="m-total-sorted">0</span>
-                        </div>
                         <div class="metric-tile" style="border-left: 3px solid var(--success-green);">
-                            <span class="metric-tile-label">🟢 Кондиция ГП (Склад)</span>
+                            <span class="metric-tile-label">🟢 Кондиция ГП</span>
                             <span class="metric-tile-value mono" id="m-condition" style="color: var(--success-green);">0</span>
                         </div>
                         <div class="metric-tile" style="border-left: 3px solid #0284c7;">
-                            <span class="metric-tile-label">🔵 1-й сорт мастера</span>
+                            <span class="metric-tile-label">🔵 1-й сорт</span>
                             <span class="metric-tile-value mono" id="m-first-grade" style="color: #0284c7;">0</span>
                         </div>
                         <div class="metric-tile" style="border-left: 3px solid var(--primary-red);">
-                            <span class="metric-tile-label">🔴 Брак мастера</span>
+                            <span class="metric-tile-label">🔴 Брак</span>
                             <span class="metric-tile-value mono" id="m-defect" style="color: var(--primary-red);">0</span>
                         </div>
                         <div class="metric-tile">
-                            <span class="metric-tile-label">% Брака мастера</span>
+                            <span class="metric-tile-label">% Брака</span>
                             <span class="metric-tile-value mono" id="m-pct-defect">0.00%</span>
                         </div>
                     </div>
@@ -713,14 +1135,14 @@
                             <i class="fa-solid fa-shield-halved" style="color: var(--primary-red);"></i>
                             <span>Проверка и корректировка СКК</span>
                         </h3>
-                        <span style="font-size: 0.75rem; color: var(--primary-dark-red); font-weight: 700;">Итоговая партия</span>
+                        <span style="font-size: 0.75rem; color: var(--primary-dark-red); font-weight: 700;">Корректировка</span>
                     </div>
 
                     <!-- 3 Главных поля ввода -->
                     <div class="qcd-main-inputs-grid">
                         <div class="qcd-field-box box-gp">
                             <div class="qcd-field-header">
-                                <span class="qcd-field-label">Кондиция (ГП)</span>
+                                <span class="qcd-field-label">Кондиция ГП</span>
                                 <span id="delta-condition" class="delta-pill delta-zero">0</span>
                             </div>
                             <input type="number" id="qcd-condition-input" class="qcd-num-input mono" min="0" value="0">
@@ -736,114 +1158,96 @@
 
                         <div class="qcd-field-box box-defect">
                             <div class="qcd-field-header">
-                                <span class="qcd-field-label">Итого Брак</span>
+                                <span class="qcd-field-label">Брак</span>
                                 <span id="delta-defect" class="delta-pill delta-zero">0</span>
                             </div>
                             <input type="number" id="qcd-defect-input" class="qcd-num-input mono" min="0" value="0">
                         </div>
                     </div>
 
-                    <!-- Аккордеон дефектов (11 пунктов 1 сорта + Брак) -->
-                    <div class="defects-accordion">
-                        <div class="defects-header" onclick="document.getElementById('defects-body-wrap').style.display = document.getElementById('defects-body-wrap').style.display === 'none' ? 'block' : 'none'">
-                            <span class="defects-header-title">
+                    <!-- Компактный динамический блок дефектов -->
+                    <div class="defects-compact-container">
+                        <div class="defects-compact-header">
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <i class="fa-solid fa-list-check" style="color: var(--primary-red);"></i>
-                                <span>Классификация отклонений (11 пунктов 1-го сорта + Брак)</span>
-                            </span>
-                            <div style="display: flex; gap: 6px;">
-                                <span class="delta-pill delta-zero" id="badge-sum-fg" title="Сумма 1 сорта">0 шт</span>
-                                <span class="delta-pill delta-minus" id="badge-sum-def" title="Сумма брака">0 шт</span>
-                                <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: #64748b;"></i>
+                                <span style="font-size: 0.82rem; font-weight: 700; color: #0f172a;">Классификация дефектов</span>
+                                <span id="badge-active-defects-count" style="font-size: 0.72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: #f1f5f9; color: #64748b;">0</span>
+                            </div>
+                            <div style="position: relative;">
+                                <button type="button" class="btn-add-defect-trigger" id="btn-add-defect-popover-trigger" onclick="toggleDefectsPopover(event)">
+                                    <i class="fa-solid fa-plus"></i>
+                                    <span>Добавить дефект</span>
+                                </button>
+                                
+                                <!-- Фирменный поповер выбора дефекта -->
+                                <div class="defects-picker-popover" id="defects-picker-popover" onclick="event.stopPropagation()">
+                                    <div style="font-size: 0.72rem; font-weight: 700; color: #64748b; padding: 4px 8px; text-transform: uppercase;">
+                                        Выберите дефект для добавления:
+                                    </div>
+                                    <div id="defects-picker-items-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
+                                        <!-- Заполняется динамически -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div id="defects-body-wrap" style="display: block;">
-                            <div style="padding: 6px 12px; background: #eff6ff; font-size: 0.74rem; font-weight: 700; color: #1e40af; border-bottom: 1px solid #dbeafe;">
-                                🟢 1-й СОРТ (ДОПУСТИМЫЕ ОТКЛОНЕНИЯ ПО СТАНДАРТУ ЗАВОДА):
-                            </div>
-                            <div class="defects-list-body">
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">1. Скол (до 50×50 мм) / Ұшпа</span>
-                                    <input type="number" id="fg-chip" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">2. Сдир / Бетінің сыдырылуы</span>
-                                    <input type="number" id="fg-scratch" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">3. Плохой рез / Нашар кесілген</span>
-                                    <input type="number" id="fg-bad-cut" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">4. Налип снизу / Төменгі жабысу</span>
-                                    <input type="number" id="fg-stick-bottom" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">5. Налип сверху / Үстінен жабысу</span>
-                                    <input type="number" id="fg-stick-top" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">6. Кривой край / Қыры қисық (бұрыш)</span>
-                                    <input type="number" id="fg-curved-edge" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">7. Нет рисунка / Өрнегі жоқ</span>
-                                    <input type="number" id="fg-no-pattern" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">8. Вмятина / Майысқан / Ойық</span>
-                                    <input type="number" id="fg-dent" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">9. Не соотв. толщине / Қалыңдығы</span>
-                                    <input type="number" id="fg-thickness" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">10. Расслоение / Қабатталу</span>
-                                    <input type="number" id="fg-delamination" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">11. Выпирание кромок / Бүртіктенуі</span>
-                                    <input type="number" id="fg-edge" class="defect-item-input fg-input mono" min="0" value="0">
-                                </div>
-                            </div>
-
-                            <div style="padding: 6px 12px; background: #fff1f2; font-size: 0.74rem; font-weight: 700; color: #be123c; border-top: 1px solid #ffe4e6; border-bottom: 1px solid #ffe4e6;">
-                                🔴 ЖАРАМСЫЗ / БРАК (ОТБРАКОВКА):
-                            </div>
-                            <div class="defects-list-body">
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">12. Упал с коробки / Қораптан құлаған</span>
-                                    <input type="number" id="def-fell-box" class="defect-item-input def-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">13. Сломан доводчиком / Сломан</span>
-                                    <input type="number" id="def-broken" class="defect-item-input def-input mono" min="0" value="0">
-                                </div>
-                                <div class="defect-row-item">
-                                    <span class="defect-item-label">14. Технологический / Прочий брак</span>
-                                    <input type="number" id="def-tech" class="defect-item-input def-input mono" min="0" value="0">
-                                </div>
+                        <!-- Активные строки дефектов -->
+                        <div class="defects-chip-list" id="defects-active-list">
+                            <div id="defects-empty-placeholder" style="text-align: center; padding: 12px; color: #94a3b8; font-size: 0.8rem;">
+                                <i class="fa-solid fa-circle-check" style="color: #22c55e; margin-right: 4px;"></i>
+                                Отклонений не зафиксировано (партия чистая или добавьте дефект кнопкой выше)
                             </div>
                         </div>
                     </div>
 
-                    <!-- Причина брака и примечания -->
+                    <!-- Фирменный селектор причины брака и примечания -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div>
                             <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
                                 ⚠️ Причина брака / отклонения:
                             </label>
-                            <select id="qcd-root-cause" style="width: 100%; height: 36px; border: 1px solid var(--tbl-border-subtle); border-radius: 8px; padding: 0 8px; font-size: 0.82rem; font-weight: 600; outline: none; background: #ffffff;">
-                                <option value="">— Не выбрано (в пределах нормы) —</option>
-                                <option value="Загрязнение калибровочного барабана">Загрязнение калибровочного барабана</option>
-                                <option value="Сбой доводчика / толкателя">Сбой доводчика / толкателя</option>
-                                <option value="Ошибка оператора / перекос стопы">Ошибка оператора / перекос стопы</option>
-                                <option value="Нарушение рецептуры / распушки">Нарушение рецептуры / распушки</option>
-                                <option value="Затупление ножа поперечной резки">Затупление ножа поперечной резки</option>
-                                <option value="Повреждение при транспортировке">Повреждение при транспортировке</option>
-                                <option value="Прочее технологическое отклонение">Прочее технологическое отклонение</option>
-                            </select>
+                            <div class="cause-picker-wrapper">
+                                <button type="button" class="cause-picker-btn" id="btn-cause-picker-trigger" onclick="toggleCausePicker(event)">
+                                    <span id="cause-picker-selected-label" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">— Не выбрано (в пределах нормы) —</span>
+                                    <i class="fa-solid fa-chevron-down" style="color: #94a3b8; font-size: 0.75rem; margin-left: 6px;"></i>
+                                </button>
+                                <input type="hidden" id="qcd-root-cause" value="">
+                                
+                                <div class="cause-picker-popover" id="cause-picker-popover" onclick="event.stopPropagation()">
+                                    <div class="cause-picker-item selected" onclick="selectRootCause('')">
+                                        <i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+                                        <span>— Не выбрано (в пределах нормы) —</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Загрязнение калибровочного барабана')">
+                                        <i class="fa-solid fa-gear" style="color: #64748b;"></i>
+                                        <span>Загрязнение калибровочного барабана</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Сбой доводчика / толкателя')">
+                                        <i class="fa-solid fa-arrows-split-up-and-left" style="color: #64748b;"></i>
+                                        <span>Сбой доводчика / толкателя</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Ошибка оператора / перекос стопы')">
+                                        <i class="fa-solid fa-user-xmark" style="color: #64748b;"></i>
+                                        <span>Ошибка оператора / перекос стопы</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Нарушение рецептуры / распушки')">
+                                        <i class="fa-solid fa-flask" style="color: #64748b;"></i>
+                                        <span>Нарушение рецептуры / распушки</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Затупление ножа поперечной резки')">
+                                        <i class="fa-solid fa-scissors" style="color: #64748b;"></i>
+                                        <span>Затупление ножа поперечной резки</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Повреждение при транспортировке')">
+                                        <i class="fa-solid fa-truck" style="color: #64748b;"></i>
+                                        <span>Повреждение при транспортировке</span>
+                                    </div>
+                                    <div class="cause-picker-item" onclick="selectRootCause('Прочее технологическое отклонение')">
+                                        <i class="fa-solid fa-wrench" style="color: #64748b;"></i>
+                                        <span>Прочее технологическое отклонение</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.75rem; font-weight: 700; color: #334155; margin-bottom: 4px;">
@@ -965,7 +1369,7 @@
 
         document.addEventListener('DOMContentLoaded', initQcdUser);
     </script>
-    <script src="/static/js/qcd_workbench.js?v=20261029_qcd_workbench_v1"></script>
+    <script src="/static/js/qcd_workbench.js?v=1793285756_qcd_searchable_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>
