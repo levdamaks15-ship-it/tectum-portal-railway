@@ -42,6 +42,7 @@ from routers.common import (
     sync_google_sheets_bg,
     sync_receipts_bg,
     sync_downtimes_bg,
+    normalize_batch_number,
 )
 
 
@@ -986,8 +987,9 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
             print(f"Warning: could not capture snapshot_before: {snap_err}")
 
     # Update Shift fields
+    clean_batch = normalize_batch_number(data.batch_number)
     shift.master_id = data.master_id
-    shift.batch_number = data.batch_number
+    shift.batch_number = clean_batch
     shift.product_name = data.product_name
     shift.status = "closed"
     
@@ -1160,7 +1162,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     if not batch:
         batch = models.Batch(shift_id=shift.id)
         db.add(batch)
-    batch.batch_number = data.batch_number
+    batch.batch_number = clean_batch
     batch.product_name = data.product_name
     batch.export_type = data.export_type or "Эталон"
     batch.status = "qcd_checked"
@@ -1336,8 +1338,9 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
     )
     if data.product_name:
         query = query.filter(models.Shift.product_name == data.product_name)
-    if data.batch_number:
-        query = query.filter(models.Shift.batch_number == data.batch_number)
+    req_batch = normalize_batch_number(data.batch_number)
+    if req_batch:
+        query = query.filter(models.Shift.batch_number == req_batch)
     if data.export_type:
         query = query.filter(models.Shift.export_type == data.export_type)
     shift = query.first()
@@ -1351,7 +1354,7 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
             line=data.line,
             master_id=data.master_id,
             product_name=data.product_name or "",
-            batch_number=data.batch_number or "",
+            batch_number=req_batch,
             export_type=data.export_type or "Эталон",
             status="closed",
             created_at=datetime.utcnow()
@@ -1937,9 +1940,11 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
     if data.master_id is not None and shift.master_id != data.master_id:
         changes.append(f"master_id: {shift.master_id} -> {data.master_id}")
         shift.master_id = data.master_id
-    if data.batch_number is not None and shift.batch_number != data.batch_number:
-        changes.append(f"batch_number: {shift.batch_number} -> {data.batch_number}")
-        shift.batch_number = data.batch_number
+    if data.batch_number is not None:
+        clean_batch = normalize_batch_number(data.batch_number)
+        if shift.batch_number != clean_batch:
+            changes.append(f"batch_number: {shift.batch_number} -> {clean_batch}")
+            shift.batch_number = clean_batch
     if data.product_name is not None and shift.product_name != data.product_name:
         changes.append(f"product_name: {shift.product_name} -> {data.product_name}")
         shift.product_name = data.product_name

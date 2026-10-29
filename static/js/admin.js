@@ -1641,7 +1641,7 @@ async function saveUnifiedShiftReport() {
         status: document.getElementById('uni-status').value,
         product_name: document.getElementById('uni-product').value,
         export_type: document.getElementById('uni-export-type')?.value || 'Эталон',
-        batch_number: document.getElementById('uni-batch-number').value.trim(),
+        batch_number: document.getElementById('uni-batch-number').value.trim().replace(/^0+/, ''),
 
         lfm_sheets: parseInt(document.getElementById('uni-lfm-sheets').value) || 0,
         lfm_wind_resets: parseInt(document.getElementById('uni-lfm-wind-resets').value) || 0,

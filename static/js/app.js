@@ -1369,7 +1369,7 @@ async function submitShiftReport() {
         shift_name: document.getElementById('rep-shift')?.value || '',
         line: document.getElementById('rep-line')?.value || '',
         master_id: parseInt(document.getElementById('rep-master')?.value) || 0,
-        batch_number: document.getElementById('rep-batch')?.value || '',
+        batch_number: (document.getElementById('rep-batch')?.value || '').trim().replace(/^0+/, ''),
         product_name: document.getElementById('rep-product')?.value || '',
         export_type: document.getElementById('rep-export-type')?.value || 'Эталон',
         

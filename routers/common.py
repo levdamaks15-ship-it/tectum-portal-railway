@@ -487,3 +487,20 @@ def sync_qcd_lab_bg(analysis_id: int):
     finally:
         db.close()
 
+
+
+def normalize_batch_number(batch_val) -> str:
+    """
+    Нормализует номер партии: удаляет лидирующие нули.
+    Примеры: "0434" -> "434", "005" -> "5", "430" -> "430", "012-A" -> "12-A".
+    """
+    if not batch_val:
+        return ""
+    s = str(batch_val).strip()
+    if s.isdigit():
+        return str(int(s))
+    import re
+    m = re.match(r'^0+([0-9]+.*)$', s)
+    if m:
+        return m.group(1)
+    return s
