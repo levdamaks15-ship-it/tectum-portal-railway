@@ -97,6 +97,9 @@ async def lifespan(app: FastAPI):
                 try:
                     conn.execute("ALTER TABLE tasks ADD COLUMN depends_on_ids TEXT;")
                 except: pass
+                try:
+                    conn.execute("ALTER TABLE lfm_reports ADD COLUMN lfm_cart_resets INTEGER DEFAULT 0;")
+                except: pass
                 for col_name, col_def in [
                     ("google_synced", "BOOLEAN DEFAULT 0"),
                     ("google_synced_at", "TIMESTAMP"),
@@ -142,6 +145,7 @@ async def lifespan(app: FastAPI):
                     ensure_pg_column(db, "tasks", "depends_on_ids", "TEXT")
                     ensure_pg_column(db, "tasks", "photos", "TEXT")
                     ensure_pg_column(db, "lkc_report_items", "comp_strips_count", "INTEGER DEFAULT 0")
+                    ensure_pg_column(db, "lfm_reports", "lfm_cart_resets", "INTEGER DEFAULT 0")
                     ensure_pg_column(db, "planner_employees", "role", "VARCHAR(50) DEFAULT 'portal'")
                     ensure_pg_column(db, "lkc_report_items", "order_number", "VARCHAR(100)")
                     ensure_pg_column(db, "batches", "qcd_verified", "BOOLEAN DEFAULT FALSE")

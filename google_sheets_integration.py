@@ -202,7 +202,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
     headers = [
         "Дата", "№ партии", "Линия", "Смена", "Мастер", "Наименование продукта", "Назначение (Экспорт)",
         "Количество замесов", "Формовка (листы)", "Формовка (тонны)",
-        "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы листов",
+        "Кондиция (на склад)", "1-сорт", "Брак", "Сбросы листов (техн.)", "Сбросы (замена телеги)",
         "Слив асб. (кг)", "Слив цем. (кг)",
         "Расход Хризотила 4-20 (кг)", "Расход Хризотила 5-65 (кг)", "Расход Хризотила 6-40 (кг)", "Расход Хризотила общ. (кг)",
         "Расход Цемента С1 (кг)", "Расход Цемента С2 (кг)", "Расход Цемента С3 (кг)", "Расход Цемента С4 (кг)", "Расход Цемента общ. (кг)",
@@ -244,6 +244,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
         qcd_first = sum(((b.ds_first_grade or 0) + (b.prev_first_grade or 0)) for b in s.batches)
         qcd_defect = sum(b.ds_defect for b in s.batches)
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
+        cart_resets = sum((getattr(r, 'lfm_cart_resets', 0) or 0) for r in s.lfm_reports)
         
         theory = {
             "chrysotile_4_20": 0.0, "chrysotile_5_65": 0.0, "chrysotile_6_40": 0.0,
@@ -305,6 +306,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
             qcd_first,
             qcd_defect,
             wind_resets,
+            cart_resets,
             s.zo_asb_drain or 0.0,
             s.zo_cem_drain or 0.0,
             fact["chrysotile_4_20"],

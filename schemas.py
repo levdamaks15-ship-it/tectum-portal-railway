@@ -117,6 +117,7 @@ class LFMReportBase(ORMBaseModel):
     export_type: Optional[str] = "Эталон"
     lfm_sheets: int = 0
     lfm_wind_resets: int = 0
+    lfm_cart_resets: int = 0
     formed_1st_grade: int = 0
     formed_defect: int = 0
     transferred_to_warehouse: int = 0
@@ -475,6 +476,7 @@ class ShiftReportCreate(ORMBaseModel):
     # Производство / ЛФМ
     lfm_sheets: int = 0
     lfm_wind_resets: int = 0
+    lfm_cart_resets: int = 0
     zo_batches: int = 0
     
     # Переборка / Брак
@@ -589,6 +591,7 @@ class AdminShiftReportUpdate(ORMBaseModel):
     # Производство / ЛФМ
     lfm_sheets: Optional[int] = None
     lfm_wind_resets: Optional[int] = None
+    lfm_cart_resets: Optional[int] = None
     zo_batches: Optional[int] = None
     
     # Переборка / Брак

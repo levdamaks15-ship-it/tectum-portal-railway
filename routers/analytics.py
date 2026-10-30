@@ -1378,6 +1378,7 @@ def get_report_summary(
             
             lfm_sheets = lfm_sheets_check if not is_other_master else 0
             lfm_resets = sum((l.lfm_wind_resets or 0) for l in lfm_reports) if (lfm_reports and not is_other_master) else 0
+            lfm_cart_resets = sum((getattr(l, 'lfm_cart_resets', 0) or 0) for l in lfm_reports) if (lfm_reports and not is_other_master) else 0
         
             warehouse_gp = warehouse_gp_check if not is_other_master else 0
             curr_warehouse_gp = curr_warehouse_gp_check if not is_other_master else 0
@@ -1460,6 +1461,7 @@ def get_report_summary(
             
                 "lfm_sheets": lfm_sheets,
                 "lfm_wind_resets": lfm_resets,
+                "lfm_cart_resets": lfm_cart_resets,
                 "lfm_tons": lfm_tons,
                 "zo_batches": shift.zo_batches if not is_other_master else 0,
             

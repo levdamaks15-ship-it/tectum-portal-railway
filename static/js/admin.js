@@ -1455,6 +1455,7 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
         // Tab 2: Production
         const lfmSheetsVal = lfm.reduce((acc, r) => acc + (r.lfm_sheets || 0), 0);
         const lfmWindVal = lfm.reduce((acc, r) => acc + (r.lfm_wind_resets || 0), 0);
+        const lfmCartVal = lfm.reduce((acc, r) => acc + (r.lfm_cart_resets || 0), 0);
         const ownWhGpVal = batches.reduce((acc, b) => acc + (b.ds_condition || 0), 0);
         const prevWhGpVal = batches.reduce((acc, b) => acc + (b.prev_condition || 0), 0);
         const ownFirstGradeVal = batches.reduce((acc, b) => acc + (b.ds_first_grade || 0), 0) || lfm.reduce((acc, r) => acc + (r.formed_1st_grade || 0), 0);
@@ -1463,6 +1464,8 @@ async function openUnifiedShiftModal(shiftId, targetTab = 'meta') {
 
         document.getElementById('uni-lfm-sheets').value = lfmSheetsVal;
         document.getElementById('uni-lfm-wind-resets').value = lfmWindVal;
+        const uniCartEl = document.getElementById('uni-lfm-cart-resets');
+        if (uniCartEl) uniCartEl.value = lfmCartVal;
         document.getElementById('uni-zo-batches').value = shift.zo_batches || 0;
         document.getElementById('uni-warehouse-gp').value = ownWhGpVal;
         document.getElementById('uni-prev-warehouse-gp').value = prevWhGpVal;
@@ -1718,6 +1721,7 @@ async function saveUnifiedShiftReport() {
 
         lfm_sheets: parseInt(document.getElementById('uni-lfm-sheets').value) || 0,
         lfm_wind_resets: parseInt(document.getElementById('uni-lfm-wind-resets').value) || 0,
+        lfm_cart_resets: parseInt(document.getElementById('uni-lfm-cart-resets')?.value) || 0,
         zo_batches: parseInt(document.getElementById('uni-zo-batches').value) || 0,
         warehouse_gp: parseInt(document.getElementById('uni-warehouse-gp').value) || 0,
         prev_condition: parseInt(document.getElementById('uni-prev-warehouse-gp')?.value) || 0,

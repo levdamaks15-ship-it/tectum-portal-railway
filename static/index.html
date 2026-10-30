@@ -632,15 +632,19 @@
                             <span class="acc-toggle">▼</span>
                         </div>
                         <div id="sec-prod" class="accordion-content">
-                            <div class="form-grid-three">
+                            <div class="form-grid-four" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                                 <div class="form-group">
                                     <label>Сформовано (листов) [ЛФМ]</label>
                                     <input type="number" id="rep-sheets" placeholder="0"
                                         oninput="recalcTonsAndGrades()">
                                 </div>
                                 <div class="form-group">
-                                    <label>Сбросов листов (шт) [ЛФМ]</label>
+                                    <label>Сбросов листов (техн.) [ЛФМ]</label>
                                     <input type="number" id="rep-resets" placeholder="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Сбросов (замена телеги) [ЛФМ]</label>
+                                    <input type="number" id="rep-cart-resets" placeholder="0">
                                 </div>
                                 <div class="form-group">
                                     <label>Количество замесов (шт) [ЗО]</label>
@@ -1581,7 +1585,8 @@
                                     <th>На склад<br>(ГП)</th>
                                     <th>1 Сорт</th>
                                     <th>Брак</th>
-                                    <th>Сбросы<br>листов</th>
+                                    <th>Сбросы<br>листов (техн.)</th>
+                                    <th>Сбросы<br>телеги</th>
                                     <th>Слив<br>асб. (кг)</th>
                                     <th>Слив<br>цем. (кг)</th>
                                     <th>Расход<br>асб. 4-20 (кг)</th>
@@ -2324,7 +2329,7 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261030_auth_gate_v12"></script>
+    <script src="/static/js/app.js?v=20261030_cart_resets_v1"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>

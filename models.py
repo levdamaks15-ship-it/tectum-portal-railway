@@ -241,6 +241,7 @@ class LFMReport(Base):
     export_type = Column(String(50), default="Эталон", nullable=True)
     lfm_sheets = Column(Integer)
     lfm_wind_resets = Column(Integer)
+    lfm_cart_resets = Column(Integer, default=0, nullable=True) # Сбросы при замене телеги
     formed_1st_grade = Column(Integer, default=0)
     formed_defect = Column(Integer, default=0)
     transferred_to_warehouse = Column(Integer, default=0)

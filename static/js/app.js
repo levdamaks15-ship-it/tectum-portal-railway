@@ -1379,6 +1379,8 @@ function prefillReportForm(shift) {
             if (row) {
                 document.getElementById('rep-sheets').value = row.lfm_sheets || '0';
                 document.getElementById('rep-resets').value = row.lfm_wind_resets || '0';
+                const repCartEl = document.getElementById('rep-cart-resets');
+                if (repCartEl) repCartEl.value = row.lfm_cart_resets || '0';
                 const currWh = (row.curr_warehouse_gp !== undefined) ? row.curr_warehouse_gp : (row.warehouse_gp || '0');
                 const prevWh = (row.prev_condition !== undefined) ? row.prev_condition : '0';
                 document.getElementById('rep-warehouse-gp').value = currWh;
@@ -1457,6 +1459,7 @@ async function submitShiftReport() {
         
         lfm_sheets: parseInt(document.getElementById('rep-sheets')?.value) || 0,
         lfm_wind_resets: parseInt(document.getElementById('rep-resets')?.value) || 0,
+        lfm_cart_resets: parseInt(document.getElementById('rep-cart-resets')?.value) || 0,
         zo_batches: parseInt(document.getElementById('rep-batches')?.value) || 0,
         
         warehouse_gp: parseInt(document.getElementById('rep-warehouse-gp')?.value) || 0,
@@ -1770,7 +1773,7 @@ function resetReportForm() {
     }
     
     const numericIds = [
-        'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade', 'rep-qcd-defect',
+        'rep-sheets', 'rep-resets', 'rep-cart-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade', 'rep-qcd-defect',
         'def-chip', 'def-scratch', 'def-bad-cut', 'def-stick-bottom', 'def-stick-top', 'def-broken', 'def-fell', 
         'def-dent', 'def-thickness', 'def-delamination', 'def-edge',
         'rep-prev-warehouse-gp', 'rep-prev-first-grade', 'rep-warehouse-gp-total-readonly',
@@ -2114,6 +2117,7 @@ function renderSummaryTable(rows) {
                 <td>${r.first_grade}</td>
                 <td style="color: ${defectColor}; font-weight: bold;">${r.defect}</td>
                 <td>${r.lfm_wind_resets}</td>
+                <td>${r.lfm_cart_resets || 0}</td>
                 <td>${(u.asb_drain || 0).toFixed(0)}</td>
                 <td>${(u.cem_drain || 0).toFixed(0)}</td>
                 <td>${chrys_4_20.toFixed(0)}</td>
@@ -4291,7 +4295,7 @@ async function syncDowntimesFromGoogle() {
 // --- Auto-Save Draft Logic ---
 const REPORT_FIELDS = [
     'rep-date', 'rep-shift', 'rep-line', 'rep-master', 'rep-batch', 'rep-product', 'rep-export-type',
-    'rep-sheets', 'rep-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade',
+    'rep-sheets', 'rep-resets', 'rep-cart-resets', 'rep-batches', 'rep-warehouse-gp', 'rep-first-grade',
     'rep-prev-warehouse-gp', 'rep-prev-first-grade', 'rep-prev-has-defect',
     'prev-def-scratch', 'prev-def-bad-cut', 'prev-def-stick-top', 'prev-def-broken', 'prev-def-fell',
     'prev-def-thickness', 'prev-def-edge',

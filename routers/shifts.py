@@ -943,6 +943,8 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
                     "export_type": l_prev.export_type if l_prev else "Эталон",
                     "lfm_sheets": l_prev.lfm_sheets if l_prev else 0,
                     "lfm_wind_resets": l_prev.lfm_wind_resets if l_prev else 0,
+                "lfm_cart_resets": getattr(l_prev, 'lfm_cart_resets', 0) if l_prev else 0,
+                    "lfm_cart_resets": getattr(l_prev, 'lfm_cart_resets', 0) if l_prev else 0,
                     "formed_1st_grade": l_prev.formed_1st_grade if l_prev else 0,
                     "formed_defect": l_prev.formed_defect if l_prev else 0,
                     "transferred_to_warehouse": l_prev.transferred_to_warehouse if l_prev else 0
@@ -1151,6 +1153,7 @@ def save_report_internal(db: Session, shift: models.Shift, data: schemas.ShiftRe
     lfm_report.export_type = data.export_type or "Эталон"
     lfm_report.lfm_sheets = data.lfm_sheets
     lfm_report.lfm_wind_resets = data.lfm_wind_resets
+    lfm_report.lfm_cart_resets = getattr(data, 'lfm_cart_resets', 0) or 0
     total_warehouse_gp = (data.warehouse_gp or 0) + (data.prev_condition or 0)
     total_first_grade = (data.first_grade or 0) + (data.prev_first_grade or 0)
     lfm_report.formed_1st_grade = total_first_grade
@@ -1884,6 +1887,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
                 "export_type": l_prev.export_type if l_prev else "Эталон",
                 "lfm_sheets": l_prev.lfm_sheets if l_prev else 0,
                 "lfm_wind_resets": l_prev.lfm_wind_resets if l_prev else 0,
+                "lfm_cart_resets": getattr(l_prev, 'lfm_cart_resets', 0) if l_prev else 0,
                 "formed_1st_grade": l_prev.formed_1st_grade if l_prev else 0,
                 "formed_defect": l_prev.formed_defect if l_prev else 0,
                 "transferred_to_warehouse": l_prev.transferred_to_warehouse if l_prev else 0
@@ -1987,6 +1991,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
             export_type=shift.export_type or "Эталон",
             lfm_sheets=data.lfm_sheets or 0,
             lfm_wind_resets=data.lfm_wind_resets or 0,
+            lfm_cart_resets=getattr(data, 'lfm_cart_resets', 0) or 0,
             transferred_to_warehouse=data.warehouse_gp or 0,
             formed_1st_grade=data.first_grade or 0,
             formed_defect=data.qcd_defect or 0
@@ -2000,6 +2005,9 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         if data.lfm_wind_resets is not None and lfm_report.lfm_wind_resets != data.lfm_wind_resets:
             changes.append(f"lfm_wind_resets: {lfm_report.lfm_wind_resets} -> {data.lfm_wind_resets}")
             lfm_report.lfm_wind_resets = data.lfm_wind_resets
+        if getattr(data, 'lfm_cart_resets', None) is not None and getattr(lfm_report, 'lfm_cart_resets', 0) != data.lfm_cart_resets:
+            changes.append(f"lfm_cart_resets: {getattr(lfm_report, 'lfm_cart_resets', 0)} -> {data.lfm_cart_resets}")
+            lfm_report.lfm_cart_resets = data.lfm_cart_resets
         if data.qcd_defect is not None and lfm_report.formed_defect != data.qcd_defect:
             changes.append(f"formed_defect: {lfm_report.formed_defect} -> {data.qcd_defect}")
             lfm_report.formed_defect = data.qcd_defect
