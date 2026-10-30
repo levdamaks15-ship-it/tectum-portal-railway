@@ -13,8 +13,9 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261030_cl_canonical_v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261030_cl_canonical_v1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -62,26 +63,6 @@
             margin: 0 auto;
             padding: 0.8rem;
             box-sizing: border-box;
-        }
-
-        .cl-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.8rem 1rem;
-            background: var(--cl-card);
-            border: 1px solid var(--cl-border);
-            border-radius: 14px;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .cl-header-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
 
         .cl-nav-tabs {
@@ -428,22 +409,43 @@
 <body>
 
     <div class="cl-container">
-        <!-- Header -->
-        <header class="cl-header">
-            <div class="cl-header-logo">
-                <a href="/"
-                    style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit;">
-                    <img src="/static/img/Logo.png" alt="Logo" style="height: 38px;">
-                    <div>
-                        <div style="font-weight: 800; font-size: 1.1rem; letter-spacing: 0.5px;">TECTUM</div>
-                        <div style="font-size: 0.75rem; color: var(--cl-subtext); font-weight: 600;">КАБИНЕТ ЧЕК-ЛИСТОВ
-                        </div>
+        <!-- Canonical Header: Two-tier minimalist brand header -->
+        <header class="header-main" style="margin-bottom: 1.25rem;">
+            <div class="header-top-row">
+                <div class="header-brand-left">
+                    <a href="/" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px;">
+                        <span class="brand-title-tectum">TECTUM</span>
+                        <span class="brand-badge-shop badge-shop-checklists" id="header-shop-badge">ЧЕК-ЛИСТЫ</span>
+                        <span class="brand-divider"></span>
+                        <span class="brand-subtitle" id="header-shop-subtitle">ОПЕРАЦИОННЫЙ КОНТРОЛЬ</span>
+                    </a>
+                </div>
+
+                <div id="user-info-container" class="header-user-container">
+                    <div class="user-greeting-text">
+                        <p id="user-greeting-name">Сотрудник</p>
+                        <p id="user-greeting-role">Чек-листы</p>
                     </div>
-                </a>
+                    <button onclick="clLogout()" class="btn-logout" title="Выйти из системы">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Выйти</span>
+                    </button>
+                </div>
             </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <a href="/" class="status-btn" style="text-decoration: none; padding: 8px 12px; font-size: 0.85rem;">
-                    🏠 На портал
+
+            <!-- Вторая строка: Быстрые ссылки-чипы (на мобильных скрываются, т.к. управление в нижнем таб-баре) -->
+            <div class="header-quick-links">
+                <a href="/" class="header-chip-btn chip-home" title="Главный портал / Сменный рапорт">
+                    🏭 <span>Смена</span>
+                </a>
+                <a href="/tasks" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                    🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+                </a>
+                <a href="/checklists" class="header-chip-btn chip-checklists active" title="Чек-листы смен и ТО" style="background: rgba(200, 35, 35, 0.12); border-color: #c82323; color: #b01c1c; font-weight: 700;">
+                    ✅ <span>Чек-листы</span>
+                </a>
+                <a href="/docs" target="_blank" class="header-chip-btn chip-docs" title="База знаний и регламентов">
+                    📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
                 </a>
             </div>
         </header>
@@ -734,7 +736,54 @@
             }
         ];
 
+        async function clLogout() {
+            try {
+                await fetch('/api/auth/logout');
+                await fetch('/api/logout', { method: 'POST' });
+            } catch (e) {}
+            try {
+                localStorage.removeItem('tectum_auth_user');
+                localStorage.removeItem('tectum_portal_user');
+                localStorage.removeItem('tectum_current_user_name');
+                sessionStorage.clear();
+            } catch (e) {}
+            window.location.replace('/');
+        }
+
         async function initChecklistApp() {
+            // Инициализация канонического профиля в шапке
+            try {
+                let userObj = null;
+                const storedUser = localStorage.getItem('tectum_auth_user') || localStorage.getItem('tectum_portal_user');
+                if (storedUser) {
+                    userObj = JSON.parse(storedUser);
+                }
+                const cachedName = localStorage.getItem('tectum_current_user_name');
+                const userNameEl = document.getElementById('user-greeting-name');
+                const userRoleEl = document.getElementById('user-greeting-role');
+                if (userNameEl) {
+                    userNameEl.innerText = (userObj && userObj.name) || cachedName || 'Сотрудник';
+                }
+                if (userRoleEl) {
+                    if (userObj && userObj.role) {
+                        const roleMap = {
+                            'master': 'Мастер ХЦИ',
+                            'xci_master': 'Мастер ХЦИ',
+                            'admin': 'Администратор',
+                            'director': 'Директор',
+                            'qcd': 'Служба СКК',
+                            'lkc_master': 'Мастер ЛКЦ',
+                            'operator': 'Оператор'
+                        };
+                        userRoleEl.innerText = roleMap[userObj.role] || userObj.role;
+                    } else {
+                        userRoleEl.innerText = 'Чек-листы';
+                    }
+                }
+            } catch(e) {
+                console.warn('[Header] Failed to parse auth user', e);
+            }
+
             currentTemplates = FALLBACK_TEMPLATES;
             renderTemplateCards();
             selectTemplate(currentTemplates[0].code);
@@ -1190,7 +1239,7 @@
         window.addEventListener('DOMContentLoaded', initChecklistApp);
     </script>
     <script src="/static/js/version_guard.js"></script>
-    <script src="/static/js/splash.js"></script>
+    <script src="/static/js/splash.js?v=20261030_cl_canonical_v1"></script>
 </body>
 
 </html>

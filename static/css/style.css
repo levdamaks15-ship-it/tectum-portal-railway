@@ -2233,6 +2233,12 @@ input[type="text"][readonly] {
     border: 1px solid #bfdbfe !important;
 }
 
+.badge-shop-checklists {
+    background: #fee2e2 !important;
+    color: #c82323 !important;
+    border: 1px solid rgba(200, 35, 35, 0.2) !important;
+}
+
 .brand-divider {
     height: 16px !important;
     width: 1px !important;
