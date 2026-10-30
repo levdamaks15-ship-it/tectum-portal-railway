@@ -2586,3 +2586,17 @@ body:has(#login-screen:not([style*="display: none"])) #login-screen,
 body.not-authenticated #login-screen {
     margin: 0 auto !important;
 }
+
+
+/* ══ Portal Employee Isolated View (Clean Dashboard across all screens) ═══ */
+body.role-portal #tabs-menu,
+body.role-portal .tabs-container,
+body.role-portal #active-shift-banner,
+body.role-portal .header-quick-links,
+body.role-portal .tectum-mobile-bottom-nav {
+    display: none !important;
+}
+
+body.role-portal {
+    padding-bottom: 2rem !important;
+}

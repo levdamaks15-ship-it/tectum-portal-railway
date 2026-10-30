@@ -1116,6 +1116,7 @@ async function logout() {
     clearLoginPinBoxes();
     selectLoginUser('');
 
+    document.body.classList.remove('role-portal');
     const quickLinks = document.querySelector('.header-quick-links');
     if (quickLinks) quickLinks.style.display = '';
     const portalHub = document.getElementById('portal-employee-hub');
@@ -1140,6 +1141,7 @@ function applyRoleVisibility() {
     const activeShiftBanner = document.getElementById('active-shift-banner');
     
     if (r === 'portal') {
+        document.body.classList.add('role-portal');
         if (portalHub) portalHub.style.display = 'block';
         if (tabsMenu) tabsMenu.style.display = 'none';
         if (prodTab) prodTab.style.display = 'none';
@@ -1167,6 +1169,7 @@ function applyRoleVisibility() {
         }
         return;
     } else {
+        document.body.classList.remove('role-portal');
         if (portalHub) portalHub.style.display = 'none';
         if (tabsMenu) tabsMenu.style.display = '';
         if (quickLinks) quickLinks.style.display = '';
