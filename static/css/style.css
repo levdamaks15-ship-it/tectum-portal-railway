@@ -2494,6 +2494,11 @@ body:has(#login-screen:not([style*="display: none"])) {
 }
 
 /* ══ Canonical Login Screen Centering & Enhanced Brand Header ═════════════════ */
+body:has(#login-screen:not([style*="display: none"])) .header-quick-links,
+body.not-authenticated .header-quick-links {
+    display: none !important;
+}
+
 body:has(#login-screen:not([style*="display: none"])) #app-container,
 body.not-authenticated #app-container {
     min-height: 100vh !important;

@@ -1018,7 +1018,7 @@ function resetLoginSelection() {
     document.getElementById('selected-user-name').value = '';
     document.getElementById('user-selection-section').style.display = 'block';
     document.getElementById('pin-section').style.display = 'none';
-    document.getElementById('pin-input').value = '';
+    const legacyPinInput = document.getElementById('pin-input'); if (legacyPinInput) legacyPinInput.value = '';
     document.getElementById('login-error').style.display = 'none';
 }
 
@@ -1119,7 +1119,7 @@ async function logout() {
     document.getElementById('user-info-container').style.display = 'none';
     document.getElementById('main-app').style.display = 'none';
     document.getElementById('login-screen').style.display = 'block';
-    document.getElementById('pin-input').value = '';
+    const legacyPinInput = document.getElementById('pin-input'); if (legacyPinInput) legacyPinInput.value = '';
     resetLoginSelection();
     await loadUserGrid();
 }
@@ -5332,7 +5332,7 @@ async function loadPortalEmployeesOnce() {
     return portalEmployeesList;
 }
 
-function toggleLoginUserPickerPopover(event) {
+async function toggleLoginUserPickerPopover(event) {
     if (event) event.stopPropagation();
     const popover = document.getElementById("login-user-picker-popover");
     const trigger = document.getElementById("login-user-picker-trigger");
@@ -5342,6 +5342,9 @@ function toggleLoginUserPickerPopover(event) {
     if (isOpen) {
         closeLoginUserPickerPopover();
     } else {
+        if (!portalEmployeesList || portalEmployeesList.length === 0) {
+            await loadPortalEmployeesOnce();
+        }
         renderLoginUserPickerList("");
         popover.style.display = "block";
         trigger.classList.add("popover-open");
