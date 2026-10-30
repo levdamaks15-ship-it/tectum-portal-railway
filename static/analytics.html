@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tectum - Аналитика Простоев</title>
-    <meta name="theme-color" content="#950405">
+    <title>Tectum — Аналитика простоев и производства</title>
+    <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tectum">
@@ -13,188 +13,386 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261002_datepicker_mobile_fix">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261030_analytics_v2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .analytics-container {
-            padding: 2rem;
-            max-width: 1600px;
-            margin: 0 auto;
+        body {
+            background-color: var(--canvas-bg, #f8fafc);
+            color: #0f172a;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
         }
 
-        .header-actions {
+        .analytics-page-wrapper {
+            max-width: 1540px;
+            margin: 0 auto;
+            padding: 1.25rem 1.5rem 3rem;
+        }
+
+        /* Title & Action Bar */
+        .analytics-title-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
-        .btn-nav {
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            color: #334155;
-            padding: 0.8rem 1.5rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.3s;
-            text-decoration: none;
+        .analytics-title-left h1 {
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .analytics-subheading {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin: 4px 0 0 0;
+        }
+
+        .analytics-title-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-analytics-action {
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            padding: 0.55rem 1rem;
+            border-radius: 9px;
+            font-size: 0.82rem;
             font-weight: 600;
-        }
-
-        .btn-nav:hover {
-            background: #e2e8f0;
-            color: #0f172a;
-        }
-
-        .filters-panel {
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
             background: #ffffff;
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            color: #334155;
+            transition: all 0.18s ease;
+            text-decoration: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .btn-analytics-action:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #94a3b8;
+            transform: translateY(-1px);
+        }
+
+        .btn-analytics-action.primary {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #1d4ed8;
+        }
+
+        .btn-analytics-action.primary:hover {
+            background: #1d4ed8;
+            color: #ffffff;
+            box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+        }
+
+        /* Filters Panel */
+        .filters-panel-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.15rem 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
         }
 
         .preset-buttons {
             display: flex;
-            gap: 0.5rem;
+            gap: 6px;
             flex-wrap: wrap;
             margin-bottom: 1rem;
-            grid-column: 1 / -1;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid #f1f5f9;
         }
 
         .preset-buttons button {
             background: #f8fafc;
-            border: 1px solid #cbd5e1;
+            border: 1px solid #e2e8f0;
             color: #475569;
-            padding: 0.4rem 1rem;
+            padding: 0.4rem 0.95rem;
             border-radius: 20px;
             cursor: pointer;
-            transition: 0.2s;
-            font-weight: 500;
+            transition: all 0.18s ease;
+            font-size: 0.8rem;
+            font-weight: 600;
         }
 
-        .preset-buttons button.active,
         .preset-buttons button:hover {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
+            background: #e2e8f0;
+            color: #0f172a;
         }
 
+        .preset-buttons button.active {
+            background: #2563eb !important;
+            color: #ffffff !important;
+            border-color: #2563eb !important;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+
+        .filter-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .filter-form-group label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .filter-form-group input,
+        .filter-form-group select {
+            height: 38px;
+            padding: 0 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 0.85rem;
+            font-weight: 500;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .filter-form-group input:focus,
+        .filter-form-group select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        /* KPI Cards */
         .kpi-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .kpi-row {
+                grid-template-columns: 1fr;
+            }
         }
 
         .kpi-card {
             background: #ffffff;
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.25rem 1.4rem;
+            box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
         }
 
-        .kpi-value {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin: 0.5rem 0;
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #2563eb;
+            opacity: 0.8;
         }
 
-        .kpi-trend {
-            font-size: 0.9rem;
+        .kpi-card.kpi-danger::before {
+            background: #dc2626;
+        }
+
+        .kpi-card.kpi-warning::before {
+            background: #f59e0b;
+        }
+
+        .kpi-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin: 0;
+        }
+
+        .kpi-icon-badge {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            font-size: 0.9rem;
+        }
+
+        .kpi-value {
+            font-size: 2.1rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0.6rem 0 0.4rem;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .kpi-trend {
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .trend-up {
-            color: var(--danger-color);
+            color: #dc2626;
         }
 
-        /* For downtime, up is bad */
         .trend-down {
-            color: var(--success-color);
+            color: #16a34a;
         }
 
-        /* Down is good */
         .trend-neutral {
-            color: var(--text-secondary);
+            color: #64748b;
         }
 
+        /* Charts Row */
         .charts-row {
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            grid-template-columns: 1.6fr 1.1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
         }
 
         .chart-card {
             background: #ffffff;
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.25rem 1.4rem;
+            box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Advanced Pivot Table Styles */
-        .pivot-table-wrapper {
+        .chart-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .chart-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 270px;
+        }
+
+        /* Pivot Table */
+        .pivot-table-card {
             background: #ffffff;
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.25rem 1.4rem;
+            box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
+            margin-bottom: 2rem;
             overflow-x: auto;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
         }
 
         .pivot-table {
             width: 100%;
             border-collapse: collapse;
-        }
-
-        .pivot-table th,
-        .pivot-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-            color: #1e293b;
+            font-size: 0.85rem;
         }
 
         .pivot-table th {
-            font-weight: bold;
-            color: #475569;
-            cursor: pointer;
+            padding: 0.75rem 0.9rem;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
             background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
         }
 
         .pivot-table th:hover {
             color: #0f172a;
+            background: #f1f5f9;
+        }
+
+        .pivot-table td {
+            padding: 0.75rem 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #1e293b;
         }
 
         .row-category {
-            font-weight: bold;
-            background: #f8fafc;
+            font-weight: 700;
+            background: #ffffff;
             cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .row-category:hover {
+            background: #f8fafc;
         }
 
         .row-node {
             display: none;
-            /* hidden by default */
+            background: #fafafa;
         }
 
         .row-node td:first-child {
-            padding-left: 3rem;
+            padding-left: 2.5rem;
             color: #64748b;
         }
 
@@ -202,18 +400,23 @@
             display: table-row;
         }
 
+        .pivot-table .num-cell {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+        }
+
         .chevron {
-            transition: transform 0.3s;
+            transition: transform 0.2s ease;
             display: inline-block;
-            margin-right: 10px;
+            margin-right: 8px;
+            font-size: 0.7rem;
+            color: #94a3b8;
         }
 
         .expanded .chevron {
             transform: rotate(90deg);
-        }
-
-        .diff-col {
-            font-size: 0.9em;
+            color: #2563eb;
         }
 
         .loading-overlay {
@@ -222,19 +425,22 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            color: white;
-            font-size: 1.5rem;
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 600;
         }
     </style>
 </head>
 
 <body>
+    <!-- Индикатор тестовой среды -->
     <script>
         fetch('/api/system/env').then(res => res.json()).then(data => {
             if (data.is_sandbox) {
@@ -246,21 +452,75 @@
             }
         }).catch(e => console.error('Sandbox check failed:', e));
     </script>
+
+    <!-- Оверлей загрузки -->
     <div id="loading" class="loading-overlay">
-        <i class="fa-solid fa-spinner fa-spin fa-2xl mb-4"></i>
-        <p style="margin-top:20px;">Загрузка аналитики...</p>
+        <i class="fa-solid fa-spinner fa-spin fa-2xl" style="color: #60a5fa; margin-bottom: 1rem;"></i>
+        <p>Загрузка аналитики простоев...</p>
     </div>
 
-    <div class="analytics-container">
-        <div class="header-actions">
-            <h1><i class="fa-solid fa-chart-pie"></i> Аналитика простоев (Техсовет)</h1>
-            <div>
-                <a href="/admin" class="btn-nav"><i class="fa-solid fa-arrow-left"></i> Админ-панель</a>
-                <a href="/" class="btn-nav"><i class="fa-solid fa-house"></i> Главная</a>
+    <!-- Каноническая шапка Tectum -->
+    <header class="header-main">
+        <div class="header-top-row">
+            <div class="header-brand-left">
+                <a href="/analytics" style="text-decoration: none; display: inline-flex; align-items: center; gap: 10px;">
+                    <span class="brand-title-tectum">TECTUM</span>
+                    <span class="brand-badge-shop badge-shop-analytics" id="header-shop-badge">АНАЛИТИКА</span>
+                    <span class="brand-divider"></span>
+                    <span class="brand-subtitle">АНАЛИТИКА ПРОИЗВОДСТВА И ПРОСТОЕВ</span>
+                </a>
+            </div>
+
+            <div id="user-info-container" class="header-user-container">
+                <div class="user-greeting-text">
+                    <p id="analytics-user-name">Левда М.</p>
+                    <p id="analytics-user-role" style="margin: 0; font-size: 0.75rem; color: #64748b; font-weight: 600;">Администратор</p>
+                </div>
+                <button onclick="logoutAnalytics()" class="btn-logout" title="Выйти из системы">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Выйти</span>
+                </button>
             </div>
         </div>
 
-        <div class="filters-panel">
+        <div class="header-quick-links">
+            <a href="/tasks" target="_blank" class="header-chip-btn chip-tasks" title="Планнер по бережливому производству">
+                🎯 <span>Планнер задач</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+            </a>
+            <a href="/checklists" target="_blank" class="header-chip-btn chip-checklists" title="Чек-листы смен и ТО">
+                ✅ <span>Чек-листы</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+            </a>
+            <a href="/docs" target="_blank" class="header-chip-btn chip-kb" title="База знаний Tectum Portal">
+                📚 <span>База знаний</span> <i class="fa-solid fa-arrow-up-right-from-square chip-ext-icon"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Основной контент страницы -->
+    <main class="analytics-page-wrapper">
+        <!-- Верхняя панель заголовка и действий -->
+        <div class="analytics-title-bar">
+            <div class="analytics-title-left">
+                <h1>
+                    <i class="fa-solid fa-chart-line" style="color: #2563eb;"></i>
+                    <span>Аналитика простоев и узких мест (Техсовет)</span>
+                </h1>
+                <p class="analytics-subheading">Оперативный мониторинг инцидентов, структуры простоев оборудования и потерь выработки цеха</p>
+            </div>
+            <div class="analytics-title-actions">
+                <button onclick="window.print()" class="btn-analytics-action" title="Распечатать аналитическую сводку">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Печать сводки</span>
+                </button>
+                <button onclick="loadData()" class="btn-analytics-action primary" title="Обновить данные из сменных рапортов">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>Обновить данные</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Панель фильтров и пресетов -->
+        <div class="filters-panel-card">
             <div class="preset-buttons" id="preset-buttons">
                 <button data-preset="today">Сегодня</button>
                 <button data-preset="yesterday">Вчера</button>
@@ -269,90 +529,136 @@
                 <button data-preset="this_month">Этот месяц</button>
             </div>
 
-            <div class="form-group">
-                <label>Период (С)</label>
-                <input type="date" id="filter-date-from">
-            </div>
-            <div class="form-group">
-                <label>Период (По)</label>
-                <input type="date" id="filter-date-to">
-            </div>
-            <div class="form-group">
-                <label>Линия</label>
-                <select id="filter-line">
-                    <option value="all">Все линии</option>
-                    <option value="1">Линия 1</option>
-                    <option value="2">Линия 2</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Категория</label>
-                <select id="filter-category">
-                    <option value="all">Все категории</option>
-                    <option value="Механические">Механические</option>
-                    <option value="Электрические">Электрические</option>
-                    <option value="Технологические">Технологические</option>
-                    <option value="Прочие">Прочие</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Мастер</label>
-                <select id="filter-master">
-                    <option value="all">Все мастера</option>
-                </select>
+            <div class="filters-grid">
+                <div class="filter-form-group">
+                    <label>Период (С)</label>
+                    <input type="date" id="filter-date-from">
+                </div>
+                <div class="filter-form-group">
+                    <label>Период (По)</label>
+                    <input type="date" id="filter-date-to">
+                </div>
+                <div class="filter-form-group">
+                    <label>Линия</label>
+                    <select id="filter-line">
+                        <option value="all">Все линии</option>
+                        <option value="1">Линия 1</option>
+                        <option value="2">Линия 2</option>
+                    </select>
+                </div>
+                <div class="filter-form-group">
+                    <label>Категория</label>
+                    <select id="filter-category">
+                        <option value="all">Все категории</option>
+                        <option value="Механические">Механические</option>
+                        <option value="Электрические">Электрические</option>
+                        <option value="Технологические">Технологические</option>
+                        <option value="Прочие">Прочие</option>
+                    </select>
+                </div>
+                <div class="filter-form-group">
+                    <label>Мастер смены</label>
+                    <select id="filter-master">
+                        <option value="all">Все мастера</option>
+                    </select>
+                </div>
             </div>
         </div>
 
+        <!-- Ключевые показатели эффективности (KPI Cards) -->
         <div class="kpi-row">
-            <div class="kpi-card">
-                <h3>Суммарный простой</h3>
+            <div class="kpi-card kpi-danger">
+                <div class="kpi-header">
+                    <span class="kpi-title">Суммарный простой</span>
+                    <div class="kpi-icon-badge" style="background: #fee2e2; color: #dc2626;">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                </div>
                 <div class="kpi-value" id="kpi-hours">0 ч 00 м</div>
                 <div class="kpi-trend" id="kpi-trend-hours">--</div>
             </div>
-            <div class="kpi-card">
-                <h3>Потери выработки</h3>
+
+            <div class="kpi-card kpi-warning">
+                <div class="kpi-header">
+                    <span class="kpi-title">Потери выработки</span>
+                    <div class="kpi-icon-badge" style="background: #fef3c7; color: #d97706;">
+                        <i class="fa-solid fa-weight-hanging"></i>
+                    </div>
+                </div>
                 <div class="kpi-value" id="kpi-tons">0 т</div>
                 <div class="kpi-trend" id="kpi-trend-tons">--</div>
             </div>
+
             <div class="kpi-card">
-                <h3>Кол-во инцидентов</h3>
+                <div class="kpi-header">
+                    <span class="kpi-title">Количество инцидентов</span>
+                    <div class="kpi-icon-badge" style="background: #eff6ff; color: #2563eb;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
                 <div class="kpi-value" id="kpi-count">0</div>
                 <div class="kpi-trend" id="kpi-trend-count">--</div>
             </div>
         </div>
 
+        <!-- Блок визуализации: Топ узких мест + Категории -->
         <div class="charts-row">
             <div class="chart-card">
-                <h3>Топ узких мест (по длительности)</h3>
-                <canvas id="chart-bottlenecks"></canvas>
+                <div class="chart-card-header">
+                    <h3 class="chart-card-title">
+                        <i class="fa-solid fa-ranking-star" style="color: #2563eb;"></i>
+                        <span>Топ узких мест (по длительности)</span>
+                    </h3>
+                    <span style="font-size: 0.75rem; color: #64748b; font-weight: 500;">Минуты</span>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="chart-bottlenecks"></canvas>
+                </div>
             </div>
+
             <div class="chart-card">
-                <h3>Распределение по категориям</h3>
-                <canvas id="chart-categories"></canvas>
+                <div class="chart-card-header">
+                    <h3 class="chart-card-title">
+                        <i class="fa-solid fa-chart-pie" style="color: #10b981;"></i>
+                        <span>Распределение по категориям</span>
+                    </h3>
+                </div>
+                <div class="chart-canvas-container">
+                    <canvas id="chart-categories"></canvas>
+                </div>
             </div>
         </div>
 
-        <div class="chart-card" style="margin-bottom: 2rem;">
-            <h3>Динамика простоев по дням (Минуты)</h3>
-            <div style="position: relative; height: 300px; width: 100%;">
+        <!-- Динамика простоев по дням -->
+        <div class="chart-card" style="margin-bottom: 1.5rem;">
+            <div class="chart-card-header">
+                <h3 class="chart-card-title">
+                    <i class="fa-solid fa-chart-area" style="color: #3b82f6;"></i>
+                    <span>Динамика простоев по дням (Минуты)</span>
+                </h3>
+            </div>
+            <div class="chart-canvas-container" style="height: 250px;">
                 <canvas id="chart-timeline"></canvas>
             </div>
         </div>
 
-        <div class="pivot-table-wrapper">
-            <h3 style="margin-bottom: 1rem; display: flex; justify-content: space-between;">
-                Сводная таблица (Pivot)
-                <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary);">Сравнение с
-                    предыдущим аналогичным периодом</span>
-            </h3>
+        <!-- Сводная таблица (Pivot) -->
+        <div class="pivot-table-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="chart-card-title">
+                    <i class="fa-solid fa-table-list" style="color: #64748b;"></i>
+                    <span>Сводная таблица простоев (Pivot)</span>
+                </h3>
+                <span style="font-size: 0.78rem; color: #64748b;">Сравнение с предыдущим аналогичным периодом</span>
+            </div>
             <table class="pivot-table" id="pivot-table">
                 <thead>
                     <tr>
                         <th data-sort="name">Категория / Узел <i class="fa-solid fa-sort"></i></th>
-                        <th data-sort="duration">Время (мин) <i class="fa-solid fa-sort"></i></th>
-                        <th data-sort="duration_diff">Разница (мин) <i class="fa-solid fa-sort"></i></th>
-                        <th data-sort="tons">Потери (т) <i class="fa-solid fa-sort"></i></th>
-                        <th data-sort="count">Инциденты <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="duration" class="num-cell">Время (мин) <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="duration_diff" class="num-cell">Разница (мин) <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="tons" class="num-cell">Потери (т) <i class="fa-solid fa-sort"></i></th>
+                        <th data-sort="count" class="num-cell">Инциденты <i class="fa-solid fa-sort"></i></th>
                     </tr>
                 </thead>
                 <tbody id="pivot-table-body">
@@ -360,10 +666,11 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </main>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/analytics.js?v=1"></script>
+    <script src="/static/js/analytics.js?v=20261030_analytics_v2"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261030_switcher_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>

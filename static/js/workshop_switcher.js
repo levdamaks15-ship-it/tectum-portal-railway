@@ -2,8 +2,10 @@
  * Tectum Enterprise - Workshop Switcher Popover
  * @canonical-pattern WorkshopSwitcher
  * @established 2026-10-30
+ * @version 20261030_switcher_v2
  * @description Сквозной интерактивный переключатель производственных кабинетов
  *              для Администратора (Левда М.), Директора и Главного технолога.
+ *              Portal Architecture (document.body), Idempotent Event Binding.
  */
 
 (function () {
@@ -92,26 +94,41 @@
             this.triggerEl = null;
             this.popoverEl = null;
             this.isOpen = false;
+            this.isMounted = false;
             this.init();
         }
 
         init() {
-            // 1. Быстрая пре-инициализация из localStorage для мгновенного отсутствия мерцания
-            try {
-                const stored = localStorage.getItem('tectum_auth_user');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    if (parsed && ALLOWED_ROLES.includes(parsed.role)) {
-                        this.currentUser = parsed;
-                        this.mount();
+            // Глобальные слушатели событий (навешиваются строго один раз в конструкторе)
+            document.addEventListener('click', (e) => {
+                if (this.isOpen && this.popoverEl) {
+                    const isClickInsidePopover = this.popoverEl.contains(e.target);
+                    const isClickOnTrigger = this.triggerEl && (this.triggerEl === e.target || this.triggerEl.contains(e.target));
+                    if (!isClickInsidePopover && !isClickOnTrigger) {
+                        this.close();
                     }
                 }
-            } catch (e) { }
+            });
 
-            // 2. Строгая верификация серверной сессии (Backend Authority)
-            this.verifyServerSession();
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isOpen) {
+                    this.close();
+                }
+            });
 
-            // 3. Реактивная синхронизация при выходе/смене пользователя в соседней вкладке
+            window.addEventListener('resize', () => {
+                if (this.isOpen) {
+                    this.updatePosition();
+                }
+            });
+
+            window.addEventListener('scroll', () => {
+                if (this.isOpen) {
+                    this.updatePosition();
+                }
+            }, true);
+
+            // Реактивная синхронизация при выходе/смене пользователя в соседней вкладке
             window.addEventListener('storage', (e) => {
                 if (e.key === 'tectum_auth_user') {
                     if (!e.newValue) {
@@ -131,6 +148,21 @@
                     }
                 }
             });
+
+            // 1. Быстрая пре-инициализация из localStorage для мгновенного показа без задержек
+            try {
+                const stored = localStorage.getItem('tectum_auth_user');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed && ALLOWED_ROLES.includes(parsed.role)) {
+                        this.currentUser = parsed;
+                        this.mount();
+                    }
+                }
+            } catch (e) { }
+
+            // 2. Строгая серверная верификация сессии (Backend Authority)
+            this.verifyServerSession();
         }
 
         async verifyServerSession() {
@@ -153,9 +185,15 @@
         }
 
         findTriggerBadge() {
+            // Приоритетный поиск по явному ID
             let badge = document.getElementById('header-shop-badge');
             if (badge) return badge;
 
+            // Сайдбар админки
+            const adminBadge = document.querySelector('.admin-sidebar .brand-badge-shop');
+            if (adminBadge) return adminBadge;
+
+            // Каноническая шапка
             badge = document.querySelector('.header-brand-left .brand-badge-shop');
             if (badge) return badge;
 
@@ -176,35 +214,45 @@
 
             this.triggerEl = this.findTriggerBadge();
             if (!this.triggerEl) {
-                // Если DOM еще не готов, пробуем через короткий интервал
-                setTimeout(() => this.mount(), 100);
+                // Если DOM еще формируется, повторяем через микротик
+                setTimeout(() => this.mount(), 120);
                 return;
             }
 
-            // Обеспечиваем relative-контейнер
-            const brandLeft = this.triggerEl.closest('.header-brand-left') || this.triggerEl.parentElement;
-            if (brandLeft) {
-                brandLeft.style.position = 'relative';
+            // Назначаем канонический ID, если отсутствовал
+            if (!this.triggerEl.id) {
+                this.triggerEl.id = 'header-shop-badge';
+            }
+
+            // Рендерим поповер в document.body (Portal Architecture)
+            this.renderPopover();
+
+            // Если уже привязано и триггер активен — просто обновляем содержимое и выходим
+            if (this.isMounted && this.triggerEl.classList.contains('workshop-switcher-trigger')) {
+                return;
             }
 
             // Настраиваем чип цеха как интерактивный селектор
             this.triggerEl.classList.add('workshop-switcher-trigger');
             this.triggerEl.setAttribute('title', 'Нажмите для быстрого перехода в другой цех или кабинет');
 
-            // Предотвращаем стандартный переход, если бейдж находится внутри ссылки <a>
+            // Предотвращаем стандартный переход ссылки-родителя <a>
             const parentLink = this.triggerEl.closest('a');
             if (parentLink) {
-                this.triggerEl.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.toggle();
-                });
-            } else {
-                this.triggerEl.onclick = (e) => {
-                    e.stopPropagation();
-                    this.toggle();
-                };
+                parentLink.addEventListener('click', (e) => {
+                    if (e.target.closest('#header-shop-badge') || e.target.closest('.workshop-switcher-trigger')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }, true);
             }
+
+            // Атомарный прямой слушатель на клик триггера (исключает дублирование)
+            this.triggerEl.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggle();
+            };
 
             // Добавляем стрелку-шеврон, если её еще нет
             if (!this.triggerEl.querySelector('.switcher-chevron')) {
@@ -213,43 +261,30 @@
                 this.triggerEl.appendChild(chevron);
             }
 
-            // Создаем или обновляем поповер
-            this.renderPopover(brandLeft || document.body);
-
-            // Глобальный слушатель закрытия по клику вне
-            document.addEventListener('click', (e) => {
-                if (this.isOpen && this.popoverEl && !this.popoverEl.contains(e.target) && !this.triggerEl.contains(e.target)) {
-                    this.close();
-                }
-            });
-
-            // Закрытие по Escape
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && this.isOpen) {
-                    this.close();
-                }
-            });
+            this.isMounted = true;
         }
 
-        renderPopover(container) {
+        renderPopover() {
             let popover = document.getElementById('workshop-switcher-popover');
             if (!popover) {
                 popover = document.createElement('div');
                 popover.id = 'workshop-switcher-popover';
                 popover.className = 'workshop-switcher-popover';
-                container.appendChild(popover);
+                document.body.appendChild(popover);
             }
             this.popoverEl = popover;
 
             const currentCab = getCurrentCabinetId();
             const userName = this.currentUser ? this.currentUser.name : 'Администратор';
-            const userRoleName = this.currentUser?.role === 'admin' ? 'Системный администратор' : (this.currentUser?.role || 'Администратор');
+            const userRoleName = this.currentUser?.role === 'admin' 
+                ? 'Системный администратор' 
+                : (this.currentUser?.role === 'director' ? 'Директор' : (this.currentUser?.role === 'technologist' ? 'Главный технолог' : this.currentUser?.role || 'Администратор'));
 
             let workshopsHtml = '';
             WORKSHOPS.forEach(w => {
                 const isCurrent = (w.id === currentCab);
                 workshopsHtml += `
-                    <a href="${w.url}" class="switcher-item ${isCurrent ? 'is-current' : ''}">
+                    <a href="${w.url}" data-switcher-url="${w.url}" class="switcher-item ${isCurrent ? 'is-current' : ''}">
                         <div class="switcher-icon" style="background: ${w.bg}; color: ${w.color};">
                             <i class="fa-solid ${w.icon}"></i>
                         </div>
@@ -267,7 +302,7 @@
             let servicesHtml = '';
             SERVICES.forEach(s => {
                 servicesHtml += `
-                    <a href="${s.url}" class="switcher-service-btn" title="${escapeHtml(s.title)}">
+                    <a href="${s.url}" data-switcher-url="${s.url}" class="switcher-service-btn" title="${escapeHtml(s.title)}">
                         <i class="fa-solid ${s.icon}" style="color: ${s.color};"></i>
                         <span>${escapeHtml(s.title)}</span>
                     </a>
@@ -295,6 +330,42 @@
                     <span style="font-size: 0.68rem; color: #94a3b8;">${escapeHtml(userRoleName)}</span>
                 </div>
             `;
+
+            // Прямая гарантированная навигация при клике по пунктам меню
+            popover.querySelectorAll('[data-switcher-url]').forEach(link => {
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = link.getAttribute('data-switcher-url');
+                    this.close();
+                    if (url) {
+                        window.location.href = url;
+                    }
+                };
+            });
+        }
+
+        updatePosition() {
+            if (!this.popoverEl || !this.triggerEl) return;
+
+            const rect = this.triggerEl.getBoundingClientRect();
+            const popoverWidth = 330;
+            let left = rect.left;
+            let top = rect.bottom + 8;
+
+            // Защита от вылета за границы вьюпорта (Windows DPI 125%-150% scaling)
+            if (left + popoverWidth > window.innerWidth - 12) {
+                left = Math.max(12, window.innerWidth - popoverWidth - 12);
+            }
+            if (left < 12) left = 12;
+
+            // Если триггер ушел выше экрана
+            if (top < 8) top = 8;
+
+            this.popoverEl.style.position = 'fixed';
+            this.popoverEl.style.top = `${top}px`;
+            this.popoverEl.style.left = `${left}px`;
+            this.popoverEl.style.zIndex = '999999';
         }
 
         toggle() {
@@ -306,10 +377,11 @@
         }
 
         open() {
-            if (!this.popoverEl) return;
+            if (!this.popoverEl || !this.triggerEl) return;
+            this.updatePosition();
             this.isOpen = true;
             this.popoverEl.classList.add('is-open');
-            if (this.triggerEl) this.triggerEl.classList.add('is-open');
+            this.triggerEl.classList.add('is-open');
         }
 
         close() {
@@ -323,6 +395,7 @@
             this.close();
             if (this.triggerEl) {
                 this.triggerEl.classList.remove('workshop-switcher-trigger', 'is-open');
+                this.triggerEl.onclick = null;
                 const ch = this.triggerEl.querySelector('.switcher-chevron');
                 if (ch) ch.remove();
             }
@@ -330,10 +403,11 @@
                 this.popoverEl.remove();
                 this.popoverEl = null;
             }
+            this.isMounted = false;
         }
     }
 
-    // Инициализация после загрузки DOM
+    // Инициализация
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             window.TectumWorkshopSwitcher = new WorkshopSwitcher();

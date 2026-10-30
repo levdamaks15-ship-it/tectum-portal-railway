@@ -2225,6 +2225,12 @@ input[type="text"][readonly] {
     border: 1px solid rgba(200, 35, 35, 0.2) !important;
 }
 
+.badge-shop-analytics {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border: 1px solid #fde68a !important;
+}
+
 .brand-divider {
     height: 16px !important;
     width: 1px !important;
@@ -2625,16 +2631,14 @@ body.role-portal {
 }
 
 .workshop-switcher-popover {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
+    position: fixed;
     width: 330px;
     max-width: calc(100vw - 24px);
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 14px;
-    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.04);
-    z-index: 10001;
+    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    z-index: 999999;
     padding: 0.65rem;
     display: none;
     flex-direction: column;
