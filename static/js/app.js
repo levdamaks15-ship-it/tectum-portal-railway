@@ -5683,3 +5683,38 @@ async function submitCanonicalLogin() {
         }
     }
 }
+
+
+// Cross-tab and Cross-module session synchronizer
+window.addEventListener('storage', function(e) {
+    if (e.key === 'tectum_auth_user' || e.key === 'tectum_portal_user') {
+        const raw = localStorage.getItem('tectum_auth_user');
+        if (!raw) {
+            // User logged out elsewhere
+            if (currentUser) {
+                currentUser = null;
+                const userInfo = document.getElementById('user-info-container');
+                if (userInfo) userInfo.style.display = 'none';
+                const mainApp = document.getElementById('main-app');
+                if (mainApp) mainApp.style.display = 'none';
+                const loginScreen = document.getElementById('login-screen');
+                if (loginScreen) loginScreen.style.display = 'block';
+                document.body.classList.remove('role-portal');
+                document.body.classList.add('not-authenticated');
+            }
+        } else {
+            // User switched account elsewhere
+            try {
+                const newUser = JSON.parse(raw);
+                if (newUser && newUser.name && (!currentUser || currentUser.name !== newUser.name)) {
+                    currentUser = newUser;
+                    const greetingName = document.getElementById('user-greeting-name');
+                    if (greetingName) greetingName.innerText = currentUser.name;
+                    const greetingRole = document.getElementById('user-greeting-role');
+                    if (greetingRole) greetingRole.innerText = currentUser.role;
+                    applyRoleVisibility();
+                }
+            } catch (err) {}
+        }
+    }
+});

@@ -274,8 +274,12 @@ function promptChangePlannerUser() {
     });
 }
 
-function logoutPlannerUser() {
+async function logoutPlannerUser() {
     currentPlannerUser = null;
+    try {
+        await fetch("/api/logout", { method: "POST" });
+    } catch (e) {}
+    localStorage.removeItem("tectum_auth_user");
     localStorage.removeItem("tectum_portal_user");
     localStorage.removeItem("tectum_current_user_name");
     sessionStorage.removeItem("planner_user_session");
@@ -563,6 +567,17 @@ async function submitPinModal() {
             currentPlannerUser = { name: name, pin: pin };
             localStorage.setItem("tectum_portal_user", JSON.stringify(currentPlannerUser));
             localStorage.setItem("tectum_current_user_name", name);
+            try {
+                const loginRes = await fetch("/api/login/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: name, pin: pin })
+                });
+                if (loginRes.ok) {
+                    const loginUser = await loginRes.json();
+                    localStorage.setItem("tectum_auth_user", JSON.stringify(loginUser));
+                }
+            } catch (err) {}
             updatePlannerUserBadge();
 
             const cb = pendingAuthCallback;
