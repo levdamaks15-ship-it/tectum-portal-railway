@@ -1128,7 +1128,28 @@
             background: #cbd5e1;
             cursor: not-allowed;
         }
+
+        /* Fast-path instant display for authenticated admin (Zero Flicker) */
+        html.admin-session-cached #admin-login-screen {
+            display: none !important;
+        }
+        html.admin-session-cached #admin-app {
+            display: flex !important;
+        }
     </style>
+    <script>
+        (function () {
+            try {
+                const stored = localStorage.getItem('tectum_auth_user');
+                if (stored) {
+                    const u = JSON.parse(stored);
+                    if (u && ['admin', 'director', 'technologist'].includes(u.role)) {
+                        document.documentElement.classList.add('admin-session-cached');
+                    }
+                }
+            } catch (e) { }
+        })();
+    </script>
 
 </head>
 
@@ -3922,6 +3943,7 @@
     <script src="/static/js/ai_assistant.js?v=20260910_ai_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261030_switcher_v1"></script>
 </body>
 
 </html>

@@ -78,7 +78,10 @@ async function initAdminLogin() {
         console.warn("Session check failed, falling back to login prompt:", e);
     }
 
-    // Если нет активной серверной сессии — фокусируемся на поле ввода ПИН
+    // Если нет активной серверной сессии — убираем fast-path и фокусируемся на поле ввода ПИН
+    document.documentElement.classList.remove('admin-session-cached');
+    document.getElementById('admin-login-screen').style.display = 'flex';
+    document.getElementById('admin-app').style.display = 'none';
     if (pinInput) pinInput.focus();
 }
 

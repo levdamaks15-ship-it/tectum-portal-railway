@@ -496,6 +496,8 @@ def verify_batch_by_qcd(
     # Имя инспектора из сессии или входного DTO
     inspector = data.inspector_name
     if not inspector:
+        inspector = request.session.get("user_name")
+    if not inspector:
         sess_user = request.session.get("user")
         if sess_user and isinstance(sess_user, dict):
             inspector = sess_user.get("name")

@@ -100,6 +100,20 @@ function initDatePicker() {
 // --- USER & AUTH ---
 async function checkCurrentUser() {
     try {
+        // Fast-path from cached user to prevent name flickering
+        try {
+            const cachedStr = localStorage.getItem('tectum_auth_user');
+            if (cachedStr) {
+                const cu = JSON.parse(cachedStr);
+                if (cu && cu.name) {
+                    const uEl = document.getElementById('lkc-user-name');
+                    if (uEl) uEl.innerText = cu.name;
+                    const rEl = document.getElementById('lkc-user-role');
+                    if (rEl) rEl.innerText = (cu.role === 'admin' ? 'Администратор' : (cu.role === 'director' ? 'Директор' : (cu.role === 'technologist' ? 'Технолог' : 'Мастер ЛКЦ')));
+                }
+            }
+        } catch(e) {}
+
         const resp = await fetch('/api/me/');
         if (resp.ok) {
             const data = await resp.json();
@@ -107,7 +121,7 @@ async function checkCurrentUser() {
                 const user = data.user;
                 
                 // Cross-Cabin Access Guard: Only lkc_master, admin or director are allowed here
-                const allowedRoles = ['lkc_master', 'admin', 'director'];
+                const allowedRoles = ['lkc_master', 'admin', 'director', 'technologist'];
                 if (!allowedRoles.includes(user.role)) {
                     if (user.role === 'qcd' || (user.name && user.name.includes('Мусаилова'))) {
                         window.location.replace('/static/qcd.html');
@@ -120,6 +134,8 @@ async function checkCurrentUser() {
 
                 const userEl = document.getElementById('lkc-user-name');
                 if (userEl) userEl.innerText = user.name || 'Миркасимов И.М.';
+                const roleEl = document.getElementById('lkc-user-role');
+                if (roleEl) roleEl.innerText = (user.role === 'admin' ? 'Администратор' : (user.role === 'director' ? 'Директор' : (user.role === 'technologist' ? 'Технолог' : 'Мастер ЛКЦ')));
                 
                 const masterSelect = document.getElementById('report-master-select');
                 if (masterSelect && user.name) {
