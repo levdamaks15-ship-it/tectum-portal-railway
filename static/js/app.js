@@ -1204,7 +1204,6 @@ function applyRoleVisibility() {
     }
     
     // Hide active shift banner as unified report doesn't use manual open/close state
-    const activeShiftBanner = document.getElementById('active-shift-banner');
     if (activeShiftBanner) {
         activeShiftBanner.style.display = 'none';
     }
