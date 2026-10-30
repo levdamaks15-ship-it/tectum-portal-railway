@@ -1116,6 +1116,11 @@ async function logout() {
     clearLoginPinBoxes();
     selectLoginUser('');
 
+    const quickLinks = document.querySelector('.header-quick-links');
+    if (quickLinks) quickLinks.style.display = '';
+    const portalHub = document.getElementById('portal-employee-hub');
+    if (portalHub) portalHub.style.display = 'none';
+
     document.getElementById('user-info-container').style.display = 'none';
     document.getElementById('main-app').style.display = 'none';
     document.getElementById('login-screen').style.display = 'block';
@@ -1131,11 +1136,15 @@ function applyRoleVisibility() {
     const portalHub = document.getElementById('portal-employee-hub');
     const tabsMenu = document.getElementById('tabs-menu');
     const prodTab = document.getElementById('production-tab');
+    const quickLinks = document.querySelector('.header-quick-links');
+    const activeShiftBanner = document.getElementById('active-shift-banner');
     
     if (r === 'portal') {
         if (portalHub) portalHub.style.display = 'block';
         if (tabsMenu) tabsMenu.style.display = 'none';
         if (prodTab) prodTab.style.display = 'none';
+        if (quickLinks) quickLinks.style.display = 'none';
+        if (activeShiftBanner) activeShiftBanner.style.display = 'none';
         
         // Hide workshop tabs
         ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report'].forEach(t => {
@@ -1160,6 +1169,7 @@ function applyRoleVisibility() {
     } else {
         if (portalHub) portalHub.style.display = 'none';
         if (tabsMenu) tabsMenu.style.display = '';
+        if (quickLinks) quickLinks.style.display = '';
     }
 
     // Master, Admin, Director, Technologist see all reports, summary and crew plans
