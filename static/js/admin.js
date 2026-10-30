@@ -188,12 +188,14 @@ async function adminLogout() {
         await fetch('/api/logout', { method: 'POST' });
     } catch (e) {}
     currentAdmin = null;
-    document.getElementById('admin-app').style.display = 'none';
-    const pinInput = document.getElementById('admin-pin');
-    if (pinInput) pinInput.value = '';
-    const loginScreen = document.getElementById('admin-login-screen');
-    if (loginScreen) loginScreen.style.display = 'flex';
-    if (pinInput) pinInput.focus();
+    try {
+        localStorage.removeItem('tectum_auth_user');
+        localStorage.removeItem('tectum_portal_user');
+        localStorage.removeItem('tectum_current_user_name');
+        localStorage.removeItem('admin_token');
+        sessionStorage.clear();
+    } catch (e) {}
+    window.location.replace('/');
 }
 
 // Call init on load

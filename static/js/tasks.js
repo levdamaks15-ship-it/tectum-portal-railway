@@ -279,16 +279,13 @@ async function logoutPlannerUser() {
     try {
         await fetch("/api/logout", { method: "POST" });
     } catch (e) {}
-    localStorage.removeItem("tectum_auth_user");
-    localStorage.removeItem("tectum_portal_user");
-    localStorage.removeItem("tectum_current_user_name");
-    sessionStorage.removeItem("planner_user_session");
-    if (myTasksFilterActive) {
-        myTasksFilterActive = false;
-        loadTasks();
-    }
-    updatePlannerUserBadge();
-    showToast("Вы вышли из сессии");
+    try {
+        localStorage.removeItem("tectum_auth_user");
+        localStorage.removeItem("tectum_portal_user");
+        localStorage.removeItem("tectum_current_user_name");
+        sessionStorage.removeItem("planner_user_session");
+    } catch (e) {}
+    window.location.replace('/');
 }
 
 function getInitialsAvatar(name) {

@@ -5971,14 +5971,19 @@
             });
         }
 
-        function logoutDocsUser(event) {
+        async function logoutDocsUser(event) {
             if (event) event.stopPropagation();
             currentDocsUser = null;
-            localStorage.removeItem("tectum_portal_user");
-            localStorage.removeItem("tectum_current_user_name");
-            sessionStorage.removeItem("planner_user_session");
-            updateDocsUserBadge();
-            showToast("Вы вышли из профиля");
+            try {
+                await fetch("/api/logout", { method: "POST" });
+            } catch (e) {}
+            try {
+                localStorage.removeItem("tectum_auth_user");
+                localStorage.removeItem("tectum_portal_user");
+                localStorage.removeItem("tectum_current_user_name");
+                sessionStorage.removeItem("planner_user_session");
+            } catch (e) {}
+            window.location.replace('/');
         }
 
         /* --- Canonical PersonPickerPopover & 4-Box PIN Auth Handlers --- */
@@ -6262,6 +6267,17 @@
                     currentDocsUser = { name: name, pin: pin };
                     localStorage.setItem("tectum_portal_user", JSON.stringify(currentDocsUser));
                     localStorage.setItem("tectum_current_user_name", name);
+                    try {
+                        const loginRes = await fetch("/api/login/", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ name: name, pin: pin })
+                        });
+                        if (loginRes.ok) {
+                            const loginUser = await loginRes.json();
+                            localStorage.setItem("tectum_auth_user", JSON.stringify(loginUser));
+                        }
+                    } catch (err) {}
                     updateDocsUserBadge();
 
                     const cb = pendingDocsAuthCallback;
