@@ -62,7 +62,7 @@ def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
             matched = True
             user_id = 10000 + planner_emp.id
             user_name = planner_emp.name
-            user_role = "admin" if (clean_name.startswith("Левда") and clean_pin == "6282") else "itr"
+            user_role = getattr(planner_emp, "role", None) or ("admin" if (clean_name.startswith("Л") and clean_pin == "6282") else "portal")
             
     if not matched:
         raise HTTPException(status_code=400, detail="Неверное имя сотрудника или ПИН-код")
@@ -97,6 +97,21 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
     user_id = request.session.get("user_id")
     if not user_id:
         return {"authenticated": False, "sso_enabled": sso_enabled}
+    user_name = request.session.get("user_name")
+    user_role = request.session.get("user_role")
+
+    if user_id >= 10000:
+        emp_id = user_id - 10000
+        emp = db.query(models.PlannerEmployee).get(emp_id)
+        if not emp:
+            request.session.clear()
+            return {"authenticated": False, "sso_enabled": sso_enabled}
+        return {
+            "authenticated": True,
+            "sso_enabled": sso_enabled,
+            "user": {"id": user_id, "name": emp.name, "role": getattr(emp, "role", "portal"), "email": emp.email}
+        }
+
     master = db.query(models.Master).get(user_id)
     if not master:
         request.session.clear()

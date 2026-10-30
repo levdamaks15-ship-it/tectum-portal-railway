@@ -860,6 +860,7 @@ class PlannerEmployeeBase(ORMBaseModel):
     name: str
     email: Optional[str] = ""
     pin_code: Optional[str] = ""
+    role: Optional[str] = "portal"
     is_active: Optional[bool] = True
     sort_order: Optional[int] = 0
 
@@ -870,6 +871,7 @@ class PlannerEmployeeUpdate(ORMBaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     pin_code: Optional[str] = None
+    role: Optional[str] = None
     is_active: Optional[bool] = None
     sort_order: Optional[int] = None
 

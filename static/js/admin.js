@@ -69,7 +69,7 @@ async function initAdminLogin() {
                 currentAdmin = meData.user;
                 document.getElementById('admin-login-screen').style.display = 'none';
                 document.getElementById('admin-app').style.display = 'flex';
-                loadMasters();
+                loadPlannerSettings();
                 loadNorms();
                 return;
             }
@@ -162,7 +162,7 @@ async function adminLogin() {
             currentAdmin = data;
             document.getElementById('admin-login-screen').style.display = 'none';
             document.getElementById('admin-app').style.display = 'flex';
-            loadMasters();
+            loadPlannerSettings();
             loadNorms();
         } else {
             throw new Error("Неверный PIN-код или нет прав");
@@ -3162,12 +3162,27 @@ async function loadPlannerEmployees() {
     }
 }
 
+function getRoleBadge(role) {
+    const rolesMap = {
+        'portal': { label: '🌐 Корп. Портал', style: 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;' },
+        'master': { label: '🏭 Цех ХЦИ', style: 'background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;' },
+        'lkc_master': { label: '🎨 Цех ЛКЦ', style: 'background: #fdf4ff; color: #a21caf; border: 1px solid #f5d0fe;' },
+        'qcd': { label: '🔬 Служба СКК', style: 'background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;' },
+        'director': { label: '🛡️ Дирекция', style: 'background: #fffbeb; color: #b45309; border: 1px solid #fde68a;' },
+        'technologist': { label: '⚗️ Технолог', style: 'background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;' },
+        'mechanic': { label: '🔧 Механик (ОГМ)', style: 'background: #f8fafc; color: #475569; border: 1px solid #cbd5e1;' },
+        'admin': { label: '👑 Администратор', style: 'background: #faf5ff; color: #6b21a8; border: 1px solid #e9d5ff;' }
+    };
+    const conf = rolesMap[role] || rolesMap['portal'];
+    return `<span style="display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; ${conf.style}">${conf.label}</span>`;
+}
+
 function renderPlannerEmployeesTable() {
     const tbody = document.getElementById('planner-employees-table-body');
     if (!tbody) return;
 
     if (adminPlannerEmployees.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">Нет добавленных сотрудников</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">Нет добавленных сотрудников</td></tr>`;
         return;
     }
 
@@ -3179,6 +3194,9 @@ function renderPlannerEmployeesTable() {
                 ${emp.email ? `<i class="fa-regular fa-envelope"></i> ${escapeHtml(emp.email)}` : '—'}
             </td>
             <td>
+                ${getRoleBadge(emp.role || 'portal')}
+            </td>
+            <td>
                 ${emp.pin_code 
                     ? `<span style="font-family: monospace; font-weight: 700; background: #fef3c7; color: #b45309; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">🔑 ${escapeHtml(emp.pin_code)}</span>` 
                     : (emp.has_pin 
@@ -3186,17 +3204,21 @@ function renderPlannerEmployeesTable() {
                         : '<span style="color: #94a3b8; font-size: 0.75rem;">Не задан</span>')}
             </td>
             <td style="text-align: right; white-space: nowrap;">
-                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.pin_code || '').replace(/'/g, "\\'")}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="openPlannerEmployeeModal(${emp.id}, '${emp.name.replace(/'/g, "\\'")}', '${(emp.email || '').replace(/'/g, "\\'")}', '${(emp.pin_code || '').replace(/'/g, "\\'")}', '${emp.role || 'portal'}')" class="action-btn btn-edit" title="Редактировать"><i class="fa-solid fa-pen"></i></button>
                 <button onclick="deletePlannerEmployee(${emp.id}, '${emp.name.replace(/'/g, "\\'")}')" class="action-btn btn-delete" title="Удалить"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
 }
 
-function openPlannerEmployeeModal(id = null, name = '', email = '', pin = '') {
+function openPlannerEmployeeModal(id = null, name = '', email = '', pin = '', role = 'portal') {
     document.getElementById('planner-emp-id').value = id || '';
     document.getElementById('planner-emp-name').value = name || '';
     document.getElementById('planner-emp-email').value = email || '';
+    const roleSelect = document.getElementById('planner-emp-role');
+    if (roleSelect) {
+        roleSelect.value = role || 'portal';
+    }
     const pinInput = document.getElementById('planner-emp-pin');
     if (pinInput) {
         pinInput.value = pin || '';
@@ -3213,6 +3235,8 @@ async function savePlannerEmployee() {
     const name = document.getElementById('planner-emp-name').value.trim();
     const email = document.getElementById('planner-emp-email').value.trim();
     const pin = document.getElementById('planner-emp-pin').value.trim();
+    const roleElem = document.getElementById('planner-emp-role');
+    const role = roleElem ? roleElem.value : 'portal';
 
     if (!name) {
         alert("Пожалуйста, укажите имя/ФИО сотрудника");
@@ -3226,7 +3250,7 @@ async function savePlannerEmployee() {
         const res = await fetch(url, {
             method: method,
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ name: name, email: email, pin_code: pin })
+            body: JSON.stringify({ name: name, email: email, pin_code: pin, role: role })
         });
 
         if (res.ok) {

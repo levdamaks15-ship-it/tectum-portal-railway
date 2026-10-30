@@ -1127,6 +1127,41 @@ async function logout() {
 function applyRoleVisibility() {
     const r = currentUser.role;
     
+    // Check if user is a pure Portal employee (no workshop shift report)
+    const portalHub = document.getElementById('portal-employee-hub');
+    const tabsMenu = document.getElementById('tabs-menu');
+    const prodTab = document.getElementById('production-tab');
+    
+    if (r === 'portal') {
+        if (portalHub) portalHub.style.display = 'block';
+        if (tabsMenu) tabsMenu.style.display = 'none';
+        if (prodTab) prodTab.style.display = 'none';
+        
+        // Hide workshop tabs
+        ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report'].forEach(t => {
+            const el = document.getElementById(`${t}-tab`);
+            if (el) el.style.display = 'none';
+            const btn = document.getElementById(`tab-btn-${t}`);
+            if (btn) btn.style.display = 'none';
+        });
+        
+        // Update header shop badge to Portal
+        const shopBadge = document.getElementById('header-shop-badge');
+        if (shopBadge) {
+            shopBadge.className = 'brand-badge-shop';
+            shopBadge.style.cssText = 'background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 6px;';
+            shopBadge.innerText = 'ПОРТАЛ';
+        }
+        const shopSubtitle = document.getElementById('header-shop-subtitle');
+        if (shopSubtitle) {
+            shopSubtitle.innerText = 'КОРПОРАТИВНЫЙ ПОРТАЛ';
+        }
+        return;
+    } else {
+        if (portalHub) portalHub.style.display = 'none';
+        if (tabsMenu) tabsMenu.style.display = '';
+    }
+
     // Master, Admin, Director, Technologist see all reports, summary and crew plans
     const canReport = ['master', 'admin'].includes(r);
     const canViewSummary = ['master', 'admin', 'director', 'technologist'].includes(r);

@@ -551,6 +551,7 @@ class PlannerEmployee(Base):
     name = Column(String, index=True, nullable=False)
     email = Column(String, index=True, nullable=True)
     pin_code = Column(String(10), nullable=True)
+    role = Column(String(50), default="portal", nullable=False)
     is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

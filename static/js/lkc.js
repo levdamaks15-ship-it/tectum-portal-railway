@@ -104,20 +104,37 @@ async function checkCurrentUser() {
         if (resp.ok) {
             const data = await resp.json();
             if (data.authenticated && data.user) {
+                const user = data.user;
+                
+                // Cross-Cabin Access Guard: Only lkc_master, admin or director are allowed here
+                const allowedRoles = ['lkc_master', 'admin', 'director'];
+                if (!allowedRoles.includes(user.role)) {
+                    if (user.role === 'qcd' || (user.name && user.name.includes('Мусаилова'))) {
+                        window.location.replace('/static/qcd.html');
+                        return;
+                    }
+                    // For portal and other roles, return to main portal
+                    window.location.replace('/');
+                    return;
+                }
+
                 const userEl = document.getElementById('lkc-user-name');
-                if (userEl) userEl.innerText = data.user.name || 'Миркасимов И.М.';
+                if (userEl) userEl.innerText = user.name || 'Миркасимов И.М.';
                 
                 const masterSelect = document.getElementById('report-master-select');
-                if (masterSelect && data.user.name) {
-                    let optExists = Array.from(masterSelect.options).some(o => o.value === data.user.name);
+                if (masterSelect && user.name) {
+                    let optExists = Array.from(masterSelect.options).some(o => o.value === user.name);
                     if (!optExists) {
                         const opt = document.createElement('option');
-                        opt.value = data.user.name;
-                        opt.innerText = data.user.name;
+                        opt.value = user.name;
+                        opt.innerText = user.name;
                         masterSelect.appendChild(opt);
                     }
-                    masterSelect.value = data.user.name;
+                    masterSelect.value = user.name;
                 }
+            } else {
+                // Not authenticated
+                window.location.replace('/');
             }
         }
     } catch (e) {
@@ -127,9 +144,16 @@ async function checkCurrentUser() {
 
 async function logoutLKC() {
     try {
+        await fetch('/api/auth/logout');
         await fetch('/api/logout', { method: 'POST' });
     } catch (e) {}
-    window.location.href = '/';
+    try {
+        localStorage.removeItem('tectum_auth_user');
+        localStorage.removeItem('tectum_portal_user');
+        localStorage.removeItem('tectum_current_user_name');
+        sessionStorage.clear();
+    } catch (e) {}
+    window.location.replace('/');
 }
 
 // --- CATALOG ---

@@ -1282,10 +1282,24 @@
                     return null;
                 }).then(data => {
                     if (data && data.authenticated && data.user) {
+                        const user = data.user;
+                        // Cross-Cabin Access Guard for QCD
+                        const allowedRoles = ['qcd', 'admin', 'director'];
+                        if (!allowedRoles.includes(user.role)) {
+                            if (user.role === 'lkc_master' || (user.name && user.name.includes('Миркасимов'))) {
+                                window.location.replace('/static/lkc.html');
+                                return;
+                            }
+                            window.location.replace('/');
+                            return;
+                        }
+
                         const nameEl = document.getElementById('user-greeting-name');
                         const roleEl = document.getElementById('user-greeting-role');
-                        if (nameEl) nameEl.textContent = data.user.name;
-                        if (roleEl) roleEl.textContent = data.user.role || 'Специалист СКК';
+                        if (nameEl) nameEl.textContent = user.name;
+                        if (roleEl) roleEl.textContent = user.role || 'Специалист СКК';
+                    } else {
+                        window.location.replace('/');
                     }
                 }).catch(() => {});
             } catch (e) {
@@ -1296,16 +1310,17 @@
         async function logoutQcd() {
             try {
                 await fetch('/api/auth/logout');
+                await fetch('/api/logout', { method: 'POST' });
             } catch (e) {}
 
             try {
                 localStorage.removeItem('tectum_auth_user');
                 localStorage.removeItem('tectum_portal_user');
                 localStorage.removeItem('tectum_current_user_name');
-                sessionStorage.removeItem('planner_user_session');
+                sessionStorage.clear();
             } catch (e) {}
 
-            window.location.href = '/';
+            window.location.replace('/');
         }
 
         document.addEventListener('DOMContentLoaded', initQcdUser);

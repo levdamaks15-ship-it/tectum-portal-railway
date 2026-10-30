@@ -86,6 +86,9 @@ async def lifespan(app: FastAPI):
             try:
                 conn = sqlite3.connect("tectum.db")
                 try:
+                    conn.execute("ALTER TABLE planner_employees ADD COLUMN role TEXT DEFAULT 'portal';")
+                except: pass
+                try:
                     conn.execute("ALTER TABLE raw_material_receipts ADD COLUMN master_id INTEGER;")
                 except: pass
                 try:
@@ -139,6 +142,7 @@ async def lifespan(app: FastAPI):
                     ensure_pg_column(db, "tasks", "depends_on_ids", "TEXT")
                     ensure_pg_column(db, "tasks", "photos", "TEXT")
                     ensure_pg_column(db, "lkc_report_items", "comp_strips_count", "INTEGER DEFAULT 0")
+                    ensure_pg_column(db, "planner_employees", "role", "VARCHAR(50) DEFAULT 'portal'")
                     ensure_pg_column(db, "lkc_report_items", "order_number", "VARCHAR(100)")
                     ensure_pg_column(db, "batches", "qcd_verified", "BOOLEAN DEFAULT FALSE")
                     ensure_pg_column(db, "batches", "qcd_verified_at", "TIMESTAMP")

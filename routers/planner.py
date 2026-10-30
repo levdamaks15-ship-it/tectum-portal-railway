@@ -227,6 +227,7 @@ def get_planner_employees(request: Request, db: Session = Depends(get_db)):
                 "email": e.email or "",
                 "pin_code": (e.pin_code or "") if is_admin else "",
                 "has_pin": bool(e.pin_code and e.pin_code.strip()),
+                "role": getattr(e, "role", None) or "portal",
                 "is_active": bool(e.is_active),
                 "sort_order": e.sort_order or 0
             }
@@ -260,14 +261,33 @@ def verify_planner_pin(data: dict, db: Session = Depends(get_db)):
 def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = Depends(get_db)):
     """Добавляет сотрудника в настройки планнера."""
     try:
+        role_val = (data.role or "portal").strip()
         new_emp = models.PlannerEmployee(
             name=data.name.strip(),
             email=data.email.strip() if data.email else "",
             pin_code=data.pin_code.strip() if data.pin_code else "",
+            role=role_val,
             is_active=data.is_active if data.is_active is not None else True,
             sort_order=data.sort_order or 0
         )
         db.add(new_emp)
+
+        # Synchronize with Master table if role is master/lkc_master/qcd/admin/director/technologist/mechanic
+        master_match = db.query(models.Master).filter(models.Master.name == new_emp.name).first()
+        if not master_match and role_val != "portal":
+            db.add(models.Master(
+                name=new_emp.name,
+                pin=new_emp.pin_code or "1234",
+                role=role_val,
+                email=new_emp.email or None
+            ))
+        elif master_match:
+            master_match.role = role_val
+            if new_emp.pin_code:
+                master_match.pin = new_emp.pin_code
+            if new_emp.email:
+                master_match.email = new_emp.email
+
         db.commit()
         db.refresh(new_emp)
         return {
@@ -275,6 +295,7 @@ def create_planner_employee(data: schemas.PlannerEmployeeCreate, db: Session = D
             "id": new_emp.id, 
             "name": new_emp.name, 
             "email": new_emp.email, 
+            "role": new_emp.role,
             "has_pin": bool(new_emp.pin_code and new_emp.pin_code.strip())
         }
     except Exception as e:
@@ -294,10 +315,29 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
             emp.email = data.email.strip()
         if data.pin_code is not None and data.pin_code.strip() != "":
             emp.pin_code = data.pin_code.strip()
+        if data.role is not None:
+            emp.role = data.role.strip()
         if data.is_active is not None:
             emp.is_active = data.is_active
         if data.sort_order is not None:
             emp.sort_order = data.sort_order
+
+        # Synchronize with Master table
+        master_match = db.query(models.Master).filter(models.Master.name == emp.name).first()
+        if master_match:
+            master_match.role = emp.role
+            if emp.pin_code:
+                master_match.pin = emp.pin_code
+            if emp.email:
+                master_match.email = emp.email
+        elif emp.role != "portal":
+            db.add(models.Master(
+                name=emp.name,
+                pin=emp.pin_code or "1234",
+                role=emp.role,
+                email=emp.email or None
+            ))
+
         db.commit()
         db.refresh(emp)
         return {
@@ -305,6 +345,7 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
             "id": emp.id, 
             "name": emp.name, 
             "email": emp.email, 
+            "role": emp.role,
             "has_pin": bool(emp.pin_code and emp.pin_code.strip())
         }
     except HTTPException:

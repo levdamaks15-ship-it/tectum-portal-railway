@@ -426,6 +426,51 @@
 
         <!-- Main App Screen -->
         <div id="main-app" style="display: none;">
+            <!-- Portal Employee Hub (For non-workshop employees: Planner + Knowledge Base) -->
+            <div id="portal-employee-hub" style="display: none; max-width: 860px; margin: 1.5rem auto 2.5rem; padding: 0 1rem;">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="display: inline-flex; align-items: center; gap: 8px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 6px 14px; border-radius: 9999px; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.75rem;">
+                        <i class="fa-solid fa-building-user"></i> КОРПОРАТИВНЫЙ ПОРТАЛ СОТРУДНИКА
+                    </div>
+                    <h2 style="font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0 0 0.5rem;">Добро пожаловать в Tectum Portal</h2>
+                    <p style="color: #64748b; font-size: 0.95rem; margin: 0;">Выберите рабочий раздел для продолжения деятельности</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+                    <!-- Planner Card -->
+                    <a href="/tasks" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 1.75rem 1.5rem; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); position: relative;" onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='none'">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 700; background: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 9999px;">Задачи</span>
+                        </div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.5rem;">🎯 Планнер задач</h3>
+                        <p style="color: #64748b; font-size: 0.88rem; line-height: 1.45; margin: 0 0 1.25rem; flex: 1;">Управление цеховыми и стратегическими поручениями, контроль сроков, статусы задач и отчетность подразделений.</p>
+                        <div style="display: flex; align-items: center; gap: 8px; color: #2563eb; font-weight: 700; font-size: 0.9rem;">
+                            <span>Перейти в планнер</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </div>
+                    </a>
+
+                    <!-- Knowledge Base Card -->
+                    <a href="/docs" style="text-decoration: none; color: inherit; display: flex; flex-direction: column; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 1.75rem 1.5rem; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); position: relative;" onmouseover="this.style.borderColor='#10b981'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='none'">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                            <div style="width: 52px; height: 52px; border-radius: 12px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.6rem;">
+                                <i class="fa-solid fa-book-bookmark"></i>
+                            </div>
+                            <span style="font-size: 0.8rem; font-weight: 700; background: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 9999px;">Регламенты</span>
+                        </div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.5rem;">📚 База знаний</h3>
+                        <p style="color: #64748b; font-size: 0.88rem; line-height: 1.45; margin: 0 0 1.25rem; flex: 1;">Технологические карты, стандарты ГОСТ/СТ, инструкции по охране труда, регламенты смен и документация завода.</p>
+                        <div style="display: flex; align-items: center; gap: 8px; color: #059669; font-weight: 700; font-size: 0.9rem;">
+                            <span>Открыть документацию</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
             <!-- Tabs Navigation: Single row, uniform size with isolated icon & centered label -->
             <div id="tabs-menu" class="tabs-container">
                 <a href="#production" class="tab-btn active" id="tab-btn-production"
