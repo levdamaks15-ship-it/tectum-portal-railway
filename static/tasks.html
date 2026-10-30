@@ -5002,33 +5002,61 @@
         </div>
     </div>
 
-    <!-- PIN AUTHORIZATION MODAL -->
+    <!-- PIN AUTHORIZATION MODAL (@canonical-pattern PersonPickerPopover & 4-Box PIN) -->
     <div class="modal-overlay" id="planner-pin-modal" style="z-index: 7000;">
         <div class="modal-box"
-            style="max-width: 420px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
-            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔐</div>
-            <h3 style="margin: 0 0 0.5rem; color: #0f172a; font-size: 1.15rem;" id="pin-modal-title">Авторизация
-                сотрудника</h3>
-            <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 1.25rem;" id="pin-modal-desc">Выберите себя и
-                введите 4-значный PIN-код для работы с задачами:</p>
+            style="max-width: 440px; width: 100%; text-align: center; padding: 2.2rem 2rem; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); background: #ffffff; border: 1px solid #e2e8f0; animation: authModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); box-sizing: border-box;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-id-badge"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;" id="pin-modal-title">Вход сотрудника</h3>
+            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.4rem; line-height: 1.4;" id="pin-modal-desc">
+                Выберите своё имя и введите 4-значный PIN-код для работы с Планнером
+            </p>
 
-            <div class="form-row" style="text-align: left;">
-                <label>Сотрудник *</label>
-                <select class="form-select" id="pin-auth-user-select" onchange="onPinUserSelectChanged()">
-                    <option value="">-- Выберите сотрудника --</option>
-                </select>
+            <!-- PersonPickerPopover Field -->
+            <div class="form-group" style="text-align: left; margin-bottom: 1.2rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: block;">Сотрудник *</label>
+                <div class="person-picker-wrapper">
+                    <input type="hidden" id="planner-pin-user-input" value="">
+                    <select id="pin-auth-user-select" style="display: none;"></select>
+                    <div class="person-select-modern" id="planner-user-picker-trigger" onclick="togglePlannerUserPickerPopover(event)" tabindex="0" title="Нажмите для выбора сотрудника">
+                        <div style="display: flex; align-items: center; gap: 0.65rem; min-width: 0;">
+                            <div class="author-avatar-circle" id="planner-user-picker-avatar" style="background: #eff6ff; color: #2563eb;">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <span id="planner-user-picker-display-text" style="font-size: 0.88rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- Выберите сотрудника --</span>
+                        </div>
+                        <i class="fa-solid fa-chevron-down person-picker-chevron" id="planner-user-picker-chevron" style="color: #94a3b8; font-size: 0.78rem; transition: transform 0.2s ease;"></i>
+                    </div>
+                    <div class="person-picker-popover" id="planner-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="filter-popover-search-wrap">
+                            <input type="text" class="filter-popover-search-input" id="search-planner-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderPlannerUserPickerList(this.value)">
+                        </div>
+                        <div class="filter-popover-list" id="list-planner-user-picker"></div>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-row" id="pin-input-group" style="text-align: left;">
-                <label><i class="fa-solid fa-key" style="color: #f59e0b;"></i> 4-значный PIN-код *</label>
-                <input type="password" class="form-input" id="pin-auth-input" maxlength="10" placeholder="••••"
-                    style="font-size: 1.4rem; letter-spacing: 8px; text-align: center; font-weight: 700;">
+            <!-- 4-Box PIN Input -->
+            <div class="form-group" id="pin-input-group" style="text-align: left; margin-bottom: 1.6rem;">
+                <label style="font-weight: 600; font-size: 0.85rem; color: #334155; margin-bottom: 0.45rem; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-key" style="color: #f59e0b; margin-right: 4px;"></i> 4-значный PIN-код *</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">только цифры</span>
+                </label>
+                <input type="hidden" id="pin-auth-input" value="">
+                <div class="pin-boxes-container">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-1" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(1, event)" onkeydown="handlePlannerPinBoxKeydown(1, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-2" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(2, event)" onkeydown="handlePlannerPinBoxKeydown(2, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-3" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(3, event)" onkeydown="handlePlannerPinBoxKeydown(3, event)">
+                    <input type="password" inputmode="numeric" class="pin-digit-box" id="planner-pin-box-4" maxlength="1" autocomplete="off" oninput="handlePlannerPinBoxInput(4, event)" onkeydown="handlePlannerPinBoxKeydown(4, event)">
+                </div>
             </div>
 
-            <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
-                <button type="button" class="btn-action btn-secondary-action" onclick="closePinModal()">Отмена</button>
-                <button type="button" class="btn-action btn-primary-action" onclick="submitPinModal()">
-                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Войти
+            <div class="modal-actions" style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" class="btn-action btn-secondary-action" onclick="closePinModal()" style="flex: 1; min-height: 44px; border-radius: 10px; font-weight: 600; justify-content: center;">Отмена</button>
+                <button type="button" class="btn-action" id="btn-submit-planner-pin" onclick="submitPinModal()" style="flex: 1.4; min-height: 44px; background: #2563eb; color: #fff; justify-content: center; border-radius: 10px; font-weight: 600; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>
                 </button>
             </div>
         </div>
@@ -5369,7 +5397,7 @@
 
     <script src="/static/js/network_guard.js?v=20260921_bulk_fix_v5"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/tasks.js?v=20261029_mobile_readonly_v4"></script>
+    <script src="/static/js/tasks.js?v=20261030_canonical_pin_modal_v5"></script>
     <script src="/static/js/version_guard.js"></script>
 
     <div class="apple-fab" onclick="openAddTaskModal()" style="width: 56px; height: 56px; border-radius: 50%; background: #C82323; color: #FFFFFF; font-size: 28px; position: fixed; bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px); right: 16px; z-index: 90; box-shadow: 0 4px 16px rgba(200,35,35,0.35), 0 2px 6px rgba(200,35,35,0.20); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s ease-in-out;">

@@ -287,29 +287,206 @@ function logoutPlannerUser() {
     showToast("Вы вышли из сессии");
 }
 
-function openPinModal(preselectedUser = null, onSuccess = null) {
-    pendingAuthCallback = onSuccess;
-    const modal = document.getElementById("planner-pin-modal");
-    const select = document.getElementById("pin-auth-user-select");
-    const pinInput = document.getElementById("pin-auth-input");
+function getInitialsAvatar(name) {
+    if (!name) return '??';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+}
 
-    if (select) {
-        const persons = getUniquePersons();
-        select.innerHTML = `<option value="">-- Выберите сотрудника --</option>` + 
-            persons.map(n => `<option value="${n}">${n}</option>`).join('');
-        
-        if (preselectedUser && persons.includes(preselectedUser)) {
-            select.value = preselectedUser;
-        } else if (currentPlannerUser && currentPlannerUser.name) {
-            select.value = currentPlannerUser.name;
+function togglePlannerUserPickerPopover(event) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById("planner-user-picker-popover");
+    const trigger = document.getElementById("planner-user-picker-trigger");
+    if (!popover || !trigger) return;
+
+    const isOpen = popover.style.display === "block";
+    if (isOpen) {
+        closePlannerUserPickerPopover();
+    } else {
+        popover.style.display = "block";
+        trigger.classList.add("active");
+        renderPlannerUserPickerList();
+        const searchInput = document.getElementById("search-planner-user-picker");
+        if (searchInput) {
+            searchInput.value = "";
+            setTimeout(() => searchInput.focus(), 50);
+        }
+    }
+}
+
+function closePlannerUserPickerPopover() {
+    const popover = document.getElementById("planner-user-picker-popover");
+    const trigger = document.getElementById("planner-user-picker-trigger");
+    if (popover) popover.style.display = "none";
+    if (trigger) trigger.classList.remove("active");
+}
+
+function selectPlannerUser(userName) {
+    const hidden = document.getElementById("planner-pin-user-input");
+    const display = document.getElementById("planner-user-picker-display-text");
+    const avatar = document.getElementById("planner-user-picker-avatar");
+    const legacySelect = document.getElementById("pin-auth-user-select");
+
+    if (hidden) hidden.value = userName;
+    if (legacySelect) legacySelect.value = userName;
+
+    if (display) {
+        display.textContent = userName || "-- Выберите сотрудника --";
+        display.style.color = userName ? "#0f172a" : "#64748b";
+        display.style.fontWeight = userName ? "600" : "normal";
+    }
+
+    if (avatar) {
+        if (userName) {
+            avatar.textContent = getInitialsAvatar(userName);
+            avatar.style.background = "#2563eb";
+            avatar.style.color = "#ffffff";
+        } else {
+            avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
+            avatar.style.background = "#eff6ff";
+            avatar.style.color = "#2563eb";
         }
     }
 
-    if (pinInput) {
-        pinInput.value = "";
+    closePlannerUserPickerPopover();
+    onPinUserSelectChanged();
+    clearPlannerPinBoxes();
+    const box1 = document.getElementById("planner-pin-box-1");
+    if (box1) box1.focus();
+}
+
+function renderPlannerUserPickerList(filterQuery = "") {
+    const listEl = document.getElementById("list-planner-user-picker");
+    if (!listEl) return;
+
+    const q = (filterQuery || "").trim().toLowerCase();
+    const currentVal = document.getElementById("planner-pin-user-input")?.value || "";
+
+    let html = '';
+    const isUnassigned = !currentVal;
+    html += `
+        <div class="filter-option-item ${isUnassigned ? 'selected' : ''}" onclick="selectPlannerUser('')">
+            <div class="filter-option-person-left">
+                <div class="author-avatar-circle" style="background: #f1f5f9; color: #64748b;"><i class="fa-solid fa-user-slash" style="font-size: 0.75rem;"></i></div>
+                <span style="color: #64748b; font-style: italic;">-- Выберите сотрудника --</span>
+            </div>
+        </div>
+    `;
+
+    const list = Array.isArray(allPlannerEmployees) && allPlannerEmployees.length > 0 
+        ? allPlannerEmployees 
+        : getUniquePersons().map(n => ({ name: n, position: '' }));
+
+    const filtered = list.filter(emp => {
+        if (!q) return true;
+        return (emp.name || '').toLowerCase().includes(q) || (emp.position || '').toLowerCase().includes(q);
+    });
+
+    filtered.forEach(emp => {
+        const isSelected = emp.name === currentVal;
+        const initials = getInitialsAvatar(emp.name);
+        const posHtml = emp.position ? `<span style="font-size: 0.72rem; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(emp.position)}</span>` : '';
+        html += `
+            <div class="filter-option-item ${isSelected ? 'selected' : ''}" onclick="selectPlannerUser('${escapeHtml(emp.name).replace(/'/g, "\\'")}')">
+                <div class="filter-option-person-left">
+                    <div class="author-avatar-circle" style="background: ${isSelected ? '#2563eb' : '#eff6ff'}; color: ${isSelected ? '#fff' : '#1d4ed8'};">
+                        ${initials}
+                    </div>
+                    <div style="display: flex; flex-direction: column; min-width: 0;">
+                        <span style="color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${isSelected ? '700' : '500'};">${escapeHtml(emp.name)}</span>
+                        ${posHtml}
+                    </div>
+                </div>
+                ${isSelected ? '<i class="fa-solid fa-check" style="color: #2563eb; font-size: 0.85rem;"></i>' : ''}
+            </div>
+        `;
+    });
+
+    if (filtered.length === 0) {
+        html += `<div style="padding: 1rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">Сотрудник не найден</div>`;
     }
 
-    onPinUserSelectChanged();
+    listEl.innerHTML = html;
+}
+
+/* 4-Box PIN Input Helpers */
+function getPlannerPinBoxValue() {
+    let val = '';
+    for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`planner-pin-box-${i}`);
+        if (box) val += box.value.trim();
+    }
+    return val;
+}
+
+function clearPlannerPinBoxes() {
+    for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`planner-pin-box-${i}`);
+        if (box) box.value = '';
+    }
+    const hidden = document.getElementById('pin-auth-input');
+    if (hidden) hidden.value = '';
+}
+
+function handlePlannerPinBoxInput(index, event) {
+    const box = document.getElementById(`planner-pin-box-${index}`);
+    if (!box) return;
+
+    box.value = box.value.replace(/[^0-9]/g, '');
+
+    if (box.value && index < 4) {
+        const nextBox = document.getElementById(`planner-pin-box-${index + 1}`);
+        if (nextBox) nextBox.focus();
+    }
+
+    const fullPin = getPlannerPinBoxValue();
+    const hidden = document.getElementById('pin-auth-input');
+    if (hidden) hidden.value = fullPin;
+
+    if (fullPin.length === 4) {
+        submitPinModal();
+    }
+}
+
+function handlePlannerPinBoxKeydown(index, event) {
+    if (event.key === 'Backspace') {
+        const box = document.getElementById(`planner-pin-box-${index}`);
+        if (box && !box.value && index > 1) {
+            const prevBox = document.getElementById(`planner-pin-box-${index - 1}`);
+            if (prevBox) {
+                prevBox.focus();
+                prevBox.value = '';
+            }
+        }
+    } else if (event.key === 'Enter') {
+        submitPinModal();
+    }
+}
+
+// Global click listener to close PersonPickerPopover
+document.addEventListener("click", (e) => {
+    const popover = document.getElementById("planner-user-picker-popover");
+    const trigger = document.getElementById("planner-user-picker-trigger");
+    if (popover && popover.style.display === "block") {
+        if (!popover.contains(e.target) && !trigger?.contains(e.target)) {
+            closePlannerUserPickerPopover();
+        }
+    }
+});
+
+function openPinModal(preselectedUser = null, onSuccess = null) {
+    pendingAuthCallback = onSuccess;
+    const modal = document.getElementById("planner-pin-modal");
+
+    // Populate PersonPicker & legacy select
+    let targetUser = preselectedUser;
+    if (!targetUser && currentPlannerUser && currentPlannerUser.name) {
+        targetUser = currentPlannerUser.name;
+    }
+
+    selectPlannerUser(targetUser || "");
+    clearPlannerPinBoxes();
 
     if (modal) {
         modal.style.display = "flex";
@@ -317,11 +494,12 @@ function openPinModal(preselectedUser = null, onSuccess = null) {
         modal.style.justifyContent = "center";
         modal.style.zIndex = "9000";
     }
-    
+
     setTimeout(() => {
         const pinGrp = document.getElementById("pin-input-group");
-        if (pinInput && pinGrp && pinGrp.style.display !== "none") {
-            pinInput.focus();
+        const box1 = document.getElementById("planner-pin-box-1");
+        if (box1 && pinGrp && pinGrp.style.display !== "none") {
+            box1.focus();
         }
     }, 150);
 }
@@ -329,16 +507,18 @@ function openPinModal(preselectedUser = null, onSuccess = null) {
 function closePinModal() {
     const modal = document.getElementById("planner-pin-modal");
     if (modal) modal.style.display = "none";
+    closePlannerUserPickerPopover();
+    clearPlannerPinBoxes();
     pendingAuthCallback = null;
 }
 
 function onPinUserSelectChanged() {
-    const select = document.getElementById("pin-auth-user-select");
+    const hiddenUser = document.getElementById("planner-pin-user-input");
     const pinGroup = document.getElementById("pin-input-group");
-    if (!select || !pinGroup) return;
+    if (!hiddenUser || !pinGroup) return;
 
-    const emp = allPlannerEmployees.find(e => e.name === select.value);
-    // Если у сотрудника в БД нет PIN-кода, можно не требовать PIN
+    const uName = hiddenUser.value.trim();
+    const emp = Array.isArray(allPlannerEmployees) ? allPlannerEmployees.find(e => e.name === uName) : null;
     if (emp && emp.has_pin === false) {
         pinGroup.style.display = "none";
     } else {
@@ -347,21 +527,29 @@ function onPinUserSelectChanged() {
 }
 
 async function submitPinModal() {
-    const select = document.getElementById("pin-auth-user-select");
-    const pinInput = document.getElementById("pin-auth-input");
-    const name = select ? select.value.trim() : "";
-    const pin = pinInput ? pinInput.value.trim() : "";
+    const hiddenUser = document.getElementById("planner-pin-user-input");
+    const name = hiddenUser ? hiddenUser.value.trim() : "";
+    const pin = getPlannerPinBoxValue();
 
     if (!name) {
-        alert("Пожалуйста, выберите сотрудника!");
+        if (typeof showToast === 'function') showToast("Пожалуйста, выберите сотрудника!");
+        else alert("Пожалуйста, выберите сотрудника!");
         return;
     }
 
     const pinGroup = document.getElementById("pin-input-group");
     if (pinGroup && pinGroup.style.display !== "none" && !pin) {
-        alert("Пожалуйста, введите 4-значный PIN-код!");
-        if (pinInput) pinInput.focus();
+        if (typeof showToast === 'function') showToast("Пожалуйста, введите 4-значный PIN-код!");
+        else alert("Пожалуйста, введите 4-значный PIN-код!");
+        const box1 = document.getElementById("planner-pin-box-1");
+        if (box1) box1.focus();
         return;
+    }
+
+    const btnSubmit = document.getElementById("btn-submit-planner-pin");
+    if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Вход...</span>';
     }
 
     try {
@@ -380,20 +568,31 @@ async function submitPinModal() {
             const cb = pendingAuthCallback;
             closePinModal();
 
+            if (typeof showToast === 'function') {
+                showToast(`Вы вошли как ${name}`);
+            }
+
             if (cb && typeof cb === "function") {
                 cb(currentPlannerUser);
             }
         } else {
-            const err = await res.json();
-            alert("Ошибка авторизации: " + (err.detail || "Неверный PIN-код"));
-            if (pinInput) {
-                pinInput.value = "";
-                pinInput.focus();
-            }
+            const errData = await res.json().catch(() => ({}));
+            const msg = errData.detail || "Неверный PIN-код!";
+            if (typeof showToast === 'function') showToast(msg);
+            else alert(msg);
+            clearPlannerPinBoxes();
+            const box1 = document.getElementById("planner-pin-box-1");
+            if (box1) box1.focus();
         }
     } catch (e) {
         console.error("PIN verification error:", e);
-        alert("Ошибка сети при проверке PIN-кода");
+        if (typeof showToast === 'function') showToast("Ошибка сети при проверке PIN-кода.");
+        else alert("Ошибка сети при проверке PIN-кода.");
+    } finally {
+        if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти</span>';
+        }
     }
 }
 

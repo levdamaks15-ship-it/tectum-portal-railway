@@ -1149,20 +1149,30 @@
     <div id="admin-login-screen"
         style="position: absolute; top:0; left:0; width: 100%; height: 100%; background: var(--bg-color); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 1rem; box-sizing: border-box;">
         <div class="glass-panel"
-            style="width: 100%; max-width: 400px; text-align: center; padding: 2rem 1.5rem; background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
-            <h2 style="margin-bottom: 1.2rem; color: var(--danger-color);"><i class="fa-solid fa-user-shield"></i> Вход
-                для Администратора</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.4;">Вход в панель управления разрешен исключительно системному администратору (Левда М.)</p>
-            <input type="password" id="admin-pin" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
-                placeholder="••••" maxlength="4"
-                style="text-align: center; font-size: 2.2rem; letter-spacing: 15px; font-weight: bold; padding: 0.8rem; margin-bottom: 1.5rem; width: 85%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px;">
-            <button onclick="adminLogin()" style="width: 100%; padding: 0.9rem; font-size: 1.05rem;"><i
-                    class="fa-solid fa-right-to-bracket"></i> Войти в Админку</button>
-            <p id="admin-login-error" style="color: var(--danger-color); margin-top: 1rem; display: none;">Неверный
-                ПИН-код или нет прав администратора.</p>
+            style="width: 100%; max-width: 420px; text-align: center; padding: 2.2rem 2rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); box-sizing: border-box;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: #eff6ff; color: #2563eb; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1rem; border: 1px solid #bfdbfe;">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <h3 style="margin-top: 0; margin-bottom: 0.4rem; font-size: 1.3rem; font-weight: 700; color: #0f172a;">Вход администратора</h3>
+            <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.88rem; line-height: 1.4;">Доступ разрешен исключительно системному администратору (Левда М.)</p>
+            
+            <input type="hidden" id="admin-pin" value="">
+            <div class="pin-boxes-container" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 1.5rem;">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-1" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(1, event)" onkeydown="handleAdminPinBoxKeydown(1, event)">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-2" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(2, event)" onkeydown="handleAdminPinBoxKeydown(2, event)">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-3" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(3, event)" onkeydown="handleAdminPinBoxKeydown(3, event)">
+                <input type="password" inputmode="numeric" class="pin-digit-box" id="admin-pin-box-4" maxlength="1" autocomplete="off" oninput="handleAdminPinBoxInput(4, event)" onkeydown="handleAdminPinBoxKeydown(4, event)">
+            </div>
+
+            <button onclick="adminLogin()" id="btn-admin-login-submit" style="width: 100%; min-height: 44px; background: #2563eb; color: #ffffff; border: none; border-radius: 10px; font-weight: 600; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти в Админку</span>
+            </button>
+
+            <p id="admin-login-error" style="color: #dc2626; margin-top: 1rem; font-size: 0.85rem; font-weight: 500; display: none;">Неверный PIN-код или нет прав администратора.</p>
             <button onclick="window.location.href='/'" class="btn-secondary"
-                style="width: 100%; padding: 0.85rem; margin-top: 1rem;"><i class="fa-solid fa-arrow-left"></i>
-                Вернуться на портал</button>
+                style="width: 100%; min-height: 40px; margin-top: 0.75rem; border-radius: 10px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; background: transparent; border: 1px solid #cbd5e1; color: #475569;">
+                <i class="fa-solid fa-arrow-left"></i> Вернуться на портал
+            </button>
         </div>
     </div>
 
@@ -3888,7 +3898,7 @@
     </div>
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
-    <script src="/static/js/admin.js?v=1793290103"></script>
+    <script src="/static/js/admin.js?v=20261030_canonical_pin_v5"></script>
     <script src="/static/js/ai_assistant.js?v=20260910_ai_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>

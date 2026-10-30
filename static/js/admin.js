@@ -82,9 +82,73 @@ async function initAdminLogin() {
     if (pinInput) pinInput.focus();
 }
 
+
+function getAdminPinBoxValue() {
+    let val = '';
+    for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`admin-pin-box-${i}`);
+        if (box) val += box.value.trim();
+    }
+    return val;
+}
+
+function clearAdminPinBoxes() {
+    for (let i = 1; i <= 4; i++) {
+        const box = document.getElementById(`admin-pin-box-${i}`);
+        if (box) box.value = '';
+    }
+    const hidden = document.getElementById('admin-pin');
+    if (hidden) hidden.value = '';
+}
+
+function handleAdminPinBoxInput(index, event) {
+    const box = document.getElementById(`admin-pin-box-${index}`);
+    if (!box) return;
+
+    box.value = box.value.replace(/[^0-9]/g, '');
+
+    if (box.value && index < 4) {
+        const nextBox = document.getElementById(`admin-pin-box-${index + 1}`);
+        if (nextBox) nextBox.focus();
+    }
+
+    const fullPin = getAdminPinBoxValue();
+    const hidden = document.getElementById('admin-pin');
+    if (hidden) hidden.value = fullPin;
+
+    if (fullPin.length === 4) {
+        adminLogin();
+    }
+}
+
+function handleAdminPinBoxKeydown(index, event) {
+    if (event.key === 'Backspace') {
+        const box = document.getElementById(`admin-pin-box-${index}`);
+        if (box && !box.value && index > 1) {
+            const prevBox = document.getElementById(`admin-pin-box-${index - 1}`);
+            if (prevBox) {
+                prevBox.focus();
+                prevBox.value = '';
+            }
+        }
+    } else if (event.key === 'Enter') {
+        adminLogin();
+    }
+}
+
 async function adminLogin() {
-    const pin = document.getElementById('admin-pin').value;
-    if (!pin) return;
+    const pin = getAdminPinBoxValue() || document.getElementById('admin-pin')?.value;
+    if (!pin) {
+        const box1 = document.getElementById('admin-pin-box-1');
+        if (box1) box1.focus();
+        return;
+    }
+
+    const btn = document.getElementById('btn-admin-login-submit');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Проверка...</span>';
+    }
 
     try {
         const loginRes = await fetch('/api/admin/login', {
@@ -101,17 +165,24 @@ async function adminLogin() {
             loadMasters();
             loadNorms();
         } else {
-            throw new Error("Неверный ПИН-код или нет прав");
+            throw new Error("Неверный PIN-код или нет прав");
         }
     } catch (e) {
         const errEl = document.getElementById('admin-login-error');
         if (errEl) {
-            errEl.innerText = "Неверный ПИН-код или нет прав администратора.";
+            errEl.innerText = "Неверный PIN-код или нет прав администратора.";
             errEl.style.display = 'block';
+        }
+        clearAdminPinBoxes();
+        const box1 = document.getElementById('admin-pin-box-1');
+        if (box1) box1.focus();
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Войти в Админку</span>';
         }
     }
 }
-
 async function adminLogout() {
     try {
         await fetch('/api/logout', { method: 'POST' });
