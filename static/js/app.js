@@ -5620,6 +5620,14 @@ async function submitCanonicalLogin() {
             localStorage.setItem('tectum_current_user_name', currentUser.name);
         } catch(e) {}
 
+        // Check for deep-link redirect requested by Auth Gate
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectUrl = urlParams.get('redirect');
+        if (redirectUrl && !redirectUrl.startsWith('//') && !redirectUrl.includes(':')) {
+            window.location.href = redirectUrl;
+            return;
+        }
+
         // Routing according to workshop
         if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
             window.location.href = '/static/qcd.html';
