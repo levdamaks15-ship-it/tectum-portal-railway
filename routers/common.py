@@ -286,12 +286,13 @@ def sync_google_sheets_bg():
     try:
         google_sheets_integration.sync_report_to_google_sheets(db)
         google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+        google_sheets_integration.sync_qcd_reports_to_dedicated_sheet(db)
         db.add(models.AuditLog(
             user_name="Google Sync Reports",
             action="UPDATE",
             target_table="shifts",
             target_id=0,
-            details="Сводный отчет и переборка успешно синхронизированы с Google Таблицами в фоновом режиме."
+            details="Сводный отчет, переборка и акты СКК успешно синхронизированы с Google Таблицами в фоновом режиме."
         ))
         db.commit()
     except Exception as e:

@@ -952,6 +952,386 @@
             border-left: 4px solid #0284c7;
             border: 1px solid var(--tbl-border);
         }
+
+        /* ==========================================================================
+           МОДАЛЬНЫЕ ОКНА: ПЕЧАТЬ АКТА А4 И РЕЕСТР АКТОВ
+           ========================================================================== */
+        .qcd-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            box-sizing: border-box;
+            animation: fadeInPopover 0.2s ease-out;
+        }
+
+        .qcd-modal-container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--tbl-border);
+        }
+
+        .qcd-modal-header {
+            padding: 0.85rem 1.25rem;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--tbl-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .qcd-modal-title {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .qcd-modal-body {
+            padding: 1.25rem;
+            overflow-y: auto;
+            flex: 1;
+            background: #f8fafc;
+        }
+
+        .qcd-modal-footer {
+            padding: 0.75rem 1.25rem;
+            background: #ffffff;
+            border-top: 1px solid var(--tbl-border);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* КАРТОЧКА ПЕЧАТНОГО ДОКУМЕНТА (ЭКРАННЫЙ ВИД И А4) */
+        .act-printable-card {
+            background: #ffffff;
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 24px 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #000000;
+            line-height: 1.35;
+        }
+
+        .act-header-brand-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 10px;
+            margin-bottom: 14px;
+        }
+
+        .act-brand-logo-text {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+
+        .act-brand-logo-blue {
+            color: #2563eb;
+        }
+
+        .act-brand-sub {
+            font-size: 0.7rem;
+            color: #475569;
+            font-weight: 600;
+            margin-top: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .act-stamp-approve {
+            text-align: right;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            color: #1e293b;
+        }
+
+        .act-title-block {
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .act-main-heading {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin: 0 0 3px 0;
+        }
+
+        .act-number-subtitle {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        /* Печатные таблицы с четкими тонкими рамками */
+        .act-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.76rem;
+            margin-bottom: 12px;
+        }
+
+        .act-table th, .act-table td {
+            border: 1px solid #334155;
+            padding: 4px 6px;
+            box-sizing: border-box;
+        }
+
+        .act-table th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            text-align: center;
+            color: #0f172a;
+        }
+
+        .act-meta-lbl {
+            font-weight: 700;
+            color: #334155;
+            width: 25%;
+            background: #f8fafc;
+        }
+
+        .act-meta-val {
+            font-weight: 600;
+            color: #0f172a;
+            width: 25%;
+        }
+
+        .act-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border: 1px solid #334155;
+            margin-bottom: 12px;
+            background: #ffffff;
+        }
+
+        .act-summary-cell {
+            padding: 6px 8px;
+            text-align: center;
+            border-right: 1px solid #334155;
+        }
+
+        .act-summary-cell:last-child {
+            border-right: none;
+        }
+
+        .act-summary-cell-title {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .act-summary-cell-val {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .act-summary-cell-pct {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .act-notes-box {
+            border: 1px solid #334155;
+            padding: 6px 10px;
+            font-size: 0.76rem;
+            margin-bottom: 14px;
+            background: #ffffff;
+            border-radius: 2px;
+        }
+
+        .act-notes-title {
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 2px;
+        }
+
+        .act-signatures-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 18px;
+            padding-top: 6px;
+        }
+
+        .act-signature-item {
+            flex: 1;
+            font-size: 0.72rem;
+        }
+
+        .act-signature-role {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        .act-signature-line {
+            border-bottom: 1px solid #0f172a;
+            margin-bottom: 3px;
+        }
+
+        .act-signature-name {
+            font-size: 0.68rem;
+            color: #64748b;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .act-doc-footer {
+            margin-top: 12px;
+            padding-top: 6px;
+            border-top: 1px dashed #cbd5e1;
+            font-size: 0.62rem;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Реестр актов СКК таблица */
+        .qcd-registry-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            background: #ffffff;
+            border: 1px solid var(--tbl-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .qcd-registry-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--tbl-border);
+            text-align: left;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .qcd-registry-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #1e293b;
+        }
+
+        .qcd-registry-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        /* СТИЛИ ПЕЧАТИ А4 (@media print) */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 8mm 12mm 8mm 12mm;
+            }
+
+            body.act-printing {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            body.act-printing .qcd-page-container, 
+            body.act-printing .header-main, 
+            body.act-printing .qcd-nav-bar, 
+            body.act-printing .batch-selector-panel, 
+            body.act-printing #qcd-workbench-area, 
+            body.act-printing .bottom-action-bar, 
+            body.act-printing #qcd-toast-container,
+            body.act-printing #modal-qcd-act-registry,
+            body.act-printing .qcd-modal-header,
+            body.act-printing .qcd-modal-footer {
+                display: none !important;
+            }
+
+            body.act-printing #modal-qcd-act-print {
+                display: block !important;
+                position: static !important;
+                background: transparent !important;
+                backdrop-filter: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                z-index: 1 !important;
+            }
+
+            body.act-printing .qcd-modal-container {
+                box-shadow: none !important;
+                border: none !important;
+                border-radius: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                max-height: none !important;
+                overflow: visible !important;
+                background: transparent !important;
+            }
+
+            body.act-printing .qcd-modal-body {
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+            }
+
+            body.act-printing .act-printable-card {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .act-table th {
+                background-color: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .act-table th, .act-table td {
+                border-color: #000000 !important;
+            }
+        }
     </style>
 </head>
 
@@ -1001,8 +1381,16 @@
                     <i class="fa-solid fa-boxes-packing" style="color: var(--primary-red);"></i>
                     <span>Переборка</span>
                 </button>
+                <button type="button" class="horizon-tab-btn" id="tab-btn-acts" onclick="openActRegistryModal()">
+                    <i class="fa-solid fa-file-contract" style="color: #2563eb;"></i>
+                    <span>Акты переборки СКК</span>
+                </button>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
+                <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=qcd_acts&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 32px; font-size: 0.78rem;" title="Открыть Google Таблицу на листе Акты переборки СКК">
+                    <i class="fa-solid fa-table" style="color: #2563eb;"></i>
+                    <span>«Акты переборки СКК» (Google)</span>
+                </a>
                 <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=reports&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 32px; font-size: 0.78rem;" title="Открыть Google Таблицу на листе Переборка">
                     <i class="fa-solid fa-table" style="color: #16a34a;"></i>
                     <span>Лист «Переборка» (Google)</span>
@@ -1226,10 +1614,18 @@
 
             <!-- 4. Нижний командный бар -->
             <div class="bottom-action-bar">
-                <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <button type="button" class="btn-qcd-secondary" onclick="resetToMasterValues()" title="Вернуть цифры мастера">
                         <i class="fa-solid fa-rotate-left"></i>
                         <span>Сбросить к значениям мастера</span>
+                    </button>
+                    <button type="button" class="btn-qcd-secondary" id="btn-print-act-a4" onclick="openPrintActModal()" title="Сформировать и распечатать официальный Акт переборки СКК на лист А4">
+                        <i class="fa-solid fa-print" style="color: #2563eb;"></i>
+                        <span>📄 Печать Акта А4</span>
+                    </button>
+                    <button type="button" class="btn-qcd-secondary" id="btn-open-acts-registry" onclick="openActRegistryModal()" title="Открыть реестр всех актов СКК">
+                        <i class="fa-solid fa-folder-open" style="color: #6366f1;"></i>
+                        <span>📑 Реестр актов СКК</span>
                     </button>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1242,6 +1638,110 @@
 
         </div>
 
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ОФИЦИАЛЬНЫЙ АКТ СКК И ПЕЧАТЬ А4 -->
+    <div class="qcd-modal-overlay" id="modal-qcd-act-print" onclick="if(event.target === this) closePrintActModal()">
+        <div class="qcd-modal-container" style="max-width: 860px;" onclick="event.stopPropagation()">
+            <div class="qcd-modal-header act-modal-header-bar">
+                <div class="qcd-modal-title">
+                    <i class="fa-solid fa-file-contract" style="color: #2563eb;"></i>
+                    <span>Официальный Акт разбраковки СКК</span>
+                    <span id="act-print-modal-badge" class="picker-badge-party mono" style="font-size: 0.78rem;">№ СКК-...</span>
+                </div>
+                <div class="act-modal-actions" style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-qcd-primary" onclick="printActDocument()" style="height: 34px; font-size: 0.82rem; background: #2563eb; border-color: #1d4ed8;">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Распечатать / В PDF</span>
+                    </button>
+                    <button type="button" class="btn-qcd-secondary" onclick="closePrintActModal()" style="height: 34px; padding: 0 10px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="qcd-modal-body" id="act-print-body-container">
+                <!-- БУМАЖНЫЙ БЛАНК АКТА (А4) -->
+                <div class="act-printable-card" id="qcd-act-printable-doc">
+                    <!-- Заполняется динамически через JS -->
+                </div>
+            </div>
+
+            <div class="qcd-modal-footer act-modal-actions">
+                <span style="font-size: 0.78rem; color: #64748b; margin-right: auto;">
+                    <i class="fa-solid fa-circle-info" style="color: #2563eb;"></i> Форма адаптирована под печать на 1 лист формата А4 (книжная ориентация).
+                </span>
+                <button type="button" class="btn-qcd-secondary" onclick="closePrintActModal()">Закрыть</button>
+                <button type="button" class="btn-qcd-primary" onclick="printActDocument()" style="background: #2563eb; border-color: #1d4ed8;">
+                    <i class="fa-solid fa-print"></i> Распечатать Акт
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: РЕЕСТР ОФИЦИАЛЬНЫХ АКТОВ СКК -->
+    <div class="qcd-modal-overlay" id="modal-qcd-act-registry" onclick="if(event.target === this) closeActRegistryModal()">
+        <div class="qcd-modal-container" style="max-width: 1050px;" onclick="event.stopPropagation()">
+            <div class="qcd-modal-header">
+                <div class="qcd-modal-title">
+                    <i class="fa-solid fa-folder-open" style="color: #6366f1;"></i>
+                    <span>Реестр официальных Актов переборки СКК</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <a href="/api/dashboard/google_sheet_bottom_link?sheet_type=qcd_acts&redirect=true" target="_blank" class="btn-qcd-secondary" style="height: 34px; font-size: 0.78rem;">
+                        <i class="fa-solid fa-table" style="color: #2563eb;"></i>
+                        <span>В Google Таблицу</span>
+                    </a>
+                    <button type="button" class="btn-qcd-secondary" onclick="closeActRegistryModal()" style="height: 34px; padding: 0 10px;">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="qcd-modal-body" style="background: #ffffff; padding: 1rem 1.25rem;">
+                <div style="margin-bottom: 12px; display: flex; gap: 10px;">
+                    <div style="flex: 1; position: relative;">
+                        <input type="text" id="qcd-registry-search-input" class="popover-search-input" 
+                               placeholder="Поиск по номеру акта, дате, инспектору, партии..." 
+                               oninput="filterActRegistry(this.value)" style="width: 100%; box-sizing: border-box; height: 36px; padding: 0 12px 0 32px; border: 1px solid var(--tbl-border-subtle); border-radius: 8px; font-size: 0.82rem;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 10px; top: 11px; font-size: 0.8rem; color: #94a3b8;"></i>
+                    </div>
+                    <button type="button" class="btn-qcd-secondary" onclick="loadActRegistry()" style="height: 36px;" title="Обновить список актов">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                </div>
+
+                <div style="overflow-x: auto; max-height: 60vh;">
+                    <table class="qcd-registry-table" id="table-qcd-acts-registry">
+                        <thead>
+                            <tr>
+                                <th>№ Акта</th>
+                                <th>Дата</th>
+                                <th>Партия / Смена</th>
+                                <th>Мастер ХЦИ</th>
+                                <th style="text-align: right;">Формовка</th>
+                                <th style="text-align: right;">ГП</th>
+                                <th style="text-align: right;">1 сорт</th>
+                                <th style="text-align: right;">Брак (% брака)</th>
+                                <th>Инспектор</th>
+                                <th style="text-align: center;">Печать</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-qcd-acts-registry">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 20px; color: #94a3b8;">
+                                    <i class="fa-solid fa-spinner fa-spin"></i> Загрузка реестра актов...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="qcd-modal-footer">
+                <button type="button" class="btn-qcd-secondary" onclick="closeActRegistryModal()">Закрыть</button>
+            </div>
+        </div>
     </div>
 
     <!-- Контейнер Toast-уведомлений -->
@@ -1326,7 +1826,7 @@
 
         document.addEventListener('DOMContentLoaded', initQcdUser);
     </script>
-    <script src="/static/js/qcd_workbench.js?v=1793287548_qcd_searchable_v2"></script>
+    <script src="/static/js/qcd_workbench.js?v=20261030_act_print_v4"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>

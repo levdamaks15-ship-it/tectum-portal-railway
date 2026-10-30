@@ -182,6 +182,12 @@ def get_qcd_report_details(report_id: int, db: Session = Depends(get_db)):
     except Exception:
         shifts_list = []
 
+    cond_val = None
+    if shifts_list and isinstance(shifts_list[0], dict) and "condition" in shifts_list[0]:
+        cond_val = shifts_list[0]["condition"]
+    if cond_val is None:
+        cond_val = max(0, (report.total_formed or 0) - (report.first_grade_total or 0) - (report.defect_total or 0))
+
     return {
         "id": report.id,
         "act_number": report.act_number,
@@ -190,6 +196,7 @@ def get_qcd_report_details(report_id: int, db: Session = Depends(get_db)):
         "inspector_name": report.inspector_name,
         "product_name": report.product_name,
         "total_formed": report.total_formed,
+        "condition": cond_val,
         "first_grade_total": report.first_grade_total,
         "defect_total": report.defect_total,
         "defect_percentage": report.defect_percentage,
@@ -310,9 +317,9 @@ def get_recent_batches_for_qcd(limit: int = 30, db: Session = Depends(get_db)):
         raw_date = s.date.strftime("%Y-%m-%d") if s and s.date else ""
 
         # Первичные данные мастера
-        master_condition = b.ds_condition or 0
-        master_first_grade = b.ds_first_grade or 0
-        master_defect = b.ds_defect or 0
+        master_condition = (b.ds_condition or 0) + (b.prev_condition or 0)
+        master_first_grade = (b.ds_first_grade or 0) + (b.prev_first_grade or 0)
+        master_defect = (b.ds_defect or 0) + (b.prev_defect or 0)
 
         # Если была верификация СКК, берем qcd_*
         qcd_cond = b.qcd_condition if b.qcd_verified else master_condition
@@ -342,6 +349,7 @@ def get_recent_batches_for_qcd(limit: int = 30, db: Session = Depends(get_db)):
             "condition": qcd_cond,
             "first_grade": qcd_fg,
             "defect": qcd_def,
+            "act_number": getattr(b, 'qcd_act_number', None)
         })
 
     return items
@@ -377,9 +385,9 @@ def get_batch_details_for_qcd(batch_id: int, db: Session = Depends(get_db)):
     date_str = s.date.strftime("%d.%m.%Y") if s and s.date else ""
 
     # Первичные значения мастера
-    master_cond = b.ds_condition or 0
-    master_fg = b.ds_first_grade or 0
-    master_def = b.ds_defect or 0
+    master_cond = (b.ds_condition or 0) + (b.prev_condition or 0)
+    master_fg = (b.ds_first_grade or 0) + (b.prev_first_grade or 0)
+    master_def = (b.ds_defect or 0) + (b.prev_defect or 0)
 
     # Если уже верифицировано СКК, отдаем qcd_* иначе предзаполняем от мастера
     is_v = bool(b.qcd_verified)
@@ -387,10 +395,28 @@ def get_batch_details_for_qcd(batch_id: int, db: Session = Depends(get_db)):
     qcd_fg = b.qcd_first_grade if is_v else master_fg
     qcd_def = b.qcd_defect if is_v else master_def
 
+    # Поиск связанного акта СКК
+    act_number = getattr(b, 'qcd_act_number', None)
+    report_id = None
+    if act_number:
+        rep = db.query(models.QcdSortingReport).filter(models.QcdSortingReport.act_number == act_number).first()
+        if rep:
+            report_id = rep.id
+    if not report_id:
+        rep = db.query(models.QcdSortingReport).filter(
+            models.QcdSortingReport.shifts_breakdown.like(f"%\"batch_id\": {b.id}%") |
+            models.QcdSortingReport.shifts_breakdown.like(f"%'batch_id': {b.id}%")
+        ).first()
+        if rep:
+            report_id = rep.id
+            act_number = rep.act_number
+
     return {
         "id": b.id,
         "shift_id": s.id if s else None,
         "batch_number": b.batch_number or "—",
+        "act_number": act_number,
+        "report_id": report_id,
         "date": date_str,
         "raw_date": s.date.strftime("%Y-%m-%d") if s and s.date else "",
         "shift_name": s.shift_name or "День" if s else "День",
@@ -410,16 +436,16 @@ def get_batch_details_for_qcd(batch_id: int, db: Session = Depends(get_db)):
             "defect": master_def,
             "pct_defect": round((master_def / lfm_sheets * 100), 2) if lfm_sheets > 0 else 0.0,
             "defect_chip": b.ds_defect_chip or 0,
-            "defect_scratch": b.ds_defect_scratch or 0,
-            "defect_bad_cut": b.ds_defect_bad_cut or 0,
+            "defect_scratch": (b.ds_defect_scratch or 0) + (b.prev_defect_scratch or 0),
+            "defect_bad_cut": (b.ds_defect_bad_cut or 0) + (b.prev_defect_bad_cut or 0),
             "defect_stick_bottom": b.ds_defect_stick_bottom or 0,
-            "defect_stick_top": b.ds_defect_stick_top or 0,
-            "defect_broken": b.ds_defect_broken or 0,
-            "defect_fell_box": b.ds_defect_fell_box or 0,
+            "defect_stick_top": (b.ds_defect_stick_top or 0) + (b.prev_defect_stick_top or 0),
+            "defect_broken": (b.ds_defect_broken or 0) + (b.prev_defect_broken or 0),
+            "defect_fell_box": (b.ds_defect_fell_box or 0) + (b.prev_defect_fell_box or 0),
             "defect_dent": b.ds_defect_dent or 0,
-            "defect_thickness": b.ds_defect_thickness or 0,
+            "defect_thickness": (b.ds_defect_thickness or 0) + (b.prev_defect_thickness or 0),
             "defect_delamination": b.ds_defect_delamination or 0,
-            "defect_edge": b.ds_defect_edge or 0,
+            "defect_edge": (b.ds_defect_edge or 0) + (b.prev_defect_edge or 0),
         },
 
         # Значения СКК
@@ -519,15 +545,139 @@ def verify_batch_by_qcd(
     if s and s.lfm_reports:
         # Для партии этой смены обновляем агрегаты сдачи на склад в LFMReport
         # Суммируем все проверенные партии смены или берем текущую
-        total_qcd_gp = sum((item.qcd_condition if item.qcd_verified else (item.ds_condition or 0)) for item in s.batches)
-        total_qcd_fg = sum((item.qcd_first_grade if item.qcd_verified else (item.ds_first_grade or 0)) for item in s.batches)
-        total_qcd_def = sum((item.qcd_defect if item.qcd_verified else (item.ds_defect or 0)) for item in s.batches)
+        total_qcd_gp = sum((item.qcd_condition if item.qcd_verified else ((item.ds_condition or 0) + (item.prev_condition or 0))) for item in s.batches)
+        total_qcd_fg = sum((item.qcd_first_grade if item.qcd_verified else ((item.ds_first_grade or 0) + (item.prev_first_grade or 0))) for item in s.batches)
+        total_qcd_def = sum((item.qcd_defect if item.qcd_verified else ((item.ds_defect or 0) + (item.prev_defect or 0))) for item in s.batches)
 
         # Обновляем первый LFMReport смены
         rep = s.lfm_reports[0]
         rep.transferred_to_warehouse = total_qcd_gp
         rep.formed_1st_grade = total_qcd_fg
         rep.formed_defect = total_qcd_def
+
+    # 2.5 Автоматическое создание / обновление официального Акта СКК (models.QcdSortingReport)
+    now_utc = datetime.utcnow()
+    act_report = None
+    if getattr(b, 'qcd_act_number', None):
+        act_report = db.query(models.QcdSortingReport).filter(models.QcdSortingReport.act_number == b.qcd_act_number).first()
+    
+    if not act_report:
+        act_report = db.query(models.QcdSortingReport).filter(
+            models.QcdSortingReport.shifts_breakdown.like(f"%\"batch_id\": {b.id}%") |
+            models.QcdSortingReport.shifts_breakdown.like(f"%'batch_id': {b.id}%")
+        ).first()
+
+    if not act_report:
+        year_month = now_utc.strftime("%Y/%m")
+        count_month = (
+            db.query(models.QcdSortingReport)
+            .filter(models.QcdSortingReport.act_number.like(f"СКК-{year_month}-%"))
+            .count()
+        )
+        candidate_num = count_month + 1
+        while db.query(models.QcdSortingReport).filter(models.QcdSortingReport.act_number == f"СКК-{year_month}-{candidate_num:03d}").first():
+            candidate_num += 1
+        act_number = f"СКК-{year_month}-{candidate_num:03d}"
+    else:
+        act_number = act_report.act_number
+
+    if hasattr(b, 'qcd_act_number'):
+        b.qcd_act_number = act_number
+
+    lfm_sheets = 0
+    if s and s.lfm_reports:
+        lfm_sheets = sum(r.lfm_sheets or 0 for r in s.lfm_reports)
+    elif b.stacked_stacks:
+        lfm_sheets = b.stacked_stacks
+    else:
+        lfm_sheets = data.condition + data.first_grade + data.defect_total
+
+    total_sorted = data.first_grade + data.defect_total
+    calc_percent = 0.0
+    if (data.condition + total_sorted) > 0:
+        calc_percent = round((data.defect_total / (data.condition + total_sorted)) * 100.0, 2)
+    elif lfm_sheets > 0:
+        calc_percent = round((data.defect_total / lfm_sheets) * 100.0, 2)
+
+    fg_dict = {
+        "chip": data.fg_chip,
+        "scratch": data.fg_scratch,
+        "bad_cut": data.fg_bad_cut,
+        "stick_bottom": data.fg_stick_bottom,
+        "stick_top": data.fg_stick_top,
+        "curved_edge": data.fg_curved_edge,
+        "no_pattern": data.fg_no_pattern,
+        "dent": data.fg_dent,
+        "thickness": data.fg_thickness,
+        "delamination": data.fg_delamination,
+        "edge_bulge": data.fg_edge,
+        "edge": data.fg_edge,
+        "other": 0
+    }
+
+    def_dict = {
+        "fell_box": data.def_fell_box,
+        "broken": data.def_broken,
+        "tech_defect": data.def_tech,
+        "tech": data.def_tech
+    }
+
+    shifts_breakdown_item = [{
+        "shift_id": s.id if s else None,
+        "date": s.date.strftime("%d.%m.%Y") if (s and s.date) else "",
+        "shift_name": s.shift_name if s else "",
+        "line": s.line if s else "ЛФМ-1",
+        "master_name": s.master.name if (s and s.master) else "",
+        "batch_id": b.id,
+        "batch_number": b.batch_number or "",
+        "product_name": b.product_name or (s.product_name if s else "Шифер 8 волн"),
+        "lfm_sheets": lfm_sheets,
+        "condition": data.condition,
+        "first_grade": data.first_grade,
+        "defect": data.defect_total
+    }]
+
+    full_notes_parts = []
+    if data.root_cause:
+        full_notes_parts.append(f"Причина: {data.root_cause}")
+    if data.notes:
+        full_notes_parts.append(data.notes)
+    full_notes = " // ".join(full_notes_parts)
+
+    act_date = s.date if (s and s.date) else now_utc.date()
+
+    if not act_report:
+        act_report = models.QcdSortingReport(
+            act_number=act_number,
+            act_date=act_date,
+            inspector_name=inspector,
+            selected_shift_ids=json.dumps([s.id] if s else []),
+            product_name=b.product_name or (s.product_name if s else "Шифер 8 волн"),
+            total_formed=lfm_sheets,
+            first_grade_total=data.first_grade,
+            defect_total=data.defect_total,
+            defect_percentage=calc_percent,
+            first_grade_details=json.dumps(fg_dict, ensure_ascii=False),
+            defect_details=json.dumps(def_dict, ensure_ascii=False),
+            shifts_breakdown=json.dumps(shifts_breakdown_item, ensure_ascii=False),
+            notes=full_notes,
+            google_synced=False,
+            created_at=now_utc
+        )
+        db.add(act_report)
+    else:
+        act_report.act_date = act_date
+        act_report.inspector_name = inspector
+        act_report.product_name = b.product_name or (s.product_name if s else "Шифер 8 волн")
+        act_report.total_formed = lfm_sheets
+        act_report.first_grade_total = data.first_grade
+        act_report.defect_total = data.defect_total
+        act_report.defect_percentage = calc_percent
+        act_report.first_grade_details = json.dumps(fg_dict, ensure_ascii=False)
+        act_report.defect_details = json.dumps(def_dict, ensure_ascii=False)
+        act_report.shifts_breakdown = json.dumps(shifts_breakdown_item, ensure_ascii=False)
+        act_report.notes = full_notes
+        act_report.google_synced = False
 
     # 3. Аудит изменений
     audit_entry = models.AuditLog(
@@ -536,7 +686,7 @@ def verify_batch_by_qcd(
         target_table="batches",
         target_id=b.id,
         details=(
-            f"Партия №{b.batch_number}: ГП {old_condition}->{data.condition}, "
+            f"Партия №{b.batch_number} (Акт {act_number}): ГП {old_condition}->{data.condition}, "
             f"1 сорт {old_fg}->{data.first_grade}, Брак {old_def}->{data.defect_total}. "
             f"Причина: {data.root_cause or 'не указана'}."
         )
@@ -545,14 +695,153 @@ def verify_batch_by_qcd(
 
     db.commit()
     db.refresh(b)
+    db.refresh(act_report)
 
-    # 4. Фоновая выгрузка в Google Sheets (лист «Переборка»)
+    # 4. Фоновая выгрузка в Google Sheets (лист «Переборка» + «Акты переборки СКК» + «Сводный отчет»)
     background_tasks.add_task(sync_google_sheets_bg)
 
     return {
         "status": "success",
-        "message": f"Партия №{b.batch_number} успешно утверждена СКК и отправлена в Google Sheets",
+        "message": f"Партия №{b.batch_number} успешно утверждена СКК (Акт {act_report.act_number}) и отправлена в Google Sheets",
         "batch_id": b.id,
+        "act_number": act_report.act_number,
+        "report_id": act_report.id,
         "qcd_verified_at": b.qcd_verified_at.strftime("%d.%m.%Y %H:%M") if b.qcd_verified_at else None,
         "qcd_verified_by": b.qcd_verified_by
+    }
+
+
+@router.get("/reports/by-batch/{batch_id}")
+def get_qcd_report_by_batch(batch_id: int, db: Session = Depends(get_db)):
+    """
+    Получение данных официального Акта переборки СКК по batch_id.
+    Если акт уже создан, возвращает его с распарсенной детализацией для модального окна и печати А4.
+    Если акт еще не создан, формирует предпросмотр на основе текущих данных партии.
+    """
+    from sqlalchemy.orm import selectinload
+    b = (
+        db.query(models.Batch)
+        .options(
+            selectinload(models.Batch.shift).selectinload(models.Shift.master),
+            selectinload(models.Batch.shift).selectinload(models.Shift.lfm_reports)
+        )
+        .filter(models.Batch.id == batch_id)
+        .first()
+    )
+    if not b:
+        raise HTTPException(status_code=404, detail="Партия не найдена")
+
+    rep = None
+    act_num = getattr(b, 'qcd_act_number', None)
+    if act_num:
+        rep = db.query(models.QcdSortingReport).filter(models.QcdSortingReport.act_number == act_num).first()
+    if not rep:
+        rep = db.query(models.QcdSortingReport).filter(
+            models.QcdSortingReport.shifts_breakdown.like(f"%\"batch_id\": {b.id}%") |
+            models.QcdSortingReport.shifts_breakdown.like(f"%'batch_id': {b.id}%")
+        ).first()
+
+    s = b.shift
+    master_name = s.master.name if (s and s.master) else "Мастер смены"
+    lfm_sheets = sum(r.lfm_sheets or 0 for r in s.lfm_reports) if (s and s.lfm_reports) else (b.stacked_stacks or 0)
+    prod_name = b.product_name or (s.product_name if s else "Шифер 8 волн")
+    shift_date_str = s.date.strftime("%d.%m.%Y") if (s and s.date) else datetime.utcnow().strftime("%d.%m.%Y")
+    shift_name_str = s.shift_name if s else "День"
+    line_name = s.line if s else "ЛФМ-1"
+
+    if rep:
+        try:
+            fg_dict = json.loads(rep.first_grade_details) if rep.first_grade_details else {}
+        except Exception:
+            fg_dict = {}
+        try:
+            def_dict = json.loads(rep.defect_details) if rep.defect_details else {}
+        except Exception:
+            def_dict = {}
+        try:
+            shifts_list = json.loads(rep.shifts_breakdown) if rep.shifts_breakdown else []
+        except Exception:
+            shifts_list = []
+
+        cond_val = b.qcd_condition or 0
+        if shifts_list and isinstance(shifts_list[0], dict) and "condition" in shifts_list[0]:
+            cond_val = shifts_list[0]["condition"]
+
+        return {
+            "id": rep.id,
+            "act_number": rep.act_number,
+            "act_date": rep.act_date.strftime("%Y-%m-%d") if rep.act_date else "",
+            "act_date_display": rep.act_date.strftime("%d.%m.%Y") if rep.act_date else shift_date_str,
+            "inspector_name": rep.inspector_name or "Инспектор СКК",
+            "product_name": rep.product_name or prod_name,
+            "batch_number": b.batch_number or "—",
+            "shift_name": shift_name_str,
+            "master_name": master_name,
+            "line": line_name,
+            "total_formed": rep.total_formed or lfm_sheets,
+            "condition": cond_val,
+            "first_grade_total": rep.first_grade_total,
+            "defect_total": rep.defect_total,
+            "defect_percentage": rep.defect_percentage,
+            "first_grade_details": fg_dict,
+            "defect_details": def_dict,
+            "shifts_breakdown": shifts_list,
+            "notes": rep.notes or "",
+            "root_cause": b.qcd_root_cause or "",
+            "google_synced": rep.google_synced,
+            "created_at": rep.created_at.strftime("%d.%m.%Y %H:%M") if rep.created_at else ""
+        }
+
+    # Если отчет еще не сформирован
+    cond = b.qcd_condition if b.qcd_verified else ((b.ds_condition or 0) + (b.prev_condition or 0))
+    fg = b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))
+    defect = b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))
+    total_s = cond + fg + defect
+    pct = round((defect / total_s * 100.0), 2) if total_s > 0 else 0.0
+
+    fg_dict = {
+        "chip": b.qcd_defect_chip or b.ds_defect_chip or 0,
+        "scratch": b.qcd_defect_scratch or ((b.ds_defect_scratch or 0) + (b.prev_defect_scratch or 0)),
+        "bad_cut": b.qcd_defect_bad_cut or ((b.ds_defect_bad_cut or 0) + (b.prev_defect_bad_cut or 0)),
+        "stick_bottom": b.qcd_defect_stick_bottom or b.ds_defect_stick_bottom or 0,
+        "stick_top": b.qcd_defect_stick_top or ((b.ds_defect_stick_top or 0) + (b.prev_defect_stick_top or 0)),
+        "curved_edge": getattr(b, 'qcd_defect_curved_edge', 0) or 0,
+        "no_pattern": getattr(b, 'qcd_defect_no_pattern', 0) or 0,
+        "dent": b.qcd_defect_dent or b.ds_defect_dent or 0,
+        "thickness": b.qcd_defect_thickness or ((b.ds_defect_thickness or 0) + (b.prev_defect_thickness or 0)),
+        "delamination": b.qcd_defect_delamination or b.ds_defect_delamination or 0,
+        "edge_bulge": b.qcd_defect_edge or ((b.ds_defect_edge or 0) + (b.prev_defect_edge or 0)),
+        "edge": b.qcd_defect_edge or ((b.ds_defect_edge or 0) + (b.prev_defect_edge or 0)),
+        "other": 0
+    }
+    def_dict = {
+        "fell_box": b.qcd_defect_fell_box or ((b.ds_defect_fell_box or 0) + (b.prev_defect_fell_box or 0)),
+        "broken": b.qcd_defect_broken or ((b.ds_defect_broken or 0) + (b.prev_defect_broken or 0)),
+        "tech_defect": getattr(b, 'qcd_defect_tech', 0) or 0,
+        "tech": getattr(b, 'qcd_defect_tech', 0) or 0
+    }
+
+    return {
+        "id": None,
+        "act_number": b.qcd_act_number or f"СКК-{datetime.utcnow().strftime('%Y/%m')}-ПРОЕКТ",
+        "act_date": s.date.strftime("%Y-%m-%d") if (s and s.date) else datetime.utcnow().strftime("%Y-%m-%d"),
+        "act_date_display": shift_date_str,
+        "inspector_name": b.qcd_verified_by or "Инспектор СКК",
+        "product_name": prod_name,
+        "batch_number": b.batch_number or "—",
+        "shift_name": shift_name_str,
+        "master_name": master_name,
+        "line": line_name,
+        "total_formed": lfm_sheets,
+        "condition": cond,
+        "first_grade_total": fg,
+        "defect_total": defect,
+        "defect_percentage": pct,
+        "first_grade_details": fg_dict,
+        "defect_details": def_dict,
+        "shifts_breakdown": [],
+        "notes": b.qcd_notes or "",
+        "root_cause": b.qcd_root_cause or "",
+        "google_synced": False,
+        "created_at": b.qcd_verified_at.strftime("%d.%m.%Y %H:%M") if b.qcd_verified_at else ""
     }

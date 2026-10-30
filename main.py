@@ -100,6 +100,9 @@ async def lifespan(app: FastAPI):
                 try:
                     conn.execute("ALTER TABLE lfm_reports ADD COLUMN lfm_cart_resets INTEGER DEFAULT 0;")
                 except: pass
+                try:
+                    conn.execute("ALTER TABLE batches ADD COLUMN qcd_act_number VARCHAR(50);")
+                except: pass
                 for col_name, col_def in [
                     ("google_synced", "BOOLEAN DEFAULT 0"),
                     ("google_synced_at", "TIMESTAMP"),
@@ -153,6 +156,7 @@ async def lifespan(app: FastAPI):
                     ensure_pg_column(db, "batches", "qcd_verified_by", "VARCHAR(150)")
                     ensure_pg_column(db, "batches", "qcd_root_cause", "TEXT")
                     ensure_pg_column(db, "batches", "qcd_notes", "TEXT")
+                    ensure_pg_column(db, "batches", "qcd_act_number", "VARCHAR(50)")
                     ensure_pg_column(db, "batches", "qcd_defect_curved_edge", "INTEGER DEFAULT 0")
                     ensure_pg_column(db, "batches", "qcd_defect_no_pattern", "INTEGER DEFAULT 0")
                     ensure_pg_column(db, "batches", "qcd_defect_tech", "INTEGER DEFAULT 0")

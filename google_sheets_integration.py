@@ -225,7 +225,7 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
         # Проверяем, есть ли плановые или фактические показатели производства в смене
         plan_sheets_check = s.plan_sheets or 0
         formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
-        warehouse_gp_check = sum(((b.ds_condition or 0) + (b.prev_condition or 0)) for b in s.batches)
+        warehouse_gp_check = sum((b.qcd_condition if b.qcd_verified else ((b.ds_condition or 0) + (b.prev_condition or 0))) for b in s.batches)
         zo_batches_check = s.zo_batches or 0
         
         if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
@@ -241,8 +241,8 @@ def sync_report_to_google_sheets(db: Session, target_shift_id: Optional[int] = N
         ) / 1000.0
         
         qcd_condition = warehouse_gp_check
-        qcd_first = sum(((b.ds_first_grade or 0) + (b.prev_first_grade or 0)) for b in s.batches)
-        qcd_defect = sum(b.ds_defect for b in s.batches)
+        qcd_first = sum((b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))) for b in s.batches)
+        qcd_defect = sum((b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))) for b in s.batches)
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
         cart_resets = sum((getattr(r, 'lfm_cart_resets', 0) or 0) for r in s.lfm_reports)
         
@@ -1617,24 +1617,6 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         total_first_all = ds_first + prev_f
         total_def_all = ds_def + prev_d
         
-        # Данные верификации СКК
-        is_qcd_v = bool(b.qcd_verified)
-        qcd_status = "Проверено СКК" if is_qcd_v else "Не проверено"
-        qcd_gp = b.qcd_condition if is_qcd_v else ""
-        qcd_fg = b.qcd_first_grade if is_qcd_v else ""
-        qcd_def_val = b.qcd_defect if is_qcd_v else ""
-        
-        qcd_notes_full = ""
-        if is_qcd_v:
-            parts = []
-            if b.qcd_root_cause:
-                parts.append(f"Причина: {b.qcd_root_cause}")
-            if b.qcd_notes:
-                parts.append(b.qcd_notes)
-            qcd_notes_full = " // ".join(parts)
-            
-        qcd_inspector = b.qcd_verified_by or "" if is_qcd_v else ""
-
         rows_data.append([
             b.batch_number or "",
             date_str_fmt,
@@ -1657,13 +1639,7 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             prev_note,
             total_gp_all,
             total_first_all,
-            total_def_all,
-            qcd_status,
-            qcd_gp,
-            qcd_fg,
-            qcd_def_val,
-            qcd_notes_full,
-            qcd_inspector
+            total_def_all
         ])
         
     service.spreadsheets().values().clear(
@@ -1686,14 +1662,14 @@ def sync_qcd_reports_to_google_sheets(db: Session):
     has_basic_filter = "basicFilter" in sheet_meta
 
     requests = [
-        # Фиксация строки заголовка (1) и колонок A:F (6)
+        # Фиксация строки заголовка (1) и первых двух колонок (№ партии, Дата)
         {
             "updateSheetProperties": {
                 "properties": {
                     "sheetId": sheet_id,
                     "gridProperties": {
                         "frozenRowCount": 1,
-                        "frozenColumnCount": 6
+                        "frozenColumnCount": 2
                     }
                 },
                 "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
@@ -2408,22 +2384,18 @@ def export_checklists_to_google_sheets(db: Session):
 
 def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
     """
-    Экспорт актов переборки СКК в отдельную Google Таблицу (QCD_SPREADSHEET_ID).
-    Выгружает красивую таблицу со структурой:
-    - Шапка с заголовками
-    - База формовки
-    - 1 сорт (детализация и сумма)
-    - Брак (детализация и сумма)
-    - % брака
-    - Причины / Виновники
+    Экспорт актов переборки СКК в Google Таблицу на лист «Акты переборки СКК».
+    Использует QCD_SPREADSHEET_ID если задан, иначе fallback на SPREADSHEET_ID.
     """
-    target_id = QCD_SPREADSHEET_ID
+    target_id = os.getenv("QCD_SPREADSHEET_ID")
+    if not target_id or target_id.startswith("1_mock"):
+        target_id = SPREADSHEET_ID
     if not target_id or target_id.startswith("1_mock"):
         return
         
     try:
         service = get_sheets_service()
-        sheet_name = "Переборка СКК"
+        sheet_name = "Акты переборки СКК"
         
         # 1. Проверяем наличие листа в документе
         spreadsheet = service.spreadsheets().get(spreadsheetId=target_id).execute()
@@ -2436,25 +2408,24 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                 break
                 
         if sheet_id is None:
-            # Если лист "Переборка СКК" не найден, переименовываем первый лист (обычно "Лист1" / "Sheet1") или добавляем новый
-            first_sheet = sheets[0] if sheets else None
-            if first_sheet and first_sheet["properties"]["title"] in ["Лист1", "Sheet1"]:
-                sheet_id = first_sheet["properties"]["sheetId"]
-                service.spreadsheets().batchUpdate(
-                    spreadsheetId=target_id,
-                    body={"requests": [{"updateSheetProperties": {
-                        "properties": {"sheetId": sheet_id, "title": sheet_name},
-                        "fields": "title"
-                    }}]}
-                ).execute()
-            else:
-                add_res = service.spreadsheets().batchUpdate(
-                    spreadsheetId=target_id,
-                    body={"requests": [{"addSheet": {
-                        "properties": {"title": sheet_name, "gridProperties": {"frozenRowCount": 1}}
-                    }}]}
-                ).execute()
-                sheet_id = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+            # Создаем лист "Акты переборки СКК"
+            add_res = service.spreadsheets().batchUpdate(
+                spreadsheetId=target_id,
+                body={"requests": [{"addSheet": {
+                    "properties": {
+                        "title": sheet_name,
+                        "gridProperties": {
+                            "frozenRowCount": 1,
+                            "frozenColumnCount": 2,
+                            "rowCount": 1000,
+                            "columnCount": 30
+                        }
+                    }
+                }}]}
+            ).execute()
+            sheet_id = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+        SHEET_GIDS["qcd_acts"] = sheet_id
 
         # 2. Получаем все отчеты СКК из БД
         reports = db.query(models.QcdSortingReport).order_by(
@@ -2509,12 +2480,12 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                 fg.get("dent", 0),
                 fg.get("thickness", 0),
                 fg.get("delamination", 0),
-                fg.get("edge_bulge", 0),
+                fg.get("edge_bulge", fg.get("edge", 0)),
                 fg.get("other", 0),
                 r.defect_total or 0,
                 defects.get("fell_box", 0),
                 defects.get("broken", 0),
-                defects.get("tech_defect", 0),
+                defects.get("tech_defect", defects.get("tech", 0)),
                 f"{r.defect_percentage:.2f}%" if r.defect_percentage is not None else "0.00%",
                 r.notes or "",
                 r.created_at.strftime("%d.%m.%Y %H:%M") if r.created_at else ""
@@ -2523,7 +2494,7 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
         # 3. Полная перезапись листа
         service.spreadsheets().values().clear(
             spreadsheetId=target_id,
-            range=f"'{sheet_name}'!A1:AA3000"
+            range=f"'{sheet_name}'"
         ).execute()
 
         service.spreadsheets().values().update(
@@ -2535,6 +2506,9 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
 
         # 4. Стилизация (Брендовый стиль Tectum: темно-синий/стальной заголовок, сетка, автоширина)
         header_color = {"red": 0.08, "green": 0.25, "blue": 0.45} # Navy Blue
+        total_rows = max(len(rows), 2)
+        total_cols = len(headers)
+
         requests = [
             {
                 "repeatCell": {
@@ -2543,7 +2517,7 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                         "startRowIndex": 0,
                         "endRowIndex": 1,
                         "startColumnIndex": 0,
-                        "endColumnIndex": len(headers)
+                        "endColumnIndex": total_cols
                     },
                     "cell": {
                         "userEnteredFormat": {
@@ -2566,14 +2540,28 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                     "properties": {
                         "sheetId": sheet_id,
                         "gridProperties": {
-                            "frozenRowCount": 1
+                            "frozenRowCount": 1,
+                            "frozenColumnCount": 2
                         }
                     },
-                    "fields": "gridProperties.frozenRowCount"
+                    "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+                }
+            },
+            {
+                "updateBorders": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": total_rows,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": total_cols
+                    },
+                    **STANDARD_BORDER_STYLE
                 }
             }
         ]
         service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
+        safe_set_basic_filter(service, target_id, sheet_id, 0, total_rows, 0, total_cols)
 
         # Обновляем флаг google_synced для отчетов
         for r in reports:
@@ -2581,7 +2569,7 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
             r.google_sync_error = None
         db.commit()
 
-        print(f"[Google Sheets] Успешно синхронизировано {len(reports)} актов переборки СКК в таблицу {target_id}.")
+        print(f"[Google Sheets] Успешно синхронизировано {len(reports)} актов переборки СКК в таблицу {target_id} на лист '{sheet_name}'.")
     except Exception as e:
         print(f"[Google Sheets Error] Ошибка синхронизации переборки СКК: {e}")
         if report_id:
@@ -2604,11 +2592,12 @@ def get_google_sheet_bottom_url(db: Session, sheet_type: str = "summary") -> str
     и скроллом/фокусом на последней строке таблицы (&gid={gid}&range=A{last_row}).
     """
     target_spreadsheet_id = SPREADSHEET_ID
-    if sheet_type == "qcd_dedicated":
-        target_spreadsheet_id = QCD_SPREADSHEET_ID
+    if sheet_type in ["qcd_dedicated", "qcd_acts"]:
+        target_spreadsheet_id = os.getenv("QCD_SPREADSHEET_ID") or SPREADSHEET_ID
         count = db.query(models.QcdSortingReport).count()
         last_row = max(count + 1, 2)
-        return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid=0&range=A{last_row}"
+        gid = SHEET_GIDS.get("qcd_acts", 0)
+        return f"https://docs.google.com/spreadsheets/d/{target_spreadsheet_id}/edit#gid={gid}&range=A{last_row}"
 
     if sheet_type == "qcd":
         from datetime import date
@@ -2628,7 +2617,7 @@ def get_google_sheet_bottom_url(db: Session, sheet_type: str = "summary") -> str
     for s in shifts:
         plan_sheets_check = s.plan_sheets or 0
         formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
-        warehouse_gp_check = sum(b.qcd_condition for b in s.batches)
+        warehouse_gp_check = sum((b.qcd_condition if b.qcd_verified else ((b.ds_condition or 0) + (b.prev_condition or 0))) for b in s.batches)
         zo_batches_check = s.zo_batches or 0
         if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
             continue

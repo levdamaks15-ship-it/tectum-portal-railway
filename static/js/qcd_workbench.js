@@ -358,11 +358,23 @@ function renderBatchData(data) {
     const statusBadge = document.getElementById('batch-status-badge');
     if (statusBadge) {
         if (data.qcd_verified) {
+            const actInfo = data.act_number ? ` • Акт ${data.act_number}` : '';
             statusBadge.className = 'status-chip status-verified';
-            statusBadge.innerHTML = `<i class="fa-solid fa-check-double"></i> Проверено СКК (${data.qcd_verified_by || 'Инспектор'})`;
+            statusBadge.innerHTML = `<i class="fa-solid fa-check-double"></i> Проверено СКК (${data.qcd_verified_by || 'Инспектор'})${actInfo}`;
         } else {
             statusBadge.className = 'status-chip status-pending';
             statusBadge.innerHTML = `<i class="fa-solid fa-clock"></i> Ожидает проверки СКК`;
+        }
+    }
+
+    const printBtn = document.getElementById('btn-print-act-a4');
+    if (printBtn) {
+        if (data.act_number) {
+            printBtn.innerHTML = `<i class="fa-solid fa-print" style="color: #2563eb;"></i> <span>Печать (${escapeHtml(data.act_number)})</span>`;
+            printBtn.title = `Распечатать утвержденный Акт ${data.act_number}`;
+        } else {
+            printBtn.innerHTML = `<i class="fa-solid fa-print" style="color: #2563eb;"></i> <span>📄 Печать Акта А4</span>`;
+            printBtn.title = `Сформировать и распечатать официальный Акт переборки СКК на лист А4`;
         }
     }
 
@@ -757,4 +769,560 @@ function showQcdToast(message, type = 'info') {
         toast.style.transform = 'translateY(-10px)';
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+}
+
+// ==========================================================================
+// МОДАЛЬНЫЕ ОКНА: ОФИЦИАЛЬНЫЙ АКТ СКК (ПЕЧАТЬ А4) И РЕЕСТР АКТОВ
+// ==========================================================================
+
+let allActsRegistryData = [];
+
+/**
+ * Открытие модального окна печати официального Акта разбраковки СКК (А4)
+ * @param {number|null} reportId - ID сохраненного отчета (если открываем из реестра)
+ */
+async function openPrintActModal(reportId = null) {
+    const modal = document.getElementById('modal-qcd-act-print');
+    const container = document.getElementById('qcd-act-printable-doc');
+    const badgeEl = document.getElementById('act-print-modal-badge');
+    if (!modal || !container) return;
+
+    document.body.classList.add('act-printing');
+    modal.classList.add('is-open');
+    modal.style.display = 'flex';
+    container.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #64748b;">
+            <i class="fa-solid fa-spinner fa-spin fa-2x" style="color: #2563eb; margin-bottom: 12px;"></i>
+            <p style="font-weight: 600; font-size: 0.95rem;">Формирование официального Акта СКК...</p>
+        </div>
+    `;
+
+    try {
+        let actData = null;
+        if (reportId) {
+            const res = await fetch(`/api/qcd/reports/${reportId}`);
+            if (!res.ok) throw new Error('Не удалось загрузить данные акта');
+            actData = await res.json();
+        } else if (currentBatchId) {
+            const res = await fetch(`/api/qcd/reports/by-batch/${currentBatchId}`);
+            if (!res.ok) throw new Error('Не удалось сформировать акт для выбранной партии');
+            actData = await res.json();
+
+            // Если открываем предпросмотр не сохраненного в БД акта, учитываем текущие данные из полей ввода
+            if (!actData.id) {
+                const scrCond = parseInt(document.getElementById('qcd-condition-input')?.value, 10);
+                const scrFg = parseInt(document.getElementById('qcd-first-grade-input')?.value, 10);
+                const scrDef = parseInt(document.getElementById('qcd-defect-input')?.value, 10);
+                const scrNotes = document.getElementById('qcd-notes-text')?.value;
+
+                if (!isNaN(scrCond)) actData.condition = scrCond;
+                if (!isNaN(scrFg)) actData.first_grade_total = scrFg;
+                if (!isNaN(scrDef)) actData.defect_total = scrDef;
+                if (scrNotes) actData.notes = scrNotes;
+
+                if (activeDefectsState && Object.keys(activeDefectsState).length > 0) {
+                    const fgMerged = { ...(actData.first_grade_details || {}) };
+                    const defMerged = { ...(actData.defect_details || {}) };
+                    for (const [k, v] of Object.entries(activeDefectsState)) {
+                        const cleanKey = k.replace(/^(fg_|def_)/, '');
+                        if (k.startsWith('fg_') || cleanKey in fgMerged) {
+                            fgMerged[cleanKey] = v;
+                            fgMerged[k] = v;
+                        } else if (k.startsWith('def_') || cleanKey in defMerged) {
+                            defMerged[cleanKey] = v;
+                            defMerged[k] = v;
+                        }
+                    }
+                    actData.first_grade_details = fgMerged;
+                    actData.defect_details = defMerged;
+                }
+            }
+        } else {
+            showQcdToast('Сначала выберите партию для формирования Акта', 'error');
+            closePrintActModal();
+            return;
+        }
+
+        if (badgeEl) {
+            badgeEl.textContent = actData.act_number ? `№ ${actData.act_number}` : 'Предпросмотр';
+        }
+
+        renderActPrintDocument(actData);
+    } catch (err) {
+        console.error('Error loading act data:', err);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 30px; color: #ef4444;">
+                <i class="fa-solid fa-triangle-exclamation fa-2x" style="margin-bottom: 8px;"></i>
+                <p style="font-weight: 700;">Ошибка формирования Акта</p>
+                <p style="font-size: 0.85rem; color: #64748b;">${escapeHtml(err.message)}</p>
+                <button type="button" class="btn-qcd-secondary" onclick="closePrintActModal()" style="margin-top: 12px;">Закрыть</button>
+            </div>
+        `;
+        showQcdToast(err.message || 'Ошибка загрузки акта', 'error');
+    }
+}
+
+/**
+ * Закрытие модального окна печати Акта
+ */
+function closePrintActModal() {
+    const modal = document.getElementById('modal-qcd-act-print');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('is-open');
+    }
+    document.body.classList.remove('act-printing');
+}
+
+/**
+ * Печать акта с активацией стилей документа
+ */
+function printActDocument() {
+    document.body.classList.add('act-printing');
+    window.print();
+}
+
+/**
+ * Вспомогательное извлечение значения дефекта по ключам с префиксом и без
+ */
+function getDefectValue(catalogKey, fgDict, defDict) {
+    if (!fgDict) fgDict = {};
+    if (!defDict) defDict = {};
+    const shortKey = catalogKey.replace(/^(fg_|def_)/, '');
+    
+    if (catalogKey in fgDict) return fgDict[catalogKey] || 0;
+    if (shortKey in fgDict) return fgDict[shortKey] || 0;
+    if (catalogKey in defDict) return defDict[catalogKey] || 0;
+    if (shortKey in defDict) return defDict[shortKey] || 0;
+    if (shortKey === 'tech' && 'tech_defect' in defDict) return defDict['tech_defect'] || 0;
+    return 0;
+}
+
+/**
+ * Отрисовка бланка официального Акта разбраковки СКК для вывода на экран и печати А4
+ * @param {Object} act - Данные отчета
+ */
+function renderActPrintDocument(act) {
+    const container = document.getElementById('qcd-act-printable-doc');
+    if (!container) return;
+
+    // Распарсим shifts_breakdown, если пришло строкой
+    let shiftsList = [];
+    if (typeof act.shifts_breakdown === 'string') {
+        try { shiftsList = JSON.parse(act.shifts_breakdown); } catch (e) { shiftsList = []; }
+    } else if (Array.isArray(act.shifts_breakdown)) {
+        shiftsList = act.shifts_breakdown;
+    }
+
+    const firstShift = (shiftsList && shiftsList.length > 0) ? shiftsList[0] : {};
+    const batchNumber = act.batch_number || firstShift.batch_number || (currentBatchData ? currentBatchData.batch_number : '—');
+    const shiftName = act.shift_name || firstShift.shift_name || (currentBatchData ? currentBatchData.shift_name : 'День');
+    const masterName = act.master_name || firstShift.master_name || (currentBatchData ? currentBatchData.master_name : 'Мастер смены');
+    const productName = act.product_name || firstShift.product_name || (currentBatchData ? currentBatchData.product_name : 'Шифер 8 волн');
+    const lineName = act.line || firstShift.line || 'ЛФМ-1';
+    const actDateDisplay = act.act_date_display || act.act_date || (currentBatchData ? currentBatchData.date : '');
+    const currentUserName = document.getElementById('user-greeting-name')?.textContent;
+    const inspectorName = act.inspector_name || (currentBatchData && currentBatchData.qcd_verified_by) || (currentUserName && currentUserName !== 'Сотрудник' ? currentUserName : 'Мусаилова З.');
+
+    const totalFormed = Number(act.total_formed || (currentBatchData ? currentBatchData.lfm_sheets : 0));
+    const firstGradeTotal = Number(act.first_grade_total || 0);
+    const defectTotal = Number(act.defect_total || 0);
+
+    let condition = act.condition !== undefined ? Number(act.condition) : undefined;
+    if (condition === undefined && firstShift && firstShift.condition !== undefined) {
+        condition = Number(firstShift.condition);
+    }
+    if (condition === undefined) {
+        condition = Math.max(0, totalFormed - firstGradeTotal - defectTotal);
+    }
+
+    const totalCalculated = condition + firstGradeTotal + defectTotal;
+    const baseTotal = totalCalculated > 0 ? totalCalculated : (totalFormed > 0 ? totalFormed : 1);
+
+    const gpPct = ((condition / baseTotal) * 100).toFixed(1);
+    const fgPct = ((firstGradeTotal / baseTotal) * 100).toFixed(1);
+    const defectPct = act.defect_percentage !== undefined ? Number(act.defect_percentage).toFixed(2) : ((defectTotal / baseTotal) * 100).toFixed(2);
+
+    const fgDict = act.first_grade_details || {};
+    const defDict = act.defect_details || {};
+
+    // Разделяем 14 дефектов на 1 сорт (11) и брак (3)
+    const fgItems = FACTORY_DEFECTS_CATALOG.filter(d => d.group === 'fg');
+    const brakItems = FACTORY_DEFECTS_CATALOG.filter(d => d.group === 'brak');
+
+    // Формируем строки для таблицы дефектов (11 строк, левая колонка - 1 сорт, правая - Брак и итоги)
+    let defectsTableRows = '';
+    const maxRows = Math.max(fgItems.length, brakItems.length);
+
+    for (let i = 0; i < maxRows; i++) {
+        const fgDef = fgItems[i];
+        let fgQty = 0;
+        let fgTitle = '';
+        let fgSub = '';
+
+        if (fgDef) {
+            fgQty = getDefectValue(fgDef.key, fgDict, defDict);
+            fgTitle = fgDef.title;
+            fgSub = fgDef.sub;
+        }
+
+        const brakDef = brakItems[i];
+        let brakColHtml = '';
+
+        if (brakDef) {
+            const bQty = getDefectValue(brakDef.key, fgDict, defDict);
+            brakColHtml = `
+                <td style="text-align: center; font-weight: 700; width: 26px;">${i + 12}</td>
+                <td>
+                    <div style="font-weight: 600; color: #1e293b;">${escapeHtml(brakDef.title)}</div>
+                    <div style="font-size: 0.65rem; color: #64748b;">${escapeHtml(brakDef.sub)}</div>
+                </td>
+                <td style="text-align: right; font-weight: 800; font-family: monospace; font-size: 0.85rem; color: ${bQty > 0 ? '#b91c1c' : '#334155'}; width: 55px;">
+                    ${formatNum(bQty)}
+                </td>
+            `;
+        } else if (i === 3) {
+            // Итого брак
+            brakColHtml = `
+                <td colspan="2" style="background: #fef2f2; font-weight: 800; color: #991b1b; text-transform: uppercase;">
+                    ИТОГО ТЕХНОЛОГИЧЕСКИЙ БРАК:
+                </td>
+                <td style="text-align: right; font-weight: 900; font-family: monospace; font-size: 0.9rem; background: #fee2e2; color: #dc2626;">
+                    ${formatNum(defectTotal)}
+                </td>
+            `;
+        } else if (i === 4) {
+            // Итого 1 сорт
+            brakColHtml = `
+                <td colspan="2" style="background: #f0f9ff; font-weight: 800; color: #0369a1; text-transform: uppercase;">
+                    ИТОГО 1-Й СОРТ (ОТКЛОНЕНИЯ):
+                </td>
+                <td style="text-align: right; font-weight: 900; font-family: monospace; font-size: 0.9rem; background: #e0f2fe; color: #0284c7;">
+                    ${formatNum(firstGradeTotal)}
+                </td>
+            `;
+        } else if (i === 5) {
+            // Всего несоответствующей продукции
+            brakColHtml = `
+                <td colspan="2" style="background: #f8fafc; font-weight: 800; color: #0f172a; text-transform: uppercase;">
+                    ВСЕГО ПЕРЕБРАНО (1 сорт + Брак):
+                </td>
+                <td style="text-align: right; font-weight: 900; font-family: monospace; font-size: 0.9rem; background: #f1f5f9; color: #0f172a;">
+                    ${formatNum(firstGradeTotal + defectTotal)}
+                </td>
+            `;
+        } else if (i === 6) {
+            brakColHtml = `
+                <td colspan="3" style="font-size: 0.65rem; color: #64748b; background: #fafafa; padding: 4px 6px;">
+                    Стандарт соответствия: <strong>ГОСТ 18124-2012</strong> / СТ ТОО 39396-1910
+                </td>
+            `;
+        } else {
+            brakColHtml = `<td colspan="3" style="background: #ffffff; border-color: #cbd5e1;"></td>`;
+        }
+
+        defectsTableRows += `
+            <tr>
+                <td style="text-align: center; font-weight: 700; width: 26px;">${i + 1}</td>
+                <td>
+                    <div style="font-weight: 600; color: #1e293b;">${escapeHtml(fgTitle)}</div>
+                    <div style="font-size: 0.65rem; color: #64748b;">${escapeHtml(fgSub)}</div>
+                </td>
+                <td style="text-align: right; font-weight: 800; font-family: monospace; font-size: 0.85rem; color: ${fgQty > 0 ? '#0284c7' : '#334155'}; width: 55px;">
+                    ${formatNum(fgQty)}
+                </td>
+                ${brakColHtml}
+            </tr>
+        `;
+    }
+
+    const nowFormatted = new Date().toLocaleString('ru-RU');
+
+    container.innerHTML = `
+        <!-- Шапка документа с брендом и грифом утверждения -->
+        <div class="act-header-brand-line">
+            <div>
+                <div class="act-brand-logo-text">TECTUM <span class="act-brand-logo-blue">ENGINEERING</span></div>
+                <div class="act-brand-sub">СЛУЖБА КОНТРОЛЯ КАЧЕСТВА (СКК) • ЗАВОД ФИБРОЦЕМЕНТНЫХ ИЗДЕЛИЙ</div>
+            </div>
+            <div class="act-stamp-approve">
+                <div style="font-weight: 800; text-transform: uppercase;">УТВЕРЖДАЮ</div>
+                <div style="font-weight: 700; color: #334155;">Начальник цеха ХЦИ</div>
+                <div style="margin-top: 14px; border-bottom: 1px solid #0f172a; width: 140px; margin-left: auto;"></div>
+                <div style="font-size: 0.68rem; color: #64748b; margin-top: 2px;">Булеханов К.</div>
+                <div style="font-size: 0.68rem; margin-top: 2px;">«____» ____________ 202_ г.</div>
+            </div>
+        </div>
+
+        <!-- Заголовок и номер акта -->
+        <div class="act-title-block">
+            <div class="act-main-heading">АКТ РАЗБРАКОВКИ И ПЕРЕБОРКИ ПРОДУКЦИИ</div>
+            <div class="act-number-subtitle">№ ${escapeHtml(act.act_number || 'ПРОЕКТ')} от ${escapeHtml(actDateDisplay)}</div>
+        </div>
+
+        <!-- Таблица метаданных партии -->
+        <table class="act-table">
+            <tr>
+                <td class="act-meta-lbl">Дата выпуска смены:</td>
+                <td class="act-meta-val">${escapeHtml(actDateDisplay || '—')}</td>
+                <td class="act-meta-lbl">Смена / Линия:</td>
+                <td class="act-meta-val">Смена ${escapeHtml(shiftName)} • ${escapeHtml(lineName)}</td>
+            </tr>
+            <tr>
+                <td class="act-meta-lbl">Мастер смены ХЦИ:</td>
+                <td class="act-meta-val">${escapeHtml(masterName)}</td>
+                <td class="act-meta-lbl">№ Партии:</td>
+                <td class="act-meta-val" style="font-weight: 800; font-family: monospace; font-size: 0.9rem;">№ ${escapeHtml(batchNumber)}</td>
+            </tr>
+            <tr>
+                <td class="act-meta-lbl">Номенклатура:</td>
+                <td class="act-meta-val">${escapeHtml(productName)}</td>
+                <td class="act-meta-lbl">Инспектор СКК:</td>
+                <td class="act-meta-val">${escapeHtml(inspectorName)}</td>
+            </tr>
+        </table>
+
+        <!-- Сводный баланс партии (4 ключевые метрики) -->
+        <div class="act-summary-grid">
+            <div class="act-summary-cell">
+                <div class="act-summary-cell-title">Формовка (ЛФМ)</div>
+                <div class="act-summary-cell-val">${formatNum(totalFormed)} шт.</div>
+                <div class="act-summary-cell-pct">100% базы смены</div>
+            </div>
+            <div class="act-summary-cell" style="background: #f0fdf4;">
+                <div class="act-summary-cell-title" style="color: #15803d;">Годная продукция (ГП)</div>
+                <div class="act-summary-cell-val" style="color: #15803d;">${formatNum(condition)} шт.</div>
+                <div class="act-summary-cell-pct">${gpPct}% от выпуска</div>
+            </div>
+            <div class="act-summary-cell" style="background: #f0f9ff;">
+                <div class="act-summary-cell-title" style="color: #0369a1;">1 сорт (отклонения)</div>
+                <div class="act-summary-cell-val" style="color: #0284c7;">${formatNum(firstGradeTotal)} шт.</div>
+                <div class="act-summary-cell-pct">${fgPct}% от выпуска</div>
+            </div>
+            <div class="act-summary-cell" style="background: #fef2f2;">
+                <div class="act-summary-cell-title" style="color: #b91c1c;">Окончательный брак</div>
+                <div class="act-summary-cell-val" style="color: #dc2626;">${formatNum(defectTotal)} шт.</div>
+                <div class="act-summary-cell-pct" style="color: #b91c1c; font-weight: 700;">${defectPct}% брака</div>
+            </div>
+        </div>
+
+        <!-- Таблица классификации 14 дефектов -->
+        <table class="act-table">
+            <thead>
+                <tr>
+                    <th colspan="3" style="width: 50%; background: #e0f2fe; color: #0369a1;">
+                        1-Й СОРТ (Отклонения без потери прочности)
+                    </th>
+                    <th colspan="3" style="width: 50%; background: #fee2e2; color: #991b1b;">
+                        ТЕХНОЛОГИЧЕСКИЙ БРАК (Окончательное списание)
+                    </th>
+                </tr>
+                <tr>
+                    <th style="width: 26px;">№</th>
+                    <th>Вид отклонения / Дефект</th>
+                    <th style="width: 55px;">Шт.</th>
+                    <th style="width: 26px;">№</th>
+                    <th>Вид брака</th>
+                    <th style="width: 55px;">Шт.</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${defectsTableRows}
+            </tbody>
+        </table>
+
+        <!-- Причины и замечания инспектора СКК -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+            <div class="act-notes-box">
+                <div class="act-notes-title"><i class="fa-solid fa-bullseye" style="color: #dc2626;"></i> Корневая причина дефектов:</div>
+                <div style="color: #0f172a; font-weight: 600;">${escapeHtml(act.root_cause || (currentBatchData ? currentBatchData.qcd_root_cause : '') || 'Не зафиксирована')}</div>
+            </div>
+            <div class="act-notes-box">
+                <div class="act-notes-title"><i class="fa-solid fa-comment-dots" style="color: #2563eb;"></i> Особые отметки и замечания СКК:</div>
+                <div style="color: #334155;">${escapeHtml(act.notes || (currentBatchData ? currentBatchData.qcd_notes : '') || 'Замечания отсутствуют. Продукция соответствует стандартам предприятия.')}</div>
+            </div>
+        </div>
+
+        <!-- Подписи ответственных лиц -->
+        <div class="act-signatures-row">
+            <div class="act-signature-item">
+                <div class="act-signature-role">Инспектор СКК:</div>
+                <div class="act-signature-line"></div>
+                <div class="act-signature-name">${escapeHtml(inspectorName)}</div>
+            </div>
+            <div class="act-signature-item">
+                <div class="act-signature-role">Мастер смены цеха ХЦИ:</div>
+                <div class="act-signature-line"></div>
+                <div class="act-signature-name">${escapeHtml(masterName)}</div>
+            </div>
+            <div class="act-signature-item">
+                <div class="act-signature-role">Начальник цеха ХЦИ:</div>
+                <div class="act-signature-line"></div>
+                <div class="act-signature-name">Булеханов К.</div>
+            </div>
+        </div>
+
+        <!-- Подвал официального документа -->
+        <div class="act-doc-footer">
+            <span>Tectum Portal • Служба Контроля Качества • Официальный электронный документ</span>
+            <span>Сформирован: ${nowFormatted}</span>
+        </div>
+    `;
+}
+
+/**
+ * Открытие модального окна реестра Актов СКК
+ */
+function openActRegistryModal() {
+    const modal = document.getElementById('modal-qcd-act-registry');
+    if (modal) {
+        modal.style.display = 'flex';
+        loadActRegistry();
+    }
+}
+
+/**
+ * Закрытие модального окна реестра Актов СКК
+ */
+function closeActRegistryModal() {
+    const modal = document.getElementById('modal-qcd-act-registry');
+    if (modal) modal.style.display = 'none';
+}
+
+/**
+ * Загрузка реестра актов с сервера
+ */
+async function loadActRegistry() {
+    const tbody = document.getElementById('tbody-qcd-acts-registry');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align: center; padding: 25px; color: #64748b;">
+                    <i class="fa-solid fa-spinner fa-spin fa-lg" style="color: #6366f1; margin-right: 8px;"></i>
+                    Загрузка официальных актов СКК...
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        const res = await fetch('/api/qcd/reports?limit=100');
+        if (!res.ok) throw new Error('Ошибка получения реестра актов');
+        const data = await res.json();
+        allActsRegistryData = data || [];
+        renderActRegistryTable(allActsRegistryData);
+    } catch (err) {
+        console.error('Error loading acts registry:', err);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="10" style="text-align: center; padding: 25px; color: #ef4444;">
+                        <i class="fa-solid fa-triangle-exclamation" style="margin-right: 6px;"></i>
+                        Не удалось загрузить реестр: ${escapeHtml(err.message)}
+                    </td>
+                </tr>
+            `;
+        }
+        showQcdToast('Ошибка загрузки реестра актов', 'error');
+    }
+}
+
+/**
+ * Фильтрация реестра актов по поисковой строке
+ * @param {string} query
+ */
+function filterActRegistry(query) {
+    if (!query || !query.trim()) {
+        renderActRegistryTable(allActsRegistryData);
+        return;
+    }
+    const q = query.trim().toLowerCase();
+    const filtered = allActsRegistryData.filter(act => {
+        let shiftsStr = '';
+        if (typeof act.shifts_breakdown === 'string') shiftsStr = act.shifts_breakdown.toLowerCase();
+        return (
+            (act.act_number && act.act_number.toLowerCase().includes(q)) ||
+            (act.act_date && act.act_date.toLowerCase().includes(q)) ||
+            (act.inspector_name && act.inspector_name.toLowerCase().includes(q)) ||
+            (act.product_name && act.product_name.toLowerCase().includes(q)) ||
+            (act.notes && act.notes.toLowerCase().includes(q)) ||
+            shiftsStr.includes(q)
+        );
+    });
+    renderActRegistryTable(filtered);
+}
+
+/**
+ * Отрисовка таблицы реестра актов СКК
+ * @param {Array} acts
+ */
+function renderActRegistryTable(acts) {
+    const tbody = document.getElementById('tbody-qcd-acts-registry');
+    if (!tbody) return;
+
+    if (!acts || acts.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align: center; padding: 30px; color: #94a3b8;">
+                    <i class="fa-regular fa-folder-open fa-2x" style="margin-bottom: 8px; display: block;"></i>
+                    Акты переборки СКК не найдены
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    let html = '';
+    acts.forEach(act => {
+        let breakdown = [];
+        if (typeof act.shifts_breakdown === 'string') {
+            try { breakdown = JSON.parse(act.shifts_breakdown); } catch (e) { breakdown = []; }
+        } else if (Array.isArray(act.shifts_breakdown)) {
+            breakdown = act.shifts_breakdown;
+        }
+
+        const first = (breakdown && breakdown.length > 0) ? breakdown[0] : {};
+        const batchNum = first.batch_number || '—';
+        const shiftName = first.shift_name || '—';
+        const masterName = first.master_name || '—';
+        const formed = act.total_formed || first.lfm_sheets || 0;
+        const fg = act.first_grade_total || 0;
+        const def = act.defect_total || 0;
+        const cond = first.condition !== undefined ? first.condition : Math.max(0, formed - fg - def);
+        const actDateStr = act.act_date ? act.act_date.split('-').reverse().join('.') : '';
+
+        html += `
+            <tr>
+                <td>
+                    <button type="button" class="btn-link" onclick="openPrintActModal(${act.id})" 
+                            style="background: none; border: none; padding: 0; color: #2563eb; font-weight: 800; font-family: monospace; cursor: pointer; text-decoration: underline;" 
+                            title="Открыть для печати">
+                        ${escapeHtml(act.act_number)}
+                    </button>
+                </td>
+                <td style="white-space: nowrap; font-size: 0.8rem; color: #475569;">${escapeHtml(actDateStr)}</td>
+                <td>
+                    <span class="picker-badge-party mono" style="font-size: 0.76rem;">№ ${escapeHtml(batchNum)}</span>
+                    <span style="font-size: 0.76rem; color: #64748b; margin-left: 4px;">(${escapeHtml(shiftName)})</span>
+                </td>
+                <td style="font-weight: 600; font-size: 0.82rem;">${escapeHtml(masterName)}</td>
+                <td style="text-align: right; font-weight: 700; font-family: monospace;">${formatNum(formed)}</td>
+                <td style="text-align: right; font-weight: 800; font-family: monospace; color: #16a34a;">${formatNum(cond)}</td>
+                <td style="text-align: right; font-weight: 800; font-family: monospace; color: #0284c7;">${formatNum(fg)}</td>
+                <td style="text-align: right; font-weight: 800; font-family: monospace; color: #dc2626;">
+                    ${formatNum(def)} <span style="font-size: 0.72rem; color: #991b1b; font-weight: 600;">(${(act.defect_percentage || 0).toFixed(1)}%)</span>
+                </td>
+                <td style="font-size: 0.8rem; color: #334155;">${escapeHtml(act.inspector_name || '—')}</td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn-qcd-secondary" onclick="openPrintActModal(${act.id})" 
+                            style="height: 28px; padding: 0 8px; font-size: 0.75rem; border-color: #cbd5e1;" 
+                            title="Печать акта А4">
+                        <i class="fa-solid fa-print" style="color: #2563eb;"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
 }

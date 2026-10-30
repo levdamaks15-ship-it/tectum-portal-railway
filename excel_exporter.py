@@ -3,21 +3,33 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 import models
 
-def get_product_finished_weight_kg(db: Session, product_name: str) -> float:
-    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
-    if not norm or not norm.weight_kg:
-        if product_name == "Шифер 7 волн гладкий":
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн глад").first()
-        elif product_name == "Шифер 7 волн глад":
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн гладкий").first()
-        elif product_name == "Шифер 8 волн гладкий":
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн глад").first()
-        elif product_name == "Шифер 8 волн глад":
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн гладкий").first()
-    if norm and norm.weight_kg:
+def get_product_finished_weight_kg(db: Session, product_name: str, norms_cache: dict = None) -> float:
+    if norms_cache is not None:
+        norm = norms_cache.get(product_name)
+        if not norm or not getattr(norm, 'weight_kg', None):
+            if product_name == "Шифер 7 волн гладкий":
+                norm = norms_cache.get("Шифер 7 волн глад")
+            elif product_name == "Шифер 7 волн глад":
+                norm = norms_cache.get("Шифер 7 волн гладкий")
+            elif product_name == "Шифер 8 волн гладкий":
+                norm = norms_cache.get("Шифер 8 волн глад")
+            elif product_name == "Шифер 8 волн глад":
+                norm = norms_cache.get("Шифер 8 волн гладкий")
+    else:
+        norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
+        if not norm or not norm.weight_kg:
+            if product_name == "Шифер 7 волн гладкий":
+                norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн глад").first()
+            elif product_name == "Шифер 7 волн глад":
+                norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 7 волн гладкий").first()
+            elif product_name == "Шифер 8 волн гладкий":
+                norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн глад").first()
+            elif product_name == "Шифер 8 волн глад":
+                norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == "Шифер 8 волн гладкий").first()
+    if norm and getattr(norm, 'weight_kg', None):
         return norm.weight_kg
     p = (product_name or "").lower()
     if "7 волн 3500" in p or "3500*980" in p:
@@ -48,7 +60,15 @@ def get_shift_plan(db: Session, shift) -> int:
     return 2700 if shift.shift_name == "День" else 3300
 
 def generate_flat_report(db: Session) -> bytes:
-    shifts = db.query(models.Shift).filter(models.Shift.status == "closed").order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
+    shifts = db.query(models.Shift).filter(models.Shift.status == "closed").options(
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.batches),
+        selectinload(models.Shift.receipts),
+        selectinload(models.Shift.downtimes),
+        selectinload(models.Shift.master)
+    ).order_by(models.Shift.date.asc(), models.Shift.line.asc(), models.Shift.shift_name.asc(), models.Shift.batch_number.asc(), models.Shift.id.asc()).all()
+    
+    norms_cache = {n.product_name: n for n in db.query(models.ProductNorm).all()}
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -100,7 +120,7 @@ def generate_flat_report(db: Session) -> bytes:
         # Проверяем, есть ли плановые или фактические показатели производства в смене
         plan_sheets_check = s.plan_sheets or 0
         formovka_sheets_check = sum(r.lfm_sheets for r in s.lfm_reports)
-        warehouse_gp_check = sum(b.qcd_condition for b in s.batches)
+        warehouse_gp_check = sum((b.qcd_condition if b.qcd_verified else ((b.ds_condition or 0) + (b.prev_condition or 0))) for b in s.batches)
         zo_batches_check = s.zo_batches or 0
         
         if plan_sheets_check == 0 and formovka_sheets_check == 0 and warehouse_gp_check == 0 and zo_batches_check == 0 and not s.zo_submitted:
@@ -117,12 +137,15 @@ def generate_flat_report(db: Session) -> bytes:
         
         # Formovka sheets and tons
         formovka_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
-        formovka_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) for r in s.lfm_reports) / 1000.0
+        formovka_tons = sum(
+            r.lfm_sheets * (norms_cache[r.product_name].weight_kg if (r.product_name in norms_cache and getattr(norms_cache[r.product_name], 'weight_kg', None)) else get_product_finished_weight_kg(db, r.product_name, norms_cache))
+            for r in s.lfm_reports
+        ) / 1000.0
         
         # Quality (QCD / СКК)
-        qcd_condition = sum(b.qcd_condition for b in s.batches)
-        qcd_first = sum(b.qcd_first_grade for b in s.batches)
-        qcd_defect = sum(b.qcd_defect for b in s.batches)
+        qcd_condition = warehouse_gp_check
+        qcd_first = sum((b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))) for b in s.batches)
+        qcd_defect = sum((b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))) for b in s.batches)
         
         # Wind resets
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
@@ -135,7 +158,7 @@ def generate_flat_report(db: Session) -> bytes:
             "asbozurit": 0.0, "fiberglass": 0.0, "asbocarton": 0.0, "laprol": 0.0
         }
         for r in s.lfm_reports:
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == r.product_name).first()
+            norm = norms_cache.get(r.product_name)
             if norm:
                 theory["chrysotile_4_20"] += r.lfm_sheets * (norm.norm_chrysotile_4_20 or 0.0)
                 theory["chrysotile_5_65"] += r.lfm_sheets * (norm.norm_chrysotile_5_65 or 0.0)
@@ -420,11 +443,12 @@ def sync_directories_from_excel_bytes(file_bytes: bytes, db: Session):
 
 def generate_full_backup_excel(db: Session) -> bytes:
     """
-    Генерирует единую комплексную книгу Excel (.xlsx), содержащую 4 полных листа:
+    Генерирует единую комплексную книгу Excel (.xlsx), содержащую 5 полных листов:
     1. «Сводный отчет» (43 колонки: производство, расходы сырья, силосы, отклонения)
     2. «Приход сырья» (18 колонок: дата, смена, линия, мастер, все виды сырья)
     3. «Простои» (9 колонок: дата, смена, линия, мастер, описание, время, остановка оборудования)
-    4. «Переборка» (19 колонок: партии, 7 дефектов своей смены, 7 дефектов прошлой смены)
+    4. «Переборка» (22 колонки: чистый сменный журнал дестакера цеха ХЦИ)
+    5. «Акты переборки СКК» (27 колонок: официальный реестр актов разбраковки СКК со всеми 14 дефектами)
     В точности соответствует колонкам и структуре Google Таблиц.
     """
     from sqlalchemy import func
@@ -476,13 +500,21 @@ def generate_full_backup_excel(db: Session) -> bytes:
         cell.border = border_thin
 
     # Включаем как закрытые, так и все существующие смены для полноценного бэкапа
-    shifts = db.query(models.Shift).order_by(
+    shifts = db.query(models.Shift).options(
+        selectinload(models.Shift.lfm_reports),
+        selectinload(models.Shift.batches),
+        selectinload(models.Shift.receipts),
+        selectinload(models.Shift.downtimes),
+        selectinload(models.Shift.master)
+    ).order_by(
         models.Shift.date.asc(),
         models.Shift.line.asc(),
         models.Shift.shift_name.asc(),
         models.Shift.batch_number.asc(),
         models.Shift.id.asc()
     ).all()
+    
+    norms_cache = {n.product_name: n for n in db.query(models.ProductNorm).all()}
     
     for s in shifts:
         date_str = s.date.strftime("%d.%m.%Y") if s.date else ""
@@ -495,11 +527,14 @@ def generate_full_backup_excel(db: Session) -> bytes:
             product_names = s.product_name
             
         formovka_sheets = sum(r.lfm_sheets for r in s.lfm_reports)
-        formovka_tons = sum(r.lfm_sheets * get_product_finished_weight_kg(db, r.product_name) for r in s.lfm_reports) / 1000.0
+        formovka_tons = sum(
+            r.lfm_sheets * (norms_cache[r.product_name].weight_kg if (r.product_name in norms_cache and getattr(norms_cache[r.product_name], 'weight_kg', None)) else get_product_finished_weight_kg(db, r.product_name, norms_cache))
+            for r in s.lfm_reports
+        ) / 1000.0
         
-        qcd_condition = sum(((b.ds_condition or 0) + (b.prev_condition or 0)) for b in s.batches)
-        qcd_first = sum(((b.ds_first_grade or 0) + (b.prev_first_grade or 0)) for b in s.batches)
-        qcd_defect = sum(b.ds_defect for b in s.batches)
+        qcd_condition = sum((b.qcd_condition if b.qcd_verified else ((b.ds_condition or 0) + (b.prev_condition or 0))) for b in s.batches)
+        qcd_first = sum((b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))) for b in s.batches)
+        qcd_defect = sum((b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))) for b in s.batches)
         wind_resets = sum(r.lfm_wind_resets for r in s.lfm_reports)
         cart_resets = sum((getattr(r, 'lfm_cart_resets', 0) or 0) for r in s.lfm_reports)
         
@@ -509,7 +544,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
             "asbozurit": 0.0, "fiberglass": 0.0, "asbocarton": 0.0, "laprol": 0.0
         }
         for r in s.lfm_reports:
-            norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == r.product_name).first()
+            norm = norms_cache.get(r.product_name)
             if norm:
                 theory["chrysotile_4_20"] += r.lfm_sheets * (norm.norm_chrysotile_4_20 or 0.0)
                 theory["chrysotile_5_65"] += r.lfm_sheets * (norm.norm_chrysotile_5_65 or 0.0)
@@ -751,7 +786,7 @@ def generate_full_backup_excel(db: Session) -> bytes:
     # -------------------------------------------------------------
     ws4 = wb.create_sheet(title="Переборка")
     ws4.views.sheetView[0].showGridLines = True
-    ws4.freeze_panes = "G2"  # Закрепление 1 строки и столбцов A:F (№ партии ... Продукт)
+    ws4.freeze_panes = "C2"  # Закрепление 1 строки и столбцов A:B (№ партии, Дата)
     headers4 = [
         "№ партии", "Дата", "День нед.", "Время смены", "Мастер ЛФМ", "Продукт", "Формовка, шт",
         "Смена", "ГП своя, шт", "1 сорт, шт", "Брак, шт", "% брака", "Детализация брака",
@@ -768,19 +803,30 @@ def generate_full_backup_excel(db: Session) -> bytes:
         cell.border = border_thin
         
     all_schedules = {s.date_str: s for s in db.query(models.ShiftScheduleEntry).all()}
-    shifts_lookup = {(s.date.strftime("%Y-%m-%d") if s.date else "", s.shift_name, s.line): s for s in db.query(models.Shift).all()}
+    shifts_lookup = {(s.date.strftime("%Y-%m-%d") if s.date else "", s.shift_name, s.line): s for s in db.query(models.Shift).options(selectinload(models.Shift.master)).all()}
     
     from sqlalchemy import case, cast, Integer
-    batches = db.query(models.Batch).join(models.Shift).order_by(
-        models.Shift.date.asc(),
-        case(
-            (models.Shift.shift_name.ilike('%день%'), 1),
-            (models.Shift.shift_name.ilike('%ночь%'), 2),
-            else_=3
-        ).asc(),
-        cast(models.Batch.batch_number, Integer).asc(),
-        models.Batch.id.asc()
-    ).all()
+    start_filter_date = date(2026, 9, 1)
+    batches = (
+        db.query(models.Batch)
+        .join(models.Shift)
+        .options(
+            selectinload(models.Batch.shift).selectinload(models.Shift.master),
+            selectinload(models.Batch.shift).selectinload(models.Shift.lfm_reports)
+        )
+        .filter(models.Shift.date >= start_filter_date)
+        .order_by(
+            models.Shift.date.asc(),
+            case(
+                (models.Shift.shift_name.ilike('%день%'), 1),
+                (models.Shift.shift_name.ilike('%ночь%'), 2),
+                else_=3
+            ).asc(),
+            cast(models.Batch.batch_number, Integer).asc(),
+            models.Batch.id.asc()
+        )
+        .all()
+    )
     
     days_map = {0: "Пн", 1: "Вт", 2: "Ср", 3: "Чт", 4: "Пт", 5: "Сб", 6: "Вс"}
     for b in batches:
@@ -894,6 +940,99 @@ def generate_full_backup_excel(db: Session) -> bytes:
             if len(val_str) > max_len: max_len = len(val_str)
         col_letter = get_column_letter(col[0].column)
         ws4.column_dimensions[col_letter].width = max(max_len + 3, 12)
+
+    # -------------------------------------------------------------
+    # ЛИСТ 5: Акты переборки СКК
+    # -------------------------------------------------------------
+    ws5 = wb.create_sheet(title="Акты переборки СКК")
+    ws5.views.sheetView[0].showGridLines = True
+    ws5.freeze_panes = "C2"  # Закрепление 1 строки и столбцов A:B (№ Акта, Дата акта)
+    headers5 = [
+        "№ Акта", "Дата акта", "Инспектор СКК", "Продукция",
+        "Выбранные смены", "Партии / Мастера", "Формовка ЛФМ (шт)",
+        "1 Сорт (ИТОГО)", "Скол", "Сдир", "Плох. рез", "Налип низ", "Налип верх",
+        "Кривой край", "Нет рис.", "Вмятина", "Толщина", "Расслоение", "Выпир. кромки", "Прочий 1 сорт",
+        "БРАК (ИТОГО)", "Упал коробки", "Сломан", "Техн. брак",
+        "% Брака", "Причины / Виновники / Замечания", "Дата фиксации (UTC)"
+    ]
+    ws5.append(headers5)
+    ws5.row_dimensions[1].height = 28
+    for col_idx in range(1, len(headers5) + 1):
+        cell = ws5.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.border = border_thin
+
+    import json
+    reports = db.query(models.QcdSortingReport).order_by(
+        models.QcdSortingReport.act_date.asc(),
+        models.QcdSortingReport.id.asc()
+    ).all()
+
+    for r in reports:
+        try:
+            fg = json.loads(r.first_grade_details) if r.first_grade_details else {}
+        except Exception:
+            fg = {}
+        try:
+            defects = json.loads(r.defect_details) if r.defect_details else {}
+        except Exception:
+            defects = {}
+        try:
+            shifts_data = json.loads(r.shifts_breakdown) if r.shifts_breakdown else []
+            shift_names = ", ".join(f"{s.get('date', '')} {s.get('shift_name', '')}" for s in shifts_data if isinstance(s, dict))
+            parties_masters = ", ".join(f"№{s.get('batch_number', '')} ({s.get('master_name', '')})" for s in shifts_data if isinstance(s, dict))
+        except Exception:
+            shift_names = str(r.selected_shift_ids or "")
+            parties_masters = ""
+
+        row5 = [
+            r.act_number or f"СКК-{r.id}",
+            r.act_date.strftime("%d.%m.%Y") if r.act_date else "",
+            r.inspector_name or "",
+            r.product_name or "Шифер 8 волн",
+            shift_names,
+            parties_masters,
+            r.total_formed or 0,
+            r.first_grade_total or 0,
+            fg.get("chip", 0),
+            fg.get("scratch", 0),
+            fg.get("bad_cut", 0),
+            fg.get("stick_bottom", 0),
+            fg.get("stick_top", 0),
+            fg.get("curved_edge", 0),
+            fg.get("no_pattern", 0),
+            fg.get("dent", 0),
+            fg.get("thickness", 0),
+            fg.get("delamination", 0),
+            fg.get("edge_bulge", fg.get("edge", 0)),
+            fg.get("other", 0),
+            r.defect_total or 0,
+            defects.get("fell_box", 0),
+            defects.get("broken", 0),
+            defects.get("tech_defect", defects.get("tech", 0)),
+            f"{r.defect_percentage:.2f}%" if r.defect_percentage is not None else "0.00%",
+            r.notes or "",
+            r.created_at.strftime("%d.%m.%Y %H:%M") if r.created_at else ""
+        ]
+        ws5.append(row5)
+        curr_row = ws5.max_row
+        for col_idx in range(1, len(headers5) + 1):
+            cell = ws5.cell(row=curr_row, column=col_idx)
+            cell.border = border_thin
+            if col_idx in [1, 2, 3, 4, 5, 6, 26, 27]:
+                cell.alignment = Alignment(horizontal="left")
+            else:
+                cell.alignment = Alignment(horizontal="right")
+
+    for col in ws5.columns:
+        max_len = 0
+        for cell in col:
+            val_str = str(cell.value or '')
+            if len(val_str) > max_len: max_len = len(val_str)
+        col_letter = get_column_letter(col[0].column)
+        ws5.column_dimensions[col_letter].width = max(max_len + 3, 12)
         
     out = io.BytesIO()
     wb.save(out)

@@ -320,6 +320,7 @@ class Batch(Base):
     qcd_verified_by = Column(String(150), nullable=True)
     qcd_root_cause = Column(Text, nullable=True)
     qcd_notes = Column(Text, nullable=True)
+    qcd_act_number = Column(String(50), nullable=True)
     
     shift = relationship("Shift", back_populates="batches")
 
