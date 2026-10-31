@@ -13,10 +13,10 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css?v=20261031_docs_mobile_v3">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261031_docs_mobile_v4">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v3">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v4">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -270,20 +270,23 @@
 
         .folder-tree-toggle {
             cursor: pointer;
-            width: 22px;
-            height: 22px;
+            width: 40px;
+            min-width: 40px;
+            height: 40px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             color: var(--docs-text-muted);
-            font-size: 0.7rem;
-            transition: transform 0.2s ease;
-            border-radius: 4px;
+            font-size: 0.8rem;
+            transition: transform 0.2s ease, background 0.15s ease, color 0.15s ease;
+            border-radius: 6px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .folder-tree-toggle:hover {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.05);
             color: var(--docs-text-primary);
         }
 
@@ -323,7 +326,7 @@
         }
 
         .folder-tree-node {
-            margin-left: 11px;
+            margin-left: 20px;
             border-left: 1px dashed var(--docs-sidebar-border);
             padding-left: 4px;
             display: none;
@@ -2051,24 +2054,28 @@
             color: #2563eb !important;
         }
 
-        .folder-badge-count {
-            font-size: 0.68rem;
+        .folder-badge-count,
+        .tree-count-badge {
+            font-size: 0.7rem;
             font-weight: 600;
             color: #64748b;
             background: #f1f5f9;
-            padding: 0 5px;
+            padding: 1px 6px;
             border-radius: 10px;
             margin-left: auto;
             flex-shrink: 0;
             min-width: 18px;
             height: 18px;
-            line-height: 18px;
-            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
             box-sizing: border-box;
             transition: all 0.15s;
         }
 
-        .folder-item-tree.active .folder-badge-count {
+        .folder-item-tree.active .folder-badge-count,
+        .folder-item-tree.active .tree-count-badge {
             background: #2563eb;
             color: #ffffff;
         }
@@ -2241,6 +2248,61 @@
             padding: 2px 5px;
             border-radius: 4px;
             pointer-events: none;
+        }
+
+        .stitch-search-clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+            z-index: 3;
+        }
+
+        .stitch-search-clear-btn:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .btn-folder-back {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #334155;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .btn-folder-back:hover {
+            background: #f8fafc;
+            color: #1e293b;
+            border-color: #94a3b8;
+        }
+
+        .btn-folder-back:active {
+            transform: scale(0.97);
         }
 
         /* Stitch Workspace Container: White Floating Card */
@@ -2960,18 +3022,9 @@
                 display: none !important;
             }
 
+            #btn-sync-titles,
             .btn-modern-secondary#btn-sync-titles {
-                height: 36px !important;
-                width: 36px !important;
-                min-width: 36px !important;
-                padding: 0 !important;
-                border-radius: 8px !important;
-                display: inline-flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                background: #ffffff !important;
-                border: 1px solid #cbd5e1 !important;
-                color: #475569 !important;
+                display: none !important;
             }
 
             /* Hide Planner link and duplicate User Session badge in top command bar on mobile (already in mobile header) */
@@ -3377,10 +3430,7 @@
             }
         }
 
-        
-        .folder-badge-count {
-            display: none !important;
-        }
+
 
         
         /* Batch Selection Styling */
@@ -3542,7 +3592,10 @@
                     <div class="stitch-search-box">
                         <i class="fas fa-search"></i>
                         <input type="text" id="search-input" class="stitch-search-input" placeholder="Поиск в Базе Знаний..."
-                            oninput="handleSearch(this.value)" autocomplete="off">
+                            oninput="handleSearch(this.value)" onkeydown="if(event.key==='Escape') clearSearch()" autocomplete="off">
+                        <button type="button" id="search-clear-btn" class="stitch-search-clear-btn" onclick="clearSearch()" title="Очистить поиск" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
                         <span class="stitch-kbd-shortcut">Ctrl+K</span>
                     </div>
 
@@ -3611,12 +3664,11 @@
                         <i class="fa-solid fa-folder-open"></i>
                     </div>
                     <div class="stitch-title-meta">
-                        <h1>
-                            <button id="btn-back" class="btn-back" style="display: none; height: 32px; font-size: 0.8rem; padding: 0 10px;" onclick="goUp()" title="Назад в родительскую папку">
-                                <i class="fas fa-arrow-left"></i> Назад
+                        <h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <button id="btn-folder-back" class="btn-folder-back btn-back" style="display: none;" onclick="goUp()" title="Назад в родительскую папку">
+                                <i class="fas fa-arrow-left"></i> <span>Назад в родительскую папку</span>
                             </button>
                             <span id="current-folder-name">Все документы</span>
-                            
                         </h1>
                         <p id="current-folder-desc">Официальные производственные бланки, чек-листы Kaizen и типовые формы цеха</p>
                     </div>
@@ -4079,6 +4131,11 @@
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script>
         let currentFolderId = null;
+        let lastNavigatedFolderId = null;
+        let lastNavigatedFolderName = 'Все документы';
+        let lastNavigatedFolderProtected = false;
+        let isSearchActive = false;
+        let sidebarFolderMap = {};
         let parentFolderIdHistory = [];
         let folderNameHistory = [];
         let searchTimeout = null;
@@ -4086,6 +4143,7 @@
         let currentFoldersData = [];
         let currentFilesData = [];
         let currentDocTypeFilter = 'all';
+        let currentLoadToken = 0;
 
         function setDocTypeFilter(filterKey) {
             currentDocTypeFilter = filterKey;
@@ -4578,16 +4636,24 @@
         }
 
         function navigateToRootFolder() {
+            clearTimeout(searchTimeout);
             parentFolderIdHistory = [];
             folderNameHistory = [];
             const searchInput = document.getElementById('search-input');
             if (searchInput) searchInput.value = '';
+            const clearBtn = document.getElementById('search-clear-btn');
+            if (clearBtn) clearBtn.style.display = 'none';
+            const kbdShortcut = document.querySelector('.stitch-kbd-shortcut');
+            if (kbdShortcut) kbdShortcut.style.display = 'inline-block';
+            isSearchActive = false;
+
             document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
             const bcText = document.getElementById('breadcrumb-current-text');
             if (bcText) bcText.textContent = 'Все документы';
             if (window.innerWidth <= 900) {
                 toggleDocsSidebar(false);
             }
+            syncActiveFolderInTree(null);
             loadDocuments(null, 'Все документы', false);
         }
 
@@ -4595,12 +4661,22 @@
 
         async function loadDocuments(folderId = null, folderName = 'Все документы', addToHistory = true, searchQuery = null, isProtected = false) {
             clearSelection();
+            const thisToken = ++currentLoadToken;
+
             // Optimistic update of title, breadcrumbs and count badge immediately before network fetch
             const folderTitleEl = document.getElementById('current-folder-name');
             if (folderTitleEl) folderTitleEl.innerText = folderName;
             const bcText = document.getElementById('breadcrumb-current-text');
             if (bcText) bcText.textContent = folderName;
 
+            const btnBack = document.getElementById('btn-folder-back') || document.getElementById('btn-back');
+            if (btnBack) {
+                if (folderId !== null && !searchQuery) {
+                    btnBack.style.display = 'inline-flex';
+                } else {
+                    btnBack.style.display = 'none';
+                }
+            }
             
             if (isProtected) {
                 if (!await ensurePassword(true, folderId)) {
@@ -4613,6 +4689,12 @@
 
             // Сохраняем текущую папку в URL hash для сохранения позиции при F5
             if (!searchQuery) {
+                currentFolderId = folderId;
+                lastNavigatedFolderId = folderId;
+                lastNavigatedFolderName = folderName;
+                lastNavigatedFolderProtected = isProtected;
+                syncActiveFolderInTree(folderId);
+
                 if (folderId) {
                     window.location.hash = folderId;
                     sessionStorage.setItem('last_docs_folder_id', folderId);
@@ -4640,11 +4722,12 @@
                     document.getElementById('current-folder-name').innerText = folderName;
                     const bcText = document.getElementById('breadcrumb-current-text');
                     if (bcText) bcText.textContent = folderName;
-                    const btnBack = document.getElementById('btn-back');
-                    if (parentFolderIdHistory.length > 0) {
-                        btnBack.style.display = 'inline-flex';
-                    } else {
-                        btnBack.style.display = 'none';
+                    if (btnBack) {
+                        if (currentFolderId !== null && !searchQuery) {
+                            btnBack.style.display = 'inline-flex';
+                        } else {
+                            btnBack.style.display = 'none';
+                        }
                     }
                     currentFoldersData = cached.folders;
                     currentFilesData = cached.files;
@@ -4669,6 +4752,10 @@
                 const res = await fetch(url);
                 const data = await res.json();
 
+                if (thisToken !== currentLoadToken) {
+                    return; // Stale async response discarded
+                }
+
                 if (data.status === 'success' && data.data) {
                     if (addToHistory && currentFolderId !== folderId && !searchQuery) {
                         if (currentFolderId) {
@@ -4687,16 +4774,18 @@
                             files: filesList,
                             timestamp: Date.now()
                         });
+                        syncActiveFolderInTree(folderId);
                     }
                     document.getElementById('current-folder-name').innerText = folderName;
                     const bcText = document.getElementById('breadcrumb-current-text');
                     if (bcText) bcText.textContent = folderName;
 
-                    const btnBack = document.getElementById('btn-back');
-                    if (parentFolderIdHistory.length > 0 && !searchQuery) {
-                        btnBack.style.display = 'inline-flex';
-                    } else {
-                        btnBack.style.display = 'none';
+                    if (btnBack) {
+                        if (folderId !== null && !searchQuery) {
+                            btnBack.style.display = 'inline-flex';
+                        } else {
+                            btnBack.style.display = 'none';
+                        }
                     }
 
                     currentFoldersData = foldersList;
@@ -4707,6 +4796,7 @@
                     container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка: ${data.message || data.detail || 'Не удалось получить данные'}</div>`;
                 }
             } catch (error) {
+                if (thisToken !== currentLoadToken) return;
                 console.error("Error loading documents:", error);
                 container.innerHTML = `<div style="color: #ef4444; padding: 2rem; text-align: center;">Ошибка загрузки данных: ${error.message || error}</div>`;
             }
@@ -4714,14 +4804,43 @@
 
         function handleSearch(query) {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                const trimmed = query.trim();
-                if (trimmed.length > 0) {
-                    loadDocuments(null, `Результаты: "${trimmed}"`, false, trimmed);
-                } else {
-                    loadDocuments(currentFolderId, document.getElementById('current-folder-name').innerText, false);
+            const clearBtn = document.getElementById('search-clear-btn');
+            const kbdShortcut = document.querySelector('.stitch-kbd-shortcut');
+            const trimmed = (query || '').trim();
+
+            if (clearBtn) {
+                clearBtn.style.display = (query && query.length > 0) ? 'inline-flex' : 'none';
+            }
+            if (kbdShortcut) {
+                kbdShortcut.style.display = (query && query.length > 0) ? 'none' : 'inline-block';
+            }
+
+            if (trimmed === '') {
+                if (isSearchActive) {
+                    isSearchActive = false;
+                    loadDocuments(lastNavigatedFolderId, lastNavigatedFolderName, false, null, lastNavigatedFolderProtected);
                 }
-            }, 300);
+                return;
+            }
+
+            isSearchActive = true;
+            searchTimeout = setTimeout(() => {
+                loadDocuments(null, `Результаты: "${trimmed}"`, false, trimmed);
+            }, 150);
+        }
+
+        function clearSearch() {
+            clearTimeout(searchTimeout);
+            const input = document.getElementById('search-input');
+            if (input) {
+                input.value = '';
+                if (window.innerWidth > 768) {
+                    input.focus();
+                } else {
+                    input.blur();
+                }
+            }
+            handleSearch('');
         }
 
         async function loadSidebarTree() {
@@ -4749,6 +4868,7 @@
                         f.files = [];
                         folderMap[f.id] = f;
                     });
+                    sidebarFolderMap = folderMap;
 
                     files.forEach(f => {
                         if (f.parent_id && folderMap[f.parent_id]) {
@@ -4766,16 +4886,105 @@
                         }
                     });
 
+                    // 1. Root Element: «Все документы цеха» with count badge
+                    const totalAllItems = folders.length + files.length;
+                    sidebar.appendChild(renderTreeRootItem(totalAllItems));
+
+                    // 2. Root Folders
                     rootFolders.forEach(root => {
                         sidebar.appendChild(renderTreeNode(root));
                     });
 
+                    // 3. Root Files
                     rootFiles.forEach(rf => {
                         sidebar.appendChild(renderTreeFileNode(rf));
                     });
+
+                    // Synchronize active folder in tree
+                    syncActiveFolderInTree(currentFolderId || lastNavigatedFolderId);
                 }
             } catch (error) {
                 console.error("Tree load error:", error);
+            }
+        }
+
+        function renderTreeRootItem(totalCount) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'folder-item-wrapper folder-root-wrapper';
+
+            const spacer = document.createElement('div');
+            spacer.className = 'folder-tree-toggle';
+            spacer.style.visibility = 'hidden';
+
+            const item = document.createElement('div');
+            item.className = 'folder-item-tree root-folder-item';
+            item.id = 'tree-root-folder-item';
+            if (!currentFolderId) {
+                item.classList.add('active');
+            }
+
+            const countBadge = totalCount > 0 ? `<span class="tree-count-badge">${totalCount}</span>` : '';
+
+            item.innerHTML = `<i class="fas fa-folder-open" style="color: #2563eb; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 600;">Все документы цеха</span>${countBadge}`;
+
+            item.onclick = () => {
+                navigateToRootFolder();
+            };
+
+            wrapper.appendChild(spacer);
+            wrapper.appendChild(item);
+            return wrapper;
+        }
+
+        function syncActiveFolderInTree(folderId) {
+            document.querySelectorAll('#sidebar-folders .folder-item-tree').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            if (!folderId || folderId === 'root') {
+                const rootItem = document.getElementById('tree-root-folder-item');
+                if (rootItem) rootItem.classList.add('active');
+                return;
+            }
+
+            const strId = String(folderId);
+            let targetItem = null;
+            try {
+                targetItem = document.querySelector(`#sidebar-folders .folder-item-tree[data-folder-id="${CSS.escape(strId)}"]`);
+            } catch (e) {
+                targetItem = document.querySelector(`#sidebar-folders .folder-item-tree[data-folder-id="${strId}"]`);
+            }
+            if (targetItem) {
+                targetItem.classList.add('active');
+                try {
+                    targetItem.scrollIntoView({ block: 'nearest' });
+                } catch (e) {}
+            }
+
+            let currId = folderId;
+            const visited = new Set();
+            while (currId && sidebarFolderMap && sidebarFolderMap[currId] && !visited.has(String(currId))) {
+                visited.add(String(currId));
+                const parentId = sidebarFolderMap[currId].parent_id;
+                if (parentId) {
+                    expandedFolders.add(parentId);
+                    const parentStrId = String(parentId);
+                    let parentWrapper = null;
+                    try {
+                        parentWrapper = document.querySelector(`#sidebar-folders .folder-tree-wrapper[data-folder-id="${CSS.escape(parentStrId)}"]`);
+                    } catch (e) {
+                        parentWrapper = document.querySelector(`#sidebar-folders .folder-tree-wrapper[data-folder-id="${parentStrId}"]`);
+                    }
+                    if (parentWrapper) {
+                        const childrenContainer = parentWrapper.querySelector(':scope > .folder-tree-node');
+                        const toggle = parentWrapper.querySelector(':scope > .folder-item-wrapper > .folder-tree-toggle');
+                        if (childrenContainer) childrenContainer.classList.add('expanded');
+                        if (toggle) toggle.classList.add('expanded');
+                    }
+                    currId = parentId;
+                } else {
+                    break;
+                }
             }
         }
 
@@ -4810,6 +5019,8 @@
 
         function renderTreeNode(folder) {
             const wrapper = document.createElement('div');
+            wrapper.className = 'folder-tree-wrapper';
+            wrapper.dataset.folderId = folder.id;
 
             const header = document.createElement('div');
             header.className = 'folder-item-wrapper';
@@ -4821,6 +5032,7 @@
             toggle.className = 'folder-tree-toggle';
             if (hasChildren) {
                 toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                toggle.title = 'Развернуть / свернуть';
             } else {
                 toggle.innerHTML = '';
                 toggle.style.visibility = 'hidden';
@@ -4828,13 +5040,14 @@
 
             const item = document.createElement('div');
             item.className = 'folder-item-tree';
+            item.dataset.folderId = folder.id;
 
             const iconColor = getFolderColor(folder.name);
             const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено"></i>' : '';
-            const countBadge = '';
+            const countBadge = totalItemsCount > 0 ? `<span class="tree-count-badge">${totalItemsCount}</span>` : '';
 
             item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(folder.name)}</span>${lockIcon}${countBadge}`;
-            if (currentFolderId === folder.id) {
+            if (currentFolderId && String(currentFolderId) === String(folder.id)) {
                 item.classList.add('active');
             }
 
@@ -4862,13 +5075,19 @@
             };
 
             item.onclick = () => {
+                clearTimeout(searchTimeout);
                 expandedFolders.add(folder.id);
                 parentFolderIdHistory = [];
                 folderNameHistory = [];
                 const searchEl = document.getElementById('search-input');
                 if (searchEl) searchEl.value = '';
+                const clearBtn = document.getElementById('search-clear-btn');
+                if (clearBtn) clearBtn.style.display = 'none';
+                const kbdShortcut = document.querySelector('.stitch-kbd-shortcut');
+                if (kbdShortcut) kbdShortcut.style.display = 'inline-block';
+                isSearchActive = false;
 
-                document.querySelectorAll('.folder-item-tree').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('#sidebar-folders .folder-item-tree').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 if (hasChildren) {
                     childrenContainer.classList.add('expanded');
@@ -5002,9 +5221,21 @@
 
         function loadFolderById(folderId) {
             hideContextMenu();
+            clearTimeout(searchTimeout);
+            const searchEl = document.getElementById('search-input');
+            if (searchEl) searchEl.value = '';
+            const clearBtn = document.getElementById('search-clear-btn');
+            if (clearBtn) clearBtn.style.display = 'none';
+            const kbdShortcut = document.querySelector('.stitch-kbd-shortcut');
+            if (kbdShortcut) kbdShortcut.style.display = 'inline-block';
+            isSearchActive = false;
+
             const folder = currentFoldersData.find(f => String(f.id) === String(folderId));
             if (folder) {
                 loadDocuments(folder.id, folder.name, true, null, folder.is_protected);
+            } else if (sidebarFolderMap && sidebarFolderMap[folderId]) {
+                const f = sidebarFolderMap[folderId];
+                loadDocuments(f.id, f.name, true, null, f.is_protected);
             }
         }
 
@@ -5839,11 +6070,20 @@
         }
 
         function goUp() {
+            clearTimeout(searchTimeout);
+            clearSearch();
             if (parentFolderIdHistory.length > 0) {
                 const prevId = parentFolderIdHistory.pop();
-                const prevName = folderNameHistory.pop();
-                document.getElementById('search-input').value = '';
-                loadDocuments(prevId, prevName, false);
+                const prevName = folderNameHistory.pop() || 'Все документы';
+                const isProt = (prevId && sidebarFolderMap && sidebarFolderMap[prevId]?.is_protected) || false;
+                loadDocuments(prevId, prevName, false, null, isProt);
+            } else if (currentFolderId && sidebarFolderMap && sidebarFolderMap[currentFolderId]?.parent_id) {
+                const parentId = sidebarFolderMap[currentFolderId].parent_id;
+                const parentName = sidebarFolderMap[parentId]?.name || 'Все документы';
+                const isProt = sidebarFolderMap[parentId]?.is_protected || false;
+                loadDocuments(parentId, parentName, false, null, isProt);
+            } else {
+                navigateToRootFolder();
             }
         }
 
@@ -7536,6 +7776,11 @@
             }
 
             // Навигация по папкам при свайпе назад
+            if (isSearchActive) {
+                clearSearch();
+                return;
+            }
+
             const hash = window.location.hash ? window.location.hash.substring(1) : null;
             if (hash && hash !== currentFolderId) {
                 const savedFolderName = sessionStorage.getItem('last_docs_folder_name') || 'Папка';
@@ -7544,11 +7789,23 @@
                 navigateToRootFolder();
             }
         });
+
+        // Клавиатурный шорткат Ctrl+K / Cmd+K для быстрого перехода к поиску
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                const searchEl = document.getElementById('search-input');
+                if (searchEl) {
+                    searchEl.focus();
+                    searchEl.select();
+                }
+            }
+        });
     </script>
-    <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v3"></script>
-    <script src="/static/js/splash.js?v=20261031_docs_mobile_v3"></script>
-    <script src="/static/js/toast.js?v=20261031_docs_mobile_v3"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_docs_mobile_v3"></script>
+    <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v4"></script>
+    <script src="/static/js/splash.js?v=20261031_docs_mobile_v4"></script>
+    <script src="/static/js/toast.js?v=20261031_docs_mobile_v4"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261031_docs_mobile_v4"></script>
 </body>
 
 </html>
