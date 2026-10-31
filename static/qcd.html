@@ -1332,7 +1332,409 @@
                 border-color: #000000 !important;
             }
         }
+    
+        /* --- QCD ANALYTICS DASHBOARD STYLES --- */
+        .qcd-view-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .analytics-filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .period-btn-group {
+            display: inline-flex;
+            align-items: center;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .period-chip-btn {
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .period-chip-btn:hover {
+            color: #0f172a;
+            background: rgba(255,255,255,0.7);
+        }
+
+        .period-chip-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .analytics-select-styled {
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #1e293b;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* Material Balance Wide Card */
+        .balance-telemetry-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .balance-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 1024px) {
+            .balance-grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .balance-grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .telemetry-cell {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 82px;
+        }
+
+        .telemetry-cell.cell-buffer {
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+
+        .telemetry-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .telemetry-val-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-top: 4px;
+        }
+
+        .telemetry-val {
+            font-size: 1.45rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            color: #0f172a;
+        }
+
+        .telemetry-val.val-blue { color: #1d4ed8; }
+        .telemetry-val.val-amber { color: #b45309; }
+        .telemetry-val.val-green { color: #15803d; }
+        .telemetry-val.val-red { color: #b91c1c; }
+
+        .telemetry-badge {
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Distribution Progress Bar */
+        .distribution-progress-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .distribution-progress-bar {
+            height: 12px;
+            width: 100%;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+        }
+
+        .prog-cond { background: #16a34a; transition: width 0.3s ease; }
+        .prog-fg { background: #f59e0b; transition: width 0.3s ease; }
+        .prog-def { background: #dc2626; transition: width 0.3s ease; }
+
+        .distribution-legend {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            margin-right: 4px;
+        }
+
+        /* 4 KPI Cards */
+        .kpi-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 1024px) {
+            .kpi-cards-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .kpi-cards-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .kpi-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            border-left: 4px solid #94a3b8;
+        }
+
+        .kpi-card.kpi-cond { border-left-color: #16a34a; }
+        .kpi-card.kpi-fg { border-left-color: #f59e0b; }
+        .kpi-card.kpi-def { border-left-color: #dc2626; }
+        .kpi-card.kpi-vol { border-left-color: #2563eb; }
+
+        /* Pareto Split Layout */
+        .pareto-split-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 14px;
+            align-items: stretch;
+        }
+
+        @media (max-width: 1100px) {
+            .pareto-split-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pareto-chart-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pareto-slice-tabs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pareto-slice-btn {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .pareto-slice-btn:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .pareto-slice-btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .pareto-canvas-container {
+            position: relative;
+            height: 290px;
+            width: 100%;
+        }
+
+        /* Defect Side Lists */
+        .defects-breakdown-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .defect-stat-row {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+        }
+
+        .defect-stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.76rem;
+        }
+
+        .mini-progress {
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .mini-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        /* Matrix Table */
+        .matrix-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+
+        .matrix-table th {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 2px solid #cbd5e1;
+            white-space: nowrap;
+        }
+
+        .matrix-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #1e293b;
+        }
+
+        .matrix-table tr:hover td {
+            background: #f8fafc;
+        }
+
+        .status-pill-ok {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .status-pill-buffer {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .status-pill-excess {
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -1377,13 +1779,17 @@
         <!-- Навигационная панель -->
         <nav class="qcd-nav-bar">
             <div style="display: flex; align-items: center; gap: 8px;">
-                <button type="button" class="horizon-tab-btn active" id="tab-btn-sorting">
+                <button type="button" class="horizon-tab-btn active" id="tab-btn-sorting" onclick="switchQcdView('sorting')">
                     <i class="fa-solid fa-boxes-packing" style="color: var(--primary-red);"></i>
                     <span>Переборка</span>
                 </button>
                 <button type="button" class="horizon-tab-btn" id="tab-btn-acts" onclick="openActRegistryModal()">
                     <i class="fa-solid fa-file-contract" style="color: #2563eb;"></i>
                     <span>Акты переборки СКК</span>
+                </button>
+                <button type="button" class="horizon-tab-btn" id="tab-btn-analytics" onclick="switchQcdView('analytics')">
+                    <i class="fa-solid fa-chart-pie" style="color: #0284c7;"></i>
+                    <span>Аналитика дефектов и Парето</span>
                 </button>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1398,6 +1804,7 @@
             </div>
         </nav>
 
+        <div id="view-qcd-sorting" class="qcd-view-section">
         <!-- 1. КАНОНИЧЕСКИЙ СЕЛЕКТОР ПАРТИИ (SEARCHABLE PICKER) -->
         <div class="batch-selector-panel">
             <div style="display: flex; align-items: center; gap: 10px; flex: 1; position: relative;">
@@ -1640,7 +2047,317 @@
 
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: ОФИЦИАЛЬНЫЙ АКТ СКК И ПЕЧАТЬ А4 -->
+</div>
+        
+        <!-- ==================== 2. ВКЛАДКА АНАЛИТИКИ ДЕФЕКТОВ, ПАРЕТО И БУФЕРА ==================== -->
+        <div id="view-qcd-analytics" class="qcd-view-section" style="display: none;">
+
+            <!-- Панель фильтров аналитики -->
+            <div class="analytics-filter-bar">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">Период:</span>
+                    <div class="period-btn-group">
+                        <button type="button" class="period-chip-btn" id="qcd-period-7d" onclick="setQcdAnalyticsPeriod('7d')">7 дней</button>
+                        <button type="button" class="period-chip-btn active" id="qcd-period-30d" onclick="setQcdAnalyticsPeriod('30d')">30 дней</button>
+                        <button type="button" class="period-chip-btn" id="qcd-period-month" onclick="setQcdAnalyticsPeriod('month')">Этот месяц</button>
+                        <button type="button" class="period-chip-btn" id="qcd-period-quarter" onclick="setQcdAnalyticsPeriod('quarter')">Квартал</button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">Продукция:</span>
+                        <select id="qcd-analytics-prod-select" class="analytics-select-styled" onchange="onAnalyticsProductChange(this.value)">
+                            <option value="">Все позиции</option>
+                            <option value="Шифер 8 волн рифленый">Шифер 8 волн рифленый</option>
+                            <option value="Шифер 8 волн гладкий">Шифер 8 волн гладкий</option>
+                            <option value="Шифер 7 волн">Шифер 7 волн</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="btn-qcd-secondary" id="btn-refresh-analytics" onclick="loadQcdAnalyticsData()" style="height: 32px; font-size: 0.78rem;">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Обновить данные</span>
+                    </button>
+                    <span id="analytics-date-range-badge" class="picker-badge-party mono" style="font-size: 0.74rem;">—</span>
+                </div>
+            </div>
+
+            <!-- Блок 1: Сквозной материальный баланс и Буфер камеры созревания -->
+            <div class="balance-telemetry-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="width: 10px; height: 10px; border-radius: 50%; background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);"></span>
+                        <h2 style="margin: 0; font-size: 0.96rem; font-weight: 800; color: #0f172a;">
+                            Материальный баланс буфера камер созревания <span style="font-size: 0.8rem; font-weight: 500; color: #64748b;">(ХЦИ ➔ СКК)</span>
+                        </h2>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">Синхронизация СКК:</span>
+                        <span id="analytics-sync-time" class="mono" style="font-size: 0.72rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">Сегодня</span>
+                    </div>
+                </div>
+
+                <!-- 4 телеметрических блока -->
+                <div class="balance-grid-4">
+                    <!-- 1. Сформовано -->
+                    <div class="telemetry-cell">
+                        <div class="telemetry-label">
+                            <span>Сформовано (ЛФМ)</span>
+                            <i class="fa-solid fa-industry" style="color: #94a3b8;"></i>
+                        </div>
+                        <div class="telemetry-val-row">
+                            <span class="telemetry-val" id="buf-val-formed">0 <span style="font-size: 0.8rem; font-weight: 500; color: #64748b;">шт</span></span>
+                            <span class="telemetry-badge" style="background: #f1f5f9; color: #475569;">100% базы</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. Принято СКК -->
+                    <div class="telemetry-cell">
+                        <div class="telemetry-label">
+                            <span>Принято и перебрано СКК</span>
+                            <i class="fa-solid fa-clipboard-check" style="color: #2563eb;"></i>
+                        </div>
+                        <div class="telemetry-val-row">
+                            <span class="telemetry-val val-blue" id="buf-val-sorted">0 <span style="font-size: 0.8rem; font-weight: 500; color: #1d4ed8;">шт</span></span>
+                            <span class="telemetry-badge" id="buf-badge-sorted-pct" style="background: #dbeafe; color: #1d4ed8;">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Остаток в камере (Буфер) -->
+                    <div class="telemetry-cell cell-buffer">
+                        <div class="telemetry-label" style="color: #92400e;">
+                            <span><i class="fa-solid fa-layer-group" style="margin-right: 4px;"></i> Остаток в камере (Буфер)</span>
+                            <span class="telemetry-badge" id="buf-badge-status" style="background: #fde68a; color: #78350f;">На созревании</span>
+                        </div>
+                        <div class="telemetry-val-row">
+                            <span class="telemetry-val val-amber" id="buf-val-remainder">+0 <span style="font-size: 0.8rem; font-weight: 500; color: #92400e;">шт</span></span>
+                            <span class="mono" id="buf-val-remainder-pct" style="font-size: 0.78rem; font-weight: 700; color: #b45309;">0.0%</span>
+                        </div>
+                    </div>
+
+                    <!-- 4. Структура перебранного объема -->
+                    <div class="telemetry-cell">
+                        <div class="telemetry-label">
+                            <span>Структура выхода</span>
+                            <span class="mono" id="buf-val-total-sorted-mini" style="font-size: 0.72rem; color: #64748b;">0 шт</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: 4px;">
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 700;">ГОДНАЯ ГП</span>
+                                <span class="mono" id="buf-val-cond" style="font-size: 0.82rem; font-weight: 800; color: #15803d;">0</span>
+                            </div>
+                            <div style="height: 24px; width: 1px; background: #cbd5e1;"></div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 700;">1-Й СОРТ</span>
+                                <span class="mono" id="buf-val-fg" style="font-size: 0.82rem; font-weight: 800; color: #b45309;">0</span>
+                            </div>
+                            <div style="height: 24px; width: 1px; background: #cbd5e1;"></div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span style="font-size: 0.65rem; color: #64748b; font-weight: 700;">БРАК</span>
+                                <span class="mono" id="buf-val-def" style="font-size: 0.82rem; font-weight: 800; color: #b91c1c;">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Сегментированная полоса распределения -->
+                <div class="distribution-progress-wrap">
+                    <div class="distribution-progress-bar">
+                        <div id="prog-bar-cond" class="prog-cond" style="width: 100%;" title="Кондиция"></div>
+                        <div id="prog-bar-fg" class="prog-fg" style="width: 0%;" title="1-й сорт"></div>
+                        <div id="prog-bar-def" class="prog-def" style="width: 0%;" title="Брак"></div>
+                    </div>
+                    <div class="distribution-legend">
+                        <div style="display: flex; align-items: center;">
+                            <span class="legend-dot" style="background: #16a34a;"></span>
+                            <span>Кондиция ГП: <strong id="leg-cond-str">0 шт (0%)</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="legend-dot" style="background: #f59e0b;"></span>
+                            <span>1-й сорт (уценка): <strong id="leg-fg-str">0 шт (0%)</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span class="legend-dot" style="background: #dc2626;"></span>
+                            <span>Брак (бой/утиль): <strong id="leg-def-str">0 шт (0%)</strong> (Норматив ≤ 1.0%)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 2: 4 ключевые KPI карточки качества -->
+            <div class="kpi-cards-grid">
+                <!-- KPI 1 -->
+                <div class="kpi-card kpi-vol">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">Объем переборки СКК</span>
+                        <i class="fa-solid fa-boxes-stacked" style="color: #2563eb;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val" id="kpi-sorted-count">0 <span style="font-size: 0.82rem; color: #64748b; font-weight: 500;">шт</span></div>
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">За выбранный период</div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Суточный темп:</span>
+                        <strong class="mono" id="kpi-daily-rate" style="color: #0f172a;">0 шт/день</strong>
+                    </div>
+                </div>
+
+                <!-- KPI 2 -->
+                <div class="kpi-card kpi-cond">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">Кондиция ГП (Выход)</span>
+                        <i class="fa-solid fa-circle-check" style="color: #16a34a;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val val-green" id="kpi-cond-pct">0.0%</div>
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">Целевой норматив цеха: <strong>≥ 93.5%</strong></div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Годной на склад:</span>
+                        <strong class="mono" id="kpi-cond-count" style="color: #15803d;">0 шт</strong>
+                    </div>
+                </div>
+
+                <!-- KPI 3 -->
+                <div class="kpi-card kpi-fg">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">1-й сорт (Уценка)</span>
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val val-amber"><span id="kpi-fg-count">0</span> <span style="font-size: 0.82rem; color: #b45309;" id="kpi-fg-pct">(0.0%)</span></div>
+                        <div style="font-size: 0.74rem; color: #b45309; margin-top: 2px;">Главная причина: <strong id="kpi-fg-top">—</strong></div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Категорий дефектов:</span>
+                        <strong class="mono" id="kpi-fg-causes-count" style="color: #0f172a;">11 видов</strong>
+                    </div>
+                </div>
+
+                <!-- KPI 4 -->
+                <div class="kpi-card kpi-def">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <span style="font-size: 0.74rem; font-weight: 700; color: #475569; text-transform: uppercase;">% Брака СКК (Бой/Утиль)</span>
+                        <i class="fa-solid fa-circle-xmark" style="color: #dc2626;"></i>
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <div class="telemetry-val val-red"><span id="kpi-def-count">0</span> <span style="font-size: 0.82rem; color: #b91c1c;" id="kpi-def-pct">(0.0%)</span></div>
+                        <div style="font-size: 0.74rem; color: #b91c1c; margin-top: 2px;">Главная причина: <strong id="kpi-def-top">—</strong></div>
+                    </div>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 6px; font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between;">
+                        <span>Порог допуска:</span>
+                        <strong class="mono" style="color: #b91c1c;">≤ 1.00%</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 3: Диаграмма Парето 80/20 и Детализация причин -->
+            <div class="pareto-split-layout">
+                <!-- Левая колонка: График Парето -->
+                <div class="pareto-chart-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #0f172a;">
+                                Диаграмма Парето дефектов (Правило 80/20)
+                            </h3>
+                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                                Столбцы — число дефектов (шт), красная линия — накопленный процент потерь.
+                            </div>
+                        </div>
+
+                        <!-- Переключатель срезов -->
+                        <div class="pareto-slice-tabs">
+                            <button type="button" class="pareto-slice-btn active" id="btn-slice-all" onclick="setParetoSlice('all')">Все потери качества</button>
+                            <button type="button" class="pareto-slice-btn" id="btn-slice-fg" onclick="setParetoSlice('first_grade')">Только 1-й сорт</button>
+                            <button type="button" class="pareto-slice-btn" id="btn-slice-def" onclick="setParetoSlice('defect')">Только Брак</button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas график -->
+                    <div class="pareto-canvas-container">
+                        <canvas id="qcd-pareto-chart-canvas"></canvas>
+                    </div>
+
+                    <div style="font-size: 0.72rem; color: #64748b; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                        <span><strong style="color: #dc2626;">Линия 80%</strong> — зона «Vital Few»: устранение первых 2-3 дефектов снимет 80% всех потерь.</span>
+                        <span id="pareto-stats-hint" class="mono" style="font-weight: 700; color: #0f172a;">—</span>
+                    </div>
+                </div>
+
+                <!-- Правая колонка: Детализация причин 1-го сорта и Брака -->
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Топ 1-й сорт -->
+                    <div class="defects-breakdown-card">
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #fef3c7; padding-bottom: 6px;">
+                            <span style="font-size: 0.8rem; font-weight: 800; color: #92400e;">🟡 Причины 1-го сорта</span>
+                            <span id="panel-fg-total" class="mono" style="font-size: 0.76rem; font-weight: 800; color: #b45309;">0 шт</span>
+                        </div>
+                        <div id="panel-fg-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;">
+                            <!-- Заполняется динамически -->
+                        </div>
+                    </div>
+
+                    <!-- Топ Брак -->
+                    <div class="defects-breakdown-card">
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #fee2e2; padding-bottom: 6px;">
+                            <span style="font-size: 0.8rem; font-weight: 800; color: #991b1b;">🔴 Причины брака (Бой)</span>
+                            <span id="panel-def-total" class="mono" style="font-size: 0.76rem; font-weight: 800; color: #b91c1c;">0 шт</span>
+                        </div>
+                        <div id="panel-def-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;">
+                            <!-- Заполняется динамически -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Блок 4: Матрица качества по мастерам и сменам ХЦИ -->
+            <div class="matrix-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #0f172a;">
+                            Матрица качества по мастерам и сменам ХЦИ
+                        </h3>
+                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                            Сквозная связка: мастер формовки ➔ объем на ЛФМ ➔ переборка СКК ➔ остаток в буфере ➔ сортность
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="matrix-rows-count" class="picker-badge-party mono" style="font-size: 0.72rem;">0 партий</span>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th>Смена / Мастер</th>
+                                <th>Партия</th>
+                                <th style="text-align: right;">Формовка</th>
+                                <th style="text-align: right;">Перебрано</th>
+                                <th style="text-align: right;">Буфер камеры</th>
+                                <th style="text-align: right;">Кондиция ГП</th>
+                                <th>1-й сорт (шт / % / причина)</th>
+                                <th>Брак (шт / % / причина)</th>
+                                <th style="text-align: center;">Статус сходимости</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-table-body">
+                            <tr>
+                                <td colspan="9" style="text-align: center; color: #94a3b8; padding: 24px;">
+                                    <i class="fa-solid fa-spinner fa-spin" style="margin-right: 6px;"></i> Загрузка аналитики...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+        <!-- ==================== КОНЕЦ ВКЛАДКИ АНАЛИТИКИ ==================== -->
+
+
+        <!-- МОДАЛЬНОЕ ОКНО: ОФИЦИАЛЬНЫЙ АКТ СКК И ПЕЧАТЬ А4 -->
     <div class="qcd-modal-overlay" id="modal-qcd-act-print" onclick="if(event.target === this) closePrintActModal()">
         <div class="qcd-modal-container" style="max-width: 860px;" onclick="event.stopPropagation()">
             <div class="qcd-modal-header act-modal-header-bar">
@@ -1835,7 +2552,7 @@
 
         document.addEventListener('DOMContentLoaded', initQcdUser);
     </script>
-    <script src="/static/js/qcd_workbench.js?v=20261030_act_print_v4"></script>
+    <script src="/static/js/qcd_workbench.js?v=20261031_qcd_pareto_v5"></script>
     <script src="/static/js/workshop_switcher.js?v=20261031_switcher_v3"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>

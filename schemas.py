@@ -961,6 +961,59 @@ class QcdSortingResponse(ORMBaseModel):
     google_sync_error: Optional[str] = None
     created_at: Optional[datetime] = None
 
+# --- QCD QUALITY & BUFFER ANALYTICS SCHEMAS ---
+class QcdDefectItem(ORMBaseModel):
+    key: str
+    name: str
+    short_name: str
+    category: str  # 'first_grade' или 'defect'
+    count: int = 0
+    percentage: float = 0.0
+    cumulative_pct: float = 0.0
+
+class QcdBufferBalance(ORMBaseModel):
+    total_formed: int = 0
+    total_sorted: int = 0
+    buffer_remainder: int = 0
+    buffer_status: str = 'match'  # 'match', 'buffer', 'excess'
+    condition_count: int = 0
+    condition_pct: float = 0.0
+    first_grade_count: int = 0
+    first_grade_pct: float = 0.0
+    defect_count: int = 0
+    defect_pct: float = 0.0
+
+class QcdMasterShiftQuality(ORMBaseModel):
+    batch_id: Optional[int] = None
+    shift_date: str = ''
+    shift_name: str = ''
+    master_name: str = ''
+    batch_number: str = ''
+    product_name: str = ''
+    formed_count: int = 0
+    sorted_count: int = 0
+    buffer_remainder: int = 0
+    condition_count: int = 0
+    condition_pct: float = 0.0
+    first_grade_count: int = 0
+    first_grade_pct: float = 0.0
+    top_first_grade_cause: str = '—'
+    defect_count: int = 0
+    defect_pct: float = 0.0
+    top_defect_cause: str = '—'
+    status: str = 'ok'
+
+class QcdParetoSummary(ORMBaseModel):
+    date_from: str
+    date_to: str
+    product_name: Optional[str] = 'Все позиции'
+    buffer_balance: QcdBufferBalance
+    pareto_all: list[QcdDefectItem] = []
+    pareto_first_grade: list[QcdDefectItem] = []
+    pareto_defect: list[QcdDefectItem] = []
+    by_master_shift: list[QcdMasterShiftQuality] = []
+    by_product: dict[str, int] = {}
+
 # --- AI ASSISTANT SCHEMAS ---
 class AIChatMessageCreate(BaseModel):
     conversation_id: Optional[int] = None

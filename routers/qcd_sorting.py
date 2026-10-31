@@ -847,3 +847,251 @@ def get_qcd_report_by_batch(batch_id: int, db: Session = Depends(get_db)):
         "google_synced": False,
         "created_at": b.qcd_verified_at.strftime("%d.%m.%Y %H:%M") if b.qcd_verified_at else ""
     }
+
+
+@router.get("/analytics/summary", response_model=schemas.QcdParetoSummary)
+def get_qcd_analytics_summary(
+    period: str = "30d",
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    product_name: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Полная интерактивная аналитика качества СКК:
+    1. Сквозной материальный баланс и Буфер камеры твердения (Формовка -> Буфер -> Переборка СКК).
+    2. Раздельный учет потерь качества: 1-й сорт (11 категорий) и Брак (3 категории).
+    3. Расчет кривой Парето 80/20 с накопленным процентом для всех трех срезов (Все / 1-й сорт / Брак).
+    4. Матрица качества по сменам и мастерам ХЦИ со статусом сходимости партии и топовыми причинами.
+    """
+    from sqlalchemy.orm import selectinload
+
+    today = datetime.utcnow().date()
+    if period == "7d":
+        start_date = today - timedelta(days=7)
+        end_date = today
+    elif period == "30d":
+        start_date = today - timedelta(days=30)
+        end_date = today
+    elif period == "month":
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == "quarter":
+        start_date = today - timedelta(days=90)
+        end_date = today
+    elif period == "custom" and date_from and date_to:
+        try:
+            start_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+            end_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except Exception:
+            start_date = today - timedelta(days=30)
+            end_date = today
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+
+    # Мета-справочник 14 дефектов
+    DEFECT_TITLES = {
+        "fg_chip": ("1. Скол (до 50×50 мм)", "Скол", "first_grade"),
+        "fg_scratch": ("2. Сдир поверхности", "Сдир", "first_grade"),
+        "fg_bad_cut": ("3. Плохой рез", "Пл.рез", "first_grade"),
+        "fg_stick_bottom": ("4. Налип снизу", "Налип низ", "first_grade"),
+        "fg_stick_top": ("5. Налип сверху", "Налип верх", "first_grade"),
+        "fg_curved_edge": ("6. Кривой край / угол", "Крив.край", "first_grade"),
+        "fg_no_pattern": ("7. Нет рисунка", "Нет рис.", "first_grade"),
+        "fg_dent": ("8. Вмятина / Ойық", "Вмятина", "first_grade"),
+        "fg_thickness": ("9. Не соотв. толщине", "Толщина", "first_grade"),
+        "fg_delamination": ("10. Расслоение", "Расслоение", "first_grade"),
+        "fg_edge": ("11. Выпирание кромок", "Выпир.кромки", "first_grade"),
+        "def_fell_box": ("12. Упал с коробки", "Упал с коробки", "defect"),
+        "def_broken": ("13. Сломан доводчиком", "Сломан доводчиком", "defect"),
+        "def_tech": ("14. Технологический / Прочий", "Техн.брак", "defect")
+    }
+
+    # Запрос партий с жадной предзагрузкой
+    query = (
+        db.query(models.Batch)
+        .join(models.Shift)
+        .options(
+            selectinload(models.Batch.shift).selectinload(models.Shift.master),
+            selectinload(models.Batch.shift).selectinload(models.Shift.lfm_reports)
+        )
+        .filter(models.Shift.date >= start_date, models.Shift.date <= end_date)
+    )
+
+    if product_name and product_name.strip() and product_name.lower() not in ["all", "все", "все позиции"]:
+        query = query.filter(models.Batch.product_name.ilike(f"%{product_name.strip()}%"))
+
+    batches = query.order_by(
+        desc(models.Shift.date),
+        desc(models.Batch.id)
+    ).all()
+
+    # Инициализация счетчиков
+    total_formed = 0
+    total_cond = 0
+    total_fg = 0
+    total_def = 0
+
+    defect_counts = {k: 0 for k in DEFECT_TITLES.keys()}
+    by_product_map = {}
+    master_shift_rows = []
+
+    for b in batches:
+        s = b.shift
+        prod = b.product_name or (s.product_name if s else "Шифер 8 волн")
+        by_product_map[prod] = by_product_map.get(prod, 0) + 1
+
+        lfm_sheets = 0
+        if s and s.lfm_reports:
+            lfm_sheets = sum(r.lfm_sheets or 0 for r in s.lfm_reports)
+        elif b.stacked_stacks:
+            lfm_sheets = b.stacked_stacks
+
+        cond = b.qcd_condition if b.qcd_verified else ((b.ds_condition or 0) + (b.prev_condition or 0))
+        fg = b.qcd_first_grade if b.qcd_verified else ((b.ds_first_grade or 0) + (b.prev_first_grade or 0))
+        defect = b.qcd_defect if b.qcd_verified else ((b.ds_defect or 0) + (b.prev_defect or 0))
+
+        if lfm_sheets == 0 and (cond + fg + defect) > 0:
+            lfm_sheets = cond + fg + defect
+
+        sorted_total = cond + fg + defect
+        buf_remainder = lfm_sheets - sorted_total
+
+        total_formed += lfm_sheets
+        total_cond += cond
+        total_fg += fg
+        total_def += defect
+
+        b_defects = {
+            "fg_chip": b.qcd_defect_chip if b.qcd_verified else (b.ds_defect_chip or 0),
+            "fg_scratch": b.qcd_defect_scratch if b.qcd_verified else ((b.ds_defect_scratch or 0) + (b.prev_defect_scratch or 0)),
+            "fg_bad_cut": b.qcd_defect_bad_cut if b.qcd_verified else ((b.ds_defect_bad_cut or 0) + (b.prev_defect_bad_cut or 0)),
+            "fg_stick_bottom": b.qcd_defect_stick_bottom if b.qcd_verified else (b.ds_defect_stick_bottom or 0),
+            "fg_stick_top": b.qcd_defect_stick_top if b.qcd_verified else ((b.ds_defect_stick_top or 0) + (b.prev_defect_stick_top or 0)),
+            "fg_curved_edge": getattr(b, "qcd_defect_curved_edge", 0) or 0,
+            "fg_no_pattern": getattr(b, "qcd_defect_no_pattern", 0) or 0,
+            "fg_dent": b.qcd_defect_dent if b.qcd_verified else (b.ds_defect_dent or 0),
+            "fg_thickness": b.qcd_defect_thickness if b.qcd_verified else ((b.ds_defect_thickness or 0) + (b.prev_defect_thickness or 0)),
+            "fg_delamination": b.qcd_defect_delamination if b.qcd_verified else (b.ds_defect_delamination or 0),
+            "fg_edge": b.qcd_defect_edge if b.qcd_verified else ((b.ds_defect_edge or 0) + (b.prev_defect_edge or 0)),
+            "def_fell_box": b.qcd_defect_fell_box if b.qcd_verified else ((b.ds_defect_fell_box or 0) + (b.prev_defect_fell_box or 0)),
+            "def_broken": b.qcd_defect_broken if b.qcd_verified else ((b.ds_defect_broken or 0) + (b.prev_defect_broken or 0)),
+            "def_tech": getattr(b, "qcd_defect_tech", 0) or 0
+        }
+
+        for dk, dv in b_defects.items():
+            defect_counts[dk] += (dv or 0)
+
+        # Определение главной причины 1-го сорта и брака для этой партии
+        top_fg_key = max(["fg_chip", "fg_scratch", "fg_bad_cut", "fg_stick_bottom", "fg_stick_top", "fg_curved_edge", "fg_no_pattern", "fg_dent", "fg_thickness", "fg_delamination", "fg_edge"], key=lambda k: b_defects.get(k, 0))
+        top_fg_val = b_defects.get(top_fg_key, 0)
+        top_fg_str = f"{DEFECT_TITLES[top_fg_key][1]} ({top_fg_val})" if top_fg_val > 0 else "—"
+
+        top_def_key = max(["def_fell_box", "def_broken", "def_tech"], key=lambda k: b_defects.get(k, 0))
+        top_def_val = b_defects.get(top_def_key, 0)
+        top_def_str = f"{DEFECT_TITLES[top_def_key][1]} ({top_def_val})" if top_def_val > 0 else "—"
+
+        status = "match" if buf_remainder == 0 else ("buffer" if buf_remainder > 0 else "excess")
+
+        master_name = s.master.name if (s and s.master) else "Мастер смены"
+        shift_date_str = s.date.strftime("%d.%m.%Y") if (s and s.date) else ""
+        shift_name_str = s.shift_name or "День" if s else "День"
+
+        cond_pct = round((cond / sorted_total * 100.0), 2) if sorted_total > 0 else 0.0
+        fg_pct = round((fg / sorted_total * 100.0), 2) if sorted_total > 0 else 0.0
+        def_pct = round((defect / sorted_total * 100.0), 2) if sorted_total > 0 else 0.0
+
+        master_shift_rows.append(schemas.QcdMasterShiftQuality(
+            batch_id=b.id,
+            shift_date=shift_date_str,
+            shift_name=shift_name_str,
+            master_name=master_name,
+            batch_number=b.batch_number or "—",
+            product_name=prod,
+            formed_count=lfm_sheets,
+            sorted_count=sorted_total,
+            buffer_remainder=buf_remainder,
+            condition_count=cond,
+            condition_pct=cond_pct,
+            first_grade_count=fg,
+            first_grade_pct=fg_pct,
+            top_first_grade_cause=top_fg_str,
+            defect_count=defect,
+            defect_pct=def_pct,
+            top_defect_cause=top_def_str,
+            status=status
+        ))
+
+    # Сквозной материальный баланс
+    total_sorted = total_cond + total_fg + total_def
+    buf_rem = total_formed - total_sorted
+    buf_status = "match" if buf_rem == 0 else ("buffer" if buf_rem > 0 else "excess")
+
+    cond_pct_all = round((total_cond / total_sorted * 100.0), 2) if total_sorted > 0 else 0.0
+    fg_pct_all = round((total_fg / total_sorted * 100.0), 2) if total_sorted > 0 else 0.0
+    def_pct_all = round((total_def / total_sorted * 100.0), 2) if total_sorted > 0 else 0.0
+
+    buffer_balance = schemas.QcdBufferBalance(
+        total_formed=total_formed,
+        total_sorted=total_sorted,
+        buffer_remainder=buf_rem,
+        buffer_status=buf_status,
+        condition_count=total_cond,
+        condition_pct=cond_pct_all,
+        first_grade_count=total_fg,
+        first_grade_pct=fg_pct_all,
+        defect_count=total_def,
+        defect_pct=def_pct_all
+    )
+
+    def build_pareto(keys_filter, denominator_total):
+        items = []
+        for k in keys_filter:
+            cnt = defect_counts.get(k, 0)
+            title, short_t, grp = DEFECT_TITLES[k]
+            pct = round((cnt / denominator_total * 100.0), 2) if denominator_total > 0 else 0.0
+            items.append({
+                "key": k,
+                "name": title,
+                "short_name": short_t,
+                "category": grp,
+                "count": cnt,
+                "percentage": pct
+            })
+        items.sort(key=lambda x: x["count"], reverse=True)
+        running = 0.0
+        result = []
+        for it in items:
+            running += it["percentage"]
+            result.append(schemas.QcdDefectItem(
+                key=it["key"],
+                name=it["name"],
+                short_name=it["short_name"],
+                category=it["category"],
+                count=it["count"],
+                percentage=it["percentage"],
+                cumulative_pct=min(100.0, round(running, 2))
+            ))
+        return result
+
+    total_losses = total_fg + total_def
+    fg_keys = [k for k, v in DEFECT_TITLES.items() if v[2] == "first_grade"]
+    def_keys = [k for k, v in DEFECT_TITLES.items() if v[2] == "defect"]
+    all_keys = list(DEFECT_TITLES.keys())
+
+    pareto_all = build_pareto(all_keys, total_losses)
+    pareto_fg = build_pareto(fg_keys, total_fg)
+    pareto_def = build_pareto(def_keys, total_def)
+
+    return schemas.QcdParetoSummary(
+        date_from=start_date.strftime("%d.%m.%Y"),
+        date_to=end_date.strftime("%d.%m.%Y"),
+        product_name=product_name or "Все позиции",
+        buffer_balance=buffer_balance,
+        pareto_all=pareto_all,
+        pareto_first_grade=pareto_fg,
+        pareto_defect=pareto_def,
+        by_master_shift=master_shift_rows,
+        by_product=by_product_map
+    )

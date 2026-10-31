@@ -1,3 +1,4 @@
+import os
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -948,12 +949,10 @@ def generate_full_backup_excel(db: Session) -> bytes:
     ws5.views.sheetView[0].showGridLines = True
     ws5.freeze_panes = "C2"  # Закрепление 1 строки и столбцов A:B (№ Акта, Дата акта)
     headers5 = [
-        "№ Акта", "Дата акта", "Инспектор СКК", "Продукция",
-        "Выбранные смены", "Партии / Мастера", "Формовка ЛФМ (шт)",
-        "1 Сорт (ИТОГО)", "Скол", "Сдир", "Плох. рез", "Налип низ", "Налип верх",
-        "Кривой край", "Нет рис.", "Вмятина", "Толщина", "Расслоение", "Выпир. кромки", "Прочий 1 сорт",
-        "БРАК (ИТОГО)", "Упал коробки", "Сломан", "Техн. брак",
-        "% Брака", "Причины / Виновники / Замечания", "Дата фиксации (UTC)"
+        "№ Акта", "Дата акта", "Продукция", "Партия / Смена",
+        "Формовка (шт)", "Перебрано (шт)", "Остаток в буфере (шт)",
+        "Кондиция ГП (шт / %)", "1 Сорт (шт / %)", "Брак (шт / %)",
+        "Структура дефектов", "Инспектор СКК / Замечания"
     ]
     ws5.append(headers5)
     ws5.row_dimensions[1].height = 28
@@ -963,6 +962,27 @@ def generate_full_backup_excel(db: Session) -> bytes:
         cell.font = header_font
         cell.alignment = center_align
         cell.border = border_thin
+
+    FG_NAMES = {
+        "chip": "Скол", "fg_chip": "Скол",
+        "scratch": "Сдир", "fg_scratch": "Сдир",
+        "bad_cut": "Пл.рез", "fg_bad_cut": "Пл.рез",
+        "stick_bottom": "Налип низ", "fg_stick_bottom": "Налип низ",
+        "stick_top": "Налип верх", "fg_stick_top": "Налип верх",
+        "curved_edge": "Крив.край", "fg_curved_edge": "Крив.край",
+        "no_pattern": "Нет рис.", "fg_no_pattern": "Нет рис.",
+        "dent": "Вмятина", "fg_dent": "Вмятина",
+        "thickness": "Толщина", "fg_thickness": "Толщина",
+        "delamination": "Расслоение", "fg_delamination": "Расслоение",
+        "edge": "Выпир.кромки", "edge_bulge": "Выпир.кромки", "fg_edge": "Выпир.кромки",
+        "other": "Прочее", "fg_other": "Прочее"
+    }
+    DEF_NAMES = {
+        "fell_box": "Упал с коробки", "def_fell_box": "Упал с коробки",
+        "broken": "Сломан", "def_broken": "Сломан",
+        "tech_defect": "Техн.брак", "tech": "Техн.брак", "def_tech": "Техн.брак"
+    }
+    base_portal_url = os.getenv("PORTAL_BASE_URL", "https://tectum-portal-railway-production.up.railway.app").rstrip("/")
 
     import json
     reports = db.query(models.QcdSortingReport).order_by(
@@ -981,50 +1001,81 @@ def generate_full_backup_excel(db: Session) -> bytes:
             defects = {}
         try:
             shifts_data = json.loads(r.shifts_breakdown) if r.shifts_breakdown else []
-            shift_names = ", ".join(f"{s.get('date', '')} {s.get('shift_name', '')}" for s in shifts_data if isinstance(s, dict))
-            parties_masters = ", ".join(f"№{s.get('batch_number', '')} ({s.get('master_name', '')})" for s in shifts_data if isinstance(s, dict))
+            shift_parts = []
+            total_condition = 0
+            for s in shifts_data:
+                if isinstance(s, dict):
+                    b_num = s.get('batch_number', '')
+                    m_name = s.get('master_name', '')
+                    s_name = s.get('shift_name', '')
+                    shift_parts.append(f"№{b_num} ({s_name} • {m_name})" if m_name else f"№{b_num}")
+                    total_condition += (s.get('condition', 0) or 0)
+            batch_shift_str = ", ".join(shift_parts) if shift_parts else str(r.selected_shift_ids or "")
         except Exception:
-            shift_names = str(r.selected_shift_ids or "")
-            parties_masters = ""
+            batch_shift_str = str(r.selected_shift_ids or "")
+            total_condition = 0
+
+        fg_total = r.first_grade_total or 0
+        def_total = r.defect_total or 0
+        formed = r.total_formed or 0
+
+        if total_condition == 0 and formed > 0:
+            total_condition = max(0, formed - fg_total - def_total)
+
+        total_sorted = total_condition + fg_total + def_total
+        if total_sorted == 0 and formed > 0:
+            total_sorted = formed
+
+        buf_remainder = formed - total_sorted
+        buf_str = f"+{buf_remainder}" if buf_remainder > 0 else str(buf_remainder)
+
+        cond_pct = (total_condition / total_sorted * 100.0) if total_sorted > 0 else 0.0
+        fg_pct = (fg_total / total_sorted * 100.0) if total_sorted > 0 else 0.0
+        def_pct = (r.defect_percentage if r.defect_percentage is not None else ((def_total / total_sorted * 100.0) if total_sorted > 0 else 0.0))
+
+        fg_found = [f"{FG_NAMES.get(k, k)} ({v})" for k, v in fg.items() if isinstance(v, (int, float)) and v > 0]
+        def_found = [f"{DEF_NAMES.get(k, k)} ({v})" for k, v in defects.items() if isinstance(v, (int, float)) and v > 0]
+
+        defect_summary_parts = []
+        if fg_found:
+            defect_summary_parts.append(f"[1 сорт: {', '.join(fg_found)}]")
+        if def_found:
+            defect_summary_parts.append(f"[Брак: {', '.join(def_found)}]")
+
+        defect_summary_str = " | ".join(defect_summary_parts) if defect_summary_parts else "— (100% кондиция)"
+
+        act_num = r.act_number or f"СКК-{r.id}"
+        inspector_notes = r.inspector_name or ""
+        if r.notes:
+            inspector_notes += f" // {r.notes}"
 
         row5 = [
-            r.act_number or f"СКК-{r.id}",
+            act_num,
             r.act_date.strftime("%d.%m.%Y") if r.act_date else "",
-            r.inspector_name or "",
             r.product_name or "Шифер 8 волн",
-            shift_names,
-            parties_masters,
-            r.total_formed or 0,
-            r.first_grade_total or 0,
-            fg.get("chip", 0),
-            fg.get("scratch", 0),
-            fg.get("bad_cut", 0),
-            fg.get("stick_bottom", 0),
-            fg.get("stick_top", 0),
-            fg.get("curved_edge", 0),
-            fg.get("no_pattern", 0),
-            fg.get("dent", 0),
-            fg.get("thickness", 0),
-            fg.get("delamination", 0),
-            fg.get("edge_bulge", fg.get("edge", 0)),
-            fg.get("other", 0),
-            r.defect_total or 0,
-            defects.get("fell_box", 0),
-            defects.get("broken", 0),
-            defects.get("tech_defect", defects.get("tech", 0)),
-            f"{r.defect_percentage:.2f}%" if r.defect_percentage is not None else "0.00%",
-            r.notes or "",
-            r.created_at.strftime("%d.%m.%Y %H:%M") if r.created_at else ""
+            batch_shift_str,
+            formed,
+            total_sorted,
+            buf_str,
+            f"{total_condition} ({cond_pct:.1f}%)",
+            f"{fg_total} ({fg_pct:.1f}%)",
+            f"{def_total} ({def_pct:.2f}%)",
+            defect_summary_str,
+            inspector_notes
         ]
         ws5.append(row5)
         curr_row = ws5.max_row
         for col_idx in range(1, len(headers5) + 1):
             cell = ws5.cell(row=curr_row, column=col_idx)
             cell.border = border_thin
-            if col_idx in [1, 2, 3, 4, 5, 6, 26, 27]:
-                cell.alignment = Alignment(horizontal="left")
+            if col_idx == 1:
+                cell.hyperlink = f"{base_portal_url}/static/qcd.html?open_act={r.id}"
+                cell.font = Font(color="2563EB", underline="single", name="Calibri", size=10)
+                cell.alignment = center_align
+            elif col_idx in [2, 3, 4, 11, 12]:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
             else:
-                cell.alignment = Alignment(horizontal="right")
+                cell.alignment = Alignment(horizontal="right", vertical="center")
 
     for col in ws5.columns:
         max_len = 0

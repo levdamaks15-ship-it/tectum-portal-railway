@@ -1326,3 +1326,501 @@ function renderActRegistryTable(acts) {
 
     tbody.innerHTML = html;
 }
+
+
+// =========================================================================
+// QCD QUALITY & BUFFER ANALYTICS DASHBOARD (Вариант 3: Полная аналитика)
+// =========================================================================
+
+let currentAnalyticsPeriod = '30d';
+let currentAnalyticsSlice = 'all'; // 'all', 'first_grade', 'defect'
+let currentAnalyticsProduct = '';
+let cachedAnalyticsData = null;
+let paretoChartInstance = null;
+
+// Переключение между вкладками кабинета СКК
+function switchQcdView(viewName) {
+    const btnSorting = document.getElementById('tab-btn-sorting');
+    const btnAnalytics = document.getElementById('tab-btn-analytics');
+    const viewSorting = document.getElementById('view-qcd-sorting');
+    const viewAnalytics = document.getElementById('view-qcd-analytics');
+
+    if (viewName === 'analytics') {
+        if (btnSorting) btnSorting.classList.remove('active');
+        if (btnAnalytics) btnAnalytics.classList.add('active');
+        if (viewSorting) viewSorting.style.display = 'none';
+        if (viewAnalytics) viewAnalytics.style.display = 'flex';
+
+        if (!cachedAnalyticsData) {
+            loadQcdAnalyticsData();
+        }
+    } else {
+        if (btnSorting) btnSorting.classList.add('active');
+        if (btnAnalytics) btnAnalytics.classList.remove('active');
+        if (viewSorting) viewSorting.style.display = 'flex';
+        if (viewAnalytics) viewAnalytics.style.display = 'none';
+    }
+}
+
+// Переключение периода фильтра
+function setQcdAnalyticsPeriod(period) {
+    currentAnalyticsPeriod = period;
+    ['7d', '30d', 'month', 'quarter'].forEach(p => {
+        const btn = document.getElementById(`qcd-period-${p}`);
+        if (btn) {
+            if (p === period) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+    loadQcdAnalyticsData();
+}
+
+// Фильтр по номенклатуре
+function onAnalyticsProductChange(val) {
+    currentAnalyticsProduct = val || '';
+    loadQcdAnalyticsData();
+}
+
+// Переключение среза Парето (Все / 1-й сорт / Брак)
+function setParetoSlice(slice) {
+    currentAnalyticsSlice = slice;
+    const slices = {
+        'all': 'btn-slice-all',
+        'first_grade': 'btn-slice-fg',
+        'defect': 'btn-slice-def'
+    };
+
+    Object.entries(slices).forEach(([k, btnId]) => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            if (k === slice) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    if (cachedAnalyticsData) {
+        renderParetoChart(cachedAnalyticsData, currentAnalyticsSlice);
+    }
+}
+
+// Загрузка аналитических данных с бэкенда
+async function loadQcdAnalyticsData() {
+    const refreshBtn = document.getElementById('btn-refresh-analytics');
+    if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Загрузка...</span>';
+    }
+
+    try {
+        const params = new URLSearchParams({
+            period: currentAnalyticsPeriod
+        });
+        if (currentAnalyticsProduct) {
+            params.append('product_name', currentAnalyticsProduct);
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const res = await fetch(`/api/qcd/analytics/summary?${params.toString()}`, {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+            throw new Error(`Ошибка сервера: HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        cachedAnalyticsData = data;
+
+        // Обновляем бейдж периода и время
+        const rangeBadge = document.getElementById('analytics-date-range-badge');
+        if (rangeBadge) rangeBadge.textContent = `${data.date_from} — ${data.date_to}`;
+
+        const syncTime = document.getElementById('analytics-sync-time');
+        if (syncTime) {
+            const now = new Date();
+            syncTime.textContent = `${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+        }
+
+        // Рендеринг всех панелей
+        renderBufferBalanceCard(data.buffer_balance);
+        renderKpiCards(data.buffer_balance, data.pareto_first_grade, data.pareto_defect);
+        renderParetoChart(data, currentAnalyticsSlice);
+        renderTopCausesPanels(data.pareto_first_grade, data.pareto_defect);
+        renderMasterShiftMatrix(data.by_master_shift);
+
+    } catch (err) {
+        console.error('Ошибка загрузки аналитики качества:', err);
+        showQcdToast(`Не удалось загрузить аналитику: ${err.message}`, 'error');
+    } finally {
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> <span>Обновить данные</span>';
+        }
+    }
+}
+
+// Отрисовка карточки сквозного баланса и буфера камеры
+function renderBufferBalanceCard(buf) {
+    if (!buf) return;
+
+    setFieldText('buf-val-formed', `${formatNum(buf.total_formed)} шт`);
+    setFieldText('buf-val-sorted', `${formatNum(buf.total_sorted)} шт`);
+
+    const sortedPct = buf.total_formed > 0 ? ((buf.total_sorted / buf.total_formed) * 100).toFixed(1) : '0.0';
+    setFieldText('buf-badge-sorted-pct', `${sortedPct}% потока`);
+
+    // Буфер камеры
+    const rem = buf.buffer_remainder || 0;
+    const remStr = rem > 0 ? `+${formatNum(rem)}` : `${formatNum(rem)}`;
+    setFieldText('buf-val-remainder', `${remStr} шт`);
+
+    const remPct = buf.total_formed > 0 ? ((Math.abs(rem) / buf.total_formed) * 100).toFixed(1) : '0.0';
+    setFieldText('buf-val-remainder-pct', `${remPct}%`);
+
+    const statusBadge = document.getElementById('buf-badge-status');
+    if (statusBadge) {
+        if (rem === 0) {
+            statusBadge.textContent = 'Баланс сошелся';
+            statusBadge.style.background = '#dcfce7';
+            statusBadge.style.color = '#15803d';
+        } else if (rem > 0) {
+            statusBadge.textContent = 'На созревании';
+            statusBadge.style.background = '#fde68a';
+            statusBadge.style.color = '#78350f';
+        } else {
+            statusBadge.textContent = 'Невязка: превышение';
+            statusBadge.style.background = '#fee2e2';
+            statusBadge.style.color = '#b91c1c';
+        }
+    }
+
+    // Мини-цифры сортности
+    setFieldText('buf-val-total-sorted-mini', `${formatNum(buf.total_sorted)} шт`);
+    setFieldText('buf-val-cond', `${formatNum(buf.condition_count)} (${buf.condition_pct.toFixed(1)}%)`);
+    setFieldText('buf-val-fg', `${formatNum(buf.first_grade_count)} (${buf.first_grade_pct.toFixed(1)}%)`);
+    setFieldText('buf-val-def', `${formatNum(buf.defect_count)} (${buf.defect_pct.toFixed(2)}%)`);
+
+    // Сегментированный прогресс-бар
+    const barCond = document.getElementById('prog-bar-cond');
+    const barFg = document.getElementById('prog-bar-fg');
+    const barDef = document.getElementById('prog-bar-def');
+
+    if (barCond) barCond.style.width = `${buf.condition_pct}%`;
+    if (barFg) barFg.style.width = `${buf.first_grade_pct}%`;
+    if (barDef) barDef.style.width = `${buf.defect_pct}%`;
+
+    // Подписи легенды
+    setFieldText('leg-cond-str', `${formatNum(buf.condition_count)} шт (${buf.condition_pct.toFixed(1)}%)`);
+    setFieldText('leg-fg-str', `${formatNum(buf.first_grade_count)} шт (${buf.first_grade_pct.toFixed(1)}%)`);
+    setFieldText('leg-def-str', `${formatNum(buf.defect_count)} шт (${buf.defect_pct.toFixed(2)}%)`);
+}
+
+// Отрисовка 4 KPI карточек
+function renderKpiCards(buf, paretoFg, paretoDef) {
+    if (!buf) return;
+
+    setFieldText('kpi-sorted-count', formatNum(buf.total_sorted));
+
+    // Суточный темп (в среднем за период)
+    const days = currentAnalyticsPeriod === '7d' ? 7 : (currentAnalyticsPeriod === 'quarter' ? 90 : 30);
+    const dailyRate = Math.round(buf.total_sorted / days);
+    setFieldText('kpi-daily-rate', `${formatNum(dailyRate)} шт/день`);
+
+    // Кондиция ГП
+    setFieldText('kpi-cond-pct', `${buf.condition_pct.toFixed(1)}%`);
+    setFieldText('kpi-cond-count', `${formatNum(buf.condition_count)} шт`);
+
+    // 1-й сорт
+    setFieldText('kpi-fg-count', formatNum(buf.first_grade_count));
+    setFieldText('kpi-fg-pct', `(${buf.first_grade_pct.toFixed(1)}%)`);
+    const topFg = (paretoFg && paretoFg.length > 0 && paretoFg[0].count > 0) 
+        ? `${paretoFg[0].short_name} (${formatNum(paretoFg[0].count)} шт)` 
+        : '— (нет дефектов)';
+    setFieldText('kpi-fg-top', topFg);
+
+    // Брак
+    setFieldText('kpi-def-count', formatNum(buf.defect_count));
+    setFieldText('kpi-def-pct', `(${buf.defect_pct.toFixed(2)}%)`);
+    const topDef = (paretoDef && paretoDef.length > 0 && paretoDef[0].count > 0)
+        ? `${paretoDef[0].short_name} (${formatNum(paretoDef[0].count)} шт)`
+        : '— (нет брака)';
+    setFieldText('kpi-def-top', topDef);
+}
+
+// Отрисовка графика Парето с кумулятивной кривой
+function renderParetoChart(data, slice) {
+    const canvas = document.getElementById('qcd-pareto-chart-canvas');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    let items = [];
+    if (slice === 'first_grade') {
+        items = data.pareto_first_grade || [];
+    } else if (slice === 'defect') {
+        items = data.pareto_defect || [];
+    } else {
+        items = data.pareto_all || [];
+    }
+
+    // Фильтруем дефекты с числом > 0 для наглядности диаграммы
+    const activeItems = items.filter(it => it.count > 0);
+    const displayItems = activeItems.length > 0 ? activeItems : items.slice(0, 8);
+
+    const labels = displayItems.map(it => it.short_name || it.name);
+    const counts = displayItems.map(it => it.count);
+    const cumPcts = displayItems.map(it => it.cumulative_pct);
+
+    // Находим сколько дефектов формируют 80% (Зона А)
+    const vitalFewCount = displayItems.filter(it => it.cumulative_pct <= 80).length || 1;
+    const hintEl = document.getElementById('pareto-stats-hint');
+    if (hintEl) {
+        hintEl.innerHTML = `<span style="color: #dc2626;">Зона А:</span> первые <strong>${vitalFewCount} дефекта(ов)</strong> формируют основу потерь`;
+    }
+
+    if (paretoChartInstance) {
+        paretoChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    paretoChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Число дефектов (шт)',
+                    data: counts,
+                    backgroundColor: displayItems.map(it => it.category === 'defect' ? 'rgba(220, 38, 38, 0.85)' : 'rgba(2, 132, 199, 0.85)'),
+                    borderColor: displayItems.map(it => it.category === 'defect' ? '#b91c1c' : '#0369a1'),
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    yAxisID: 'yCounts',
+                    order: 2
+                },
+                {
+                    label: 'Накопленный % (Парето)',
+                    data: cumPcts,
+                    type: 'line',
+                    borderColor: '#b91c1c',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#b91c1c',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.25,
+                    yAxisID: 'yPct',
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        font: { size: 11, family: "'Inter', sans-serif", weight: '600' },
+                        color: '#334155'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.dataset.type === 'line') {
+                                return `Накопленный процент: ${context.parsed.y}%`;
+                            }
+                            return `Количество: ${formatNum(context.parsed.y)} шт`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 10, family: "'Inter', sans-serif" },
+                        color: '#475569',
+                        maxRotation: 45,
+                        minRotation: 20
+                    }
+                },
+                yCounts: {
+                    type: 'linear',
+                    position: 'left',
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    title: {
+                        display: true,
+                        text: 'Количество (шт)',
+                        color: '#64748b',
+                        font: { size: 10, weight: '700' }
+                    },
+                    ticks: {
+                        color: '#64748b',
+                        font: { size: 10, family: "'JetBrains Mono', monospace" }
+                    }
+                },
+                yPct: {
+                    type: 'linear',
+                    position: 'right',
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Накопленный %',
+                        color: '#b91c1c',
+                        font: { size: 10, weight: '700' }
+                    },
+                    ticks: {
+                        callback: v => `${v}%`,
+                        color: '#b91c1c',
+                        font: { size: 10, family: "'JetBrains Mono', monospace" }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Отрисовка боковых панелей детализации дефектов
+function renderTopCausesPanels(paretoFg, paretoDef) {
+    const listFg = document.getElementById('panel-fg-list');
+    const listDef = document.getElementById('panel-def-list');
+
+    // 1-й сорт
+    if (listFg) {
+        const totalFg = (paretoFg || []).reduce((acc, it) => acc + (it.count || 0), 0);
+        setFieldText('panel-fg-total', `${formatNum(totalFg)} шт`);
+
+        const fgNonZero = (paretoFg || []).filter(it => it.count > 0);
+        if (fgNonZero.length === 0) {
+            listFg.innerHTML = `<div style="text-align: center; color: #94a3b8; font-size: 0.74rem; padding: 12px;">Дефектов 1-го сорта не выявлено</div>`;
+        } else {
+            let html = '';
+            fgNonZero.forEach(it => {
+                const pct = it.percentage || 0;
+                html += `
+                    <div class="defect-stat-row">
+                        <div class="defect-stat-header">
+                            <span style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(it.name)}</span>
+                            <span class="mono" style="font-weight: 800; color: #b45309;">${formatNum(it.count)} шт <span style="font-size: 0.7rem; color: #78350f;">(${pct.toFixed(1)}%)</span></span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill" style="width: ${pct}%; background: #f59e0b;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            listFg.innerHTML = html;
+        }
+    }
+
+    // Брак
+    if (listDef) {
+        const totalDef = (paretoDef || []).reduce((acc, it) => acc + (it.count || 0), 0);
+        setFieldText('panel-def-total', `${formatNum(totalDef)} шт`);
+
+        const defNonZero = (paretoDef || []).filter(it => it.count > 0);
+        if (defNonZero.length === 0) {
+            listDef.innerHTML = `<div style="text-align: center; color: #94a3b8; font-size: 0.74rem; padding: 12px;">Брака за период не зафиксировано</div>`;
+        } else {
+            let html = '';
+            defNonZero.forEach(it => {
+                const pct = it.percentage || 0;
+                html += `
+                    <div class="defect-stat-row">
+                        <div class="defect-stat-header">
+                            <span style="font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(it.name)}</span>
+                            <span class="mono" style="font-weight: 800; color: #b91c1c;">${formatNum(it.count)} шт <span style="font-size: 0.7rem; color: #991b1b;">(${pct.toFixed(1)}%)</span></span>
+                        </div>
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill" style="width: ${pct}%; background: #dc2626;"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            listDef.innerHTML = html;
+        }
+    }
+}
+
+// Отрисовка Матрицы качества по мастерам и сменам ХЦИ
+function renderMasterShiftMatrix(rows) {
+    const tbody = document.getElementById('matrix-table-body');
+    const countEl = document.getElementById('matrix-rows-count');
+    if (!tbody) return;
+
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; color: #94a3b8; padding: 24px;">
+                    Нет данных по партиям за выбранный период
+                </td>
+            </tr>
+        `;
+        if (countEl) countEl.textContent = '0 партий';
+        return;
+    }
+
+    if (countEl) countEl.textContent = `${rows.length} партий`;
+
+    let html = '';
+    rows.forEach(r => {
+        let statusBadge = '<span class="status-pill-ok"><i class="fa-solid fa-check"></i> Сошлось</span>';
+        if (r.buffer_remainder > 0) {
+            statusBadge = `<span class="status-pill-buffer"><i class="fa-solid fa-layer-group"></i> Буфер: +${formatNum(r.buffer_remainder)}</span>`;
+        } else if (r.buffer_remainder < 0) {
+            statusBadge = `<span class="status-pill-excess"><i class="fa-solid fa-triangle-exclamation"></i> Списано > ${formatNum(Math.abs(r.buffer_remainder))}</span>`;
+        }
+
+        const condColor = r.condition_pct >= 93.5 ? '#15803d' : '#b45309';
+        const defColor = r.defect_pct > 1.0 ? '#b91c1c' : '#334155';
+
+        const remStr = r.buffer_remainder > 0 ? `+${formatNum(r.buffer_remainder)}` : `${formatNum(r.buffer_remainder)}`;
+
+        html += `
+            <tr>
+                <td>
+                    <div style="font-weight: 700; color: #0f172a;">${escapeHtml(r.shift_name)} (${escapeHtml(r.shift_date)})</div>
+                    <div style="font-size: 0.72rem; color: #64748b;">${escapeHtml(r.master_name)}</div>
+                </td>
+                <td>
+                    <span class="picker-badge-party mono" style="font-size: 0.76rem;">№ ${escapeHtml(r.batch_number)}</span>
+                </td>
+                <td style="text-align: right; font-family: monospace; font-weight: 700;">${formatNum(r.formed_count)}</td>
+                <td style="text-align: right; font-family: monospace; font-weight: 800; color: #1e293b;">${formatNum(r.sorted_count)}</td>
+                <td style="text-align: right; font-family: monospace; font-weight: 700; color: ${r.buffer_remainder > 0 ? '#b45309' : '#64748b'};">${remStr}</td>
+                <td style="text-align: right; font-family: monospace; font-weight: 800; color: ${condColor};">
+                    ${r.condition_pct.toFixed(1)}%
+                </td>
+                <td style="font-family: monospace;">
+                    <span style="font-weight: 700; color: #0f172a;">${formatNum(r.first_grade_count)} шт</span>
+                    <span style="color: #b45309; font-weight: 700;">(${r.first_grade_pct.toFixed(1)}%)</span>
+                    <span style="font-size: 0.7rem; color: #64748b; margin-left: 2px;">${escapeHtml(r.top_first_grade_cause)}</span>
+                </td>
+                <td style="font-family: monospace;">
+                    <span style="font-weight: 700; color: ${defColor};">${formatNum(r.defect_count)} шт</span>
+                    <span style="color: ${defColor}; font-weight: 700;">(${r.defect_pct.toFixed(2)}%)</span>
+                    <span style="font-size: 0.7rem; color: #64748b; margin-left: 2px;">${escapeHtml(r.top_defect_cause)}</span>
+                </td>
+                <td style="text-align: center;">
+                    ${statusBadge}
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
