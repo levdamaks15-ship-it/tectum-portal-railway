@@ -13,10 +13,10 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261031_docs_mobile_v2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261029_batch_selection_v7">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v2">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -1928,14 +1928,16 @@
             background-color: #f8fafc !important;
         }
 
-        .docs-sidebar {
-            width: 320px !important;
-            min-width: 280px !important;
-            max-width: 380px !important;
-            background: #ffffff !important;
-            border-right: 1px solid #e2e8f0 !important;
-            box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02) !important;
-            padding: 1.25rem 1rem !important;
+        @media (min-width: 769px) {
+            .docs-sidebar {
+                width: 320px !important;
+                min-width: 280px !important;
+                max-width: 380px !important;
+                background: #ffffff !important;
+                border-right: 1px solid #e2e8f0 !important;
+                box-shadow: 2px 0 12px rgba(0, 0, 0, 0.02) !important;
+                padding: 1.25rem 1rem !important;
+            }
         }
 
         .sidebar-brand-stitch {
@@ -2536,6 +2538,24 @@
             border: 1px solid #fde68a;
         }
 
+        .stitch-format-badge.badge-img {
+            background: #f3e8ff;
+            color: #9333ea;
+            border: 1px solid #d8b4fe;
+        }
+
+        .stitch-format-badge.badge-zip {
+            background: #fef9c3;
+            color: #ca8a04;
+            border: 1px solid #fde047;
+        }
+
+        .stitch-format-badge.badge-ppt {
+            background: #ffedd5;
+            color: #ea580c;
+            border: 1px solid #fed7aa;
+        }
+
         /* File Title & Subtitle Info */
         .stitch-item-cell {
             display: flex;
@@ -2744,54 +2764,25 @@
             border-color: #2563eb;
         }
 
-        @media (max-width: 992px) {
+        /* ==========================================================
+           DESKTOP & LAPTOP TABLE SCALING (> 768px)
+           Windows Scaling 125%-150% and small screen resilience
+           ========================================================== */
+        @media (min-width: 769px) {
+            .stitch-table-wrapper {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
             .stitch-table-header,
             .stitch-table-row {
-                grid-template-columns: 36px 1fr 110px 100px;
+                min-width: 680px;
             }
-            .stitch-author-cell,
-            .stitch-type-pill {
+            .mobile-only {
                 display: none !important;
             }
         }
 
-        @media (max-width: 768px) {
-            .docs-workspace-card {
-                padding: 1rem !important;
-                border-radius: 0 !important;
-                border: none !important;
-            }
-            .stitch-table-header {
-                display: none !important;
-            }
-            .stitch-table-row {
-                grid-template-columns: 1fr auto !important;
-                gap: 8px;
-                padding: 0.75rem 0.5rem !important;
-            }
-            .stitch-row-checkbox {
-                display: none !important;
-            }
-            .docs-top-command-bar {
-                flex-direction: column !important;
-                align-items: stretch !important;
-            }
-            .stitch-search-box {
-                width: 100% !important;
-            }
-        }
-    
-
-        /* Windows Scaling 125%-150% and small screen resilience */
-        .stitch-table-wrapper {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-        }
-        .stitch-table-header,
-        .stitch-table-row {
-            min-width: 680px;
-        }
-        @media (max-width: 1280px) {
+        @media (min-width: 769px) and (max-width: 1280px) {
             .stitch-table-header,
             .stitch-table-row {
                 grid-template-columns: 36px minmax(200px, 2.5fr) 110px 140px 105px 85px !important;
@@ -2803,13 +2794,569 @@
                 width: 220px !important;
             }
         }
-        @media (max-width: 1100px) {
+
+        @media (min-width: 769px) and (max-width: 1100px) {
             .stitch-table-header,
             .stitch-table-row {
                 grid-template-columns: 36px minmax(200px, 2fr) 110px 130px 80px !important;
             }
             .stitch-date-cell {
                 display: none !important;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 992px) {
+            .stitch-table-header,
+            .stitch-table-row {
+                grid-template-columns: 36px 1fr 110px 100px !important;
+            }
+            .stitch-author-cell,
+            .stitch-type-pill {
+                display: none !important;
+            }
+        }
+
+        /* Context Menu Backdrop */
+        .context-menu-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(2px);
+            z-index: 10040;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .context-menu-backdrop.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* ==========================================================
+           CANONICAL MOBILE KNOWLEDGE BASE VIEW (<= 768px)
+           Mobile Cards Architecture & Modern Command Bar
+           ========================================================== */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column !important;
+                background-color: #f8fafc !important;
+                padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+                height: auto !important;
+                min-height: 100vh !important;
+                min-height: 100dvh !important;
+                overflow-y: auto !important;
+            }
+
+            .mobile-docs-header {
+                display: flex !important;
+                height: 54px !important;
+                padding: 0 12px !important;
+            }
+
+            .mobile-menu-btn {
+                width: 38px !important;
+                height: 38px !important;
+                border-radius: 8px !important;
+            }
+
+            .docs-content {
+                padding: 0.65rem 0.75rem !important;
+                flex: 1 !important;
+                overflow: visible !important;
+            }
+
+            .docs-workspace-card {
+                padding: 0 !important;
+                border-radius: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                min-height: auto !important;
+            }
+
+            /* Mobile Command Bar */
+            .docs-top-command-bar {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+                margin-bottom: 0.85rem !important;
+                padding: 0.75rem 0.85rem !important;
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 12px !important;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+            }
+
+            .docs-command-left {
+                width: 100% !important;
+                overflow-x: auto !important;
+                white-space: nowrap !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding-bottom: 2px !important;
+            }
+
+            .docs-breadcrumbs-stitch {
+                font-size: 0.8rem !important;
+                flex-wrap: nowrap !important;
+            }
+
+            .docs-command-right {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                width: 100% !important;
+                gap: 8px !important;
+            }
+
+            .stitch-search-box {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .stitch-kbd-shortcut {
+                display: none !important;
+            }
+
+            .stitch-search-input {
+                width: 100% !important;
+                height: 38px !important;
+                padding: 0 12px 0 38px !important;
+                font-size: 0.88rem !important;
+                border-radius: 8px !important;
+            }
+
+            .docs-command-buttons-row {
+                display: flex !important;
+                align-items: center !important;
+                flex-wrap: wrap !important;
+                row-gap: 8px !important;
+                gap: 8px !important;
+                width: 100% !important;
+            }
+
+            .dropdown-menu-create {
+                flex: 1 !important;
+            }
+
+            .btn-modern-add {
+                width: 100% !important;
+                height: 36px !important;
+                border-radius: 8px !important;
+                background: #2563eb !important;
+                color: #ffffff !important;
+                font-size: 0.85rem !important;
+                font-weight: 600 !important;
+                padding: 0 12px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 6px !important;
+            }
+
+            .btn-modern-secondary#btn-sync-titles {
+                height: 36px !important;
+                width: 36px !important;
+                min-width: 36px !important;
+                padding: 0 !important;
+                border-radius: 8px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: #ffffff !important;
+                border: 1px solid #cbd5e1 !important;
+                color: #475569 !important;
+            }
+
+            /* Hide Planner link in top command bar (already present in bottom nav) */
+            .docs-top-planner-link,
+            a.btn-modern-secondary[href*="tasks"] {
+                display: none !important;
+            }
+
+            .user-session-wrapper {
+                margin-left: auto !important;
+            }
+
+            .user-session-badge-modern {
+                height: 36px !important;
+                padding: 0 10px !important;
+                font-size: 0.8rem !important;
+                border-radius: 8px !important;
+            }
+
+            /* Folder Title Header */
+            .stitch-folder-header {
+                margin-bottom: 0.75rem !important;
+                gap: 8px !important;
+            }
+
+            .stitch-folder-icon-circle {
+                width: 36px !important;
+                height: 36px !important;
+                border-radius: 10px !important;
+                font-size: 1.05rem !important;
+            }
+
+            .stitch-title-meta h1 {
+                font-size: 1.15rem !important;
+            }
+
+            .stitch-title-meta p {
+                font-size: 0.78rem !important;
+            }
+
+            /* Filter Chips Scrollable Ribbon */
+            .docs-filter-chips {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                white-space: nowrap !important;
+                -webkit-overflow-scrolling: touch !important;
+                padding-bottom: 6px !important;
+                margin-bottom: 0.85rem !important;
+                gap: 6px !important;
+                scrollbar-width: none !important;
+            }
+
+            .docs-filter-chips::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            .docs-chip {
+                flex-shrink: 0 !important;
+                height: 32px !important;
+                padding: 0 10px !important;
+                font-size: 0.8rem !important;
+                background: #ffffff !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #475569 !important;
+                border-radius: 20px !important;
+            }
+
+            .docs-chip.active {
+                background: #0f172a !important;
+                color: #ffffff !important;
+                border-color: #0f172a !important;
+                font-weight: 600 !important;
+            }
+
+            .docs-chip .docs-chip-count {
+                font-size: 0.7rem !important;
+                padding: 1px 5px !important;
+            }
+
+            .docs-chip.active .docs-chip-count {
+                background: rgba(255, 255, 255, 0.2) !important;
+                color: #ffffff !important;
+            }
+
+            .docs-sort-container-stitch {
+                flex-shrink: 0 !important;
+                margin-left: 6px !important;
+            }
+
+            /* Mobile Cards Architecture for Folders and Files */
+            .stitch-table-wrapper {
+                border: none !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                overflow: visible !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+
+            .stitch-table-header {
+                display: none !important;
+            }
+
+            .stitch-table-row {
+                min-width: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                background: #ffffff !important;
+                border-radius: 12px !important;
+                border: 1px solid #e2e8f0 !important;
+                box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+                padding: 12px 14px !important;
+                margin: 0 !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 12px !important;
+                cursor: pointer !important;
+                transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+            }
+
+            .stitch-table-row:hover,
+            .stitch-table-row:active {
+                background: #f8fafc !important;
+            }
+
+            .stitch-table-row.selected {
+                background: #eff6ff !important;
+                border-color: #93c5fd !important;
+            }
+
+            /* Hide table-specific columns on mobile cards */
+            .stitch-row-checkbox,
+            .stitch-type-pill,
+            .stitch-author-cell,
+            .stitch-date-cell,
+            .desktop-only {
+                display: none !important;
+            }
+
+            /* Left + Details */
+            .stitch-item-cell {
+                display: flex !important;
+                align-items: center !important;
+                gap: 12px !important;
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+            }
+
+            /* 40x40px Format Badges with 10px radius */
+            .stitch-format-badge {
+                width: 40px !important;
+                height: 40px !important;
+                min-width: 40px !important;
+                max-width: 40px !important;
+                border-radius: 10px !important;
+                font-size: 0.82rem !important;
+                font-weight: 800 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                flex-shrink: 0 !important;
+            }
+
+            .stitch-format-badge.badge-folder {
+                background: #fef3c7 !important;
+                color: #d97706 !important;
+                border: 1px solid #fde68a !important;
+            }
+
+            .stitch-format-badge.badge-folder i {
+                font-size: 1.15rem !important;
+                color: #d97706 !important;
+            }
+
+            .stitch-format-badge.badge-pdf {
+                background: #fee2e2 !important;
+                color: #dc2626 !important;
+                border: 1px solid #fca5a5 !important;
+            }
+
+            .stitch-format-badge.badge-xls {
+                background: #dcfce7 !important;
+                color: #16a34a !important;
+                border: 1px solid #86efac !important;
+            }
+
+            .stitch-format-badge.badge-doc {
+                background: #dbeafe !important;
+                color: #2563eb !important;
+                border: 1px solid #93c5fd !important;
+            }
+
+            .stitch-format-badge.badge-img {
+                background: #f3e8ff !important;
+                color: #9333ea !important;
+                border: 1px solid #d8b4fe !important;
+            }
+
+            .stitch-format-badge.badge-zip {
+                background: #fef9c3 !important;
+                color: #ca8a04 !important;
+                border: 1px solid #fde047 !important;
+            }
+
+            .stitch-format-badge.badge-ppt {
+                background: #ffedd5 !important;
+                color: #ea580c !important;
+                border: 1px solid #fed7aa !important;
+            }
+
+            /* Text details in Card */
+            .stitch-item-details {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                overflow: hidden !important;
+            }
+
+            .stitch-item-title-row {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                flex-wrap: wrap !important;
+                min-width: 0 !important;
+            }
+
+            .stitch-item-title {
+                font-size: 0.92rem !important;
+                font-weight: 600 !important;
+                color: #0f172a !important;
+                line-height: 1.35 !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                max-width: 100% !important;
+                display: -webkit-box !important;
+                -webkit-line-clamp: 2 !important;
+                -webkit-box-orient: vertical !important;
+                overflow: hidden !important;
+            }
+
+            .stitch-item-subtitle {
+                font-size: 0.76rem !important;
+                color: #64748b !important;
+                margin-top: 3px !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* Right Compact Action Trigger [ ⋮ ] */
+            .stitch-actions-cell {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-end !important;
+                flex-shrink: 0 !important;
+                gap: 0 !important;
+            }
+
+            .stitch-action-btn.mobile-action-trigger,
+            .stitch-actions-cell button.stitch-action-btn {
+                width: 36px !important;
+                height: 36px !important;
+                min-width: 36px !important;
+                border-radius: 8px !important;
+                background: transparent !important;
+                border: 1px solid transparent !important;
+                color: #64748b !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                cursor: pointer !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                transition: background-color 0.15s ease, color 0.15s ease !important;
+            }
+
+            .stitch-actions-cell button.stitch-action-btn:hover,
+            .stitch-actions-cell button.stitch-action-btn:active {
+                background: #f1f5f9 !important;
+                color: #0f172a !important;
+            }
+
+            .stitch-actions-cell button.stitch-action-btn i {
+                font-size: 0.95rem !important;
+                color: #64748b !important;
+            }
+
+            /* Table Footer on Mobile */
+            .stitch-table-footer {
+                padding: 0.75rem 0.5rem !important;
+                font-size: 0.8rem !important;
+                justify-content: center !important;
+                border-top: none !important;
+            }
+
+            .stitch-pagination {
+                display: none !important;
+            }
+
+            /* Context Menu / Bottom Sheet */
+            .context-menu {
+                position: fixed !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                top: auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 100% !important;
+                background: #ffffff !important;
+                border-radius: 20px 20px 0 0 !important;
+                padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)) 16px !important;
+                box-sizing: border-box !important;
+                box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.2) !important;
+                animation: slideUpSheet 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                border-top: 1px solid #e2e8f0 !important;
+                border-left: none !important;
+                border-right: none !important;
+                border-bottom: none !important;
+                z-index: 10050 !important;
+            }
+
+            .context-menu-header {
+                font-size: 0.95rem !important;
+                font-weight: 600 !important;
+                padding: 6px 4px 12px 4px !important;
+                color: #0f172a !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+                margin-bottom: 8px !important;
+            }
+
+            .context-menu-close-btn {
+                display: inline-flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .context-menu-item {
+                padding: 12px 14px !important;
+                font-size: 0.92rem !important;
+                font-weight: 500 !important;
+                border-radius: 8px !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 12px !important;
+                color: #1e293b !important;
+            }
+
+            .context-menu-item:hover,
+            .context-menu-item:active {
+                background: #f1f5f9 !important;
+            }
+
+            .context-menu-item i {
+                font-size: 1rem !important;
+                width: 20px !important;
+                text-align: center !important;
+            }
+
+            /* Sidebar Drawer on Mobile (<= 768px) */
+            .docs-sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                bottom: 0 !important;
+                height: 100vh !important;
+                height: 100dvh !important;
+                max-width: 85vw !important;
+                width: 300px !important;
+                min-width: 0 !important;
+                transform: translateX(-100%) !important;
+                box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3) !important;
+                overflow-y: auto !important;
+                z-index: 10030 !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+
+            .docs-sidebar.open {
+                transform: translateX(0) !important;
+            }
+
+            .docs-sidebar-backdrop {
+                z-index: 10020 !important;
             }
         }
 
@@ -2972,7 +3519,7 @@
                 </div>
 
                 <!-- Stitch Center/Right Omnibar Search + Actions -->
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div class="docs-command-right" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <div class="stitch-search-box">
                         <i class="fas fa-search"></i>
                         <input type="text" id="search-input" class="stitch-search-input" placeholder="Поиск в Базе Знаний..."
@@ -2980,57 +3527,59 @@
                         <span class="stitch-kbd-shortcut">Ctrl+K</span>
                     </div>
 
-                    <!-- Split Dropdown Add Button -->
-                    <div class="dropdown-menu-create" style="position: relative;">
-                        <button class="btn-modern-add" onclick="toggleCreateDropdown(event)" title="Добавить файл, ссылку или папку">
-                            <i class="fas fa-plus"></i> <span>Добавить</span> <i class="fas fa-chevron-down" style="font-size: 0.72rem; margin-left: 3px;"></i>
-                        </button>
-                        <div id="create-dropdown" class="dropdown-content-create" style="border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 230px;">
-                            <div class="dropdown-item" onclick="triggerLocalFileUpload()" style="font-weight: 600;">
-                                <i class="fas fa-file-pdf" style="color: #ef4444; width: 20px; text-align: center;"></i>
-                                Загрузить PDF документ
-                            </div>
-                            <div class="dropdown-item" onclick="showFolderModal()">
-                                <i class="fas fa-folder-plus" style="color: #f59e0b; width: 20px; text-align: center;"></i>
-                                Создать новую папку
-                            </div>
-                            <div class="context-menu-separator"></div>
-                            <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
-                                <i class="fab fa-google" style="color: #4285f4; width: 20px; text-align: center;"></i>
-                                Ссылка Google (Docs / Sheets)
-                            </div>
-                            <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
-                                <i class="fab fa-microsoft" style="color: #0078d4; width: 20px; text-align: center;"></i>
-                                Ссылка Microsoft (OneDrive / Excel)
+                    <div class="docs-command-buttons-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <!-- Split Dropdown Add Button -->
+                        <div class="dropdown-menu-create" style="position: relative;">
+                            <button class="btn-modern-add" onclick="toggleCreateDropdown(event)" title="Добавить файл, ссылку или папку">
+                                <i class="fas fa-plus"></i> <span>Добавить</span> <i class="fas fa-chevron-down" style="font-size: 0.72rem; margin-left: 3px;"></i>
+                            </button>
+                            <div id="create-dropdown" class="dropdown-content-create" style="border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; min-width: 230px;">
+                                <div class="dropdown-item" onclick="triggerLocalFileUpload()" style="font-weight: 600;">
+                                    <i class="fas fa-file-pdf" style="color: #ef4444; width: 20px; text-align: center;"></i>
+                                    Загрузить PDF документ
+                                </div>
+                                <div class="dropdown-item" onclick="showFolderModal()">
+                                    <i class="fas fa-folder-plus" style="color: #f59e0b; width: 20px; text-align: center;"></i>
+                                    Создать новую папку
+                                </div>
+                                <div class="context-menu-separator"></div>
+                                <div class="dropdown-item" onclick="openAddLinkModal('', 'google')">
+                                    <i class="fab fa-google" style="color: #4285f4; width: 20px; text-align: center;"></i>
+                                    Ссылка Google (Docs / Sheets)
+                                </div>
+                                <div class="dropdown-item" onclick="openAddLinkModal('', 'microsoft')">
+                                    <i class="fab fa-microsoft" style="color: #0078d4; width: 20px; text-align: center;"></i>
+                                    Ссылка Microsoft (OneDrive / Excel)
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
-                        onchange="handleLocalFileSelected(event)">
+                        <input type="file" id="local-file-input" accept=".pdf,application/pdf" style="display: none !important; position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
+                            onchange="handleLocalFileSelected(event)">
 
-                    <!-- Refresh / Sync Button -->
-                    <button class="btn-modern-secondary" onclick="syncFolderTitles()" id="btn-sync-titles"
-                        title="Синхронизировать заголовки Google / OneDrive и обновить">
-                        <i class="fas fa-arrows-rotate"></i>
-                    </button>
+                        <!-- Refresh / Sync Button -->
+                        <button class="btn-modern-secondary" onclick="syncFolderTitles()" id="btn-sync-titles"
+                            title="Синхронизировать заголовки Google / OneDrive и обновить">
+                            <i class="fas fa-arrows-rotate"></i>
+                        </button>
 
-                    <!-- Planner Link -->
-                    <a href="/static/tasks.html" class="btn-modern-secondary"
-                        style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
-                        title="Открыть Планнер задач">
-                        <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
-                    </a>
+                        <!-- Planner Link -->
+                        <a href="/static/tasks.html" class="btn-modern-secondary docs-top-planner-link"
+                            style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
+                            title="Открыть Планнер задач">
+                            <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
+                        </a>
 
-                    <!-- User Session Badge -->
-                    <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
-                        <div class="user-session-badge-modern anonymous" id="docs-user-badge" onclick="promptDocsUserAuth()"
-                            title="Нажмите для входа по PIN-коду">
-                            <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
-                            <span id="docs-user-name">Войти (PIN)</span>
-                            <button type="button" id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
-                                style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0 2px; line-height: 1;">
-                                &times;
-                            </button>
+                        <!-- User Session Badge -->
+                        <div class="user-session-wrapper" style="display: flex; align-items: center; gap: 4px;">
+                            <div class="user-session-badge-modern anonymous" id="docs-user-badge" onclick="promptDocsUserAuth()"
+                                title="Нажмите для входа по PIN-коду">
+                                <i class="fa-solid fa-user-lock" style="font-size: 0.8rem;"></i>
+                                <span id="docs-user-name">Войти (PIN)</span>
+                                <button type="button" id="btn-docs-logout" onclick="logoutDocsUser(event)" title="Выйти из сессии"
+                                    style="display: none; background: transparent; border: none; color: #94a3b8; font-size: 0.95rem; cursor: pointer; padding: 0 2px; line-height: 1;">
+                                    &times;
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3448,6 +3997,7 @@
 
 
     <!-- Контекстное меню (Google Drive Style / Mobile Bottom Sheet) -->
+    <div id="context-menu-backdrop" class="context-menu-backdrop" onclick="hideContextMenu()"></div>
     <div id="custom-context-menu" class="context-menu"></div>
 
     <!-- Toast уведомление -->
@@ -4389,7 +4939,11 @@
             if (cm) {
                 cm.style.display = 'none';
             }
-            document.querySelectorAll('.docs-table-row.selected').forEach(el => el.classList.remove('selected'));
+            const cmBackdrop = document.getElementById('context-menu-backdrop');
+            if (cmBackdrop) {
+                cmBackdrop.classList.remove('active');
+            }
+            document.querySelectorAll('.stitch-table-row.selected, .docs-table-row.selected').forEach(el => el.classList.remove('selected'));
         }
 
         function showContextMenuAt(x, y, htmlContent) {
@@ -4398,8 +4952,12 @@
             cm.innerHTML = htmlContent;
             cm.style.display = 'block';
 
-            if (window.innerWidth <= 680) {
+            if (window.innerWidth <= 768) {
                 // Handled via CSS bottom-sheet
+                const cmBackdrop = document.getElementById('context-menu-backdrop');
+                if (cmBackdrop) {
+                    cmBackdrop.classList.add('active');
+                }
                 return;
             }
 
@@ -4423,12 +4981,24 @@
             cm.style.top = `${Math.max(12, finalY)}px`;
         }
 
+        function loadFolderById(folderId) {
+            hideContextMenu();
+            const folder = currentFoldersData.find(f => String(f.id) === String(folderId));
+            if (folder) {
+                loadDocuments(folder.id, folder.name, true, null, folder.is_protected);
+            }
+        }
+
         function handleItemContextMenu(e, item, isFolder) {
             e.preventDefault();
             e.stopPropagation();
-            currentTargetItem = { ...item, isFolder };
+            const resolvedItem = { ...item, isFolder };
+            if (!resolvedItem.viewUrl && !isFolder) {
+                resolvedItem.viewUrl = getWebViewLink(item);
+            }
+            currentTargetItem = resolvedItem;
 
-            document.querySelectorAll('.docs-table-row.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.stitch-table-row.selected, .docs-table-row.selected').forEach(el => el.classList.remove('selected'));
             const row = e.currentTarget;
             if (row) row.classList.add('selected');
 
@@ -4441,17 +5011,17 @@
                         <span><i class="fas fa-folder" style="color: ${getFolderColor(item.name)}; margin-right: 6px;"></i> ${escapeHtml(item.name)}</span>
                         ${closeBtnHtml}
                     </div>
-                    <div class="context-menu-item" onclick="loadDocuments('${item.id}', '${escapeHtml(item.name)}', true, null, ${item.is_protected})">
+                    <div class="context-menu-item" onclick="loadFolderById('${item.id}')">
                         <i class="fas fa-folder-open" style="color:#3b82f6;"></i> Открыть папку
                     </div>
-                    <div class="context-menu-item" onclick="openMoveModal('${item.id}', '${escapeHtml(item.name).replace(/'/g, "\\'")}', true, '${item.parent_id || ''}', ${item.is_protected})">
+                    <div class="context-menu-item" onclick="openMoveModal(currentTargetItem.id, currentTargetItem.name, true, currentTargetItem.parent_id || '', currentTargetItem.is_protected)">
                         <i class="fas fa-folder-tree" style="color:#0284c7;"></i> Переместить
                     </div>
-                    <div class="context-menu-item" onclick="openRenameModal('${item.id}', '${escapeHtml(item.name)}', ${item.is_protected})">
+                    <div class="context-menu-item" onclick="openRenameModal(currentTargetItem.id, currentTargetItem.name, currentTargetItem.is_protected)">
                         <i class="fas fa-edit" style="color:#f59e0b;"></i> Переименовать
                     </div>
                     <div class="context-menu-separator"></div>
-                    <div class="context-menu-item danger" onclick="deleteItem('${item.id}', event, ${item.is_protected})">
+                    <div class="context-menu-item danger" onclick="deleteItem(currentTargetItem.id, event, currentTargetItem.is_protected)">
                         <i class="fas fa-trash"></i> Удалить папку
                     </div>
                 `;
@@ -4463,24 +5033,27 @@
                         <span><i class="${iconInfo.icon}" style="color: ${iconInfo.color}; margin-right: 6px;"></i> ${escapeHtml(item.name)}</span>
                         ${closeBtnHtml}
                     </div>
-                    <div class="context-menu-item" onclick="openFileLink('${viewUrl}', ${item.is_protected}, event)">
+                    <div class="context-menu-item" onclick="openFileLink(currentTargetItem.viewUrl, currentTargetItem.is_protected, event)">
                         <i class="fas fa-arrow-up-right-from-square" style="color:#3b82f6;"></i> Открыть онлайн
+                    </div>
+                    <div class="context-menu-item" onclick="hideContextMenu(); window.open(currentTargetItem.viewUrl, '_blank');">
+                        <i class="fas fa-download" style="color:#10b981;"></i> Скачать файл
                     </div>
                     <div class="context-menu-item" onclick="createTaskFromDocItem(currentTargetItem)">
                         <i class="fa-solid fa-list-check" style="color:#2563eb;"></i> Поставить задачу по документу
                     </div>
-                    <div class="context-menu-item" onclick="copyItemLink('${viewUrl}', ${item.is_protected})">
+                    <div class="context-menu-item" onclick="copyItemLink(currentTargetItem.viewUrl, currentTargetItem.is_protected)">
                         <i class="fas fa-link" style="color:#a855f7;"></i> Копировать ссылку
                     </div>
-                    <div class="context-menu-item" onclick="openMoveModal('${item.id}', '${escapeHtml(item.name).replace(/'/g, "\\'")}', false, '${item.category_id || ''}', ${item.is_protected})">
+                    <div class="context-menu-item" onclick="openMoveModal(currentTargetItem.id, currentTargetItem.name, false, currentTargetItem.category_id || '', currentTargetItem.is_protected)">
                         <i class="fas fa-folder-tree" style="color:#0284c7;"></i> Переместить
                     </div>
                     <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="openRenameModal('${item.id}', '${escapeHtml(item.name)}', ${item.is_protected})">
+                    <div class="context-menu-item" onclick="openRenameModal(currentTargetItem.id, currentTargetItem.name, currentTargetItem.is_protected)">
                         <i class="fas fa-edit" style="color:#f59e0b;"></i> Переименовать
                     </div>
                     <div class="context-menu-separator"></div>
-                    <div class="context-menu-item danger" onclick="deleteItem('${item.id}', event, ${item.is_protected})">
+                    <div class="context-menu-item danger" onclick="deleteItem(currentTargetItem.id, event, currentTargetItem.is_protected)">
                         <i class="fas fa-trash"></i> Удалить ссылку
                     </div>
                 `;
@@ -4490,7 +5063,7 @@
         }
 
         function handleAreaContextMenu(e) {
-            if (e.target.closest('.docs-table-row') || e.target.closest('.action-buttons') || e.target.closest('.search-box') || e.target.closest('.modal')) {
+            if (e.target.closest('.stitch-table-row') || e.target.closest('.docs-table-row') || e.target.closest('.action-buttons') || e.target.closest('.search-box') || e.target.closest('.modal')) {
                 return;
             }
             e.preventDefault();
@@ -4521,7 +5094,7 @@
             handleItemContextMenu({
                 preventDefault: () => { },
                 stopPropagation: () => { },
-                currentTarget: e.currentTarget.closest('.docs-table-row'),
+                currentTarget: e.currentTarget.closest('.stitch-table-row') || e.currentTarget.closest('.docs-table-row'),
                 clientX: rect.left,
                 clientY: rect.bottom + 4
             }, item, isFolder);
@@ -4529,14 +5102,14 @@
 
         function openFileMenuById(fileId, e) {
             e.stopPropagation();
-            const file = currentFilesData.find(f => f.id === fileId);
+            const file = currentFilesData.find(f => String(f.id) === String(fileId));
             if (!file) return;
             openItemMoreMenu(e, file, false);
         }
 
         function openFolderMenuById(folderId, e) {
             e.stopPropagation();
-            const folder = currentFoldersData.find(f => f.id === folderId);
+            const folder = currentFoldersData.find(f => String(f.id) === String(folderId));
             if (!folder) return;
             openItemMoreMenu(e, folder, true);
         }
@@ -4933,7 +5506,7 @@
                 html += `
                     <div class="stitch-table-row folder-row ${isSelected ? 'selected' : ''}"
                          id="doc-row-${folder.id}"
-                         onclick="loadDocuments('${folder.id}', '${escapeHtml(folder.name)}', true, null, ${folder.is_protected})"
+                         onclick="loadFolderById('${folder.id}')"
                          oncontextmenu="handleItemContextMenu(event, ${folderJson}, true)">
                         <div class="stitch-row-checkbox" onclick="event.stopPropagation()">
                             <input type="checkbox" 
@@ -4952,7 +5525,7 @@
                                 <div class="stitch-item-title-row">
                                     <span class="stitch-item-title">${escapeHtml(folder.name)}${lockIcon}</span>
                                 </div>
-                                <div class="stitch-item-subtitle">Папка Базы Знаний • Директория цеха</div>
+                                <div class="stitch-item-subtitle">Директория • ${escapeHtml(folderAuthor)}</div>
                             </div>
                         </div>
                         <div>
@@ -4969,11 +5542,14 @@
                             <span>—</span>
                         </div>
                         <div class="stitch-actions-cell">
-                            <button class="stitch-action-btn" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку">
+                            <button class="stitch-action-btn desktop-only" onclick="event.stopPropagation(); openMoveModal('${folder.id}', '${escapeHtml(folder.name).replace(/'/g, "\'")}', true, '${folder.parent_id || ''}', ${folder.is_protected})" title="Переместить папку">
                                 <i class="fas fa-folder-tree"></i>
                             </button>
-                            <button class="stitch-action-btn" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
+                            <button class="stitch-action-btn desktop-only" onclick="deleteItem('${folder.id}', event, ${folder.is_protected})" title="Удалить папку">
                                 <i class="fas fa-trash" style="color: #ef4444;"></i>
+                            </button>
+                            <button class="stitch-action-btn mobile-action-trigger mobile-only" onclick="openFolderMenuById('${folder.id}', event)" title="Действия с папкой">
+                                <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                         </div>
                     </div>
@@ -5020,6 +5596,18 @@
                     formatShort = 'DOC';
                     formatBadgeClass = 'badge-doc';
                     typePillClass = 'type-doc';
+                } else if (nameLower.endsWith('.png') || nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || nameLower.endsWith('.webp') || nameLower.endsWith('.svg') || (file.mimeType && file.mimeType.includes('image'))) {
+                    formatShort = 'IMG';
+                    formatBadgeClass = 'badge-img';
+                    typePillClass = 'type-img';
+                } else if (nameLower.endsWith('.zip') || nameLower.endsWith('.rar') || nameLower.endsWith('.7z') || (file.mimeType && (file.mimeType.includes('zip') || file.mimeType.includes('compressed')))) {
+                    formatShort = 'ZIP';
+                    formatBadgeClass = 'badge-zip';
+                    typePillClass = 'type-zip';
+                } else if (nameLower.endsWith('.pptx') || nameLower.endsWith('.ppt') || (file.mimeType && file.mimeType.includes('presentation'))) {
+                    formatShort = 'PPT';
+                    formatBadgeClass = 'badge-ppt';
+                    typePillClass = 'type-ppt';
                 }
 
                 let versionBadgeHtml = '';
@@ -5051,7 +5639,7 @@
                 }
 
                 const fileSizeStr = file.file_size ? formatBytes(file.file_size) : (isLocalFile ? 'PDF Документ' : 'Облачный документ');
-                const subtitleStr = `${fileSizeStr} • Официальный производственный документ`;
+                const subtitleStr = `${fileSizeStr} • ${escapeHtml(authorDisplay)}`;
 
                 const isSelected = selectedItems.has(String(file.id));
                 const itemDataObj = {
@@ -5108,10 +5696,10 @@
                             ${timeDisplay ? `<span class="time-sub">${timeDisplay}</span>` : ''}
                         </div>
                         <div class="stitch-actions-cell">
-                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="stitch-action-btn" title="Скачать файл">
+                            <a href="${escapeHtml(viewUrl)}" target="_blank" download class="stitch-action-btn desktop-only" title="Скачать файл">
                                 <i class="fas fa-download"></i>
                             </a>
-                            <button class="stitch-action-btn" onclick="openFileMenuById('${file.id}', event)" title="Дополнительные действия">
+                            <button class="stitch-action-btn mobile-action-trigger" onclick="openFileMenuById('${file.id}', event)" title="Дополнительные действия">
                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                         </div>
@@ -6887,10 +7475,10 @@
             }
         });
     </script>
-    <script src="/static/js/version_guard.js"></script>
-    <script src="/static/js/splash.js"></script>
-<script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_switcher_v3"></script>
+    <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v2"></script>
+    <script src="/static/js/splash.js?v=20261031_docs_mobile_v2"></script>
+    <script src="/static/js/toast.js?v=20261031_docs_mobile_v2"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261031_docs_mobile_v2"></script>
 </body>
 
 </html>
