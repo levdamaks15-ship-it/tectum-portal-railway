@@ -2,7 +2,7 @@
  * Tectum Enterprise - Workshop Switcher Popover
  * @canonical-pattern WorkshopSwitcher
  * @established 2026-10-30
- * @version 20261030_switcher_v2
+ * @version 20261031_switcher_v3
  * @description Сквозной интерактивный переключатель производственных кабинетов
  *              для Администратора (Левда М.), Директора и Главного технолога.
  *              Portal Architecture (document.body), Idempotent Event Binding.
@@ -224,6 +224,13 @@
                 this.triggerEl.id = 'header-shop-badge';
             }
 
+            // Защитный инвариант: если триггер вложен внутрь тега <a>, извлекаем его наружу,
+            // чтобы клик по переключателю гарантированно не вызывал перезагрузку или блокировку ссылки
+            const parentA = this.triggerEl.closest('a');
+            if (parentA && parentA.parentNode) {
+                parentA.parentNode.insertBefore(this.triggerEl, parentA.nextSibling);
+            }
+
             // Рендерим поповер в document.body (Portal Architecture)
             this.renderPopover();
 
@@ -235,17 +242,6 @@
             // Настраиваем чип цеха как интерактивный селектор
             this.triggerEl.classList.add('workshop-switcher-trigger');
             this.triggerEl.setAttribute('title', 'Нажмите для быстрого перехода в другой цех или кабинет');
-
-            // Предотвращаем стандартный переход ссылки-родителя <a>
-            const parentLink = this.triggerEl.closest('a');
-            if (parentLink) {
-                parentLink.addEventListener('click', (e) => {
-                    if (e.target.closest('#header-shop-badge') || e.target.closest('.workshop-switcher-trigger')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                }, true);
-            }
 
             // Атомарный прямой слушатель на клик триггера (исключает дублирование)
             this.triggerEl.onclick = (e) => {
