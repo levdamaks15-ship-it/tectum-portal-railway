@@ -1354,6 +1354,171 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
+        /* Floating Date Range Popover for QCD Analytics */
+        .btn-qcd-date-range {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0 12px;
+            height: 32px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            color: #334155;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-qcd-date-range:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #0f172a;
+        }
+
+        .btn-qcd-date-range.active {
+            background: #eff6ff;
+            border-color: #3b82f6;
+            color: #1d4ed8;
+            box-shadow: 0 0 0 1px #3b82f6;
+        }
+
+        .date-range-popover {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            width: 320px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            padding: 14px;
+            z-index: 1000;
+            text-align: left;
+        }
+
+        .popover-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .popover-close-btn {
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            color: #94a3b8;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+        }
+
+        .popover-close-btn:hover {
+            color: #0f172a;
+        }
+
+        .date-input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .date-input-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .popover-date-input {
+            width: 100%;
+            height: 34px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e293b;
+            box-sizing: border-box;
+            background: #ffffff;
+        }
+
+        .popover-presets {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .popover-preset-chip {
+            height: 28px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .popover-preset-chip:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .popover-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .btn-popover-reset {
+            height: 32px;
+            padding: 0 12px;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .btn-popover-reset:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .btn-popover-apply {
+            height: 32px;
+            padding: 0 14px;
+            border: none;
+            background: #2563eb;
+            color: #ffffff;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-popover-apply:hover {
+            background: #1d4ed8;
+        }
+
         .period-btn-group {
             display: inline-flex;
             align-items: center;
@@ -2056,11 +2221,45 @@
             <div class="analytics-filter-bar">
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <span style="font-size: 0.82rem; font-weight: 700; color: #334155;">Период:</span>
-                    <div class="period-btn-group">
-                        <button type="button" class="period-chip-btn" id="qcd-period-7d" onclick="setQcdAnalyticsPeriod('7d')">7 дней</button>
-                        <button type="button" class="period-chip-btn active" id="qcd-period-30d" onclick="setQcdAnalyticsPeriod('30d')">30 дней</button>
-                        <button type="button" class="period-chip-btn" id="qcd-period-month" onclick="setQcdAnalyticsPeriod('month')">Этот месяц</button>
-                        <button type="button" class="period-chip-btn" id="qcd-period-quarter" onclick="setQcdAnalyticsPeriod('quarter')">Квартал</button>
+                    <!-- Custom Date Range Button & Floating Popover (как в Планнере) -->
+                    <div style="position: relative; display: inline-block;">
+                        <button type="button" class="btn-qcd-date-range" id="btn-qcd-date-range" onclick="toggleQcdDateRangePopover(event)" title="Выбрать произвольный диапазон дат">
+                            <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i>
+                            <span id="qcd-date-range-label">Диапазон дат</span>
+                            <span id="qcd-date-range-indicator" style="display: none; width: 7px; height: 7px; background: #2563eb; border-radius: 50%; margin-left: 2px;"></span>
+                        </button>
+
+                        <!-- Floating Date Range Card Popover -->
+                        <div id="qcd-date-range-popover" class="date-range-popover" style="display: none;" onclick="event.stopPropagation()">
+                            <div class="popover-header">
+                                <span><i class="fa-solid fa-calendar-range" style="color: #2563eb; margin-right: 6px;"></i>Выбор периода дат</span>
+                                <button type="button" class="popover-close-btn" onclick="closeQcdDateRangePopover()">&times;</button>
+                            </div>
+                            <div class="popover-body">
+                                <div class="date-input-row">
+                                    <div class="date-input-group">
+                                        <label>От даты:</label>
+                                        <input type="date" id="qcd-custom-date-from" class="popover-date-input">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label>До даты:</label>
+                                        <input type="date" id="qcd-custom-date-to" class="popover-date-input">
+                                    </div>
+                                </div>
+                                
+                                <!-- Quick presets -->
+                                <div class="popover-presets">
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('7d')">7 дней</button>
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('30d')">30 дней</button>
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('this_month')">Этот месяц</button>
+                                    <button type="button" class="popover-preset-chip" onclick="applyQcdQuickDatePreset('quarter')">Квартал</button>
+                                </div>
+                            </div>
+                            <div class="popover-footer">
+                                <button type="button" class="btn-popover-reset" onclick="resetQcdCustomDateRange()">Сбросить</button>
+                                <button type="button" class="btn-popover-apply" onclick="applyQcdCustomDateRange()">Применить</button>
+                            </div>
+                        </div>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 6px; margin-left: 8px;">
@@ -2552,7 +2751,7 @@
 
         document.addEventListener('DOMContentLoaded', initQcdUser);
     </script>
-    <script src="/static/js/qcd_workbench.js?v=20261031_qcd_pareto_v5"></script>
+    <script src="/static/js/qcd_workbench.js?v=20261031_qcd_daterange_v1"></script>
     <script src="/static/js/workshop_switcher.js?v=20261031_switcher_v3"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>

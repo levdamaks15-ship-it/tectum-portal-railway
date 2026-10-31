@@ -1333,6 +1333,8 @@ function renderActRegistryTable(acts) {
 // =========================================================================
 
 let currentAnalyticsPeriod = '30d';
+let customDateFrom = null;
+let customDateTo = null;
 let currentAnalyticsSlice = 'all'; // 'all', 'first_grade', 'defect'
 let currentAnalyticsProduct = '';
 let cachedAnalyticsData = null;
@@ -1362,16 +1364,121 @@ function switchQcdView(viewName) {
     }
 }
 
-// Переключение периода фильтра
+// Управление поповером произвольного диапазона дат (как в Планнере)
+function toggleQcdDateRangePopover(e) {
+    if (e) e.stopPropagation();
+    const pop = document.getElementById("qcd-date-range-popover");
+    if (!pop) return;
+    const isShown = pop.style.display === "block";
+    pop.style.display = isShown ? "none" : "block";
+    if (!isShown) {
+        const df = document.getElementById("qcd-custom-date-from");
+        const dt = document.getElementById("qcd-custom-date-to");
+        if (df && customDateFrom) df.value = customDateFrom;
+        if (dt && customDateTo) dt.value = customDateTo;
+    }
+}
+
+function closeQcdDateRangePopover() {
+    const pop = document.getElementById("qcd-date-range-popover");
+    if (pop) pop.style.display = "none";
+}
+
+function applyQcdQuickDatePreset(preset) {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+
+    if (preset === '7d') {
+        start.setDate(today.getDate() - 7);
+    } else if (preset === '30d') {
+        start.setDate(today.getDate() - 30);
+    } else if (preset === 'this_month') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = today;
+    } else if (preset === 'quarter') {
+        start.setDate(today.getDate() - 90);
+    }
+
+    const formatYmd = d => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    const df = document.getElementById("qcd-custom-date-from");
+    const dt = document.getElementById("qcd-custom-date-to");
+    if (df) df.value = formatYmd(start);
+    if (dt) dt.value = formatYmd(end);
+}
+
+function applyQcdCustomDateRange() {
+    const df = document.getElementById("qcd-custom-date-from");
+    const dt = document.getElementById("qcd-custom-date-to");
+    const valFrom = df ? df.value.trim() : "";
+    const valTo = dt ? dt.value.trim() : "";
+
+    if (!valFrom && !valTo) {
+        resetQcdCustomDateRange();
+        return;
+    }
+
+    customDateFrom = valFrom || null;
+    customDateTo = valTo || null;
+
+    updateQcdDateRangeBtnUI();
+    closeQcdDateRangePopover();
+    loadQcdAnalyticsData();
+}
+
+function resetQcdCustomDateRange() {
+    customDateFrom = null;
+    customDateTo = null;
+    currentAnalyticsPeriod = '30d';
+    const df = document.getElementById("qcd-custom-date-from");
+    const dt = document.getElementById("qcd-custom-date-to");
+    if (df) df.value = "";
+    if (dt) dt.value = "";
+    updateQcdDateRangeBtnUI();
+    closeQcdDateRangePopover();
+    loadQcdAnalyticsData();
+}
+
+function updateQcdDateRangeBtnUI() {
+    const btn = document.getElementById("btn-qcd-date-range");
+    const lbl = document.getElementById("qcd-date-range-label");
+    const ind = document.getElementById("qcd-date-range-indicator");
+    if (!btn || !lbl) return;
+
+    if (customDateFrom || customDateTo) {
+        btn.classList.add("active");
+        if (ind) ind.style.display = "inline-block";
+        const formatDm = s => {
+            if (!s) return "";
+            const parts = s.split('-');
+            return parts.length === 3 ? `${parts[2]}.${parts[1]}` : s;
+        };
+        if (customDateFrom && customDateTo) {
+            lbl.textContent = `📅 ${formatDm(customDateFrom)} — ${formatDm(customDateTo)}`;
+        } else if (customDateFrom) {
+            lbl.textContent = `📅 от ${formatDm(customDateFrom)}`;
+        } else {
+            lbl.textContent = `📅 до ${formatDm(customDateTo)}`;
+        }
+    } else {
+        btn.classList.remove("active");
+        if (ind) ind.style.display = "none";
+        lbl.textContent = "Диапазон дат";
+    }
+}
+
+// Переключение периода фильтра (обратная совместимость)
 function setQcdAnalyticsPeriod(period) {
     currentAnalyticsPeriod = period;
-    ['7d', '30d', 'month', 'quarter'].forEach(p => {
-        const btn = document.getElementById(`qcd-period-${p}`);
-        if (btn) {
-            if (p === period) btn.classList.add('active');
-            else btn.classList.remove('active');
-        }
-    });
+    customDateFrom = null;
+    customDateTo = null;
+    updateQcdDateRangeBtnUI();
     loadQcdAnalyticsData();
 }
 
@@ -1412,9 +1519,19 @@ async function loadQcdAnalyticsData() {
     }
 
     try {
-        const params = new URLSearchParams({
-            period: currentAnalyticsPeriod
-        });
+        const params = new URLSearchParams();
+        if (customDateFrom && customDateTo) {
+            params.append('period', 'custom');
+            params.append('date_from', customDateFrom);
+            params.append('date_to', customDateTo);
+        } else if (customDateFrom) {
+            params.append('period', 'custom');
+            params.append('date_from', customDateFrom);
+            const todayStr = new Date().toISOString().split('T')[0];
+            params.append('date_to', todayStr);
+        } else {
+            params.append('period', currentAnalyticsPeriod || '30d');
+        }
         if (currentAnalyticsProduct) {
             params.append('product_name', currentAnalyticsProduct);
         }
@@ -1525,7 +1642,14 @@ function renderKpiCards(buf, paretoFg, paretoDef) {
     setFieldText('kpi-sorted-count', formatNum(buf.total_sorted));
 
     // Суточный темп (в среднем за период)
-    const days = currentAnalyticsPeriod === '7d' ? 7 : (currentAnalyticsPeriod === 'quarter' ? 90 : 30);
+    let days = 30;
+    if (customDateFrom && customDateTo) {
+        const d1 = new Date(customDateFrom);
+        const d2 = new Date(customDateTo);
+        days = Math.max(1, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
+    } else {
+        days = currentAnalyticsPeriod === '7d' ? 7 : (currentAnalyticsPeriod === 'quarter' ? 90 : 30);
+    }
     const dailyRate = Math.round(buf.total_sorted / days);
     setFieldText('kpi-daily-rate', `${formatNum(dailyRate)} шт/день`);
 
@@ -1824,3 +1948,14 @@ function renderMasterShiftMatrix(rows) {
 
     tbody.innerHTML = html;
 }
+
+// Закрытие поповера выбора диапазона дат при клике вне его
+document.addEventListener('click', (e) => {
+    const pop = document.getElementById("qcd-date-range-popover");
+    const btn = document.getElementById("btn-qcd-date-range");
+    if (pop && pop.style.display === "block") {
+        if (!pop.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            closeQcdDateRangePopover();
+        }
+    }
+});
