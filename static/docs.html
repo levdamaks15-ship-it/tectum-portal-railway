@@ -13,10 +13,10 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css?v=20261031_docs_mobile_v4">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261031_docs_mobile_v5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v4">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v5">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -2014,29 +2014,89 @@
             margin-bottom: 3px !important;
         }
 
+        .folder-root-wrapper {
+            margin-bottom: 8px !important;
+            padding-bottom: 6px !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+        }
+
+        .folder-item-tree.root-folder-item {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            font-weight: 600 !important;
+            color: #0f172a !important;
+        }
+
+        .folder-item-tree.root-folder-item:hover {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        .folder-item-tree.root-folder-item.active {
+            background: #eff6ff !important;
+            border-color: #bfdbfe !important;
+            color: #1d4ed8 !important;
+        }
+
+        .folder-tree-toggle {
+            cursor: pointer;
+            width: 26px !important;
+            min-width: 26px !important;
+            height: 26px !important;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8 !important;
+            font-size: 0.68rem !important;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease, color 0.15s ease !important;
+            border-radius: 6px;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .folder-tree-toggle:hover,
+        .folder-tree-toggle:active {
+            background: #f1f5f9 !important;
+            color: #2563eb !important;
+        }
+
+        .folder-tree-toggle.expanded {
+            transform: rotate(90deg) !important;
+            color: #2563eb !important;
+        }
+
         .folder-item-tree {
             border-radius: 8px !important;
-            padding: 0.45rem 0.65rem !important;
-            font-size: 0.88rem !important;
+            padding: 0.5rem 0.65rem !important;
+            font-size: 0.92rem !important;
             font-weight: 500 !important;
-            color: #334155 !important;
+            color: #1e293b !important;
+            letter-spacing: -0.01em !important;
             transition: all 0.15s ease !important;
             display: flex !important;
             align-items: center !important;
             gap: 8px !important;
-            width: 100% !important;
+            flex: 1 !important;
+            min-width: 0 !important;
             box-sizing: border-box !important;
-            line-height: 1.35 !important;
-            white-space: normal !important;
-            word-break: break-word !important;
+            line-height: 1.3 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
         }
 
         .folder-item-tree span {
-            white-space: normal !important;
-            word-break: break-word !important;
-            overflow: visible !important;
-            text-overflow: unset !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
             flex: 1;
+            min-width: 0;
+        }
+
+        .tree-count-badge,
+        .tree-root-count-badge {
+            display: none !important;
         }
 
         .folder-item-tree:hover {
@@ -4923,9 +4983,7 @@
                 item.classList.add('active');
             }
 
-            const countBadge = totalCount > 0 ? `<span class="tree-count-badge">${totalCount}</span>` : '';
-
-            item.innerHTML = `<i class="fas fa-folder-open" style="color: #2563eb; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 600;">Все документы цеха</span>${countBadge}`;
+            item.innerHTML = `<i class="fa-solid fa-folder-open" style="color: #f59e0b; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-weight: 600;">Все документы цеха</span>`;
 
             item.onclick = () => {
                 navigateToRootFolder();
@@ -5031,7 +5089,7 @@
             const toggle = document.createElement('div');
             toggle.className = 'folder-tree-toggle';
             if (hasChildren) {
-                toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                toggle.innerHTML = '<i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i>';
                 toggle.title = 'Развернуть / свернуть';
             } else {
                 toggle.innerHTML = '';
@@ -5044,9 +5102,7 @@
 
             const iconColor = getFolderColor(folder.name);
             const lockIcon = folder.is_protected ? ' <i class="fas fa-lock" style="color:#ef4444; font-size: 0.8rem; margin-left: 5px;" title="Защищено"></i>' : '';
-            const countBadge = totalItemsCount > 0 ? `<span class="tree-count-badge">${totalItemsCount}</span>` : '';
-
-            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(folder.name)}</span>${lockIcon}${countBadge}`;
+            item.innerHTML = `<i class="fas fa-folder" style="color: ${iconColor}; font-size: 1.05rem; flex-shrink: 0;"></i> <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(folder.name)}</span>${lockIcon}`;
             if (currentFolderId && String(currentFolderId) === String(folder.id)) {
                 item.classList.add('active');
             }
@@ -6534,7 +6590,7 @@
                 const toggle = document.createElement('div');
                 toggle.className = 'move-tree-toggle';
                 if (hasChildren) {
-                    toggle.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                    toggle.innerHTML = '<i class="fa-solid fa-chevron-right" style="font-size: 0.65rem;"></i>';
                 } else {
                     toggle.innerHTML = '';
                     toggle.style.visibility = 'hidden';
@@ -7802,10 +7858,10 @@
             }
         });
     </script>
-    <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v4"></script>
-    <script src="/static/js/splash.js?v=20261031_docs_mobile_v4"></script>
-    <script src="/static/js/toast.js?v=20261031_docs_mobile_v4"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_docs_mobile_v4"></script>
+    <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v5"></script>
+    <script src="/static/js/splash.js?v=20261031_docs_mobile_v5"></script>
+    <script src="/static/js/toast.js?v=20261031_docs_mobile_v5"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261031_docs_mobile_v5"></script>
 </body>
 
 </html>
