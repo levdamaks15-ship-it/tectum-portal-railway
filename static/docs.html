@@ -13,11 +13,11 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v5">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v6">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=20261101_v5">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261101_v6">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -2322,21 +2322,21 @@
             display: none;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            height: 34px !important;
-            padding: 0 14px !important;
-            font-size: 0.85rem !important;
-            font-weight: 700 !important;
-            color: #0f172a !important;
-            background: #f1f5f9 !important;
-            border: 1.5px solid #cbd5e1 !important;
-            border-radius: 8px !important;
+            gap: 5px;
+            height: 28px !important;
+            padding: 0 10px !important;
+            font-size: 0.8rem !important;
+            font-weight: 600 !important;
+            color: #334155 !important;
+            background: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
             cursor: pointer !important;
             transition: all 0.15s ease;
             user-select: none;
             flex-shrink: 0;
             white-space: nowrap !important;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
             line-height: 1 !important;
         }
 
@@ -2346,17 +2346,17 @@
         }
 
         .btn-folder-back span {
-            color: #0f172a !important;
-            font-weight: 700 !important;
+            color: #334155 !important;
+            font-weight: 600 !important;
             display: inline-block !important;
             visibility: visible !important;
             opacity: 1 !important;
         }
 
         .btn-folder-back:hover {
-            background: #e2e8f0 !important;
-            color: #0f172a !important;
-            border-color: #94a3b8 !important;
+            background: #eff6ff !important;
+            color: #1d4ed8 !important;
+            border-color: #93c5fd !important;
         }
 
         .btn-folder-back:active {
@@ -3634,7 +3634,12 @@
 
             <!-- Top Unified Command Bar matching Stitch -->
             <div class="docs-top-command-bar">
-                <div class="docs-command-left">
+                <div class="docs-command-left" style="display: flex; align-items: center; gap: 8px;">
+                    <!-- Back Button placed cleanly at the start of breadcrumbs -->
+                    <button id="btn-folder-back" class="btn-folder-back" type="button" style="display: none;" onclick="goUp()" title="Назад в родительскую папку">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; display:inline-block; vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <span>Назад</span>
+                    </button>
                     <!-- Breadcrumbs Bar -->
                     <div class="docs-breadcrumbs-stitch" id="docs-breadcrumbs">
                         <span class="crumb-btn" onclick="navigateToRootFolder()"><i class="fa-solid fa-house"></i> Главная</span>
@@ -3723,7 +3728,7 @@
                     </div>
                     <div class="stitch-title-meta">
                         <h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <button id="btn-folder-back" class="btn-folder-back" type="button" style="display: none; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; font-size: 0.85rem; font-weight: 700; color: #0f172a; background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 8px; cursor: pointer; user-select: none; white-space: nowrap; box-shadow: 0 1px 2px rgba(15,23,42,0.06);" onclick="goUp()" title="Назад в родительскую папку"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; display:inline-block; vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg><span style="color: #0f172a !important; font-weight: 700 !important; font-size: 0.85rem !important; display: inline-block !important; line-height: 1 !important;">Назад</span></button>
+                            
                             <span id="current-folder-name">Все документы</span>
                         </h1>
                         <p id="current-folder-desc">Официальные производственные бланки, чек-листы Kaizen и типовые формы цеха</p>
@@ -4737,8 +4742,8 @@
             if (btnBack) {
                 if (folderId !== null && !searchQuery) {
                     btnBack.style.display = 'inline-flex';
-                    if (!btnBack.innerHTML.includes('<svg') && !btnBack.innerHTML.includes('fa-arrow-left')) {
-                        btnBack.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; display:inline-block; vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg><span style="color: #0f172a !important; font-weight: 700 !important; font-size: 0.85rem !important; display: inline-block !important; line-height: 1 !important; margin-left: 6px;">Назад</span>';
+                    if (!btnBack.innerHTML.includes('<svg')) {
+                        btnBack.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; display:inline-block; vertical-align:middle;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg><span style="color: #334155 !important; font-weight: 600 !important; font-size: 0.8rem !important; display: inline-block !important; line-height: 1 !important; margin-left: 5px;">Назад</span>';
                     }
                 } else {
                     btnBack.style.display = 'none';
@@ -7937,10 +7942,10 @@
             }
         });
     </script>
-    <script src="/static/js/version_guard.js?v=20261101_v5"></script>
-    <script src="/static/js/splash.js?v=20261101_v5"></script>
-    <script src="/static/js/toast.js?v=20261101_v5"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261101_v5"></script>
+    <script src="/static/js/version_guard.js?v=20261101_v6"></script>
+    <script src="/static/js/splash.js?v=20261101_v6"></script>
+    <script src="/static/js/toast.js?v=20261101_v6"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261101_v6"></script>
 </body>
 
 </html>
