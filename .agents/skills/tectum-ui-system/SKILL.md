@@ -1,0 +1,109 @@
+---
+name: tectum-ui-system
+description: Каноническая дизайн-система и стандарты интерфейса Tectum Portal. Применять при верстке HTML/CSS/JS, модальных окон, выпадающих поповеров, мобильной адаптации, печати и интеграции дизайн-токенов.
+---
+
+# Каноническая дизайн-система Tectum Portal
+
+## 1. Базовые принципы и правила экрана
+- **Правило одной сцены (One Screen / One Scope):**
+  - Запрещено в рамках одной итерации смешивать редизайн одного экрана с правками других страниц. Сначала на 100% реализуется, оформляется и тестируется один экран.
+- **Запрет поверхностного CSS-патчинга:**
+  - Запрещено «навешивать новые кнопки на старый каркас». Если утвержденный макет Stitch содержит новую структуру (белая карточка, единый командный бар с хлебными крошками, обновленный сайдбар), адаптируется каркас страницы целиком.
+- **Сверка с макетом Stitch перед сдачей:**
+  - Фон страницы: светло-серый canvas `#f8fafc`.
+  - Белые карточки: `border-radius: 16px`, тени `box-shadow: 0 1px 3px rgba(0,0,0,0.05)`, внутренние отступы.
+  - Сайдбар: активные состояния плашкой, счетчики файлов.
+
+## 2. Адаптивность и масштабирование Windows (125% – 150% DPI)
+- **Инвариант масштабирования Windows:**
+  - Рабочие ноутбуки на заводе используют системное масштабирование Windows 125% или 150% (реальный вьюпорт браузера сужается до **1000–1280px**).
+- **Запрет жестких ширин:**
+  - Запрещено фиксировать сайдбары `width: 320px+` или `min-width: 1400px`. Сайдбар обязан иметь гибкий диапазон: `min-width: 210px; width: 240px; max-width: 260px;`.
+- **Защита от наездов (Auto-Wrap):**
+  - Все верхние командные строки обязаны использовать `flex-wrap: wrap; row-gap: 10px;` и эластичный `flex: 1` для поисковых полей, чтобы кнопки и строка поиска не наползали друг на друга.
+  - Контейнеры таблиц: `overflow-x: auto; -webkit-overflow-scrolling: touch;`.
+
+## 3. Каноническая шапка и авторизация
+- **Единая минималистичная формула бренда:**
+  - `[TECTUM]` (жирный гротеск `#0f172a`, font-weight: 800) + `[ЧИП ЦЕХА]` (скругление 6px) + `[ | РАСШИФРОВКА ]`.
+  - На экране входа: `TECTUM [ПОРТАЛ] | ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ`.
+  - В кабинетах: `TECTUM [ХЦИ]`, `TECTUM [СКК]`, `TECTUM [ЛКЦ]`, `TECTUM [АДМИН]`.
+- **Двухуровневая шапка (Two-Tier Header):**
+  - **Верхний уровень:** Строго на одной линии — Бренд слева и Профиль сотрудника с кнопкой выхода `[➔ Выйти]` справа (`justify-content: space-between`).
+  - **Второй уровень:** Быстрые ссылки (`🎯 Планнер`, `✅ Чек-листы`, `📚 База знаний`).
+- **Контекстная видимость:**
+  - До авторизации: блок профиля, кнопка «Выйти» и мобильная нижняя панель **скрыты**.
+  - На смартфонах (<= 768px): быстрые ссылки в шапке скрываются, управление передается в нижнюю плавающую панель навигации (`.tectum-mobile-bottom-nav`).
+- **Канонический экран и модалка авторизации:**
+  - Белая карточка 440px, центрирование `min-height: 100vh`.
+  - Выбор сотрудника строго через канонический `PersonPickerPopover` (без нативных `<select>`).
+  - 4 раздельных PIN-бокса (`.pin-digit-box`): поля `input type="password" maxlength="1"` с автопереходом фокуса при вводе и маскировкой `••••`.
+
+## 4. Контролы, статусы и геометрия 36px
+- **Унифицированный стандарт высоты элементов управления 36px:**
+  - Все активные интерактивные элементы в карточках, полосах управления и модальных окнах обязаны подчиняться единой высоте **36px** (`box-sizing: border-box;`):
+    - Кнопки основных действий (`.detail-btn-action`): `height: 36px !important; padding: 0 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600;`.
+    - Квадратные сервисные кнопки (`.detail-btn-close`): `height: 36px !important; width: 36px !important; border-radius: 8px; font-size: 1.4rem;`.
+    - Статусные чипы (`.task-detail-status-pill`): `height: 36px !important; border-radius: 8px;`.
+    - Триггеры селекторов персон: `height: 36px !important; border-radius: 8px;`.
+- **Стандарт статусного бейджа (Status Badge & No-Wrap Law):**
+  - Любой статусный бейдж обязан иметь `white-space: nowrap !important;`. Перенос статуса на две строки категорически запрещен!
+  - Индикаторная точка: `8px`, круглая, с ореолом `box-shadow: 0 0 0 3px rgba(...)`.
+  - Палитра 4 состояний:
+    - *В работе:* фон `#fef3c7`, текст `#92400e`, рамка `#fde68a`, точка `#d97706`.
+    - *Выполнено:* фон `#dcfce7`, текст `#166534`, рамка `#bbf7d0`, точка `#16a34a`.
+    - *Перенесено:* фон `#e0f2fe`, текст `#075985`, рамка `#bae6fd`, точка `#0284c7`.
+    - *Отменено:* фон `#fee2e2`, текст `#991b1b`, рамка `#fecaca`, точка `#dc2626`.
+- **Стандарт 4-колоночной полосы свойств (Properties Strip):**
+  - Сетка: `grid-template-columns: repeat(4, 1fr); gap: 12px;` на фоне `#f8fafc`, рамка `1px solid #e2e8f0`, скругление `12px`.
+  - На мобильных (`@media screen and (max-width: 720px)`) переключается в 2 колонки.
+  - Состав колонок: 1) Исполнитель (круглый аватар 28px с инициалами); 2) Дедлайн (иконка календаря + `ДД.ММ (Дн)`); 3) Инициатор (иконка пользователя + ФИО); 4) Служба/Зона (иконка цеха + текст с `ellipsis`).
+- **Чистота модальных окон (Two-Pole Header):**
+  - Шапка модалки содержит строго два полюса: Статус слева, кнопки действий 36px и крестик закрытия справа.
+  - Номера задач (`TSK-342`) и родительские связи выносятся в тело документа или полосу свойств.
+- **Выравнивание выпадающих списков и поповеров:**
+  - Текст элементов выравнивается по левому краю (`justify-content: flex-start; gap: 10px;`).
+  - Фиксированная ширина иконки `20px` с центрированием — единая вертикальная ось.
+  - Компактная ширина поповеров: `180–200px`.
+
+## 5. Навигация и работа с вкладками (Middle-Click & Multi-Tab UX)
+- **Нативные ссылки для вкладок (`<a>` вместо `<button>`):**
+  - Все панели вкладок рендерятся ссылками `<a href="#tab_id">`. При клике ЛКМ вызывается `e.preventDefault()` и переключается таб; при клике средней кнопкой мыши (колёсиком) или `Ctrl+клик` страница беспрепятственно открывается в новой вкладке.
+- **Поддержка URL-хэшей:**
+  - При инициализации страниц проверяется `window.location.hash` или `?tab=...` для моментальной активации запрошенной вкладки.
+- **Instant Cache-First авторизация:**
+  - Профиль кэшируется в `localStorage.setItem('tectum_auth_user', ...)`. Новая вкладка синхронно открывает интерфейс без мигания экрана входа, а фоновый запрос проверяет сессию.
+
+## 6. Мобильный UX, шторки Apple и печать
+- **Мобильный режим задач (<= 768px):**
+  - Режим быстрого ознакомления (Read-Only). Дорожные карты скрываются, карточки не открывают модалку редактирования по случайному тапу на ходу.
+- **Apple Bottom Sheet:** Мобильные шторки снизу экрана с плавным открытием/закрытием (`translateY(100%)`, `cubic-bezier`).
+- **Изоляция стилей печати:**
+  - Мобильные медиа-запросы строго: `@media screen and (max-width: 767px)`.
+  - В `@media print` скрываются мобильные меню и кнопки, а таблица принудительно раскрывается `#planner-table-wrapper { display: block !important; }`.
+
+## 7. Реестр канонических эталонов интерфейса
+
+| Имя эталона (Tag) | CSS-классы / Селекторы | Source of Truth (Файлы) | Функционал и гарантии |
+|---|---|---|---|
+| `@canonical-pattern TaskDetailCleanHeader` | `.task-detail-header-clean`, `.detail-btn-action`, `.detail-btn-close` | `planner.css:3792`, `tasks.html:4322`, `docs/design_system/modal_clean_header.html` | Однострочная шапка (статус слева 36px, действия справа), устранение кодов TSK из шапки |
+| `@canonical-pattern StatusNoWrapPill` | `.task-detail-status-pill`, `.task-detail-status-dot` | `planner.css:3812` | Высота 36px, `white-space: nowrap !important;`, 8px точка со свечением, 4 пастельных тона |
+| `@canonical-pattern CompactPropertiesStrip` | `.detail-properties-strip`, `.detail-property-col` | `planner.css:3878`, `tasks.html:4368`, `docs/design_system/properties_strip.html` | 4-колоночная сетка на `#f8fafc` с брейкпоинтом в 2 колонки `<= 720px`, аватар, дата, служба |
+| `@canonical-pattern CanonicalControl36px` | `.detail-btn-action`, `.detail-btn-close`, `.task-detail-status-pill` | `planner.css:3812` | Строгая высота 36px и скругление 8px для всех кнопок действий, закрытия и статусов |
+| `@canonical-pattern AlignedDropdownPopover` | `#popover-filter-status`, `.filter-popover-item` | `planner.css:3770`, `docs/design_system/aligned_dropdown_popover.html` | Компактный список статусов (190px) с левым выравниванием и фиксированной 20px осью иконок |
+| `@canonical-pattern PersonPickerPopover` | `.person-picker-popover`, `.bulk-row-assignee-trigger` | `planner.css:3446`, `tasks.js:5380`, `docs/design_system/person_picker.html` | Универсальный fixed-поповер поиска сотрудника с аватарами и клавиатурной навигацией |
+| `@canonical-pattern ZonePickerPopover` | `.zone-picker-popover`, `.zone-select-modern` | `planner.css:3530`, `tasks.js:5480`, `docs/design_system/zone_picker.html` | Селектор зоны/службы с иконкой папки, живым поиском и fixed-поповером в `body` |
+| `@canonical-pattern AppleBottomSheet` | `.apple-filter-panel`, `.apple-date-panel` | `tasks.html:4820`, `planner.css:2900` | Мобильная шторка с плавным закрытием без отскоков (`cubic-bezier`, `translateY(100%)`) |
+| `@canonical-pattern InlineCommentEditor` | `.task-detail-comment-box`, `#detail-comment-edit-wrap` | `planner.css:3680`, `tasks.js:9300` | Быстрое редактирование рабочего комментария в 1 клик с горячими клавишами `Ctrl + Enter` |
+| `@canonical-pattern TwoTierMinimalistHeader` | `.header-main`, `.header-top-row`, `.brand-title-tectum` | `style.css:1`, `index.html:335`, `docs/design_system/two_tier_minimalist_header.html` | Двухуровневая шапка (Бренд + Профиль/Выход на одной линии, чипы быстрого перехода) |
+| `@canonical-pattern CanonicalAuthModal4BoxPin` | `.auth-modal-card`, `.pin-boxes-container`, `.pin-digit-box` | `style.css:2230`, `index.html:365`, `docs/design_system/canonical_auth_modal.html` | Единый центр входа 440px: иконка ID, выбор сотрудника и 4 раздельных PIN-бокса с автопереходом |
+
+## 8. Автономные шаблоны (`docs/design_system/`)
+- `modal_clean_header.html` — Двухполюсная шапка модального окна.
+- `properties_strip.html` — 4-колоночная полоса свойств задачи.
+- `aligned_dropdown_popover.html` — Выпадающий поповер 190px с левым выравниванием.
+- `person_picker.html` — Селектор ответственного сотрудника с аватаром.
+- `zone_picker.html` — Селектор зоны / участка с иконкой и живым поиском.
+- `two_tier_minimalist_header.html` — Двухуровневая минималистичная шапка.
+- `canonical_auth_modal.html` — Единая карточка авторизации с 4-значным PIN-кодом.
