@@ -13,10 +13,11 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v3">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v5">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=20261101_v3">
     <style>
         :root {
             --docs-bg: #f1f5f9;
@@ -2340,23 +2341,30 @@
             display: none;
             align-items: center;
             gap: 6px;
-            height: 32px;
-            padding: 0 12px;
-            font-size: 0.82rem;
-            font-weight: 600;
+            height: 34px !important;
+            padding: 0 12px !important;
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
             color: #1e293b !important;
             background: #f1f5f9 !important;
             border: 1px solid #cbd5e1 !important;
-            border-radius: 8px;
-            cursor: pointer;
+            border-radius: 8px !important;
+            cursor: pointer !important;
             transition: all 0.15s ease;
             user-select: none;
             flex-shrink: 0;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            line-height: 1 !important;
         }
 
         .btn-folder-back i {
             color: #2563eb !important;
+            font-size: 0.85rem !important;
+        }
+
+        .btn-folder-back span {
+            color: #1e293b !important;
+            font-weight: 600 !important;
         }
 
         .btn-folder-back:hover {
@@ -3729,8 +3737,8 @@
                     </div>
                     <div class="stitch-title-meta">
                         <h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <button id="btn-folder-back" class="btn-folder-back btn-back" style="display: none;" onclick="goUp()" title="Назад в родительскую папку">
-                                <i class="fas fa-arrow-left"></i> <span>Назад в родительскую папку</span>
+                            <button id="btn-folder-back" class="btn-folder-back" style="display: none;" onclick="goUp()" title="Назад в родительскую папку">
+                                <i class="fa-solid fa-arrow-left"></i> <span>Назад</span>
                             </button>
                             <span id="current-folder-name">Все документы</span>
                         </h1>
@@ -4042,9 +4050,17 @@
                 style="display: flex; flex: 1; margin-top: 0.7rem; min-height: 0; overflow: hidden;">
                 <!-- Main Preview Frame: full width & height -->
                 <div
-                    style="flex: 1; width: 100%; position: relative; border-radius: 8px; overflow: hidden; background: #525659; border: 1px solid var(--docs-panel-border); min-height: 0;">
+                    style="flex: 1; width: 100%; position: relative; border-radius: 8px; overflow: hidden; background: #525659; border: 1px solid var(--docs-panel-border); min-height: 0; display: flex; flex-direction: column;">
                     <iframe id="preview-modal-iframe" src=""
                         style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+                    <!-- Mobile Canvas PDF Viewer -->
+                    <div id="preview-modal-pdf-container"
+                        style="display: none; width: 100%; height: 100%; overflow-y: auto; overflow-x: auto; background: #525659; padding: 10px; box-sizing: border-box; text-align: center; -webkit-overflow-scrolling: touch;">
+                        <div id="pdf-viewer-spinner" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #fff; font-size: 1rem; gap: 10px;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Загрузка PDF документа...
+                        </div>
+                        <div id="pdf-pages-wrapper" style="display: flex; flex-direction: column; align-items: center; gap: 12px;"></div>
+                    </div>
                     <div id="preview-modal-fallback"
                         style="display: none; height: 100%; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; background: #f8fafc;">
                         <i class="fas fa-file-pdf" id="preview-fallback-icon"
@@ -7393,13 +7409,24 @@
             const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
             if (nameLower.endsWith('.pdf')) {
-                // Прямой защищенный URL портала с inline-просмотром для смартфонов и ПК
-                let previewSrc = downloadUrl;
-                if (iframe) {
-                    iframe.style.display = 'block';
-                    iframe.src = previewSrc;
+                const pdfContainer = document.getElementById('preview-modal-pdf-container');
+                if (isMobile) {
+                    // На мобильных устройствах рендерим через PDF.js на Canvas, обходя блокировку iframe Chrome Android
+                    if (iframe) {
+                        iframe.style.display = 'none';
+                        iframe.src = '';
+                    }
+                    if (pdfContainer) pdfContainer.style.display = 'block';
+                    if (fallback) fallback.style.display = 'none';
+                    renderPdfOnCanvas(downloadUrl);
+                } else {
+                    if (pdfContainer) pdfContainer.style.display = 'none';
+                    if (iframe) {
+                        iframe.style.display = 'block';
+                        iframe.src = downloadUrl;
+                    }
+                    if (fallback) fallback.style.display = 'none';
                 }
-                if (fallback) fallback.style.display = 'none';
             } else if (nameLower.endsWith('.txt')) {
                 if (iframe) {
                     iframe.style.display = 'block';
@@ -7518,11 +7545,74 @@
             }
         }
 
+        let currentPdfDoc = null;
+
+        async function renderPdfOnCanvas(url) {
+            const container = document.getElementById('preview-modal-pdf-container');
+            const spinner = document.getElementById('pdf-viewer-spinner');
+            const pagesWrapper = document.getElementById('pdf-pages-wrapper');
+            if (!pagesWrapper) return;
+            pagesWrapper.innerHTML = '';
+            if (spinner) spinner.style.display = 'flex';
+
+            try {
+                if (typeof pdfjsLib === 'undefined') {
+                    throw new Error('PDF.js library not loaded');
+                }
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const loadingTask = pdfjsLib.getDocument({
+                    url: url,
+                    withCredentials: true
+                });
+                const pdf = await loadingTask.promise;
+                currentPdfDoc = pdf;
+                if (spinner) spinner.style.display = 'none';
+
+                const numPages = pdf.numPages;
+                const containerWidth = (container ? container.clientWidth : window.innerWidth) - 24;
+
+                for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const unscaledViewport = page.getViewport({ scale: 1.0 });
+                    const scale = Math.max(1.0, containerWidth / unscaledViewport.width);
+                    const viewport = page.getViewport({ scale: scale });
+
+                    const canvas = document.createElement('canvas');
+                    canvas.style.display = 'block';
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.boxShadow = '0 2px 10px rgba(0,0,0,0.3)';
+                    canvas.style.background = '#ffffff';
+
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    pagesWrapper.appendChild(canvas);
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                }
+            } catch (err) {
+                console.error('PDF.js rendering error:', err);
+                if (spinner) spinner.style.display = 'none';
+                // Fallback to opening directly or fallback link
+                const fallback = document.getElementById('preview-modal-fallback');
+                if (fallback) fallback.style.display = 'flex';
+                if (container) container.style.display = 'none';
+            }
+        }
+
         function closeDocPreviewModal(fromHistory = false) {
             const modal = document.getElementById('doc-preview-modal');
             if (modal) modal.style.display = 'none';
             const iframe = document.getElementById('preview-modal-iframe');
             if (iframe) iframe.src = '';
+            const pagesWrapper = document.getElementById('pdf-pages-wrapper');
+            if (pagesWrapper) pagesWrapper.innerHTML = '';
+            const pdfContainer = document.getElementById('preview-modal-pdf-container');
+            if (pdfContainer) pdfContainer.style.display = 'none';
+            currentPdfDoc = null;
 
             // Если закрытие вызвано кнопкой интерфейса, возвращаем состояние истории назад
             if (!fromHistory && history.state && history.state.modal === 'doc_preview') {
@@ -7860,10 +7950,10 @@
             }
         });
     </script>
-    <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v5"></script>
-    <script src="/static/js/splash.js?v=20261101_v2"></script>
-    <script src="/static/js/toast.js?v=20261031_docs_mobile_v5"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
+    <script src="/static/js/version_guard.js?v=20261101_v3"></script>
+    <script src="/static/js/splash.js?v=20261101_v3"></script>
+    <script src="/static/js/toast.js?v=20261101_v3"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261101_v3"></script>
 </body>
 
 </html>
