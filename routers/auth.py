@@ -1,6 +1,6 @@
 import os
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -124,8 +124,11 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/api/logout")
 @router.get("/api/logout")
-def logout(request: Request):
+@router.post("/api/auth/logout")
+@router.get("/api/auth/logout")
+def logout(request: Request, response: Response):
     request.session.clear()
+    response.delete_cookie(key="session", path="/", samesite="lax")
     return {"status": "ok", "message": "Logged out successfully"}
 
 # --- MICROSOFT ENTRA ID (SSO) AUTHENTICATION ---
@@ -232,10 +235,7 @@ def auth_callback(request: Request, code: str = None, error: str = None, error_d
     
     return RedirectResponse(url="/")
 
-@router.get("/api/auth/logout")
-def auth_logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(url="/")
+# Note: unified logout handled at /api/auth/logout
 
 @router.get("/api/masters/")
 def get_masters(db: Session = Depends(get_db)):

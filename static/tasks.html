@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v1">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -3276,7 +3276,7 @@
                     title="Выйти / Сменить пользователя">&times;</button>
             </div>
 
-            <a href="/static/docs.html" class="btn-action btn-secondary-action btn-action-header" title="База знаний"
+            <a href="/docs" class="btn-action btn-secondary-action btn-action-header" title="База знаний"
                 style="height: 38px; padding: 0 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-folder-open"></i> <span class="hide-mobile">База знаний</span>
             </a>
@@ -5032,7 +5032,7 @@
                     </div>
                     <div class="person-picker-popover" id="planner-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
                         <div class="filter-popover-search-wrap">
-                            <input type="text" class="filter-popover-search-input" id="search-planner-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderPlannerUserPickerList(this.value)">
+                            <input type="text" class="filter-popover-search-input" id="search-planner-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderPlannerUserPickerList(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
                         </div>
                         <div class="filter-popover-list" id="list-planner-user-picker"></div>
                     </div>
@@ -5926,8 +5926,8 @@
         <div class="filter-popover-list" id="list-quick-subtask-assignee" style="max-height: 240px;"></div>
     </div>
 
-    <script src="/static/js/splash.js"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_switcher_v3"></script>
+    <script src="/static/js/splash.js?v=20261101_v1"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261101_v1"></script>
 </body>
 
 </html>

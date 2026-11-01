@@ -13,7 +13,7 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css?v=20261031_docs_mobile_v5">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css?v=20261031_docs_mobile_v5">
@@ -2341,24 +2341,28 @@
             align-items: center;
             gap: 6px;
             height: 32px;
-            padding: 0 10px;
+            padding: 0 12px;
             font-size: 0.82rem;
             font-weight: 600;
-            color: #334155;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
+            color: #1e293b !important;
+            background: #f1f5f9 !important;
+            border: 1px solid #cbd5e1 !important;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.15s ease;
             user-select: none;
             flex-shrink: 0;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-folder-back i {
+            color: #2563eb !important;
         }
 
         .btn-folder-back:hover {
-            background: #f8fafc;
-            color: #1e293b;
-            border-color: #94a3b8;
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
+            border-color: #94a3b8 !important;
         }
 
         .btn-folder-back:active {
@@ -3617,7 +3621,7 @@
                 </button>
             </div>
 
-            <a href="/static/tasks.html" class="sidebar-home-link sidebar-planner-link"
+            <a href="/tasks" class="sidebar-home-link sidebar-planner-link"
                 style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; border-radius: 8px; justify-content: flex-start; padding: 0.6rem 0.85rem;"
                 title="Перейти в Планнер задач">
                 <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер задач</span>
@@ -3695,7 +3699,7 @@
                         </button>
 
                         <!-- Planner Link -->
-                        <a href="/static/tasks.html" class="btn-modern-secondary docs-top-planner-link"
+                        <a href="/tasks" class="btn-modern-secondary docs-top-planner-link"
                             style="background: #eff6ff !important; color: #1d4ed8 !important; border-color: #bfdbfe !important;"
                             title="Открыть Планнер задач">
                             <i class="fa-solid fa-list-check" style="color: #2563eb;"></i> <span>Планнер</span>
@@ -4090,7 +4094,7 @@
                     </div>
                     <div class="person-picker-popover" id="docs-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
                         <div class="filter-popover-search-wrap">
-                            <input type="text" class="filter-popover-search-input" id="search-docs-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderDocsUserPickerList(this.value)">
+                            <input type="text" class="filter-popover-search-input" id="search-docs-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderDocsUserPickerList(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
                         </div>
                         <div class="filter-popover-list" id="list-docs-user-picker"></div>
                     </div>
@@ -6107,7 +6111,7 @@
                 docId = '';
             }
             const cleanTitle = (docTitle || 'Документ').trim();
-            const targetUrl = `/static/tasks.html?create_doc_id=${encodeURIComponent(docId)}&create_doc_title=${encodeURIComponent(cleanTitle)}`;
+            const targetUrl = `/tasks?create_doc_id=${encodeURIComponent(docId)}&create_doc_title=${encodeURIComponent(cleanTitle)}`;
             window.open(targetUrl, '_blank');
         }
 
@@ -7027,6 +7031,14 @@
                 }
             }
 
+            try {
+                const searchInput = document.getElementById("search-docs-user-picker");
+                if (searchInput) searchInput.blur();
+                if (document.activeElement && document.activeElement.blur) {
+                    document.activeElement.blur();
+                }
+            } catch(e) {}
+
             closeDocsUserPickerPopover();
             onDocsPinUserSelectChanged();
         }
@@ -7381,13 +7393,8 @@
             const isLocalhost = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
             if (nameLower.endsWith('.pdf')) {
+                // Прямой защищенный URL портала с inline-просмотром для смартфонов и ПК
                 let previewSrc = downloadUrl;
-                // На Android и мобильных устройствах вне localhost используем Google Docs Viewer для онлайн чтения без диалога скачивания
-                if (isMobile && !isLocalhost) {
-                    const fullDocUrl = window.location.origin + downloadUrl;
-                    previewSrc = `https://docs.google.com/viewer?url=${encodeURIComponent(fullDocUrl)}&embedded=true`;
-                }
-
                 if (iframe) {
                     iframe.style.display = 'block';
                     iframe.src = previewSrc;
@@ -7420,12 +7427,7 @@
             const newTabBtn = document.getElementById('preview-modal-newtab-btn');
             if (newTabBtn) {
                 newTabBtn.onclick = () => {
-                    if (isMobile && !isLocalhost && nameLower.endsWith('.pdf')) {
-                        const fullDocUrl = window.location.origin + downloadUrl;
-                        window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fullDocUrl)}`, '_blank');
-                    } else {
-                        window.open(downloadUrl, '_blank');
-                    }
+                    window.open(downloadUrl, '_blank');
                 };
             }
 
@@ -7502,7 +7504,7 @@
                                 </div>
                                 ${tagsHtml ? `<div style="margin-top: 2px;">${tagsHtml}</div>` : ''}
                                 <div style="margin-top: 4px; text-align: right;">
-                                    <a href="/static/tasks.html?task_id=${t.id}" target="_blank" style="font-size: 0.72rem; color: #2563eb; text-decoration: none; font-weight: 600;">
+                                    <a href="/tasks?task_id=${t.id}" target="_blank" style="font-size: 0.72rem; color: #2563eb; text-decoration: none; font-weight: 600;">
                                         Открыть в Планнере →
                                     </a>
                                 </div>
@@ -7859,9 +7861,9 @@
         });
     </script>
     <script src="/static/js/version_guard.js?v=20261031_docs_mobile_v5"></script>
-    <script src="/static/js/splash.js?v=20261031_docs_mobile_v5"></script>
+    <script src="/static/js/splash.js?v=20261101_v2"></script>
     <script src="/static/js/toast.js?v=20261031_docs_mobile_v5"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_docs_mobile_v5"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
 </body>
 
 </html>

@@ -12,8 +12,8 @@
     <link rel="icon" type="image/png" href="/static/img/Logo.png">
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/static/css/splash.css">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261030_cart_resets_v2">
+    <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261101_v2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -426,7 +426,7 @@
                     </div>
                     <div class="person-picker-popover" id="login-user-picker-popover" style="display: none;" onclick="event.stopPropagation()">
                         <div class="filter-popover-search-wrap">
-                            <input type="text" class="filter-popover-search-input" id="search-login-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderLoginUserPickerList(this.value)">
+                            <input type="text" class="filter-popover-search-input" id="search-login-user-picker" placeholder="🔍 Поиск сотрудника или должности..." oninput="renderLoginUserPickerList(this.value)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
                         </div>
                         <div class="filter-popover-list" id="list-login-user-picker"></div>
                     </div>
@@ -2361,10 +2361,10 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261030_cart_resets_v2"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_switcher_v3"></script>
+    <script src="/static/js/app.js?v=20261101_v2"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
     <script src="/static/js/version_guard.js"></script>
-    <script src="/static/js/splash.js"></script>
+    <script src="/static/js/splash.js?v=20261101_v2"></script>
 </body>
 
 </html>

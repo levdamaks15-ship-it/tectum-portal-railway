@@ -1068,66 +1068,29 @@ async function login() {
 }
 
 async function logout() {
-    try {
-        await fetch('/api/auth/logout');
-        await fetch('/api/logout');
-    } catch(e) {
-        console.error(e);
-    }
     currentUser = null;
+    window.__cachedUser = null;
     try {
         localStorage.removeItem('tectum_auth_user');
         localStorage.removeItem('tectum_portal_user');
         localStorage.removeItem('tectum_current_user_name');
+        sessionStorage.clear();
     } catch(e) {}
-    
-    // Restore header brand to Portal
-    const shopBadge = document.getElementById('header-shop-badge');
-    if (shopBadge) {
-        shopBadge.className = 'brand-badge-shop badge-shop-portal';
-        shopBadge.innerText = 'КОРПОРАТИВНЫЙ ПОРТАЛ';
-    }
-    const shopSubtitle = document.getElementById('header-shop-subtitle');
-    if (shopSubtitle) {
-        shopSubtitle.innerText = 'ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ';
-    }
 
-    // Hide Checklists button upon logout
-    const checklistsBtn = document.getElementById('header-checklists-btn');
-    if (checklistsBtn) checklistsBtn.style.display = 'none';
-    
-    const userInfo = document.getElementById('user-info-container');
-    if (userInfo) userInfo.style.display = 'none';
-    
-    const mainApp = document.getElementById('main-app');
-    if (mainApp) mainApp.style.display = 'none';
-    
-    const loginScreen = document.getElementById('login-screen');
-    if (loginScreen) loginScreen.style.display = 'block';
-    
-    // Hide mobile bottom nav on logout
-    const bNavLogout = document.querySelector('.tectum-mobile-bottom-nav');
-    if (bNavLogout) bNavLogout.style.display = 'none';
-    document.body.classList.add('not-authenticated');
-    
     try {
-        sessionStorage.removeItem('planner_user_session');
+        if (window.location.hash) {
+            history.replaceState(null, '', window.location.pathname);
+        }
     } catch(e) {}
-    clearLoginPinBoxes();
-    selectLoginUser('');
 
-    document.body.classList.remove('role-portal');
-    const quickLinks = document.querySelector('.header-quick-links');
-    if (quickLinks) quickLinks.style.display = '';
-    const portalHub = document.getElementById('portal-employee-hub');
-    if (portalHub) portalHub.style.display = 'none';
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+    } catch(e) {
+        console.error('Logout error:', e);
+    }
 
-    document.getElementById('user-info-container').style.display = 'none';
-    document.getElementById('main-app').style.display = 'none';
-    document.getElementById('login-screen').style.display = 'block';
-    const legacyPinInput = document.getElementById('pin-input'); if (legacyPinInput) legacyPinInput.value = '';
-    resetLoginSelection();
-    await loadUserGrid();
+    // Full clean redirect to root
+    window.location.replace('/');
 }
 
 function applyRoleVisibility() {
@@ -2019,7 +1982,7 @@ async function loadReportSummary() {
 function getDevCell(actual, theoretical) {
     if (theoretical <= 0) {
         if (actual === 0) return `<td style="color: var(--success-color); font-weight: 500;">0.00%</td>`;
-        return `<td style="color: var(--danger-color); font-weight: 500;">+100.00%</td>`;
+        return `<td style="color: var(--text-secondary); font-size: 0.82rem; text-align: center;" title="Норма расхода не установлена в справочнике">—</td>`;
     }
     const devPct = ((actual - theoretical) / theoretical) * 100;
     const sign = devPct > 0 ? '+' : '';
@@ -5462,10 +5425,23 @@ function selectLoginUser(empName) {
         }
     }
 
+    // Снимаем фокус с поля поиска для автоматического закрытия виртуальной клавиатуры Android/iOS
+    try {
+        const searchInput = document.getElementById("search-login-user-picker");
+        if (searchInput) searchInput.blur();
+        if (document.activeElement && document.activeElement.blur) {
+            document.activeElement.blur();
+        }
+    } catch(e) {}
+
     closeLoginUserPickerPopover();
     clearLoginPinBoxes();
     const b1 = document.getElementById("pin-box-1");
-    if (b1) setTimeout(() => b1.focus(), 50);
+    if (b1) {
+        setTimeout(() => {
+            b1.focus();
+        }, 120);
+    }
 }
 
 function renderLoginUserPickerList(filterQuery = '') {

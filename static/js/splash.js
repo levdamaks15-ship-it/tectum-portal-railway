@@ -27,6 +27,14 @@
     if (window.location.search && window.location.search.includes('no_splash')) return;
     if (document.getElementById('tectum-splash-screen')) return;
 
+    // Smart Splash Guard: Do NOT block screen on internal navigation for authenticated users
+    try {
+      const hasAuth = localStorage.getItem('tectum_auth_user') || localStorage.getItem('tectum_portal_user');
+      if (hasAuth && !window.location.search.includes('force_splash')) {
+        return; // Skip splash screen during internal transitions
+      }
+    } catch(e) {}
+
     const splash = document.createElement('div');
     splash.id = 'tectum-splash-screen';
     splash.innerHTML = `

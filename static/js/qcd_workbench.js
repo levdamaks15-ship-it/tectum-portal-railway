@@ -577,9 +577,9 @@ function recalcQcdBalance() {
             badgeEl.innerHTML = `<i class="fa-solid fa-layer-group"></i> Остаток в камере/буфере: +${formatNum(diff)} шт`;
             if (banner) banner.style.borderColor = '#cbd5e1';
         } else {
-            badgeEl.className = 'balance-badge balance-excess';
-            badgeEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Списано больше формовки: ${formatNum(diff)} шт`;
-            if (banner) banner.style.borderColor = '#fca5a5';
+            badgeEl.className = 'balance-badge balance-buffer';
+            badgeEl.innerHTML = `<i class="fa-solid fa-box-archive"></i> Взято из буфера камер: ${formatNum(Math.abs(diff))} шт`;
+            if (banner) banner.style.borderColor = '#93c5fd';
         }
     }
 }
@@ -1906,7 +1906,7 @@ function renderMasterShiftMatrix(rows) {
         if (r.buffer_remainder > 0) {
             statusBadge = `<span class="status-pill-buffer"><i class="fa-solid fa-layer-group"></i> Буфер: +${formatNum(r.buffer_remainder)}</span>`;
         } else if (r.buffer_remainder < 0) {
-            statusBadge = `<span class="status-pill-excess"><i class="fa-solid fa-triangle-exclamation"></i> Списано > ${formatNum(Math.abs(r.buffer_remainder))}</span>`;
+            statusBadge = `<span class="status-pill-buffer" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;"><i class="fa-solid fa-box-archive"></i> Из буфера: ${formatNum(Math.abs(r.buffer_remainder))}</span>`;
         }
 
         const condColor = r.condition_pct >= 93.5 ? '#15803d' : '#b45309';

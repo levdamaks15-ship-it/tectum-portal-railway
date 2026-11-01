@@ -268,6 +268,11 @@
                 popover.className = 'workshop-switcher-popover';
                 document.body.appendChild(popover);
             }
+            // Enforce opaque white background and top z-index across all screens
+            popover.style.backgroundColor = '#ffffff';
+            popover.style.background = '#ffffff';
+            popover.style.zIndex = '999999';
+            popover.style.boxShadow = '0 20px 45px -10px rgba(15, 23, 42, 0.35), 0 0 0 1px #cbd5e1';
             this.popoverEl = popover;
 
             const currentCab = getCurrentCabinetId();
@@ -374,6 +379,10 @@
 
         open() {
             if (!this.popoverEl || !this.triggerEl) return;
+            this.popoverEl.style.backgroundColor = '#ffffff';
+            this.popoverEl.style.background = '#ffffff';
+            this.popoverEl.style.zIndex = '999999';
+            this.popoverEl.style.boxShadow = '0 20px 45px -10px rgba(15, 23, 42, 0.35), 0 0 0 1px #cbd5e1';
             this.updatePosition();
             this.isOpen = true;
             this.popoverEl.classList.add('is-open');
