@@ -98,6 +98,15 @@ async def lifespan(app: FastAPI):
                     conn.execute("ALTER TABLE tasks ADD COLUMN depends_on_ids TEXT;")
                 except: pass
                 try:
+                    conn.execute("ALTER TABLE tasks ADD COLUMN initial_due_date_str TEXT;")
+                except: pass
+                try:
+                    conn.execute("ALTER TABLE tasks ADD COLUMN initial_week_label TEXT;")
+                except: pass
+                try:
+                    conn.execute("ALTER TABLE tasks ADD COLUMN reschedule_count INTEGER DEFAULT 0;")
+                except: pass
+                try:
                     conn.execute("ALTER TABLE lfm_reports ADD COLUMN lfm_cart_resets INTEGER DEFAULT 0;")
                 except: pass
                 try:
@@ -147,6 +156,16 @@ async def lifespan(app: FastAPI):
                     ensure_pg_column(db, "downtimes", "description_kz", "TEXT")
                     ensure_pg_column(db, "tasks", "depends_on_ids", "TEXT")
                     ensure_pg_column(db, "tasks", "photos", "TEXT")
+                    ensure_pg_column(db, "tasks", "initial_due_date_str", "TEXT")
+                    ensure_pg_column(db, "tasks", "initial_week_label", "TEXT")
+                    ensure_pg_column(db, "tasks", "reschedule_count", "INTEGER DEFAULT 0")
+
+                    try:
+                        db.execute(text("UPDATE tasks SET reschedule_count = 1 WHERE status LIKE '%Перенес%' AND (reschedule_count IS NULL OR reschedule_count = 0);"))
+                        db.execute(text("UPDATE tasks SET initial_due_date_str = due_date_str WHERE status LIKE '%Перенес%' AND (initial_due_date_str IS NULL OR initial_due_date_str = '');"))
+                        db.commit()
+                    except Exception as b_err:
+                        db.rollback()
                     ensure_pg_column(db, "lkc_report_items", "comp_strips_count", "INTEGER DEFAULT 0")
                     ensure_pg_column(db, "lfm_reports", "lfm_cart_resets", "INTEGER DEFAULT 0")
                     ensure_pg_column(db, "planner_employees", "role", "VARCHAR(50) DEFAULT 'portal'")

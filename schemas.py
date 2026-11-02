@@ -708,6 +708,9 @@ class TaskBase(ORMBaseModel):
     author_name: Optional[str] = ""
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
+    initial_due_date_str: Optional[str] = ""
+    initial_week_label: Optional[str] = ""
+    reschedule_count: Optional[int] = 0
     status: Optional[str] = "🟡 В работе"
     comment: Optional[str] = ""
     month_label: Optional[str] = ""
@@ -745,6 +748,9 @@ class QuickMilestoneCreate(ORMBaseModel):
     title: str
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
+    initial_due_date_str: Optional[str] = ""
+    initial_week_label: Optional[str] = ""
+    reschedule_count: Optional[int] = 0
     author_name: Optional[str] = ""
     depends_on_id: Optional[int] = None
     depends_on_ids: Optional[List[int]] = None
@@ -757,6 +763,9 @@ class BulkTaskItem(ORMBaseModel):
     title_kz: Optional[str] = None
     assignee_name: Optional[str] = ""
     due_date_str: Optional[str] = ""
+    initial_due_date_str: Optional[str] = ""
+    initial_week_label: Optional[str] = ""
+    reschedule_count: Optional[int] = 0
     zone: Optional[str] = None
     tags: Optional[str] = ""
     photo_link: Optional[str] = ""
@@ -792,6 +801,12 @@ class TaskReassignRequest(ORMBaseModel):
     reassigned_by: Optional[str] = None
     pin_code: Optional[str] = None
 
+class TaskRescheduleRequest(ORMBaseModel):
+    new_due_date_str: str
+    reason: str
+    pin_code: Optional[str] = None
+    user_name: Optional[str] = None
+
 class TaskUpdate(ORMBaseModel):
     code: Optional[str] = None
     zone: Optional[str] = None
@@ -803,6 +818,9 @@ class TaskUpdate(ORMBaseModel):
     author_name: Optional[str] = None
     assignee_name: Optional[str] = None
     due_date_str: Optional[str] = None
+    initial_due_date_str: Optional[str] = None
+    initial_week_label: Optional[str] = None
+    reschedule_count: Optional[int] = None
     status: Optional[str] = None
     comment: Optional[str] = None
     month_label: Optional[str] = None

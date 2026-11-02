@@ -202,7 +202,12 @@ function canEditProjectOrTask(task, user = currentPlannerUser) {
 function canInteractWithTask(task, user = currentPlannerUser) {
     if (!user || !user.name) return false;
     if (canEditProjectOrTask(task, user)) return true;
-    if (task && task.assignee_name && task.assignee_name.trim() === user.name.trim()) return true;
+    if (task && task.assignee_name) {
+        const uName = user.name.trim();
+        if (task.assignee_name.trim() === uName) return true;
+        const assignees = task.assignee_name.split(',').map(s => s.trim());
+        if (assignees.includes(uName)) return true;
+    }
     return false;
 }
 
@@ -4191,8 +4196,8 @@ function renderTasksTable(tasks) {
                         <button class="btn-icon-cell" onclick="openReassignTaskModal(${t.id})" title="Переадресовать задачу другому исполнителю">
                             <i class="fa-solid fa-share-nodes" style="color: #6366f1;"></i>
                         </button>
-                        <button class="btn-icon-cell" onclick="moveTaskToNextWeekModal(${t.id})" title="Перенести на следующую неделю">
-                            <i class="fa-solid fa-arrow-right"></i>
+                        <button class="btn-icon-cell" onclick="openRescheduleTaskModal(${t.id})" title="Перенести срок задачи" style="color: #0284c7;">
+                            <i class="fa-solid fa-calendar-days"></i>
                         </button>
                         <button class="btn-icon-cell" onclick="openEditTaskModal(${t.id})" title="${canEdit ? 'Редактировать' : 'Внести факт / фото / статус'}">
                             <i class="fa-solid ${canEdit ? 'fa-pen' : 'fa-pen-to-square'}" style="${canEdit ? '' : 'color: #0284c7;'}"></i>
@@ -4280,13 +4285,24 @@ function renderTasksTable(tasks) {
                 </div>
             ` : '';
 
+            const isTaskRescheduled = (t.status === '🔵 Перенесено');
+            const resCount = t.reschedule_count || (isTaskRescheduled ? 1 : 0);
+            const rescheduleBadge = (resCount > 0 || isTaskRescheduled) ? `
+                <div style="margin-top: 3px;">
+                    <span style="font-size: 0.7rem; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 4px; padding: 1px 5px; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" title="Исходный срок: ${escapeHtml(t.initial_due_date_str || t.due_date_str || '—')}. Перенесено раз: ${resCount}. Нажмите для повторного переноса">
+                        <i class="fa-solid fa-clock-rotate-left"></i> ${resCount}-й перенос
+                    </span>
+                </div>
+            ` : '';
+
             const dueDateCell = t.is_deadline_week ? `
                 <div>
                     <span class="badge-deadline-week" title="Дедлайн на этой неделе: ${t.due_date_str || ''}">
                         <i class="fa-solid fa-bullseye"></i> ${t.due_date_str || 'Дедлайн'}
                     </span>
+                    ${rescheduleBadge}
                 </div>
-            ` : `<span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>`;
+            ` : `<div><span style="font-size: 0.82rem; white-space: nowrap; color: #334155;">${t.due_date_str || 'В теч. недели'}</span>${rescheduleBadge}</div>`;
 
             const isBulk = isBulkHorizon();
             const isChecked = selectedServiceTaskIds.has(t.id);
@@ -4333,8 +4349,16 @@ function renderTasksTable(tasks) {
                             <option value="🟡 В работе" ${t.status === '🟡 В работе' ? 'selected' : ''}>🟡 В работе</option>
                             <option value="🟢 Выполнено" ${t.status === '🟢 Выполнено' ? 'selected' : ''}>🟢 Выполнено</option>
                             <option value="🔵 Перенесено" ${t.status === '🔵 Перенесено' ? 'selected' : ''}>🔵 Перенесено</option>
+                            ${(t.status === '🔵 Перенесено' && !isLocked) ? '<option value="🔵 Перенести ещё раз">🔄 Перенести ещё раз...</option>' : ''}
                             <option value="🔴 Отменено" ${t.status === '🔴 Отменено' ? 'selected' : ''}>🔴 Отменено</option>
                         </select>
+                        ${(t.status === '🔵 Перенесено' && !isLocked) ? `
+                            <div style="margin-top: 4px;">
+                                <button type="button" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" style="font-size: 0.72rem; padding: 2px 7px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap;" title="Перенести срок задачи повторно">
+                                    <i class="fa-solid fa-clock-rotate-left"></i> Перенести снова
+                                </button>
+                            </div>
+                        ` : ''}
                     </td>
                     <td style="font-size: 0.82rem; color: #334155; max-width: 260px; word-break: break-word;">
                         ${commentCell}
@@ -4544,9 +4568,15 @@ function renderTasksCards(tasks) {
                     </div>
 
                     <div class="mobile-card-bottom">
-                        <span class="mobile-due-badge">
+                        <span class="mobile-due-badge" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" style="cursor: pointer;" title="Нажмите для переноса срока">
                             <i class="fa-regular fa-calendar"></i> ${escapeHtml(dueStr)}
+                            ${(t.reschedule_count > 0 || t.status === '🔵 Перенесено') ? `<span style="font-size: 0.68rem; background: #e0f2fe; color: #0284c7; padding: 1px 4px; border-radius: 3px; font-weight: 700; margin-left: 3px;"><i class="fa-solid fa-clock-rotate-left" style="font-size: 0.65rem;"></i> №${t.reschedule_count || 1}</span>` : ''}
                         </span>
+                        ${(t.status === '🔵 Перенесено') ? `
+                            <button type="button" onclick="event.stopPropagation(); openRescheduleTaskModal(${t.id});" style="font-size: 0.7rem; padding: 2px 6px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; font-weight: 600; cursor: pointer;">
+                                <i class="fa-solid fa-calendar-plus"></i> Перенести снова
+                            </button>
+                        ` : ''}
                         <span style="color: #94a3b8; font-size: 0.74rem;">
                             ${t.assignee_name ? escapeHtml(t.assignee_name) : ''}
                         </span>
@@ -4816,8 +4846,9 @@ async function quickUpdateStatus(taskId, newStatus) {
         return;
     }
 
-    // 2. Если выбрали "Перенесено" — открываем специализированный диалог переноса срока
-    if (newStatus === "🔵 Перенесено") {
+    // 2. Если выбрали "Перенесено" или "Перенести ещё раз" — открываем диалог переноса срока
+    if (newStatus === "🔵 Перенесено" || newStatus === "🔵 Перенести ещё раз") {
+        restoreSelectValue(taskId);
         openRescheduleTaskModal(taskId);
         return;
     }
@@ -4971,7 +5002,29 @@ function openRescheduleTaskModal(taskId) {
     document.getElementById("reschedule-task-id").value = taskId;
     document.getElementById("reschedule-task-code").textContent = task.code || `TSK-${task.id}`;
     document.getElementById("reschedule-task-title").textContent = task.title || "—";
-    document.getElementById("reschedule-task-current-due").textContent = task.due_date_str || "В теч. недели";
+    
+    const initialDue = task.initial_due_date_str || task.due_date_str || "Не указан";
+    const currentDue = task.due_date_str || "В теч. недели";
+    const resCount = task.reschedule_count || (task.status === '🔵 Перенесено' ? 1 : 0);
+    
+    const initialDueEl = document.getElementById("reschedule-task-initial-due");
+    if (initialDueEl) initialDueEl.textContent = initialDue;
+    
+    const currentDueEl = document.getElementById("reschedule-task-current-due");
+    if (currentDueEl) currentDueEl.textContent = currentDue;
+
+    const countBadgeEl = document.getElementById("reschedule-task-count-badge");
+    if (countBadgeEl) {
+        if (resCount === 0) {
+            countBadgeEl.textContent = "1-й перенос (первичный)";
+            countBadgeEl.style.background = "#e0f2fe";
+            countBadgeEl.style.color = "#0369a1";
+        } else {
+            countBadgeEl.textContent = `Очередной перенос (№${resCount + 1})`;
+            countBadgeEl.style.background = "#fef3c7";
+            countBadgeEl.style.color = "#92400e";
+        }
+    }
     
     // Сбрасываем инпуты
     document.getElementById("reschedule-task-date").value = "";
@@ -4984,7 +5037,41 @@ function openRescheduleTaskModal(taskId) {
     // По умолчанию предлагаем дату через 3 дня
     applyDatePreset(3);
 
+    // Загрузка истории переносов
+    loadRescheduleHistoryIntoModal(taskId);
+
     document.getElementById("reschedule-task-modal").style.display = "flex";
+}
+
+async function loadRescheduleHistoryIntoModal(taskId) {
+    const box = document.getElementById("reschedule-history-box");
+    if (!box) return;
+    box.style.display = "none";
+    box.innerHTML = "";
+    try {
+        const res = await fetch(`/api/tasks/${taskId}/comments`);
+        if (res.ok) {
+            const comments = await res.json();
+            const rescheds = comments.filter(c => c.comment_type === "reschedule");
+            if (rescheds && rescheds.length > 0) {
+                let html = '<div style="font-weight: 700; color: #475569; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;"><i class="fa-solid fa-clock-rotate-left"></i> Предыдущие переносы:</div>';
+                rescheds.forEach((rc) => {
+                    const dt = rc.created_at ? new Date(rc.created_at).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+                    html += `
+                        <div style="padding: 3px 0; border-bottom: 1px dashed #e2e8f0; line-height: 1.3;">
+                            <span style="font-weight: 600; color: #0284c7;">${escapeHtml(rc.author_name || "Сотрудник")}</span>: 
+                            <span style="color: #334155;">${escapeHtml(rc.text || "")}</span>
+                            <span style="font-size: 0.7rem; color: #94a3b8; margin-left: 4px;">(${dt})</span>
+                        </div>
+                    `;
+                });
+                box.innerHTML = html;
+                box.style.display = "block";
+            }
+        }
+    } catch (e) {
+        console.error("Error loading reschedule history:", e);
+    }
 }
 
 function closeRescheduleModal() {
@@ -5073,25 +5160,26 @@ async function submitRescheduleModal() {
 
     ensureUserAuthorized(requiredUser, async (authSession) => {
         try {
-            const commentText = `[Перенос на ${newDueDateStr}] ${reason}`;
             const payload = {
-                status: "🔵 Перенесено",
-                due_date_str: newDueDateStr,
-                comment: commentText,
+                new_due_date_str: newDueDateStr,
+                reason: reason,
                 pin_code: authSession ? authSession.pin : "",
                 user_name: authSession ? authSession.name : ""
             };
 
-            const res = await fetch(`/api/tasks/${taskId}`, {
-                method: "PUT",
+            const res = await fetch(`/api/tasks/${taskId}/reschedule`, {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 closeRescheduleModal();
-                showToast(`Срок перенесён на ${newDueDateStr} 🔵`);
-                loadTasks();
+                showToast(`Срок успешно перенесён на ${newDueDateStr} 🔵`);
+                await loadTasks();
+                if (typeof openTaskDetailModal === "function" && currentDetailTaskId == taskId) {
+                    openTaskDetailModal(taskId);
+                }
             } else {
                 const err = await res.json();
                 alert("Ошибка переноса: " + (err.detail || "Не удалось сохранить"));
@@ -8969,50 +9057,10 @@ function getNextCalendarWeek(task = null) {
     return { month: baseMonth, week: weeks[0] || `Неделя 1` };
 }
 
-async function moveTaskToNextWeekModal(taskId) {
-    const task = allTasks.find(t => t.id === taskId);
-    const isLocked = !isPlannerAdmin() && (task && task.status && (task.status.includes("Выполнено") || task.status.includes("Отменено")));
-    if (isLocked) {
-        showToast("🔒 Завершенные и отмененные задачи заблокированы от переноса", "warning");
-        return;
-    }
-    const requiredUser = task ? (task.assignee_name || task.author_name) : null;
-
-    ensureUserAuthorized(requiredUser, async (authSession) => {
-        const next = getNextCalendarWeek(task);
-        const confirmMove = confirm(`Перенести задачу на «${next.week}» (${next.month}) со статусом «🔵 Перенесено»?`);
-        if (!confirmMove) return;
-
-        try {
-            const uName = authSession ? authSession.name : (currentPlannerUser ? currentPlannerUser.name : "");
-            const uPin = authSession ? authSession.pin : (currentPlannerUser ? currentPlannerUser.pin : "");
-            const url = `/api/tasks/${taskId}/move_next_week?next_week=${encodeURIComponent(next.week)}&next_month=${encodeURIComponent(next.month)}&user_name=${encodeURIComponent(uName)}&pin=${encodeURIComponent(uPin)}`;
-            const res = await fetch(url, {
-                method: "POST"
-            });
-            if (res.ok) {
-                showToast(`Задача перенесена на ${next.week}`);
-                
-                // Если перешли в другой месяц - переключаем фильтр месяца
-                if (next.month !== currentMonth && currentMonth !== 'all') {
-                    const monthSelect = document.getElementById("filter-month");
-                    if (monthSelect) monthSelect.value = next.month;
-                    currentMonth = next.month;
-                    onMonthChange(next.week);
-                } else {
-                    const weekSelect = document.getElementById("filter-week");
-                    if (weekSelect && currentWeek !== 'all') weekSelect.value = next.week;
-                    if (currentWeek !== 'all') currentWeek = next.week;
-                    loadTasks();
-                }
-            } else {
-                const err = await res.json().catch(() => ({}));
-                alert("Ошибка переноса задачи: " + (err.detail || "Доступ запрещен"));
-            }
-        } catch (e) {
-            console.error("Move task error:", e);
-        }
-    }, task, "interact");
+function moveTaskToNextWeekModal(taskId) {
+    // Вместо слепого перемещения открываем понятное окно переноса срока
+    openRescheduleTaskModal(taskId);
+    applyDatePreset(7);
 }
 
 /* ==========================================================
@@ -10100,6 +10148,20 @@ function populateTaskDetailModal(task) {
         } else {
             dueDateEl.textContent = "В течение недели";
             dueDateEl.style.color = "#94a3b8";
+        }
+    }
+
+    const initialDueWrap = document.getElementById("detail-task-initial-due-wrap");
+    const initialDueEl = document.getElementById("detail-task-initial-due");
+    const resCountEl = document.getElementById("detail-task-reschedule-count");
+    if (initialDueWrap && initialDueEl && resCountEl) {
+        const rc = task.reschedule_count || (task.status === '🔵 Перенесено' ? 1 : 0);
+        if (rc > 0 || task.status === '🔵 Перенесено') {
+            initialDueWrap.style.display = "block";
+            initialDueEl.textContent = task.initial_due_date_str || task.due_date_str || "—";
+            resCountEl.textContent = rc;
+        } else {
+            initialDueWrap.style.display = "none";
         }
     }
 

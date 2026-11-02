@@ -145,7 +145,8 @@ def check_task_access(
     # Если задача передана, проверяем отношение к ней
     if task:
         is_author = bool(clean_user and task.author_name and clean_user == task.author_name)
-        is_assignee = bool(clean_user and task.assignee_name and clean_user == task.assignee_name)
+        assignees = [a.strip() for a in (task.assignee_name or "").split(",") if a.strip()]
+        is_assignee = bool(clean_user and (clean_user == task.assignee_name or clean_user in assignees))
 
         # Если задача является подзадачей или этапом, проверяем также автора родительского проекта
         if not is_author and task.parent_id:
@@ -168,13 +169,16 @@ def check_task_access(
         if action == "accept_project":
             return False, f"Принимать проект дорожной карты может автор ({task.author_name or '—'}), руководство завода (Туматов Д., Герлинг С., Булеханов К.) или администратор"
 
-        if action in ("interact_task", "add_subtask") and is_assignee:
+        if action in ("interact_task", "reschedule_task", "add_subtask") and is_assignee:
             if verify_person_pin(db, clean_user, clean_pin):
                 return True, ""
             return False, f"Неверный PIN-код исполнителя «{clean_user}»"
 
         if action == "edit_project":
             return False, f"Редактировать суть и этапы проекта/задачи может только автор ({task.author_name or '—'}), руководство завода или администратор"
+
+        if action == "reschedule_task":
+            return False, f"Переносить срок задачи может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
 
         if action == "interact_task":
             return False, f"Взаимодействовать с задачей (смена статуса, фото, факт) может только исполнитель ({task.assignee_name or '—'}), автор ({task.author_name or '—'}) или руководство завода"
@@ -1998,6 +2002,9 @@ def get_tasks(
                 "author_name": t.author_name or "",
                 "assignee_name": t.assignee_name or "",
                 "due_date_str": t.due_date_str or "",
+                "initial_due_date_str": t.initial_due_date_str or "",
+                "initial_week_label": t.initial_week_label or "",
+                "reschedule_count": t.reschedule_count or 0,
                 "status": t.status or "⚪ В очереди",
                 "comment": t.comment or "",
                 "month_label": t.month_label or "",
@@ -2220,6 +2227,9 @@ def get_single_task(task_id: int, db: Session = Depends(get_db)):
         "author_name": task.author_name or "",
         "assignee_name": task.assignee_name or "",
         "due_date_str": task.due_date_str or "",
+        "initial_due_date_str": task.initial_due_date_str or "",
+        "initial_week_label": task.initial_week_label or "",
+        "reschedule_count": task.reschedule_count or 0,
         "status": task.status or "⚪ В очереди",
         "comment": task.comment or "",
         "month_label": task.month_label or "",
@@ -2326,6 +2336,9 @@ def create_task(task_data: schemas.TaskCreate, background_tasks: BackgroundTasks
             author_name=task_data.author_name or "",
             assignee_name=task_data.assignee_name or "",
             due_date_str=task_data.due_date_str or "",
+            initial_due_date_str=task_data.due_date_str or "",
+            initial_week_label=task_week,
+            reschedule_count=0,
             status=task_data.status or "🟡 В работе",
             comment=task_data.comment or "",
             month_label=task_month,
@@ -2633,6 +2646,9 @@ def create_tasks_bulk(bulk_data: schemas.BulkTasksCreate, background_tasks: Back
                 author_name=author_name,
                 assignee_name=assignee_val,
                 due_date_str=due_date,
+                initial_due_date_str=due_date,
+                initial_week_label=item_week,
+                reschedule_count=0,
                 status="🟡 В работе",
                 comment="",
                 month_label=item_month,
@@ -3009,8 +3025,18 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
 
         # Определяем тип действия: только взаимодействие (статус/факт/фото/прогресс) или редактирование сути проекта/задачи
         interaction_fields = {"status", "comment", "photos", "photo_link", "photo_link_after", "progress"}
+        reschedule_fields = {"status", "due_date_str", "comment", "week_label", "month_label", "target_quarter", "initial_due_date_str", "initial_week_label", "reschedule_count"}
         is_interaction_only = all(k in interaction_fields for k in update_dict.keys()) if update_dict else True
-        required_action = "interact_task" if is_interaction_only else "edit_project"
+        is_reschedule = (
+            update_dict.get("status") == "🔵 Перенесено" or 
+            ("due_date_str" in update_dict and update_dict.get("due_date_str") != task.due_date_str and (set(update_dict.keys()) - interaction_fields).issubset(reschedule_fields))
+        )
+        if is_reschedule:
+            required_action = "reschedule_task"
+        elif is_interaction_only:
+            required_action = "interact_task"
+        else:
+            required_action = "edit_project"
 
         # 🔒 ЗАЩИТА: Завершенные ("🟢 Выполнено") и отмененные ("🔴 Отменено") задачи заблокированы от любых изменений для обычных сотрудников
         is_leader_or_admin = (
@@ -3034,6 +3060,20 @@ def update_task(task_id: int, task_data: schemas.TaskUpdate, background_tasks: B
             update_dict["tags"] = extract_hashtags_from_title(update_dict["title"], curr_tags)
 
         if "due_date_str" in update_dict and update_dict.get("due_date_str"):
+            new_due_val = update_dict["due_date_str"].strip()
+            if task.due_date_str != new_due_val or update_dict.get("status") == "🔵 Перенесено":
+                if not task.initial_due_date_str:
+                    task.initial_due_date_str = task.due_date_str or new_due_val
+                if not task.initial_week_label:
+                    task.initial_week_label = task.week_label or ""
+                task.reschedule_count = (task.reschedule_count or 0) + 1
+                db.add(models.TaskComment(
+                    task_id=task.id,
+                    author_name=user_name or task.assignee_name or "Пользователь",
+                    comment_type="reschedule",
+                    text=f"Перенос срока №{task.reschedule_count}: с «{task.due_date_str or 'В теч. недели'}» на «{new_due_val}»",
+                    created_at=datetime.utcnow()
+                ))
             if "week_label" not in update_dict:
                 res_m, res_w = find_week_and_month_for_date(update_dict["due_date_str"])
                 if res_m and res_w:
@@ -3424,6 +3464,18 @@ def move_task_to_next_week(
 
         old_week = task.week_label or ""
         old_month = task.month_label or ""
+        if not task.initial_due_date_str:
+            task.initial_due_date_str = task.due_date_str or ""
+        if not task.initial_week_label:
+            task.initial_week_label = old_week
+        task.reschedule_count = (task.reschedule_count or 0) + 1
+        db.add(models.TaskComment(
+            task_id=task.id,
+            author_name=clean_user or task.assignee_name or "Пользователь",
+            comment_type="reschedule",
+            text=f"Перенос на следующую неделю №{task.reschedule_count}: с «{old_week}» на «{next_week}»",
+            created_at=datetime.utcnow()
+        ))
         task.week_label = next_week
 
         # Защита от month_label = 'all' или пустых значений при переносе
@@ -3491,6 +3543,148 @@ def move_task_to_next_week(
                 background_tasks.add_task(send_task_email_notification, author_email, subject, "Задача перенесена", task_dict)
 
         return {"status": "ok", "message": f"Задача перенесена на {next_week}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/tasks/{task_id}/reschedule")
+def reschedule_task(
+    task_id: int,
+    payload: schemas.TaskRescheduleRequest,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db)
+):
+    """
+    Переносит срок задачи на новую дату.
+    Доступно исполнителю, автору, руководству завода и мастер-администратору.
+    Сохраняет исходный дедлайн и логирует историю переносов в TaskComment и AuditLog.
+    """
+    try:
+        task = db.query(models.Task).filter(models.Task.id == task_id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        clean_user = (payload.user_name or "").strip()
+        clean_pin = (payload.pin_code or "").strip()
+        ok, err = check_task_access(db, task, clean_user, clean_pin, "reschedule_task")
+        if not ok:
+            raise HTTPException(status_code=403, detail=err)
+
+        if task.status in ["🟢 Выполнено", "🔴 Отменено"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Завершенные и отмененные задачи заблокированы от переноса."
+            )
+
+        new_due_date = (payload.new_due_date_str or "").strip()
+        reason = (payload.reason or "").strip()
+        if not new_due_date:
+            raise HTTPException(status_code=400, detail="Необходимо указать новую дату срока")
+        if not reason:
+            raise HTTPException(status_code=400, detail="Необходимо указать причину переноса срока")
+
+        old_due_date = task.due_date_str or "В теч. недели"
+        old_week = task.week_label or ""
+        old_month = task.month_label or ""
+
+        # 1. Сохранение исходного дедлайна (если еще не зафиксирован)
+        if not task.initial_due_date_str:
+            task.initial_due_date_str = task.due_date_str or new_due_date
+        if not task.initial_week_label:
+            task.initial_week_label = old_week
+
+        # 2. Инкремент счетчика переносов
+        task.reschedule_count = (task.reschedule_count or 0) + 1
+        current_count = task.reschedule_count
+
+        # 3. Обновление срока и статуса
+        task.due_date_str = new_due_date
+        task.status = "🔵 Перенесено"
+
+        # 4. Автоматическое определение недели, месяца и квартала
+        res_m, res_w = find_week_and_month_for_date(new_due_date)
+        if res_m:
+            task.month_label = res_m
+        if res_w:
+            task.week_label = res_w
+        auto_q = resolve_quarter_by_date(new_due_date)
+        if auto_q:
+            task.target_quarter = auto_q
+
+        # 5. Запись в историю комментариев
+        comment_text = f"Перенос срока №{current_count}: с «{old_due_date}» на «{new_due_date}». Причина: {reason}"
+        db.add(models.TaskComment(
+            task_id=task.id,
+            author_name=clean_user or task.assignee_name or "Исполнитель",
+            comment_type="reschedule",
+            text=comment_text,
+            created_at=datetime.utcnow()
+        ))
+
+        # 6. Обновление комментария задачи
+        note = f"[Перенос №{current_count} на {new_due_date}: {reason}]"
+        if task.comment:
+            task.comment = f"{task.comment} | {note}"
+        else:
+            task.comment = note
+
+        task.updated_at = datetime.utcnow()
+
+        # 7. Запись в AuditLog
+        db.add(models.AuditLog(
+            user_name=clean_user or task.assignee_name or "Пользователь",
+            action="RESCHEDULE",
+            target_table="tasks",
+            target_id=task.id,
+            details=f"Перенос задачи [{task.code}] №{current_count} с «{old_due_date}» ({old_week}) на «{new_due_date}» ({task.week_label}). Причина: {reason}"
+        ))
+
+        db.commit()
+        db.refresh(task)
+
+        # 8. Email-уведомление
+        task_dict = {
+            "id": task.id,
+            "code": task.code,
+            "title": task.title,
+            "title_kz": task.title_kz,
+            "zone": task.zone,
+            "due_date_str": task.due_date_str,
+            "initial_due_date_str": task.initial_due_date_str,
+            "reschedule_count": task.reschedule_count,
+            "author_name": task.author_name,
+            "assignee_name": task.assignee_name,
+            "status": task.status,
+            "comment": task.comment,
+            "photo_link": task.photo_link,
+            "photo_link_after": task.photo_link_after or "",
+            "month_label": task.month_label,
+            "week_label": task.week_label
+        }
+        if task.author_name:
+            author_email = get_task_person_email(db, task.author_name)
+            if author_email:
+                subject = f"🔵 Перенос срока [{task.zone}]: {task.title} (на {task.due_date_str})"
+                background_tasks.add_task(send_task_email_notification, author_email, subject, f"Срок задачи перенесен (перенос №{current_count}). Причина: {reason}", task_dict)
+
+        return {
+            "success": True,
+            "message": f"Срок успешно перенесен на {new_due_date}",
+            "task": {
+                "id": task.id,
+                "code": task.code,
+                "due_date_str": task.due_date_str,
+                "initial_due_date_str": task.initial_due_date_str,
+                "initial_week_label": task.initial_week_label,
+                "reschedule_count": task.reschedule_count,
+                "status": task.status,
+                "month_label": task.month_label,
+                "week_label": task.week_label,
+                "comment": task.comment
+            }
+        }
     except HTTPException:
         raise
     except Exception as e:

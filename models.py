@@ -437,6 +437,9 @@ class Task(Base):
     author_name = Column(String, nullable=True) # Автор
     assignee_name = Column(String, nullable=True) # Исполнитель
     due_date_str = Column(String, nullable=True) # Срок (строка, напр. "28.08")
+    initial_due_date_str = Column(String, nullable=True) # Исходный срок задачи до переносов
+    initial_week_label = Column(String, nullable=True) # Исходная неделя задачи
+    reschedule_count = Column(Integer, default=0) # Количество переносов срока
     status = Column(String, default="🟡 В работе") # 🟡 В работе, 🟢 Выполнено, 🔵 Перенесено, 🔴 Отменено
     comment = Column(String, nullable=True) # Факт / Комментарий
     month_label = Column(String, nullable=True, index=True) # например, "Август 2026"
