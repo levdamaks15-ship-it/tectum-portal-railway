@@ -38,28 +38,51 @@ def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # 1. Поиск в таблице Master (мастера смен цехов ХЦИ/ЛКЦ/СКК, админ)
     master = db.query(models.Master).filter(models.Master.name == clean_name).first()
     
-    # 2. Если не найден в Master, поиск в PlannerEmployee (сотрудники ИТР/завода)
-    planner_emp = None
-    if not master:
-        planner_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_name).first()
+    # 2. Поиск в PlannerEmployee (сотрудники ИТР/завода/портала)
+    planner_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_name).first()
     
-    # Сверка PIN-кода
+    # Сверка PIN-кода с защитой от рассинхронизации двух таблиц
     matched = False
     user_id = 0
     user_name = clean_name
     user_role = "itr"
     
+    master_pin_ok = False
     if master:
-        # Проверка мастер-PIN 6282 либо собственного PIN мастера
         if master.pin == clean_pin or (clean_pin == "6282" and master.role == "admin"):
-            matched = True
+            master_pin_ok = True
+
+    planner_pin_ok = False
+    if planner_emp:
+        if not planner_emp.pin_code or not planner_emp.pin_code.strip() or planner_emp.pin_code.strip() == clean_pin or clean_pin == "6282":
+            planner_pin_ok = True
+
+    if master_pin_ok:
+        matched = True
+        user_id = master.id
+        user_name = master.name
+        user_role = master.role
+        # Самоисцеление: синхронизируем PIN в PlannerEmployee при расхождении
+        if planner_emp and clean_pin != "6282" and planner_emp.pin_code != clean_pin:
+            try:
+                planner_emp.pin_code = clean_pin
+                db.commit()
+            except Exception:
+                db.rollback()
+    elif planner_pin_ok:
+        matched = True
+        if master:
             user_id = master.id
             user_name = master.name
             user_role = master.role
-    elif planner_emp:
-        # Если у сотрудника установлен PIN — сверяем (либо мастер-PIN 6282 для админа)
-        if not planner_emp.pin_code or not planner_emp.pin_code.strip() or planner_emp.pin_code.strip() == clean_pin or clean_pin == "6282":
-            matched = True
+            # Самоисцеление: синхронизируем PIN в Master при расхождении
+            if clean_pin != "6282":
+                try:
+                    master.pin = clean_pin
+                    db.commit()
+                except Exception:
+                    db.rollback()
+        else:
             user_id = 10000 + planner_emp.id
             user_name = planner_emp.name
             user_role = getattr(planner_emp, "role", None) or ("admin" if (clean_name.startswith("Л") and clean_pin == "6282") else "portal")
