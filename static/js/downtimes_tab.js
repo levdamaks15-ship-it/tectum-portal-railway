@@ -167,16 +167,14 @@
 
     // Главная функция загрузки в зависимости от активного вида
     window.loadDowntimesData = async function (highlightId = null) {
-        syncDateInputsWithFilter();
-
         const sInput = document.getElementById('dt-date-from');
         const eInput = document.getElementById('dt-date-to');
         const lineSelect = document.getElementById('dt-filter-line');
         const catSelect = document.getElementById('dt-filter-category');
         const searchInput = document.getElementById('dt-filter-search');
 
-        if (sInput) dtCurrentFilter.start_date = sInput.value;
-        if (eInput) dtCurrentFilter.end_date = eInput.value;
+        if (sInput && sInput.value) dtCurrentFilter.start_date = sInput.value;
+        if (eInput && eInput.value) dtCurrentFilter.end_date = eInput.value;
         if (lineSelect) dtCurrentFilter.line = lineSelect.value;
         if (catSelect) dtCurrentFilter.category = catSelect.value;
         if (searchInput) dtCurrentFilter.search = searchInput.value;

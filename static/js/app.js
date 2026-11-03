@@ -459,7 +459,7 @@ function switchTab(tabId, event) {
     }
 
     // Hide all tabs
-    const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report', 'materials'];
+    const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'tech-downtimes', 'daily-report', 'materials'];
     tabs.forEach(t => {
         const el = document.getElementById(`${t}-tab`);
         const btn = document.getElementById(`tab-btn-${t}`);
@@ -481,12 +481,12 @@ function switchTab(tabId, event) {
     } else if (tabId === 'daily-report') {
         loadDailyReport();
     } else if (tabId === 'downtimes') {
+        if (typeof loadDowntimesByParams === 'function') loadDowntimesByParams();
+    } else if (tabId === 'tech-downtimes') {
         if (window.initDowntimesWorkspace) {
             window.initDowntimesWorkspace();
         } else if (window.loadDowntimesData) {
             window.loadDowntimesData();
-        } else {
-            loadDowntimesByParams();
         }
     }
 }
@@ -1167,7 +1167,7 @@ function applyRoleVisibility() {
         if (activeShiftBanner) activeShiftBanner.style.display = 'none';
         
         // Hide workshop tabs
-        ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report'].forEach(t => {
+        ['production', 'crew-plans', 'summary', 'downtimes', 'tech-downtimes', 'daily-report'].forEach(t => {
             const el = document.getElementById(`${t}-tab`);
             if (el) el.style.display = 'none';
             const btn = document.getElementById(`tab-btn-${t}`);
@@ -1197,7 +1197,15 @@ function applyRoleVisibility() {
     const canReport = ['master', 'admin'].includes(r);
     const canViewSummary = ['master', 'admin', 'director', 'technologist'].includes(r);
     const canViewMaterials = ['admin', 'director', 'technologist'].includes(r); // Hide from master, keep for admin/director/technologist
-    const canDowntime = ['master', 'admin', 'mechanic', 'director', 'technologist'].includes(r);
+    // Журнал простоев (мастера): доступен Мастерам, Механикам и Админу
+    const canMasterDowntimes = ['master', 'admin', 'mechanic'].includes(r);
+    const masterDtBtn = document.getElementById('tab-btn-downtimes');
+    if (masterDtBtn) masterDtBtn.style.display = canMasterDowntimes ? '' : 'none';
+
+    // База простоев (технолога): доступна Технологу, Директору и Админу
+    const canTechDowntimes = ['technologist', 'admin', 'director'].includes(r);
+    const techDtBtn = document.getElementById('tab-btn-tech-downtimes');
+    if (techDtBtn) techDtBtn.style.display = canTechDowntimes ? '' : 'none';
     
     const crewPlansBtn = document.getElementById('tab-btn-crew-plans');
     // Технологу вкладка выполнения плана бригадами и рапорт мастера не нужны
@@ -1208,7 +1216,7 @@ function applyRoleVisibility() {
     if (r === 'technologist') {
         const curTab = sessionStorage.getItem('active_tab') || (window.location.hash ? window.location.hash.replace('#', '') : '');
         if (!curTab || curTab === 'production' || curTab === 'crew-plans') {
-            setTimeout(() => switchTab('downtimes'), 50);
+            setTimeout(() => switchTab('tech-downtimes'), 50);
         }
     }
     document.getElementById('tab-btn-summary').style.display = canViewSummary ? '' : 'none';
@@ -1216,7 +1224,7 @@ function applyRoleVisibility() {
     const materialsBtn = document.getElementById('tab-btn-materials');
     if (materialsBtn) materialsBtn.style.display = 'none';
     
-    document.getElementById('tab-btn-downtimes').style.display = canDowntime ? '' : 'none';
+    
     const analyticsBtn = document.getElementById('tab-btn-analytics');
     if (analyticsBtn) analyticsBtn.style.display = 'none';
     
@@ -1263,7 +1271,9 @@ function applyRoleVisibility() {
         switchTab('production');
     } else if (canViewSummary) {
         switchTab('summary');
-    } else if (canDowntime) {
+    } else if (r === 'technologist') {
+        switchTab('tech-downtimes');
+    } else if (canMasterDowntimes) {
         switchTab('downtimes');
     }
 }
