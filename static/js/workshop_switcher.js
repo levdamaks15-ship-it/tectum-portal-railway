@@ -2,14 +2,14 @@
  * Tectum Enterprise - Workshop Switcher Popover
  * @canonical-pattern WorkshopSwitcher
  * @established 2026-10-30
- * @version 20261031_switcher_v3
+ * @version 20261103_v7
  * @description Сквозной интерактивный переключатель производственных кабинетов
  *              для Администратора (Левда М.), Директора и Главного технолога.
  *              Portal Architecture (document.body), Idempotent Event Binding.
  */
 
 (function () {
-    const ALLOWED_ROLES = ['admin', 'director', 'technologist'];
+    const ALLOWED_ROLES = ['admin', 'director', 'tech_director', 'production_head', 'technologist'];
 
     // Реестр кабинетов завода Tectum
     const WORKSHOPS = [
@@ -17,7 +17,7 @@
             id: 'xci',
             title: 'Цех ХЦИ',
             subtitle: 'Сменный рапорт, формовка, дестакер',
-            url: '/',
+            url: '/p/shymkent/w/xci/shifts',
             icon: 'fa-industry',
             bg: '#eff6ff',
             color: '#2563eb'
@@ -26,7 +26,7 @@
             id: 'qcd',
             title: 'Служба СКК',
             subtitle: 'Переборка, разбраковка, Акты А4',
-            url: '/qcd',
+            url: '/p/shymkent/w/skk/shifts',
             icon: 'fa-clipboard-check',
             bg: '#f0fdf4',
             color: '#16a34a'
@@ -35,7 +35,7 @@
             id: 'lkc',
             title: 'Цех ЛКЦ',
             subtitle: 'Окраска шифера, рапорт, простои',
-            url: '/lkc',
+            url: '/p/shymkent/w/lkc/shifts',
             icon: 'fa-paint-roller',
             bg: '#faf5ff',
             color: '#9333ea'
@@ -44,7 +44,7 @@
             id: 'admin',
             title: 'Панель администратора',
             subtitle: 'Справочники, сотрудники, нормативы',
-            url: '/admin',
+            url: '/p/shymkent/w/all/admin',
             icon: 'fa-sliders',
             bg: '#f1f5f9',
             color: '#0f172a'
@@ -53,7 +53,7 @@
             id: 'analytics',
             title: 'Аналитика производства',
             subtitle: 'OEE, выработка, простои, баланс',
-            url: '/analytics',
+            url: '/p/shymkent/w/all/analytics',
             icon: 'fa-chart-line',
             bg: '#fffbeb',
             color: '#d97706'
@@ -61,9 +61,9 @@
     ];
 
     const SERVICES = [
-        { title: 'Планнер', url: '/tasks', icon: 'fa-bullseye', color: '#f59e0b' },
-        { title: 'Чек-листы', url: '/checklists', icon: 'fa-square-check', color: '#10b981' },
-        { title: 'База знаний', url: '/docs', icon: 'fa-book-bookmark', color: '#3b82f6' }
+        { title: 'Планнер', url: '/p/shymkent/w/xci/tasks', icon: 'fa-bullseye', color: '#f59e0b' },
+        { title: 'Чек-листы', url: '/p/shymkent/w/xci/checklists', icon: 'fa-square-check', color: '#10b981' },
+        { title: 'База знаний', url: '/p/shymkent/w/xci/docs', icon: 'fa-book-bookmark', color: '#3b82f6' }
     ];
 
     function getCurrentCabinetId() {

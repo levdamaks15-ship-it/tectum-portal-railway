@@ -1,28 +1,109 @@
+from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional, List
 from fastapi import HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 import models
 
+# Каноническая иерархия приоритета должностей и ролей
+ROLE_PRIORITY = [
+    "admin",
+    "director",
+    "tech_director",
+    "production_head",
+    "workshop_master",
+    "qcd_inspector",
+    "technologist",
+    "mechanic",
+    "itr",
+    "operator",
+]
+
+@dataclass
+class TenantContext:
+    plant_id: str
+    workshop_id: str
+    user_id: int
+    user_name: str
+    role_code: str
+    is_admin: bool
+    user: Optional[models.User] = None
+
+def get_primary_role(user: Optional[models.User]) -> str:
+    """Определяет наивысшую действующую роль пользователя по каноническому приоритету."""
+    if not user:
+        return "operator"
+    if (user.name and user.name.startswith("Левда")) or (user.pin_code == "6282"):
+        return "admin"
+    scopes = [s for s in (user.scopes or []) if getattr(s, "is_active", True)]
+    if not scopes:
+        return "operator"
+    def role_rank(s):
+        code = (s.role_code or "").strip().lower()
+        try:
+            return ROLE_PRIORITY.index(code)
+        except ValueError:
+            return 999
+    sorted_scopes = sorted(scopes, key=role_rank)
+    return sorted_scopes[0].role_code
+
+def get_authenticated_user_from_request(request: Request, db: Session) -> Optional[models.User]:
+    """Извлекает и валидирует пользователя строго из активной серверной сессии user_sessions."""
+    token = (
+        request.cookies.get("__Host-tectum_session")
+        or request.cookies.get("tectum_session")
+        or request.headers.get("x-session-token")
+    )
+    now = datetime.utcnow()
+    if token:
+        sess = db.query(models.UserSession).filter(
+            models.UserSession.id == token,
+            models.UserSession.expires_at > now,
+            models.UserSession.revoked_at.is_(None)
+        ).first()
+        if sess:
+            user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == sess.user_id).first()
+            if user and user.is_active:
+                return user
+
+    return None
+
 def check_admin_session(request: Request, db: Session):
-    role = request.session.get('user_role')
-    user_id = request.session.get('user_id')
-    
-    # Строгий запрет: доступ в админ-панель разрешен исключительно Администратору (Левда М.)
-    if user_id and role == 'admin':
-        user = db.query(models.Master).get(user_id)
-        if user and user.role == 'admin':
+    """Строгая проверка прав администратора (только Левда М. / role=admin)."""
+    # 1. Пробуем получить пользователя из активной сессии user_sessions
+    user = get_authenticated_user_from_request(request, db)
+    if user:
+        is_admin = (user.name and user.name.startswith("Левда")) or any(
+            s.role_code == "admin" for s in (user.scopes or []) if getattr(s, "is_active", True)
+        )
+        if is_admin:
+            user.role = "admin"
             return user
 
-    # Fallback to X-Admin-PIN / X-PIN header (строго мастер-PIN 6282 / Левда М.)
+    # 2. Проверяем legacy session cookies / session dict
+    user_id = request.session.get('user_id')
+    role = request.session.get('user_role')
+    if user_id:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user:
+            is_admin = (user.name and user.name.startswith("Левда")) or any(
+                s.role_code == "admin" for s in (user.scopes or []) if getattr(s, "is_active", True)
+            )
+            if is_admin or role == 'admin':
+                user.role = "admin"
+                return user
+
+    # 3. Fallback to X-Admin-PIN / X-PIN header (строго мастер-PIN 6282 / Левда М.)
     pin_header = request.headers.get('x-admin-pin') or request.headers.get('x-pin')
     if pin_header:
         clean_pin = pin_header.strip()
         if clean_pin == '6282':
-            levda = db.query(models.Master).filter(models.Master.pin == '6282').first()
+            levda = db.query(models.User).filter(models.User.name.like("%Левда%")).first()
+            if not levda:
+                levda = db.query(models.User).filter(models.User.pin_code == '6282').first()
             if levda:
+                levda.role = "admin"
                 return levda
-            admin_user = db.query(models.Master).filter(models.Master.role == 'admin').first()
-            if admin_user:
-                return admin_user
 
     raise HTTPException(status_code=403, detail='Доступ запрещен. Вход в панель управления разрешен только системному администратору (Левда М.).')
 
@@ -507,42 +588,6 @@ def normalize_batch_number(batch_val) -> str:
 # MULTI-TENANT CONTEXT RESOLVER (ЭТАП 3)
 # ==========================================
 
-from dataclasses import dataclass
-from typing import Optional, List
-import datetime
-
-@dataclass
-class TenantContext:
-    plant_id: str
-    workshop_id: str
-    user_id: int
-    user_name: str
-    role_code: str
-    is_admin: bool
-    user: Optional[models.User] = None
-
-def get_authenticated_user_from_request(request: Request, db: Session) -> Optional[models.User]:
-    """Извлекает и валидирует пользователя строго из активной серверной сессии user_sessions."""
-    token = (
-        request.cookies.get("__Host-tectum_session")
-        or request.cookies.get("tectum_session")
-        or request.headers.get("x-session-token")
-    )
-    now = datetime.datetime.utcnow()
-    if token:
-        sess = db.query(models.UserSession).filter(
-            models.UserSession.id == token,
-            models.UserSession.expires_at > now,
-            models.UserSession.revoked_at.is_(None)
-        ).first()
-        if sess:
-            from sqlalchemy.orm import selectinload
-            user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == sess.user_id).first()
-            if user and user.is_active:
-                return user
-
-    return None
-
 def resolve_tenant_context(
     plant_slug: str,
     workshop_slug: str,
@@ -557,13 +602,10 @@ def resolve_tenant_context(
     if not user:
         raise HTTPException(status_code=401, detail="Требуется авторизация в системе Tectum")
 
-    # Проверка роли
-    is_admin = False
-    user_scopes = user.scopes or []
-    for s in user_scopes:
-        if s.role_code == "admin":
-            is_admin = True
-            break
+    # Проверка роли администратора
+    is_admin = (user.name and user.name.startswith("Левда")) or any(
+        s.role_code == "admin" for s in (user.scopes or []) if getattr(s, "is_active", True)
+    )
 
     # Админ имеет доступ ко всем заводам и цехам
     if is_admin:
@@ -578,12 +620,18 @@ def resolve_tenant_context(
             user=user
         )
 
-    # Проверка прав для линейного персонала / мастеров
+    # Проверка прав для линейного персонала и руководства с учетом канонического приоритета ролей
+    def role_rank(s):
+        code = (s.role_code or "").strip().lower()
+        try:
+            return ROLE_PRIORITY.index(code)
+        except ValueError:
+            return 999
+    sorted_scopes = sorted([s for s in (user.scopes or []) if getattr(s, "is_active", True)], key=role_rank)
+
     allowed = False
     matched_role = "operator"
-    for s in user_scopes:
-        if not s.is_active:
-            continue
+    for s in sorted_scopes:
         plant_ok = (s.plant_id is None) or (s.plant_id.lower() == plant_slug.lower())
         workshop_ok = (s.workshop_id is None) or (workshop_slug.lower() == "all") or (s.workshop_id.lower() == workshop_slug.lower())
         

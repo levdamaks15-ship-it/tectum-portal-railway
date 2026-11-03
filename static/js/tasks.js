@@ -26,6 +26,25 @@ let allTagsList = [];
 let allWeeksStructure = {};
 let allMasters = [];
 let showBacklog = false; // toggle to include unfinished tasks from other weeks
+
+// Cross-Tab Auth Synchronization listener (BroadcastChannel)
+if (typeof BroadcastChannel !== 'undefined') {
+    try {
+        const tectumAuthSync = new BroadcastChannel('tectum_auth_sync');
+        tectumAuthSync.onmessage = (event) => {
+            if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                try {
+                    localStorage.removeItem('tectum_auth_user');
+                    localStorage.removeItem('tectum_portal_user');
+                    localStorage.removeItem('tectum_current_user_name');
+                    sessionStorage.clear();
+                } catch(e) {}
+                window.location.replace('/?unauthorized=true');
+            }
+        };
+    } catch(e) {}
+}
+
 const _monthsRuInit = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
     "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"

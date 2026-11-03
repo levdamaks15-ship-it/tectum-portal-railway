@@ -2733,6 +2733,24 @@
             }
         }
 
+        // Cross-Tab Auth Synchronization listener (BroadcastChannel)
+        if (typeof BroadcastChannel !== 'undefined') {
+            try {
+                const tectumAuthSync = new BroadcastChannel('tectum_auth_sync');
+                tectumAuthSync.onmessage = (event) => {
+                    if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                        try {
+                            localStorage.removeItem('tectum_auth_user');
+                            localStorage.removeItem('tectum_portal_user');
+                            localStorage.removeItem('tectum_current_user_name');
+                            sessionStorage.clear();
+                        } catch(e) {}
+                        window.location.replace('/?unauthorized=true');
+                    }
+                };
+            } catch(e) {}
+        }
+
         async function logoutQcd() {
             try {
                 if (typeof BroadcastChannel !== 'undefined') {
@@ -2757,7 +2775,7 @@
         document.addEventListener('DOMContentLoaded', initQcdUser);
     </script>
     <script src="/static/js/qcd_workbench.js?v=20261031_qcd_daterange_v1"></script>
-    <script src="/static/js/workshop_switcher.js?v=20261031_switcher_v3"></script>
+    <script src="/static/js/workshop_switcher.js?v=20261103_v7"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js"></script>
 </body>

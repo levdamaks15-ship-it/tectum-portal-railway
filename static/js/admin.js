@@ -186,9 +186,34 @@ async function adminLogin() {
         }
     }
 }
+// Cross-Tab Auth Synchronization listener (BroadcastChannel)
+if (typeof BroadcastChannel !== 'undefined') {
+    try {
+        const tectumAuthSync = new BroadcastChannel('tectum_auth_sync');
+        tectumAuthSync.onmessage = (event) => {
+            if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                try {
+                    localStorage.removeItem('tectum_auth_user');
+                    localStorage.removeItem('tectum_portal_user');
+                    localStorage.removeItem('tectum_current_user_name');
+                    localStorage.removeItem('admin_token');
+                    sessionStorage.clear();
+                } catch(e) {}
+                window.location.replace('/?unauthorized=true');
+            }
+        };
+    } catch(e) {}
+}
+
 async function adminLogout() {
     try {
-        await fetch('/api/logout', { method: 'POST' });
+        if (typeof BroadcastChannel !== 'undefined') {
+            const authChan = new BroadcastChannel('tectum_auth_sync');
+            authChan.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+        }
+    } catch(e) {}
+    try {
+        await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
     } catch (e) {}
     currentAdmin = null;
     try {
@@ -198,7 +223,7 @@ async function adminLogout() {
         localStorage.removeItem('admin_token');
         sessionStorage.clear();
     } catch (e) {}
-    window.location.replace('/');
+    window.location.replace('/?unauthorized=true');
 }
 
 // Call init on load

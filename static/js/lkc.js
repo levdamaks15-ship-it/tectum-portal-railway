@@ -7,6 +7,25 @@ let currentReportId = null;
 let currentSelectedDate = null;
 let currentWeekOffset = 0; // 0 = current week
 
+// Cross-Tab Auth Synchronization listener (BroadcastChannel)
+if (typeof BroadcastChannel !== 'undefined') {
+    try {
+        const tectumAuthSync = new BroadcastChannel('tectum_auth_sync');
+        tectumAuthSync.onmessage = (event) => {
+            if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                try {
+                    localStorage.removeItem('tectum_auth_user');
+                    localStorage.removeItem('tectum_portal_user');
+                    localStorage.removeItem('tectum_current_user_name');
+                    sessionStorage.clear();
+                } catch(e) {}
+                window.location.replace('/?unauthorized=true');
+            }
+        };
+    } catch(e) {}
+}
+
+
 // --- PREVENT WHEEL SCROLL & AUTO-CLEAR 0 ON FOCUS (FIX 0500 BUG) ---
 document.addEventListener('wheel', function(e) {
     if (document.activeElement && document.activeElement.type === 'number') {

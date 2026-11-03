@@ -6,6 +6,26 @@ let productNorms = {};
 let mastersList = [];
 window.currentLoadedShiftId = null;
 
+// Cross-Tab Auth Synchronization listener (BroadcastChannel)
+if (typeof BroadcastChannel !== 'undefined') {
+    try {
+        const tectumAuthSync = new BroadcastChannel('tectum_auth_sync');
+        tectumAuthSync.onmessage = (event) => {
+            if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                try {
+                    localStorage.removeItem('tectum_auth_user');
+                    localStorage.removeItem('tectum_portal_user');
+                    localStorage.removeItem('tectum_current_user_name');
+                    localStorage.removeItem('tectum_active_user');
+                    sessionStorage.clear();
+                } catch(e) {}
+                window.location.replace('/?unauthorized=true');
+            }
+        };
+    } catch(e) {}
+}
+
+
 // Universal XSS Sanitizer
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';

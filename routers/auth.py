@@ -11,6 +11,12 @@ from sqlalchemy import func, or_
 
 import models
 import schemas
+from routers.common import (
+    get_primary_role,
+    ROLE_PRIORITY,
+    resolve_tenant_context,
+    get_authenticated_user_from_request
+)
 from database import SessionLocal
 
 try:
@@ -160,13 +166,11 @@ def login(data: LoginRequest, request: Request, response: Response, db: Session 
             matched = True
             user_id = unified_user.id
             user_name = unified_user.name
-            # Определяем роль
+            # Определяем роль с учетом канонического приоритета
             if is_admin_login:
                 user_role = "admin"
-            elif unified_user.scopes:
-                user_role = unified_user.scopes[0].role_code
             else:
-                user_role = "operator"
+                user_role = get_primary_role(unified_user)
 
     # 2. Если не совпало — fallback на легаси таблицы Master и PlannerEmployee
     if not matched:
@@ -180,8 +184,12 @@ def login(data: LoginRequest, request: Request, response: Response, db: Session 
 
         planner_pin_ok = False
         if planner_emp:
-            if not planner_emp.pin_code or not planner_emp.pin_code.strip() or planner_emp.pin_code.strip() == clean_pin or clean_pin == "6282":
+            # Мастер-PIN 6282 не может использоваться для входа под другими сотрудниками!
+            if planner_emp.pin_code and planner_emp.pin_code.strip() == clean_pin:
                 planner_pin_ok = True
+            elif not planner_emp.pin_code or not planner_emp.pin_code.strip():
+                if clean_pin in ("0000", "1234"):
+                    planner_pin_ok = True
 
         if master_pin_ok:
             matched = True
@@ -248,13 +256,11 @@ def login_by_pin(data: schemas.LoginByPinRequest, request: Request, response: Re
     if not pin_valid:
         raise HTTPException(status_code=400, detail="Неверный ПИН-код")
 
-    # Определение роли и области видимости
+    # Определение роли с учетом канонического приоритета
     if is_admin_pin:
         role_code = "admin"
-    elif user.scopes:
-        role_code = user.scopes[0].role_code
     else:
-        role_code = "operator"
+        role_code = get_primary_role(user)
 
     workshop_slug = data.workshop_id or (user.scopes[0].workshop_id if user.scopes and user.scopes[0].workshop_id else "xci")
     plant_slug = data.plant_id or "shymkent"
@@ -281,19 +287,19 @@ def login_by_pin(data: schemas.LoginByPinRequest, request: Request, response: Re
 @router.post("/api/admin/login")
 def admin_login(data: AdminLoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     clean_pin = data.pin.strip()
-    admin_user = None
 
-    if clean_pin == "6282":
-        admin_user = db.query(models.User).filter(models.User.name.like("%Левда%")).first()
-        if not admin_user:
-            admin_user = db.query(models.User).filter(models.User.pin_code == "6282").first()
-    else:
-        admin_user = db.query(models.User).filter(models.User.pin_code == clean_pin).first()
+    # СТРОГАЯ ЗАЩИТА: Вход в панель администратора разрешен исключительно по мастер-PIN 6282
+    if clean_pin != "6282":
+        raise HTTPException(status_code=403, detail="Доступ запрещен. Неверный ключ администратора.")
+
+    admin_user = db.query(models.User).filter(models.User.name.like("%Левда%")).first()
+    if not admin_user:
+        admin_user = db.query(models.User).filter(models.User.pin_code == "6282").first()
 
     # Fallback на таблицу Master
     if not admin_user:
         master_admin = db.query(models.Master).filter(models.Master.role == "admin").first()
-        if master_admin and (clean_pin == "6282" or master_admin.pin == clean_pin):
+        if master_admin:
             admin_user = db.query(models.User).filter(models.User.name == master_admin.name).first()
 
     if not admin_user:
@@ -330,9 +336,7 @@ def get_current_user(request: Request, response: Response, db: Session = Depends
                     {"role_code": s.role_code, "plant_id": s.plant_id, "workshop_id": s.workshop_id}
                     for s in user.scopes if s.is_active
                 ]
-                primary_role = scopes_list[0]["role_code"] if scopes_list else "operator"
-                if any(s["role_code"] == "admin" for s in scopes_list):
-                    primary_role = "admin"
+                primary_role = get_primary_role(user)
 
                 # Синхронизируем legacy session
                 request.session["user_id"] = user.id
