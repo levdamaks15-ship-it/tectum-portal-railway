@@ -110,7 +110,7 @@ def seed_tenant_structure(db: Session = None):
                 role_code = "admin"
                 target_plant = None
                 target_workshop = None
-            elif m_role in ("director", "tech_director", "production_head"):
+            elif m_role in ("director", "tech_director", "production_head", "technologist"):
                 role_code = m_role
                 target_plant = "shymkent"
                 target_workshop = None
@@ -128,8 +128,7 @@ def seed_tenant_structure(db: Session = None):
                 target_workshop = "xci"
 
             scope = db.query(models.UserRoleScope).filter(
-                models.UserRoleScope.user_id == user.id,
-                models.UserRoleScope.role_code == role_code
+                models.UserRoleScope.user_id == user.id
             ).first()
 
             if not scope:
@@ -141,6 +140,11 @@ def seed_tenant_structure(db: Session = None):
                     is_active=True
                 )
                 db.add(scope)
+            else:
+                scope.role_code = role_code
+                scope.plant_id = target_plant
+                scope.workshop_id = target_workshop
+                scope.is_active = True
 
         # 4. Синхронизация сотрудников ИТР из PlannerEmployee
         employees = db.query(models.PlannerEmployee).all()
@@ -170,7 +174,7 @@ def seed_tenant_structure(db: Session = None):
             if emp_role == "admin" or clean_name.startswith("Левда") or getattr(emp, "pin_code", "") == "6282":
                 role_code = "admin"
                 target_plant = None
-            elif emp_role in ("director", "tech_director", "production_head"):
+            elif emp_role in ("director", "tech_director", "production_head", "technologist"):
                 role_code = emp_role
                 target_plant = "shymkent"
             else:
@@ -178,8 +182,7 @@ def seed_tenant_structure(db: Session = None):
                 target_plant = "shymkent"
 
             scope = db.query(models.UserRoleScope).filter(
-                models.UserRoleScope.user_id == user.id,
-                models.UserRoleScope.role_code == role_code
+                models.UserRoleScope.user_id == user.id
             ).first()
 
             if not scope:
@@ -191,6 +194,11 @@ def seed_tenant_structure(db: Session = None):
                     is_active=True
                 )
                 db.add(scope)
+            elif role_code in ("admin", "director", "tech_director", "production_head", "technologist"):
+                scope.role_code = role_code
+                scope.plant_id = target_plant
+                scope.workshop_id = None
+                scope.is_active = True
 
         # 5. Гарантия учетной записи суперадмина
         admin_user = db.query(models.User).filter(models.User.pin_code == "6282").first()

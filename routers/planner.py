@@ -203,6 +203,7 @@ def get_admin_planner_employees(request: Request, db: Session = Depends(get_db))
                 "email": e.email or "",
                 "pin_code": e.pin_code or "",
                 "has_pin": bool(e.pin_code and e.pin_code.strip()),
+                "role": getattr(e, "role", None) or "portal",
                 "is_active": bool(e.is_active),
                 "sort_order": e.sort_order or 0
             }
@@ -356,6 +357,48 @@ def update_planner_employee(emp_id: int, data: schemas.PlannerEmployeeUpdate, db
                 role=emp.role,
                 email=emp.email or None
             ))
+
+        # Synchronize with unified User and UserRoleScope models (Law 1)
+        user_match = db.query(models.User).filter(models.User.name == emp.name).first()
+        if user_match:
+            if emp.pin_code:
+                user_match.pin_code = emp.pin_code
+            if emp.email:
+                user_match.email = emp.email
+
+            role_code = (emp.role or "portal").strip().lower()
+            if role_code in ("master", "workshop_master"):
+                target_role = "workshop_master"
+                target_workshop = "xci"
+            elif role_code in ("qcd", "qcd_inspector"):
+                target_role = "qcd_inspector"
+                target_workshop = "skk"
+            elif role_code == "portal":
+                target_role = "itr"
+                target_workshop = None
+            elif role_code in ("technologist", "director", "tech_director", "production_head", "admin"):
+                target_role = role_code
+                target_workshop = None
+            else:
+                target_role = role_code
+                target_workshop = None
+
+            # Update or create primary scope
+            scope = db.query(models.UserRoleScope).filter(
+                models.UserRoleScope.user_id == user_match.id
+            ).first()
+            if scope:
+                scope.role_code = target_role
+                scope.workshop_id = target_workshop
+                scope.is_active = True
+            else:
+                db.add(models.UserRoleScope(
+                    user_id=user_match.id,
+                    role_code=target_role,
+                    plant_id="shymkent",
+                    workshop_id=target_workshop,
+                    is_active=True
+                ))
 
         db.commit()
         db.refresh(emp)

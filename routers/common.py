@@ -11,9 +11,11 @@ ROLE_PRIORITY = [
     "director",
     "tech_director",
     "production_head",
-    "workshop_master",
-    "qcd_inspector",
     "technologist",
+    "workshop_master",
+    "master",
+    "qcd_inspector",
+    "qcd",
     "mechanic",
     "itr",
     "operator",
@@ -30,7 +32,7 @@ class TenantContext:
     user: Optional[models.User] = None
 
 def get_primary_role(user: Optional[models.User]) -> str:
-    """Определяет наивысшую действующую роль пользователя по каноническому приоритету."""
+    """Определяет наивысшую действующую роль пользователя по каноническому приоритету с нормализацией для совместимости."""
     if not user:
         return "operator"
     if (user.name and user.name.startswith("Левда")) or (user.pin_code == "6282"):
@@ -45,7 +47,14 @@ def get_primary_role(user: Optional[models.User]) -> str:
         except ValueError:
             return 999
     sorted_scopes = sorted(scopes, key=role_rank)
-    return sorted_scopes[0].role_code
+    raw_role = (sorted_scopes[0].role_code or "").strip().lower()
+    
+    # Каноническая нормализация для бесшовной совместимости с клиентом и бэкендом
+    if raw_role in ("workshop_master", "master"):
+        return "master"
+    if raw_role in ("qcd_inspector", "qcd"):
+        return "qcd"
+    return raw_role
 
 def get_authenticated_user_from_request(request: Request, db: Session) -> Optional[models.User]:
     """Извлекает и валидирует пользователя строго из активной серверной сессии user_sessions."""

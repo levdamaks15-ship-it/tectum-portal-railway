@@ -43,6 +43,8 @@ from routers.common import (
     sync_receipts_bg,
     sync_downtimes_bg,
     normalize_batch_number,
+    get_authenticated_user_from_request,
+    get_primary_role,
 )
 
 
@@ -1326,9 +1328,20 @@ import google_sheets_integration
 
 @router.post("/api/report")
 def save_shift_report(data: schemas.ShiftReportCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id") or 9999
-    user_role = request.session.get("user_role") or "admin"
-    user_name = request.session.get("user_name") or "Админ"
+    # 1. Приоритетно определяем пользователя через серверную сессию UserSession
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id") or 9999
+        user_role = request.session.get("user_role") or "admin"
+        user_name = request.session.get("user_name") or "Админ"
+
+    # Нормализация роли (поддержка master и workshop_master)
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
         
     if user_role not in ["master", "admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастера или администраторы могут сохранять рапорты.")
@@ -1392,9 +1405,19 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
 
 @router.put("/api/report/{shift_id}")
 def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Unknown")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Unknown")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id or not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
