@@ -478,8 +478,8 @@ function switchTab(tabId, event) {
         }
     }
 
-    const activeBtn = document.getElementById(`tab-btn-${tabId}`);
-    if (activeBtn && !isTabBtnVisible(activeBtn)) {
+    const targetTabBtn = document.getElementById(`tab-btn-${tabId}`);
+    if (targetTabBtn && !isTabBtnVisible(targetTabBtn)) {
         console.warn(`Tab ${tabId} is hidden or forbidden for role ${currentUser?.role}`);
         return;
     }
