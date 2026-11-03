@@ -128,6 +128,8 @@ def serve_tenant_module(
         target_file = os.path.join(base_dir, "admin.html")
     elif clean_module in ("qcd", "quality"):
         target_file = os.path.join(base_dir, "qcd.html")
+    elif clean_module in ("technologist", "tech", "downtimes_base"):
+        target_file = os.path.join(base_dir, "technologist.html")
     else:
         target_file = os.path.join(base_dir, "index.html")
 

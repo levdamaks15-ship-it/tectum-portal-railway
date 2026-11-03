@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, field_validator
 from pydantic_core import PydanticUndefined
 from typing import List, Optional, Any, Dict, Union
 from datetime import date, datetime
@@ -151,8 +151,33 @@ class DowntimeBase(ORMBaseModel):
     is_equipment_downtime: Optional[bool] = True
     breakdowns: Optional[str] = None
 
+    @field_validator("date", "actual_date", mode="before")
+    @classmethod
+    def parse_tolerant_downtime_date(cls, v):
+        if v is None or v == "":
+            return None
+        if isinstance(v, dt_module.date):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return None
+            if "." in v:
+                parts = v.split(".")
+                if len(parts) == 3:
+                    try:
+                        return dt_module.date(int(parts[2]), int(parts[1]), int(parts[0]))
+                    except Exception:
+                        pass
+        return v
+
 class DowntimeCreate(DowntimeBase):
     pass
+
+class DowntimeClassifyUpdate(ORMBaseModel):
+    category: str
+    is_equipment_downtime: Optional[bool] = None
+    node: Optional[str] = None
 
 class Downtime(DowntimeBase):
     id: int

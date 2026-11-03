@@ -860,3 +860,450 @@ def normalize_and_translate_downtime_text(payload: dict = Body(...)):
 
 
 
+# -------------------------------------------------------------
+# Режим технолога: Инлайн-классификация, Лента и Экспорт в Google
+# -------------------------------------------------------------
+
+def check_technologist_or_admin(request: Request, db: Session):
+    user = get_authenticated_user_from_request(request, db)
+    allowed_roles = {"admin", "director", "tech_director", "production_head", "technologist", "mechanic"}
+    if user:
+        primary_role = get_primary_role(user)
+        if primary_role in allowed_roles:
+            return user
+    
+    # Legacy session checks
+    user_id = request.session.get('user_id') if hasattr(request, 'session') else None
+    role = request.session.get('user_role') if hasattr(request, 'session') else None
+    if user_id and role in allowed_roles:
+        u = db.query(models.User).get(user_id)
+        if u:
+            return u
+
+    pin_header = request.headers.get('x-admin-pin') or request.headers.get('x-pin')
+    if pin_header:
+        u = db.query(models.User).filter(models.User.pin_code == pin_header.strip()).first()
+        if u and get_primary_role(u) in allowed_roles:
+            return u
+
+    raise HTTPException(status_code=403, detail="Доступ разрешен только главному технологу или руководству.")
+
+
+def format_minutes_hh_mm_ss(mins: int) -> str:
+    h = mins // 60
+    m = mins % 60
+    return f"{h}:{m:02d}:00"
+
+
+@router.patch("/api/downtimes/{downtime_id}/classify")
+def classify_downtime_endpoint(
+    downtime_id: int,
+    data: schemas.DowntimeClassifyUpdate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    """
+    Быстрая инлайн-классификация простоя технологом или администратором.
+    Атомарно обновляет категорию и признак остановки оборудования.
+    """
+    user = check_technologist_or_admin(request, db)
+    dt = db.query(models.Downtime).get(downtime_id)
+    if not dt:
+        raise HTTPException(status_code=404, detail="Простой не найден")
+
+    old_cat = dt.category or "Без категории"
+    new_cat = (data.category or "").strip()
+    if not new_cat:
+        new_cat = "Без категории"
+
+    dt.category = new_cat
+
+    # Если меняется признак остановки оборудования
+    if data.is_equipment_downtime is not None:
+        dt.is_equipment_downtime = bool(data.is_equipment_downtime)
+    elif new_cat == "Остановки не связанные с простоем оборудования":
+        dt.is_equipment_downtime = False
+
+    if data.node and data.node.strip():
+        dt.node = data.node.strip()
+
+    # Аудит
+    try:
+        user_name = getattr(user, 'name', 'Технолог')
+        audit = models.AuditLog(
+            user_name=user_name,
+            action="CLASSIFY_DOWNTIME",
+            details=f"Простой #{dt.id}: категория изменена с '{old_cat}' на '{new_cat}', простой оборудования: {dt.is_equipment_downtime}"
+        )
+        db.add(audit)
+    except Exception:
+        pass
+
+    db.commit()
+    db.refresh(dt)
+
+    if background_tasks:
+        background_tasks.add_task(sync_downtimes_bg)
+
+    return {
+        "success": True,
+        "id": dt.id,
+        "category": dt.category,
+        "is_equipment_downtime": dt.is_equipment_downtime,
+        "node": dt.node
+    }
+
+
+@router.get("/api/downtimes/feed")
+def get_downtimes_feed(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    line: Optional[str] = None,
+    unclassified_only: bool = False,
+    category: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = 500,
+    offset: int = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    Оптимизированная выдача простоев для рабочего стола технолога и журнала админки.
+    """
+    from sqlalchemy.orm import joinedload
+    query = db.query(models.Downtime).options(
+        joinedload(models.Downtime.shift),
+        joinedload(models.Downtime.master)
+    ).outerjoin(models.Shift, models.Downtime.shift_id == models.Shift.id)
+
+    # Парсинг дат
+    s_date = None
+    e_date = None
+    if start_date:
+        try:
+            s_date = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            try: s_date = datetime.strptime(start_date.strip(), "%d.%m.%Y").date()
+            except Exception: pass
+    if end_date:
+        try:
+            e_date = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            try: e_date = datetime.strptime(end_date.strip(), "%d.%m.%Y").date()
+            except Exception: pass
+
+    if s_date:
+        query = query.filter(
+            or_(
+                models.Downtime.date >= s_date,
+                and_(models.Downtime.date.is_(None), models.Shift.date >= s_date)
+            )
+        )
+    if e_date:
+        query = query.filter(
+            or_(
+                models.Downtime.date <= e_date,
+                and_(models.Downtime.date.is_(None), models.Shift.date <= e_date)
+            )
+        )
+
+    # Фильтр линии
+    if line and line not in ("all", "Все линии", "Все", "СВОД"):
+        clean_line = "Линия 1" if "1" in line else ("Линия 2" if "2" in line else line)
+        query = query.filter(
+            or_(
+                models.Downtime.line == clean_line,
+                and_(models.Downtime.line.is_(None), models.Shift.line == clean_line)
+            )
+        )
+
+    # Фильтр категории
+    if category and category != "all":
+        if category == "unclassified":
+            unclassified_only = True
+        else:
+            query = query.filter(models.Downtime.category == category)
+
+    if unclassified_only:
+        query = query.filter(
+            or_(
+                models.Downtime.category.is_(None),
+                models.Downtime.category == "",
+                models.Downtime.category == "Без категории",
+                models.Downtime.category == "Не классифицировано",
+                models.Downtime.category == "-",
+                models.Downtime.category == "None"
+            )
+        )
+
+    # Поиск по подстроке
+    if search and search.strip():
+        term = f"%{search.strip().lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(models.Downtime.description).like(term),
+                func.lower(models.Downtime.comment).like(term),
+                func.lower(models.Downtime.node).like(term),
+                func.lower(models.Downtime.category).like(term)
+            )
+        )
+
+    # Сортировка: сначала свежие
+    query = query.order_by(
+        func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date).desc(),
+        models.Downtime.id.desc()
+    )
+
+    total_count = query.count()
+    records = query.offset(offset).limit(limit).all()
+
+    items = []
+    for d in records:
+        dur = d.duration or 0
+        d_date = d.effective_actual_date or d.record_date
+        d_date_str = d_date.strftime("%d.%m.%Y") if d_date else "Н/Д"
+
+        m_name = d.master.name if d.master else (d.shift.master.name if (d.shift and d.shift.master) else "Мастер не указан")
+        line_str = d.record_line or (d.shift.line if d.shift else "Линия 1")
+        shift_str = d.record_shift_name or (d.shift.shift_name if d.shift else "День")
+
+        cat = (d.category or "").strip()
+        is_unclass = not cat or cat in ("Без категории", "Не классифицировано", "-", "None", "не указана")
+
+        items.append({
+            "id": d.id,
+            "date": d_date_str,
+            "line": line_str,
+            "shift_name": shift_str,
+            "master_name": m_name,
+            "start_time": d.start_time or "--:--",
+            "end_time": d.end_time or "--:--",
+            "duration_minutes": dur,
+            "duration_formatted": format_minutes_hh_mm_ss(dur),
+            "category": cat or "Без категории",
+            "is_unclassified": is_unclass,
+            "node": d.node or "Основное оборудование",
+            "description": d.description or d.comment or "",
+            "is_equipment_downtime": d.is_equipment_downtime if d.is_equipment_downtime is not None else True,
+            "lost_tons": d.lost_tons or 0.0,
+            "lost_tenge": d.lost_tenge or 0.0
+        })
+
+    return {
+        "total": total_count,
+        "count": len(items),
+        "items": items
+    }
+
+
+@router.get("/api/downtimes/report-summary")
+def get_downtimes_report_summary(
+    start_date: str,
+    end_date: str,
+    line: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Формирует структуру отчета по простоям за период, сгруппированную по 5 каноническим категориям
+    с шапкой KPI выработки, планами (39 000 нед. / 160 000 мес.) и финансовыми потерями.
+    """
+    from sqlalchemy.orm import joinedload
+
+    try:
+        sd = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+    except Exception:
+        sd = datetime.strptime(start_date.strip(), "%d.%m.%Y").date()
+
+    try:
+        ed = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+    except Exception:
+        ed = datetime.strptime(end_date.strip(), "%d.%m.%Y").date()
+
+    num_days = (ed - sd).days + 1
+    total_operating_hours = num_days * 24
+
+    # 1. Загружаем смены
+    shifts_q = db.query(models.Shift).filter(
+        models.Shift.date >= sd,
+        models.Shift.date <= ed
+    )
+    if line and line not in ("all", "Все линии", "Все", "СВОД"):
+        clean_line = "Линия 1" if "1" in line else ("Линия 2" if "2" in line else line)
+        shifts_q = shifts_q.filter(models.Shift.line == clean_line)
+
+    shifts = shifts_q.all()
+    plan_sheets = sum((s.plan_sheets or 0) for s in shifts)
+
+    # Применяем утвержденные целевые планы завода (39k нед / 160k мес), если в сменах план пуст
+    if plan_sheets == 0:
+        if num_days == 7:
+            plan_sheets = 39000
+        elif num_days >= 28:
+            plan_sheets = 160000
+        else:
+            plan_sheets = round(num_days * (160000.0 / 30.0))
+
+    shift_ids = [s.id for s in shifts]
+    fact_sheets = 0
+    if shift_ids:
+        lfm_sum = db.query(func.sum(models.LFMReport.lfm_sheets)).filter(models.LFMReport.shift_id.in_(shift_ids)).scalar()
+        fact_sheets = int(lfm_sum or 0)
+
+    overproduction_sheets = max(0, fact_sheets - plan_sheets)
+
+    # 2. Загружаем простои
+    dts_q = db.query(models.Downtime).options(
+        joinedload(models.Downtime.shift),
+        joinedload(models.Downtime.master)
+    ).outerjoin(models.Shift, models.Downtime.shift_id == models.Shift.id).filter(
+        or_(
+            and_(models.Downtime.date >= sd, models.Downtime.date <= ed),
+            and_(models.Downtime.date.is_(None), models.Shift.date >= sd, models.Shift.date <= ed)
+        )
+    )
+    if line and line not in ("all", "Все линии", "Все", "СВОД"):
+        clean_line = "Линия 1" if "1" in line else ("Линия 2" if "2" in line else line)
+        dts_q = dts_q.filter(
+            or_(
+                models.Downtime.line == clean_line,
+                and_(models.Downtime.line.is_(None), models.Shift.line == clean_line)
+            )
+        )
+
+    all_dts = dts_q.all()
+
+    cat_defs = [
+        {"key": "mech", "title": "Механические:", "search": ["механ"], "color": "#f6b26b"},
+        {"key": "energy", "title": "Энергетические:", "search": ["энерг", "электр"], "color": "#ffe599"},
+        {"key": "tech", "title": "Технологические:", "search": ["технолог"], "color": "#ffd966"},
+        {"key": "maint", "title": "ТО и ППР:", "search": ["то и ппр", "ппр", "санитарный"], "color": "#b6d7a8"},
+        {"key": "no_stop", "title": "Остановки не связанные с простоем оборудования:", "search": ["без простоя", "не связан"], "color": "#f9cb9c"}
+    ]
+
+    total_downtime_minutes = 0
+    categories_res = []
+
+    for cdef in cat_defs:
+        c_items = []
+        c_mins = 0
+        for d in all_dts:
+            c_name = (d.category or "").strip().lower()
+            matched = any(s in c_name for s in cdef["search"])
+            if not matched and cdef["key"] == "no_stop" and d.is_equipment_downtime is False:
+                matched = True
+
+            if matched:
+                dur = d.duration or 0
+                c_mins += dur
+                d_date = d.effective_actual_date or d.record_date
+                d_date_str = d_date.strftime("%d.%m.%Y") if d_date else "Н/Д"
+                m_name = d.master.name if d.master else (d.shift.master.name if (d.shift and d.shift.master) else "Мастер не указан")
+                reason = d.description or d.comment or ""
+                if d.node and d.node != "Основное оборудование" and not reason.startswith(d.node):
+                    reason = f"{d.node}. {reason}"
+
+                pct_time = (dur / (total_operating_hours * 60)) if total_operating_hours > 0 else 0.0
+
+                c_items.append({
+                    "id": d.id,
+                    "date": d_date_str,
+                    "shift_name": d.record_shift_name or "День",
+                    "master_name": m_name,
+                    "reason": reason,
+                    "start_time": d.start_time or "--:--",
+                    "end_time": d.end_time or "--:--",
+                    "duration_minutes": dur,
+                    "duration_formatted": format_minutes_hh_mm_ss(dur),
+                    "percentage_of_pure_time": round(pct_time, 4)
+                })
+
+        total_downtime_minutes += c_mins
+        categories_res.append({
+            "key": cdef["key"],
+            "title": cdef["title"],
+            "color": cdef["color"],
+            "total_minutes": c_mins,
+            "total_formatted": format_minutes_hh_mm_ss(c_mins),
+            "percentage_of_pure_time": round(c_mins / (total_operating_hours * 60), 4) if total_operating_hours > 0 else 0.0,
+            "count": len(c_items),
+            "items": c_items
+        })
+
+    unclass_items = []
+    for d in all_dts:
+        c_name = (d.category or "").strip().lower()
+        if not c_name or c_name in ("без категории", "не классифицировано", "-", "none", "не указана"):
+            dur = d.duration or 0
+            d_date = d.effective_actual_date or d.record_date
+            d_date_str = d_date.strftime("%d.%m.%Y") if d_date else "Н/Д"
+            m_name = d.master.name if d.master else (d.shift.master.name if (d.shift and d.shift.master) else "Мастер не указан")
+            reason = d.description or d.comment or ""
+            if d.node and d.node != "Основное оборудование" and not reason.startswith(d.node):
+                reason = f"{d.node}. {reason}"
+            unclass_items.append({
+                "id": d.id,
+                "date": d_date_str,
+                "shift_name": d.record_shift_name or "День",
+                "master_name": m_name,
+                "reason": reason,
+                "start_time": d.start_time or "--:--",
+                "end_time": d.end_time or "--:--",
+                "duration_minutes": dur,
+                "duration_formatted": format_minutes_hh_mm_ss(dur)
+            })
+
+    hourly_rate = (plan_sheets / total_operating_hours) if total_operating_hours > 0 else 0
+    underproduction_sheets = round((total_downtime_minutes / 60.0) * hourly_rate)
+    
+    # Расчет потерь в тенге по средней марже 755 тг/лист (8-волн 2200 - 1445)
+    UNIT_MARGIN_AVG = 755.0
+    underproduction_tenge = round(underproduction_sheets * UNIT_MARGIN_AVG)
+
+    return {
+        "start_date": sd.strftime("%d.%m.%Y"),
+        "end_date": ed.strftime("%d.%m.%Y"),
+        "line": line or "Все линии",
+        "kpi": {
+            "total_operating_hours": total_operating_hours,
+            "plan_sheets": plan_sheets,
+            "fact_sheets": fact_sheets,
+            "overproduction_sheets": overproduction_sheets,
+            "underproduction_sheets": underproduction_sheets,
+            "underproduction_tenge": underproduction_tenge,
+            "total_downtime_minutes": total_downtime_minutes,
+            "total_downtime_formatted": format_minutes_hh_mm_ss(total_downtime_minutes)
+        },
+        "categories": categories_res,
+        "unclassified": {
+            "count": len(unclass_items),
+            "items": unclass_items
+        }
+    }
+
+
+@router.post("/api/downtimes/export/google-sheets")
+def export_downtimes_to_google_endpoint(
+    payload: dict = Body(...),
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Экспорт отчета по простоям в отдельную Google Таблицу (DOWNTIMES_SPREADSHEET_ID).
+    """
+    check_technologist_or_admin(request, db)
+    if not google_sheets_integration:
+        raise HTTPException(status_code=500, detail="Модуль Google Sheets не доступен")
+
+    start_date = payload.get("start_date")
+    end_date = payload.get("end_date")
+    if not start_date or not end_date:
+        raise HTTPException(status_code=400, detail="Необходимо указать start_date и end_date")
+
+    result = google_sheets_integration.export_downtime_technologist_report_to_google_sheets(
+        db, start_date, end_date
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Ошибка экспорта в Google Sheets"))
+
+    return result
+

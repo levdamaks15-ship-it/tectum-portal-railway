@@ -479,7 +479,7 @@ function switchTab(tabId, event) {
     }
 
     // Hide all tabs
-    const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'daily-report', 'materials'];
+    const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'tech-downtimes', 'daily-report', 'finance', 'materials'];
     tabs.forEach(t => {
         const el = document.getElementById(`${t}-tab`);
         const btn = document.getElementById(`tab-btn-${t}`);
@@ -502,6 +502,16 @@ function switchTab(tabId, event) {
         loadDailyReport();
     } else if (tabId === 'downtimes') {
         loadDowntimesByParams();
+    } else if (tabId === 'tech-downtimes') {
+        if (typeof window.initDowntimesWorkspace === 'function') {
+            window.initDowntimesWorkspace();
+        } else if (typeof window.loadDowntimesData === 'function') {
+            window.loadDowntimesData();
+        }
+    } else if (tabId === 'finance') {
+        if (typeof window.loadFinancialData === 'function') {
+            window.loadFinancialData();
+        }
     }
 }
 

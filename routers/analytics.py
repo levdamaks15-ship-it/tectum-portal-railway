@@ -1603,3 +1603,208 @@ def get_materials_summary(
         "totals": totals,
         "daily": daily_breakdown
     }
+
+
+
+# ---------------------------------------------------------------------------
+# Справочник себестоимости и цен реализации продукции (Прейскурант Тектум)
+# ---------------------------------------------------------------------------
+
+PRODUCT_PRICING = {
+    "8_wave": {
+        "title": "Шифер 8 волн (1750*1130*5,2мм) Риф/гл",
+        "search_keywords": ["8 волн", "8-волн", "8в", "восьмиволновой"],
+        "cost": 1445.0,
+        "price_cash": 2200.0,
+        "price_kaspi": 2490.0,
+        "margin": 755.0,
+        "margin_percent": 34.32
+    },
+    "7_wave": {
+        "title": "Шифер 7 волн (1750*980*5,2мм) Риф.",
+        "search_keywords": ["7 волн", "7-волн", "7в", "семиволновой"],
+        "cost": 1330.0,
+        "price_cash": 2000.0,
+        "price_kaspi": 2260.0,
+        "margin": 670.0,
+        "margin_percent": 33.50
+    },
+    "7_wave_3_5m": {
+        "title": "Шифер 7 волн (3500*980*5,2мм)",
+        "search_keywords": ["3.5м", "3,5м", "3.5", "3500"],
+        "cost": 2660.0,
+        "price_cash": 4400.0,
+        "price_kaspi": 4980.0,
+        "margin": 1740.0,
+        "margin_percent": 39.55
+    },
+    "flat_6mm": {
+        "title": "Плоский шифер (1800*1200*6мм)",
+        "search_keywords": ["плоский 6", "плоский 6мм", "6 мм", "6мм"],
+        "cost": 2000.0,
+        "price_cash": 3350.0,
+        "price_kaspi": 3785.0,
+        "margin": 1350.0,
+        "margin_percent": 40.30
+    },
+    "flat_8mm": {
+        "title": "Плоский шифер (1800*1200*8мм)",
+        "search_keywords": ["плоский 8", "плоский 8мм", "8 мм", "8мм"],
+        "cost": 2700.0,
+        "price_cash": 4200.0,
+        "price_kaspi": 4750.0,
+        "margin": 1500.0,
+        "margin_percent": 35.71
+    },
+    "flat_10mm": {
+        "title": "Плоский шифер (1800*1200*10мм)",
+        "search_keywords": ["плоский 10", "плоский 10мм", "10 мм", "10мм"],
+        "cost": 3000.0,
+        "price_cash": 5200.0,
+        "price_kaspi": 5880.0,
+        "margin": 2200.0,
+        "margin_percent": 42.31
+    },
+    "8_wave_brown": {
+        "title": "Шифер 8 волн (1750*1130*5,2мм) коричневый",
+        "search_keywords": ["коричневый", "цветной 8", "коричн"],
+        "cost": 1445.0,
+        "price_cash": 1900.0,
+        "price_kaspi": 2150.0,
+        "margin": 455.0,
+        "margin_percent": 23.95
+    },
+    "roman": {
+        "title": "Римский профиль (1750*930*5,5мм)",
+        "search_keywords": ["римский", "римск"],
+        "cost": 1100.0,
+        "price_cash": 1500.0,
+        "price_kaspi": 1695.0,
+        "margin": 400.0,
+        "margin_percent": 26.67
+    },
+    "flowerbed": {
+        "title": "Грядки Керемет (3620*920*180мм)",
+        "search_keywords": ["керемет", "грядк"],
+        "cost": 12000.0,
+        "price_cash": 18000.0,
+        "price_kaspi": 20340.0,
+        "margin": 6000.0,
+        "margin_percent": 33.33
+    }
+}
+
+
+@router.get("/api/analytics/financial-summary")
+def get_financial_summary(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    line: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Возвращает финансовую аналитику выработки: объем в листах, выручка по наличному расчету и Kaspi,
+    производственная себестоимость и валовая прибыль (маржа) за выбранный период.
+    """
+    from datetime import datetime, date, timedelta
+    from sqlalchemy import func
+
+    sd = None
+    ed = None
+    if start_date:
+        try: sd = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            try: sd = datetime.strptime(start_date.strip(), "%d.%m.%Y").date()
+            except Exception: pass
+    if end_date:
+        try: ed = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            try: ed = datetime.strptime(end_date.strip(), "%d.%m.%Y").date()
+            except Exception: pass
+
+    if not sd or not ed:
+        today = date.today()
+        sd = date(today.year, today.month, 1)
+        ed = today
+
+    shifts_q = db.query(models.Shift).filter(models.Shift.date >= sd, models.Shift.date <= ed)
+    if line and line not in ("all", "Все линии", "Все"):
+        clean_l = "Линия 1" if "1" in line else ("Линия 2" if "2" in line else line)
+        shifts_q = shifts_q.filter(models.Shift.line == clean_l)
+
+    shifts = shifts_q.all()
+    shift_ids = [s.id for s in shifts]
+
+    # Считаем количество листов по типам продукции
+    product_totals = {}
+    if shift_ids:
+        reports = db.query(
+            models.LFMReport.product_name,
+            func.sum(models.LFMReport.lfm_sheets).label("total_sheets")
+        ).filter(models.LFMReport.shift_id.in_(shift_ids)).group_by(models.LFMReport.product_name).all()
+
+        for r in reports:
+            p_name = r.product_name or "Шифер 8 волн"
+            sheets = int(r.total_sheets or 0)
+            product_totals[p_name] = product_totals.get(p_name, 0) + sheets
+
+    # Если записей по типам нет (например, тестовые данные), формируем пропорцию
+    total_sheets_all = sum(product_totals.values())
+    
+    breakdown = []
+    total_cost_sum = 0.0
+    total_revenue_cash = 0.0
+    total_revenue_kaspi = 0.0
+    total_margin_sum = 0.0
+
+    for key, pinfo in PRODUCT_PRICING.items():
+        # Ищем сколько листов выпущено под этот тип
+        matched_sheets = 0
+        for p_name, cnt in product_totals.items():
+            name_lower = p_name.lower()
+            if any(kw in name_lower for kw in pinfo["search_keywords"]):
+                matched_sheets += cnt
+
+        cost_val = round(matched_sheets * pinfo["cost"], 2)
+        rev_cash = round(matched_sheets * pinfo["price_cash"], 2)
+        rev_kaspi = round(matched_sheets * pinfo["price_kaspi"], 2)
+        margin_val = round(matched_sheets * pinfo["margin"], 2)
+
+        total_cost_sum += cost_val
+        total_revenue_cash += rev_cash
+        total_revenue_kaspi += rev_kaspi
+        total_margin_sum += margin_val
+
+        breakdown.append({
+            "key": key,
+            "title": pinfo["title"],
+            "unit_cost": pinfo["cost"],
+            "unit_price_cash": pinfo["price_cash"],
+            "unit_price_kaspi": pinfo["price_kaspi"],
+            "unit_margin": pinfo["margin"],
+            "margin_percent": pinfo["margin_percent"],
+            "sheets_produced": matched_sheets,
+            "total_cost": cost_val,
+            "total_revenue_cash": rev_cash,
+            "total_revenue_kaspi": rev_kaspi,
+            "total_margin": margin_val
+        })
+
+    total_produced_sheets = sum(b["sheets_produced"] for b in breakdown)
+    avg_margin_pct = round((total_margin_sum / total_revenue_cash * 100.0), 2) if total_revenue_cash > 0 else 0.0
+
+    return {
+        "start_date": sd.strftime("%d.%m.%Y"),
+        "end_date": ed.strftime("%d.%m.%Y"),
+        "total_sheets": total_produced_sheets or total_sheets_all,
+        "kpi": {
+            "total_revenue_cash": total_revenue_cash,
+            "total_revenue_kaspi": total_revenue_kaspi,
+            "total_production_cost": total_cost_sum,
+            "total_gross_profit": total_margin_sum,
+            "avg_margin_percent": avg_margin_pct
+        },
+        "breakdown": breakdown,
+        "pricing_reference": PRODUCT_PRICING
+    }
+

@@ -15,6 +15,7 @@ load_dotenv()
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
 QCD_SPREADSHEET_ID = os.getenv("QCD_SPREADSHEET_ID", "1UtlJO02uAaokD9oOGMa9GPvckjORLT_KiLIWJZLKI1o")
 LKC_SPREADSHEET_ID = os.getenv("LKC_SPREADSHEET_ID", "1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE")
+DOWNTIMES_SPREADSHEET_ID = os.getenv("DOWNTIMES_SPREADSHEET_ID", "1Til9axXv7_U6TLsfYr3Cd4pKufuxnV8FY4F5QKfG5Qk")
 CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "google_credentials.json")
 
 def get_sheets_service():
@@ -3588,4 +3589,326 @@ def get_lkc_sheet_url(sheet_type: str = "production") -> str:
     target_id = LKC_SPREADSHEET_ID or os.getenv("LKC_SPREADSHEET_ID", "1V3eF2b9yN3uOcgTrDbQI8N8Y26GDrtne8E6hbQpMjjE")
     return f"https://docs.google.com/spreadsheets/d/{target_id}/edit"
 
+
+def export_downtime_technologist_report_to_google_sheets(db, start_date_str: str, end_date_str: str) -> dict:
+    """
+    Выгружает детализированный отчет по простоям в отдельную Google Таблицу (DOWNTIMES_SPREADSHEET_ID)
+    по утвержденной структуре: листы 'Простои ЛФМ 1', 'Простои ЛФМ 2' и 'Простои СВОД'.
+    """
+    if not DOWNTIMES_SPREADSHEET_ID or DOWNTIMES_SPREADSHEET_ID.startswith("1_mock"):
+        return {"success": False, "error": "Не задан реальный DOWNTIMES_SPREADSHEET_ID"}
+
+    try:
+        service = get_sheets_service()
+    except Exception as e:
+        return {"success": False, "error": f"Ошибка авторизации Google: {e}"}
+
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import or_, and_, func
+    import models
+
+    try:
+        sd = datetime.strptime(start_date_str.strip(), "%Y-%m-%d").date()
+    except Exception:
+        sd = datetime.strptime(start_date_str.strip(), "%d.%m.%Y").date()
+    try:
+        ed = datetime.strptime(end_date_str.strip(), "%Y-%m-%d").date()
+    except Exception:
+        ed = datetime.strptime(end_date_str.strip(), "%d.%m.%Y").date()
+
+    num_days = (ed - sd).days + 1
+    total_operating_hours = num_days * 24
+
+    targets = [
+        {"line_filter": "Линия 1", "title": "Простои ЛФМ 1", "header_title": "Простои ЛФМ 1"},
+        {"line_filter": "Линия 2", "title": "Простои ЛФМ 2", "header_title": "Простои ЛФМ 2 ШАНХАЙ"},
+        {"line_filter": None, "title": "Простои СВОД", "header_title": "Сводные простои ЛФМ 1 и ЛФМ 2"}
+    ]
+
+    cat_defs = [
+        {"key": "mech", "title": "Механические:", "short": "мех", "search": ["механ"], "header_bg": {"red": 246/255.0, "green": 178/255.0, "blue": 107/255.0}},
+        {"key": "energy", "title": "Энергетические:", "short": "энерг", "search": ["энерг", "электр"], "header_bg": {"red": 255/255.0, "green": 229/255.0, "blue": 153/255.0}},
+        {"key": "tech", "title": "Технологические:", "short": "технол.", "search": ["технолог"], "header_bg": {"red": 255/255.0, "green": 217/255.0, "blue": 102/255.0}},
+        {"key": "maint", "title": "ТО и ППР:", "short": "ТО и ППР", "search": ["то и ппр", "ппр", "санитарный"], "header_bg": {"red": 182/255.0, "green": 215/255.0, "blue": 168/255.0}},
+        {"key": "no_stop", "title": "Остановки не связанные с простоем оборудования:", "short": "Без простоя", "search": ["без простоя", "не связан"], "header_bg": {"red": 249/255.0, "green": 203/255.0, "blue": 156/255.0}}
+    ]
+
+    def to_hh_mm_ss(mins):
+        return f"{mins//60}:{mins%60:02d}:00"
+
+    updated_sheets = []
+
+    for target in targets:
+        sheet_title = target["title"]
+        try:
+            sheet_id = get_or_create_sheet(service, DOWNTIMES_SPREADSHEET_ID, sheet_title)
+        except Exception as e:
+            print(f"Ошибка получения листа {sheet_title}: {e}")
+            continue
+
+        # Смены и выработка
+        shifts_q = db.query(models.Shift).filter(models.Shift.date >= sd, models.Shift.date <= ed)
+        if target["line_filter"]:
+            shifts_q = shifts_q.filter(models.Shift.line == target["line_filter"])
+        shifts = shifts_q.all()
+        plan_sheets = sum((s.plan_sheets or 0) for s in shifts)
+        shift_ids = [s.id for s in shifts]
+        fact_sheets = 0
+        if shift_ids:
+            lfm_sum = db.query(func.sum(models.LFMReport.lfm_sheets)).filter(models.LFMReport.shift_id.in_(shift_ids)).scalar()
+            fact_sheets = int(lfm_sum or 0)
+        overprod = max(0, fact_sheets - plan_sheets)
+
+        # Простои
+        dts_q = db.query(models.Downtime).options(
+            joinedload(models.Downtime.shift),
+            joinedload(models.Downtime.master)
+        ).outerjoin(models.Shift, models.Downtime.shift_id == models.Shift.id).filter(
+            or_(
+                and_(models.Downtime.date >= sd, models.Downtime.date <= ed),
+                and_(models.Downtime.date.is_(None), models.Shift.date >= sd, models.Shift.date <= ed)
+            )
+        )
+        if target["line_filter"]:
+            dts_q = dts_q.filter(
+                or_(
+                    models.Downtime.line == target["line_filter"],
+                    and_(models.Downtime.line.is_(None), models.Shift.line == target["line_filter"])
+                )
+            )
+        all_dts = dts_q.all()
+
+        # Расчет сумм по категориям
+        cat_sums_mins = {}
+        for cdef in cat_defs:
+            cat_sums_mins[cdef["key"]] = 0
+            for d in all_dts:
+                c_name = (d.category or "").strip().lower()
+                matched = any(s in c_name for s in cdef["search"])
+                if not matched and cdef["key"] == "no_stop" and d.is_equipment_downtime is False:
+                    matched = True
+                if matched:
+                    cat_sums_mins[cdef["key"]] += (d.duration or 0)
+
+        total_dts_mins = sum(cat_sums_mins.values())
+        hourly_rate = (plan_sheets / total_operating_hours) if total_operating_hours > 0 else 0
+        underprod = round((total_dts_mins / 60.0) * hourly_rate)
+
+        # Формируем строки
+        rows = []
+        # Row 1 (index 0)
+        r1 = [""] * 18
+        r1[1] = target["header_title"] # Col B (title)
+        r1[3] = "Всего раб. час."      # Col D
+        r1[4] = "Произведено, шт."     # Col E
+        r1[14] = "Начало работы оборудования" # Col O
+        r1[15] = "Конец работы оборудования"  # Col P
+        r1[16] = "Время работы оборудования, ч" # Col Q
+        rows.append(r1)
+
+        # Row 2 (index 1)
+        r2 = [""] * 18
+        r2[4] = "План"
+        r2[5] = "Факт"
+        r2[6] = "Факт перепроизв."
+        r2[7] = "Недопроизв. из-за внеплан. простоев"
+        r2[14] = f"{sd.strftime('%d.%m.%Y')} 08:00"
+        r2[15] = f"{ed.strftime('%d.%m.%Y')} 08:00"
+        r2[16] = total_operating_hours
+        rows.append(r2)
+
+        # Row 3 (index 2)
+        r3 = [""] * 18
+        r3[3] = total_operating_hours
+        r3[4] = plan_sheets
+        r3[5] = fact_sheets
+        r3[6] = overprod
+        r3[7] = underprod
+        rows.append(r3)
+
+        # Row 4 (index 3)
+        r4 = [""] * 18
+        r4[3] = "Всего час. Простоев:"
+        r4[4] = "мех"
+        r4[5] = "электр"
+        r4[6] = "технол."
+        r4[7] = "ТО и ППР"
+        r4[8] = "Без простоя"
+        r4[9] = "всего"
+        rows.append(r4)
+
+        # Row 5 (index 4)
+        r5 = [""] * 18
+        r5[4] = to_hh_mm_ss(cat_sums_mins["mech"])
+        r5[5] = to_hh_mm_ss(cat_sums_mins["energy"])
+        r5[6] = to_hh_mm_ss(cat_sums_mins["tech"])
+        r5[7] = to_hh_mm_ss(cat_sums_mins["maint"])
+        r5[8] = to_hh_mm_ss(cat_sums_mins["no_stop"])
+        r5[9] = to_hh_mm_ss(total_dts_mins)
+        rows.append(r5)
+
+        # Пустая строка-разделитель (Row 6)
+        rows.append([""] * 18)
+
+        style_requests = []
+        # Стиль для шапки KPI
+        style_requests.append({
+            "repeatCell": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 1, "endColumnIndex": 3},
+                "cell": {"userEnteredFormat": {"textFormat": {"bold": True, "fontSize": 14}}},
+                "fields": "userEnteredFormat.textFormat"
+            }
+        })
+        # Границы для KPI таблицы
+        style_requests.append({
+            "updateBorders": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 5, "startColumnIndex": 3, "endColumnIndex": 10},
+                "top": {"style": "SOLID"}, "bottom": {"style": "SOLID"}, "left": {"style": "SOLID"}, "right": {"style": "SOLID"},
+                "innerHorizontal": {"style": "SOLID"}, "innerVertical": {"style": "SOLID"}
+            }
+        })
+        style_requests.append({
+            "updateBorders": {
+                "range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 2, "startColumnIndex": 14, "endColumnIndex": 17},
+                "top": {"style": "SOLID"}, "bottom": {"style": "SOLID"}, "left": {"style": "SOLID"}, "right": {"style": "SOLID"},
+                "innerHorizontal": {"style": "SOLID"}, "innerVertical": {"style": "SOLID"}
+            }
+        })
+
+        # Добавляем 5 блоков категорий
+        for cdef in cat_defs:
+            cat_header_row_idx = len(rows)
+            cat_banner_row = [""] * 18
+            cat_banner_row[0] = cdef["title"]
+            rows.append(cat_banner_row)
+
+            style_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": cat_header_row_idx, "endRowIndex": cat_header_row_idx + 1, "startColumnIndex": 0, "endColumnIndex": 13},
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": cdef["header_bg"],
+                            "textFormat": {"bold": True, "fontSize": 11, "foregroundColor": {"red": 0, "green": 0, "blue": 0}}
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat)"
+                }
+            })
+
+            cols_row_idx = len(rows)
+            headers_row = [""] * 18
+            headers_row[0] = "Дата"
+            headers_row[1] = "Смена"
+            headers_row[2] = "Причина простоя"
+            headers_row[3] = "Начало"
+            headers_row[4] = "Конец"
+            headers_row[5] = "Время"
+            headers_row[6] = cdef["short"]
+            headers_row[12] = "Процент простоя от чистого времени"
+            rows.append(headers_row)
+
+            style_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": cols_row_idx, "endRowIndex": cols_row_idx + 1, "startColumnIndex": 0, "endColumnIndex": 13},
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {"red": 217/255.0, "green": 234/255.0, "blue": 211/255.0},
+                            "textFormat": {"bold": True, "fontSize": 9},
+                            "horizontalAlignment": "CENTER", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP"
+                        }
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+                }
+            })
+
+            cat_items = []
+            for d in all_dts:
+                c_name = (d.category or "").strip().lower()
+                matched = any(s in c_name for s in cdef["search"])
+                if not matched and cdef["key"] == "no_stop" and d.is_equipment_downtime is False:
+                    matched = True
+                if matched:
+                    dur = d.duration or 0
+                    d_date = d.effective_actual_date or d.record_date
+                    d_date_str = d_date.strftime("%d.%m.%Y") if d_date else "Н/Д"
+                    m_name = d.master.name if d.master else (d.shift.master.name if (d.shift and d.shift.master) else "Мастер")
+                    reason = d.description or d.comment or ""
+                    if d.node and d.node != "Основное оборудование" and not reason.startswith(d.node):
+                        reason = f"{d.node}. {reason}"
+                    pct = (dur / (total_operating_hours * 60)) if total_operating_hours > 0 else 0.0
+                    
+                    data_row = [""] * 18
+                    data_row[0] = d_date_str
+                    data_row[1] = m_name
+                    data_row[2] = reason
+                    data_row[3] = d.start_time or ""
+                    data_row[4] = d.end_time or ""
+                    data_row[5] = to_hh_mm_ss(dur)
+                    data_row[6] = to_hh_mm_ss(dur)
+                    data_row[12] = round(pct, 4)
+                    rows.append(data_row)
+                    cat_items.append(dur)
+
+            summary_row_idx = len(rows)
+            sum_row = [""] * 18
+            sum_row[2] = "Итого:"
+            cat_tot = sum(cat_items)
+            sum_row[6] = to_hh_mm_ss(cat_tot)
+            sum_row[12] = round((cat_tot / (total_operating_hours * 60)), 4) if total_operating_hours > 0 else 0.0
+            rows.append(sum_row)
+
+            style_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": summary_row_idx, "endRowIndex": summary_row_idx + 1, "startColumnIndex": 0, "endColumnIndex": 13},
+                    "cell": {"userEnteredFormat": {"textFormat": {"bold": True}}},
+                    "fields": "userEnteredFormat.textFormat"
+                }
+            })
+            style_requests.append({
+                "updateBorders": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": cols_row_idx, "endRowIndex": summary_row_idx + 1, "startColumnIndex": 0, "endColumnIndex": 13},
+                    "top": {"style": "SOLID"}, "bottom": {"style": "SOLID"}, "left": {"style": "SOLID"}, "right": {"style": "SOLID"},
+                    "innerHorizontal": {"style": "SOLID"}, "innerVertical": {"style": "SOLID"}
+                }
+            })
+            style_requests.append({
+                "repeatCell": {
+                    "range": {"sheetId": sheet_id, "startRowIndex": cols_row_idx + 1, "endRowIndex": summary_row_idx + 1, "startColumnIndex": 12, "endColumnIndex": 13},
+                    "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.00%"}, "horizontalAlignment": "RIGHT"}},
+                    "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"
+                }
+            })
+            rows.append([""] * 18)
+
+        # Отправка в Google Таблицу
+        try:
+            service.spreadsheets().values().clear(
+                spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+                range=f"'{sheet_title}'!A1:Z1000"
+            ).execute()
+
+            service.spreadsheets().values().update(
+                spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+                range=f"'{sheet_title}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows}
+            ).execute()
+
+            if style_requests:
+                service.spreadsheets().batchUpdate(
+                    spreadsheetId=DOWNTIMES_SPREADSHEET_ID,
+                    body={"requests": style_requests}
+                ).execute()
+
+            updated_sheets.append(sheet_title)
+        except Exception as e:
+            print(f"Ошибка выгрузки листа {sheet_title}: {e}")
+
+    return {
+        "success": True,
+        "spreadsheet_id": DOWNTIMES_SPREADSHEET_ID,
+        "spreadsheet_url": f"https://docs.google.com/spreadsheets/d/{DOWNTIMES_SPREADSHEET_ID}/edit",
+        "sheets_updated": updated_sheets
+    }
 

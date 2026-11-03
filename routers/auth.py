@@ -223,7 +223,12 @@ def login(data: LoginRequest, request: Request, response: Response, db: Session 
         raise HTTPException(status_code=400, detail="Неверное имя сотрудника или ПИН-код")
 
     # Создаем долгоживущую серверную сессию (30 дней)
-    target_scope = "/p/shymkent/w/lkc/production" if "лкц" in user_role.lower() else "/p/shymkent/w/xci/shifts"
+    if "лкц" in user_role.lower():
+        target_scope = "/p/shymkent/w/lkc/production"
+    elif user_role == "technologist" or "технолог" in user_role.lower():
+        target_scope = "/p/shymkent/w/xci/technologist"
+    else:
+        target_scope = "/p/shymkent/w/xci/shifts"
     sess = create_user_session(db, user_id=user_id, request=request, last_visited_scope=target_scope)
     attach_session_cookies(response, sess.id, request)
 
@@ -264,7 +269,12 @@ def login_by_pin(data: schemas.LoginByPinRequest, request: Request, response: Re
 
     workshop_slug = data.workshop_id or (user.scopes[0].workshop_id if user.scopes and user.scopes[0].workshop_id else "xci")
     plant_slug = data.plant_id or "shymkent"
-    target_scope = f"/p/{plant_slug}/w/{workshop_slug}/shifts"
+    if role_code == "technologist":
+        target_scope = f"/p/{plant_slug}/w/{workshop_slug}/technologist"
+    elif "лкц" in role_code or role_code == "lkc_master":
+        target_scope = f"/p/{plant_slug}/w/{workshop_slug}/production"
+    else:
+        target_scope = f"/p/{plant_slug}/w/{workshop_slug}/shifts"
 
     sess = create_user_session(db, user_id=user.id, request=request, last_visited_scope=target_scope)
     attach_session_cookies(response, sess.id, request)
