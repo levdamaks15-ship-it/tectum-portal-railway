@@ -18,15 +18,15 @@
     let allFeedItems = [];
     let activePopover = null;
 
-    // Справочник категорий с иконками и стилями
+    // Справочник категорий с иконками, точками и каноническими стилями Tectum
     const DT_CATEGORIES = [
-        { name: 'Механические', icon: 'fa-wrench', badgeClass: 'dt-cat-mech', stop: true },
-        { name: 'Энергетические', icon: 'fa-bolt', badgeClass: 'dt-cat-energy', stop: true },
-        { name: 'Технологические', icon: 'fa-flask', badgeClass: 'dt-cat-tech', stop: true },
-        { name: 'ТО и ППР', icon: 'fa-screwdriver-wrench', badgeClass: 'dt-cat-maint', stop: true },
-        { name: 'Остановки не связанные с простоем оборудования', icon: 'fa-pause', badgeClass: 'dt-cat-nostop', stop: false },
-        { name: 'Санитарный день', icon: 'fa-soap', badgeClass: 'dt-cat-sanitary', stop: true },
-        { name: 'Без категории', icon: 'fa-circle-question', badgeClass: 'dt-cat-unclass', stop: true }
+        { name: 'Механические', icon: 'fa-wrench', badgeClass: 'dt-cat-mech', dotColor: '#2563eb', dotHalo: 'rgba(37, 99, 235, 0.25)', stop: true },
+        { name: 'Энергетические', icon: 'fa-bolt', badgeClass: 'dt-cat-energy', dotColor: '#ca8a04', dotHalo: 'rgba(202, 138, 4, 0.25)', stop: true },
+        { name: 'Технологические', icon: 'fa-flask', badgeClass: 'dt-cat-tech', dotColor: '#9333ea', dotHalo: 'rgba(147, 51, 234, 0.25)', stop: true },
+        { name: 'ТО и ППР', icon: 'fa-screwdriver-wrench', badgeClass: 'dt-cat-maint', dotColor: '#16a34a', dotHalo: 'rgba(22, 163, 74, 0.25)', stop: true },
+        { name: 'Остановки не связанные с простоем оборудования', icon: 'fa-pause', badgeClass: 'dt-cat-nostop', dotColor: '#64748b', dotHalo: 'rgba(100, 116, 139, 0.25)', stop: false },
+        { name: 'Санитарный день', icon: 'fa-soap', badgeClass: 'dt-cat-sanitary', dotColor: '#7c3aed', dotHalo: 'rgba(124, 58, 237, 0.25)', stop: true },
+        { name: 'Без категории', icon: 'fa-circle-question', badgeClass: 'dt-cat-unclass', dotColor: '#dc2626', dotHalo: 'rgba(220, 38, 38, 0.25)', stop: true }
     ];
 
     function getCategoryMeta(catName) {
@@ -41,7 +41,7 @@
         if (cLower.includes('то и ппр') || cLower.includes('ппр')) return DT_CATEGORIES[3];
         if (cLower.includes('без простоя') || cLower.includes('не связан')) return DT_CATEGORIES[4];
         if (cLower.includes('санитар')) return DT_CATEGORIES[5];
-        return { name: catName, icon: 'fa-tag', badgeClass: 'dt-cat-nostop', stop: true };
+        return { name: catName, icon: 'fa-tag', badgeClass: 'dt-cat-nostop', dotColor: '#64748b', dotHalo: 'rgba(100, 116, 139, 0.25)', stop: true };
     }
 
     // Инициализация вкладки
@@ -281,9 +281,9 @@
                 <td style="position: relative;">
                     <button type="button" class="dt-cat-picker-btn ${meta.badgeClass}" id="btn-dt-cat-${d.id}"
                         onclick="openCategoryPopover(this, ${d.id}, '${escapeHtml(d.category || '')}', ${isStop}, event)">
-                        <i class="fa-solid ${meta.icon}"></i>
+                        <span class="dt-cat-dot" style="background: ${meta.dotColor}; box-shadow: 0 0 0 3px ${meta.dotHalo};"></span>
                         <span id="label-dt-cat-${d.id}">${escapeHtml(meta.name)}</span>
-                        <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; opacity: 0.7;"></i>
+                        <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; opacity: 0.7; margin-left: auto;"></i>
                     </button>
                 </td>
                 <td style="text-align: center;">
@@ -344,7 +344,7 @@
             const isSelected = (currentCategory || '').toLowerCase() === c.name.toLowerCase();
             itemsHtml += `
             <div class="dt-popover-item ${isSelected ? 'active' : ''}" onclick="selectCategoryFast(${downtimeId}, '${c.name}', ${c.stop})">
-                <i class="fa-solid ${c.icon}" style="width: 16px; color: ${c.badgeClass === 'dt-cat-unclass' ? '#ef4444' : '#2563eb'};"></i>
+                <span class="dt-cat-dot" style="background: ${c.dotColor}; box-shadow: 0 0 0 3px ${c.dotHalo};"></span>
                 <span>${c.name}</span>
             </div>
             `;
@@ -388,7 +388,7 @@
 
             if (btnEl) {
                 btnEl.className = `dt-cat-picker-btn ${meta.badgeClass}`;
-                btnEl.innerHTML = `<i class="fa-solid ${meta.icon}"></i> <span>${meta.name}</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; opacity: 0.7;"></i>`;
+                btnEl.innerHTML = `<span class="dt-cat-dot" style="background: ${meta.dotColor}; box-shadow: 0 0 0 3px ${meta.dotHalo};"></span> <span id="label-dt-cat-${downtimeId}">${escapeHtml(meta.name)}</span> <i class="fa-solid fa-chevron-down" style="font-size: 0.65rem; opacity: 0.7; margin-left: auto;"></i>`;
             }
 
             if (stopBadgeEl) {

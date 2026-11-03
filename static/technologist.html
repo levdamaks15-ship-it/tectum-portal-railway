@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261103_dt_v11">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261103_tech_v12">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -341,7 +341,8 @@
     </style>
 </head>
 <body data-plant-id="shymkent" data-workshop-id="xci">
-<header class="header-main">
+    <div class="container" id="app-container" style="max-width: 1360px; margin: 0 auto; padding: 1.5rem 2rem; min-height: 90vh; display: flex; flex-direction: column;">
+        <header class="header-main">
             <!-- Верхняя строка шапки: Бренд слева, Профиль сотрудника справа (всегда на одном уровне!) -->
             <div class="header-top-row">
                 <div class="header-brand-left">
@@ -461,121 +462,126 @@
                     <span class="tab-label">Цены и<br>себестоимость</span>
                 </a>
             </div>
-<div id="tech-downtimes-tab" style="display: block;" class="dt-workspace-container">
-                <!-- Header Panel -->
-                <div class="dt-header-panel">
-                    <div class="dt-header-top">
-                        <div class="dt-title-wrap">
-                            <h2><span>⏱️</span> База простоев и оперативный аудит</h2>
-                            <p class="dt-title-sub">Оперативная классификация остановок оборудования мастерами и синхронизация с Google Таблицей предприятия</p>
+<div id="tech-downtimes-tab" style="display: block;">
+                <div class="glass-panel accordion-section" style="margin-bottom: 2rem;">
+                    <!-- Bento Card Header: Canonical Tectum Standard -->
+                    <div class="accordion-header" style="display: flex; justify-content: space-between; align-items: center; cursor: default; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--stripe-border);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h3 style="margin: 0; font-size: 1.12rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <span>⏱️</span> База простоев и оперативный аудит
+                            </h3>
+                            <span style="font-size: 0.78rem; color: var(--text-secondary); background: #f1f5f9; padding: 3px 10px; border-radius: 9999px; font-weight: 600; border: 1px solid #e2e8f0;">
+                                ХЦИ · Шымкент
+                            </span>
                         </div>
-                        <div class="dt-actions-group">
-                            <button type="button" class="btn-dt-action primary-sheets" id="btn-export-downtimes-google" onclick="exportDowntimesToGoogleSheets(this)">
-                                <i class="fa-solid fa-file-excel"></i>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" class="btn-dt-action primary-sheets" id="btn-export-downtimes-google" onclick="exportDowntimesToGoogleSheets(this)" title="Экспорт журнала в Google Таблицу">
+                                <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
                                 <span>Выгрузить в Google Таблицу</span>
                             </button>
-                            <button type="button" class="btn-dt-action" onclick="loadDowntimesData()">
+                            <button type="button" class="btn-dt-action" onclick="loadDowntimesData()" title="Обновить журнал простоев">
                                 <i class="fa-solid fa-rotate"></i>
                                 <span>Обновить</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Filter Deck (Bento Style) -->
-                    <div class="dt-presets-deck">
-                        <div class="dt-pill-group">
-                            <button type="button" class="dt-pill-btn active" id="btn-dt-filter-all" onclick="toggleDtUnclassifiedOnly(false)">
-                                <span>Все записи</span>
-                                <b id="dt-feed-total-count" style="font-family: monospace;">0</b>
-                            </button>
-                            <button type="button" class="dt-pill-btn alert-unclass" id="btn-dt-filter-unclass" onclick="toggleDtUnclassifiedOnly(true)">
-                                <span>⚠️ Требуют классификации</span>
-                                <b id="dt-feed-unclass-count" style="font-family: monospace;">0</b>
-                            </button>
-                            <span style="color: #cbd5e1; margin: 0 4px;">|</span>
-                            <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('today', this)">Сегодня</button>
-                            <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('yesterday', this)">Вчера</button>
-                            <button type="button" class="dt-pill-btn dt-date-preset active" onclick="setDtDatePreset('week', this)">Эта неделя</button>
-                            <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('month', this)">Этот месяц</button>
+                    <!-- Bento Card Body -->
+                    <div style="padding: 1.5rem;">
+                        <!-- Presets Deck & View Switcher -->
+                        <div class="dt-presets-deck">
+                            <div class="dt-pill-group">
+                                <button type="button" class="dt-pill-btn active" id="btn-dt-filter-all" onclick="toggleDtUnclassifiedOnly(false)">
+                                    <span>Все записи</span>
+                                    <b id="dt-feed-total-count" style="font-family: monospace; font-size: 0.85rem;">0</b>
+                                </button>
+                                <button type="button" class="dt-pill-btn alert-unclass" id="btn-dt-filter-unclass" onclick="toggleDtUnclassifiedOnly(true)">
+                                    <span class="dt-cat-dot" style="background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);"></span>
+                                    <span>Требуют классификации</span>
+                                    <b id="dt-feed-unclass-count" style="font-family: monospace; font-size: 0.85rem;">0</b>
+                                </button>
+                                <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('today', this)">Сегодня</button>
+                                <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('yesterday', this)">Вчера</button>
+                                <button type="button" class="dt-pill-btn dt-date-preset active" onclick="setDtDatePreset('week', this)">Эта неделя</button>
+                                <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('month', this)">Этот месяц</button>
+                            </div>
+
+                            <div class="dt-view-switcher">
+                                <button type="button" class="dt-view-btn active" id="btn-dt-view-feed" onclick="setDtViewMode('feed')">
+                                    <i class="fa-solid fa-list-check"></i>
+                                    <span>Журнал разметки</span>
+                                </button>
+                                <button type="button" class="dt-view-btn" id="btn-dt-view-summary" onclick="setDtViewMode('summary')">
+                                    <i class="fa-solid fa-table-cells"></i>
+                                    <span>Сводный отчет</span>
+                                </button>
+                            </div>
                         </div>
 
-                        <div class="dt-view-switcher">
-                            <button type="button" class="dt-view-btn active" id="btn-dt-view-feed" onclick="setDtViewMode('feed')">
-                                <i class="fa-solid fa-list-check"></i>
-                                <span>Журнал разметки</span>
-                            </button>
-                            <button type="button" class="dt-view-btn" id="btn-dt-view-summary" onclick="setDtViewMode('summary')">
-                                <i class="fa-solid fa-table-cells"></i>
-                                <span>Сводный отчет по категориям</span>
-                            </button>
+                        <!-- Filters Grid: Sentence Case & 36px Controls -->
+                        <div class="dt-filters-grid" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid #f1f5f9;">
+                            <div class="dt-filter-field">
+                                <label>Период с</label>
+                                <input type="date" id="dt-date-from" onchange="loadDowntimesData()">
+                            </div>
+                            <div class="dt-filter-field">
+                                <label>Период по</label>
+                                <input type="date" id="dt-date-to" onchange="loadDowntimesData()">
+                            </div>
+                            <div class="dt-filter-field">
+                                <label>Линия</label>
+                                <select id="dt-filter-line" onchange="loadDowntimesData()">
+                                    <option value="all">Все линии</option>
+                                    <option value="Линия 1">Линия 1</option>
+                                    <option value="Линия 2">Линия 2</option>
+                                </select>
+                            </div>
+                            <div class="dt-filter-field">
+                                <label>Категория</label>
+                                <select id="dt-filter-category" onchange="loadDowntimesData()">
+                                    <option value="all">Все категории</option>
+                                    <option value="Без категории">⚠️ Без категории</option>
+                                    <option value="Механические">Механические</option>
+                                    <option value="Энергетические">Энергетические</option>
+                                    <option value="Технологические">Технологические</option>
+                                    <option value="ТО и ППР">ТО и ППР</option>
+                                    <option value="Остановки не связанные с простоем оборудования">Остановки без простоев</option>
+                                    <option value="Санитарный день">Санитарный день</option>
+                                </select>
+                            </div>
+                            <div class="dt-filter-field" style="grid-column: span 2;">
+                                <label>Поиск</label>
+                                <input type="text" id="dt-filter-search" placeholder="Поиск по узлу, причине или мастеру..." oninput="loadDowntimesData()">
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Filter Controls Grid -->
-                    <div class="dt-filters-grid">
-                        <div class="dt-filter-field">
-                            <label>Период с</label>
-                            <input type="date" id="dt-date-from" onchange="loadDowntimesData()">
+                        <!-- VIEW 1: Журнал быстрой инлайн-разметки -->
+                        <div id="dt-feed-container">
+                            <div class="dt-table-responsive" style="border: 1px solid var(--stripe-border); border-radius: 12px; overflow: hidden;">
+                                <table class="dt-table" style="margin: 0;">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 150px;">Дата / Смена</th>
+                                            <th style="width: 100px;">Линия</th>
+                                            <th style="width: 130px;">Время / Длит.</th>
+                                            <th>Оборудование и описание мастера</th>
+                                            <th style="width: 220px;">Категория (клик для выбора)</th>
+                                            <th style="width: 140px; text-align: center;">Стоп оборудования</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dt-feed-tbody">
+                                        <!-- Dynamic rows loaded via /api/downtimes/feed -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="dt-filter-field">
-                            <label>Период по</label>
-                            <input type="date" id="dt-date-to" onchange="loadDowntimesData()">
-                        </div>
-                        <div class="dt-filter-field">
-                            <label>Линия</label>
-                            <select id="dt-filter-line" onchange="loadDowntimesData()">
-                                <option value="all">Все линии</option>
-                                <option value="Линия 1">Линия 1</option>
-                                <option value="Линия 2">Линия 2</option>
-                            </select>
-                        </div>
-                        <div class="dt-filter-field">
-                            <label>Категория</label>
-                            <select id="dt-filter-category" onchange="loadDowntimesData()">
-                                <option value="all">Все категории</option>
-                                <option value="Без категории">⚠️ Без категории</option>
-                                <option value="Механические">Механические</option>
-                                <option value="Энергетические">Энергетические</option>
-                                <option value="Технологические">Технологические</option>
-                                <option value="ТО и ППР">ТО и ППР</option>
-                                <option value="Остановки не связанные с простоем оборудования">Остановки без простоев</option>
-                                <option value="Санитарный день">Санитарный день</option>
-                            </select>
-                        </div>
-                        <div class="dt-filter-field" style="grid-column: span 2;">
-                            <label>Поиск</label>
-                            <input type="text" id="dt-filter-search" placeholder="🔍 Поиск по узлу, причине или мастеру..." oninput="loadDowntimesData()">
-                        </div>
-                    </div>
-                </div>
 
-                <!-- VIEW 1: Журнал быстрой инлайн-разметки -->
-                <div id="dt-feed-container">
-                    <div class="dt-table-card">
-                        <div class="dt-table-responsive">
-                            <table class="dt-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 140px;">Дата / Смена</th>
-                                        <th style="width: 100px;">Линия</th>
-                                        <th style="width: 120px;">Время / Длит.</th>
-                                        <th>Оборудование и описание мастера</th>
-                                        <th style="width: 220px;">Категория (клик для выбора)</th>
-                                        <th style="width: 130px; text-align: center;">Стоп оборудования</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dt-feed-tbody">
-                                    <!-- Dynamic rows loaded via /api/downtimes/feed -->
-                                </tbody>
-                            </table>
+                        <!-- VIEW 2: Сводный отчет по 5 категориям (Excel Вид) -->
+                        <div id="dt-summary-container" class="dt-summary-container">
+                            <div id="dt-summary-content">
+                                <!-- Dynamic content from /api/downtimes/report-summary -->
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- VIEW 2: Сводный отчет по 5 категориям (Excel Вид) -->
-                <div id="dt-summary-container" class="dt-summary-container">
-                    <div id="dt-summary-content">
-                        <!-- Dynamic content from /api/downtimes/report-summary -->
                     </div>
                 </div>
             </div>
@@ -1165,75 +1171,81 @@
             
 
             <!-- 5. FINANCE & COST TAB -->
-            <div id="finance-tab" style="display: none; max-width: 1400px; margin: 0 auto; padding: 0 0.5rem 2rem;">
-                <div class="dt-header-panel">
-                    <div class="dt-header-top">
-                        <div class="dt-title-wrap">
-                            <h2><span>💰</span> Себестоимость, цены реализации и маржинальный доход</h2>
-                            <p class="dt-title-sub">Официальный прейскурант ТОО «Tectum Engineering» (от 01.11.2026г., директор Туматов Д.А.) и расчет прибыльности</p>
+            <div id="finance-tab" style="display: none;">
+                <div class="glass-panel accordion-section" style="margin-bottom: 2rem;">
+                    <div class="accordion-header" style="display: flex; justify-content: space-between; align-items: center; cursor: default; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--stripe-border);">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h3 style="margin: 0; font-size: 1.12rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <span>💰</span> Себестоимость, цены реализации и маржинальный доход
+                            </h3>
+                            <span style="font-size: 0.78rem; color: var(--text-secondary); background: #f1f5f9; padding: 3px 10px; border-radius: 9999px; font-weight: 600; border: 1px solid #e2e8f0;">
+                                Прейскурант ТОО «Tectum Engineering»
+                            </span>
                         </div>
-                        <div class="dt-actions-group">
-                            <button type="button" class="btn-dt-action" onclick="loadFinancialData()">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" class="btn-dt-action" onclick="loadFinancialData()" title="Пересчитать маржинальность">
                                 <i class="fa-solid fa-rotate"></i>
                                 <span>Пересчитать маржу</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- KPI Cards for Financial Tab -->
-                    <div class="dt-kpi-row-top" style="margin-top: 1rem;">
-                        <div class="dt-kpi-card-item">
-                            <div class="kpi-label">Выручка (Наличный расчет)</div>
-                            <div class="kpi-val" id="fin-kpi-revenue-cash" style="color: #059669;">0 ₸</div>
+                    <div style="padding: 1.5rem;">
+                        <!-- KPI Cards for Financial Tab -->
+                        <div class="dt-kpi-row-top" style="margin-bottom: 1.5rem;">
+                            <div class="dt-kpi-card-item">
+                                <div class="kpi-label">Выручка (Наличный расчет)</div>
+                                <div class="kpi-val" id="fin-kpi-revenue-cash" style="color: #059669;">0 ₸</div>
+                            </div>
+                            <div class="dt-kpi-card-item">
+                                <div class="kpi-label">Выручка (Kaspi рассрочка)</div>
+                                <div class="kpi-val" id="fin-kpi-revenue-kaspi" style="color: #2563eb;">0 ₸</div>
+                            </div>
+                            <div class="dt-kpi-card-item">
+                                <div class="kpi-label">Производственная себестоимость</div>
+                                <div class="kpi-val" id="fin-kpi-cost" style="color: #b45309;">0 ₸</div>
+                            </div>
+                            <div class="dt-kpi-card-item">
+                                <div class="kpi-label">Валовая прибыль (Маржа)</div>
+                                <div class="kpi-val" id="fin-kpi-margin" style="color: #10b981;">0 ₸</div>
+                            </div>
+                            <div class="dt-kpi-card-item">
+                                <div class="kpi-label">Рентабельность портфеля</div>
+                                <div class="kpi-val" id="fin-kpi-margin-pct" style="color: #0f172a;">0%</div>
+                            </div>
                         </div>
-                        <div class="dt-kpi-card-item">
-                            <div class="kpi-label">Выручка (Kaspi рассрочка)</div>
-                            <div class="kpi-val" id="fin-kpi-revenue-kaspi" style="color: #2563eb;">0 ₸</div>
-                        </div>
-                        <div class="dt-kpi-card-item">
-                            <div class="kpi-label">Производственная себестоимость</div>
-                            <div class="kpi-val" id="fin-kpi-cost" style="color: #b45309;">0 ₸</div>
-                        </div>
-                        <div class="dt-kpi-card-item">
-                            <div class="kpi-label">Валовая прибыль (Маржа)</div>
-                            <div class="kpi-val" id="fin-kpi-margin" style="color: #10b981;">0 ₸</div>
-                        </div>
-                        <div class="dt-kpi-card-item">
-                            <div class="kpi-label">Рентабельность портфеля</div>
-                            <div class="kpi-val" id="fin-kpi-margin-pct" style="color: #0f172a;">0%</div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Products Pricing Matrix Table -->
-                <div class="dt-table-card">
-                    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                        <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">Прейскурант и калькулятор маржинальности по номенклатуре</h3>
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 600;">План завода: 39 000 листов/нед. · 160 000 листов/мес.</span>
-                    </div>
-                    <div class="dt-table-responsive">
-                        <table class="dt-table" id="fin-pricing-table">
-                            <thead>
-                                <tr>
-                                    <th>Наименование продукции</th>
-                                    <th style="text-align: right; width: 140px;">Себестоимость</th>
-                                    <th style="text-align: right; width: 150px;">Цена за нал (тг)</th>
-                                    <th style="text-align: right; width: 160px;">Рассрочка Kaspi (тг)</th>
-                                    <th style="text-align: right; width: 140px;">Валовая маржа</th>
-                                    <th style="text-align: right; width: 130px;">Маржинальность</th>
-                                    <th style="text-align: right; width: 130px;">Выпуск за период</th>
-                                    <th style="text-align: right; width: 160px;">Прибыль за период</th>
-                                </tr>
-                            </thead>
-                            <tbody id="fin-pricing-tbody">
-                                <!-- Dynamic rows from /api/analytics/financial-summary -->
-                            </tbody>
-                        </table>
+                        <!-- Products Pricing Matrix Table -->
+                        <div style="border: 1px solid var(--stripe-border); border-radius: 12px; overflow: hidden;">
+                            <div style="padding: 0.85rem 1.25rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.88rem; font-weight: 700; color: #0f172a;">Прейскурант и калькулятор маржинальности по номенклатуре</span>
+                                <span style="font-size: 0.78rem; color: #64748b; font-weight: 600;">План завода: 39 000 листов/нед. · 160 000 листов/мес.</span>
+                            </div>
+                            <div class="dt-table-responsive">
+                                <table class="dt-table" id="fin-pricing-table" style="margin: 0;">
+                                    <thead>
+                                        <tr>
+                                            <th>Наименование продукции</th>
+                                            <th style="text-align: right; width: 140px;">Себестоимость</th>
+                                            <th style="text-align: right; width: 150px;">Цена за нал (тг)</th>
+                                            <th style="text-align: right; width: 160px;">Рассрочка Kaspi (тг)</th>
+                                            <th style="text-align: right; width: 140px;">Валовая маржа</th>
+                                            <th style="text-align: right; width: 130px;">Маржинальность</th>
+                                            <th style="text-align: right; width: 130px;">Выпуск за период</th>
+                                            <th style="text-align: right; width: 160px;">Прибыль за период</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fin-pricing-tbody">
+                                        <!-- Dynamic rows from /api/analytics/financial-summary -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-    </main>
+        </div> <!-- close #main-app -->
+    </div> <!-- close #app-container -->
 
     <!-- Universal Notification Modal (Hidden by default) -->
     <div id="universal-notification-overlay" class="modal-overlay-fade"
@@ -1257,12 +1269,12 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261103_tech_v4"></script>
+    <script src="/static/js/app.js?v=20261103_tech_v5"></script>
     <script src="/static/js/workshop_switcher.js?v=20261103_v7"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>
 
-    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v10"></script>
+    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v12"></script>
     <script>
         // Custom Technologist SwitchTab & Initializer
         window.addEventListener('DOMContentLoaded', () => {

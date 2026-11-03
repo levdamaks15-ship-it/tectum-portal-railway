@@ -2813,21 +2813,21 @@ body.role-portal {
 
 
 /* ==========================================================================
-   TECHNOLOGIST DOWNTIMES WORKSPACE & INLINE CLASSIFIER
+   TECHNOLOGIST DOWNTIMES WORKSPACE & INLINE CLASSIFIER (TECTUM CANONICAL STANDARD)
    ========================================================================== */
 .dt-workspace-container {
-    max-width: 1360px;
+    width: 100%;
     margin: 0 auto;
     padding: 0 0 2rem;
 }
 
 .dt-header-panel {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--stripe-border);
     border-radius: 16px;
     padding: 1.25rem 1.5rem;
-    box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
-    margin-bottom: 1.25rem;
+    box-shadow: var(--stripe-shadow-card);
+    margin-bottom: 1.5rem;
 }
 
 .dt-header-top {
@@ -2841,10 +2841,11 @@ body.role-portal {
     border-bottom: 1px solid #f1f5f9;
 }
 
-.dt-title-wrap h2 {
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: #0f172a;
+.dt-title-wrap h2,
+.dt-title-wrap h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
     margin: 0;
     display: flex;
     align-items: center;
@@ -2853,7 +2854,7 @@ body.role-portal {
 
 .dt-title-sub {
     font-size: 0.82rem;
-    color: #64748b;
+    color: var(--text-secondary);
     margin: 3px 0 0 0;
 }
 
@@ -2869,7 +2870,7 @@ body.role-portal {
     align-items: center;
     gap: 7px;
     height: 36px !important;
-    padding: 0 14px !important;
+    padding: 0 12px !important;
     border-radius: 8px !important;
     font-size: 0.82rem;
     font-weight: 600;
@@ -2890,15 +2891,16 @@ body.role-portal {
 }
 
 .btn-dt-action.primary-sheets {
-    background: #059669;
-    color: #ffffff;
-    border-color: #047857;
-    box-shadow: 0 3px 10px rgba(5, 150, 105, 0.25);
+    background: #ffffff;
+    color: #15803d;
+    border-color: #86efac;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .btn-dt-action.primary-sheets:hover {
-    background: #047857;
-    color: #ffffff;
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #4ade80;
 }
 
 /* Presets bar */
@@ -2908,7 +2910,7 @@ body.role-portal {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 10px;
-    margin-bottom: 0.9rem;
+    margin-bottom: 1rem;
 }
 
 .dt-pill-group {
@@ -2942,10 +2944,10 @@ body.role-portal {
 }
 
 .dt-pill-btn.active {
-    background: #2563eb !important;
-    color: #ffffff !important;
-    border-color: #2563eb !important;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    background: #ffffff !important;
+    color: var(--primary-color, #c82323) !important;
+    border-color: rgba(200, 35, 35, 0.35) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
 .dt-pill-btn.alert-unclass {
@@ -2955,10 +2957,10 @@ body.role-portal {
 }
 
 .dt-pill-btn.alert-unclass.active {
-    background: #dc2626 !important;
-    color: #ffffff !important;
-    border-color: #dc2626 !important;
-    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    border-color: #f87171 !important;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.15) !important;
 }
 
 /* View switcher */
@@ -2995,7 +2997,7 @@ body.role-portal {
 .dt-filters-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 10px;
+    gap: 12px;
     align-items: end;
 }
 
@@ -3006,11 +3008,12 @@ body.role-portal {
 }
 
 .dt-filter-field label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    color: #334155;
+    margin-bottom: 2px;
 }
 
 .dt-filter-field select,
@@ -3018,7 +3021,7 @@ body.role-portal {
     height: 36px !important;
     border-radius: 8px !important;
     border: 1px solid #cbd5e1;
-    background: #f8fafc;
+    background: #ffffff;
     color: #0f172a;
     font-size: 0.82rem;
     font-weight: 500;
@@ -3030,18 +3033,18 @@ body.role-portal {
 .dt-filter-field select:focus,
 .dt-filter-field input:focus {
     background: #ffffff;
-    border-color: #2563eb;
+    border-color: var(--primary-color, #c82323);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px rgba(200, 35, 35, 0.12);
 }
 
 /* Interactive Table Card */
 .dt-table-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--stripe-border);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
+    box-shadow: var(--stripe-shadow-card);
     margin-bottom: 2rem;
 }
 
@@ -3060,12 +3063,12 @@ body.role-portal {
 .dt-table th {
     background: #f8fafc;
     color: #475569;
-    font-weight: 700;
-    font-size: 0.74rem;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
+    font-weight: 600;
+    font-size: 0.76rem;
+    text-transform: none;
+    letter-spacing: normal;
     padding: 0.75rem 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
     white-space: nowrap;
 }
 
@@ -3085,35 +3088,45 @@ body.role-portal {
     transition: background 0.5s ease;
 }
 
-/* Category Badges & Interactive Picker */
+/* Category Badges & Interactive Picker (Canonical StatusNoWrapPill 36px) */
 .dt-cat-picker-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
+    gap: 8px;
+    height: 36px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
     border: 1px solid transparent;
     transition: all 0.16s ease;
     user-select: none;
-    white-space: nowrap;
+    white-space: nowrap !important;
+    box-sizing: border-box;
 }
 
 .dt-cat-picker-btn:hover {
-    filter: brightness(0.95);
+    filter: brightness(0.97);
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.06);
 }
 
-.dt-cat-mech { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-.dt-cat-energy { background: #fefce8; color: #a16207; border-color: #fef08a; }
-.dt-cat-tech { background: #faf5ff; color: #7e22ce; border-color: #e9d5ff; }
-.dt-cat-maint { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
-.dt-cat-nostop { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
-.dt-cat-sanitary { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
-.dt-cat-unclass { background: #fef2f2; color: #dc2626; border-color: #fca5a5; font-weight: 700; }
+.dt-cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.dt-cat-mech { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+.dt-cat-energy { background: #fefce8; color: #854d0e; border-color: #fef08a; }
+.dt-cat-tech { background: #faf5ff; color: #6b21a8; border-color: #e9d5ff; }
+.dt-cat-maint { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.dt-cat-nostop { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+.dt-cat-sanitary { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
+.dt-cat-unclass { background: #fef2f2; color: #991b1b; border-color: #fecaca; font-weight: 700; }
 
 /* Category Popover Menu */
 .dt-popover-menu {
@@ -3152,18 +3165,22 @@ body.role-portal {
     color: #2563eb;
 }
 
-/* Equipment stop toggle badge */
+/* Equipment stop toggle badge (Canonical 32px badge with 8px radius) */
 .dt-stop-badge {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 700;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 8px !important;
+    font-size: 0.74rem;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.15s ease;
     user-select: none;
+    white-space: nowrap !important;
+    box-sizing: border-box;
 }
 
 .dt-stop-true {
@@ -3174,12 +3191,12 @@ body.role-portal {
 
 .dt-stop-false {
     background: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
+    color: #475569;
+    border: 1px solid #cbd5e1;
 }
 
 .dt-stop-badge:hover {
-    filter: brightness(0.95);
+    filter: brightness(0.97);
     transform: translateY(-1px);
 }
 
