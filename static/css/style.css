@@ -682,13 +682,18 @@ button.btn-cancel:hover {
     border-radius: 10px;
     box-shadow: none;
     text-decoration: none;
-    display: flex !important;
+    display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     box-sizing: border-box;
+}
+
+.tab-btn[style*="display: none"],
+.tab-btn.tab-hidden {
+    display: none !important;
 }
 
 /* Isolated icon - fixed position on the left so it never throws off center text alignment */

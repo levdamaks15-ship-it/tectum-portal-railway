@@ -442,6 +442,31 @@ function recalcCemTotal() {
     if (target) target.value = (v1 + v2 + v3 + v4).toFixed(0);
 }
 
+// --- Tab Visibility and Navigation Helpers ---
+
+function setTabBtnVisibility(btnId, visible) {
+    const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+    if (!btn) return;
+    if (visible) {
+        btn.classList.remove('tab-hidden');
+        btn.style.removeProperty('display');
+    } else {
+        btn.classList.add('tab-hidden');
+        btn.style.setProperty('display', 'none', 'important');
+    }
+}
+
+function isTabBtnVisible(btnId) {
+    const btn = typeof btnId === 'string' ? document.getElementById(btnId) : btnId;
+    if (!btn) return false;
+    if (btn.classList.contains('tab-hidden')) return false;
+    if (btn.style.display === 'none') return false;
+    return true;
+}
+
+window.setTabBtnVisibility = setTabBtnVisibility;
+window.isTabBtnVisible = isTabBtnVisible;
+
 function switchTab(tabId, event) {
     if (event) {
         // If it's a standard left click without modifier keys (not middle click, not Ctrl/Cmd/Shift), prevent default anchor navigation
@@ -451,6 +476,12 @@ function switchTab(tabId, event) {
             // Let the browser handle middle click or Ctrl+click naturally
             return;
         }
+    }
+
+    const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+    if (activeBtn && !isTabBtnVisible(activeBtn)) {
+        console.warn(`Tab ${tabId} is hidden or forbidden for role ${currentUser?.role}`);
+        return;
     }
     
     sessionStorage.setItem('active_tab', tabId);
@@ -1170,8 +1201,7 @@ function applyRoleVisibility() {
         ['production', 'crew-plans', 'summary', 'downtimes', 'tech-downtimes', 'daily-report'].forEach(t => {
             const el = document.getElementById(`${t}-tab`);
             if (el) el.style.display = 'none';
-            const btn = document.getElementById(`tab-btn-${t}`);
-            if (btn) btn.style.display = 'none';
+            setTabBtnVisibility(`tab-btn-${t}`, false);
         });
         
         // Update header shop badge to Portal
@@ -1199,34 +1229,27 @@ function applyRoleVisibility() {
     const canViewMaterials = ['admin', 'director', 'technologist'].includes(r); // Hide from master, keep for admin/director/technologist
     // Журнал простоев (мастера): доступен Мастерам, Механикам и Админу
     const canMasterDowntimes = ['master', 'admin', 'mechanic'].includes(r);
-    const masterDtBtn = document.getElementById('tab-btn-downtimes');
-    if (masterDtBtn) masterDtBtn.style.display = canMasterDowntimes ? '' : 'none';
+    setTabBtnVisibility('tab-btn-downtimes', canMasterDowntimes);
 
     // База простоев (технолога): доступна Технологу, Директору и Админу
     const canTechDowntimes = ['technologist', 'admin', 'director'].includes(r);
-    const techDtBtn = document.getElementById('tab-btn-tech-downtimes');
-    if (techDtBtn) techDtBtn.style.display = canTechDowntimes ? '' : 'none';
+    setTabBtnVisibility('tab-btn-tech-downtimes', canTechDowntimes);
     
-    const crewPlansBtn = document.getElementById('tab-btn-crew-plans');
     // Технологу вкладка выполнения плана бригадами и рапорт мастера не нужны
     const canCrewPlans = ['master', 'admin', 'director'].includes(r);
-    if (crewPlansBtn) crewPlansBtn.style.display = canCrewPlans ? '' : 'none';
+    setTabBtnVisibility('tab-btn-crew-plans', canCrewPlans);
 
-    document.getElementById('tab-btn-production').style.display = canReport ? '' : 'none';
+    setTabBtnVisibility('tab-btn-production', canReport);
     if (r === 'technologist') {
         const curTab = sessionStorage.getItem('active_tab') || (window.location.hash ? window.location.hash.replace('#', '') : '');
         if (!curTab || curTab === 'production' || curTab === 'crew-plans') {
             setTimeout(() => switchTab('tech-downtimes'), 50);
         }
     }
-    document.getElementById('tab-btn-summary').style.display = canViewSummary ? '' : 'none';
-    document.getElementById('tab-btn-daily-report').style.display = canViewSummary ? '' : 'none';
-    const materialsBtn = document.getElementById('tab-btn-materials');
-    if (materialsBtn) materialsBtn.style.display = 'none';
-    
-    
-    const analyticsBtn = document.getElementById('tab-btn-analytics');
-    if (analyticsBtn) analyticsBtn.style.display = 'none';
+    setTabBtnVisibility('tab-btn-summary', canViewSummary);
+    setTabBtnVisibility('tab-btn-daily-report', canViewSummary);
+    setTabBtnVisibility('tab-btn-materials', false);
+    setTabBtnVisibility('tab-btn-analytics', false);
     
     // Показываем панель управления нормативами только для Технолога и Админа
     const normsPanel = document.getElementById('technologist-norms-panel');
@@ -1261,9 +1284,9 @@ function applyRoleVisibility() {
     const savedTab = sessionStorage.getItem('active_tab');
     const savedTabBtn = (savedTab && savedTab !== 'analytics') ? document.getElementById(`tab-btn-${savedTab}`) : null;
     
-    if (targetTab && targetTabBtn && targetTabBtn.style.display !== 'none') {
+    if (targetTab && targetTabBtn && isTabBtnVisible(targetTabBtn)) {
         switchTab(targetTab);
-    } else if (savedTab && savedTabBtn && savedTabBtn.style.display !== 'none') {
+    } else if (savedTab && savedTabBtn && isTabBtnVisible(savedTabBtn)) {
         switchTab(savedTab);
     } else if (r === 'director') {
         switchTab('crew-plans');
