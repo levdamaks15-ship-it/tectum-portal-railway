@@ -2907,12 +2907,25 @@ async function addJournalDowntime() {
     
     if (!dateInput || !shiftNameInput || !lineInput) return;
     
-    const date = dateInput.value;
+    let rawDate = (dateInput.value || '').trim();
+    if (dateInput._flatpickr && dateInput._flatpickr.selectedDates && dateInput._flatpickr.selectedDates.length > 0) {
+        const d = dateInput._flatpickr.selectedDates[0];
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        rawDate = `${y}-${m}-${day}`;
+    } else if (rawDate && rawDate.includes('.')) {
+        const parts = rawDate.split('.');
+        if (parts.length === 3) {
+            rawDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+    }
+    
     const shift_name = shiftNameInput.value;
     const line = lineInput.value;
     const master_id = masterSelect ? masterSelect.value : '';
     
-    if (!date) {
+    if (!rawDate) {
         showNotification('error', 'Ошибка', "Выберите дату!");
         return;
     }
@@ -2925,7 +2938,7 @@ async function addJournalDowntime() {
 
     if (!desc && !descKz) {
         if (window.toast) {
-            window.toast.warning('Введите описание', 'Укажите причину простой или выполненные работы');
+            window.toast.warning('Введите описание', 'Укажите причину простоя или выполненные работы');
         } else {
             showNotification('error', 'Ошибка', "Введите описание поломки или выполненных работ!");
         }
@@ -2946,7 +2959,7 @@ async function addJournalDowntime() {
     setButtonLoading('btn-add-dt', true);
 
     const data = {
-        date: date,
+        date: rawDate,
         shift_name: shift_name,
         line: line,
         master_id: master_id ? parseInt(master_id) : null,
@@ -2967,16 +2980,49 @@ async function addJournalDowntime() {
         });
         
         if (res.ok) {
+            const savedItem = await res.json().catch(() => null);
             saveLastLineAndShift(line, shift_name);
+
+            const durationMinutes = parseDurationMinutes(startTime, endTime);
+            const durationText = durationMinutes > 0 ? ` (${formatDurationHM(durationMinutes)})` : '';
+            const timeInterval = startTime + (endTime ? ` – ${endTime}` : '');
+
+            // 1. Понятное и надежное уведомление через Toast
             if (window.toast) {
-                const durationMinutes = parseDurationMinutes(startTime, endTime);
-                const durationText = durationMinutes > 0 ? ` • ${formatDurationHM(durationMinutes)}` : '';
-                window.toast.success('Простой зафиксирован в журнале', `${line} | Смена: ${shift_name}${durationText}`);
-            } else {
-                showNotification('success', 'Отлично!', 'Простой успешно зафиксирован в журнале.');
+                window.toast.success(
+                    '✅ Простой зафиксирован на сервере!',
+                    `${line} · Смена: ${shift_name} · ${timeInterval}${durationText}`
+                );
             }
-            // Очищаем поля ввода и состояние Flatpickr
-            document.getElementById('journal-dt-desc').value = '';
+
+            // 2. Интерактивная анимация кнопки сохранения
+            const submitBtn = document.getElementById('btn-add-dt');
+            if (submitBtn) {
+                const origHtml = submitBtn.innerHTML;
+                submitBtn.style.background = '#10b981';
+                submitBtn.style.borderColor = '#059669';
+                submitBtn.innerHTML = '<span>✅ Зафиксировано!</span>';
+                setTimeout(() => {
+                    submitBtn.style.background = '';
+                    submitBtn.style.borderColor = '';
+                    submitBtn.innerHTML = origHtml;
+                }, 2500);
+            }
+
+            // 3. Баннер подтверждения внутри формы добавления
+            const liveAlert = document.getElementById('dt-live-alert');
+            const liveAlertDetails = document.getElementById('dt-live-alert-details');
+            if (liveAlert && liveAlertDetails) {
+                liveAlertDetails.textContent = `${line} · Смена: ${shift_name} · Время: ${timeInterval}${durationText} · «${finalDesc}»`;
+                liveAlert.style.display = 'block';
+                setTimeout(() => {
+                    if (liveAlert) liveAlert.style.display = 'none';
+                }, 7000);
+            }
+
+            // 4. Очищаем поля ввода
+            const descInput = document.getElementById('journal-dt-desc');
+            if (descInput) descInput.value = '';
             const descKzInput = document.getElementById('journal-dt-desc-kz');
             if (descKzInput) descKzInput.value = '';
             
@@ -2988,22 +3034,30 @@ async function addJournalDowntime() {
             if (endInput?._flatpickr) endInput._flatpickr.clear();
             else if (endInput) endInput.value = '';
 
-            document.getElementById('journal-dt-is-equipment-stop').checked = true;
-            updateDowntimeToggleUI();
-            calcJournalDowntimeDuration();
+            const eqChk = document.getElementById('journal-dt-is-equipment-stop');
+            if (eqChk) eqChk.checked = true;
+            if (typeof updateDowntimeToggleUI === 'function') updateDowntimeToggleUI();
+            if (typeof calcJournalDowntimeDuration === 'function') calcJournalDowntimeDuration();
 
-            // Перезагружаем таблицу простоев, чтобы свежая запись сразу появилась
-            await loadDowntimesByParams();
-        } else {
-            const err = await res.json();
-            if (Array.isArray(err.detail)) {
-                showNotification('error', 'Ошибка валидации', err.detail.map(e => e.msg).join("; "));
-            } else {
-                showNotification('error', 'Ошибка', err.detail || 'Неизвестная ошибка сервера');
+            // 5. Перезагружаем ленту простоев и подсвечиваем новую запись
+            if (typeof window.loadDowntimesData === 'function') {
+                await window.loadDowntimesData(savedItem?.id);
             }
+            if (typeof loadDowntimesByParams === 'function') {
+                await loadDowntimesByParams();
+            }
+        } else {
+            const err = await res.json().catch(() => ({}));
+            let errMsg = 'Неизвестная ошибка сервера';
+            if (Array.isArray(err.detail)) {
+                errMsg = err.detail.map(e => `${e.loc ? e.loc.join('.') + ': ' : ''}${e.msg}`).join("; ");
+            } else if (err.detail) {
+                errMsg = err.detail;
+            }
+            showNotification('error', 'Ошибка сохранения простоя', errMsg);
         }
     } catch(e) {
-        showNotification('error', 'Сетевая ошибка', e.message);
+        showNotification('error', 'Сетевая ошибка при отправке', e.message);
     } finally {
         setButtonLoading('btn-add-dt', false);
     }
@@ -5724,5 +5778,31 @@ window.addEventListener('storage', function(e) {
 
 window.toggleDtManualDrawer = function() {
     const el = document.getElementById('dt-manual-entry-drawer');
-    if (el) el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+    if (!el) return;
+    const isOpening = (el.style.display === 'none' || !el.style.display);
+    el.style.display = isOpening ? 'block' : 'none';
+    if (isOpening) {
+        // Гарантируем заполнение даты сегодняшним числом при открытии
+        const dateInput = document.getElementById('journal-dt-date');
+        if (dateInput && !dateInput.value) {
+            const today = new Date();
+            if (dateInput._flatpickr) {
+                dateInput._flatpickr.setDate(today, true);
+            } else {
+                const y = today.getFullYear();
+                const m = String(today.getMonth() + 1).padStart(2, '0');
+                const d = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${y}-${m}-${d}`;
+            }
+        }
+        // Синхронизируем мастеров, если селектор пуст
+        const masterSel = document.getElementById('journal-dt-master-select');
+        const repMasterSel = document.getElementById('rep-master');
+        if (masterSel && masterSel.options.length <= 1 && repMasterSel && repMasterSel.options.length > 1) {
+            masterSel.innerHTML = repMasterSel.innerHTML;
+        }
+        setTimeout(() => {
+            document.getElementById('journal-dt-desc')?.focus();
+        }, 150);
+    }
 };

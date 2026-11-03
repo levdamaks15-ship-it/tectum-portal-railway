@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261103_dt_v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261103_dt_v3">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1766,6 +1766,20 @@
                             <button type="button" onclick="toggleDtManualDrawer()" class="btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;">Скрыть форму</button>
                         </div>
                         <input type="hidden" id="journal-dt-active-shift-id">
+
+                        <!-- Live Notification Banner for Stored Downtimes -->
+                        <div id="dt-live-alert" style="display: none; background: #ecfdf5; border: 1.5px solid #10b981; border-radius: 10px; padding: 0.85rem 1.2rem; margin-bottom: 1rem; color: #065f46; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <div style="background: #10b981; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; font-weight: 700;">✓</div>
+                                    <div>
+                                        <div style="font-weight: 700; font-size: 0.95rem;">Простой успешно зафиксирован и сохранен в базе данных!</div>
+                                        <div id="dt-live-alert-details" style="font-size: 0.85rem; color: #047857; margin-top: 2px;"></div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="document.getElementById('dt-live-alert').style.display='none'" style="background: transparent; border: none; font-size: 1.2rem; color: #047857; cursor: pointer;">&times;</button>
+                            </div>
+                        </div>
                         
                         <div class="form-grid-two downtime-params-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
                             <div>
@@ -1817,6 +1831,14 @@
                                     🚀 Сохранить
                                 </button>
                             </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 12px; padding-top: 0.25rem;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #334155;">
+                                <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="accent-color: #ef4444; width: 16px; height: 16px;">
+                                <span>🛑 Остановка линии (простой оборудования)</span>
+                            </label>
+                            <span style="font-size: 0.75rem; color: #94a3b8;">(снимите галочку, если работы проводились на ходу без остановки выпуска)</span>
                         </div>
                     </div>
 
@@ -2376,10 +2398,10 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261103_dt_v1"></script>
+    <script src="/static/js/app.js?v=20261103_dt_v3"></script>
     <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
     <script src="/static/js/version_guard.js"></script>
-    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v2"></script>
+    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v3"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>
 </body>
 

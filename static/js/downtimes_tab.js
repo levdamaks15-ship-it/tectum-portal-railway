@@ -166,7 +166,9 @@
     };
 
     // Главная функция загрузки в зависимости от активного вида
-    window.loadDowntimesData = function () {
+    window.loadDowntimesData = async function (highlightId = null) {
+        syncDateInputsWithFilter();
+
         const sInput = document.getElementById('dt-date-from');
         const eInput = document.getElementById('dt-date-to');
         const lineSelect = document.getElementById('dt-filter-line');
@@ -180,14 +182,14 @@
         if (searchInput) dtCurrentFilter.search = searchInput.value;
 
         if (dtCurrentFilter.view === 'feed') {
-            loadDowntimesFeed();
+            await loadDowntimesFeed(highlightId);
         } else {
-            loadDowntimesSummary();
+            await loadDowntimesSummary();
         }
     };
 
     // 1. Загрузка ленты быстрой разметки
-    async function loadDowntimesFeed() {
+    async function loadDowntimesFeed(highlightId = null) {
         const tbody = document.getElementById('dt-feed-tbody');
         if (tbody) {
             tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #64748b;">
@@ -219,7 +221,7 @@
             if (totalCountEl) totalCountEl.textContent = data.total || 0;
             if (unclassCountEl) unclassCountEl.textContent = data.unclassified_count || 0;
 
-            renderFeedTable(allFeedItems);
+            renderFeedTable(allFeedItems, highlightId);
         } catch (e) {
             console.error(e);
             if (tbody) {
@@ -232,7 +234,7 @@
     }
 
     // Рендер таблицы быстрой разметки
-    function renderFeedTable(items) {
+    function renderFeedTable(items, highlightId = null) {
         const tbody = document.getElementById('dt-feed-tbody');
         if (!tbody) return;
 
@@ -298,6 +300,17 @@
         });
 
         tbody.innerHTML = html;
+
+        if (highlightId) {
+            setTimeout(() => {
+                const row = document.getElementById(`dt-row-${highlightId}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('dt-row-highlight');
+                    setTimeout(() => row.classList.remove('dt-row-highlight'), 3500);
+                }
+            }, 80);
+        }
     }
 
     // Разворачивание текста описания
