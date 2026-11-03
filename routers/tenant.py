@@ -108,6 +108,8 @@ def serve_tenant_module(
 
 
     if clean_module in ("shifts", "production"):
+        if ctx.role_code == "technologist" or "технолог" in (ctx.user_name or "").lower():
+            return RedirectResponse(url=f"/p/{plant_slug}/w/{workshop_slug}/technologist", status_code=302)
         if workshop_slug.lower() == "lkc":
             target_file = os.path.join(base_dir, "lkc.html")
         elif workshop_slug.lower() == "skk":

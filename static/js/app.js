@@ -5706,14 +5706,13 @@ async function submitCanonicalLogin() {
             return;
         }
 
-        const targetScope = currentUser.scope || currentUser.target_scope;
+        const targetScope = currentUser.scope || currentUser.target_scope || '/p/shymkent/w/xci/shifts#production';
         if (targetScope && !window.location.pathname.startsWith(targetScope.split('#')[0])) {
             window.location.replace(targetScope);
             return;
         }
 
         // Чистый переход в рабочий рапорт ХЦИ (гарантированно очищает ?unauthorized=true из адресной строки)
-        const targetScope = currentUser.target_scope || '/p/shymkent/w/xci/shifts#production';
         if (window.location.search && window.location.search.includes('unauthorized')) {
             window.location.replace(targetScope);
             return;
