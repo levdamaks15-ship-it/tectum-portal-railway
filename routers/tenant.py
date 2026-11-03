@@ -75,7 +75,8 @@ def serve_tenant_module(
         ctx = resolve_tenant_context(plant_slug, workshop_slug, request, db)
     except HTTPException as auth_err:
         if auth_err.status_code == 401:
-            return RedirectResponse(url="/?unauthorized=true", status_code=302)
+            req_path = request.url.path
+            return RedirectResponse(url=f"/?unauthorized=true&redirect={req_path}", status_code=302)
         raise auth_err
 
     # 3. Проверяем наличие прогрессивного Jinja2 SSR шаблона
