@@ -5635,19 +5635,31 @@ async function submitCanonicalLogin() {
         const urlParams = new URLSearchParams(window.location.search);
         const redirectUrl = urlParams.get('redirect');
         if (redirectUrl && !redirectUrl.startsWith('//') && !redirectUrl.includes(':')) {
-            window.location.href = redirectUrl;
+            window.location.replace(redirectUrl);
             return;
         }
 
         // Routing according to workshop
         if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
-            window.location.href = '/static/qcd.html';
+            window.location.replace('/static/qcd.html');
             return;
         }
 
         if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
-            window.location.href = '/static/lkc.html';
+            window.location.replace('/static/lkc.html');
             return;
+        }
+
+        // Чистый переход в рабочий рапорт ХЦИ (гарантированно очищает ?unauthorized=true из адресной строки)
+        const targetScope = currentUser.target_scope || '/p/shymkent/w/xci/shifts#production';
+        if (window.location.search && window.location.search.includes('unauthorized')) {
+            window.location.replace(targetScope);
+            return;
+        }
+
+        // Очищаем поисковые параметры если уже находимся в нужном модуле
+        if (window.location.search) {
+            history.replaceState(null, '', window.location.pathname + (window.location.hash || '#production'));
         }
 
         // Switch header brand to XCI workshop

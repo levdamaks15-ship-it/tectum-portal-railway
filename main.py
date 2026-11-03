@@ -525,7 +525,7 @@ def read_root(request: Request, db: Session = Depends(get_db)):
             ).first()
             if sess and sess.last_visited_scope:
                 return RedirectResponse(url=sess.last_visited_scope, status_code=302)
-        return RedirectResponse(url="/p/shymkent/w/xci/shifts", status_code=302)
+        return RedirectResponse(url="/p/shymkent/w/xci/shifts#production", status_code=302)
 
     return FileResponse("static/index.html", headers=HTML_NO_CACHE_HEADERS)
 
