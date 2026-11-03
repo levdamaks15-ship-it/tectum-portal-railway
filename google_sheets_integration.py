@@ -153,8 +153,16 @@ def retry_google_api(func, max_retries=3, initial_delay=1.0, backoff_factor=2.0)
         except Exception as e:
             last_err = e
             err_str = str(e).lower()
-            if attempt < max_retries and any(code in err_str for code in ["429", "500", "502", "503", "504", "timeout", "timed out", "connection", "reset by peer"]):
+            resp_status = str(getattr(getattr(e, 'resp', None), 'status', ''))
+            retryable_tokens = [
+                "429", "500", "502", "503", "504",
+                "timeout", "timed out", "connection", "reset by peer",
+                "broken pipe", "quota", "ratelimit", "rate limit",
+                "resource_exhausted", "service unavailable"
+            ]
+            if attempt < max_retries and (resp_status in ("429", "500", "502", "503", "504") or any(code in err_str for code in retryable_tokens)):
                 sleep_time = initial_delay * (backoff_factor ** (attempt - 1))
+                print(f"Warning: Google API call failed on attempt {attempt}/{max_retries} ({e}). Retrying in {sleep_time:.1f}s...")
                 time.sleep(sleep_time)
                 continue
             raise e
@@ -595,29 +603,6 @@ def export_norms_to_google_sheets(db: Session):
     service = get_sheets_service()
     sheet_name = "Нормативы"
     
-    # 1. Проверяем существование листа
-    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
-    
-    if sheet_name not in sheets_titles:
-        body = {
-            "requests": [{
-                "addSheet": {
-                    "properties": {
-                        "title": sheet_name,
-                        "gridProperties": {
-                            "rowCount": 50,
-                            "columnCount": 11
-                        }
-                    }
-                }
-            }]
-        }
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-        
-    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    
     headers = [
         "Продукция", "Вес готового листа (кг)", 
         "Норма Хризотил 4-20", "Норма Хризотил 5-65", "Норма Хризотил 6-40",
@@ -640,130 +625,156 @@ def export_norms_to_google_sheets(db: Session):
             n.norm_asbozurit or 0.0,
             n.norm_fiberglass or 0.0
         ])
-        
-    # Очищаем старые значения
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'"
-    ).execute()
-    
-    # Записываем новые значения
-    service.spreadsheets().values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A1",
-        valueInputOption="USER_ENTERED",
-        body={"values": rows_data}
-    ).execute()
     
     total_rows = len(rows_data)
 
-    requests = [
-        # Закрепление шапки
-        {
-            "updateSheetProperties": {
-                "properties": {
-                    "sheetId": sheet_id,
-                    "gridProperties": {
-                        "frozenRowCount": 1
+    def execute_api_calls():
+        # 1. Проверяем существование листа
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+        
+        if sheet_name not in sheets_titles:
+            body = {
+                "requests": [{
+                    "addSheet": {
+                        "properties": {
+                            "title": sheet_name,
+                            "gridProperties": {
+                                "rowCount": 50,
+                                "columnCount": 11
+                            }
+                        }
                     }
-                },
-                "fields": "gridProperties.frozenRowCount"
+                }]
             }
-        },
-        # Фиксированная компактная высота шапки (28px)
-        {
-            "updateDimensionProperties": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "dimension": "ROWS",
-                    "startIndex": 0,
-                    "endIndex": 1
-                },
-                "properties": {
-                    "pixelSize": 28
-                },
-                "fields": "pixelSize"
-            }
-        },
-        # Стилизация шапки (пастельно-зеленый фон)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": PASTEL_GREEN_HEADER
-                },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
-            }
-        },
-        # Границы для всей таблицы
-        {
-            "updateBorders": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                **STANDARD_BORDER_STYLE
-            }
-        },
-        # Выравнивание названия продукта (колонка 0)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 1
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "horizontalAlignment": "LEFT"
-                    }
-                },
-                "fields": "userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Форматирование веса и норм (колонки 1-9) как числа
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": total_rows,
-                    "startColumnIndex": 1,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "NUMBER",
-                            "pattern": "#,##0.00"
-                        },
-                        "horizontalAlignment": "RIGHT"
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-            }
-        },
-    ]
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+            
+        sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
 
-    if requests:
-        try:
-            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-        except Exception as e:
-            print(f"Warning executing batch styling on {sheet_name}: {e}")
+        # 2. Очищаем старые значения
+        service.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'"
+        ).execute()
+        
+        # 3. Записываем новые значения
+        service.spreadsheets().values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'!A1",
+            valueInputOption="USER_ENTERED",
+            body={"values": rows_data}
+        ).execute()
 
-    # Устанавливаем автофильтр безопасным способом
-    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
+        requests = [
+            # Закрепление шапки
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": sheet_id,
+                        "gridProperties": {
+                            "frozenRowCount": 1
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount"
+                }
+            },
+            # Фиксированная компактная высота шапки (28px)
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": 0,
+                        "endIndex": 1
+                    },
+                    "properties": {
+                        "pixelSize": 28
+                    },
+                    "fields": "pixelSize"
+                }
+            },
+            # Стилизация шапки (пастельно-зеленый фон)
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    "cell": {
+                        "userEnteredFormat": PASTEL_GREEN_HEADER
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+                }
+            },
+            # Границы для всей таблицы
+            {
+                "updateBorders": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": max(total_rows, 2),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    **STANDARD_BORDER_STYLE
+                }
+            },
+            # Выравнивание названия продукта (колонка 0)
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": total_rows,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": 1
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "horizontalAlignment": "LEFT"
+                        }
+                    },
+                    "fields": "userEnteredFormat.horizontalAlignment"
+                }
+            },
+            # Форматирование веса и норм (колонки 1-9) как числа
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": total_rows,
+                        "startColumnIndex": 1,
+                        "endColumnIndex": len(headers)
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "numberFormat": {
+                                "type": "NUMBER",
+                                "pattern": "#,##0.00"
+                            },
+                            "horizontalAlignment": "RIGHT"
+                        }
+                    },
+                    "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+                }
+            },
+        ]
+
+        if requests:
+            try:
+                service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+            except Exception as e:
+                print(f"Warning executing batch styling on {sheet_name}: {e}")
+
+        # Устанавливаем автофильтр безопасным способом
+        safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
+
+    retry_google_api(execute_api_calls)
     print("Нормативы успешно экспортированы в Google Таблицу.")
 
 
@@ -857,6 +868,7 @@ def export_receipt_to_google_sheets(db: Session):
     Создает или обновляет лист 'Приход сырья' в Google Таблице,
     выгружая данные прихода сырья из всех смен (история накопления).
     Вызывается при сохранении сменного рапорта мастера.
+    Обернута в retry_google_api для надежности и исключения очистки листа при сетевом сбое.
     """
     if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
         print("Экспорт прихода сырья в Google Таблицы пропущен: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
@@ -865,30 +877,7 @@ def export_receipt_to_google_sheets(db: Session):
     service = get_sheets_service()
     sheet_name = "Приход сырья"
 
-    # 1. Проверяем существование листа, если нет — создаем
-    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
-
-    if sheet_name not in sheets_titles:
-        body = {
-            "requests": [{
-                "addSheet": {
-                    "properties": {
-                        "title": sheet_name,
-                        "gridProperties": {
-                            "rowCount": 1000,
-                            "columnCount": 18
-                        }
-                    }
-                }
-            }]
-        }
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-
-    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-
-    # 2. Формируем заголовки
+    # 1. Формируем заголовки
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
         "Хризотил 4-20 (кг)", "Хризотил 5-65 (кг)", "Хризотил 6-40 (кг)",
@@ -898,8 +887,7 @@ def export_receipt_to_google_sheets(db: Session):
         "Стекловолокно (кг)", "Лапрол (кг)"
     ]
 
-    # 3. Собираем данные из БД — все записи прихода сырья
-    # Выгружаем каждую запись прихода как отдельную строку
+    # 2. Собираем данные из БД — все записи прихода сырья
     from sqlalchemy import func
     from sqlalchemy.orm import selectinload
     receipts = db.query(models.RawMaterialReceipt).options(
@@ -942,175 +930,196 @@ def export_receipt_to_google_sheets(db: Session):
         ]
         rows_data.append(row)
 
-    # 4. Полностью перезаписываем лист (очищаем и пишем заново)
     total_rows = len(rows_data)
 
-    # Очищаем старые данные
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'"
-    ).execute()
+    def execute_api_calls():
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
 
-    # Записываем данные
-    if rows_data:
-        service.spreadsheets().values().update(
+        if sheet_name not in sheets_titles:
+            body = {
+                "requests": [{
+                    "addSheet": {
+                        "properties": {
+                            "title": sheet_name,
+                            "gridProperties": {
+                                "rowCount": 1000,
+                                "columnCount": 18
+                            }
+                        }
+                    }
+                }]
+            }
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+        sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+        # Очищаем старые данные
+        service.spreadsheets().values().clear(
             spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows_data}
+            range=f"'{sheet_name}'"
         ).execute()
 
-    # 5. Форматирование
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    has_basic_filter = "basicFilter" in sheet_meta
+        # Записываем данные
+        if rows_data:
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows_data}
+            ).execute()
 
-    requests = [
-        # Фиксация строки заголовка
-        {
-            "updateSheetProperties": {
-                "properties": {
-                    "sheetId": sheet_id,
-                    "gridProperties": {
-                        "frozenRowCount": 1
-                    }
-                },
-                "fields": "gridProperties.frozenRowCount"
-            }
-        },
-        # Фиксированная компактная высота шапки (28px)
-        {
-            "updateDimensionProperties": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "dimension": "ROWS",
-                    "startIndex": 0,
-                    "endIndex": 1
-                },
-                "properties": {
-                    "pixelSize": 28
-                },
-                "fields": "pixelSize"
-            }
-        },
-        # Стилизация шапки (пастельно-зеленый фон)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": 1,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": PASTEL_GREEN_HEADER
-                },
-                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
-            }
-        },
-        # Границы для всей таблицы
-        {
-            "updateBorders": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 0,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": len(headers)
-                },
-                **STANDARD_BORDER_STYLE
-            }
-        },
-        # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy, CENTER)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 1
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "DATE",
-                            "pattern": "dd.MM.yyyy"
-                        },
-                        "horizontalAlignment": "CENTER"
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Выравнивание колонок 1-2 (Смена, Линия) по центру
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 1,
-                    "endColumnIndex": 3
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "horizontalAlignment": "CENTER"
-                    }
-                },
-                "fields": "userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Выравнивание колонки 3 (Мастер) по левому краю
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 3,
-                    "endColumnIndex": 4
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "horizontalAlignment": "LEFT"
-                    }
-                },
-                "fields": "userEnteredFormat.horizontalAlignment"
-            }
-        },
-        # Форматирование числовых колонок (4-17) как целые числа (#,##0, RIGHT)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": 1,
-                    "endRowIndex": max(total_rows, 2),
-                    "startColumnIndex": 4,
-                    "endColumnIndex": len(headers)
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "NUMBER",
-                            "pattern": "#,##0"
-                        },
-                        "horizontalAlignment": "RIGHT"
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-            }
-        },
-    ]
+        # Форматирование
+        requests = [
+            # Фиксация строки заголовка
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": sheet_id,
+                        "gridProperties": {
+                            "frozenRowCount": 1
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount"
+                }
+            },
+            # Фиксированная компактная высота шапки (28px)
+            {
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": 0,
+                        "endIndex": 1
+                    },
+                    "properties": {
+                        "pixelSize": 28
+                    },
+                    "fields": "pixelSize"
+                }
+            },
+            # Стилизация шапки (пастельно-зеленый фон)
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": 1,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    "cell": {
+                        "userEnteredFormat": PASTEL_GREEN_HEADER
+                    },
+                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+                }
+            },
+            # Границы для всей таблицы
+            {
+                "updateBorders": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 0,
+                        "endRowIndex": max(total_rows, 2),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(headers)
+                    },
+                    **STANDARD_BORDER_STYLE
+                }
+            },
+            # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy, CENTER)
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": max(total_rows, 2),
+                        "startColumnIndex": 0,
+                        "endColumnIndex": 1
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "numberFormat": {
+                                "type": "DATE",
+                                "pattern": "dd.MM.yyyy"
+                            },
+                            "horizontalAlignment": "CENTER"
+                        }
+                    },
+                    "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+                }
+            },
+            # Выравнивание колонок 1-2 (Смена, Линия) по центру
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": max(total_rows, 2),
+                        "startColumnIndex": 1,
+                        "endColumnIndex": 3
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "horizontalAlignment": "CENTER"
+                        }
+                    },
+                    "fields": "userEnteredFormat.horizontalAlignment"
+                }
+            },
+            # Выравнивание колонки 3 (Мастер) по левому краю
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": max(total_rows, 2),
+                        "startColumnIndex": 3,
+                        "endColumnIndex": 4
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "horizontalAlignment": "LEFT"
+                        }
+                    },
+                    "fields": "userEnteredFormat.horizontalAlignment"
+                }
+            },
+            # Форматирование числовых колонок (4-17) как целые числа (#,##0, RIGHT)
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": 1,
+                        "endRowIndex": max(total_rows, 2),
+                        "startColumnIndex": 4,
+                        "endColumnIndex": len(headers)
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "numberFormat": {
+                                "type": "NUMBER",
+                                "pattern": "#,##0"
+                            },
+                            "horizontalAlignment": "RIGHT"
+                        }
+                    },
+                    "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+                }
+            },
+        ]
 
-    if requests:
-        try:
-            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-        except Exception as e:
-            print(f"Warning executing batch styling on {sheet_name}: {e}")
+        if requests:
+            try:
+                service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+            except Exception as e:
+                print(f"Warning executing batch styling on {sheet_name}: {e}")
 
-    # Устанавливаем автофильтр безопасным способом
-    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
+        # Устанавливаем автофильтр безопасным способом
+        safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, len(headers))
+
+    retry_google_api(execute_api_calls)
     print(f"Экспорт прихода сырья в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} смен.")
 
 
@@ -1118,6 +1127,7 @@ def export_downtimes_to_google_sheets(db: Session):
     """
     Создает или обновляет лист 'Простои' в Google Таблице,
     выгружая данные о простоях из всех смен с автофильтрами и форматированием как в сводном отчете.
+    Обернута в retry_google_api для надежности и исключения очистки листа при сбое сети.
     """
     if not SPREADSHEET_ID or SPREADSHEET_ID.startswith("1_mock"):
         print("Экспорт простоев в Google Таблицы пропущен: не задан реальный GOOGLE_SPREADSHEET_ID в .env")
@@ -1126,30 +1136,7 @@ def export_downtimes_to_google_sheets(db: Session):
     service = get_sheets_service()
     sheet_name = "Простои"
 
-    # 1. Проверяем существование листа, если нет — создаем
-    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
-
-    if sheet_name not in sheets_titles:
-        body = {
-            "requests": [{
-                "addSheet": {
-                    "properties": {
-                        "title": sheet_name,
-                        "gridProperties": {
-                            "rowCount": 2000,
-                            "columnCount": 14
-                        }
-                    }
-                }
-            }]
-        }
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-
-    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-
-    # 2. Формируем заголовки: время идет сразу после мастера
+    # 1. Формируем заголовки: время идет сразу после мастера
     headers = [
         "Дата", "Смена", "Линия", "Мастер",
         "Время начала", "Время окончания", "Длительность (мин)",
@@ -1157,7 +1144,7 @@ def export_downtimes_to_google_sheets(db: Session):
         "Остановка оборудования"
     ]
 
-    # 3. Собираем данные из БД — все простои с информацией о смене
+    # 2. Собираем данные из БД — все простои с информацией о смене
     from sqlalchemy import func
     from sqlalchemy.orm import selectinload
     downtimes = db.query(models.Downtime).options(
@@ -1214,236 +1201,260 @@ def export_downtimes_to_google_sheets(db: Session):
         ]
         rows_data.append(row)
 
-    # 4. Полностью перезаписываем лист (очищаем и пишем заново)
     total_rows = len(rows_data)
 
-    # Очищаем старые данные
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'"
-    ).execute()
+    def execute_api_calls():
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
 
-    # Записываем данные
-    if rows_data:
-        service.spreadsheets().values().update(
+        if sheet_name not in sheets_titles:
+            body = {
+                "requests": [{
+                    "addSheet": {
+                        "properties": {
+                            "title": sheet_name,
+                            "gridProperties": {
+                                "rowCount": 2000,
+                                "columnCount": 14
+                            }
+                        }
+                    }
+                }]
+            }
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+
+        sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+        # Очищаем старые данные
+        service.spreadsheets().values().clear(
             spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows_data}
+            range=f"'{sheet_name}'"
         ).execute()
 
-    requests = []
+        # Записываем данные
+        if rows_data:
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows_data}
+            ).execute()
 
-    # Закрепляем первую строку (шапку) и первые 7 колонок (Дата ... Длительность)
-    requests.append({
-        "updateSheetProperties": {
-            "properties": {
-                "sheetId": sheet_id,
-                "gridProperties": {
-                    "frozenRowCount": 1,
-                    "frozenColumnCount": 7
-                }
-            },
-            "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
-        }
-    })
+        requests = []
 
-    # Фиксированная компактная высота шапки (28px)
-    requests.append({
-        "updateDimensionProperties": {
-            "range": {
-                "sheetId": sheet_id,
-                "dimension": "ROWS",
-                "startIndex": 0,
-                "endIndex": 1
-            },
-            "properties": {
-                "pixelSize": 28
-            },
-            "fields": "pixelSize"
-        }
-    })
+        # Закрепляем первую строку (шапку) и первые 7 колонок (Дата ... Длительность)
+        requests.append({
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet_id,
+                    "gridProperties": {
+                        "frozenRowCount": 1,
+                        "frozenColumnCount": 7
+                    }
+                },
+                "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+            }
+        })
 
-    # Стилизация заголовка (пастельно-зеленый фон, жирный текст)
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 0,
-                "endRowIndex": 1,
-                "startColumnIndex": 0,
-                "endColumnIndex": len(headers)
-            },
-            "cell": {
-                "userEnteredFormat": PASTEL_GREEN_HEADER
-            },
-            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
-        }
-    })
+        # Фиксированная компактная высота шапки (28px)
+        requests.append({
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "ROWS",
+                    "startIndex": 0,
+                    "endIndex": 1
+                },
+                "properties": {
+                    "pixelSize": 28
+                },
+                "fields": "pixelSize"
+            }
+        })
 
-    # Сетка границ для всех строк
-    requests.append({
-        "updateBorders": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 0,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 0,
-                "endColumnIndex": len(headers)
-            },
-            **STANDARD_BORDER_STYLE
-        }
-    })
+        # Стилизация заголовка (пастельно-зеленый фон, жирный текст)
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                "cell": {
+                    "userEnteredFormat": PASTEL_GREEN_HEADER
+                },
+                "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)"
+            }
+        })
 
-    # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy, CENTER)
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 0,
-                "endColumnIndex": 1
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "numberFormat": {
-                        "type": "DATE",
-                        "pattern": "dd.MM.yyyy"
-                    },
-                    "horizontalAlignment": "CENTER"
-                }
-            },
-            "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Сетка границ для всех строк
+        requests.append({
+            "updateBorders": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": len(headers)
+                },
+                **STANDARD_BORDER_STYLE
+            }
+        })
 
-    # Выравнивание колонок 1-2 (Смена, Линия) по центру
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 1,
-                "endColumnIndex": 3
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "CENTER"
-                }
-            },
-            "fields": "userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Форматирование колонки 0 (Дата) как ДАТА (dd.MM.yyyy, CENTER)
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 1
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "DATE",
+                            "pattern": "dd.MM.yyyy"
+                        },
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    # Выравнивание колонки 3 (Мастер) по левому краю
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 3,
-                "endColumnIndex": 4
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "LEFT"
-                }
-            },
-            "fields": "userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Выравнивание колонок 1-2 (Смена, Линия) по центру
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 1,
+                    "endColumnIndex": 3
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    # Выравнивание колонок 4-5 (Время начала, Время окончания) по центру
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 4,
-                "endColumnIndex": 6
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "CENTER"
-                }
-            },
-            "fields": "userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Выравнивание колонки 3 (Мастер) по левому краю
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 3,
+                    "endColumnIndex": 4
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    # Форматирование колонки 6 (Длительность) как ЧИСЛО (#,##0, RIGHT)
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 6,
-                "endColumnIndex": 7
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "numberFormat": {
-                        "type": "NUMBER",
-                        "pattern": "#,##0"
-                    },
-                    "horizontalAlignment": "RIGHT"
-                }
-            },
-            "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Выравнивание колонок 4-5 (Время начала, Время окончания) по центру
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 4,
+                    "endColumnIndex": 6
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    # Выравнивание колонки 7 (Простой / Описание) по левому краю
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 7,
-                "endColumnIndex": 8
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "LEFT"
-                }
-            },
-            "fields": "userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Форматирование колонки 6 (Длительность) как ЧИСЛО (#,##0, RIGHT)
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 6,
+                    "endColumnIndex": 7
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "#,##0"
+                        },
+                        "horizontalAlignment": "RIGHT"
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    # Выравнивание колонки 8 (Остановка оборудования) по центру
-    requests.append({
-        "repeatCell": {
-            "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": 1,
-                "endRowIndex": max(total_rows, 2),
-                "startColumnIndex": 8,
-                "endColumnIndex": 9
-            },
-            "cell": {
-                "userEnteredFormat": {
-                    "horizontalAlignment": "CENTER"
-                }
-            },
-            "fields": "userEnteredFormat.horizontalAlignment"
-        }
-    })
+        # Выравнивание колонки 7 (Простой / Описание) по левому краю
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 7,
+                    "endColumnIndex": 8
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "LEFT"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    if requests:
-        try:
-            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-        except Exception as e:
-            print(f"Warning executing batch styling on {sheet_name}: {e}")
+        # Выравнивание колонки 8 (Остановка оборудования) по центру
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": max(total_rows, 2),
+                    "startColumnIndex": 8,
+                    "endColumnIndex": 9
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "horizontalAlignment": "CENTER"
+                    }
+                },
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        })
 
-    # Устанавливаем автофильтр безопасным способом
-    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, max(total_rows, 1), 0, len(headers))
+        if requests:
+            try:
+                service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+            except Exception as e:
+                print(f"Warning executing batch styling on {sheet_name}: {e}")
+
+        # Устанавливаем автофильтр безопасным способом
+        safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, max(total_rows, 1), 0, len(headers))
+
+    retry_google_api(execute_api_calls)
     print(f"Экспорт простоев в Google Таблицы выполнен успешно. Выгружено {len(rows_data) - 1} записей с автофильтрами.")
 
 
@@ -1463,30 +1474,6 @@ def sync_qcd_reports_to_google_sheets(db: Session):
         
     service = get_sheets_service()
     sheet_name = "Переборка"
-    
-    # 1. Проверяем существование листа
-    spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-    sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
-    
-    if sheet_name not in sheets_titles:
-        body = {
-            "requests": [{
-                "addSheet": {
-                    "properties": {
-                        "title": sheet_name,
-                        "gridProperties": {
-                            "rowCount": 2000,
-                            "columnCount": 25,
-                            "frozenRowCount": 1
-                        }
-                    }
-                }
-            }]
-        }
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
-        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
-        
-    sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
     
     headers = [
         "№ партии", "Дата", "День нед.", "Время смены", "Мастер ЛФМ", "Продукт", "Формовка, шт",
@@ -1642,39 +1629,60 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             total_def_all
         ])
         
-    service.spreadsheets().values().clear(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'"
-    ).execute()
-    
-    if len(rows_data) > 0:
-        service.spreadsheets().values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"'{sheet_name}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows_data}
-        ).execute()
-        
     total_rows = max(len(rows_data), 2)
     total_cols = len(headers)
-    
-    sheet_meta = next(sh for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
-    has_basic_filter = "basicFilter" in sheet_meta
 
-    requests = [
-        # Фиксация строки заголовка (1) и первых двух колонок (№ партии, Дата)
-        {
-            "updateSheetProperties": {
-                "properties": {
-                    "sheetId": sheet_id,
-                    "gridProperties": {
-                        "frozenRowCount": 1,
-                        "frozenColumnCount": 2
+    def execute_api_calls():
+        spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets_titles = [sh["properties"]["title"] for sh in spreadsheet["sheets"]]
+        
+        if sheet_name not in sheets_titles:
+            body = {
+                "requests": [{
+                    "addSheet": {
+                        "properties": {
+                            "title": sheet_name,
+                            "gridProperties": {
+                                "rowCount": 2000,
+                                "columnCount": 25,
+                                "frozenRowCount": 1
+                            }
+                        }
                     }
-                },
-                "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+                }]
             }
-        },
+            service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body=body).execute()
+            spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+            
+        sheet_id = next(sh["properties"]["sheetId"] for sh in spreadsheet["sheets"] if sh["properties"]["title"] == sheet_name)
+
+        service.spreadsheets().values().clear(
+            spreadsheetId=SPREADSHEET_ID,
+            range=f"'{sheet_name}'"
+        ).execute()
+        
+        if len(rows_data) > 0:
+            service.spreadsheets().values().update(
+                spreadsheetId=SPREADSHEET_ID,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows_data}
+            ).execute()
+
+        requests = [
+            # Фиксация строки заголовка (1) и первых двух колонок (№ партии, Дата)
+            {
+                "updateSheetProperties": {
+                    "properties": {
+                        "sheetId": sheet_id,
+                        "gridProperties": {
+                            "frozenRowCount": 1,
+                            "frozenColumnCount": 2
+                        }
+                    },
+                    "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+                }
+            },
         # Фиксированная компактная высота шапки (28px)
         {
             "updateDimensionProperties": {
@@ -1979,14 +1987,16 @@ def sync_qcd_reports_to_google_sheets(db: Session):
             }
         }
     ]
-    
-    try:
-        service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
-    except Exception as e:
-        print(f"Warning executing batch styling on {sheet_name}: {e}")
+        if requests:
+            try:
+                service.spreadsheets().batchUpdate(spreadsheetId=SPREADSHEET_ID, body={"requests": requests}).execute()
+            except Exception as e:
+                print(f"Warning executing batch styling on {sheet_name}: {e}")
 
-    # Устанавливаем автофильтр безопасным способом
-    safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, total_cols)
+        # Устанавливаем автофильтр безопасным способом
+        safe_set_basic_filter(service, SPREADSHEET_ID, sheet_id, 0, total_rows, 0, total_cols)
+
+    retry_google_api(execute_api_calls)
     print("Лист 'Переборка' (чистая непрерывная таблица с бригадами) успешно экспортирован.")
 
 
@@ -2396,36 +2406,6 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
     try:
         service = get_sheets_service()
         sheet_name = "Акты переборки СКК"
-        
-        # 1. Проверяем наличие листа в документе
-        spreadsheet = service.spreadsheets().get(spreadsheetId=target_id).execute()
-        sheets = spreadsheet.get("sheets", [])
-        sheet_id = None
-        
-        for s in sheets:
-            if s["properties"]["title"] == sheet_name:
-                sheet_id = s["properties"]["sheetId"]
-                break
-                
-        if sheet_id is None:
-            # Создаем лист "Акты переборки СКК"
-            add_res = service.spreadsheets().batchUpdate(
-                spreadsheetId=target_id,
-                body={"requests": [{"addSheet": {
-                    "properties": {
-                        "title": sheet_name,
-                        "gridProperties": {
-                            "frozenRowCount": 1,
-                            "frozenColumnCount": 2,
-                            "rowCount": 1000,
-                            "columnCount": 30
-                        }
-                    }
-                }}]}
-            ).execute()
-            sheet_id = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
-
-        SHEET_GIDS["qcd_acts"] = sheet_id
 
         # 2. Получаем все отчеты СКК из БД
         reports = db.query(models.QcdSortingReport).order_by(
@@ -2538,77 +2518,110 @@ def sync_qcd_reports_to_dedicated_sheet(db: Session, report_id: int = None):
                 inspector_notes
             ])
 
-        # 3. Полная перезапись листа
-        service.spreadsheets().values().clear(
-            spreadsheetId=target_id,
-            range=f"'{sheet_name}'"
-        ).execute()
-
-        service.spreadsheets().values().update(
-            spreadsheetId=target_id,
-            range=f"'{sheet_name}'!A1",
-            valueInputOption="USER_ENTERED",
-            body={"values": rows}
-        ).execute()
-
-        # 4. Стилизация (Брендовый стиль Tectum: темно-синий/стальной заголовок, сетка, автоширина)
-        header_color = {"red": 0.08, "green": 0.25, "blue": 0.45} # Navy Blue
         total_rows = max(len(rows), 2)
         total_cols = len(headers)
 
-        requests = [
-            {
-                "repeatCell": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": 1,
-                        "startColumnIndex": 0,
-                        "endColumnIndex": total_cols
-                    },
-                    "cell": {
-                        "userEnteredFormat": {
-                            "backgroundColor": header_color,
-                            "textFormat": {
-                                "bold": True,
-                                "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
-                                "fontSize": 10,
-                                "fontFamily": "Calibri"
-                            },
-                            "horizontalAlignment": "CENTER",
-                            "verticalAlignment": "MIDDLE"
+        def execute_api_calls():
+            # 1. Проверяем наличие листа в документе
+            spreadsheet = service.spreadsheets().get(spreadsheetId=target_id).execute()
+            sheets = spreadsheet.get("sheets", [])
+            sheet_id = None
+            
+            for s in sheets:
+                if s["properties"]["title"] == sheet_name:
+                    sheet_id = s["properties"]["sheetId"]
+                    break
+                    
+            if sheet_id is None:
+                # Создаем лист "Акты переборки СКК"
+                add_res = service.spreadsheets().batchUpdate(
+                    spreadsheetId=target_id,
+                    body={"requests": [{"addSheet": {
+                        "properties": {
+                            "title": sheet_name,
+                            "gridProperties": {
+                                "frozenRowCount": 1,
+                                "frozenColumnCount": 2,
+                                "rowCount": 1000,
+                                "columnCount": 30
+                            }
                         }
-                    },
-                    "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                    }}]}
+                ).execute()
+                sheet_id = add_res["replies"][0]["addSheet"]["properties"]["sheetId"]
+
+            SHEET_GIDS["qcd_acts"] = sheet_id
+
+            # 2. Полная перезапись листа
+            service.spreadsheets().values().clear(
+                spreadsheetId=target_id,
+                range=f"'{sheet_name}'"
+            ).execute()
+
+            service.spreadsheets().values().update(
+                spreadsheetId=target_id,
+                range=f"'{sheet_name}'!A1",
+                valueInputOption="USER_ENTERED",
+                body={"values": rows}
+            ).execute()
+
+            # 3. Стилизация
+            header_color = {"red": 0.08, "green": 0.25, "blue": 0.45} # Navy Blue
+            requests = [
+                {
+                    "repeatCell": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": 1,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": total_cols
+                        },
+                        "cell": {
+                            "userEnteredFormat": {
+                                "backgroundColor": header_color,
+                                "textFormat": {
+                                    "bold": True,
+                                    "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                                    "fontSize": 10,
+                                    "fontFamily": "Calibri"
+                                },
+                                "horizontalAlignment": "CENTER",
+                                "verticalAlignment": "MIDDLE"
+                            }
+                        },
+                        "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)"
+                    }
+                },
+                {
+                    "updateSheetProperties": {
+                        "properties": {
+                            "sheetId": sheet_id,
+                            "gridProperties": {
+                                "frozenRowCount": 1,
+                                "frozenColumnCount": 2
+                            }
+                        },
+                        "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
+                    }
+                },
+                {
+                    "updateBorders": {
+                        "range": {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 0,
+                            "endRowIndex": total_rows,
+                            "startColumnIndex": 0,
+                            "endColumnIndex": total_cols
+                        },
+                        **STANDARD_BORDER_STYLE
+                    }
                 }
-            },
-            {
-                "updateSheetProperties": {
-                    "properties": {
-                        "sheetId": sheet_id,
-                        "gridProperties": {
-                            "frozenRowCount": 1,
-                            "frozenColumnCount": 2
-                        }
-                    },
-                    "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"
-                }
-            },
-            {
-                "updateBorders": {
-                    "range": {
-                        "sheetId": sheet_id,
-                        "startRowIndex": 0,
-                        "endRowIndex": total_rows,
-                        "startColumnIndex": 0,
-                        "endColumnIndex": total_cols
-                    },
-                    **STANDARD_BORDER_STYLE
-                }
-            }
-        ]
-        service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
-        safe_set_basic_filter(service, target_id, sheet_id, 0, total_rows, 0, total_cols)
+            ]
+            service.spreadsheets().batchUpdate(spreadsheetId=target_id, body={"requests": requests}).execute()
+            safe_set_basic_filter(service, target_id, sheet_id, 0, total_rows, 0, total_cols)
+
+        retry_google_api(execute_api_calls)
 
         # Обновляем флаг google_synced для отчетов
         for r in reports:

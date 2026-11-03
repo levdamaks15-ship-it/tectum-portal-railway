@@ -369,88 +369,248 @@ def sync_sharepoint_report_bg():
     finally:
         db.close()
 
+import threading
+_google_sync_lock = threading.Lock()
+
 def sync_google_sheets_bg():
     from database import SessionLocal
     import google_sheets_integration
-    db = SessionLocal()
-    try:
-        google_sheets_integration.sync_report_to_google_sheets(db)
-        google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
-        google_sheets_integration.sync_qcd_reports_to_dedicated_sheet(db)
-        db.add(models.AuditLog(
-            user_name="Google Sync Reports",
-            action="UPDATE",
-            target_table="shifts",
-            target_id=0,
-            details="Сводный отчет, переборка и акты СКК успешно синхронизированы с Google Таблицами в фоновом режиме."
-        ))
-        db.commit()
-    except Exception as e:
-        print(f"Error syncing reports to Google Sheets: {e}")
+    with _google_sync_lock:
+        db = SessionLocal()
         try:
+            google_sheets_integration.sync_report_to_google_sheets(db)
+            google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+            google_sheets_integration.sync_qcd_reports_to_dedicated_sheet(db)
             db.add(models.AuditLog(
                 user_name="Google Sync Reports",
-                action="ERROR",
+                action="UPDATE",
                 target_table="shifts",
                 target_id=0,
-                details=f"Ошибка синхронизации отчетов в Google Sheets: {str(e)}"
+                details="Сводный отчет, переборка и акты СКК успешно синхронизированы с Google Таблицами в фоновом режиме."
             ))
             db.commit()
-        except Exception:
-            pass
-    finally:
-        db.close()
+        except Exception as e:
+            print(f"Error syncing reports to Google Sheets: {e}")
+            try:
+                db.rollback()
+                db.add(models.AuditLog(
+                    user_name="Google Sync Reports",
+                    action="ERROR",
+                    target_table="shifts",
+                    target_id=0,
+                    details=f"Ошибка синхронизации отчетов в Google Sheets: {str(e)}"
+                ))
+                db.commit()
+            except Exception:
+                pass
+        finally:
+            db.close()
 
 def sync_norms_export_bg():
     from database import SessionLocal
     import google_sheets_integration
-    db = SessionLocal()
-    try:
-        google_sheets_integration.export_norms_to_google_sheets(db)
-        db.add(models.AuditLog(
-            user_name="Google Sync Norms",
-            action="EXPORT",
-            target_table="product_norms",
-            target_id=0,
-            details="Нормативы продукции успешно выгружены в Google Таблицу в фоновом режиме."
-        ))
-        db.commit()
-    except Exception as e:
-        print(f"Error exporting norms to Google Sheets: {e}")
-    finally:
-        db.close()
+    with _google_sync_lock:
+        db = SessionLocal()
+        try:
+            google_sheets_integration.export_norms_to_google_sheets(db)
+            db.add(models.AuditLog(
+                user_name="Google Sync Norms",
+                action="EXPORT",
+                target_table="product_norms",
+                target_id=0,
+                details="Нормативы продукции успешно выгружены в Google Таблицу в фоновом режиме."
+            ))
+            db.commit()
+        except Exception as e:
+            print(f"Error exporting norms to Google Sheets: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        finally:
+            db.close()
 
 def sync_receipts_bg():
     from database import SessionLocal
     import google_sheets_integration
-    db = SessionLocal()
-    try:
-        google_sheets_integration.export_receipt_to_google_sheets(db)
-    except Exception as e:
-        print(f"Error syncing receipts to Google Sheets: {e}")
-    finally:
-        db.close()
+    with _google_sync_lock:
+        db = SessionLocal()
+        try:
+            if google_sheets_integration:
+                google_sheets_integration.export_receipt_to_google_sheets(db)
+                db.add(models.AuditLog(
+                    user_name="Google Sync Receipts",
+                    action="UPDATE",
+                    target_table="raw_material_receipts",
+                    target_id=0,
+                    details="Приходы сырья успешно синхронизированы с Google Таблицами в фоновом режиме."
+                ))
+                db.commit()
+        except Exception as e:
+            print(f"Error syncing receipts to Google Sheets: {e}")
+            try:
+                db.rollback()
+                db.add(models.AuditLog(
+                    user_name="Google Sync Receipts",
+                    action="ERROR",
+                    target_table="raw_material_receipts",
+                    target_id=0,
+                    details=f"Ошибка синхронизации приходов сырья в Google Sheets: {str(e)}"
+                ))
+                db.commit()
+            except Exception:
+                pass
+        finally:
+            db.close()
 
 def sync_downtimes_bg():
     from database import SessionLocal
     import google_sheets_integration
-    db = SessionLocal()
-    try:
-        if google_sheets_integration:
-            google_sheets_integration.export_downtimes_to_google_sheets(db)
-    except Exception as e:
-        print(f"Error syncing downtimes to Google Sheets: {e}")
+    with _google_sync_lock:
+        db = SessionLocal()
         try:
-            db.add(models.AuditLog(
-                user_name="Google Sync Downtimes",
-                action="ERROR",
-                details=f"Ошибка экспорта простоев в Google Sheets: {str(e)}"
-            ))
-            db.commit()
-        except Exception:
-            pass
-    finally:
-        db.close()
+            if google_sheets_integration:
+                google_sheets_integration.export_downtimes_to_google_sheets(db)
+                db.add(models.AuditLog(
+                    user_name="Google Sync Downtimes",
+                    action="UPDATE",
+                    target_table="downtimes",
+                    target_id=0,
+                    details="Простои успешно синхронизированы с Google Таблицами в фоновом режиме."
+                ))
+                db.commit()
+        except Exception as e:
+            print(f"Error syncing downtimes to Google Sheets: {e}")
+            try:
+                db.rollback()
+                db.add(models.AuditLog(
+                    user_name="Google Sync Downtimes",
+                    action="ERROR",
+                    target_table="downtimes",
+                    target_id=0,
+                    details=f"Ошибка экспорта простоев в Google Sheets: {str(e)}"
+                ))
+                db.commit()
+            except Exception:
+                pass
+        finally:
+            db.close()
+
+
+def sync_unified_sheets_bg(target_shift_id: Optional[int] = None):
+    """
+    Последовательная безопасная синхронизация всех связанных сервисов:
+    1. Сводный отчет смен, переборка и акты СКК
+    2. Приходы сырья (с паузой 1.5 сек для исключения 429 Quota Exceeded)
+    3. Простои (с паузой 1.5 сек для исключения 429 Quota Exceeded)
+    Гарантирует единую очередь выполнения без коллизий записи в одну Google Таблицу через _google_sync_lock.
+    """
+    import time
+    from database import SessionLocal
+    import google_sheets_integration
+
+    with _google_sync_lock:
+        db = SessionLocal()
+        try:
+            if not google_sheets_integration:
+                return
+
+            # 1. Отчеты смен, переборка и СКК
+            try:
+                google_sheets_integration.sync_report_to_google_sheets(db, target_shift_id=target_shift_id)
+                time.sleep(1.0)
+                google_sheets_integration.sync_qcd_reports_to_google_sheets(db)
+                time.sleep(1.0)
+                google_sheets_integration.sync_qcd_reports_to_dedicated_sheet(db)
+                db.add(models.AuditLog(
+                    user_name="Google Sync Unified",
+                    action="UPDATE",
+                    target_table="shifts",
+                    target_id=target_shift_id or 0,
+                    details="[1/3] Сводный отчет, переборка и акты СКК успешно синхронизированы с Google Таблицами."
+                ))
+                db.commit()
+            except Exception as e_rep:
+                print(f"Unified sync error (reports): {e_rep}")
+                try:
+                    db.rollback()
+                    db.add(models.AuditLog(
+                        user_name="Google Sync Unified",
+                        action="ERROR",
+                        target_table="shifts",
+                        target_id=target_shift_id or 0,
+                        details=f"[1/3] Ошибка синхронизации отчетов в Google Sheets: {str(e_rep)}"
+                    ))
+                    db.commit()
+                except Exception:
+                    pass
+
+            # Безопасный интервал для квоты Google Sheets API (60 req/min)
+            time.sleep(1.5)
+
+            # 2. Приходы сырья
+            try:
+                google_sheets_integration.export_receipt_to_google_sheets(db)
+                db.add(models.AuditLog(
+                    user_name="Google Sync Unified",
+                    action="UPDATE",
+                    target_table="raw_material_receipts",
+                    target_id=0,
+                    details="[2/3] Приход сырья успешно синхронизирован с Google Таблицами."
+                ))
+                db.commit()
+            except Exception as e_rec:
+                print(f"Unified sync error (receipts): {e_rec}")
+                try:
+                    db.rollback()
+                    db.add(models.AuditLog(
+                        user_name="Google Sync Unified",
+                        action="ERROR",
+                        target_table="raw_material_receipts",
+                        target_id=0,
+                        details=f"[2/3] Ошибка синхронизации приходов в Google Sheets: {str(e_rec)}"
+                    ))
+                    db.commit()
+                except Exception:
+                    pass
+
+            # Безопасный интервал для квоты Google Sheets API
+            time.sleep(1.5)
+
+            # 3. Простои
+            try:
+                google_sheets_integration.export_downtimes_to_google_sheets(db)
+                db.add(models.AuditLog(
+                    user_name="Google Sync Unified",
+                    action="UPDATE",
+                    target_table="downtimes",
+                    target_id=0,
+                    details="[3/3] Простои успешно синхронизированы с Google Таблицами."
+                ))
+                db.commit()
+            except Exception as e_down:
+                print(f"Unified sync error (downtimes): {e_down}")
+                try:
+                    db.rollback()
+                    db.add(models.AuditLog(
+                        user_name="Google Sync Unified",
+                        action="ERROR",
+                        target_table="downtimes",
+                        target_id=0,
+                        details=f"[3/3] Ошибка синхронизации простоев в Google Sheets: {str(e_down)}"
+                    ))
+                    db.commit()
+                except Exception:
+                    pass
+
+        except Exception as e:
+            print(f"Fatal error in sync_unified_sheets_bg: {e}")
+        finally:
+            db.close()
+
+
+sync_chained_sheets_bg = sync_unified_sheets_bg
+
 
 
 

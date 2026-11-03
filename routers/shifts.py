@@ -42,6 +42,8 @@ from routers.common import (
     sync_google_sheets_bg,
     sync_receipts_bg,
     sync_downtimes_bg,
+    sync_unified_sheets_bg,
+    sync_chained_sheets_bg,
     normalize_batch_number,
     get_authenticated_user_from_request,
     get_primary_role,
@@ -53,8 +55,17 @@ router = APIRouter(tags=["shifts"])
 # --- УПРАВЛЕНИЕ СМЕНОЙ ---
 @router.post("/api/shifts/")
 def create_shift(shift: schemas.ShiftCreate, request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if user_role not in ["master", "admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен. Только мастер смены или администратор могут открывать смены.")
         
@@ -113,8 +124,17 @@ def get_all_shifts(db: Session = Depends(get_db)):
 
 @router.get("/api/shifts/by_params")
 def get_shift_by_params(date: str, shift_name: str, line: str, request: Request, product_name: Optional[str] = None, batch_number: Optional[str] = None, export_type: Optional[str] = None, master_id: Optional[int] = None, create_if_not_exists: bool = False, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
     if user_role not in ["master", "admin", "director", "technologist"]:
@@ -407,7 +427,14 @@ def get_crew_plan_fulfillment(month: Optional[str] = None, db: Session = Depends
 
 @router.get("/api/shifts/{shift_id}")
 def get_single_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_role = get_primary_role(auth_user)
+    else:
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
     shift = db.query(models.Shift).options(
         joinedload(models.Shift.master),
         joinedload(models.Shift.receipts),
@@ -507,9 +534,19 @@ async def upload_sharepoint_report_retry(file_bytes: bytes, filename: str, folde
 
 @router.put("/api/shifts/{shift_id}/close")
 def close_shift(shift_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+        user_name = auth_user.name
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_email") or f"user_{user_id}"
     
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id:
         raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
@@ -549,7 +586,7 @@ def close_shift(shift_id: int, request: Request, background_tasks: BackgroundTas
         # Log to AuditLog
         audit_detail = f"Смена {shift_id} закрыта. Сводный отчет сгенерирован и загружен в SharePoint: {web_url}"
         db.add(models.AuditLog(
-            user_name=request.session.get("user_email") or f"user_{user_id}",
+            user_name=user_name,
             action="UPDATE",
             target_table="shifts",
             target_id=shift_id,
@@ -576,7 +613,7 @@ def close_shift(shift_id: int, request: Request, background_tasks: BackgroundTas
         audit_detail = f"Смена {shift_id} закрыта. Предупреждение по SharePoint: {warning_text}"
         try:
             db.add(models.AuditLog(
-                user_name=request.session.get("user_email") or f"user_{user_id}",
+                user_name=user_name,
                 action="UPDATE",
                 target_table="shifts",
                 target_id=shift_id,
@@ -588,7 +625,8 @@ def close_shift(shift_id: int, request: Request, background_tasks: BackgroundTas
 
 @router.get("/api/shifts/{shift_id}/download_passport")
 def download_shift_passport(shift_id: int, request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
+    auth_user = get_authenticated_user_from_request(request, db)
+    user_id = auth_user.id if auth_user else request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
@@ -654,8 +692,17 @@ class LFMDrainsUpdate(BaseModel):
 
 @router.post("/api/shifts/{shift_id}/receipt")
 def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id:
         raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
@@ -675,8 +722,17 @@ def update_receipt(shift_id: int, data: UpdateReceiptZO, request: Request, db: S
 
 @router.post("/api/shifts/{shift_id}/zo")
 def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id:
         raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
@@ -723,8 +779,17 @@ def update_zo(shift_id: int, data: UpdateReceiptZO, request: Request, background
 
 @router.post("/api/shifts/{shift_id}/lfm_drains")
 def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id:
         raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
@@ -746,8 +811,17 @@ def update_lfm_drains(shift_id: int, data: LFMDrainsUpdate, request: Request, ba
 
 @router.post("/api/shifts/{shift_id}/raw_materials_bulk")
 def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
     if user_role not in ["master", "admin", "director", "technologist"]:
@@ -776,12 +850,22 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
     shift.zo_cellulose = data.zo_cellulose
     shift.zo_crushed_slate = data.zo_crushed_slate
     shift.zo_asbozurit = data.zo_asbozurit
-    shift.zo_fiberglass = data.zo_fiberglass
-    shift.zo_laprol_under_machine = getattr(data, 'zo_laprol_under_machine', None) if getattr(data, 'zo_laprol_under_machine', None) is not None else (data.zo_laprol_silo1 or 0.0)
-    shift.zo_laprol_pushitel = getattr(data, 'zo_laprol_pushitel', None) if getattr(data, 'zo_laprol_pushitel', None) is not None else (data.zo_laprol_silo2 or 0.0)
-    shift.zo_laprol_silo1 = shift.zo_laprol_under_machine
-    shift.zo_laprol_silo2 = shift.zo_laprol_pushitel
-    shift.zo_laprol = (shift.zo_laprol_under_machine or 0.0) + (shift.zo_laprol_pushitel or 0.0)
+    laprol_under = getattr(data, 'zo_laprol_under_machine', None)
+    if laprol_under is None:
+        laprol_under = getattr(data, 'zo_laprol_silo1', 0.0)
+    laprol_push = getattr(data, 'zo_laprol_pushitel', None)
+    if laprol_push is None:
+        laprol_push = getattr(data, 'zo_laprol_silo2', 0.0)
+    
+    total_laprol = getattr(data, 'zo_laprol', None)
+    if total_laprol is None or total_laprol == 0.0:
+        total_laprol = (laprol_under or 0.0) + (laprol_push or 0.0)
+
+    shift.zo_laprol_under_machine = laprol_under
+    shift.zo_laprol_pushitel = laprol_push
+    shift.zo_laprol_silo1 = laprol_under
+    shift.zo_laprol_silo2 = laprol_push
+    shift.zo_laprol = total_laprol
     shift.zo_asbocarton = data.zo_asbocarton
     shift.zo_asb_drain = data.zo_asb_drain
     shift.zo_cem_drain = data.zo_cem_drain
@@ -789,7 +873,7 @@ def update_raw_materials_bulk(shift_id: int, data: schemas.RawMaterialsBulkUpdat
     shift.zo_submitted = True
     
     db.commit()
-    background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_unified_sheets_bg, shift.id)
     return {"status": "success"}
 
 
@@ -1388,9 +1472,8 @@ def save_shift_report(data: schemas.ShiftReportCreate, request: Request, backgro
 
     save_report_internal(db, shift, data, user_name, is_new)
     
-    # Trigger background Google Sheets sync
-    background_tasks.add_task(sync_google_sheets_bg)
-    background_tasks.add_task(sync_receipts_bg)
+    # Trigger unified sequential background Google Sheets sync (reports -> receipts -> downtimes)
+    background_tasks.add_task(sync_unified_sheets_bg, shift.id)
     
     return {
         "status": "success",
@@ -1435,9 +1518,8 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
         
     save_report_internal(db, shift, data, user_name, False)
     
-    # Trigger background Google Sheets sync
-    background_tasks.add_task(sync_google_sheets_bg)
-    background_tasks.add_task(sync_receipts_bg)
+    # Trigger unified sequential background Google Sheets sync (reports -> receipts -> downtimes)
+    background_tasks.add_task(sync_unified_sheets_bg, shift.id)
     
     return {
         "status": "success",
@@ -1452,9 +1534,19 @@ def update_shift_report_endpoint(shift_id: int, data: schemas.ShiftReportCreate,
 
 @router.post("/api/shifts/{shift_id}/sync-google")
 def sync_shift_to_google_endpoint(shift_id: int, request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Unknown")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Unknown")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id or not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
@@ -1512,9 +1604,22 @@ def get_shift_sync_status_endpoint(shift_id: int, request: Request, db: Session 
 
 
 @router.post("/api/receipts")
+@router.post("/api/receipts/autonomous")
 def create_autonomous_receipt(data: schemas.RawMaterialReceiptCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Склад")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Склад")
+
+    # Нормализация роли (поддержка master и workshop_master)
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
@@ -1528,12 +1633,16 @@ def create_autonomous_receipt(data: schemas.RawMaterialReceiptCreate, request: R
         if existing_shift:
             shift_id = existing_shift.id
 
+    master_id = data.master_id
+    if not master_id and user_role == "master" and user_id:
+        master_id = user_id
+
     receipt = models.RawMaterialReceipt(
         shift_id=shift_id,
         date=data.date,
         shift_name=data.shift_name,
         line=data.line,
-        master_id=data.master_id,
+        master_id=master_id,
         chrysotile_4_20=data.chrysotile_4_20,
         chrysotile_5_65=data.chrysotile_5_65,
         chrysotile_6_40=data.chrysotile_6_40,
@@ -1602,8 +1711,19 @@ def get_receipts_by_slot(date: str, shift_name: str, line: str, db: Session = De
 
 @router.post("/api/shifts/{shift_id}/receipts")
 def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Unknown")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Unknown")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
@@ -1611,12 +1731,14 @@ def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCrea
     if not shift:
         raise HTTPException(status_code=404, detail="Смена не найдена")
 
+    master_id = data.master_id or shift.master_id or (user_id if user_role == "master" else None)
+
     receipt = models.RawMaterialReceipt(
         shift_id=shift.id,
         date=data.date or shift.date,
         shift_name=data.shift_name or shift.shift_name,
         line=data.line or shift.line,
-        master_id=data.master_id or shift.master_id,
+        master_id=master_id,
         chrysotile_4_20=data.chrysotile_4_20,
         chrysotile_5_65=data.chrysotile_5_65,
         chrysotile_6_40=data.chrysotile_6_40,
@@ -1650,8 +1772,19 @@ def add_raw_material_receipt(shift_id: int, data: schemas.RawMaterialReceiptCrea
 
 @router.put("/api/receipts/{receipt_id}")
 def update_raw_material_receipt_endpoint(receipt_id: int, data: schemas.RawMaterialReceiptUpdate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Unknown")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Unknown")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
@@ -1686,8 +1819,19 @@ def update_raw_material_receipt_endpoint(receipt_id: int, data: schemas.RawMater
 
 @router.delete("/api/receipts/{receipt_id}")
 def delete_raw_material_receipt(receipt_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
-    user_name = request.session.get("user_name", "Unknown")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Unknown")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
@@ -1830,7 +1974,7 @@ def admin_update_shift(shift_id: int, data: dict, request: Request, background_t
             sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     else:
         db.commit()
-    background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_unified_sheets_bg, shift.id)
     return {"status": "ok"}
 
 @router.put("/api/admin/shift_report/{shift_id}")
@@ -2146,7 +2290,7 @@ def admin_update_shift_report(shift_id: int, data: schemas.AdminShiftReportUpdat
         sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
         
     # Trigger background Google Sheets sync
-    background_tasks.add_task(sync_google_sheets_bg)
+    background_tasks.add_task(sync_unified_sheets_bg, shift_id)
     
     return {"status": "ok", "shift_id": shift_id}
 
@@ -2188,8 +2332,7 @@ def admin_delete_shift(shift_id: int, request: Request, background_tasks: Backgr
     
     # Sync to clear phantom facts from plan board
     sync_lfm_to_plan_board(shift_date, shift_name, shift_line, db, master_id)
-    background_tasks.add_task(sync_google_sheets_bg)
-    background_tasks.add_task(sync_downtimes_bg)
+    background_tasks.add_task(sync_unified_sheets_bg)
     return {"status": "ok"}
 
 @router.put("/api/admin/lfm/{report_id}")
@@ -2469,7 +2612,7 @@ def admin_rollback_shift(
     # Синхронизация с планом и гугл таблицами
     sync_lfm_to_plan_board(shift.date, shift.shift_name, shift.line, db, shift.master_id)
     if background_tasks:
-        background_tasks.add_task(sync_google_sheets_bg)
+        background_tasks.add_task(sync_unified_sheets_bg, shift_id)
 
     return {"status": "ok", "message": f"Смена успешно откачена к состоянию от {log_entry.timestamp}"}
 

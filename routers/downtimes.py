@@ -13,8 +13,13 @@ from sqlalchemy import or_, and_, func
 
 import models
 import schemas
-from database import SessionLocal
-from routers.common import check_admin_session, sync_downtimes_bg
+from routers.common import (
+    get_db,
+    check_admin_session,
+    sync_downtimes_bg,
+    get_authenticated_user_from_request,
+    get_primary_role,
+)
 
 try:
     import google_sheets_integration
@@ -27,13 +32,6 @@ except ImportError:
     m365_integration = None
 
 router = APIRouter(tags=["downtimes"])
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 TONS_PER_HOUR = 5.0
 PRICE_PER_TON = 100000.0
@@ -80,8 +78,17 @@ def calculate_downtime_losses(duration_minutes: int, shift: Optional[models.Shif
 
 @router.post("/api/downtimes/directory/sync_from_google")
 def sync_downtime_directory_from_google_sheets_endpoint(request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
     if not user_id or not user_role:
         raise HTTPException(status_code=401, detail="Не авторизован")
     return {"status": "success", "message": "Справочник простоев ведется и управляется напрямую в панели администратора"}
@@ -377,11 +384,29 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
 
 @router.put("/api/downtimes/{dt_id}", response_model=schemas.Downtime)
 def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_name = request.session.get("user_name", "Unknown")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
+    if not user_role or not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    if user_role not in ["admin", "master", "mechanic", "technologist", "director"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+
     dt = db.query(models.Downtime).get(dt_id)
-    if not dt: raise HTTPException(404)
+    if not dt: raise HTTPException(404, "Простой не найден")
     
-    if user_role not in ["admin", "master", "mechanic", "technologist", "director"] and dt.created_at:
+    if user_role != "admin" and dt.created_at:
         time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
         if time_diff > 1800:
             raise HTTPException(
@@ -437,6 +462,13 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     if data.breakdowns:
         dt.breakdowns = data.breakdowns
         
+    db.add(models.AuditLog(
+        user_name=user_name,
+        action="UPDATE",
+        target_table="downtimes",
+        target_id=dt_id,
+        details=f"Обновлен простой ID {dt_id}: {desc_text}"
+    ))
     db.commit()
     db.refresh(dt)
     background_tasks.add_task(sync_downtimes_bg)
@@ -445,9 +477,27 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
 
 @router.delete("/api/downtimes/{dt_id}")
 def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user_role = request.session.get("user_role")
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_name = request.session.get("user_name", "Unknown")
+        user_role = request.session.get("user_role")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
+    if not user_role or not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    if user_role not in ["admin", "master", "mechanic", "technologist", "director"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+
     dt = db.query(models.Downtime).get(dt_id)
-    if not dt: raise HTTPException(404)
+    if not dt: raise HTTPException(404, "Простой не найден")
     
     if user_role != "admin" and dt.created_at:
         time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
@@ -457,6 +507,13 @@ def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTa
                 detail="Время на самостоятельное удаление простоя (30 мин) истекло. Обратитесь к администратору."
             )
             
+    db.add(models.AuditLog(
+        user_name=user_name,
+        action="DELETE",
+        target_table="downtimes",
+        target_id=dt_id,
+        details=f"Удален простой ID {dt_id}: {dt.description or ''}, {dt.duration or 0} мин."
+    ))
     db.delete(dt)
     db.commit()
     background_tasks.add_task(sync_downtimes_bg)
@@ -465,9 +522,19 @@ def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTa
 
 @router.post("/api/dashboard/sync_downtimes_to_google")
 def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
-    user_role = request.session.get("user_role")
-    
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_id = auth_user.id
+        user_name = auth_user.name
+        user_role = get_primary_role(auth_user)
+    else:
+        user_id = request.session.get("user_id")
+        user_role = request.session.get("user_role")
+        user_name = request.session.get("user_name", "Unknown")
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+        
     if not user_id:
         raise HTTPException(status_code=401, detail="Вы не авторизованы")
         
@@ -477,6 +544,14 @@ def sync_downtimes_to_google(request: Request, db: Session = Depends(get_db)):
     try:
         if google_sheets_integration:
             google_sheets_integration.export_downtimes_to_google_sheets(db)
+            db.add(models.AuditLog(
+                user_name=user_name,
+                action="EXPORT",
+                target_table="downtimes",
+                target_id=0,
+                details="Ручная выгрузка простоев в Google Таблицы выполнена успешно."
+            ))
+            db.commit()
         return {"message": "Выгрузка простоев в Google Таблицы выполнена успешно!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка выгрузки простоев в Google: {str(e)}")

@@ -31,6 +31,7 @@ from routers.common import (
     sync_google_sheets_bg,
     sync_receipts_bg,
     sync_downtimes_bg,
+    sync_unified_sheets_bg,
     invalidate_norms_cache,
     sync_norms_export_bg,
 )
@@ -323,9 +324,7 @@ async def restore_database_from_backup_excel(
     try:
         res = excel_exporter.restore_from_backup_excel(file_bytes, db, user_name=admin.name)
         if background_tasks:
-            background_tasks.add_task(sync_receipts_bg)
-            background_tasks.add_task(sync_downtimes_bg)
-            background_tasks.add_task(sync_google_sheets_bg)
+            background_tasks.add_task(sync_unified_sheets_bg)
         return res
     except Exception as e:
         db.rollback()
@@ -339,9 +338,7 @@ def trigger_full_google_sync_endpoint(
     db: Session = Depends(get_db)
 ):
     admin = check_admin_session(request, db)
-    background_tasks.add_task(sync_google_sheets_bg)
-    background_tasks.add_task(sync_receipts_bg)
-    background_tasks.add_task(sync_downtimes_bg)
+    background_tasks.add_task(sync_unified_sheets_bg)
     
     # Audit log
     db.add(models.AuditLog(
