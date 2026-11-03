@@ -481,7 +481,13 @@ function switchTab(tabId, event) {
     } else if (tabId === 'daily-report') {
         loadDailyReport();
     } else if (tabId === 'downtimes') {
-        loadDowntimesByParams();
+        if (window.initDowntimesWorkspace) {
+            window.initDowntimesWorkspace();
+        } else if (window.loadDowntimesData) {
+            window.loadDowntimesData();
+        } else {
+            loadDowntimesByParams();
+        }
     }
 }
 
@@ -1145,9 +1151,17 @@ function applyRoleVisibility() {
     const canDowntime = ['master', 'admin', 'mechanic', 'director', 'technologist'].includes(r);
     
     const crewPlansBtn = document.getElementById('tab-btn-crew-plans');
-    if (crewPlansBtn) crewPlansBtn.style.display = canViewSummary ? '' : 'none';
+    // Технологу вкладка выполнения плана бригадами и рапорт мастера не нужны
+    const canCrewPlans = ['master', 'admin', 'director'].includes(r);
+    if (crewPlansBtn) crewPlansBtn.style.display = canCrewPlans ? '' : 'none';
 
     document.getElementById('tab-btn-production').style.display = canReport ? '' : 'none';
+    if (r === 'technologist') {
+        const curTab = sessionStorage.getItem('active_tab') || (window.location.hash ? window.location.hash.replace('#', '') : '');
+        if (!curTab || curTab === 'production' || curTab === 'crew-plans') {
+            setTimeout(() => switchTab('downtimes'), 50);
+        }
+    }
     document.getElementById('tab-btn-summary').style.display = canViewSummary ? '' : 'none';
     document.getElementById('tab-btn-daily-report').style.display = canViewSummary ? '' : 'none';
     const materialsBtn = document.getElementById('tab-btn-materials');
@@ -5706,3 +5720,9 @@ window.addEventListener('storage', function(e) {
         }
     }
 });
+
+
+window.toggleDtManualDrawer = function() {
+    const el = document.getElementById('dt-manual-entry-drawer');
+    if (el) el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+};

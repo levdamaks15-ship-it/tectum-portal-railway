@@ -2371,7 +2371,17 @@ function applyDowntimeFilters() {
                 <td><small>${startTime} - ${endTime}</small></td>
                 <td><b>${duration}</b> мин</td>
                 <td class="downtime-reason-cell">${displayReason}</td>
-                <td>${catBadge}</td>
+                <td>
+                    <select class="dt-admin-quick-select" onchange="adminQuickClassifyDowntime(${d.id}, this)" style="padding: 3px 6px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; border: 1px solid #cbd5e1; background: #ffffff; cursor: pointer;">
+                        <option value="Без категории" ${(!category || category === '-' || category === 'None' || category === 'Без категории') ? 'selected' : ''}>⚠️ Без категории</option>
+                        <option value="Механические" ${category.includes('Механ') ? 'selected' : ''}>⚙️ Механические</option>
+                        <option value="Энергетические" ${category.includes('Энерг') ? 'selected' : ''}>⚡ Энергетические</option>
+                        <option value="Технологические" ${category.includes('Технолог') ? 'selected' : ''}>🔬 Технологические</option>
+                        <option value="ТО и ППР" ${category.includes('ТО') ? 'selected' : ''}>🛠️ ТО и ППР</option>
+                        <option value="Остановки не связанные с простоем оборудования" ${category.includes('не связан') || category.includes('без простоя') ? 'selected' : ''}>⏸️ Без простоя</option>
+                        <option value="Санитарный день" ${category.includes('Санитар') ? 'selected' : ''}>🧼 Санитарный день</option>
+                    </select>
+                </td>
                 <td style="white-space: nowrap; text-align: right;">
                     <button class="action-btn btn-edit" onclick='editDowntimeRow(${JSON.stringify(d).replace(/'/g, "&apos;")})' title="Редактировать простой"><i class="fa-solid fa-pen"></i></button>
                     <button class="action-btn btn-delete" onclick="deleteDowntimeRow(${d.id})" title="Удалить запись"><i class="fa-solid fa-trash"></i></button>
@@ -4738,3 +4748,30 @@ async function syncAdminLKCGoogleSheets(btn) {
 
 
 
+
+
+
+async function adminQuickClassifyDowntime(downtimeId, selectEl) {
+    const newCat = selectEl.value;
+    const isStop = !newCat.includes('не связанные') && !newCat.includes('без простоя');
+    selectEl.style.opacity = '0.5';
+    selectEl.disabled = true;
+
+    try {
+        const res = await fetch(`/api/downtimes/${downtimeId}/classify`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: newCat, is_equipment_downtime: isStop })
+        });
+        if (!res.ok) throw new Error('Ошибка обновления');
+        selectEl.style.borderColor = '#10b981';
+        setTimeout(() => selectEl.style.borderColor = '#cbd5e1', 1000);
+    } catch (e) {
+        alert('Ошибка сохранения категории: ' + e.message);
+        loadDowntimesLog();
+    } finally {
+        selectEl.style.opacity = '1';
+        selectEl.disabled = false;
+    }
+}
+window.adminQuickClassifyDowntime = adminQuickClassifyDowntime;

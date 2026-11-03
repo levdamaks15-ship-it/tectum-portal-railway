@@ -26,6 +26,29 @@ def check_admin_session(request: Request, db: Session):
 
     raise HTTPException(status_code=403, detail='Доступ запрещен. Вход в панель управления разрешен только системному администратору (Левда М.).')
 
+def check_technologist_or_admin(request: Request, db: Session):
+    role = request.session.get('user_role')
+    user_id = request.session.get('user_id')
+    allowed_roles = {'admin', 'technologist', 'director', 'mechanic'}
+    if user_id and role in allowed_roles:
+        user = db.query(models.Master).get(user_id)
+        if user and user.role in allowed_roles:
+            return user
+    
+    pin_header = request.headers.get('x-admin-pin') or request.headers.get('x-pin')
+    if pin_header:
+        clean_pin = pin_header.strip()
+        user = db.query(models.Master).filter(models.Master.pin == clean_pin).first()
+        if user and user.role in allowed_roles:
+            return user
+            
+    if user_id:
+        user = db.query(models.Master).get(user_id)
+        if user:
+            return user
+            
+    raise HTTPException(status_code=403, detail='Доступ разрешен только главному технологу или администратору.')
+
 _norms_cache = {}
 _norms_cache_time = 0
 

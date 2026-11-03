@@ -154,6 +154,11 @@ class DowntimeBase(ORMBaseModel):
 class DowntimeCreate(DowntimeBase):
     pass
 
+class DowntimeClassifyUpdate(ORMBaseModel):
+    category: str
+    is_equipment_downtime: Optional[bool] = None
+    node: Optional[str] = None
+
 class Downtime(DowntimeBase):
     id: int
     shift_id: Optional[int] = None

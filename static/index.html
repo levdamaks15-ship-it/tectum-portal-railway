@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261101_v2">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261103_dt_v1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -520,7 +520,7 @@
                 </a>
                 <a href="#downtimes" class="tab-btn" id="tab-btn-downtimes" onclick="switchTab('downtimes', event)">
                     <span class="tab-icon"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                    <span class="tab-label">Журнал<br>простоев</span>
+                    <span class="tab-label">База<br>простоев</span>
                 </a>
                 <a href="#daily-report" class="tab-btn" id="tab-btn-daily-report"
                     onclick="switchTab('daily-report', event)">
@@ -1734,173 +1734,188 @@
 
             </div>
 
-            <!-- 3. DOWNTIMES TAB (⏱ Журнал Простоев) -->
-            <div id="downtimes-tab" style="display: none; max-width: 680px; margin: 0 auto;">
-                <div
-                    style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 1.5rem; color: #0f172a;">
-
-                    <!-- Header -->
-                    <div style="margin-bottom: 1.25rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1rem;">
-                        <h3
-                            style="margin: 0 0 0.35rem 0; font-size: 1.25rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
-                            <span>⏱️</span> Фиксация простоя оборудования
-                        </h3>
-                        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">Быстрая независимая запись инцидента в
-                            журнал</p>
+            <!-- 3. DOWNTIMES TAB (⏱ База простоев технолога и оперативная классификация) -->
+            <div id="downtimes-tab" style="display: none;" class="dt-workspace-container">
+                <!-- Header Panel -->
+                <div class="dt-header-panel">
+                    <div class="dt-header-top">
+                        <div class="dt-title-wrap">
+                            <h2><span>⏱️</span> База простоев и оперативный аудит</h2>
+                            <p class="dt-title-sub">Оперативная классификация остановок оборудования мастерами и синхронизация с Google Таблицей предприятия</p>
+                        </div>
+                        <div class="dt-actions-group">
+                            <button type="button" class="btn-dt-action primary-sheets" id="btn-export-downtimes-google" onclick="exportDowntimesToGoogleSheets(this)">
+                                <i class="fa-solid fa-file-excel"></i>
+                                <span>Выгрузить в Google Таблицу</span>
+                            </button>
+                            <button type="button" class="btn-dt-action" onclick="loadDowntimesData()">
+                                <i class="fa-solid fa-rotate"></i>
+                                <span>Обновить</span>
+                            </button>
+                            <button type="button" class="btn-dt-action" onclick="toggleDtManualDrawer()">
+                                <i class="fa-solid fa-plus"></i>
+                                <span>Зафиксировать простой</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <input type="hidden" id="journal-dt-active-shift-id">
-
-                    <!-- Section 1: Shift Parameters (2x2 Grid) -->
-                    <div style="margin-bottom: 1.25rem;">
-                        <label
-                            style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
-                            1. Параметры смены
-                        </label>
-                        <div class="form-grid-two downtime-params-grid"
-                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <!-- Collapsible Manual Entry Drawer (for adding single downtime) -->
+                    <div id="dt-manual-entry-drawer" style="display: none; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 14px; padding: 1.25rem; margin-bottom: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+                            <h4 style="margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a;">➕ Новая независимая запись инцидента</h4>
+                            <button type="button" onclick="toggleDtManualDrawer()" class="btn-secondary" style="padding: 2px 8px; font-size: 0.75rem;">Скрыть форму</button>
+                        </div>
+                        <input type="hidden" id="journal-dt-active-shift-id">
+                        
+                        <div class="form-grid-two downtime-params-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
                             <div>
-                                <label
-                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">📅
-                                    Дата</label>
-                                <div style="position: relative;">
-                                    <input type="text" id="journal-dt-date" placeholder="ДД.ММ.ГГГГ"
-                                        onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();"
-                                        style="padding: 0.45rem 2.2rem 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem; cursor: pointer;">
-                                    <i class="fa-regular fa-calendar-days"
-                                        style="position: absolute; right: 0.85rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; color: #64748b; pointer-events: none;"></i>
-                                </div>
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">📅 Дата</label>
+                                <input type="text" id="journal-dt-date" placeholder="ДД.ММ.ГГГГ" onchange="calcJournalDowntimeDuration()" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; padding: 0 0.6rem; font-size: 0.85rem;">
                             </div>
                             <div>
-                                <label
-                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">☀️/🌙
-                                    Смена</label>
-                                <select id="journal-dt-shift-name"
-                                    onchange="loadDowntimesByParams(); calcJournalDowntimeDuration();"
-                                    style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">☀️/🌙 Смена</label>
+                                <select id="journal-dt-shift-name" onchange="calcJournalDowntimeDuration()" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; padding: 0 0.6rem; font-size: 0.85rem;">
                                     <option value="День">☀️ День</option>
                                     <option value="Ночь">🌙 Ночь</option>
                                 </select>
                             </div>
                             <div>
-                                <label
-                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">🏭
-                                    Линия</label>
-                                <select id="journal-dt-line" onchange="loadDowntimesByParams()"
-                                    style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">🏭 Линия</label>
+                                <select id="journal-dt-line" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; padding: 0 0.6rem; font-size: 0.85rem;">
                                     <option value="Линия 1">Линия 1</option>
                                     <option value="Линия 2">Линия 2</option>
                                 </select>
                             </div>
                             <div>
-                                <label
-                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">👤
-                                    Мастер</label>
-                                <select id="journal-dt-master-select" onchange="loadDowntimesByParams()"
-                                    style="padding: 0.45rem 0.75rem; border-radius: 10px; width: 100%; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-weight: 500; box-sizing: border-box; height: 42px; font-size: 0.9rem;">
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">👤 Мастер</label>
+                                <select id="journal-dt-master-select" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; padding: 0 0.6rem; font-size: 0.85rem;">
                                     <option value="">-- Выберите мастера --</option>
                                 </select>
                             </div>
                         </div>
+
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 0.3rem;">Что произошло *</label>
+                            <textarea id="journal-dt-desc" rows="2" placeholder="Остановка стакера, замена ножей..." style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.88rem; box-sizing: border-box;"></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap: 0.75rem; align-items: end; margin-bottom: 1rem;">
+                            <div>
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">⏰ Начало</label>
+                                <input type="time" id="journal-dt-start" oninput="calcJournalDowntimeDuration()" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; text-align: center; font-family: monospace;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">⏰ Конец</label>
+                                <input type="time" id="journal-dt-end" oninput="calcJournalDowntimeDuration()" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; text-align: center; font-family: monospace;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">⏱️ Итого</label>
+                                <div id="journal-dt-duration-preview" style="height: 38px; border-radius: 8px; background: #e0f2fe; border: 1px solid #bae6fd; font-family: monospace; font-weight: 700; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 0.88rem;">--:--</div>
+                            </div>
+                            <div>
+                                <button type="button" id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary" style="height: 38px; padding: 0 1.2rem; font-size: 0.85rem; font-weight: 700;">
+                                    🚀 Сохранить
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Section 2: Russian Description with Voice Typing -->
-                    <div style="margin-bottom: 1.25rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
-                            <label
-                                style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin: 0;">
-                                2. Что произошло *
-                            </label>
-                            <button type="button" id="btn-dt-speech-ru" onclick="startDirectVoiceTyping('journal-dt-desc', 'ru-RU', 'btn-dt-speech-ru')"
-                                style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.15s ease;"
-                                title="Надиктовать голосом">
-                                <i class="fa-solid fa-microphone" style="color: #10b981;"></i> <span>🎙️ Запись голоса</span>
+                    <!-- Filter Deck (Bento Style) -->
+                    <div class="dt-presets-deck">
+                        <div class="dt-pill-group">
+                            <button type="button" class="dt-pill-btn active" id="btn-dt-filter-all" onclick="toggleDtUnclassifiedOnly(false)">
+                                <span>Все записи</span>
+                                <b id="dt-feed-total-count" style="font-family: monospace;">0</b>
+                            </button>
+                            <button type="button" class="dt-pill-btn alert-unclass" id="btn-dt-filter-unclass" onclick="toggleDtUnclassifiedOnly(true)">
+                                <span>⚠️ Требуют классификации</span>
+                                <b id="dt-feed-unclass-count" style="font-family: monospace;">0</b>
+                            </button>
+                            <span style="color: #cbd5e1; margin: 0 4px;">|</span>
+                            <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('today', this)">Сегодня</button>
+                            <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('yesterday', this)">Вчера</button>
+                            <button type="button" class="dt-pill-btn dt-date-preset active" onclick="setDtDatePreset('week', this)">Эта неделя</button>
+                            <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('month', this)">Этот месяц</button>
+                        </div>
+
+                        <div class="dt-view-switcher">
+                            <button type="button" class="dt-view-btn active" id="btn-dt-view-feed" onclick="setDtViewMode('feed')">
+                                <i class="fa-solid fa-list-check"></i>
+                                <span>Журнал разметки</span>
+                            </button>
+                            <button type="button" class="dt-view-btn" id="btn-dt-view-summary" onclick="setDtViewMode('summary')">
+                                <i class="fa-solid fa-table-cells"></i>
+                                <span>Сводный отчет по категориям</span>
                             </button>
                         </div>
-                        <textarea id="journal-dt-desc" rows="3"
-                            placeholder="Остановка стакера, замена ножей..."
-                            oninput="onDowntimeTextChange();"
-                            style="width: 100%; padding: 0.65rem; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; font-size: 0.92rem; resize: vertical; box-sizing: border-box; line-height: 1.4;"></textarea>
                     </div>
 
-                    <!-- Section 3: Time Interval & Duration -->
-                    <div style="margin-bottom: 1.25rem;">
-                        <label
-                            style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; display: block; margin-bottom: 0.6rem;">
-                            3. Время и длительность
-                        </label>
-                        <div
-                            style="display: grid; grid-template-columns: 1fr 1fr 1.1fr; gap: 0.75rem; align-items: end;">
-                            <div>
-                                <div
-                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰
-                                        Начало</label>
-                                    <button type="button" onclick="setTimeNow('journal-dt-start')"
-                                        style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
-                                        title="Установить текущее время">Сейчас</button>
-                                </div>
-                                <input type="time" id="journal-dt-start"
-                                    oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
-                                    style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
-                            </div>
-                            <div id="wrapper-dt-end">
-                                <div
-                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                                    <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin: 0;">⏰
-                                        Конец</label>
-                                    <button type="button" onclick="setTimeNow('journal-dt-end')"
-                                        style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #475569; padding: 1px 6px; cursor: pointer; transition: all 0.15s ease;"
-                                        title="Установить текущее время">Сейчас</button>
-                                </div>
-                                <input type="time" id="journal-dt-end"
-                                    oninput="calcJournalDowntimeDuration()" onchange="calcJournalDowntimeDuration()"
-                                    style="padding: 0.5rem; border-radius: 10px; width: 100%; font-family: monospace; font-size: 1.05rem; font-weight: 600; border: 1px solid #cbd5e1; background: #f8fafc; color: #0f172a; box-sizing: border-box; height: 42px; text-align: center;">
-                            </div>
-                            <div>
-                                <label
-                                    style="font-size: 0.75rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.25rem;">⏱️
-                                    Итого</label>
-                                <div id="journal-dt-duration-preview"
-                                    style="padding: 0.5rem; border-radius: 10px; background: #f0f9ff; border: 1px solid #bae6fd; font-family: monospace; font-size: 0.92rem; font-weight: 700; color: #0369a1; text-align: center; height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
-                                    --:--
-                                </div>
-                            </div>
+                    <!-- Filter Controls Grid -->
+                    <div class="dt-filters-grid">
+                        <div class="dt-filter-field">
+                            <label>Период с</label>
+                            <input type="date" id="dt-date-from" onchange="loadDowntimesData()">
                         </div>
-                        <div id="journal-dt-night-hint"
-                            style="display: none; margin-top: 0.5rem; padding: 0.45rem 0.75rem; border-radius: 8px; font-size: 0.8rem; align-items: center; gap: 0.4rem; border: 1px solid #fde68a; background: #fefce8; color: #854d0e;">
+                        <div class="dt-filter-field">
+                            <label>Период по</label>
+                            <input type="date" id="dt-date-to" onchange="loadDowntimesData()">
+                        </div>
+                        <div class="dt-filter-field">
+                            <label>Линия</label>
+                            <select id="dt-filter-line" onchange="loadDowntimesData()">
+                                <option value="all">Все линии</option>
+                                <option value="Линия 1">Линия 1</option>
+                                <option value="Линия 2">Линия 2</option>
+                            </select>
+                        </div>
+                        <div class="dt-filter-field">
+                            <label>Категория</label>
+                            <select id="dt-filter-category" onchange="loadDowntimesData()">
+                                <option value="all">Все категории</option>
+                                <option value="Без категории">⚠️ Без категории</option>
+                                <option value="Механические">Механические</option>
+                                <option value="Энергетические">Энергетические</option>
+                                <option value="Технологические">Технологические</option>
+                                <option value="ТО и ППР">ТО и ППР</option>
+                                <option value="Остановки не связанные с простоем оборудования">Остановки без простоев</option>
+                                <option value="Санитарный день">Санитарный день</option>
+                            </select>
+                        </div>
+                        <div class="dt-filter-field" style="grid-column: span 2;">
+                            <label>Поиск</label>
+                            <input type="text" id="dt-filter-search" placeholder="🔍 Поиск по узлу, причине или мастеру..." oninput="loadDowntimesData()">
                         </div>
                     </div>
+                </div>
 
-                    <!-- Section 4: Equipment Stop Toggle Card -->
-                    <div style="margin-bottom: 1.5rem;">
-                        <input type="checkbox" id="journal-dt-is-equipment-stop" checked style="display: none;"
-                            onchange="updateDowntimeToggleUI()">
-                        <div id="journal-dt-toggle-card" onclick="toggleEquipmentStopManual()"
-                            style="cursor: pointer; padding: 0.85rem 1rem; border-radius: 12px; border: 1.5px solid #fca5a5; background: #fef2f2; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease;">
-                            <div style="display: flex; align-items: center; gap: 0.65rem;">
-                                <span id="journal-dt-toggle-icon" style="font-size: 1.3rem;">🛑</span>
-                                <div>
-                                    <div id="journal-dt-toggle-title"
-                                        style="font-weight: 700; font-size: 0.92rem; color: #991b1b;">Остановка
-                                        оборудования</div>
-                                    <div id="journal-dt-toggle-subtitle" style="font-size: 0.75rem; color: #b91c1c;">
-                                        Линия была полностью остановлена</div>
-                                </div>
-                            </div>
-                            <span id="journal-dt-toggle-badge"
-                                style="font-size: 0.8rem; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 20px; background: #fee2e2; color: #991b1b; border: 1px solid #f87171;">ДА</span>
+                <!-- VIEW 1: Журнал быстрой инлайн-разметки -->
+                <div id="dt-feed-container">
+                    <div class="dt-table-card">
+                        <div class="dt-table-responsive">
+                            <table class="dt-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 140px;">Дата / Смена</th>
+                                        <th style="width: 100px;">Линия</th>
+                                        <th style="width: 120px;">Время / Длит.</th>
+                                        <th>Оборудование и описание мастера</th>
+                                        <th style="width: 220px;">Категория (клик для выбора)</th>
+                                        <th style="width: 130px; text-align: center;">Стоп оборудования</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dt-feed-tbody">
+                                    <!-- Dynamic rows loaded via /api/downtimes/feed -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Section 5: Submit Button -->
-                    <div>
-                        <button id="btn-add-dt" onclick="addJournalDowntime()" class="btn-primary"
-                            style="height: 48px; width: 100%; padding: 0 1.5rem; font-size: 1.05rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; white-space: nowrap; margin-bottom: 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.25);">
-                            <span>🚀</span> Зафиксировать простой
-                        </button>
+                <!-- VIEW 2: Сводный отчет по 5 категориям (Excel Вид) -->
+                <div id="dt-summary-container" class="dt-summary-container">
+                    <div id="dt-summary-content">
+                        <!-- Dynamic content from /api/downtimes/report-summary -->
                     </div>
-
                 </div>
             </div>
 
@@ -2361,9 +2376,10 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261101_v2"></script>
+    <script src="/static/js/app.js?v=20261103_dt_v1"></script>
     <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
     <script src="/static/js/version_guard.js"></script>
+    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v1"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>
 </body>
 
