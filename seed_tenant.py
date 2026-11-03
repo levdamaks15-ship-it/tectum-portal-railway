@@ -80,7 +80,7 @@ def seed_tenant_structure(db: Session = None):
                     workshop.name = w_data["name"]
         db.flush()
 
-        # 3. Синхронизация мастеров смен в единую таблицу User
+        # 3. Синхронизация мастеров смен и руководства в единую таблицу User
         masters = db.query(models.Master).all()
         for m in masters:
             clean_name = m.name.strip() if m.name else ""
@@ -97,17 +97,35 @@ def seed_tenant_structure(db: Session = None):
                 )
                 db.add(user)
                 db.flush()
-                print(f"[TenantSeed] Пользователь-мастер '{clean_name}' перенесен в User.")
+                print(f"[TenantSeed] Пользователь '{clean_name}' перенесен в User.")
             else:
                 if m.pin and not user.pin_code:
                     user.pin_code = m.pin.strip()
                 if m.email and not user.email:
                     user.email = m.email.strip()
 
-            # Добавляем роль в user_role_scopes, если отсутствует
-            role_code = "admin" if (m.role == "admin" or clean_name.startswith("Левда") or m.pin == "6282") else "workshop_master"
-            target_workshop = "lkc" if "лкц" in (m.role or "").lower() else ("xci" if role_code == "workshop_master" else None)
-            target_plant = None if role_code == "admin" else "shymkent"
+            # Строгое определение роли: руководство сохраняет директорский статус
+            m_role = (m.role or "").lower()
+            if m_role == "admin" or clean_name.startswith("Левда") or m.pin == "6282":
+                role_code = "admin"
+                target_plant = None
+                target_workshop = None
+            elif m_role in ("director", "tech_director", "production_head"):
+                role_code = m_role
+                target_plant = "shymkent"
+                target_workshop = None
+            elif "лкц" in m_role or m_role == "lkc_master":
+                role_code = "workshop_master"
+                target_plant = "shymkent"
+                target_workshop = "lkc"
+            elif "скк" in m_role or m_role == "qcd":
+                role_code = "qcd_inspector"
+                target_plant = "shymkent"
+                target_workshop = "skk"
+            else:
+                role_code = "workshop_master"
+                target_plant = "shymkent"
+                target_workshop = "xci"
 
             scope = db.query(models.UserRoleScope).filter(
                 models.UserRoleScope.user_id == user.id,
@@ -148,8 +166,16 @@ def seed_tenant_structure(db: Session = None):
                 if emp.email and not user.email:
                     user.email = emp.email.strip()
 
-            role_code = "admin" if (getattr(emp, "role", "") == "admin" or clean_name.startswith("Левда") or getattr(emp, "pin_code", "") == "6282") else "itr"
-            target_plant = None if role_code == "admin" else "shymkent"
+            emp_role = (getattr(emp, "role", "") or "").lower()
+            if emp_role == "admin" or clean_name.startswith("Левда") or getattr(emp, "pin_code", "") == "6282":
+                role_code = "admin"
+                target_plant = None
+            elif emp_role in ("director", "tech_director", "production_head"):
+                role_code = emp_role
+                target_plant = "shymkent"
+            else:
+                role_code = "itr"
+                target_plant = "shymkent"
 
             scope = db.query(models.UserRoleScope).filter(
                 models.UserRoleScope.user_id == user.id,
@@ -203,4 +229,3 @@ def seed_tenant_structure(db: Session = None):
 
 if __name__ == "__main__":
     seed_tenant_structure()
-

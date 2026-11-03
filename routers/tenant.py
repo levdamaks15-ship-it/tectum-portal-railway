@@ -24,6 +24,19 @@ def get_db():
     finally:
         db.close()
 
+ROLE_LABELS = {
+    "admin": "ADMIN",
+    "director": "Директор",
+    "tech_director": "Технический директор",
+    "production_head": "Начальник производства",
+    "workshop_master": "Мастер смены",
+    "qcd_inspector": "Инспектор СКК",
+    "mechanic": "Механик",
+    "technologist": "Технолог",
+    "itr": "Специалист ИТР",
+    "operator": "Оператор",
+}
+
 HTML_NO_CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, private, max-age=0",
     "Pragma": "no-cache",
@@ -76,7 +89,7 @@ def serve_tenant_module(
             "workshop_id": workshop_slug,
             "current_module": clean_module,
             "user_name": ctx.user_name,
-            "role_name": ctx.role_code,
+            "role_name": ROLE_LABELS.get(ctx.role_code, ctx.role_code),
             "is_admin": ctx.is_admin
         }
         resp = templates.TemplateResponse(

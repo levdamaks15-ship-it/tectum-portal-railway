@@ -135,15 +135,20 @@ def login(data: LoginRequest, request: Request, response: Response, db: Session 
     user_id = 0
     user_name = clean_name
     user_role = "itr"
-    is_admin = (clean_pin == "6282")
+    is_super_admin = (clean_pin == "6282" and clean_name.startswith("Левда"))
 
     if unified_user:
-        if is_admin or (unified_user.pin_code and unified_user.pin_code.strip() == clean_pin):
+        # Проверяем, является ли пользователь администратором
+        is_user_admin = any(s.role_code == "admin" for s in (unified_user.scopes or [])) or clean_name.startswith("Левда")
+        is_admin_login = (clean_pin == "6282" and is_user_admin)
+
+        pin_valid = is_admin_login or (unified_user.pin_code and unified_user.pin_code.strip() == clean_pin)
+        if pin_valid:
             matched = True
             user_id = unified_user.id
             user_name = unified_user.name
             # Определяем роль
-            if is_admin:
+            if is_admin_login:
                 user_role = "admin"
             elif unified_user.scopes:
                 user_role = unified_user.scopes[0].role_code
@@ -223,14 +228,20 @@ def login_by_pin(data: schemas.LoginByPinRequest, request: Request, response: Re
         raise HTTPException(status_code=404, detail="Сотрудник не найден или деактивирован")
 
     clean_pin = data.pin.strip()
-    is_admin_pin = (clean_pin == "6282")
-    if not is_admin_pin and user.pin_code and user.pin_code.strip() != clean_pin:
+    is_user_admin = user.name.startswith("Левда") or any(s.role_code == "admin" for s in (user.scopes or []))
+    is_admin_pin = (clean_pin == "6282" and is_user_admin)
+
+    pin_valid = is_admin_pin or (user.pin_code and user.pin_code.strip() == clean_pin)
+    if not pin_valid:
         raise HTTPException(status_code=400, detail="Неверный ПИН-код")
 
     # Определение роли и области видимости
-    role_code = "admin" if is_admin_pin else "workshop_master"
-    if user.scopes:
+    if is_admin_pin:
+        role_code = "admin"
+    elif user.scopes:
         role_code = user.scopes[0].role_code
+    else:
+        role_code = "operator"
 
     workshop_slug = data.workshop_id or (user.scopes[0].workshop_id if user.scopes and user.scopes[0].workshop_id else "xci")
     plant_slug = data.plant_id or "shymkent"
