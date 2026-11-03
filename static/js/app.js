@@ -467,44 +467,19 @@ function isTabBtnVisible(btnId) {
 window.setTabBtnVisibility = setTabBtnVisibility;
 window.isTabBtnVisible = isTabBtnVisible;
 
-function switchTab(tabId, event) {
-    if (event) {
-        // If it's a standard left click without modifier keys (not middle click, not Ctrl/Cmd/Shift), prevent default anchor navigation
-        if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-            event.preventDefault();
-        } else {
-            // Let the browser handle middle click or Ctrl+click naturally
-            return;
-        }
-    }
-
-    const targetTabBtn = document.getElementById(`tab-btn-${tabId}`);
-    if (targetTabBtn && !isTabBtnVisible(targetTabBtn)) {
-        console.warn(`Tab ${tabId} is hidden or forbidden for role ${currentUser?.role}`);
-        const fallbackTab = sessionStorage.getItem('active_tab') || (currentUser?.role === 'technologist' ? 'tech-downtimes' : 'production');
-        if (window.location.hash !== `#${fallbackTab}`) {
-            history.replaceState(null, '', `#${fallbackTab}`);
-        }
-        return;
-    }
-    
-    sessionStorage.setItem('active_tab', tabId);
-    if (window.location.hash !== `#${tabId}`) {
-        history.replaceState(null, '', `#${tabId}`);
-    }
-
+function activateTabUI(tabId) {
     // Hide all tabs
     const tabs = ['production', 'crew-plans', 'summary', 'downtimes', 'tech-downtimes', 'daily-report', 'materials'];
     tabs.forEach(t => {
-        const el = document.getElementById(`${t}-tab`);
-        const btn = document.getElementById(`tab-btn-${t}`);
+        const el = document.getElementById(${t}-tab);
+        const btn = document.getElementById(	ab-btn-);
         if (el) el.style.display = 'none';
         if (btn) btn.classList.remove('active');
     });
     
     // Show selected tab
-    const activeTab = document.getElementById(`${tabId}-tab`);
-    const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+    const activeTab = document.getElementById(${tabId}-tab);
+    const activeBtn = document.getElementById(	ab-btn-);
     if (activeTab) activeTab.style.display = 'block';
     if (activeBtn) activeBtn.classList.add('active');
 
@@ -524,6 +499,14 @@ function switchTab(tabId, event) {
             window.loadDowntimesData();
         }
     }
+}
+window.activateTabUI = activateTabUI;
+
+function switchTab(tabId, event) {
+    if (window.AppRouter && typeof window.AppRouter.navigateToTab === 'function') {
+        return window.AppRouter.navigateToTab(tabId, event);
+    }
+    activateTabUI(tabId);
 }
 
 window.addEventListener('hashchange', () => {
@@ -1294,30 +1277,17 @@ function applyRoleVisibility() {
         btnExportGoogleSheets.style.display = canExportReports ? 'inline-flex' : 'none';
     }
     
-    // Determine active tab from URL hash / param or saved tab or role default
-    const urlHash = window.location.hash ? window.location.hash.replace('#', '') : null;
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlTab = urlParams.get('tab');
-    const targetTab = urlHash || urlTab;
-    
-    const targetTabBtn = (targetTab && targetTab !== 'analytics') ? document.getElementById(`tab-btn-${targetTab}`) : null;
-    const savedTab = sessionStorage.getItem('active_tab');
-    const savedTabBtn = (savedTab && savedTab !== 'analytics') ? document.getElementById(`tab-btn-${savedTab}`) : null;
-    
-    if (targetTab && targetTabBtn && isTabBtnVisible(targetTabBtn)) {
-        switchTab(targetTab);
-    } else if (savedTab && savedTabBtn && isTabBtnVisible(savedTabBtn)) {
-        switchTab(savedTab);
-    } else if (r === 'director') {
-        switchTab('crew-plans');
-    } else if (canReport) {
-        switchTab('production');
-    } else if (canViewSummary) {
-        switchTab('summary');
-    } else if (r === 'technologist') {
-        switchTab('tech-downtimes');
-    } else if (canMasterDowntimes) {
-        switchTab('downtimes');
+    // Router-driven active tab determination with capability guard
+    let resolvedTab = window.AppRouter ? window.AppRouter.resolveTabIdFromHash(window.location.hash) : null;
+    if (!resolvedTab) {
+        resolvedTab = sessionStorage.getItem('active_tab');
+    }
+    const resolvedBtn = resolvedTab ? document.getElementById(	ab-btn-) : null;
+    if (resolvedTab && resolvedBtn && isTabBtnVisible(resolvedBtn)) {
+        switchTab(resolvedTab);
+    } else {
+        const homeTab = window.AppRouter ? window.AppRouter.getUserHomeTab() : (r === 'technologist' ? 'tech-downtimes' : 'production');
+        switchTab(homeTab);
     }
 }
 
