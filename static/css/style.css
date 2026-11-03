@@ -2816,9 +2816,9 @@ body.role-portal {
    TECHNOLOGIST DOWNTIMES WORKSPACE & INLINE CLASSIFIER
    ========================================================================== */
 .dt-workspace-container {
-    max-width: 1540px;
+    max-width: 1360px;
     margin: 0 auto;
-    padding: 0 0.5rem 2rem;
+    padding: 0 0 2rem;
 }
 
 .dt-header-panel {
@@ -2868,8 +2868,9 @@ body.role-portal {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 0.5rem 0.95rem;
-    border-radius: 10px;
+    height: 36px !important;
+    padding: 0 14px !important;
+    border-radius: 8px !important;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
@@ -2878,6 +2879,7 @@ body.role-portal {
     color: #334155;
     transition: all 0.18s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
 }
 
 .btn-dt-action:hover {
@@ -2920,15 +2922,17 @@ body.role-portal {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     color: #475569;
-    padding: 0.38rem 0.85rem;
-    border-radius: 20px;
+    height: 36px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
     cursor: pointer;
     transition: all 0.16s ease;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    box-sizing: border-box;
 }
 
 .dt-pill-btn:hover {
@@ -3011,8 +3015,8 @@ body.role-portal {
 
 .dt-filter-field select,
 .dt-filter-field input {
-    height: 38px;
-    border-radius: 9px;
+    height: 36px !important;
+    border-radius: 8px !important;
     border: 1px solid #cbd5e1;
     background: #f8fafc;
     color: #0f172a;

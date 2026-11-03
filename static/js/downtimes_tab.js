@@ -269,7 +269,7 @@
                         ${d.start_time} - ${d.end_time}
                     </div>
                     <div style="font-size: 0.72rem; color: #2563eb; font-weight: 700; margin-top: 2px;">
-                        ⏱️ ${d.duration} мин
+                        ⏱️ ${(d.duration_minutes !== undefined && d.duration_minutes !== null ? (d.duration_minutes >= 60 ? Math.floor(d.duration_minutes/60) + " ч " + (d.duration_minutes%60) + " мин" : d.duration_minutes + " мин") : (d.duration || 0) + " мин")}
                     </div>
                 </td>
                 <td class="dt-reason-cell">
