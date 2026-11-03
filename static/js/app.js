@@ -1084,13 +1084,20 @@ async function logout() {
     } catch(e) {}
 
     try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        if (typeof BroadcastChannel !== 'undefined') {
+            const tectumAuthChannel = new BroadcastChannel('tectum_auth_sync');
+            tectumAuthChannel.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+        }
+    } catch(e) {}
+
+    try {
+        await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
     } catch(e) {
         console.error('Logout error:', e);
     }
 
-    // Full clean redirect to root
-    window.location.replace('/');
+    // Full clean redirect to login screen
+    window.location.replace('/?unauthorized=true');
 }
 
 function applyRoleVisibility() {
@@ -4496,7 +4503,15 @@ async function init() {
 
     // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
     let cachedUser = window.__cachedUser;
-    if (!cachedUser) {
+    if (window.location.search && window.location.search.includes('unauthorized')) {
+        try {
+            localStorage.removeItem('tectum_auth_user');
+            localStorage.removeItem('tectum_portal_user');
+            localStorage.removeItem('tectum_current_user_name');
+            sessionStorage.clear();
+        } catch(e) {}
+        cachedUser = null;
+    } else if (!cachedUser) {
         try {
             const raw = localStorage.getItem('tectum_auth_user');
             if (raw) cachedUser = JSON.parse(raw);

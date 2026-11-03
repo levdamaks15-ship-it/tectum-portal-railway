@@ -160,8 +160,13 @@ async function checkCurrentUser() {
 
 async function logoutLKC() {
     try {
-        await fetch('/api/auth/logout');
-        await fetch('/api/logout', { method: 'POST' });
+        if (typeof BroadcastChannel !== 'undefined') {
+            const authChan = new BroadcastChannel('tectum_auth_sync');
+            authChan.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+        }
+    } catch(e) {}
+    try {
+        await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
     } catch (e) {}
     try {
         localStorage.removeItem('tectum_auth_user');
@@ -169,7 +174,7 @@ async function logoutLKC() {
         localStorage.removeItem('tectum_current_user_name');
         sessionStorage.clear();
     } catch (e) {}
-    window.location.replace('/');
+    window.location.replace('/?unauthorized=true');
 }
 
 // --- CATALOG ---

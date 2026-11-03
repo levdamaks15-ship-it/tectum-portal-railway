@@ -2735,8 +2735,13 @@
 
         async function logoutQcd() {
             try {
-                await fetch('/api/auth/logout');
-                await fetch('/api/logout', { method: 'POST' });
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const authChan = new BroadcastChannel('tectum_auth_sync');
+                    authChan.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+                }
+            } catch(e) {}
+            try {
+                await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
             } catch (e) {}
 
             try {
@@ -2746,7 +2751,7 @@
                 sessionStorage.clear();
             } catch (e) {}
 
-            window.location.replace('/');
+            window.location.replace('/?unauthorized=true');
         }
 
         document.addEventListener('DOMContentLoaded', initQcdUser);

@@ -282,7 +282,13 @@ function promptChangePlannerUser() {
 async function logoutPlannerUser() {
     currentPlannerUser = null;
     try {
-        await fetch("/api/logout", { method: "POST" });
+        if (typeof BroadcastChannel !== 'undefined') {
+            const authChan = new BroadcastChannel('tectum_auth_sync');
+            authChan.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+        }
+    } catch(e) {}
+    try {
+        await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
     } catch (e) {}
     try {
         localStorage.removeItem("tectum_auth_user");
@@ -290,7 +296,7 @@ async function logoutPlannerUser() {
         localStorage.removeItem("tectum_current_user_name");
         sessionStorage.removeItem("planner_user_session");
     } catch (e) {}
-    window.location.replace('/');
+    window.location.replace('/?unauthorized=true');
 }
 
 function getInitialsAvatar(name) {

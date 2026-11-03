@@ -501,10 +501,14 @@ def get_db():
 def read_root(request: Request, db: Session = Depends(get_db)):
     """
     Корневая точка входа:
+    - При явном логауте (unauthorized=true) показываем экран авторизации без авторедиректа.
     - Если пользователь уже авторизован, автоматически перенаправляем (302)
       в его последний активный цех (last_visited_scope).
     - Если сессии нет, показываем экран авторизации.
     """
+    if request.query_params.get("unauthorized") == "true":
+        return FileResponse("static/index.html", headers=HTML_NO_CACHE_HEADERS)
+
     from routers.common import get_authenticated_user_from_request
     user = get_authenticated_user_from_request(request, db)
     if user:

@@ -91,10 +91,17 @@ def attach_session_cookies(response: Response, token: str, request: Optional[Req
     )
 
 def clear_session_cookies(response: Response):
-    """Сбрасывает все возможные сессионные куки."""
-    response.delete_cookie(key=COOKIE_HOST_KEY, path="/", samesite="lax")
-    response.delete_cookie(key=COOKIE_DEV_KEY, path="/", samesite="lax")
-    response.delete_cookie(key="session", path="/", samesite="lax")
+    """Сбрасывает все возможные сессионные куки со строгими атрибутами RFC 6265bis."""
+    # 1. Host-кука строго требует Secure флаг
+    response.delete_cookie(key=COOKIE_HOST_KEY, path="/", secure=True, httponly=True, samesite="lax")
+    response.set_cookie(key=COOKIE_HOST_KEY, value="", max_age=0, path="/", secure=True, httponly=True, samesite="lax")
+
+    # 2. Совместимые куки
+    response.delete_cookie(key=COOKIE_DEV_KEY, path="/", secure=False, httponly=True, samesite="lax")
+    response.set_cookie(key=COOKIE_DEV_KEY, value="", max_age=0, path="/", secure=False, httponly=True, samesite="lax")
+
+    response.delete_cookie(key="session", path="/", secure=False, httponly=True, samesite="lax")
+    response.set_cookie(key="session", value="", max_age=0, path="/", secure=False, httponly=True, samesite="lax")
 
 def get_session_token_from_request(request: Request) -> Optional[str]:
     """Извлекает токен сессии из кук или заголовка авторизации."""
@@ -369,15 +376,38 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     4. Заголовок W3C Clear-Site-Data для гарантированной очистки на клиенте.
     5. Запрет кэширования ответов логаута.
     """
-    token = get_session_token_from_request(request)
-    if token:
-        sess = db.query(models.UserSession).filter(models.UserSession.id == token).first()
-        if sess and not sess.revoked_at:
-            sess.revoked_at = datetime.datetime.utcnow()
-            try:
-                db.commit()
-            except Exception:
-                db.rollback()
+    tokens_to_revoke = set()
+    for cookie_name in (COOKIE_HOST_KEY, COOKIE_DEV_KEY):
+        c_val = request.cookies.get(cookie_name)
+        if c_val and c_val.strip():
+            tokens_to_revoke.add(c_val.strip())
+    
+    header_val = request.headers.get("x-session-token")
+    if header_val and header_val.strip():
+        tokens_to_revoke.add(header_val.strip())
+
+    user_id = None
+    if tokens_to_revoke:
+        sess = db.query(models.UserSession).filter(models.UserSession.id.in_(tokens_to_revoke)).first()
+        if sess:
+            user_id = sess.user_id
+    if not user_id:
+        user_id = request.session.get("user_id")
+
+    now = datetime.datetime.utcnow()
+    # Инвалидируем ВСЕ сессии пользователя, исключая эффект фантомного логина
+    if user_id:
+        db.query(models.UserSession).filter(
+            models.UserSession.user_id == user_id,
+            models.UserSession.revoked_at.is_(None)
+        ).update({"revoked_at": now}, synchronize_session=False)
+        db.commit()
+    elif tokens_to_revoke:
+        db.query(models.UserSession).filter(
+            models.UserSession.id.in_(tokens_to_revoke),
+            models.UserSession.revoked_at.is_(None)
+        ).update({"revoked_at": now}, synchronize_session=False)
+        db.commit()
 
     request.session.clear()
     clear_session_cookies(response)
