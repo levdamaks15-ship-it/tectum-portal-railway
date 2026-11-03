@@ -348,6 +348,18 @@ async def lifespan(app: FastAPI):
 
             seed_norms.seed_norms()
 
+            # Enterprise Tenant & Multi-Plant Structure Seed
+            try:
+                import seed_tenant
+                db_tenant = SessionLocal()
+                try:
+                    seed_tenant.seed_tenant_structure(db_tenant)
+                finally:
+                    db_tenant.close()
+            except Exception as tenant_seed_err:
+                print(f"[Tenant Startup] Error seeding tenant structure: {tenant_seed_err}")
+
+
             # Backfill roadmap quarters for tasks without target_quarter
             try:
                 from routers.planner import backfill_missing_roadmap_quarters
@@ -441,6 +453,7 @@ from routers.qcd_sorting import router as qcd_sorting_router
 from routers.ai_assistant import router as ai_assistant_router
 from routers.qcd_lab import router as qcd_lab_router
 from routers.lkc import router as lkc_router
+from routers.tenant import router as tenant_router
 
 app.include_router(auth_router)
 app.include_router(shifts_router)
@@ -456,6 +469,7 @@ app.include_router(qcd_sorting_router)
 app.include_router(ai_assistant_router)
 app.include_router(qcd_lab_router)
 app.include_router(lkc_router)
+app.include_router(tenant_router)
 
 # ==========================================
 # STATIC FILES & WEB PAGES
@@ -476,9 +490,41 @@ HTML_NO_CACHE_HEADERS = {
     "Expires": "0"
 }
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 @app.get("/")
-def read_root():
+def read_root(request: Request, db: Session = Depends(get_db)):
+    """
+    Корневая точка входа:
+    - Если пользователь уже авторизован, автоматически перенаправляем (302)
+      в его последний активный цех (last_visited_scope).
+    - Если сессии нет, показываем экран авторизации.
+    """
+    from routers.common import get_authenticated_user_from_request
+    user = get_authenticated_user_from_request(request, db)
+    if user:
+        token = (
+            request.cookies.get("__Host-tectum_session")
+            or request.cookies.get("tectum_session")
+            or request.headers.get("x-session-token")
+        )
+        if token:
+            sess = db.query(models.UserSession).filter(
+                models.UserSession.id == token,
+                models.UserSession.expires_at > datetime.utcnow(),
+                models.UserSession.revoked_at.is_(None)
+            ).first()
+            if sess and sess.last_visited_scope:
+                return RedirectResponse(url=sess.last_visited_scope, status_code=302)
+        return RedirectResponse(url="/p/shymkent/w/xci/shifts", status_code=302)
+
     return FileResponse("static/index.html", headers=HTML_NO_CACHE_HEADERS)
+
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():

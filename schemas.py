@@ -1455,3 +1455,86 @@ class LKCShiftReportOut(LKCShiftReportBase):
 
 
 
+
+
+# ==========================================
+# MULTI-PLANT ENTERPRISE SCHEMAS (ЭТАП 1)
+# ==========================================
+
+class WorkshopBase(ORMBaseModel):
+    id: str
+    plant_id: str
+    name: str
+    type: Optional[str] = None
+    google_sheet_id: Optional[str] = None
+    is_active: bool = True
+
+class WorkshopOut(WorkshopBase):
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PlantBase(ORMBaseModel):
+    id: str
+    name: str
+    timezone: str = "Asia/Almaty"
+    is_active: bool = True
+
+class PlantOut(PlantBase):
+    created_at: Optional[datetime] = None
+    workshops: List[WorkshopOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class UserRoleScopeOut(ORMBaseModel):
+    id: int
+    user_id: int
+    role_code: str
+    plant_id: Optional[str] = None
+    workshop_id: Optional[str] = None
+    is_active: bool = True
+
+    class Config:
+        from_attributes = True
+
+
+class UserBase(ORMBaseModel):
+    name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: bool = True
+
+class UserCreate(UserBase):
+    pin_code: Optional[str] = None
+
+class UserOut(UserBase):
+    id: int
+    created_at: Optional[datetime] = None
+    scopes: List[UserRoleScopeOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class UserSessionOut(ORMBaseModel):
+    id: str
+    user_id: int
+    user_agent: Optional[str] = None
+    ip_address: Optional[str] = None
+    created_at: datetime
+    expires_at: datetime
+    last_visited_scope: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LoginByPinRequest(BaseModel):
+    plant_id: str = "shymkent"
+    workshop_id: Optional[str] = None
+    user_id: int
+    pin: str

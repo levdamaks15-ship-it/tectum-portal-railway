@@ -1241,6 +1241,43 @@ def download_local_document(
     }
     return FileResponse(doc.file_path, media_type=media_type, headers=headers)
 
+@router.get("/p/{plant_slug}/api/files/{doc_id}/stream")
+@router.get("/api/files/{doc_id}/stream")
+def stream_secure_document(
+    doc_id: int,
+    request: Request,
+    plant_slug: str = "shymkent",
+    db: Session = Depends(get_db)
+):
+    """
+    Защищенный потоковый контроллер для клиентского Canvas-рендеринга (PDF.js).
+    Отдает PDF со строгими заголовками безопасности, исключающими кэширование и утечки.
+    """
+    from routers.common import get_authenticated_user_from_request
+    user = get_authenticated_user_from_request(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Требуется авторизация для просмотра документа")
+
+    doc = db.query(models.Document).filter(models.Document.id == doc_id).first()
+    if not doc or not doc.file_path or not os.path.exists(doc.file_path):
+        if doc and doc.external_url:
+            return RedirectResponse(doc.external_url)
+        raise HTTPException(status_code=404, detail="Файл документа не найден на сервере")
+
+    filename = doc.title or os.path.basename(doc.file_path)
+    encoded_filename = quote(filename.encode("utf-8"))
+    ascii_fallback = filename.encode("ascii", "replace").decode().replace('"', "")
+
+    headers = {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": f"inline; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_filename}",
+        "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+        "X-Content-Type-Options": "nosniff",
+        "Accept-Ranges": "bytes"
+    }
+    return FileResponse(doc.file_path, media_type="application/pdf", headers=headers)
+
+
 @router.post("/api/documents/upload_local")
 async def upload_local_document(
     file: UploadFile = File(...),

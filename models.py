@@ -817,4 +817,76 @@ class LKCDowntime(Base):
     report = relationship("LKCShiftReport", back_populates="downtimes")
 
 
+# ==========================================
+# MULTI-PLANT ENTERPRISE MODELS (ЭТАП 1)
+# ==========================================
+
+class Plant(Base):
+    __tablename__ = "plants"
+    id = Column(String(50), primary_key=True, index=True) # e.g. "shymkent"
+    name = Column(String(200), nullable=False)            # "Шымкент"
+    timezone = Column(String(50), default="Asia/Almaty")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    workshops = relationship("Workshop", back_populates="plant", cascade="all, delete-orphan")
+
+
+class Workshop(Base):
+    __tablename__ = "workshops"
+    id = Column(String(50), primary_key=True, index=True) # e.g. "xci", "agb", "lkc", "stmo", "skk"
+    plant_id = Column(String(50), ForeignKey("plants.id"), nullable=False, index=True)
+    name = Column(String(200), nullable=False)            # "Цех ХЦИ", "Цех АГБ" и т.д.
+    type = Column(String(50), nullable=True)              # "cement", "aerated_concrete", "paint", "stmo", "qcd"
+    google_sheet_id = Column(Text, nullable=True)         # Персональный ID Google таблицы
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    plant = relationship("Plant", back_populates="workshops")
+    scopes = relationship("UserRoleScope", back_populates="workshop")
+
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), index=True, nullable=False)
+    email = Column(String(200), unique=True, index=True, nullable=True)
+    pin_code = Column(String(20), nullable=True)
+    phone = Column(String(50), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    scopes = relationship("UserRoleScope", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserRoleScope(Base):
+    __tablename__ = "user_role_scopes"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role_code = Column(String(50), nullable=False, default="operator") # admin, plant_manager, workshop_master, operator, itr, auditor
+    plant_id = Column(String(50), ForeignKey("plants.id"), nullable=True, index=True) # NULL = доступ ко всем заводам холдинга
+    workshop_id = Column(String(50), ForeignKey("workshops.id"), nullable=True, index=True) # NULL = доступ ко всем цехам завода
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="scopes")
+    workshop = relationship("Workshop", back_populates="scopes")
+
+
+class UserSession(Base):
+    __tablename__ = "user_sessions"
+    id = Column(String(128), primary_key=True, index=True) # Непрозрачный криптографический ID сессии
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_agent = Column(Text, nullable=True)
+    ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False, index=True) # created_at + 30 дней
+    revoked_at = Column(DateTime, nullable=True, index=True) # NULL при активной сессии
+    last_visited_scope = Column(String(255), default="/p/shymkent/w/xci/shifts", nullable=True)
+
+    user = relationship("User", back_populates="sessions")
+
+
+
 

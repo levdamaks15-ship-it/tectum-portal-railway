@@ -1,12 +1,16 @@
 import os
+import secrets
+import datetime
 import requests
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import func, or_
 
 import models
+import schemas
 from database import SessionLocal
 
 try:
@@ -23,6 +27,88 @@ def get_db():
     finally:
         db.close()
 
+
+# ==========================================
+# SESSION HELPERS (SERVER-SIDE SESSIONS)
+# ==========================================
+
+SESSION_TTL_DAYS = 30
+COOKIE_HOST_KEY = "__Host-tectum_session"
+COOKIE_DEV_KEY = "tectum_session"
+
+def create_user_session(db: Session, user_id: int, request: Request, last_visited_scope: str = "/p/shymkent/w/xci/shifts") -> models.UserSession:
+    """Создает защищенную серверную сессию с криптографическим токеном."""
+    token = secrets.token_urlsafe(32)
+    now = datetime.datetime.utcnow()
+    expires = now + datetime.timedelta(days=SESSION_TTL_DAYS)
+
+    ua = request.headers.get("user-agent", "")[:500]
+    client_ip = request.headers.get("x-forwarded-for", "")
+    if not client_ip and request.client:
+        client_ip = request.client.host
+    client_ip = client_ip.split(",")[0].strip() if client_ip else ""
+
+    session_rec = models.UserSession(
+        id=token,
+        user_id=user_id,
+        user_agent=ua,
+        ip_address=client_ip,
+        created_at=now,
+        expires_at=expires,
+        revoked_at=None,
+        last_visited_scope=last_visited_scope
+    )
+    db.add(session_rec)
+    db.commit()
+    db.refresh(session_rec)
+    return session_rec
+
+def attach_session_cookies(response: Response, token: str, request: Optional[Request] = None):
+    """
+    Выдает защищенную куку. Выставляются как __Host- кука (для HTTPS/PWA),
+    так и стандартная кука для локальной разработки.
+    """
+    max_age = SESSION_TTL_DAYS * 24 * 3600
+    # 1. Строгая Host-кука по стандарту безопасности
+    response.set_cookie(
+        key=COOKIE_HOST_KEY,
+        value=token,
+        max_age=max_age,
+        path="/",
+        secure=True,
+        httponly=True,
+        samesite="lax"
+    )
+    # 2. Совместимая кука (для localhost без HTTPS)
+    response.set_cookie(
+        key=COOKIE_DEV_KEY,
+        value=token,
+        max_age=max_age,
+        path="/",
+        secure=False,
+        httponly=True,
+        samesite="lax"
+    )
+
+def clear_session_cookies(response: Response):
+    """Сбрасывает все возможные сессионные куки."""
+    response.delete_cookie(key=COOKIE_HOST_KEY, path="/", samesite="lax")
+    response.delete_cookie(key=COOKIE_DEV_KEY, path="/", samesite="lax")
+    response.delete_cookie(key="session", path="/", samesite="lax")
+
+def get_session_token_from_request(request: Request) -> Optional[str]:
+    """Извлекает токен сессии из кук или заголовка авторизации."""
+    return (
+        request.cookies.get(COOKIE_HOST_KEY)
+        or request.cookies.get(COOKIE_DEV_KEY)
+        or request.headers.get("x-session-token")
+    )
+
+
+# ==========================================
+# DTO REQUEST SCHEMAS
+# ==========================================
+
 class LoginRequest(BaseModel):
     name: str
     pin: str
@@ -30,131 +116,306 @@ class LoginRequest(BaseModel):
 class AdminLoginRequest(BaseModel):
     pin: str
 
+
+# ==========================================
+# AUTH ENDPOINTS
+# ==========================================
+
 @router.post("/api/login/")
-def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
+def login(data: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     clean_name = data.name.strip()
     clean_pin = data.pin.strip()
     
-    # 1. Поиск в таблице Master (мастера смен цехов ХЦИ/ЛКЦ/СКК, админ)
-    master = db.query(models.Master).filter(models.Master.name == clean_name).first()
-    
-    # 2. Поиск в PlannerEmployee (сотрудники ИТР/завода/портала)
-    planner_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_name).first()
-    
-    # Сверка PIN-кода с защитой от рассинхронизации двух таблиц
+    # 1. Сначала сверяем по новой единой таблице User
+    unified_user = db.query(models.User).options(selectinload(models.User.scopes)).filter(
+        func.lower(models.User.name) == clean_name.lower()
+    ).first()
+
     matched = False
     user_id = 0
     user_name = clean_name
     user_role = "itr"
-    
-    master_pin_ok = False
-    if master:
-        if master.pin == clean_pin or (clean_pin == "6282" and master.role == "admin"):
-            master_pin_ok = True
+    is_admin = (clean_pin == "6282")
 
-    planner_pin_ok = False
-    if planner_emp:
-        if not planner_emp.pin_code or not planner_emp.pin_code.strip() or planner_emp.pin_code.strip() == clean_pin or clean_pin == "6282":
-            planner_pin_ok = True
+    if unified_user:
+        if is_admin or (unified_user.pin_code and unified_user.pin_code.strip() == clean_pin):
+            matched = True
+            user_id = unified_user.id
+            user_name = unified_user.name
+            # Определяем роль
+            if is_admin:
+                user_role = "admin"
+            elif unified_user.scopes:
+                user_role = unified_user.scopes[0].role_code
+            else:
+                user_role = "operator"
 
-    if master_pin_ok:
-        matched = True
-        user_id = master.id
-        user_name = master.name
-        user_role = master.role
-        # Самоисцеление: синхронизируем PIN в PlannerEmployee при расхождении
-        if planner_emp and clean_pin != "6282" and planner_emp.pin_code != clean_pin:
-            try:
-                planner_emp.pin_code = clean_pin
-                db.commit()
-            except Exception:
-                db.rollback()
-    elif planner_pin_ok:
-        matched = True
+    # 2. Если не совпало — fallback на легаси таблицы Master и PlannerEmployee
+    if not matched:
+        master = db.query(models.Master).filter(models.Master.name == clean_name).first()
+        planner_emp = db.query(models.PlannerEmployee).filter(models.PlannerEmployee.name == clean_name).first()
+
+        master_pin_ok = False
         if master:
+            if master.pin == clean_pin or (clean_pin == "6282" and master.role == "admin"):
+                master_pin_ok = True
+
+        planner_pin_ok = False
+        if planner_emp:
+            if not planner_emp.pin_code or not planner_emp.pin_code.strip() or planner_emp.pin_code.strip() == clean_pin or clean_pin == "6282":
+                planner_pin_ok = True
+
+        if master_pin_ok:
+            matched = True
             user_id = master.id
             user_name = master.name
             user_role = master.role
-            # Самоисцеление: синхронизируем PIN в Master при расхождении
-            if clean_pin != "6282":
-                try:
-                    master.pin = clean_pin
-                    db.commit()
-                except Exception:
-                    db.rollback()
-        else:
-            user_id = 10000 + planner_emp.id
-            user_name = planner_emp.name
-            user_role = getattr(planner_emp, "role", None) or ("admin" if (clean_name.startswith("Л") and clean_pin == "6282") else "portal")
-            
+        elif planner_pin_ok:
+            matched = True
+            if master:
+                user_id = master.id
+                user_name = master.name
+                user_role = master.role
+            else:
+                user_id = 10000 + planner_emp.id
+                user_name = planner_emp.name
+                user_role = getattr(planner_emp, "role", None) or ("admin" if (clean_name.startswith("Л") and clean_pin == "6282") else "portal")
+
+        # Если аутентификация прошла через легаси — гарантируем синхронизацию в User
+        if matched:
+            if not unified_user:
+                unified_user = models.User(name=user_name, pin_code=clean_pin, is_active=True)
+                db.add(unified_user)
+                db.commit()
+                db.refresh(unified_user)
+                scope = models.UserRoleScope(user_id=unified_user.id, role_code=user_role, plant_id="shymkent", is_active=True)
+                db.add(scope)
+                db.commit()
+            user_id = unified_user.id
+
     if not matched:
         raise HTTPException(status_code=400, detail="Неверное имя сотрудника или ПИН-код")
-        
+
+    # Создаем долгоживущую серверную сессию (30 дней)
+    target_scope = "/p/shymkent/w/lkc/production" if "лкц" in user_role.lower() else "/p/shymkent/w/xci/shifts"
+    sess = create_user_session(db, user_id=user_id, request=request, last_visited_scope=target_scope)
+    attach_session_cookies(response, sess.id, request)
+
+    # Заполняем legacy session для полной обратной совместимости старых эндпоинтов
     request.session["user_id"] = user_id
     request.session["user_name"] = user_name
     request.session["user_role"] = user_role
-    return {"id": user_id, "name": user_name, "role": user_role}
+
+    return {
+        "id": user_id,
+        "name": user_name,
+        "role": user_role,
+        "scope": target_scope,
+        "session_id": sess.id
+    }
+
+
+@router.post("/api/auth/login-by-pin")
+def login_by_pin(data: schemas.LoginByPinRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Вход по выбору завода, цеха и сотрудника (для личных смартфонов и PWA)."""
+    user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == data.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=404, detail="Сотрудник не найден или деактивирован")
+
+    clean_pin = data.pin.strip()
+    is_admin_pin = (clean_pin == "6282")
+    if not is_admin_pin and user.pin_code and user.pin_code.strip() != clean_pin:
+        raise HTTPException(status_code=400, detail="Неверный ПИН-код")
+
+    # Определение роли и области видимости
+    role_code = "admin" if is_admin_pin else "workshop_master"
+    if user.scopes:
+        role_code = user.scopes[0].role_code
+
+    workshop_slug = data.workshop_id or (user.scopes[0].workshop_id if user.scopes and user.scopes[0].workshop_id else "xci")
+    plant_slug = data.plant_id or "shymkent"
+    target_scope = f"/p/{plant_slug}/w/{workshop_slug}/shifts"
+
+    sess = create_user_session(db, user_id=user.id, request=request, last_visited_scope=target_scope)
+    attach_session_cookies(response, sess.id, request)
+
+    request.session["user_id"] = user.id
+    request.session["user_name"] = user.name
+    request.session["user_role"] = role_code
+
+    return {
+        "id": user.id,
+        "name": user.name,
+        "role": role_code,
+        "plant_id": plant_slug,
+        "workshop_id": workshop_slug,
+        "scope": target_scope,
+        "session_id": sess.id
+    }
+
 
 @router.post("/api/admin/login")
-def admin_login(data: AdminLoginRequest, request: Request, db: Session = Depends(get_db)):
+def admin_login(data: AdminLoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     clean_pin = data.pin.strip()
-    admin = None
-    if clean_pin == "6282":
-        admin = db.query(models.Master).filter(models.Master.pin == "6282").first()
-        if not admin:
-            admin = db.query(models.Master).filter(models.Master.role == "admin").first()
-    else:
-        admin = db.query(models.Master).filter(models.Master.pin == clean_pin, models.Master.role == "admin").first()
+    admin_user = None
 
-    if not admin:
+    if clean_pin == "6282":
+        admin_user = db.query(models.User).filter(models.User.name.like("%Левда%")).first()
+        if not admin_user:
+            admin_user = db.query(models.User).filter(models.User.pin_code == "6282").first()
+    else:
+        admin_user = db.query(models.User).filter(models.User.pin_code == clean_pin).first()
+
+    # Fallback на таблицу Master
+    if not admin_user:
+        master_admin = db.query(models.Master).filter(models.Master.role == "admin").first()
+        if master_admin and (clean_pin == "6282" or master_admin.pin == clean_pin):
+            admin_user = db.query(models.User).filter(models.User.name == master_admin.name).first()
+
+    if not admin_user:
         raise HTTPException(status_code=403, detail="Доступ запрещен. Вход в панель управления разрешен только системному администратору (Левда М.).")
 
-    request.session["user_id"] = admin.id
-    request.session["user_name"] = admin.name
-    request.session["user_role"] = admin.role
-    return {"id": admin.id, "name": admin.name, "role": admin.role}
+    sess = create_user_session(db, user_id=admin_user.id, request=request, last_visited_scope="/p/shymkent/w/all/admin")
+    attach_session_cookies(response, sess.id, request)
+
+    request.session["user_id"] = admin_user.id
+    request.session["user_name"] = admin_user.name
+    request.session["user_role"] = "admin"
+
+    return {"id": admin_user.id, "name": admin_user.name, "role": "admin", "session_id": sess.id}
+
 
 @router.get("/api/me/")
-def get_current_user(request: Request, db: Session = Depends(get_db)):
+def get_current_user(request: Request, response: Response, db: Session = Depends(get_db)):
     sso_enabled = bool(os.getenv("M365_CLIENT_ID") and os.getenv("M365_TENANT_ID") and os.getenv("M365_CLIENT_SECRET"))
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return {"authenticated": False, "sso_enabled": sso_enabled}
-    user_name = request.session.get("user_name")
-    user_role = request.session.get("user_role")
+    token = get_session_token_from_request(request)
+    now = datetime.datetime.utcnow()
 
-    if user_id >= 10000:
-        emp_id = user_id - 10000
-        emp = db.query(models.PlannerEmployee).get(emp_id)
-        if not emp:
-            request.session.clear()
-            return {"authenticated": False, "sso_enabled": sso_enabled}
-        return {
-            "authenticated": True,
-            "sso_enabled": sso_enabled,
-            "user": {"id": user_id, "name": emp.name, "role": getattr(emp, "role", "portal"), "email": emp.email}
-        }
+    # 1. Проверка серверной сессии в user_sessions
+    if token:
+        sess = db.query(models.UserSession).filter(
+            models.UserSession.id == token,
+            models.UserSession.expires_at > now,
+            models.UserSession.revoked_at.is_(None)
+        ).first()
 
-    master = db.query(models.Master).get(user_id)
-    if not master:
-        request.session.clear()
-        return {"authenticated": False, "sso_enabled": sso_enabled}
-    return {
-        "authenticated": True,
-        "sso_enabled": sso_enabled,
-        "user": {"id": master.id, "name": master.name, "role": master.role, "email": master.email}
-    }
+        if sess:
+            user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == sess.user_id).first()
+            if user and user.is_active:
+                scopes_list = [
+                    {"role_code": s.role_code, "plant_id": s.plant_id, "workshop_id": s.workshop_id}
+                    for s in user.scopes if s.is_active
+                ]
+                primary_role = scopes_list[0]["role_code"] if scopes_list else "operator"
+                if any(s["role_code"] == "admin" for s in scopes_list):
+                    primary_role = "admin"
+
+                # Синхронизируем legacy session
+                request.session["user_id"] = user.id
+                request.session["user_name"] = user.name
+                request.session["user_role"] = primary_role
+
+                return {
+                    "authenticated": True,
+                    "sso_enabled": sso_enabled,
+                    "user": {
+                        "id": user.id,
+                        "name": user.name,
+                        "email": user.email,
+                        "phone": user.phone,
+                        "role": primary_role,
+                        "scopes": scopes_list
+                    },
+                    "last_visited_scope": sess.last_visited_scope or "/p/shymkent/w/xci/shifts"
+                }
+
+    # 2. Fallback на legacy Starlette session
+    legacy_user_id = request.session.get("user_id")
+    if legacy_user_id:
+        user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == legacy_user_id).first()
+        if user and user.is_active:
+            role = request.session.get("user_role") or "operator"
+            return {
+                "authenticated": True,
+                "sso_enabled": sso_enabled,
+                "user": {"id": user.id, "name": user.name, "role": role, "email": user.email},
+                "last_visited_scope": "/p/shymkent/w/xci/shifts"
+            }
+
+    return {"authenticated": False, "sso_enabled": sso_enabled}
+
 
 @router.post("/api/logout")
 @router.get("/api/logout")
 @router.post("/api/auth/logout")
 @router.get("/api/auth/logout")
-def logout(request: Request, response: Response):
-    request.session.clear()
-    response.delete_cookie(key="session", path="/", samesite="lax")
-    return {"status": "ok", "message": "Logged out successfully"}
+def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+    """
+    Атомарный логаут:
+    1. Инвалидация сессии в БД (revoked_at = NOW()).
+    2. Очистка серверного хранилища Starlette.
+    3. Полный сброс кук __Host-tectum_session и tectum_session.
+    4. Заголовок W3C Clear-Site-Data для гарантированной очистки на клиенте.
+    5. Запрет кэширования ответов логаута.
+    """
+    token = get_session_token_from_request(request)
+    if token:
+        sess = db.query(models.UserSession).filter(models.UserSession.id == token).first()
+        if sess and not sess.revoked_at:
+            sess.revoked_at = datetime.datetime.utcnow()
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
 
-# --- MICROSOFT ENTRA ID (SSO) AUTHENTICATION ---
+    request.session.clear()
+    clear_session_cookies(response)
+
+    # W3C Clear-Site-Data гарантирует, что браузер вычистит кэш и хранилища
+    response.headers["Clear-Site-Data"] = '"cookies", "storage", "executionContexts"'
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+
+    return {"status": "ok", "message": "Logged out successfully and session destroyed."}
+
+
+# ==========================================
+# DISCOVERY ENDPOINTS (PLANTS & WORKSHOPS)
+# ==========================================
+
+@router.get("/api/auth/plants", response_model=List[schemas.PlantOut])
+def get_plants(db: Session = Depends(get_db)):
+    """Возвращает список активных заводов."""
+    return db.query(models.Plant).filter(models.Plant.is_active == True).all()
+
+@router.get("/api/auth/workshops", response_model=List[schemas.WorkshopOut])
+def get_workshops(plant_id: str = "shymkent", db: Session = Depends(get_db)):
+    """Возвращает список цехов завода (ХЦИ, АГБ, ЛКЦ, СТМО, СКК)."""
+    return db.query(models.Workshop).filter(
+        models.Workshop.plant_id == plant_id,
+        models.Workshop.is_active == True
+    ).order_by(models.Workshop.id).all()
+
+@router.get("/api/auth/users-by-workshop", response_model=List[schemas.UserOut])
+def get_users_by_workshop(workshop_id: Optional[str] = None, plant_id: str = "shymkent", db: Session = Depends(get_db)):
+    """Возвращает список сотрудников для селектора смены."""
+    query = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.is_active == True)
+    if workshop_id:
+        query = query.join(models.UserRoleScope).filter(
+            or_(
+                models.UserRoleScope.workshop_id == workshop_id,
+                models.UserRoleScope.workshop_id.is_(None)
+            )
+        )
+    users = query.all()
+    # Сортировка: сначала мастера, затем по имени
+    return sorted(users, key=lambda u: u.name)
+
+
+# ==========================================
+# MICROSOFT ENTRA ID (SSO)
+# ==========================================
+
 TENANT_ID = os.getenv("M365_TENANT_ID")
 CLIENT_ID = os.getenv("M365_CLIENT_ID")
 CLIENT_SECRET = os.getenv("M365_CLIENT_SECRET")
@@ -171,7 +432,7 @@ def get_msal_app():
 
 @router.get("/api/auth/login")
 def auth_login(request: Request):
-    if not CLIENT_ID or not TENANT_ID or not CLIENT_SECRET:
+    if not CLIENT_ID or not TENANT_ID or not CLIENT_SECRET or not msal:
         raise HTTPException(status_code=400, detail="Microsoft SSO is not configured on the server")
         
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
@@ -187,8 +448,8 @@ def auth_login(request: Request):
     return RedirectResponse(auth_url)
 
 @router.get("/api/auth/callback")
-def auth_callback(request: Request, code: str = None, error: str = None, error_description: str = None, db: Session = Depends(get_db)):
-    if not CLIENT_ID or not TENANT_ID or not CLIENT_SECRET:
+def auth_callback(request: Request, response: Response, code: str = None, error: str = None, error_description: str = None, db: Session = Depends(get_db)):
+    if not CLIENT_ID or not TENANT_ID or not CLIENT_SECRET or not msal:
         raise HTTPException(status_code=400, detail="Microsoft SSO is not configured on the server")
         
     if error:
@@ -232,36 +493,30 @@ def auth_callback(request: Request, code: str = None, error: str = None, error_d
     if not email:
         raise HTTPException(status_code=400, detail="Microsoft account email not found")
         
-    master = db.query(models.Master).filter(models.Master.email == email).first()
-    
-    if not master:
-        # Fallback search by displayName in masters list with no email associated yet
-        master = db.query(models.Master).filter(
-            func.lower(models.Master.name) == name.lower(),
-            models.Master.email == None
-        ).first()
-        if master:
-            master.email = email
-            db.commit()
-            db.refresh(master)
-            
-    if not master:
-        # Automatically create master
-        master = models.Master(name=name, email=email, pin="0000", role="master")
-        db.add(master)
+    user = db.query(models.User).filter(func.lower(models.User.email) == email.lower()).first()
+    if not user:
+        user = models.User(name=name, email=email, pin_code="0000", is_active=True)
+        db.add(user)
         db.commit()
-        db.refresh(master)
-        
-    request.session["user_id"] = master.id
-    request.session["user_name"] = master.name
-    request.session["user_role"] = master.role
-    
-    return RedirectResponse(url="/")
+        db.refresh(user)
+        scope = models.UserRoleScope(user_id=user.id, role_code="itr", plant_id="shymkent", is_active=True)
+        db.add(scope)
+        db.commit()
 
-# Note: unified logout handled at /api/auth/logout
+    sess = create_user_session(db, user_id=user.id, request=request, last_visited_scope="/p/shymkent/w/xci/shifts")
+    redirect_resp = RedirectResponse(url="/", status_code=302)
+    attach_session_cookies(redirect_resp, sess.id, request)
+
+    request.session["user_id"] = user.id
+    request.session["user_name"] = user.name
+    request.session["user_role"] = "itr"
+    
+    return redirect_resp
+
 
 @router.get("/api/masters/")
 def get_masters(db: Session = Depends(get_db)):
+    """Легаси эндпоинт для обратной совместимости старых экранов."""
     try:
         masters = db.query(models.Master).all()
         return sorted(masters, key=lambda m: (m.name != "Дауылбай М.", m.name))

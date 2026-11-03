@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tectum Enterprise Portal{% endblock %}</title>
+    <meta name="theme-color" content="#950405">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tectum">
+    <link rel="icon" type="image/png" href="/static/img/Logo.png">
+    <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Design System & Styles -->
+    <link rel="stylesheet" href="/static/css/style.css?v=20261103_v1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- HTMX for Seamless Navigation without Full Reloads -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <!-- Mozilla PDF.js v3+ Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    
+    <style>
+        /* CSS View Transitions Level 2: Аппаратная плавная анимация переходов */
+        @media (prefers-reduced-motion: no-preference) {
+            @view-transition {
+                navigation: auto;
+            }
+            ::view-transition-old(root),
+            ::view-transition-new(root) {
+                animation-duration: 160ms;
+                animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            }
+        }
+
+        .header-main {
+            view-transition-name: persistent-header;
+        }
+
+        /* Workshop Navigation Strip */
+        .workshop-nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.5rem;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .workshop-tab-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: #475569;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .workshop-tab-item:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .workshop-tab-item.active {
+            background: #fef2f2;
+            color: #950405;
+            border-color: #fecaca;
+        }
+
+        .plant-badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: #0f172a;
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.25rem 0.55rem;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        /* HTMX Loading Indicator */
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            background: linear-gradient(90deg, #950405, #ef4444);
+            z-index: 99999;
+            pointer-events: none;
+        }
+        .htmx-request.htmx-indicator,
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body hx-boost="true" hx-target="#module-viewport" hx-select="#module-viewport" hx-swap="outerHTML transition:true"
+      data-plant-id="{{ plant_id or 'shymkent' }}" data-workshop-id="{{ workshop_id or 'xci' }}">
+
+    <!-- Индикатор прогресса перехода HTMX -->
+    <div id="global-progress" class="htmx-indicator"></div>
+
+    <header class="header-main">
+        <!-- 1. Верхняя строка: Бренд, Завод Шымкент, Профиль пользователя и Выход -->
+        <div class="header-top-row">
+            <div class="header-brand-left">
+                <a href="/" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem;">
+                    <span class="brand-title-tectum">TECTUM</span>
+                    <span class="plant-badge-pill"><i class="fa-solid fa-industry"></i> ШЫМКЕНТ</span>
+                </a>
+                <span class="brand-divider"></span>
+                <span class="brand-subtitle">ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</span>
+            </div>
+
+            <!-- Блок пользователя -->
+            <div id="user-info-container" class="header-user-container" style="display: flex;">
+                <div class="user-greeting-text">
+                    <p id="user-greeting-name">{{ user_name or 'Сотрудник' }}</p>
+                    <p id="user-greeting-role">{{ role_name or 'Мастер' }}</p>
+                </div>
+                <button type="button" onclick="doUnifiedLogout()" class="btn-logout" title="Выйти из системы">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <span>Выйти</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Линейка переключения 5 цехов Шымкента -->
+        <nav class="workshop-nav-bar">
+            <span style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-right: 0.3rem;">ЦЕХ:</span>
+            <a href="/p/shymkent/w/xci/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if (workshop_id or 'xci') == 'xci' %}active{% endif %}">
+                <i class="fa-solid fa-shapes"></i> ХЦИ
+            </a>
+            <a href="/p/shymkent/w/agb/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'agb' %}active{% endif %}">
+                <i class="fa-solid fa-cubes"></i> АГБ
+            </a>
+            <a href="/p/shymkent/w/lkc/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'lkc' %}active{% endif %}">
+                <i class="fa-solid fa-paint-roller"></i> ЛКЦ
+            </a>
+            <a href="/p/shymkent/w/stmo/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'stmo' %}active{% endif %}">
+                <i class="fa-solid fa-fire-burner"></i> СТМО
+            </a>
+            <a href="/p/shymkent/w/skk/{{ current_module or 'shifts' }}" class="workshop-tab-item {% if workshop_id == 'skk' %}active{% endif %}">
+                <i class="fa-solid fa-clipboard-check"></i> СКК
+            </a>
+        </nav>
+
+        <!-- 3. Быстрые ссылки по модулям портала -->
+        <div class="header-quick-links">
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" class="header-chip-btn {% if (current_module or 'shifts') == 'shifts' %}chip-active{% endif %}" title="Сменные рапорты цеха">
+                📋 <span>Смены цеха</span>
+            </a>
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" class="header-chip-btn chip-tasks" title="Планнер задач">
+                🎯 <span>Планнер задач</span>
+            </a>
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" class="header-chip-btn chip-checklists" title="Чек-листы">
+                ✅ <span>Чек-листы</span>
+            </a>
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" class="header-chip-btn chip-docs" title="База знаний">
+                📚 <span>База знаний</span>
+            </a>
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/analytics" class="header-chip-btn" title="Аналитика цеха">
+                📊 <span>Аналитика</span>
+            </a>
+            {% if is_admin %}
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
+                ⚙️ <span>Админка</span>
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Основная рабочая область модуля (подменяется HTMX без перерисовки шапки) -->
+    <main id="module-viewport">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Клиентский скрипт ядра: синхронизация выхода между вкладками и bfcache -->
+    <script>
+        // 1. Шина межвкладочной синхронизации авторизации
+        const tectumAuthChannel = new BroadcastChannel('tectum_auth_sync');
+        tectumAuthChannel.onmessage = (event) => {
+            if (event.data && event.data.type === 'AUTH_LOGOUT') {
+                window.location.replace('/');
+            }
+        };
+
+        // 2. Атомарный логаут
+        async function doUnifiedLogout() {
+            try {
+                // Оповещаем другие открытые вкладки
+                tectumAuthChannel.postMessage({ type: 'AUTH_LOGOUT', timestamp: Date.now() });
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } catch (e) {
+                console.error('Logout request error:', e);
+            } finally {
+                window.location.replace('/');
+            }
+        }
+
+        // 3. Защита от воскрешения сессии через кнопку браузера «Назад» (bfcache)
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
+
+        // 4. Движок просмотра регламентов и чертежей PDF на Canvas (Uint8Array)
+        let currentPdfDoc = null;
+        let currentPdfPage = 1;
+        let pdfScale = 1.25;
+
+        async function openPdfViewer(pdfUrl, title = 'Регламент') {
+            const modal = document.getElementById('pdf-modal-viewer');
+            const titleEl = document.getElementById('pdf-viewer-title');
+            if (titleEl) titleEl.textContent = title;
+            if (modal) modal.style.display = 'flex';
+
+            try {
+                const response = await fetch(pdfUrl, { credentials: 'same-origin' });
+                if (response.status === 401) {
+                    window.location.replace('/');
+                    return;
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                // Uint8Array строго предотвращает сбои Blob в движке iOS Safari и WebKit
+                const pdfBytes = new Uint8Array(arrayBuffer);
+                if (window.pdfjsLib) {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                }
+                currentPdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+                currentPdfPage = 1;
+                renderPdfPage(currentPdfPage);
+            } catch (err) {
+                console.error('PDF view error:', err);
+            }
+        }
+
+        function closePdfViewer() {
+            const modal = document.getElementById('pdf-modal-viewer');
+            if (modal) modal.style.display = 'none';
+            currentPdfDoc = null;
+        }
+
+        async function renderPdfPage(pageNumber) {
+            if (!currentPdfDoc) return;
+            const page = await currentPdfDoc.getPage(pageNumber);
+            const viewport = page.getViewport({ scale: pdfScale });
+            const canvas = document.getElementById('pdf-canvas');
+            if (!canvas) return;
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            const numEl = document.getElementById('pdf-page-num');
+            if (numEl) numEl.textContent = `${pageNumber} / ${currentPdfDoc.numPages}`;
+        }
+
+        function zoomPdf(delta) {
+            if (!currentPdfDoc) return;
+            pdfScale = Math.max(0.6, Math.min(2.5, pdfScale + delta));
+            renderPdfPage(currentPdfPage);
+        }
+
+        // Перехват кликов по атрибуту data-open-pdf
+        document.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-open-pdf]');
+            if (target) {
+                e.preventDefault();
+                const url = target.getAttribute('data-open-pdf');
+                const title = target.getAttribute('data-pdf-title') || target.textContent.trim();
+                openPdfViewer(url, title);
+            }
+        });
+    </script>
+
+    <!-- Встроенный модальный вьюер регламентов и документов на Canvas (PDF.js) -->
+    <div id="pdf-modal-viewer" style="display: none; position: fixed; inset: 0; z-index: 100000; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 1rem;">
+        <div style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 900px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+                <span id="pdf-viewer-title" style="font-weight: 700; color: #0f172a; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%;">Регламент / Чертеж</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <button type="button" onclick="zoomPdf(-0.2)" class="header-chip-btn" style="padding: 0.35rem 0.65rem;" title="Уменьшить"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    <span id="pdf-page-num" style="font-size: 0.82rem; font-weight: 600; color: #475569;">1 / 1</span>
+                    <button type="button" onclick="zoomPdf(0.2)" class="header-chip-btn" style="padding: 0.35rem 0.65rem;" title="Увеличить"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <button type="button" onclick="closePdfViewer()" class="btn-logout" style="background: #fee2e2; color: #950405; border-color: #fca5a5; padding: 0.35rem 0.65rem;" title="Закрыть">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="pdf-canvas-container" style="flex: 1; overflow-y: auto; overflow-x: auto; padding: 1.5rem; text-align: center; background: #334155;">
+                <canvas id="pdf-canvas" style="margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-radius: 4px; background: #ffffff;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

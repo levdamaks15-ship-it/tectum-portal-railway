@@ -501,3 +501,135 @@ def normalize_batch_number(batch_val) -> str:
     if m:
         return m.group(1)
     return s
+
+
+# ==========================================
+# MULTI-TENANT CONTEXT RESOLVER (ЭТАП 3)
+# ==========================================
+
+from dataclasses import dataclass
+from typing import Optional, List
+import datetime
+
+@dataclass
+class TenantContext:
+    plant_id: str
+    workshop_id: str
+    user_id: int
+    user_name: str
+    role_code: str
+    is_admin: bool
+    user: Optional[models.User] = None
+
+def get_authenticated_user_from_request(request: Request, db: Session) -> Optional[models.User]:
+    """Извлекает и валидирует пользователя из активной серверной сессии или легаси cookie."""
+    token = (
+        request.cookies.get("__Host-tectum_session")
+        or request.cookies.get("tectum_session")
+        or request.headers.get("x-session-token")
+    )
+    now = datetime.datetime.utcnow()
+    if token:
+        sess = db.query(models.UserSession).filter(
+            models.UserSession.id == token,
+            models.UserSession.expires_at > now,
+            models.UserSession.revoked_at.is_(None)
+        ).first()
+        if sess:
+            from sqlalchemy.orm import selectinload
+            user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == sess.user_id).first()
+            if user and user.is_active:
+                return user
+
+    # Fallback to Starlette legacy session
+    legacy_user_id = request.session.get("user_id")
+    if legacy_user_id:
+        from sqlalchemy.orm import selectinload
+        user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == legacy_user_id).first()
+        if user and user.is_active:
+            return user
+            
+    return None
+
+def resolve_tenant_context(
+    plant_slug: str,
+    workshop_slug: str,
+    request: Request,
+    db: Session
+) -> TenantContext:
+    """
+    Проверяет права доступа текущего пользователя к указанному заводу и цеху.
+    Защищает от Multi-Tab Context Bleed и несанкционированного доступа.
+    """
+    user = get_authenticated_user_from_request(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Требуется авторизация в системе Tectum")
+
+    # Проверка роли
+    is_admin = False
+    user_scopes = user.scopes or []
+    for s in user_scopes:
+        if s.role_code == "admin":
+            is_admin = True
+            break
+
+    # Админ имеет доступ ко всем заводам и цехам
+    if is_admin:
+        _update_last_visited_scope(request, db, plant_slug, workshop_slug)
+        return TenantContext(
+            plant_id=plant_slug,
+            workshop_id=workshop_slug,
+            user_id=user.id,
+            user_name=user.name,
+            role_code="admin",
+            is_admin=True,
+            user=user
+        )
+
+    # Проверка прав для линейного персонала / мастеров
+    allowed = False
+    matched_role = "operator"
+    for s in user_scopes:
+        if not s.is_active:
+            continue
+        plant_ok = (s.plant_id is None) or (s.plant_id.lower() == plant_slug.lower())
+        workshop_ok = (s.workshop_id is None) or (workshop_slug.lower() == "all") or (s.workshop_id.lower() == workshop_slug.lower())
+        
+        if plant_ok and workshop_ok:
+            allowed = True
+            matched_role = s.role_code
+            break
+
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Доступ запрещен: у вас нет прав на просмотр цеха '{workshop_slug}' завода '{plant_slug}'"
+        )
+
+    _update_last_visited_scope(request, db, plant_slug, workshop_slug)
+    return TenantContext(
+        plant_id=plant_slug,
+        workshop_id=workshop_slug,
+        user_id=user.id,
+        user_name=user.name,
+        role_code=matched_role,
+        is_admin=False,
+        user=user
+    )
+
+def _update_last_visited_scope(request: Request, db: Session, plant_slug: str, workshop_slug: str):
+    """Обновляет последнюю открытую область в активной сессии."""
+    token = (
+        request.cookies.get("__Host-tectum_session")
+        or request.cookies.get("tectum_session")
+        or request.headers.get("x-session-token")
+    )
+    if token:
+        try:
+            scope_url = f"/p/{plant_slug}/w/{workshop_slug}/shifts"
+            sess = db.query(models.UserSession).filter(models.UserSession.id == token).first()
+            if sess and sess.last_visited_scope != scope_url:
+                sess.last_visited_scope = scope_url
+                db.commit()
+        except Exception:
+            db.rollback()

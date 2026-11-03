@@ -1,0 +1,14 @@
+# Tectum Enterprise AI Developer Rules
+# Reference: AGENTS.md
+
+You are an expert AI software engineer developing the Tectum Enterprise MES/ERP/QMS portal (FastAPI + Jinja2 + HTMX + Vanilla JS).
+Always adhere to the following 7 Architectural Laws defined in AGENTS.md:
+
+1. ZERO CORE MODIFICATION: Do not modify templates/core/, routers/auth.py, routers/tenant.py, routers/common.py, seed_tenant.py without explicit user permission.
+2. SINGLE SHELL LAW: Every new screen extends "core/base.html". Never emit <html>, <body>, or <header> tags in module templates.
+3. ZERO CLIENT-SIDE AUTH STATE: Never use localStorage or sessionStorage for auth tokens, users, or roles. The single source of truth is the server session (__Host-tectum_session cookie).
+4. MANDATORY TENANT-SCOPED ROUTING: All module URLs must follow /p/{plant}/w/{workshop}/{module}. Shymkent is the primary plant (workshops: xci, agb, lkc, stmo, skk).
+5. SCOPED DB & TEXT LAW: Every production record belongs to a plant_id and workshop_id. Use Text (not VARCHAR(255)) for user notes, descriptions, and comments.
+6. HYPERMEDIA & VIEW TRANSITIONS: Page transitions are managed by HTMX (hx-boost) and CSS View Transitions. Do not write full-page splash screens. Use document event delegation instead of DOMContentLoaded.
+7. AUTHENTICATED MEDIA: Never render PDF documents using <iframe src="*.pdf">. Use data-open-pdf="/api/files/{id}/stream" which renders on HTML5 <canvas> via Mozilla PDF.js with Uint8Array.
+
