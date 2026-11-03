@@ -346,6 +346,14 @@
         // Instant Fast Auth Check: Prevent login screen flickering if user is cached in localStorage
         (function () {
             try {
+                if (window.location.search && window.location.search.includes('unauthorized')) {
+                    localStorage.removeItem('tectum_auth_user');
+                    localStorage.removeItem('tectum_portal_user');
+                    localStorage.removeItem('tectum_current_user_name');
+                    sessionStorage.clear();
+                    window.__cachedUser = null;
+                    return;
+                }
                 const cachedUserStr = localStorage.getItem('tectum_auth_user');
                 if (cachedUserStr) {
                     window.__cachedUser = JSON.parse(cachedUserStr);
@@ -2361,7 +2369,7 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261101_v2"></script>
+    <script src="/static/js/app.js?v=20261103_v5"></script>
     <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>

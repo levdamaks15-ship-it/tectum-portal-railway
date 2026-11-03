@@ -1,5 +1,5 @@
 // Tectum Enterprise Service Worker (PWA & Offline Resilience)
-const CACHE_NAME = 'tectum-pwa-v1.0.0';
+const CACHE_NAME = 'tectum-pwa-v2.0.1';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -50,8 +50,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API endpoints: Network-Only (or Network-First with no cache interference)
-  if (url.pathname.startsWith('/api/')) {
+  // API and unauthorized endpoints: Network-Only (never serve from cache)
+  if (url.pathname.startsWith('/api/') || url.search.includes('unauthorized')) {
     return;
   }
 

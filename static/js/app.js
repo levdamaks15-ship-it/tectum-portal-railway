@@ -1077,10 +1077,15 @@ async function logout() {
         sessionStorage.clear();
     } catch(e) {}
 
+    // Мгновенно изолируем UI до сетевого запроса
     try {
-        if (window.location.hash) {
-            history.replaceState(null, '', window.location.pathname);
-        }
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) mainApp.style.display = 'none';
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'block';
+        const userInfo = document.getElementById('user-info-container');
+        if (userInfo) userInfo.style.display = 'none';
+        document.body.classList.add('not-authenticated');
     } catch(e) {}
 
     try {
@@ -1096,7 +1101,7 @@ async function logout() {
         console.error('Logout error:', e);
     }
 
-    // Full clean redirect to login screen
+    // Полный безусловный переход на чистый экран авторизации
     window.location.replace('/?unauthorized=true');
 }
 
@@ -4501,8 +4506,7 @@ async function init() {
         });
     }
 
-    // 1. Instant Cache-First Auth Check: render main-app instantly without login screen flicker
-    let cachedUser = window.__cachedUser;
+    // 1. Strict Unauthorized Guard: when logged out, NEVER resurrect session
     if (window.location.search && window.location.search.includes('unauthorized')) {
         try {
             localStorage.removeItem('tectum_auth_user');
@@ -4510,8 +4514,20 @@ async function init() {
             localStorage.removeItem('tectum_current_user_name');
             sessionStorage.clear();
         } catch(e) {}
-        cachedUser = null;
-    } else if (!cachedUser) {
+        currentUser = null;
+        window.__cachedUser = null;
+        const mainApp = document.getElementById('main-app');
+        if (mainApp) mainApp.style.display = 'none';
+        const loginScreen = document.getElementById('login-screen');
+        if (loginScreen) loginScreen.style.display = 'block';
+        const userInfo = document.getElementById('user-info-container');
+        if (userInfo) userInfo.style.display = 'none';
+        document.body.classList.add('not-authenticated');
+        return; // Explicitly stop initialization, do NOT call /api/me/
+    }
+
+    let cachedUser = window.__cachedUser;
+    if (!cachedUser) {
         try {
             const raw = localStorage.getItem('tectum_auth_user');
             if (raw) cachedUser = JSON.parse(raw);

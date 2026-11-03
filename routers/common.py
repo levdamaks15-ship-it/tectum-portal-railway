@@ -522,7 +522,7 @@ class TenantContext:
     user: Optional[models.User] = None
 
 def get_authenticated_user_from_request(request: Request, db: Session) -> Optional[models.User]:
-    """Извлекает и валидирует пользователя из активной серверной сессии или легаси cookie."""
+    """Извлекает и валидирует пользователя строго из активной серверной сессии user_sessions."""
     token = (
         request.cookies.get("__Host-tectum_session")
         or request.cookies.get("tectum_session")
@@ -541,14 +541,6 @@ def get_authenticated_user_from_request(request: Request, db: Session) -> Option
             if user and user.is_active:
                 return user
 
-    # Fallback to Starlette legacy session
-    legacy_user_id = request.session.get("user_id")
-    if legacy_user_id:
-        from sqlalchemy.orm import selectinload
-        user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == legacy_user_id).first()
-        if user and user.is_active:
-            return user
-            
     return None
 
 def resolve_tenant_context(

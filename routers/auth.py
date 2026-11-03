@@ -91,17 +91,23 @@ def attach_session_cookies(response: Response, token: str, request: Optional[Req
     )
 
 def clear_session_cookies(response: Response):
-    """Сбрасывает все возможные сессионные куки со строгими атрибутами RFC 6265bis."""
+    """Сбрасывает все возможные сессионные куки со строгими атрибутами RFC 6265bis во всех вариациях."""
     # 1. Host-кука строго требует Secure флаг
     response.delete_cookie(key=COOKIE_HOST_KEY, path="/", secure=True, httponly=True, samesite="lax")
-    response.set_cookie(key=COOKIE_HOST_KEY, value="", max_age=0, path="/", secure=True, httponly=True, samesite="lax")
+    response.headers.append("Set-Cookie", f'{COOKIE_HOST_KEY}=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=lax; Secure')
 
-    # 2. Совместимые куки
+    # 2. Dev-кука tectum_session
+    response.delete_cookie(key=COOKIE_DEV_KEY, path="/", secure=True, httponly=True, samesite="lax")
     response.delete_cookie(key=COOKIE_DEV_KEY, path="/", secure=False, httponly=True, samesite="lax")
-    response.set_cookie(key=COOKIE_DEV_KEY, value="", max_age=0, path="/", secure=False, httponly=True, samesite="lax")
+    response.headers.append("Set-Cookie", f'{COOKIE_DEV_KEY}=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=lax; Secure')
+    response.headers.append("Set-Cookie", f'{COOKIE_DEV_KEY}=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=lax')
 
+    # 3. Starlette session кука (удаляем во всех вариациях Secure и HttpOnly)
+    response.delete_cookie(key="session", path="/", secure=True, httponly=True, samesite="lax")
     response.delete_cookie(key="session", path="/", secure=False, httponly=True, samesite="lax")
-    response.set_cookie(key="session", value="", max_age=0, path="/", secure=False, httponly=True, samesite="lax")
+    response.delete_cookie(key="session", path="/", secure=False, samesite="lax")
+    response.headers.append("Set-Cookie", 'session=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=lax; Secure')
+    response.headers.append("Set-Cookie", 'session=""; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=lax')
 
 def get_session_token_from_request(request: Request) -> Optional[str]:
     """Извлекает токен сессии из кук или заголовка авторизации."""
@@ -347,19 +353,9 @@ def get_current_user(request: Request, response: Response, db: Session = Depends
                     "last_visited_scope": sess.last_visited_scope or "/p/shymkent/w/xci/shifts"
                 }
 
-    # 2. Fallback на legacy Starlette session
-    legacy_user_id = request.session.get("user_id")
-    if legacy_user_id:
-        user = db.query(models.User).options(selectinload(models.User.scopes)).filter(models.User.id == legacy_user_id).first()
-        if user and user.is_active:
-            role = request.session.get("user_role") or "operator"
-            return {
-                "authenticated": True,
-                "sso_enabled": sso_enabled,
-                "user": {"id": user.id, "name": user.name, "role": role, "email": user.email},
-                "last_visited_scope": "/p/shymkent/w/xci/shifts"
-            }
-
+    # Если серверная сессия не найдена или отозвана, гарантированно сбрасываем всё
+    request.session.clear()
+    clear_session_cookies(response)
     return {"authenticated": False, "sso_enabled": sso_enabled}
 
 
