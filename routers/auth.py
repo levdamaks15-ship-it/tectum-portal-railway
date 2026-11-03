@@ -242,6 +242,7 @@ def login(data: LoginRequest, request: Request, response: Response, db: Session 
         "name": user_name,
         "role": user_role,
         "scope": target_scope,
+        "target_scope": target_scope,
         "session_id": sess.id
     }
 
@@ -290,6 +291,7 @@ def login_by_pin(data: schemas.LoginByPinRequest, request: Request, response: Re
         "plant_id": plant_slug,
         "workshop_id": workshop_slug,
         "scope": target_scope,
+        "target_scope": target_scope,
         "session_id": sess.id
     }
 

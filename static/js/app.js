@@ -1073,6 +1073,11 @@ async function login() {
             localStorage.setItem('tectum_current_user_name', currentUser.name);
         } catch(e) {}
 
+        if ((currentUser.role === 'technologist' || currentUser.name.includes('Монаев') || currentUser.name.includes('Косумов')) && !window.location.pathname.includes('/technologist')) {
+            window.location.replace('/p/shymkent/w/xci/technologist');
+            return;
+        }
+
         if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
             window.location.href = '/static/qcd.html';
             return;
@@ -1136,7 +1141,14 @@ async function logout() {
 }
 
 function applyRoleVisibility() {
+    if (!currentUser) return;
     const r = currentUser.role;
+    
+    // Strict Role Redirection for Technologist away from Master Shifts
+    if ((r === 'technologist' || currentUser?.name?.includes('Монаев') || currentUser?.name?.includes('Косумов')) && !window.location.pathname.includes('/technologist')) {
+        window.location.replace('/p/shymkent/w/xci/technologist');
+        return;
+    }
     
     // Check if user is a pure Portal employee (no workshop shift report)
     const portalHub = document.getElementById('portal-employee-hub');
@@ -4565,6 +4577,10 @@ async function init() {
     }
 
     if (cachedUser && cachedUser.name && cachedUser.role) {
+        if ((cachedUser.role === 'technologist' || cachedUser.name.includes('Монаев') || cachedUser.name.includes('Косумов')) && !window.location.pathname.includes('/technologist')) {
+            window.location.replace('/p/shymkent/w/xci/technologist');
+            return;
+        }
         if (cachedUser.role === 'qcd' || cachedUser.name.includes('Мусаилова') || cachedUser.name === 'Зарина') {
             window.location.replace('/static/qcd.html');
             return;
@@ -4592,6 +4608,11 @@ async function init() {
                 try {
                     localStorage.setItem('tectum_auth_user', JSON.stringify(currentUser));
                 } catch(e) {}
+                
+                if ((currentUser.role === 'technologist' || currentUser.name.includes('Монаев') || currentUser.name.includes('Косумов')) && !window.location.pathname.includes('/technologist')) {
+                    window.location.replace('/p/shymkent/w/xci/technologist');
+                    return;
+                }
                 
                 if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
                     window.location.replace('/static/qcd.html');
@@ -5669,7 +5690,12 @@ async function submitCanonicalLogin() {
             return;
         }
 
-        // Routing according to workshop
+        // Routing according to role / workshop
+        if ((currentUser.role === 'technologist' || currentUser.name.includes('Монаев') || currentUser.name.includes('Косумов')) && !window.location.pathname.includes('/technologist')) {
+            window.location.replace('/p/shymkent/w/xci/technologist');
+            return;
+        }
+
         if (currentUser.role === 'qcd' || currentUser.name.includes('Мусаилова') || currentUser.name === 'Зарина') {
             window.location.replace('/static/qcd.html');
             return;
@@ -5677,6 +5703,12 @@ async function submitCanonicalLogin() {
 
         if (currentUser.role === 'lkc_master' || currentUser.name.includes('Миркасимов') || currentUser.name === 'Мастер ЛКЦ') {
             window.location.replace('/static/lkc.html');
+            return;
+        }
+
+        const targetScope = currentUser.scope || currentUser.target_scope;
+        if (targetScope && !window.location.pathname.startsWith(targetScope.split('#')[0])) {
+            window.location.replace(targetScope);
             return;
         }
 
