@@ -481,6 +481,10 @@ function switchTab(tabId, event) {
     const targetTabBtn = document.getElementById(`tab-btn-${tabId}`);
     if (targetTabBtn && !isTabBtnVisible(targetTabBtn)) {
         console.warn(`Tab ${tabId} is hidden or forbidden for role ${currentUser?.role}`);
+        const fallbackTab = sessionStorage.getItem('active_tab') || (currentUser?.role === 'technologist' ? 'tech-downtimes' : 'production');
+        if (window.location.hash !== `#${fallbackTab}`) {
+            history.replaceState(null, '', `#${fallbackTab}`);
+        }
         return;
     }
     
@@ -521,6 +525,14 @@ function switchTab(tabId, event) {
         }
     }
 }
+
+window.addEventListener('hashchange', () => {
+    const rawHash = window.location.hash ? window.location.hash.replace('#', '') : '';
+    const currentActive = sessionStorage.getItem('active_tab');
+    if (rawHash && rawHash !== currentActive) {
+        switchTab(rawHash);
+    }
+});
 
 // --- Universal Datepicker Helpers ---
 
@@ -1180,6 +1192,11 @@ async function logout() {
 }
 
 function applyRoleVisibility() {
+    if (window.currentUser) {
+        currentUser = window.currentUser;
+    }
+    if (!currentUser || !currentUser.role) return;
+    window.currentUser = currentUser;
     const r = currentUser.role;
     
     // Check if user is a pure Portal employee (no workshop shift report)
