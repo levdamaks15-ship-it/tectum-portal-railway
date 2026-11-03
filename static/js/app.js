@@ -540,70 +540,119 @@ function ensureFlatpickrSync(input) {
     });
 }
 
-// Flatpickr initialization helper: Uniform modern date & month pickers across the portal
-function setupTimePickers() {
-    // 1. Time pickers (H:i 24h)
-    document.querySelectorAll(".time-picker").forEach(input => {
-        if (!input._flatpickr) {
-            flatpickr(input, {
-                enableTime: true,
-                noCalendar: true,
-                dateFormat: "H:i",
-                time_24hr: true,
-                locale: "ru",
-                allowInput: true,
-                minuteIncrement: 1,
-                disableMobile: true,
-                onChange: function(selectedDates, dateStr, instance) {
-                    if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
-                        calcJournalDowntimeDuration();
-                    } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
-                        calcEditDowntimeDuration();
-                    }
-                },
-                onClose: function(selectedDates, dateStr, instance) {
-                    if (instance.element && instance.element.id && instance.element.id.startsWith('journal-dt-')) {
-                        calcJournalDowntimeDuration();
-                    } else if (instance.element && instance.element.id && instance.element.id.startsWith('edit-dt-')) {
-                        calcEditDowntimeDuration();
-                    }
-                }
-            });
+// Smart manual time input helper: numeric keypad on mobile, auto-colon formatting, no carousels or tumblers
+function bindNumericTimeInput(inputEl, onChangeCallback) {
+    if (!inputEl) return;
+    
+    // Destroy flatpickr if it was attached previously
+    if (inputEl._flatpickr) {
+        try { inputEl._flatpickr.destroy(); } catch(e) {}
+    }
+
+    inputEl.setAttribute('type', 'text');
+    inputEl.setAttribute('inputmode', 'numeric');
+    inputEl.setAttribute('maxlength', '5');
+    inputEl.setAttribute('autocomplete', 'off');
+    inputEl.setAttribute('placeholder', 'ЧЧ:ММ');
+
+    let isDeleting = false;
+
+    inputEl.addEventListener('keydown', function(e) {
+        isDeleting = (e.key === 'Backspace' || e.key === 'Delete');
+        if (isDeleting && this.selectionStart === 3 && this.selectionEnd === 3 && this.value.length === 3) {
+            e.preventDefault();
+            this.value = this.value.slice(0, 1);
+            if (onChangeCallback) onChangeCallback();
         }
     });
 
-    // Auto-commit typed time on blur without recursion (triggerChange: false)
-    document.querySelectorAll('.time-picker').forEach(input => {
-        if (!input.__timeAutoCommitBound) {
-            input.__timeAutoCommitBound = true;
-            input.addEventListener('blur', function() {
-                const val = (this.value || '').trim();
-                if (val && this._flatpickr) {
-                    try {
-                        this._flatpickr.setDate(val, false, "H:i");
-                    } catch(e) {}
-                }
-                if (this.id.startsWith('journal-dt-')) {
-                    calcJournalDowntimeDuration();
-                } else if (this.id.startsWith('edit-dt-')) {
-                    calcEditDowntimeDuration();
-                }
-            });
-            input.addEventListener('input', function() {
-                const val = (this.value || '').trim();
-                if (/^\d{2}:\d{2}$/.test(val) && this._flatpickr) {
-                    try {
-                        this._flatpickr.setDate(val, false, "H:i");
-                    } catch(e) {}
-                }
-                if (this.id.startsWith('journal-dt-')) {
-                    calcJournalDowntimeDuration();
-                } else if (this.id.startsWith('edit-dt-')) {
-                    calcEditDowntimeDuration();
-                }
-            });
+    inputEl.addEventListener('input', function() {
+        let val = this.value;
+        let digits = val.replace(/\D/g, '');
+        if (digits.length > 4) digits = digits.slice(0, 4);
+
+        if (isDeleting) {
+            if (onChangeCallback) onChangeCallback();
+            return;
+        }
+
+        if (digits.length === 0) {
+            this.value = '';
+        } else if (digits.length === 1) {
+            this.value = digits;
+        } else if (digits.length === 2) {
+            let h = parseInt(digits, 10);
+            if (h > 23) digits = '23';
+            this.value = digits + ':';
+        } else if (digits.length === 3) {
+            let h = digits.slice(0, 2);
+            let m1 = digits.slice(2, 3);
+            if (parseInt(h, 10) > 23) h = '23';
+            this.value = h + ':' + m1;
+        } else if (digits.length >= 4) {
+            let h = digits.slice(0, 2);
+            let m = digits.slice(2, 4);
+            if (parseInt(h, 10) > 23) h = '23';
+            if (parseInt(m, 10) > 59) m = '59';
+            this.value = h + ':' + m;
+        }
+
+        if (onChangeCallback) onChangeCallback();
+    });
+
+    inputEl.addEventListener('blur', function() {
+        let val = this.value.trim();
+        if (!val) {
+            if (onChangeCallback) onChangeCallback();
+            return;
+        }
+
+        // Auto-complete or normalize time on blur (e.g. "9" -> "09:00", "9:3" -> "09:30", "930" -> "09:30")
+        let digits = val.replace(/\D/g, '');
+        if (val.includes(':')) {
+            const parts = val.split(':');
+            let h = parseInt(parts[0], 10) || 0;
+            let m = parseInt(parts[1], 10) || 0;
+            if (h > 23) h = 23;
+            if (m > 59) m = 59;
+            this.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        } else if (digits.length === 4) {
+            let h = Math.min(23, parseInt(digits.slice(0, 2), 10));
+            let m = Math.min(59, parseInt(digits.slice(2, 4), 10));
+            this.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        } else if (digits.length === 3) {
+            let h = Math.min(23, parseInt(digits.slice(0, 1), 10));
+            let m = Math.min(59, parseInt(digits.slice(1, 3), 10));
+            this.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        } else if (digits.length > 0 && digits.length <= 2) {
+            let h = Math.min(23, parseInt(digits, 10));
+            this.value = `${String(h).padStart(2, '0')}:00`;
+        }
+        if (onChangeCallback) onChangeCallback();
+    });
+}
+
+function initNumericTimeInputs() {
+    const timeConfigs = [
+        { id: 'journal-dt-start', cb: calcJournalDowntimeDuration },
+        { id: 'journal-dt-end', cb: calcJournalDowntimeDuration },
+        { id: 'edit-dt-start', cb: calcEditDowntimeDuration },
+        { id: 'edit-dt-end', cb: calcEditDowntimeDuration }
+    ];
+
+    timeConfigs.forEach(cfg => {
+        const el = document.getElementById(cfg.id);
+        if (el && !el.__numericTimeBound) {
+            el.__numericTimeBound = true;
+            bindNumericTimeInput(el, cfg.cb);
         }
     });
+}
+
+// Flatpickr initialization helper: Uniform modern date & month pickers across the portal
+function setupTimePickers() {
+    // 1. Initialize manual numeric time inputs without carousels or native tumblers
+    initNumericTimeInputs();
 
     const commonDateOptions = {
         dateFormat: "Y-m-d",
@@ -5801,6 +5850,8 @@ window.toggleDtManualDrawer = function() {
         if (masterSel && masterSel.options.length <= 1 && repMasterSel && repMasterSel.options.length > 1) {
             masterSel.innerHTML = repMasterSel.innerHTML;
         }
+        // Инициализируем цифровой ввод времени
+        if (typeof initNumericTimeInputs === 'function') initNumericTimeInputs();
         setTimeout(() => {
             document.getElementById('journal-dt-desc')?.focus();
         }, 150);

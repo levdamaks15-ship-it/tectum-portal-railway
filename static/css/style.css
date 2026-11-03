@@ -3342,3 +3342,22 @@ body.role-portal {
 .dt-row-highlight {
     animation: dtRowPulse 3.5s ease-out;
 }
+
+
+.btn-time-now {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #475569;
+    padding: 1px 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-time-now:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+}

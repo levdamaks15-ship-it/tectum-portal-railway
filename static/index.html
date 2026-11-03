@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261103_dt_v3">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261103_dt_v4">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1815,12 +1815,18 @@
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr auto; gap: 0.75rem; align-items: end; margin-bottom: 1rem;">
                             <div>
-                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">⏰ Начало</label>
-                                <input type="time" id="journal-dt-start" oninput="calcJournalDowntimeDuration()" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; text-align: center; font-family: monospace;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                                    <label style="font-size: 0.72rem; color: #64748b; font-weight: 600;">⏰ Начало</label>
+                                    <button type="button" onclick="setTimeNow('journal-dt-start')" class="btn-time-now" title="Поставить текущее время">Сейчас</button>
+                                </div>
+                                <input type="text" inputmode="numeric" id="journal-dt-start" placeholder="ЧЧ:ММ" maxlength="5" autocomplete="off" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; text-align: center; font-family: 'SF Mono', Consolas, monospace; font-weight: 700; font-size: 0.95rem; background: #ffffff; color: #0f172a;">
                             </div>
                             <div>
-                                <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">⏰ Конец</label>
-                                <input type="time" id="journal-dt-end" oninput="calcJournalDowntimeDuration()" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; text-align: center; font-family: monospace;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                                    <label style="font-size: 0.72rem; color: #64748b; font-weight: 600;">⏰ Конец</label>
+                                    <button type="button" onclick="setTimeNow('journal-dt-end')" class="btn-time-now" title="Поставить текущее время">Сейчас</button>
+                                </div>
+                                <input type="text" inputmode="numeric" id="journal-dt-end" placeholder="ЧЧ:ММ" maxlength="5" autocomplete="off" style="height: 38px; border-radius: 8px; width: 100%; border: 1px solid #cbd5e1; text-align: center; font-family: 'SF Mono', Consolas, monospace; font-weight: 700; font-size: 0.95rem; background: #ffffff; color: #0f172a;">
                             </div>
                             <div>
                                 <label style="font-size: 0.72rem; color: #64748b; font-weight: 600; display: block; margin-bottom: 0.2rem;">⏱️ Итого</label>
@@ -2331,9 +2337,8 @@
                         style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;"
                         title="Текущее время">Сейчас</button>
                 </div>
-                <input type="time" id="edit-dt-start"
-                    oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()"
-                    style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center; color-scheme: dark; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff;">
+                <input type="text" inputmode="numeric" id="edit-dt-start" placeholder="ЧЧ:ММ" maxlength="5" autocomplete="off"
+                    style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-weight: 700; text-align: center; color-scheme: dark; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff;">
             </div>
             <div>
                 <div
@@ -2344,9 +2349,8 @@
                         style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); border-radius: 6px; font-size: 0.68rem; font-weight: 600; color: #cbd5e1; padding: 1px 6px; cursor: pointer;"
                         title="Текущее время">Сейчас</button>
                 </div>
-                <input type="time" id="edit-dt-end"
-                    oninput="calcEditDowntimeDuration()" onchange="calcEditDowntimeDuration()"
-                    style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; text-align: center; color-scheme: dark; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff;">
+                <input type="text" inputmode="numeric" id="edit-dt-end" placeholder="ЧЧ:ММ" maxlength="5" autocomplete="off"
+                    style="padding: 0.5rem; border-radius: 8px; width: 100%; font-family: monospace; font-weight: 700; text-align: center; color-scheme: dark; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff;">
             </div>
             <div>
                 <label
@@ -2398,10 +2402,10 @@
 
     <script src="/static/js/network_guard.js?v=20260907_netguard_v4"></script>
     <script src="/static/js/toast.js?v=20261029_fluid_toast"></script>
-    <script src="/static/js/app.js?v=20261103_dt_v3"></script>
+    <script src="/static/js/app.js?v=20261103_dt_v4"></script>
     <script src="/static/js/workshop_switcher.js?v=20261101_v2"></script>
     <script src="/static/js/version_guard.js"></script>
-    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v3"></script>
+    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v4"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>
 </body>
 
