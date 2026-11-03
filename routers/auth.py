@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 import models
 from database import SessionLocal
+from rbac_permissions import get_role_permissions
 
 try:
     import msal
@@ -93,7 +94,8 @@ def login(data: LoginRequest, request: Request, db: Session = Depends(get_db)):
     request.session["user_id"] = user_id
     request.session["user_name"] = user_name
     request.session["user_role"] = user_role
-    return {"id": user_id, "name": user_name, "role": user_role}
+    permissions = get_role_permissions(user_role)
+    return {"id": user_id, "name": user_name, "role": user_role, "permissions": permissions}
 
 @router.post("/api/admin/login")
 def admin_login(data: AdminLoginRequest, request: Request, db: Session = Depends(get_db)):
@@ -112,7 +114,7 @@ def admin_login(data: AdminLoginRequest, request: Request, db: Session = Depends
     request.session["user_id"] = admin.id
     request.session["user_name"] = admin.name
     request.session["user_role"] = admin.role
-    return {"id": admin.id, "name": admin.name, "role": admin.role}
+    return {"id": admin.id, "name": admin.name, "role": admin.role, "permissions": ["*"]}
 
 @router.get("/api/me/")
 def get_current_user(request: Request, db: Session = Depends(get_db)):
@@ -129,10 +131,17 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
         if not emp:
             request.session.clear()
             return {"authenticated": False, "sso_enabled": sso_enabled}
+        role = getattr(emp, "role", "portal")
         return {
             "authenticated": True,
             "sso_enabled": sso_enabled,
-            "user": {"id": user_id, "name": emp.name, "role": getattr(emp, "role", "portal"), "email": emp.email}
+            "user": {
+                "id": user_id,
+                "name": emp.name,
+                "role": role,
+                "email": emp.email,
+                "permissions": get_role_permissions(role)
+            }
         }
 
     master = db.query(models.Master).get(user_id)
@@ -142,7 +151,13 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
     return {
         "authenticated": True,
         "sso_enabled": sso_enabled,
-        "user": {"id": master.id, "name": master.name, "role": master.role, "email": master.email}
+        "user": {
+            "id": master.id,
+            "name": master.name,
+            "role": master.role,
+            "email": master.email,
+            "permissions": get_role_permissions(master.role)
+        }
     }
 
 @router.post("/api/logout")

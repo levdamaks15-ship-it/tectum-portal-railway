@@ -1,6 +1,7 @@
 from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 import models
+from rbac_permissions import get_role_permissions, has_permission
 
 def check_admin_session(request: Request, db: Session):
     role = request.session.get('user_role')
@@ -48,6 +49,35 @@ def check_technologist_or_admin(request: Request, db: Session):
             return user
             
     raise HTTPException(status_code=403, detail='Доступ разрешен только главному технологу или администратору.')
+
+def check_permission(request: Request, db: Session, required_perm: str):
+    """
+    Проверяет, обладает ли пользователь текущей сессии требуемым разрешением (PBAC).
+    Поддерживает мастер-PIN (6282) администратора и wildcard '*' права.
+    """
+    pin_header = request.headers.get('x-admin-pin') or request.headers.get('x-pin')
+    if pin_header and pin_header.strip() == '6282':
+        admin_user = db.query(models.Master).filter(models.Master.role == 'admin').first()
+        if admin_user:
+            return admin_user
+
+    role = request.session.get('user_role')
+    user_id = request.session.get('user_id')
+    if not user_id or not role:
+        raise HTTPException(status_code=401, detail='Необходима авторизация.')
+
+    user_perms = get_role_permissions(role)
+    if not has_permission(user_perms, required_perm):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Недостаточно прав: для операции требуется разрешение '{required_perm}'."
+        )
+
+    if user_id >= 10000:
+        user = db.query(models.PlannerEmployee).get(user_id - 10000)
+    else:
+        user = db.query(models.Master).get(user_id)
+    return user
 
 _norms_cache = {}
 _norms_cache_time = 0

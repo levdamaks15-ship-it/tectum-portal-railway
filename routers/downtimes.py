@@ -14,7 +14,7 @@ from sqlalchemy import or_, and_, func
 import models
 import schemas
 from database import SessionLocal
-from routers.common import check_admin_session, sync_downtimes_bg, check_technologist_or_admin
+from routers.common import check_admin_session, sync_downtimes_bg, check_technologist_or_admin, check_permission
 
 try:
     import google_sheets_integration
@@ -1183,7 +1183,7 @@ def export_downtimes_to_google_endpoint(
     """
     Экспорт отчета по простоям в отдельную Google Таблицу (DOWNTIMES_SPREADSHEET_ID).
     """
-    check_technologist_or_admin(request, db)
+    check_permission(request, db, "downtimes.export.sheets")
     if not google_sheets_integration:
         raise HTTPException(status_code=500, detail="Модуль Google Sheets не доступен")
 

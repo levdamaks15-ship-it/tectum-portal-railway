@@ -1240,22 +1240,25 @@ function applyRoleVisibility() {
         if (quickLinks) quickLinks.style.display = '';
     }
 
-    // Master, Admin, Director, Technologist see all reports, summary and crew plans
-    const canReport = ['master', 'admin'].includes(r);
-    const canViewSummary = ['master', 'admin', 'director', 'technologist'].includes(r);
-    const canViewMaterials = ['admin', 'director', 'technologist'].includes(r); // Hide from master, keep for admin/director/technologist
-    // Журнал простоев (мастера): доступен Мастерам, Механикам и Админу
-    const canMasterDowntimes = ['master', 'admin', 'mechanic'].includes(r);
+    // Capability-based permission checks (PBAC) with resilient role fallback
+    const checkCap = (perm, fallbackRoles) => {
+        if (typeof window.can === 'function' && window.currentUser?.permissions?.length) {
+            return window.can(perm);
+        }
+        return fallbackRoles.includes(r);
+    };
+
+    const canReport = checkCap('shift.report.edit', ['master', 'admin', 'production_head']);
+    const canViewSummary = checkCap('kpi.summary.view', ['master', 'admin', 'director', 'technologist', 'production_head', 'tech_director']);
+    const canMasterDowntimes = checkCap('shift.downtime.record', ['master', 'admin', 'mechanic', 'production_head']);
+    const canTechDowntimes = checkCap('downtimes.audit.view', ['technologist', 'admin', 'director', 'mechanic', 'production_head', 'tech_director']);
+    const canCrewPlans = checkCap('shift.crew_plan.view', ['master', 'admin', 'director', 'production_head']);
+    const canEditNorms = checkCap('norms.edit', ['admin', 'technologist', 'tech_director']);
+    const canExportReports = checkCap('reports.export.sheets', ['admin', 'director', 'production_head', 'tech_director']);
+
     setTabBtnVisibility('tab-btn-downtimes', canMasterDowntimes);
-
-    // База простоев (технолога): доступна Технологу, Директору и Админу
-    const canTechDowntimes = ['technologist', 'admin', 'director'].includes(r);
     setTabBtnVisibility('tab-btn-tech-downtimes', canTechDowntimes);
-    
-    // Технологу вкладка выполнения плана бригадами и рапорт мастера не нужны
-    const canCrewPlans = ['master', 'admin', 'director'].includes(r);
     setTabBtnVisibility('tab-btn-crew-plans', canCrewPlans);
-
     setTabBtnVisibility('tab-btn-production', canReport);
     if (r === 'technologist') {
         const curTab = sessionStorage.getItem('active_tab') || (window.location.hash ? window.location.hash.replace('#', '') : '');
@@ -1268,16 +1271,16 @@ function applyRoleVisibility() {
     setTabBtnVisibility('tab-btn-materials', false);
     setTabBtnVisibility('tab-btn-analytics', false);
     
-    // Показываем панель управления нормативами только для Технолога и Админа
+    // Показываем панель управления нормативами на основе разрешения
     const normsPanel = document.getElementById('technologist-norms-panel');
     if (normsPanel) {
-        normsPanel.style.display = ['admin', 'technologist'].includes(r) ? 'block' : 'none';
+        normsPanel.style.display = canEditNorms ? 'block' : 'none';
     }
     
     // Показываем панель управления простоев только для Механика, Технолога и Админа
     const dtPanel = document.getElementById('mechanic-downtimes-panel');
     if (dtPanel) {
-        dtPanel.style.display = ['admin', 'mechanic', 'technologist'].includes(r) ? 'block' : 'none';
+        dtPanel.style.display = canTechDowntimes ? 'block' : 'none';
     }
     
     // Hide active shift banner as unified report doesn't use manual open/close state
@@ -1285,10 +1288,10 @@ function applyRoleVisibility() {
         activeShiftBanner.style.display = 'none';
     }
     
-    // Hide Google Sheets export button from master role
+    // Google Sheets export button visibility based on permission
     const btnExportGoogleSheets = document.getElementById('btn-export-google-sheets');
     if (btnExportGoogleSheets) {
-        btnExportGoogleSheets.style.display = ['admin', 'director', 'technologist'].includes(r) ? 'inline-flex' : 'none';
+        btnExportGoogleSheets.style.display = canExportReports ? 'inline-flex' : 'none';
     }
     
     // Determine active tab from URL hash / param or saved tab or role default

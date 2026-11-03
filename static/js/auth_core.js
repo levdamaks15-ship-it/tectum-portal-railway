@@ -467,7 +467,16 @@
         }
     });
 
-    // 8. Global Exports on window for inline HTML onclick/oninput handlers
+    // 8. Permission-Based Capability Checker (PBAC)
+    function can(permissionCode) {
+        const user = window.currentUser;
+        if (!user) return false;
+        const perms = Array.isArray(user.permissions) ? user.permissions : [];
+        if (perms.includes('*')) return true;
+        return perms.includes(permissionCode);
+    }
+
+    // 9. Global Exports on window for inline HTML onclick/oninput handlers
     window.AuthCore = {
         loadPortalEmployeesOnce,
         toggleLoginUserPickerPopover,
@@ -479,9 +488,11 @@
         clearLoginPinBoxes,
         handleLoginPinInput,
         handleLoginPinKeydown,
-        submitCanonicalLogin
+        submitCanonicalLogin,
+        can
     };
 
+    window.can = can;
     window.toggleLoginUserPickerPopover = toggleLoginUserPickerPopover;
     window.closeLoginUserPickerPopover = closeLoginUserPickerPopover;
     window.positionLoginUserPickerPopover = positionLoginUserPickerPopover;
