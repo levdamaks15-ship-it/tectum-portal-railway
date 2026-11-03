@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tectum Enterprise Portal{% endblock %}</title>
     <meta name="theme-color" content="#950405">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tectum">
@@ -110,7 +111,7 @@
     </style>
     {% block head %}{% endblock %}
 </head>
-<body hx-boost="true" hx-target="#module-viewport" hx-select="#module-viewport" hx-swap="outerHTML transition:true"
+<body hx-boost="true"
       data-plant-id="{{ plant_id or 'shymkent' }}" data-workshop-id="{{ workshop_id or 'xci' }}">
 
     <!-- Индикатор прогресса перехода HTMX -->
@@ -120,7 +121,7 @@
         <!-- 1. Верхняя строка: Бренд, Завод Шымкент, Профиль пользователя и Выход -->
         <div class="header-top-row">
             <div class="header-brand-left">
-                <a href="/" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem;">
+                <a href="/" hx-boost="false" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem;">
                     <span class="brand-title-tectum">TECTUM</span>
                     <span class="plant-badge-pill"><i class="fa-solid fa-industry"></i> ШЫМКЕНТ</span>
                 </a>
@@ -166,27 +167,27 @@
             <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/shifts" class="header-chip-btn {% if (current_module or 'shifts') == 'shifts' %}chip-active{% endif %}" title="Сменные рапорты цеха">
                 📋 <span>Смены цеха</span>
             </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" class="header-chip-btn chip-tasks" title="Планнер задач">
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks" title="Планнер задач">
                 🎯 <span>Планнер задач</span>
             </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" class="header-chip-btn chip-checklists" title="Чек-листы">
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/checklists" hx-boost="false" class="header-chip-btn chip-checklists" title="Чек-листы">
                 ✅ <span>Чек-листы</span>
             </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" class="header-chip-btn chip-docs" title="База знаний">
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/docs" hx-boost="false" class="header-chip-btn chip-docs" title="База знаний">
                 📚 <span>База знаний</span>
             </a>
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/analytics" class="header-chip-btn" title="Аналитика цеха">
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/{{ workshop_id or 'xci' }}/analytics" hx-boost="false" class="header-chip-btn" title="Аналитика цеха">
                 📊 <span>Аналитика</span>
             </a>
             {% if is_admin %}
-            <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
+            <a href="/p/{{ plant_id or 'shymkent' }}/w/all/admin" hx-boost="false" class="header-chip-btn" style="background: #f8fafc; border-color: #cbd5e1;" title="Панель администратора">
                 ⚙️ <span>Админка</span>
             </a>
             {% endif %}
         </div>
     </header>
 
-    <!-- Основная рабочая область модуля (подменяется HTMX без перерисовки шапки) -->
+    <!-- Основная рабочая область модуля -->
     <main id="module-viewport">
         {% block content %}
         {% endblock %}
@@ -290,6 +291,14 @@
                 openPdfViewer(url, title);
             }
         });
+
+        // 5. Обработка ошибок HTMX (безопасный откат к штатной загрузке страницы)
+        document.body.addEventListener('htmx:swapError', function(event) {
+            console.warn('HTMX swap error fallback to standard reload:', event.detail);
+            if (event.detail && event.detail.requestConfig && event.detail.requestConfig.path) {
+                window.location.href = event.detail.requestConfig.path;
+            }
+        });
     </script>
 
     <!-- Встроенный модальный вьюер регламентов и документов на Canvas (PDF.js) -->
@@ -312,8 +321,6 @@
         </div>
     </div>
 
-    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
-

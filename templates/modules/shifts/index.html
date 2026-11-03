@@ -16,10 +16,10 @@
             </p>
         </div>
         <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
-            <a href="/static/index.html" class="header-chip-btn" style="background: #ffffff; border: 1px solid #cbd5e1;" title="Открыть полную форму сменного рапорта">
+            <a href="/static/index.html" hx-boost="false" class="header-chip-btn" style="background: #ffffff; border: 1px solid #cbd5e1;" title="Открыть полную форму сменного рапорта">
                 <i class="fa-solid fa-file-pen" style="color: #950405;"></i> Полная форма ввода
             </a>
-            <a href="/p/{{ plant_id }}/w/{{ workshop_id }}/tasks" class="header-chip-btn chip-tasks">
+            <a href="/p/{{ plant_id }}/w/{{ workshop_id }}/tasks" hx-boost="false" class="header-chip-btn chip-tasks">
                 <i class="fa-solid fa-bullseye"></i> Задачи цеха
             </a>
         </div>
@@ -56,4 +56,3 @@
     </div>
 </div>
 {% endblock %}
-
