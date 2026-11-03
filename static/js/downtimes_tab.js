@@ -642,7 +642,7 @@
                 throw new Error(data.detail || 'Не удалось выполнить экспорт');
             }
 
-            const url = data.spreadsheet_url || 'https://docs.google.com/spreadsheets/d/1Til9axXv7_U6TLsfYi3CcM4pKuIuxnIV8FY4F5QKIG5Qk/edit';
+            const url = data.spreadsheet_url || 'https://docs.google.com/spreadsheets/d/1Til9axXv7_U6TLsfYr3Cd4pKufuxnV8FY4F5QKfG5Qk/edit';
             showDtModalSuccess(url, data.sheets_updated || ['Простои ЛФМ 1', 'Простои ЛФМ 2', 'Простои СВОД']);
         } catch (e) {
             console.error(e);
