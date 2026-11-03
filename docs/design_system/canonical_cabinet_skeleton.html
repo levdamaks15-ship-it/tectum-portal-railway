@@ -1,0 +1,162 @@
+<!-- 
+  @canonical-pattern CanonicalCabinetSkeleton
+  @description Эталонный скелет нового рабочего кабинета Tectum Portal.
+  Обязателен к использованию перед наполнением бизнес-логикой.
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Новый кабинет | Tectum Enterprise</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20261103_tech_v12">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body data-plant-id="shymkent" data-workshop-id="xci">
+
+    <!-- 1. Центрирующий контейнер 1360px (Canonical Container Standard) -->
+    <div class="container" id="app-container" style="max-width: 1360px; margin: 0 auto; padding: 1.5rem 2rem; min-height: 90vh; display: flex; flex-direction: column;">
+        
+        <!-- 2. Двухуровневая шапка (Two-Tier Header) -->
+        <header class="header-main">
+            <div class="header-top-row">
+                <div class="header-brand-left">
+                    <span class="brand-title-tectum">TECTUM</span>
+                    <span class="brand-chip-workshop">ХЦИ</span>
+                    <span class="brand-subtitle-workshop">ЦЕХ ХРИЗОТИЛЦЕМЕНТНЫХ ИЗДЕЛИЙ</span>
+                </div>
+                <div class="header-profile-right">
+                    <div class="user-meta-info">
+                        <span class="user-full-name">Сотрудник И.</span>
+                        <span class="user-badge-role">ТЕХНОЛОГ</span>
+                    </div>
+                    <button type="button" class="btn-system-exit" onclick="handleLogout(event)">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Выйти</span>
+                    </button>
+                </div>
+            </div>
+            <div class="header-quick-links">
+                <a href="/p/shymkent/w/xci/tasks" class="quick-link-chip chip-planner">
+                    <i class="fa-solid fa-bullseye"></i> Планнер задач
+                </a>
+                <a href="/p/shymkent/w/xci/checklists" class="quick-link-chip chip-checklists">
+                    <i class="fa-solid fa-circle-check"></i> Чек-листы
+                </a>
+                <a href="/p/shymkent/w/all/docs" class="quick-link-chip chip-knowledge">
+                    <i class="fa-solid fa-book-open"></i> База знаний
+                </a>
+            </div>
+        </header>
+
+        <!-- 3. Навигационная полоса табов кабинета (Middle-Click & URL Hash Ready) -->
+        <div class="tabs-navigation-row" style="margin-bottom: 1.5rem;">
+            <a href="#primary-view" class="tab-btn active" id="tab-btn-primary" onclick="switchCabinetTab('primary-view', event)">
+                <i class="fa-solid fa-chart-line"></i>
+                <span class="tab-label">Основной раздел</span>
+            </a>
+            <a href="#secondary-view" class="tab-btn" id="tab-btn-secondary" onclick="switchCabinetTab('secondary-view', event)">
+                <i class="fa-solid fa-list-check"></i>
+                <span class="tab-label">Вторичный раздел</span>
+            </a>
+        </div>
+
+        <!-- 4. Основная рабочая область (Bento-карточка .accordion-section) -->
+        <main id="main-cabinet-app" style="flex: 1;">
+            
+            <section id="primary-view-tab" class="glass-panel accordion-section" style="margin-bottom: 2rem;">
+                
+                <!-- Шапка Bento-карточки (Заголовок слева, Кнопки 36px справа) -->
+                <div class="accordion-header" style="display: flex; justify-content: space-between; align-items: center; cursor: default; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--stripe-border);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h3 style="margin: 0; font-size: 1.12rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>⏱️</span> Заголовок рабочего раздела
+                        </h3>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary); background: #f1f5f9; padding: 3px 10px; border-radius: 9999px; font-weight: 600; border: 1px solid #e2e8f0;">
+                            ХЦИ · Шымкент
+                        </span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button type="button" class="btn-dt-action primary-sheets" id="btn-export-action">
+                            <i class="fa-solid fa-file-excel" style="color: #16a34a;"></i>
+                            <span>Экспорт данных</span>
+                        </button>
+                        <button type="button" class="btn-dt-action" id="btn-refresh-action">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Обновить</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="accordion-content" style="padding: 1.5rem;">
+                    
+                    <!-- Панель фильтров: Sentence-case, Высота 36px, Скругление 8px -->
+                    <div class="dt-filters-grid" style="margin-bottom: 1.5rem;">
+                        <div class="dt-filter-field">
+                            <label for="filter-date-from">Период с</label>
+                            <input type="date" id="filter-date-from">
+                        </div>
+                        <div class="dt-filter-field">
+                            <label for="filter-date-to">Период по</label>
+                            <input type="date" id="filter-date-to">
+                        </div>
+                        <div class="dt-filter-field">
+                            <label for="filter-line">Линия</label>
+                            <select id="filter-line">
+                                <option value="all">Все линии</option>
+                                <option value="1">Линия 1</option>
+                                <option value="2">Линия 2</option>
+                            </select>
+                        </div>
+                        <div class="dt-filter-field" style="grid-column: span 2;">
+                            <label for="filter-search">Поиск</label>
+                            <input type="text" id="filter-search" placeholder="Поиск по параметрам...">
+                        </div>
+                    </div>
+
+                    <!-- Карточка интерактивной таблицы (Table Card Standard) -->
+                    <div class="dt-table-card">
+                        <div class="dt-table-responsive">
+                            <table class="dt-table" id="cabinet-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 140px;">Дата / Смена</th>
+                                        <th style="width: 120px;">Объект / Линия</th>
+                                        <th>Описание события или операции</th>
+                                        <th style="width: 180px;">Категория / Статус</th>
+                                        <th style="width: 130px; text-align: center;">Действие</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cabinet-tbody">
+                                    <!-- Dynamic rows -->
+                                    <tr>
+                                        <td><strong>03.11.2026</strong><br><small style="color: #64748b;">Ночь · Мастер</small></td>
+                                        <td>Линия 1</td>
+                                        <td>Пример записи в канонической сетке</td>
+                                        <td>
+                                            <!-- Canonical StatusNoWrapPill 36px -->
+                                            <span class="dt-cat-picker-btn dt-cat-maint">
+                                                <span class="dt-cat-dot" style="background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);"></span>
+                                                <span>ТО и ППР</span>
+                                            </span>
+                                        </td>
+                                        <td style="text-align: center;">
+                                            <button type="button" class="btn-dt-action" style="height: 32px; padding: 0 10px;">
+                                                <i class="fa-solid fa-pencil"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+</body>
+</html>
+

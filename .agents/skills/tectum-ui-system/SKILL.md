@@ -15,6 +15,25 @@ description: Каноническая дизайн-система и станд�
   - Белые карточки: `border-radius: 16px`, тени `box-shadow: 0 1px 3px rgba(0,0,0,0.05)`, внутренние отступы.
   - Сайдбар: активные состояния плашкой, счетчики файлов.
 
+## 1.1. Закон первичного дизайн-скелета при создании экранов (Skeleton-First UI Law)
+> **Непреложное правило создания любого нового кабинета / экрана:** Категорически запрещено начинать разработку нового кабинета или глобальный рефакторинг с верстки специфичных полей, уникальных форм или прямого монтажа таблиц «по месту».
+
+Разработка любого экрана делится на два обязательных последовательных этапа:
+
+### Этап 1: Сборка и верификация канонического скелета (Wireframe Skeleton Gate)
+До написания любой бизнес-логики и наполнения экрана формируется чистый структурный каркас:
+1. **Центрирующий контейнер 1360px:** `<div class="container" id="app-container" style="max-width: 1360px; margin: 0 auto; padding: 1.5rem 2rem; min-height: 90vh; display: flex; flex-direction: column;">` (или `{% extends "core/base.html" %}`).
+2. **Двухуровневая шапка ядра:** Бренд слева, профиль/выход справа, чипы быстрых переходов.
+3. **Навигационная полоса вкладок:** Ссылки `<a href="#tab-id">` с поддержкой клика средней кнопкой мыши и активацией по хэшу URL.
+4. **Bento-каркас рабочего раздела:** Монолитная секция `.glass-panel.accordion-section` с эталонным `.accordion-header` (заголовок `<h3>` с эмодзи + чип цеха `ХЦИ · Шымкент` + тулбар с нейтральными кнопками 36px).
+5. **Сетка фильтров:** `.dt-filters-grid` с подписями в **sentence-case**, полями ввода и селекторами высотой **36px** и `border-radius: 8px`.
+6. **Карточка таблицы:** `.dt-table-card` с заголовками столбцов `<th>`, 36px статусными бейджами (`@canonical-pattern StatusNoWrapPill`) и пустым состоянием (empty state).
+
+### Этап 2: Наполнение бизнес-логикой и данными (Domain Injection)
+Только после того, как скелет отрендерен, проверен на масштабировании Windows (125–150%) и валидатор подтвердил 0 ошибок разметки, внутрь подготовленного каркаса монтируются:
+- Рабочие таблицы, списки данных, графики и калькуляторы.
+- Эндпоинты API, парсинг DTO, модальные окна редактирования и обработчики событий.
+
 ## 2. Адаптивность и масштабирование Windows (125% – 150% DPI)
 - **Инвариант масштабирования Windows:**
   - Рабочие ноутбуки на заводе используют системное масштабирование Windows 125% или 150% (реальный вьюпорт браузера сужается до **1000–1280px**).
@@ -98,8 +117,10 @@ description: Каноническая дизайн-система и станд�
 | `@canonical-pattern InlineCommentEditor` | `.task-detail-comment-box`, `#detail-comment-edit-wrap` | `planner.css:3680`, `tasks.js:9300` | Быстрое редактирование рабочего комментария в 1 клик с горячими клавишами `Ctrl + Enter` |
 | `@canonical-pattern TwoTierMinimalistHeader` | `.header-main`, `.header-top-row`, `.brand-title-tectum` | `style.css:1`, `index.html:335`, `docs/design_system/two_tier_minimalist_header.html` | Двухуровневая шапка (Бренд + Профиль/Выход на одной линии, чипы быстрого перехода) |
 | `@canonical-pattern CanonicalAuthModal4BoxPin` | `.auth-modal-card`, `.pin-boxes-container`, `.pin-digit-box` | `style.css:2230`, `index.html:365`, `docs/design_system/canonical_auth_modal.html` | Единый центр входа 440px: иконка ID, выбор сотрудника и 4 раздельных PIN-бокса с автопереходом |
+| `@canonical-pattern CanonicalCabinetSkeleton` | `#app-container`, `.accordion-section`, `.dt-filters-grid`, `.dt-table-card` | `docs/design_system/canonical_cabinet_skeleton.html` | Эталонный скелет нового экрана/кабинета: 1360px контейнер, Bento-шапка с чипом цеха, 36px контролы |
 
 ## 8. Автономные шаблоны (`docs/design_system/`)
+- `canonical_cabinet_skeleton.html` — Полный эталонный скелет нового экрана/кабинета.
 - `modal_clean_header.html` — Двухполюсная шапка модального окна.
 - `properties_strip.html` — 4-колоночная полоса свойств задачи.
 - `aligned_dropdown_popover.html` — Выпадающий поповер 190px с левым выравниванием.
