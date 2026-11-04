@@ -49,7 +49,28 @@ def compute_downtime_actual_date(shift_date, shift_name, start_time):
             pass
     return shift_date
 
+
+def get_product_financial_metrics(product_name: Optional[str]) -> dict:
+    from routers.analytics import PRODUCT_PRICING
+    default_entry = PRODUCT_PRICING["8_wave"]
+    if not product_name:
+        return default_entry
+    p_lower = product_name.lower()
+    for key, pinfo in PRODUCT_PRICING.items():
+        if any(kw in p_lower for kw in pinfo.get("search_keywords", [])):
+            return pinfo
+    return default_entry
+
+
 def calculate_downtime_losses(duration_minutes: int, shift: Optional[models.Shift], db: Session) -> tuple[float, float]:
+    """
+    Рассчитывает технологические и финансовые потери от простоя по нормативу завода ХЦИ:
+    - 6 оборотов за 24 секунды = 1 накат.
+    - 1 накат = 2 листа продукции (для 7 волн 3.5м - 1 лист).
+    - Номинальный темп: 5 листов/мин (300 листов/час).
+    - Вес листа: строго из базы нормативов завода (models.ProductNorm.weight_kg).
+    - Упущенная маржа: из прейскуранта себестоимости и цен PRODUCT_PRICING (755 тг/лист для 8-волнового шифера).
+    """
     if duration_minutes <= 0:
         return 0.0, 0.0
         
@@ -62,16 +83,23 @@ def calculate_downtime_losses(duration_minutes: int, shift: Optional[models.Shif
     if not product_name:
         product_name = "Шифер 8 волн рифленый"
         
-    norm = db.query(models.ProductNorm).filter(models.ProductNorm.product_name == product_name).first()
-    weight_kg = norm.weight_kg if (norm and norm.weight_kg) else 19.6
+    if db is not None:
+        from routers.common import get_product_finished_weight_kg
+        weight_kg = get_product_finished_weight_kg(db, product_name)
+    else:
+        weight_kg = 19.6
     
-    sheets_per_cycle = 1 if product_name == "Шифер 7 волн 3500*980" else 2
+    p_lower = product_name.lower()
+    sheets_per_cycle = 1 if ("3500" in p_lower or "3.5" in p_lower) else 2
     
-    total_seconds = duration_minutes * 60
-    cycles = total_seconds / 26.0
+    total_seconds = duration_minutes * 60.0
+    cycles = total_seconds / 24.0 # 6 оборотов за 24 секунды = 1 накат!
     lost_sheets = cycles * sheets_per_cycle
-    lost_tons = (lost_sheets * weight_kg) / 1000.0
-    lost_tenge = lost_tons * PRICE_PER_TON
+    lost_tons = round((lost_sheets * weight_kg) / 1000.0, 3)
+    
+    pmetrics = get_product_financial_metrics(product_name)
+    unit_margin = pmetrics.get("margin", 755.0)
+    lost_tenge = round(lost_sheets * unit_margin, 2)
     
     return lost_tons, lost_tenge
 
@@ -1119,7 +1147,7 @@ def get_downtimes_report_summary(
     except Exception:
         ed = datetime.strptime(end_date.strip(), "%d.%m.%Y").date()
 
-    num_days = (ed - sd).days + 1
+    num_days = max(1, (ed - sd).days + 1)
     total_operating_hours = num_days * 24
 
     # 1. Загружаем смены
@@ -1172,6 +1200,61 @@ def get_downtimes_report_summary(
 
     all_dts = dts_q.all()
 
+    # Физический расчет формования:
+    # 6 оборотов за 24 секунды = 1 накат.
+    # 1 накат = 2 листа продукции (для 7 волн 3.5м - 1 лист).
+    # Номинальный темп: 5 листов/мин (300 листов/час).
+    from routers.common import get_product_finished_weight_kg
+
+    processed_dts = []
+    total_stop_minutes = 0
+    total_lost_sheets_all = 0
+    total_lost_tons_all = 0.0
+    total_lost_margin_all = 0.0
+    total_lost_revenue_all = 0.0
+
+    for d in all_dts:
+        dur = d.duration or 0
+        is_stop = (d.is_equipment_downtime is not False)
+        prod_name = (d.shift.product_name if d.shift and d.shift.product_name else "Шифер 8 волн рифленый")
+        w_kg = get_product_finished_weight_kg(db, prod_name)
+        p_lower = prod_name.lower()
+        spc = 1 if ("3500" in p_lower or "3.5" in p_lower) else 2
+
+        if is_stop and dur > 0:
+            total_stop_minutes += dur
+            rolls = round((dur * 60.0) / 24.0, 1)
+            sheets = int(round(rolls * spc))
+            tons = round((sheets * w_kg) / 1000.0, 3)
+        else:
+            rolls = 0.0
+            sheets = 0
+            tons = 0.0
+
+        pmetrics = get_product_financial_metrics(prod_name)
+        unit_margin = pmetrics.get("margin", 755.0)
+        unit_price = pmetrics.get("price_cash", 2200.0)
+        lost_margin = round(sheets * unit_margin, 2)
+        lost_revenue = round(sheets * unit_price, 2)
+
+        total_lost_sheets_all += sheets
+        total_lost_tons_all += tons
+        total_lost_margin_all += lost_margin
+        total_lost_revenue_all += lost_revenue
+
+        processed_dts.append({
+            "downtime": d,
+            "duration": dur,
+            "is_stop": is_stop,
+            "product_name": prod_name,
+            "weight_kg": w_kg,
+            "rolls": rolls,
+            "lost_sheets": sheets,
+            "lost_tons": tons,
+            "lost_margin": lost_margin,
+            "lost_revenue": lost_revenue
+        })
+
     cat_defs = [
         {"key": "mech", "title": "Механические:", "search": ["механ"], "color": "#f6b26b"},
         {"key": "energy", "title": "Энергетические:", "search": ["энерг", "электр"], "color": "#ffe599"},
@@ -1180,21 +1263,34 @@ def get_downtimes_report_summary(
         {"key": "no_stop", "title": "Остановки не связанные с простоем оборудования:", "search": ["без простоя", "не связан"], "color": "#f9cb9c"}
     ]
 
-    total_downtime_minutes = 0
+    total_downtime_minutes = sum(p["duration"] for p in processed_dts)
     categories_res = []
 
     for cdef in cat_defs:
         c_items = []
         c_mins = 0
-        for d in all_dts:
+        c_rolls = 0.0
+        c_sheets = 0
+        c_tons = 0.0
+        c_margin = 0.0
+        c_revenue = 0.0
+
+        for p in processed_dts:
+            d = p["downtime"]
             c_name = (d.category or "").strip().lower()
             matched = any(s in c_name for s in cdef["search"])
-            if not matched and cdef["key"] == "no_stop" and d.is_equipment_downtime is False:
+            if not matched and cdef["key"] == "no_stop" and not p["is_stop"]:
                 matched = True
 
             if matched:
-                dur = d.duration or 0
+                dur = p["duration"]
                 c_mins += dur
+                c_rolls += p["rolls"]
+                c_sheets += p["lost_sheets"]
+                c_tons += p["lost_tons"]
+                c_margin += p["lost_margin"]
+                c_revenue += p["lost_revenue"]
+
                 d_date = d.effective_actual_date or d.record_date
                 d_date_str = d_date.strftime("%d.%m.%Y") if d_date else "Н/Д"
                 m_name = d.master.name if d.master else (d.shift.master.name if (d.shift and d.shift.master) else "Мастер не указан")
@@ -1209,25 +1305,98 @@ def get_downtimes_report_summary(
                     "date": d_date_str,
                     "shift_name": d.record_shift_name or "День",
                     "master_name": m_name,
+                    "node": d.node or "Основное оборудование",
                     "reason": reason,
                     "start_time": d.start_time or "--:--",
                     "end_time": d.end_time or "--:--",
                     "duration_minutes": dur,
                     "duration_formatted": format_minutes_hh_mm_ss(dur),
+                    "is_equipment_downtime": p["is_stop"],
+                    "lost_rolls": p["rolls"],
+                    "lost_sheets": p["lost_sheets"],
+                    "lost_tons": p["lost_tons"],
+                    "lost_margin_tenge": p["lost_margin"],
+                    "lost_revenue_tenge": p["lost_revenue"],
                     "percentage_of_pure_time": round(pct_time, 4)
                 })
+        annual_margin = round((c_margin / num_days) * 365.0, 2)
+        annual_revenue = round((c_revenue / num_days) * 365.0, 2)
+        annual_sheets = int(round((c_sheets / num_days) * 365.0))
+        annual_tons = round((c_tons / num_days) * 365.0, 2)
+        annual_hours = round(((c_mins / 60.0) / num_days) * 365.0, 1)
 
-        total_downtime_minutes += c_mins
         categories_res.append({
             "key": cdef["key"],
             "title": cdef["title"],
             "color": cdef["color"],
             "total_minutes": c_mins,
             "total_formatted": format_minutes_hh_mm_ss(c_mins),
+            "lost_rolls": round(c_rolls, 1),
+            "lost_sheets": c_sheets,
+            "lost_tons": round(c_tons, 2),
+            "lost_margin_tenge": round(c_margin, 2),
+            "lost_revenue_tenge": round(c_revenue, 2),
             "percentage_of_pure_time": round(c_mins / (total_operating_hours * 60), 4) if total_operating_hours > 0 else 0.0,
             "count": len(c_items),
+            "annualized": {
+                "annual_margin_loss_tenge": annual_margin,
+                "annual_revenue_loss_tenge": annual_revenue,
+                "annual_lost_sheets": annual_sheets,
+                "annual_lost_tons": annual_tons,
+                "annual_lost_hours": annual_hours
+            },
             "items": c_items
         })
+
+    # ТОП повторяющихся узлов и неполадок (Рейтинг годового ущерба)
+    node_groups = {}
+    for p in processed_dts:
+        d = p["downtime"]
+        node = (d.node or "Основное оборудование").strip()
+        reason = (d.description or d.comment or "").strip()
+        if node not in node_groups:
+            node_groups[node] = {
+                "node": node,
+                "count": 0,
+                "total_minutes": 0,
+                "lost_sheets": 0,
+                "lost_tons": 0.0,
+                "lost_margin_tenge": 0.0,
+                "lost_revenue_tenge": 0.0,
+                "sample_reasons": []
+            }
+        ng = node_groups[node]
+        ng["count"] += 1
+        ng["total_minutes"] += p["duration"]
+        ng["lost_sheets"] += p["lost_sheets"]
+        ng["lost_tons"] += p["lost_tons"]
+        ng["lost_margin_tenge"] += p["lost_margin"]
+        ng["lost_revenue_tenge"] += p["lost_revenue"]
+        if reason and reason not in ng["sample_reasons"] and len(ng["sample_reasons"]) < 3:
+            ng["sample_reasons"].append(reason)
+
+    top_recurring = []
+    for node, ng in node_groups.items():
+        ann_loss = round((ng["lost_margin_tenge"] / num_days) * 365.0, 2)
+        ann_sheets = int(round((ng["lost_sheets"] / num_days) * 365.0))
+        ann_hours = round(((ng["total_minutes"] / 60.0) / num_days) * 365.0, 1)
+        top_recurring.append({
+            "node": node,
+            "count": ng["count"],
+            "total_minutes": ng["total_minutes"],
+            "total_formatted": format_minutes_hh_mm_ss(ng["total_minutes"]),
+            "lost_sheets": ng["lost_sheets"],
+            "lost_tons": round(ng["lost_tons"], 2),
+            "lost_margin_tenge": round(ng["lost_margin_tenge"], 2),
+            "lost_revenue_tenge": round(ng["lost_revenue_tenge"], 2),
+            "annual_margin_loss_tenge": ann_loss,
+            "annual_lost_sheets": ann_sheets,
+            "annual_lost_hours": ann_hours,
+            "sample_reasons": ng["sample_reasons"]
+        })
+
+    top_recurring.sort(key=lambda x: x["annual_margin_loss_tenge"], reverse=True)
+    top_recurring = top_recurring[:10]
 
     unclass_items = []
     for d in all_dts:
@@ -1252,28 +1421,49 @@ def get_downtimes_report_summary(
                 "duration_formatted": format_minutes_hh_mm_ss(dur)
             })
 
-    hourly_rate = (plan_sheets / total_operating_hours) if total_operating_hours > 0 else 0
-    underproduction_sheets = round((total_downtime_minutes / 60.0) * hourly_rate)
-    
-    # Расчет потерь в тенге по средней марже 755 тг/лист (8-волн 2200 - 1445)
-    UNIT_MARGIN_AVG = 755.0
-    underproduction_tenge = round(underproduction_sheets * UNIT_MARGIN_AVG)
+    potential_sheets = fact_sheets + total_lost_sheets_all
+    capacity_loss_percent = round((total_lost_sheets_all / potential_sheets * 100.0), 2) if potential_sheets > 0 else 0.0
+    availability_rate_percent = round(((total_operating_hours * 60 - total_stop_minutes) / (total_operating_hours * 60) * 100.0), 2) if total_operating_hours > 0 else 100.0
+
+    annual_margin_loss_all = round((total_lost_margin_all / num_days) * 365.0, 2)
+    annual_revenue_loss_all = round((total_lost_revenue_all / num_days) * 365.0, 2)
+    annual_lost_sheets_all = int(round((total_lost_sheets_all / num_days) * 365.0))
+    annual_lost_tons_all = round((total_lost_tons_all / num_days) * 365.0, 2)
+    annual_lost_hours_all = round(((total_stop_minutes / 60.0) / num_days) * 365.0, 1)
 
     return {
         "start_date": sd.strftime("%d.%m.%Y"),
         "end_date": ed.strftime("%d.%m.%Y"),
         "line": line or "Все линии",
         "kpi": {
+            "num_days": num_days,
             "total_operating_hours": total_operating_hours,
             "plan_sheets": plan_sheets,
             "fact_sheets": fact_sheets,
+            "potential_sheets": potential_sheets,
+            "capacity_loss_percent": capacity_loss_percent,
+            "availability_rate_percent": availability_rate_percent,
             "overproduction_sheets": overproduction_sheets,
-            "underproduction_sheets": underproduction_sheets,
-            "underproduction_tenge": underproduction_tenge,
+            "underproduction_sheets": total_lost_sheets_all,
+            "underproduction_tenge": round(total_lost_margin_all, 2),
+            "total_lost_sheets": total_lost_sheets_all,
+            "total_lost_tons": round(total_lost_tons_all, 2),
+            "total_lost_margin_tenge": round(total_lost_margin_all, 2),
+            "total_lost_revenue_tenge": round(total_lost_revenue_all, 2),
             "total_downtime_minutes": total_downtime_minutes,
-            "total_downtime_formatted": format_minutes_hh_mm_ss(total_downtime_minutes)
+            "total_downtime_formatted": format_minutes_hh_mm_ss(total_downtime_minutes),
+            "total_stop_minutes": total_stop_minutes,
+            "total_stop_formatted": format_minutes_hh_mm_ss(total_stop_minutes),
+            "annualized": {
+                "annual_margin_loss_tenge": annual_margin_loss_all,
+                "annual_revenue_loss_tenge": annual_revenue_loss_all,
+                "annual_lost_sheets": annual_lost_sheets_all,
+                "annual_lost_tons": annual_lost_tons_all,
+                "annual_lost_hours": annual_lost_hours_all
+            }
         },
         "categories": categories_res,
+        "top_recurring_losses": top_recurring,
         "unclassified": {
             "count": len(unclass_items),
             "items": unclass_items
