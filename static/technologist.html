@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="/static/img/icons/icon-192x192.png">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/static/css/splash.css?v=20261101_v2">
-    <link rel="stylesheet" href="/static/css/style.css?v=20261103_tech_v12">
+    <link rel="stylesheet" href="/static/css/style.css?v=20261104_week_picker_v1">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -502,8 +502,45 @@
                                 </button>
                                 <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('today', this)">Сегодня</button>
                                 <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('yesterday', this)">Вчера</button>
-                                <button type="button" class="dt-pill-btn dt-date-preset active" onclick="setDtDatePreset('week', this)">Эта неделя</button>
+                                <button type="button" class="dt-pill-btn dt-date-preset active" id="btn-dt-preset-week" onclick="setDtDatePreset('week', this)">Эта неделя</button>
                                 <button type="button" class="dt-pill-btn dt-date-preset" onclick="setDtDatePreset('month', this)">Этот месяц</button>
+
+                                <!-- Floating Custom Date Range Chip (Planner Standard) -->
+                                <div class="popover-anchor-wrap">
+                                    <button type="button" class="dt-pill-btn" id="btn-dt-custom-range" onclick="toggleDtCustomRangePopover(event)" title="Выбрать произвольный диапазон дат">
+                                        <i class="fa-solid fa-calendar-days" style="color: #2563eb;"></i>
+                                        <span id="dt-range-btn-label">Диапазон дат</span>
+                                        <span id="dt-range-active-indicator" style="display: none; width: 7px; height: 7px; background: #2563eb; border-radius: 50%; margin-left: 2px;"></span>
+                                    </button>
+                                    <div id="dt-custom-date-popover" class="date-range-popover" style="display: none;" onclick="event.stopPropagation()">
+                                        <div class="popover-header">
+                                            <span><i class="fa-solid fa-calendar-range" style="color: #2563eb; margin-right: 6px;"></i>Выбор периода дат</span>
+                                            <button type="button" class="popover-close-btn" onclick="closeDtCustomRangePopover()">&times;</button>
+                                        </div>
+                                        <div class="popover-body">
+                                            <div class="date-input-row">
+                                                <div class="date-input-group">
+                                                    <label>От даты:</label>
+                                                    <input type="date" id="dt-custom-from" class="popover-date-input">
+                                                </div>
+                                                <div class="date-input-group">
+                                                    <label>До даты:</label>
+                                                    <input type="date" id="dt-custom-to" class="popover-date-input">
+                                                </div>
+                                            </div>
+                                            <div class="popover-presets">
+                                                <button type="button" class="popover-preset-chip" onclick="applyDtQuickPreset('7d')">7 дней</button>
+                                                <button type="button" class="popover-preset-chip" onclick="applyDtQuickPreset('14d')">14 дней</button>
+                                                <button type="button" class="popover-preset-chip" onclick="applyDtQuickPreset('this_month')">Текущий месяц</button>
+                                                <button type="button" class="popover-preset-chip" onclick="applyDtQuickPreset('prev_month')">Прошлый месяц</button>
+                                            </div>
+                                        </div>
+                                        <div class="popover-footer">
+                                            <button type="button" class="btn-popover-reset" onclick="resetDtCustomRange()">Сбросить</button>
+                                            <button type="button" class="btn-popover-apply" onclick="applyDtCustomRange()">Применить</button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="dt-view-switcher">
@@ -518,19 +555,53 @@
                             </div>
                         </div>
 
-                        <!-- Filters Grid: Sentence Case & 36px Controls -->
+                        <!-- Filters Grid: Sentence Case & 38px Canonical Controls (Planner Standard) -->
                         <div class="dt-filters-grid" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid #f1f5f9;">
+                            <!-- Hidden synced date inputs for complete backward compatibility -->
+                            <input type="hidden" id="dt-date-from">
+                            <input type="hidden" id="dt-date-to">
+
+                            <!-- Canonical Month Selector (Planner Standard) -->
                             <div class="dt-filter-field">
-                                <label>Период с</label>
-                                <input type="date" id="dt-date-from" onchange="loadDowntimesData()">
+                                <label>Месяц</label>
+                                <div class="popover-anchor-wrap" style="width: 100%;">
+                                    <button type="button" class="toolbar-date-chip" id="btn-dt-month" onclick="toggleDtDatePopover('month', event)" title="Выбрать месяц" style="width: 100%; justify-content: space-between;">
+                                        <span style="display: inline-flex; align-items: center; gap: 8px;">
+                                            <i class="fa-solid fa-calendar" style="color: #64748b; font-size: 13px;"></i>
+                                            <span id="label-dt-month">Ноябрь 2026</span>
+                                        </span>
+                                        <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                                    </button>
+                                    <div class="filter-dropdown-popover month-picker-popover" id="popover-dt-month" style="display: none;" onclick="event.stopPropagation()">
+                                        <div class="filter-popover-list custom-scroll" id="list-dt-month" style="max-height: 280px;">
+                                            <!-- Populated dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Canonical Week Selector (Planner Standard) -->
                             <div class="dt-filter-field">
-                                <label>Период по</label>
-                                <input type="date" id="dt-date-to" onchange="loadDowntimesData()">
+                                <label>Неделя</label>
+                                <div class="popover-anchor-wrap" style="width: 100%;">
+                                    <button type="button" class="toolbar-date-chip" id="btn-dt-week" onclick="toggleDtDatePopover('week', event)" title="Выбрать неделю отчета" style="width: 100%; justify-content: space-between;">
+                                        <span style="display: inline-flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis;">
+                                            <i class="fa-solid fa-calendar-week" style="color: #2563eb; font-size: 13px;"></i>
+                                            <span id="label-dt-week" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Неделя 1 (26.10 - 01.11)</span>
+                                        </span>
+                                        <i class="fa-solid fa-chevron-down chip-chevron"></i>
+                                    </button>
+                                    <div class="filter-dropdown-popover week-picker-popover" id="popover-dt-week" style="display: none;" onclick="event.stopPropagation()">
+                                        <div class="filter-popover-list custom-scroll" id="list-dt-week" style="max-height: 320px;">
+                                            <!-- Populated dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
                             <div class="dt-filter-field">
                                 <label>Линия</label>
-                                <select id="dt-filter-line" onchange="loadDowntimesData()">
+                                <select id="dt-filter-line" onchange="loadDowntimesData()" style="height: 38px;">
                                     <option value="all">Все линии</option>
                                     <option value="Линия 1">Линия 1</option>
                                     <option value="Линия 2">Линия 2</option>
@@ -538,7 +609,7 @@
                             </div>
                             <div class="dt-filter-field">
                                 <label>Категория</label>
-                                <select id="dt-filter-category" onchange="loadDowntimesData()">
+                                <select id="dt-filter-category" onchange="loadDowntimesData()" style="height: 38px;">
                                     <option value="all">Все категории</option>
                                     <option value="Без категории">⚠️ Без категории</option>
                                     <option value="Механические">Механические</option>
@@ -551,11 +622,10 @@
                             </div>
                             <div class="dt-filter-field" style="grid-column: span 2;">
                                 <label>Поиск</label>
-                                <input type="text" id="dt-filter-search" placeholder="Поиск по узлу, причине или мастеру..." oninput="loadDowntimesData()">
+                                <input type="text" id="dt-filter-search" placeholder="Поиск по узлу, причине или мастеру..." oninput="loadDowntimesData()" style="height: 38px;">
                             </div>
                         </div>
-
-                        <!-- VIEW 1: Журнал быстрой инлайн-разметки -->
+<!-- VIEW 1: Журнал быстрой инлайн-разметки -->
                         <div id="dt-feed-container">
                             <div class="dt-table-responsive" style="border: 1px solid var(--stripe-border); border-radius: 12px; overflow: hidden;">
                                 <table class="dt-table" style="margin: 0;">
@@ -1274,7 +1344,7 @@
     <script src="/static/js/version_guard.js"></script>
     <script src="/static/js/splash.js?v=20261101_v2"></script>
 
-    <script src="/static/js/downtimes_tab.js?v=20261103_dt_v12"></script>
+    <script src="/static/js/downtimes_tab.js?v=20261104_week_picker_v1"></script>
     <script>
         // Custom Technologist SwitchTab & Initializer
         window.addEventListener('DOMContentLoaded', () => {

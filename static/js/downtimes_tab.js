@@ -44,12 +44,395 @@
         return { name: catName, icon: 'fa-tag', badgeClass: 'dt-cat-nostop', dotColor: '#64748b', dotHalo: 'rgba(100, 116, 139, 0.25)', stop: true };
     }
 
-    // Инициализация вкладки
-    function initDowntimesWorkspace() {
-        // Установка дат по умолчанию (последние 7 дней / эта неделя)
+    // ==========================================================================
+    // @canonical-pattern CanonicalWeekDatePicker (Planner Standard)
+    // ==========================================================================
+    const MONTH_NAMES_RU = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+
+    let dtCurrentYear = new Date().getFullYear();
+    let dtCurrentMonth = new Date().getMonth() + 1; // 1-12
+    let dtSelectedWeek = null; // object { weekNum, startStr, endStr, label }
+    let dtActiveDateMode = 'week'; // 'week' | 'all' | 'custom' | 'today' | 'yesterday'
+
+    function getWeeksOfMonth(year, month) {
+        const weeks = [];
+        const firstDayOfMonth = new Date(year, month - 1, 1);
+        let dayOfWeek = firstDayOfMonth.getDay();
+        let diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday
+        let currentMonday = new Date(year, month - 1, 1 + diff);
+        const firstDayOfNextMonth = new Date(year, month, 1);
+
+        while (currentMonday < firstDayOfNextMonth) {
+            const currentSunday = new Date(currentMonday);
+            currentSunday.setDate(currentMonday.getDate() + 6);
+
+            const sy = currentMonday.getFullYear();
+            const sm = String(currentMonday.getMonth() + 1).padStart(2, '0');
+            const sd = String(currentMonday.getDate()).padStart(2, '0');
+
+            const ey = currentSunday.getFullYear();
+            const em = String(currentSunday.getMonth() + 1).padStart(2, '0');
+            const ed = String(currentSunday.getDate()).padStart(2, '0');
+
+            const weekNum = weeks.length + 1;
+            weeks.push({
+                weekNum: weekNum,
+                startStr: `${sy}-${sm}-${sd}`,
+                endStr: `${ey}-${em}-${ed}`,
+                startDisplay: `${sd}.${sm}`,
+                endDisplay: `${ed}.${em}`,
+                label: `Неделя ${weekNum} (${sd}.${sm} - ${ed}.${em})`
+            });
+
+            currentMonday.setDate(currentMonday.getDate() + 7);
+        }
+        return weeks;
+    }
+
+    function findCurrentWeek(year, month) {
         const today = new Date();
-        const startOfWeek = new Date();
-        startOfWeek.setDate(today.getDate() - 7);
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const weeks = getWeeksOfMonth(year, month);
+        for (const w of weeks) {
+            if (todayStr >= w.startStr && todayStr <= w.endStr) {
+                return w;
+            }
+        }
+        return weeks.length > 0 ? weeks[0] : null;
+    }
+
+    function updateDtMonthLabel() {
+        const lbl = document.getElementById('label-dt-month');
+        if (lbl) {
+            lbl.textContent = `${MONTH_NAMES_RU[dtCurrentMonth - 1]} ${dtCurrentYear}`;
+        }
+    }
+
+    window.toggleDtDatePopover = function (type, event) {
+        if (event) event.stopPropagation();
+        closeDtCustomRangePopover();
+        const popover = document.getElementById(`popover-dt-${type}`);
+        const chip = document.getElementById(`btn-dt-${type}`);
+        if (!popover) return;
+
+        const isVisible = popover.style.display === 'block';
+        closeAllDtPopovers();
+
+        if (!isVisible) {
+            if (type === 'month') {
+                renderDtMonthPopoverList();
+            } else if (type === 'week') {
+                renderDtWeekPopoverList();
+            }
+            popover.style.display = 'block';
+            if (chip) chip.classList.add('popover-open');
+        }
+    };
+
+    function closeAllDtPopovers() {
+        ['month', 'week'].forEach(t => {
+            const pop = document.getElementById(`popover-dt-${t}`);
+            const chip = document.getElementById(`btn-dt-${t}`);
+            if (pop) pop.style.display = 'none';
+            if (chip) chip.classList.remove('popover-open');
+        });
+    }
+
+    function renderDtMonthPopoverList() {
+        const listEl = document.getElementById('list-dt-month');
+        if (!listEl) return;
+
+        let html = `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 8px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px;">
+                <button type="button" class="btn-time-now" onclick="changeDtYear(-1, event)"><i class="fa-solid fa-chevron-left"></i> ${dtCurrentYear - 1}</button>
+                <span style="font-size: 12px; font-weight: 700; color: #1e293b;">${dtCurrentYear} год</span>
+                <button type="button" class="btn-time-now" onclick="changeDtYear(1, event)">${dtCurrentYear + 1} <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        `;
+
+        MONTH_NAMES_RU.forEach((mName, idx) => {
+            const mNum = idx + 1;
+            const isSel = (dtCurrentMonth === mNum);
+            html += `
+                <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
+                     onclick="selectDtMonth(${mNum})" style="padding: 6px 10px;">
+                    <div class="week-option-left">
+                        <i class="fa-solid fa-calendar" style="color: ${isSel ? '#2563eb' : '#64748b'}; font-size: 13px; width: 16px; text-align: center;"></i>
+                        <span class="filter-option-text ${isSel ? 'font-bold' : ''}" style="font-size: 12.5px;">${mName} ${dtCurrentYear}</span>
+                    </div>
+                    ${isSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+                </div>
+            `;
+        });
+
+        listEl.innerHTML = html;
+    }
+
+    window.changeDtYear = function (delta, event) {
+        if (event) event.stopPropagation();
+        dtCurrentYear += delta;
+        renderDtMonthPopoverList();
+    };
+
+    window.selectDtMonth = function (monthNum) {
+        dtCurrentMonth = monthNum;
+        closeAllDtPopovers();
+        updateDtMonthLabel();
+
+        const now = new Date();
+        if (now.getFullYear() === dtCurrentYear && (now.getMonth() + 1) === dtCurrentMonth) {
+            const curW = findCurrentWeek(dtCurrentYear, dtCurrentMonth);
+            selectDtWeek(curW ? curW.weekNum : 1);
+        } else {
+            selectDtWeek(1);
+        }
+    };
+
+    function renderDtWeekPopoverList() {
+        const listEl = document.getElementById('list-dt-week');
+        if (!listEl) return;
+
+        const weeks = getWeeksOfMonth(dtCurrentYear, dtCurrentMonth);
+        let html = '';
+
+        const isMonthSel = (dtSelectedWeek === null && dtActiveDateMode === 'all');
+        html += `
+            <div class="filter-option-item ${isMonthSel ? 'selected week-option-active' : ''}" 
+                 onclick="selectDtWholeMonth()" style="padding: 7px 10px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px;">
+                <div class="week-option-left">
+                    <i class="fa-solid fa-calendar-check" style="color: ${isMonthSel ? '#2563eb' : '#64748b'}; font-size: 13px; width: 16px; text-align: center;"></i>
+                    <span class="filter-option-text ${isMonthSel ? 'font-bold' : ''}" style="font-size: 12.5px;">Весь месяц (${MONTH_NAMES_RU[dtCurrentMonth - 1]} ${dtCurrentYear})</span>
+                </div>
+                ${isMonthSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+            </div>
+        `;
+
+        weeks.forEach(w => {
+            const isSel = (dtSelectedWeek && dtSelectedWeek.weekNum === w.weekNum && dtActiveDateMode === 'week');
+            html += `
+                <div class="filter-option-item ${isSel ? 'selected week-option-active' : ''}" 
+                     onclick="selectDtWeek(${w.weekNum})" style="padding: 7px 10px;">
+                    <div class="week-option-left">
+                        <i class="fa-solid fa-calendar-week" style="color: ${isSel ? '#2563eb' : '#64748b'}; font-size: 13px; width: 16px; text-align: center;"></i>
+                        <span class="filter-option-text ${isSel ? 'font-bold' : ''}" style="font-size: 12.5px;">${w.label}</span>
+                    </div>
+                    ${isSel ? '<i class="fa-solid fa-check week-option-checkmark"></i>' : ''}
+                </div>
+            `;
+        });
+
+        listEl.innerHTML = html;
+    }
+
+    window.selectDtWeek = function (weekNum) {
+        const weeks = getWeeksOfMonth(dtCurrentYear, dtCurrentMonth);
+        const w = weeks.find(item => item.weekNum === weekNum) || weeks[0];
+        if (!w) return;
+
+        dtSelectedWeek = w;
+        dtActiveDateMode = 'week';
+        closeAllDtPopovers();
+        hideDtRangeActiveIndicator();
+
+        updateDtMonthLabel();
+        const weekLabel = document.getElementById('label-dt-week');
+        if (weekLabel) weekLabel.textContent = w.label;
+
+        const sInput = document.getElementById('dt-date-from');
+        const eInput = document.getElementById('dt-date-to');
+        if (sInput) sInput.value = w.startStr;
+        if (eInput) eInput.value = w.endStr;
+        dtCurrentFilter.start_date = w.startStr;
+        dtCurrentFilter.end_date = w.endStr;
+
+        const curW = findCurrentWeek(new Date().getFullYear(), new Date().getMonth() + 1);
+        const isCurrentWeek = (curW && curW.startStr === w.startStr && curW.endStr === w.endStr);
+        document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
+        if (isCurrentWeek) {
+            const btnWeek = document.getElementById('btn-dt-preset-week');
+            if (btnWeek) btnWeek.classList.add('active');
+        }
+
+        loadDowntimesData();
+    };
+
+    window.selectDtWholeMonth = function () {
+        dtSelectedWeek = null;
+        dtActiveDateMode = 'all';
+        closeAllDtPopovers();
+        hideDtRangeActiveIndicator();
+
+        updateDtMonthLabel();
+        const weekLabel = document.getElementById('label-dt-week');
+        if (weekLabel) weekLabel.textContent = `Весь месяц (${MONTH_NAMES_RU[dtCurrentMonth - 1]})`;
+
+        const lastDay = new Date(dtCurrentYear, dtCurrentMonth, 0).getDate();
+        const startStr = `${dtCurrentYear}-${String(dtCurrentMonth).padStart(2, '0')}-01`;
+        const endStr = `${dtCurrentYear}-${String(dtCurrentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+        const sInput = document.getElementById('dt-date-from');
+        const eInput = document.getElementById('dt-date-to');
+        if (sInput) sInput.value = startStr;
+        if (eInput) eInput.value = endStr;
+        dtCurrentFilter.start_date = startStr;
+        dtCurrentFilter.end_date = endStr;
+
+        document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
+        const now = new Date();
+        if (now.getFullYear() === dtCurrentYear && (now.getMonth() + 1) === dtCurrentMonth) {
+            const btnMonth = document.querySelector('.dt-date-preset[onclick*="month"]');
+            if (btnMonth) btnMonth.classList.add('active');
+        }
+
+        loadDowntimesData();
+    };
+
+    // Переключение пресетов дат
+    window.setDtDatePreset = function (preset, btnEl) {
+        if (btnEl) {
+            document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
+            btnEl.classList.add('active');
+        }
+        hideDtRangeActiveIndicator();
+
+        const today = new Date();
+
+        if (preset === 'week') {
+            dtCurrentYear = today.getFullYear();
+            dtCurrentMonth = today.getMonth() + 1;
+            const curW = findCurrentWeek(dtCurrentYear, dtCurrentMonth);
+            if (curW) {
+                selectDtWeek(curW.weekNum);
+            }
+            return;
+        } else if (preset === 'month') {
+            dtCurrentYear = today.getFullYear();
+            dtCurrentMonth = today.getMonth() + 1;
+            selectDtWholeMonth();
+            return;
+        } else if (preset === 'today') {
+            dtActiveDateMode = 'today';
+            dtSelectedWeek = null;
+            const dayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const sInput = document.getElementById('dt-date-from');
+            const eInput = document.getElementById('dt-date-to');
+            if (sInput) sInput.value = dayStr;
+            if (eInput) eInput.value = dayStr;
+            dtCurrentFilter.start_date = dayStr;
+            dtCurrentFilter.end_date = dayStr;
+
+            const weekLabel = document.getElementById('label-dt-week');
+            if (weekLabel) weekLabel.textContent = `Сегодня (${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')})`;
+            loadDowntimesData();
+            return;
+        } else if (preset === 'yesterday') {
+            dtActiveDateMode = 'yesterday';
+            dtSelectedWeek = null;
+            const yDate = new Date();
+            yDate.setDate(today.getDate() - 1);
+            const dayStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+            const sInput = document.getElementById('dt-date-from');
+            const eInput = document.getElementById('dt-date-to');
+            if (sInput) sInput.value = dayStr;
+            if (eInput) eInput.value = dayStr;
+            dtCurrentFilter.start_date = dayStr;
+            dtCurrentFilter.end_date = dayStr;
+
+            const weekLabel = document.getElementById('label-dt-week');
+            if (weekLabel) weekLabel.textContent = `Вчера (${String(yDate.getDate()).padStart(2, '0')}.${String(yDate.getMonth() + 1).padStart(2, '0')})`;
+            loadDowntimesData();
+            return;
+        }
+    };
+
+    // Custom Date Range Popover
+    window.toggleDtCustomRangePopover = function (event) {
+        if (event) event.stopPropagation();
+        closeAllDtPopovers();
+        const pop = document.getElementById('dt-custom-date-popover');
+        if (!pop) return;
+        const isVisible = pop.style.display === 'block';
+        if (isVisible) {
+            pop.style.display = 'none';
+        } else {
+            const sInput = document.getElementById('dt-date-from');
+            const eInput = document.getElementById('dt-date-to');
+            const customFrom = document.getElementById('dt-custom-from');
+            const customTo = document.getElementById('dt-custom-to');
+            if (customFrom && sInput && sInput.value) customFrom.value = sInput.value;
+            if (customTo && eInput && eInput.value) customTo.value = eInput.value;
+            pop.style.display = 'block';
+        }
+    };
+
+    window.closeDtCustomRangePopover = function () {
+        const pop = document.getElementById('dt-custom-date-popover');
+        if (pop) pop.style.display = 'none';
+    };
+
+    window.applyDtCustomRange = function () {
+        const customFrom = document.getElementById('dt-custom-from');
+        const customTo = document.getElementById('dt-custom-to');
+        if (!customFrom || !customTo || !customFrom.value || !customTo.value) {
+            if (typeof showToast === 'function') showToast('Выберите обе даты');
+            return;
+        }
+
+        const sVal = customFrom.value;
+        const eVal = customTo.value;
+        if (sVal > eVal) {
+            if (typeof showToast === 'function') showToast('Начальная дата не может быть позже конечной');
+            return;
+        }
+
+        const sInput = document.getElementById('dt-date-from');
+        const eInput = document.getElementById('dt-date-to');
+        if (sInput) sInput.value = sVal;
+        if (eInput) eInput.value = eVal;
+        dtCurrentFilter.start_date = sVal;
+        dtCurrentFilter.end_date = eVal;
+
+        dtActiveDateMode = 'custom';
+        dtSelectedWeek = null;
+
+        document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
+
+        const indicator = document.getElementById('dt-range-active-indicator');
+        if (indicator) indicator.style.display = 'inline-block';
+        const rangeBtn = document.getElementById('btn-dt-custom-range');
+        if (rangeBtn) rangeBtn.classList.add('active');
+
+        const fParts = sVal.split('-');
+        const tParts = eVal.split('-');
+        const weekLabel = document.getElementById('label-dt-week');
+        if (weekLabel) {
+            weekLabel.textContent = `${fParts[2]}.${fParts[1]} - ${tParts[2]}.${tParts[1]}`;
+        }
+
+        closeDtCustomRangePopover();
+        loadDowntimesData();
+    };
+
+    window.resetDtCustomRange = function () {
+        closeDtCustomRangePopover();
+        window.setDtDatePreset('week', document.getElementById('btn-dt-preset-week'));
+    };
+
+    function hideDtRangeActiveIndicator() {
+        const indicator = document.getElementById('dt-range-active-indicator');
+        if (indicator) indicator.style.display = 'none';
+        const rangeBtn = document.getElementById('btn-dt-custom-range');
+        if (rangeBtn) rangeBtn.classList.remove('active');
+    }
+
+    window.applyDtQuickPreset = function (preset) {
+        const today = new Date();
+        const customFrom = document.getElementById('dt-custom-from');
+        const customTo = document.getElementById('dt-custom-to');
+        if (!customFrom || !customTo) return;
 
         const formatDate = (d) => {
             const y = d.getFullYear();
@@ -58,16 +441,57 @@
             return `${y}-${m}-${day}`;
         };
 
-        const sInput = document.getElementById('dt-date-from');
-        const eInput = document.getElementById('dt-date-to');
-        if (sInput && !sInput.value) sInput.value = formatDate(startOfWeek);
-        if (eInput && !eInput.value) eInput.value = formatDate(today);
+        if (preset === '7d') {
+            const f = new Date();
+            f.setDate(today.getDate() - 6);
+            customFrom.value = formatDate(f);
+            customTo.value = formatDate(today);
+        } else if (preset === '14d') {
+            const f = new Date();
+            f.setDate(today.getDate() - 13);
+            customFrom.value = formatDate(f);
+            customTo.value = formatDate(today);
+        } else if (preset === 'this_month') {
+            const f = new Date(today.getFullYear(), today.getMonth(), 1);
+            const l = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            customFrom.value = formatDate(f);
+            customTo.value = formatDate(l);
+        } else if (preset === 'prev_month') {
+            const f = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const l = new Date(today.getFullYear(), today.getMonth(), 0);
+            customFrom.value = formatDate(f);
+            customTo.value = formatDate(l);
+        }
+    };
 
-        dtCurrentFilter.start_date = sInput ? sInput.value : '';
-        dtCurrentFilter.end_date = eInput ? eInput.value : '';
+    // Инициализация вкладки
+    function initDowntimesWorkspace() {
+        const today = new Date();
+        dtCurrentYear = today.getFullYear();
+        dtCurrentMonth = today.getMonth() + 1;
+        updateDtMonthLabel();
+
+        const curW = findCurrentWeek(dtCurrentYear, dtCurrentMonth);
+        if (curW) {
+            dtSelectedWeek = curW;
+            dtActiveDateMode = 'week';
+            const weekLabel = document.getElementById('label-dt-week');
+            if (weekLabel) weekLabel.textContent = curW.label;
+
+            const sInput = document.getElementById('dt-date-from');
+            const eInput = document.getElementById('dt-date-to');
+            if (sInput) sInput.value = curW.startStr;
+            if (eInput) eInput.value = curW.endStr;
+            dtCurrentFilter.start_date = curW.startStr;
+            dtCurrentFilter.end_date = curW.endStr;
+        }
 
         // Закрытие поповеров при клике вне
         document.addEventListener('click', (e) => {
+            if (!e.target.closest('.popover-anchor-wrap') && !e.target.closest('.toolbar-date-chip') && !e.target.closest('.date-range-popover')) {
+                closeAllDtPopovers();
+                closeDtCustomRangePopover();
+            }
             if (activePopover && !e.target.closest('.dt-popover-menu') && !e.target.closest('.dt-cat-picker-btn')) {
                 activePopover.style.display = 'none';
                 activePopover = null;
@@ -77,52 +501,6 @@
         loadDowntimesData();
     }
     window.initDowntimesWorkspace = initDowntimesWorkspace;
-
-    // Переключение пресетов дат
-    window.setDtDatePreset = function (preset, btnEl) {
-        if (btnEl) {
-            document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
-            btnEl.classList.add('active');
-        }
-
-        const today = new Date();
-        let fromDate = new Date();
-        let toDate = new Date();
-
-        if (preset === 'today') {
-            fromDate = today;
-            toDate = today;
-        } else if (preset === 'yesterday') {
-            fromDate.setDate(today.getDate() - 1);
-            toDate.setDate(today.getDate() - 1);
-        } else if (preset === 'week') {
-            const day = today.getDay();
-            const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Понедельник
-            fromDate.setDate(diff);
-            toDate = today;
-        } else if (preset === 'month') {
-            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            toDate = today;
-        }
-
-        const formatDate = (d) => {
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${day}`;
-        };
-
-        const sInput = document.getElementById('dt-date-from');
-        const eInput = document.getElementById('dt-date-to');
-        if (sInput) sInput.value = formatDate(fromDate);
-        if (eInput) eInput.value = formatDate(toDate);
-
-        dtCurrentFilter.start_date = sInput ? sInput.value : '';
-        dtCurrentFilter.end_date = eInput ? eInput.value : '';
-
-        loadDowntimesData();
-    };
-
     // Переключение фильтра: Все / Только требующие классификации
     window.toggleDtUnclassifiedOnly = function (unclassOnly) {
         dtCurrentFilter.unclassified_only = unclassOnly;

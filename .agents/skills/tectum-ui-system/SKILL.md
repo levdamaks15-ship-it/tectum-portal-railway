@@ -118,6 +118,7 @@ description: Каноническая дизайн-система и станд�
 | `@canonical-pattern TwoTierMinimalistHeader` | `.header-main`, `.header-top-row`, `.brand-title-tectum` | `style.css:1`, `index.html:335`, `docs/design_system/two_tier_minimalist_header.html` | Двухуровневая шапка (Бренд + Профиль/Выход на одной линии, чипы быстрого перехода) |
 | `@canonical-pattern CanonicalAuthModal4BoxPin` | `.auth-modal-card`, `.pin-boxes-container`, `.pin-digit-box` | `style.css:2230`, `index.html:365`, `docs/design_system/canonical_auth_modal.html` | Единый центр входа 440px: иконка ID, выбор сотрудника и 4 раздельных PIN-бокса с автопереходом |
 | `@canonical-pattern CanonicalCabinetSkeleton` | `#app-container`, `.accordion-section`, `.dt-filters-grid`, `.dt-table-card` | `docs/design_system/canonical_cabinet_skeleton.html` | Эталонный скелет нового экрана/кабинета: 1360px контейнер, Bento-шапка с чипом цеха, 36px контролы |
+| `@canonical-pattern CanonicalWeekDatePicker` | `.toolbar-date-chip`, `.filter-dropdown-popover`, `.month-picker-popover`, `.week-picker-popover`, `.date-range-popover` | `style.css:3385`, `tasks.html:3360`, `downtimes_tab.js:50` | Эталонный выбор недели и месяца (38px чипы, выпадающие поповеры, быстрый сброс на текущую неделю, плавающее окно диапазона дат) |
 
 ## 8. Автономные шаблоны (`docs/design_system/`)
 - `canonical_cabinet_skeleton.html` — Полный эталонный скелет нового экрана/кабинета.

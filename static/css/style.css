@@ -3381,3 +3381,297 @@ body.role-portal {
     border-color: #94a3b8;
 }
 
+
+/* ==========================================================================
+   @canonical-pattern CanonicalWeekDatePicker (Rule 7 Standard)
+   Unified Month & Week Popover Selector & Custom Date Range Deck
+   ========================================================================== */
+.popover-anchor-wrap {
+    position: relative !important;
+    display: inline-block !important;
+}
+
+.toolbar-date-chip {
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 12px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    box-sizing: border-box !important;
+}
+
+.toolbar-date-chip:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.toolbar-date-chip.popover-open,
+.toolbar-date-chip.active {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2.5px rgba(37, 99, 235, 0.15) !important;
+    color: #1d4ed8 !important;
+}
+
+.toolbar-date-chip .chip-chevron {
+    font-size: 11px !important;
+    color: #64748b !important;
+    transition: transform 0.2s ease !important;
+}
+
+.toolbar-date-chip.popover-open .chip-chevron {
+    transform: rotate(180deg) !important;
+    color: #2563eb !important;
+}
+
+.filter-dropdown-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 260px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    padding: 8px;
+    z-index: 1050;
+}
+
+.month-picker-popover {
+    width: 220px !important;
+}
+
+.week-picker-popover {
+    width: 320px !important;
+}
+
+.filter-popover-list {
+    max-height: 280px !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+}
+
+.filter-popover-list::-webkit-scrollbar {
+    width: 5px;
+}
+.filter-popover-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.filter-option-item {
+    padding: 7px 10px !important;
+    border-radius: 7px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: background 0.12s ease !important;
+    user-select: none !important;
+    font-size: 12.5px !important;
+    color: #1e293b !important;
+}
+
+.filter-option-item:hover {
+    background: #f1f5f9 !important;
+}
+
+.filter-option-item.selected,
+.filter-option-item.week-option-active {
+    background: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+    font-weight: 600 !important;
+    color: #1d4ed8 !important;
+}
+
+.week-option-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+.week-option-checkmark {
+    color: #2563eb !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+}
+
+/* Floating Date Range Popover */
+.date-range-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 310px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    padding: 14px;
+    z-index: 1050;
+}
+
+.popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.popover-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: #94a3b8;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+}
+.popover-close-btn:hover {
+    color: #0f172a;
+}
+
+.date-input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.date-input-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.popover-date-input {
+    width: 100%;
+    height: 36px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    box-sizing: border-box;
+}
+
+.popover-presets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.popover-preset-chip {
+    height: 28px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.popover-preset-chip:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.popover-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-popover-reset {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+}
+.btn-popover-reset:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.btn-popover-apply {
+    height: 32px;
+    padding: 0 14px;
+    border: none;
+    background: #2563eb;
+    color: #ffffff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+.btn-popover-apply:hover {
+    background: #1d4ed8;
+}
+
+.btn-preset-chip {
+    height: 38px !important;
+    min-height: 38px !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    padding: 0 13px !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.15s ease !important;
+    gap: 6px !important;
+}
+
+.btn-preset-chip:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.btn-preset-chip.active {
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    color: #1d4ed8 !important;
+    box-shadow: 0 0 0 1px #3b82f6 !important;
+}
