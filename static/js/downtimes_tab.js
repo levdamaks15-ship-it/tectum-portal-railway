@@ -248,14 +248,6 @@
         dtCurrentFilter.start_date = w.startStr;
         dtCurrentFilter.end_date = w.endStr;
 
-        const curW = findCurrentWeek(new Date().getFullYear(), new Date().getMonth() + 1);
-        const isCurrentWeek = (curW && curW.startStr === w.startStr && curW.endStr === w.endStr);
-        document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
-        if (isCurrentWeek) {
-            const btnWeek = document.getElementById('btn-dt-preset-week');
-            if (btnWeek) btnWeek.classList.add('active');
-        }
-
         loadDowntimesData();
     };
 
@@ -279,13 +271,6 @@
         if (eInput) eInput.value = endStr;
         dtCurrentFilter.start_date = startStr;
         dtCurrentFilter.end_date = endStr;
-
-        document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
-        const now = new Date();
-        if (now.getFullYear() === dtCurrentYear && (now.getMonth() + 1) === dtCurrentMonth) {
-            const btnMonth = document.querySelector('.dt-date-preset[onclick*="month"]');
-            if (btnMonth) btnMonth.classList.add('active');
-        }
 
         loadDowntimesData();
     };
@@ -398,8 +383,6 @@
         dtActiveDateMode = 'custom';
         dtSelectedWeek = null;
 
-        document.querySelectorAll('.dt-date-preset').forEach(b => b.classList.remove('active'));
-
         const indicator = document.getElementById('dt-range-active-indicator');
         if (indicator) indicator.style.display = 'inline-block';
         const rangeBtn = document.getElementById('btn-dt-custom-range');
@@ -418,7 +401,12 @@
 
     window.resetDtCustomRange = function () {
         closeDtCustomRangePopover();
-        window.setDtDatePreset('week', document.getElementById('btn-dt-preset-week'));
+        const curW = findCurrentWeek(dtCurrentYear, dtCurrentMonth);
+        if (curW) {
+            selectDtWeek(curW.weekNum);
+        } else {
+            selectDtWholeMonth();
+        }
     };
 
     function hideDtRangeActiveIndicator() {

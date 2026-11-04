@@ -5,7 +5,8 @@ import time
 import base64
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timedelta, date
+import calendar
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks, UploadFile, File, Body
 from sqlalchemy.orm import Session
@@ -1226,21 +1227,43 @@ def get_downtimes_report_summary(
         models.Shift.date >= sd,
         models.Shift.date <= ed
     )
+    clean_line = None
     if line and line not in ("all", "Все линии", "Все", "СВОД"):
         clean_line = "Линия 1" if "1" in line else ("Линия 2" if "2" in line else line)
         shifts_q = shifts_q.filter(models.Shift.line == clean_line)
 
     shifts = shifts_q.all()
-    plan_sheets = sum((s.plan_sheets or 0) for s in shifts)
 
-    # Применяем утвержденные целевые планы завода (39k нед / 160k мес), если в сменах план пуст
-    if plan_sheets == 0:
-        if num_days == 7:
-            plan_sheets = 39000
-        elif num_days >= 28:
-            plan_sheets = 160000
-        else:
-            plan_sheets = round(num_days * (160000.0 / 30.0))
+    # Применяем утвержденные целевые планы завода (160k мес / 39k нед / 2700 день [0 в Пн] / 3300 ночь)
+    is_whole_month = (
+        sd.day == 1 and 
+        ed.day == calendar.monthrange(sd.year, sd.month)[1] and 
+        sd.year == ed.year and 
+        sd.month == ed.month
+    ) or (sd.day == 1 and num_days in (28, 29, 30, 31) and sd.month == ed.month)
+    is_standard_week = (num_days == 7)
+
+    if is_whole_month:
+        # 1. Весь месяц — директивный утвержденный план завода
+        plan_sheets = 40000 if clean_line == "Линия 1" else 160000
+    elif is_standard_week:
+        # 2. Ровно неделя — директивный недельный план завода
+        plan_sheets = 13000 if clean_line == "Линия 1" else 39000
+    else:
+        # 3. Произвольный диапазон дат — расчет по сменным планам календаря завода
+        #    (День: 2700 шт. [0 в Пн — сан-день], Ночь: 3300 шт. для Линии 2 / Общего; для Линии 1: 800 [0 в Пн] / 1200)
+        calc_plan = 0
+        for i in range(num_days):
+            cur_d = sd + timedelta(days=i)
+            is_mon = (cur_d.weekday() == 0)
+            if clean_line == "Линия 1":
+                day_plan = 0 if is_mon else 800
+                night_plan = 1200
+            else:
+                day_plan = 0 if is_mon else 2700
+                night_plan = 3300
+            calc_plan += (day_plan + night_plan)
+        plan_sheets = calc_plan
 
     shift_ids = [s.id for s in shifts]
     fact_sheets = 0
