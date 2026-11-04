@@ -519,6 +519,16 @@
         loadDowntimesData();
     };
 
+    // Быстрый переход из сводного отчета в журнал разметки неклассифицированных простоев
+    window.switchToFeedUnclassified = function () {
+        dtCurrentFilter.unclassified_only = true;
+        const btnAll = document.getElementById('btn-dt-filter-all');
+        const btnUnclass = document.getElementById('btn-dt-filter-unclass');
+        if (btnAll) btnAll.classList.remove('active');
+        if (btnUnclass) btnUnclass.classList.add('active');
+        setDtViewMode('feed');
+    };
+
     // Переключение вида (Журнал разметки vs Сводный отчет)
     window.setDtViewMode = function (mode) {
         dtCurrentFilter.view = mode;
@@ -854,6 +864,12 @@
             if (!res.ok) throw new Error('Ошибка формирования сводки');
             const data = await res.json();
 
+            // Обновляем счетчики на кнопках-пилюлях в режиме сводки
+            const totalCountEl = document.getElementById('dt-feed-total-count');
+            const unclassCountEl = document.getElementById('dt-feed-unclass-count');
+            if (totalCountEl && data.total_count !== undefined) totalCountEl.textContent = data.total_count;
+            if (unclassCountEl && data.unclassified_count !== undefined) unclassCountEl.textContent = data.unclassified_count;
+
             renderSummaryReport(data);
         } catch (e) {
             console.error(e);
@@ -950,12 +966,19 @@
         `;
 
         cats.forEach(c => {
+            const isUnclass = (c.key === 'unclassified');
+            const chipStyle = isUnclass
+                ? `background: rgba(239, 68, 68, 0.12); border-color: #ef4444; color: #991b1b; cursor: pointer;`
+                : `background: ${c.color}25; border-color: ${c.color}; color: #1e293b;`;
+            const clickAttr = isUnclass ? `onclick="switchToFeedUnclassified()" title="Нажмите, чтобы открыть разметку этих простоев"` : '';
+
             html += `
-            <div class="dt-kpi-hour-chip" style="background: ${c.color}25; border-color: ${c.color}; color: #1e293b;">
+            <div class="dt-kpi-hour-chip" style="${chipStyle}" ${clickAttr}>
                 <span>${c.title}</span>
                 <b style="font-family: monospace; font-size: 0.95rem;">${c.total_formatted}</b>
                 <span style="font-size: 0.8rem; color: #64748b;">(${(c.percentage_of_pure_time * 100).toFixed(2)}%)</span>
                 ${c.lost_sheets ? `<span style="font-size: 0.84rem; color: #dc2626; font-weight: 800;">-${c.lost_sheets.toLocaleString()} шт</span>` : ''}
+                ${isUnclass && c.count > 0 ? `<span style="font-size: 0.72rem; background: #ef4444; color: #fff; padding: 2px 7px; border-radius: 10px; font-weight: 700; margin-left: 4px; box-shadow: 0 1px 2px rgba(239,68,68,0.3);">⚠️ ${c.count} не разобрано</span>` : ''}
             </div>
             `;
         });
@@ -996,14 +1019,23 @@
         cats.forEach(c => {
             sumRolls += (c.lost_rolls || 0);
             const cAnn = c.annualized || {};
+            const isUnclass = (c.key === 'unclassified');
+
             html += `
-            <tr>
-                <td style="font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${c.color}; border: 1px solid rgba(0,0,0,0.15);"></span>
-                    <span>${c.title}</span>
+            <tr style="${isUnclass && c.count > 0 ? 'background: #fff5f5;' : ''}">
+                <td style="font-weight: 700; color: ${isUnclass && c.count > 0 ? '#dc2626' : '#0f172a'}; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${c.color}; border: 1px solid rgba(0,0,0,0.15); ${isUnclass && c.count > 0 ? 'box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);' : ''}"></span>
+                        <span>${c.title}</span>
+                    </div>
+                    ${isUnclass && c.count > 0 ? `
+                        <button type="button" class="btn-table-action" onclick="switchToFeedUnclassified()" style="padding: 3px 9px; font-size: 0.76rem; background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 6px; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" title="Перейти к классификации в журнал разметки">
+                            <i class="fa-solid fa-arrow-right"></i> Разметить
+                        </button>
+                    ` : ''}
                 </td>
-                <td style="text-align: center; font-family: monospace; font-weight: 600;">${c.count || 0}</td>
-                <td style="text-align: center; font-family: monospace; font-weight: 700;">${c.total_formatted}</td>
+                <td style="text-align: center; font-family: monospace; font-weight: 600; color: ${isUnclass && c.count > 0 ? '#dc2626' : 'inherit'};">${c.count || 0}</td>
+                <td style="text-align: center; font-family: monospace; font-weight: 700; color: ${isUnclass && c.count > 0 ? '#dc2626' : 'inherit'};">${c.total_formatted}</td>
                 <td style="text-align: right; font-family: monospace; color: #64748b;">${(c.lost_rolls || 0).toLocaleString()}</td>
                 <td style="text-align: right; font-family: monospace; font-weight: 800; color: ${c.lost_sheets ? '#dc2626' : '#64748b'};">
                     ${c.lost_sheets ? '-' + c.lost_sheets.toLocaleString() + ' шт' : '0 шт'}
@@ -1040,22 +1072,31 @@
         </div>
         `;
 
-        // 3. 5 блоков категорий (детальные рапорты)
+        // 3. 5 блоков категорий + неклассифицированные (детальные рапорты)
         const bannerClassMap = {
             'mech': 'banner-mech',
             'energy': 'banner-energy',
             'tech': 'banner-tech',
             'maint': 'banner-maint',
-            'no_stop': 'banner-nostop'
+            'no_stop': 'banner-nostop',
+            'unclassified': 'banner-unclass'
         };
 
         cats.forEach(c => {
             const bClass = bannerClassMap[c.key] || 'banner-mech';
             const cAnn = c.annualized || {};
+            const isUnclass = (c.key === 'unclassified');
             html += `
             <div class="dt-cat-section-card">
                 <div class="dt-cat-section-header ${bClass}">
-                    <span>${c.title}</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>${c.title}</span>
+                        ${isUnclass && c.count > 0 ? `
+                            <button type="button" onclick="switchToFeedUnclassified()" style="padding: 3px 10px; font-size: 0.8rem; background: #fff; color: #991b1b; border: 1px solid #f87171; border-radius: 6px; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid fa-list-check"></i> Открыть в журнале разметки
+                            </button>
+                        ` : ''}
+                    </div>
                     <span style="font-size: 0.92rem; font-family: monospace;">
                         Итого: <b>${c.total_formatted}</b> · Потери: <b>-${(c.lost_sheets || 0).toLocaleString()} шт</b> (${(c.percentage_of_pure_time * 100).toFixed(2)}% времени) · Риск: <b>-${Math.round(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</b>
                     </span>

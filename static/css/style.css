@@ -3365,6 +3365,7 @@ body.role-portal {
 .dt-cat-section-header.banner-tech { background: #ffd966; color: #1e293b; }
 .dt-cat-section-header.banner-maint { background: #b6d7a8; color: #1e293b; }
 .dt-cat-section-header.banner-nostop { background: #f9cb9c; color: #1e293b; }
+.dt-cat-section-header.banner-unclass { background: #fee2e2; color: #991b1b; border-bottom: 1px solid #fecaca; }
 
 .dt-section-table {
     width: 100%;

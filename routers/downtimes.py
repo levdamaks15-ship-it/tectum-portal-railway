@@ -1110,25 +1110,6 @@ def get_downtimes_feed(
             )
         )
 
-    # Фильтр категории
-    if category and category != "all":
-        if category == "unclassified":
-            unclassified_only = True
-        else:
-            query = query.filter(models.Downtime.category == category)
-
-    if unclassified_only:
-        query = query.filter(
-            or_(
-                models.Downtime.category.is_(None),
-                models.Downtime.category == "",
-                models.Downtime.category == "Без категории",
-                models.Downtime.category == "Не классифицировано",
-                models.Downtime.category == "-",
-                models.Downtime.category == "None"
-            )
-        )
-
     # Поиск по подстроке
     if search and search.strip():
         term = f"%{search.strip().lower()}%"
@@ -1141,13 +1122,36 @@ def get_downtimes_feed(
             )
         )
 
+    # Каноническое условие неклассифицированного простоя
+    unclass_condition = or_(
+        models.Downtime.category.is_(None),
+        models.Downtime.category == "",
+        func.lower(func.trim(models.Downtime.category)).in_([
+            "без категории", "не классифицировано", "-", "none", "не указана"
+        ])
+    )
+
+    # Базовые счетчики для пилюль до применения сужающих фильтров категории
+    total_period_count = query.count()
+    unclassified_count = query.filter(unclass_condition).count()
+
+    # Фильтр категории
+    if category and category != "all":
+        if category == "unclassified" or category == "Без категории":
+            unclassified_only = True
+        else:
+            query = query.filter(models.Downtime.category == category)
+
+    if unclassified_only:
+        query = query.filter(unclass_condition)
+
     # Сортировка: сначала свежие
     query = query.order_by(
         func.coalesce(models.Downtime.actual_date, models.Downtime.date, models.Shift.date).desc(),
         models.Downtime.id.desc()
     )
 
-    total_count = query.count()
+    filtered_total = query.count() if (unclassified_only or (category and category != "all")) else total_period_count
     records = query.offset(offset).limit(limit).all()
 
     items = []
@@ -1183,7 +1187,9 @@ def get_downtimes_feed(
         })
 
     return {
-        "total": total_count,
+        "total": total_period_count,
+        "unclassified_count": unclassified_count,
+        "filtered_total": filtered_total,
         "count": len(items),
         "items": items
     }
@@ -1325,13 +1331,32 @@ def get_downtimes_report_summary(
         {"key": "energy", "title": "Энергетические:", "search": ["энерг", "электр"], "color": "#ffe599"},
         {"key": "tech", "title": "Технологические:", "search": ["технолог"], "color": "#ffd966"},
         {"key": "maint", "title": "ТО и ППР:", "search": ["то и ппр", "ппр", "санитарный"], "color": "#b6d7a8"},
-        {"key": "no_stop", "title": "Остановки не связанные с простоем оборудования:", "search": ["без простоя", "не связан"], "color": "#f9cb9c"}
+        {"key": "no_stop", "title": "Остановки не связанные с простоем оборудования:", "search": ["без простоя", "не связан"], "color": "#f9cb9c"},
+        {"key": "unclassified", "title": "Требуют классификации:", "search": [], "color": "#ef4444"}
     ]
+
+    def get_record_cat_key(p_item):
+        dt_record = p_item["downtime"]
+        c_name = (dt_record.category or "").strip().lower()
+        if not c_name or c_name in ("без категории", "не классифицировано", "-", "none", "не указана"):
+            return "unclassified"
+        if any(s in c_name for s in ["механ"]):
+            return "mech"
+        if any(s in c_name for s in ["энерг", "электр"]):
+            return "energy"
+        if any(s in c_name for s in ["технолог"]):
+            return "tech"
+        if any(s in c_name for s in ["то и ппр", "ппр", "санитарный"]):
+            return "maint"
+        if any(s in c_name for s in ["без простоя", "не связан"]) or (not p_item["is_stop"]):
+            return "no_stop"
+        return "unclassified"
 
     total_downtime_minutes = sum(p["duration"] for p in processed_dts)
     categories_res = []
 
     for cdef in cat_defs:
+        c_key = cdef["key"]
         c_items = []
         c_mins = 0
         c_rolls = 0.0
@@ -1341,13 +1366,8 @@ def get_downtimes_report_summary(
         c_revenue = 0.0
 
         for p in processed_dts:
-            d = p["downtime"]
-            c_name = (d.category or "").strip().lower()
-            matched = any(s in c_name for s in cdef["search"])
-            if not matched and cdef["key"] == "no_stop" and not p["is_stop"]:
-                matched = True
-
-            if matched:
+            if get_record_cat_key(p) == c_key:
+                d = p["downtime"]
                 dur = p["duration"]
                 c_mins += dur
                 c_rolls += p["rolls"]
@@ -1504,6 +1524,8 @@ def get_downtimes_report_summary(
         "start_date": sd.strftime("%d.%m.%Y"),
         "end_date": ed.strftime("%d.%m.%Y"),
         "line": line or "Все линии",
+        "total_count": len(all_dts),
+        "unclassified_count": sum(1 for p in processed_dts if get_record_cat_key(p) == "unclassified"),
         "kpi": {
             "num_days": num_days,
             "total_operating_hours": total_operating_hours,
