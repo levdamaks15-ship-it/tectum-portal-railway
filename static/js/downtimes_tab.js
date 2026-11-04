@@ -881,10 +881,10 @@
         <div class="dt-kpi-summary-box">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <h3 style="margin: 0; font-size: 1.18rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                         <span>📊</span> Простои и потери производительности за период: ${data.start_date} — ${data.end_date}
                     </h3>
-                    <div style="font-size: 0.78rem; color: #64748b; margin-top: 3px;">
+                    <div style="font-size: 0.88rem; color: #64748b; margin-top: 4px;">
                         Линия: <b>${escapeHtml(data.line)}</b> · Анализируемый интервал: <b>${k.num_days || 1} дн. (${k.total_operating_hours || 0} ч)</b> · Такт: <b>6 об. (24 с) = 1 накат = 2 листа</b>
                     </div>
                 </div>
@@ -942,9 +942,9 @@
             </div>
 
             <!-- Сводная строка часов по категориям -->
-            <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
-                <span>Всего часов простоев: <b style="color: #0f172a; font-size: 0.95rem; font-family: monospace;">${k.total_downtime_formatted || '0:00:00'}</b> (со стопом: <b style="color: #dc2626; font-size: 0.95rem; font-family: monospace;">${k.total_stop_formatted || '0:00:00'}</b>)</span>
-                <span style="font-size: 0.72rem; color: #94a3b8;">Потенциал без простоев: <b>${(k.potential_sheets || 0).toLocaleString()} шт</b></span>
+            <div style="font-size: 0.86rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                <span>Всего часов простоев: <b style="color: #0f172a; font-size: 1.05rem; font-family: monospace;">${k.total_downtime_formatted || '0:00:00'}</b> (со стопом: <b style="color: #dc2626; font-size: 1.05rem; font-family: monospace;">${k.total_stop_formatted || '0:00:00'}</b>)</span>
+                <span style="font-size: 0.84rem; color: #64748b; text-transform: none;">Потенциал без простоев: <b style="color: #0f172a;">${(k.potential_sheets || 0).toLocaleString()} шт</b></span>
             </div>
             <div class="dt-kpi-hours-deck">
         `;
@@ -953,9 +953,9 @@
             html += `
             <div class="dt-kpi-hour-chip" style="background: ${c.color}25; border-color: ${c.color}; color: #1e293b;">
                 <span>${c.title}</span>
-                <b style="font-family: monospace; font-size: 0.85rem;">${c.total_formatted}</b>
-                <span style="font-size: 0.7rem; color: #64748b;">(${(c.percentage_of_pure_time * 100).toFixed(2)}%)</span>
-                ${c.lost_sheets ? `<span style="font-size: 0.72rem; color: #dc2626; font-weight: 800;">-${c.lost_sheets.toLocaleString()} шт</span>` : ''}
+                <b style="font-family: monospace; font-size: 0.95rem;">${c.total_formatted}</b>
+                <span style="font-size: 0.8rem; color: #64748b;">(${(c.percentage_of_pure_time * 100).toFixed(2)}%)</span>
+                ${c.lost_sheets ? `<span style="font-size: 0.84rem; color: #dc2626; font-weight: 800;">-${c.lost_sheets.toLocaleString()} шт</span>` : ''}
             </div>
             `;
         });
@@ -967,10 +967,10 @@
         <div class="dt-summary-matrix-card">
             <div class="dt-summary-matrix-header">
                 <div>
-                    <h4 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <h4 style="margin: 0; font-size: 1.08rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
                         <span>📈</span> Связь простоев по категориям с выработкой и финансами
                     </h4>
-                    <span style="font-size: 0.75rem; color: #64748b;">
+                    <span style="font-size: 0.84rem; color: #64748b; margin-top: 3px; display: inline-block;">
                         Расчет формования: 1 накат = 24 с (6 об.) = 2 листа · Скорость линии = 5 листов/мин (300 шт/ч)
                     </span>
                 </div>
@@ -980,12 +980,12 @@
                     <thead>
                         <tr>
                             <th>Категория потерь</th>
-                            <th style="text-align: center; width: 90px;">Инцидентов</th>
-                            <th style="text-align: center; width: 100px;">Время</th>
-                            <th style="text-align: right; width: 100px;">Накатов</th>
-                            <th style="text-align: right; width: 120px;">Потеряно листов</th>
-                            <th style="text-align: right; width: 100px;">Потеряно тонн</th>
-                            <th style="text-align: right; width: 170px; color: #9f1239;">Годовой эквивалент (₸/год)</th>
+                            <th style="text-align: center; width: 95px;">Инцидентов</th>
+                            <th style="text-align: center; width: 105px;">Время</th>
+                            <th style="text-align: right; width: 105px;">Накатов</th>
+                            <th style="text-align: right; width: 130px;">Потеряно листов</th>
+                            <th style="text-align: right; width: 115px;">Потеряно тонн</th>
+                            <th style="text-align: right; width: 185px; color: #9f1239;">Годовой эквивалент (₸/год)</th>
                             <th style="text-align: right; width: 90px;">Доля</th>
                         </tr>
                     </thead>
@@ -1056,7 +1056,7 @@
             <div class="dt-cat-section-card">
                 <div class="dt-cat-section-header ${bClass}">
                     <span>${c.title}</span>
-                    <span style="font-size: 0.82rem; font-family: monospace;">
+                    <span style="font-size: 0.92rem; font-family: monospace;">
                         Итого: <b>${c.total_formatted}</b> · Потери: <b>-${(c.lost_sheets || 0).toLocaleString()} шт</b> (${(c.percentage_of_pure_time * 100).toFixed(2)}% времени) · Риск: <b>-${Math.round(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</b>
                     </span>
                 </div>
@@ -1064,14 +1064,14 @@
                     <table class="dt-section-table">
                         <thead>
                             <tr>
-                                <th style="width: 95px;">Дата</th>
-                                <th style="width: 130px;">Смена / Мастер</th>
+                                <th style="width: 105px;">Дата</th>
+                                <th style="width: 140px;">Смена / Мастер</th>
                                 <th>Узел и причина простоя</th>
-                                <th style="width: 75px; text-align: center;">Начало</th>
-                                <th style="width: 75px; text-align: center;">Конец</th>
-                                <th style="width: 85px; text-align: center;">Время</th>
-                                <th style="width: 100px; text-align: right;">Листов</th>
-                                <th style="width: 140px; text-align: right; color: #9f1239;">Потери в год (₸)</th>
+                                <th style="width: 80px; text-align: center;">Начало</th>
+                                <th style="width: 80px; text-align: center;">Конец</th>
+                                <th style="width: 90px; text-align: center;">Время</th>
+                                <th style="width: 110px; text-align: right;">Листов</th>
+                                <th style="width: 155px; text-align: right; color: #9f1239;">Потери в год (₸)</th>
                                 <th style="width: 85px; text-align: right;">Доля</th>
                             </tr>
                         </thead>
@@ -1079,30 +1079,30 @@
             `;
 
             if (c.items.length === 0) {
-                html += `<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 1.2rem;">Инциденты отсутствуют</td></tr>`;
+                html += `<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 1.4rem; font-size: 0.95rem;">Инциденты отсутствуют</td></tr>`;
             } else {
                 c.items.forEach(item => {
                     html += `
                     <tr>
-                        <td style="font-weight: 600;">${item.date}</td>
+                        <td style="font-weight: 600; font-size: 0.92rem;">${item.date}</td>
                         <td>
-                            <div style="font-weight: 600; color: #0f172a;">${escapeHtml(item.master_name)}</div>
-                            <div style="font-size: 0.7rem; color: #64748b;">${item.shift_name}</div>
+                            <div style="font-weight: 700; font-size: 0.95rem; color: #0f172a;">${escapeHtml(item.master_name)}</div>
+                            <div style="font-size: 0.84rem; color: #64748b; margin-top: 2px;">${item.shift_name}</div>
                         </td>
                         <td style="color: #1e293b;">
-                            <div style="font-weight: 600;">${escapeHtml(item.node || '')}</div>
-                            <div style="font-size: 0.78rem; color: #475569;">${escapeHtml(item.reason)}</div>
+                            <div style="font-weight: 700; font-size: 0.95rem; color: #0f172a; margin-bottom: 2px;">${escapeHtml(item.node || '')}</div>
+                            <div style="font-size: 0.92rem; color: #334155; line-height: 1.42;">${escapeHtml(item.reason)}</div>
                         </td>
-                        <td style="text-align: center; font-family: monospace;">${item.start_time}</td>
-                        <td style="text-align: center; font-family: monospace;">${item.end_time}</td>
-                        <td style="text-align: center; font-family: monospace; font-weight: 700; color: #2563eb;">${item.duration_formatted}</td>
-                        <td style="text-align: right; font-family: monospace; font-weight: 700; color: ${item.lost_sheets ? '#dc2626' : '#64748b'};">
+                        <td style="text-align: center; font-family: monospace; font-size: 0.92rem;">${item.start_time}</td>
+                        <td style="text-align: center; font-family: monospace; font-size: 0.92rem;">${item.end_time}</td>
+                        <td style="text-align: center; font-family: monospace; font-weight: 700; font-size: 0.95rem; color: #2563eb;">${item.duration_formatted}</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 700; font-size: 0.95rem; color: ${item.lost_sheets ? '#dc2626' : '#64748b'};">
                             ${item.lost_sheets ? '-' + item.lost_sheets.toLocaleString() + ' шт' : '—'}
                         </td>
-                        <td style="text-align: right; font-family: monospace; font-weight: 800; color: ${item.annual_margin_loss_tenge ? '#9f1239' : '#64748b'};">
+                        <td style="text-align: right; font-family: monospace; font-weight: 800; font-size: 0.95rem; color: ${item.annual_margin_loss_tenge ? '#9f1239' : '#64748b'};">
                             ${item.annual_margin_loss_tenge ? '-' + Math.round(item.annual_margin_loss_tenge).toLocaleString() + ' ₸/год' : '0 ₸'}
                         </td>
-                        <td style="text-align: right; font-family: monospace; font-weight: 600; color: #475569;">${(item.percentage_of_pure_time * 100).toFixed(3)}%</td>
+                        <td style="text-align: right; font-family: monospace; font-weight: 600; font-size: 0.9rem; color: #475569;">${(item.percentage_of_pure_time * 100).toFixed(3)}%</td>
                     </tr>
                     `;
                 });

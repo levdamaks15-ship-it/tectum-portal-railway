@@ -3280,6 +3280,9 @@ body.role-portal {
     padding: 1.25rem 1.4rem;
     box-shadow: 0 4px 18px -4px rgba(15, 23, 42, 0.04);
     margin-bottom: 1.5rem;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 .dt-kpi-row-top {
@@ -3295,22 +3298,24 @@ body.role-portal {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 0.75rem 0.9rem;
+    padding: 0.8rem 1rem;
 }
 
 .dt-kpi-card-item .kpi-label {
-    font-size: 0.68rem;
+    font-size: 0.78rem;
     font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.3px;
     color: #64748b;
-    margin-bottom: 2px;
+    margin-bottom: 3px;
 }
 
 .dt-kpi-card-item .kpi-val {
-    font-size: 1.2rem;
+    font-size: 1.38rem;
     font-weight: 800;
     color: #0f172a;
     font-family: 'SF Mono', Consolas, monospace;
+    font-variant-numeric: tabular-nums;
 }
 
 .dt-kpi-hours-deck {
@@ -3321,14 +3326,15 @@ body.role-portal {
 }
 
 .dt-kpi-hour-chip {
-    padding: 0.4rem 0.8rem;
+    padding: 0.45rem 0.85rem;
     border-radius: 10px;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 700;
     border: 1px solid transparent;
     display: flex;
     align-items: center;
     gap: 6px;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Category Sections */
@@ -3339,12 +3345,15 @@ body.role-portal {
     overflow: hidden;
     margin-bottom: 1.25rem;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 
 .dt-cat-section-header {
-    padding: 0.75rem 1.2rem;
+    padding: 0.85rem 1.25rem;
     font-weight: 800;
-    font-size: 0.92rem;
+    font-size: 1.05rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -3360,27 +3369,32 @@ body.role-portal {
 .dt-section-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
 }
 
 .dt-section-table th {
     background: #d9ead3;
     color: #1e293b;
     font-weight: 700;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     text-transform: uppercase;
-    padding: 0.65rem 0.85rem;
+    letter-spacing: 0.3px;
+    padding: 0.75rem 0.95rem;
     border-bottom: 1px solid #b6d7a8;
 }
 
 .dt-section-table td {
-    padding: 0.65rem 0.85rem;
+    padding: 0.75rem 0.95rem;
     border-bottom: 1px solid #f1f5f9;
 }
 
 .dt-section-table tfoot td {
     background: #f8fafc;
     font-weight: 800;
+    font-size: 0.95rem;
+    padding: 0.85rem 0.95rem;
     border-top: 2px solid #cbd5e1;
 }
 
@@ -3726,9 +3740,9 @@ body.role-portal {
 .dt-annual-pill {
     background: #e11d48;
     color: #ffffff;
-    font-size: 0.62rem;
+    font-size: 0.72rem;
     font-weight: 800;
-    padding: 1px 6px;
+    padding: 2px 7px;
     border-radius: 999px;
     letter-spacing: 0.3px;
     text-transform: uppercase;
@@ -3737,14 +3751,14 @@ body.role-portal {
     color: #9f1239;
 }
 .dt-sub-metric {
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: #64748b;
-    margin-top: 4px;
+    margin-top: 5px;
     display: flex;
     align-items: center;
     gap: 4px;
-    line-height: 1.2;
+    line-height: 1.25;
 }
 
 .dt-summary-matrix-card {
@@ -3754,9 +3768,12 @@ body.role-portal {
     overflow: hidden;
     margin-bottom: 1.5rem;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 }
 .dt-summary-matrix-header {
-    padding: 0.85rem 1.25rem;
+    padding: 0.95rem 1.35rem;
     background: #f8fafc;
     border-bottom: 1px solid #e2e8f0;
     display: flex;
@@ -3768,20 +3785,22 @@ body.role-portal {
 .dt-matrix-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8rem;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
 }
 .dt-matrix-table th {
     background: #f1f5f9;
     color: #334155;
     font-weight: 700;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    padding: 0.7rem 0.85rem;
+    padding: 0.75rem 0.95rem;
     border-bottom: 1px solid #cbd5e1;
 }
 .dt-matrix-table td {
-    padding: 0.7rem 0.85rem;
+    padding: 0.75rem 0.95rem;
     border-bottom: 1px solid #f1f5f9;
 }
 .dt-matrix-table tr:hover td {
@@ -3790,6 +3809,8 @@ body.role-portal {
 .dt-matrix-table tfoot td {
     background: #f8fafc;
     font-weight: 800;
+    font-size: 0.95rem;
+    padding: 0.85rem 0.95rem;
     border-top: 2px solid #cbd5e1;
     color: #0f172a;
 }
@@ -3798,10 +3819,10 @@ body.role-portal {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     font-weight: 800;
     background: #f1f5f9;
     color: #475569;
@@ -3809,3 +3830,88 @@ body.role-portal {
 .dt-rank-badge.rank-1 { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
 .dt-rank-badge.rank-2 { background: #ffedd5; color: #ea580c; border: 1px solid #fdba74; }
 .dt-rank-badge.rank-3 { background: #fef9c3; color: #ca8a04; border: 1px solid #fde047; }
+
+/* ==========================================================================
+   Responsive High-Resolution Typography & Display Scaling
+   Ensures optimal readability and fluid layout on FullHD, 2K, 4K and Retina
+   ========================================================================== */
+#app-container {
+    max-width: min(96vw, 1620px) !important;
+    transition: max-width 0.2s ease;
+}
+
+@media (min-width: 1440px) {
+    .dt-kpi-card-item .kpi-val {
+        font-size: 1.45rem;
+    }
+    .dt-section-table,
+    .dt-matrix-table,
+    .dt-table {
+        font-size: 0.94rem;
+    }
+}
+
+@media (min-width: 1680px) {
+    .dt-kpi-summary-box {
+        padding: 1.4rem 1.75rem;
+    }
+    .dt-kpi-card-item {
+        padding: 0.9rem 1.1rem;
+    }
+    .dt-kpi-card-item .kpi-label {
+        font-size: 0.82rem;
+    }
+    .dt-kpi-card-item .kpi-val {
+        font-size: 1.55rem;
+    }
+    .dt-sub-metric {
+        font-size: 0.86rem;
+    }
+    .dt-kpi-hour-chip {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    .dt-cat-section-header {
+        font-size: 1.12rem;
+        padding: 0.95rem 1.4rem;
+    }
+    .dt-section-table th,
+    .dt-matrix-table th,
+    .dt-table th {
+        font-size: 0.86rem;
+        padding: 0.85rem 1.05rem;
+    }
+    .dt-section-table td,
+    .dt-matrix-table td,
+    .dt-table td {
+        font-size: 0.96rem;
+        padding: 0.85rem 1.05rem;
+    }
+    .dt-section-table tfoot td,
+    .dt-matrix-table tfoot td {
+        font-size: 1.02rem;
+        padding: 0.9rem 1.05rem;
+    }
+}
+
+@media (min-width: 2100px) {
+    #app-container {
+        max-width: 1800px !important;
+    }
+    .dt-kpi-summary-box {
+        padding: 1.75rem 2.2rem;
+    }
+    .dt-kpi-card-item .kpi-val {
+        font-size: 1.75rem;
+    }
+    .dt-section-table td,
+    .dt-matrix-table td,
+    .dt-table td {
+        font-size: 1.05rem;
+    }
+    .dt-section-table th,
+    .dt-matrix-table th,
+    .dt-table th {
+        font-size: 0.92rem;
+    }
+}
