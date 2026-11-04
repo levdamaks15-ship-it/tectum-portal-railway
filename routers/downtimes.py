@@ -1537,6 +1537,12 @@ def get_downtimes_report_summary(
     capacity_loss_percent = round((total_lost_sheets_all / potential_sheets * 100.0), 2) if potential_sheets > 0 else 0.0
     availability_rate_percent = round(((total_operating_hours * 60 - total_stop_minutes) / (total_operating_hours * 60) * 100.0), 2) if total_operating_hours > 0 else 100.0
 
+    # Фактически отработанное время: плановые часы периода минус общие часы простоев
+    actual_operating_minutes = max(0, total_operating_hours * 60 - total_downtime_minutes)
+    actual_operating_hours = round(actual_operating_minutes / 60.0, 2)
+    actual_operating_hours_formatted = format_minutes_hh_mm_ss(actual_operating_minutes)
+    operating_rate_percent = round((actual_operating_minutes / (total_operating_hours * 60) * 100.0), 2) if total_operating_hours > 0 else 100.0
+
     annual_margin_loss_all = round((total_lost_margin_all / num_days) * 365.0, 2)
     annual_revenue_loss_all = round((total_lost_revenue_all / num_days) * 365.0, 2)
     annual_lost_sheets_all = int(round((total_lost_sheets_all / num_days) * 365.0))
@@ -1552,6 +1558,10 @@ def get_downtimes_report_summary(
         "kpi": {
             "num_days": num_days,
             "total_operating_hours": total_operating_hours,
+            "actual_operating_minutes": actual_operating_minutes,
+            "actual_operating_hours": actual_operating_hours,
+            "actual_operating_hours_formatted": actual_operating_hours_formatted,
+            "operating_rate_percent": operating_rate_percent,
             "plan_sheets": plan_sheets,
             "fact_sheets": fact_sheets,
             "potential_sheets": potential_sheets,

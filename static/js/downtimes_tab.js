@@ -905,10 +905,10 @@
                 <!-- 1. Время & Доступность -->
                 <div class="dt-kpi-card-item">
                     <div class="kpi-label">Время работы линии</div>
-                    <div class="kpi-val">${k.total_operating_hours || 0} ч</div>
+                    <div class="kpi-val" title="${k.actual_operating_hours_formatted || ''} (чистое время без простоев)">${(k.actual_operating_hours !== undefined ? k.actual_operating_hours : (k.total_operating_hours || 0))} ч</div>
                     <div class="dt-sub-metric">
-                        <i class="fa-solid fa-gauge-high" style="color: #2563eb;"></i>
-                        <span>Готовность: <b>${k.availability_rate_percent || 100}%</b></span>
+                        <i class="fa-solid fa-clock" style="color: #2563eb;"></i>
+                        <span>из <b>${k.total_operating_hours || 0} ч</b> запланированных (${k.operating_rate_percent || k.availability_rate_percent || 100}%)</span>
                     </div>
                 </div>
 
@@ -1139,15 +1139,6 @@
 
             html += `
                         </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="5" style="text-align: right; font-weight: 800;">Итого по разделу:</td>
-                                <td style="text-align: center; font-family: monospace; font-weight: 800; color: #0f172a;">${c.total_formatted}</td>
-                                <td style="text-align: right; font-family: monospace; font-weight: 800; color: #dc2626;">-${(c.lost_sheets || 0).toLocaleString()} шт</td>
-                                <td style="text-align: right; font-family: monospace; font-weight: 800; color: #9f1239;">-${Math.round(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</td>
-                                <td style="text-align: right; font-family: monospace; font-weight: 800; color: #0f172a;">${(c.percentage_of_pure_time * 100).toFixed(2)}%</td>
-                            </tr>
-                        </tfoot>
                     </table>
                 </div>
             </div>
