@@ -1382,6 +1382,10 @@ def get_downtimes_report_summary(
                     "lost_tons": p["lost_tons"],
                     "lost_margin_tenge": p["lost_margin"],
                     "lost_revenue_tenge": p["lost_revenue"],
+                    "annual_margin_loss_tenge": round((p["lost_margin"] / num_days) * 365.0, 2),
+                    "annual_revenue_loss_tenge": round((p["lost_revenue"] / num_days) * 365.0, 2),
+                    "annual_lost_sheets": int(round((p["lost_sheets"] / num_days) * 365.0)),
+                    "annual_lost_hours": round(((dur / 60.0) / num_days) * 365.0, 1),
                     "percentage_of_pure_time": round(pct_time, 4)
                 })
         annual_margin = round((c_margin / num_days) * 365.0, 2)

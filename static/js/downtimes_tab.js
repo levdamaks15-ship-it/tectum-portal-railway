@@ -927,22 +927,13 @@
                     </div>
                 </div>
 
-                <!-- 4. Упущенная маржа -->
-                <div class="dt-kpi-card-item">
-                    <div class="kpi-label">Упущенная маржа (период)</div>
-                    <div class="kpi-val" style="color: #dc2626;">-${(k.total_lost_margin_tenge || k.underproduction_tenge || 0).toLocaleString()} ₸</div>
-                    <div class="dt-sub-metric">
-                        <span>Выручка: -${(k.total_lost_revenue_tenge || 0).toLocaleString()} ₸</span>
-                    </div>
-                </div>
-
-                <!-- 5. Годовой эквивалент потерь (Annual Risk) -->
+                <!-- 4. Годовой эквивалент потерь (Annual Risk) -->
                 <div class="dt-kpi-card-item annual-risk">
                     <div class="kpi-label">
                         <span>Годовой риск потерь</span>
                         <span class="dt-annual-pill">365 дней</span>
                     </div>
-                    <div class="kpi-val">-${(ann.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</div>
+                    <div class="kpi-val">-${Math.round(ann.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</div>
                     <div class="dt-sub-metric" style="color: #9f1239;">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <span>-${(ann.annual_lost_sheets || 0).toLocaleString()} шт/год · ${(ann.annual_lost_hours || 0)} ч/год</span>
@@ -994,8 +985,7 @@
                             <th style="text-align: right; width: 100px;">Накатов</th>
                             <th style="text-align: right; width: 120px;">Потеряно листов</th>
                             <th style="text-align: right; width: 100px;">Потеряно тонн</th>
-                            <th style="text-align: right; width: 140px;">Упущенная маржа (период)</th>
-                            <th style="text-align: right; width: 160px; color: #be123c;">Годовой эквивалент (₸/год)</th>
+                            <th style="text-align: right; width: 170px; color: #9f1239;">Годовой эквивалент (₸/год)</th>
                             <th style="text-align: right; width: 90px;">Доля</th>
                         </tr>
                     </thead>
@@ -1021,11 +1011,8 @@
                 <td style="text-align: right; font-family: monospace; color: #475569;">
                     ${c.lost_tons ? '-' + c.lost_tons.toFixed(2) + ' т' : '0.00 т'}
                 </td>
-                <td style="text-align: right; font-family: monospace; font-weight: 700; color: ${c.lost_margin_tenge ? '#dc2626' : '#64748b'};">
-                    ${c.lost_margin_tenge ? '-' + c.lost_margin_tenge.toLocaleString() + ' ₸' : '0 ₸'}
-                </td>
                 <td style="text-align: right; font-family: monospace; font-weight: 800; color: ${cAnn.annual_margin_loss_tenge ? '#9f1239' : '#64748b'};">
-                    ${cAnn.annual_margin_loss_tenge ? '-' + cAnn.annual_margin_loss_tenge.toLocaleString() + ' ₸/год' : '0 ₸'}
+                    ${cAnn.annual_margin_loss_tenge ? '-' + Math.round(cAnn.annual_margin_loss_tenge).toLocaleString() + ' ₸/год' : '0 ₸'}
                 </td>
                 <td style="text-align: right; font-family: monospace; font-weight: 600; color: #64748b;">
                     ${((c.percentage_of_pure_time || 0) * 100).toFixed(2)}%
@@ -1044,8 +1031,7 @@
                             <td style="text-align: right; font-family: monospace;">${sumRolls.toLocaleString()}</td>
                             <td style="text-align: right; font-family: monospace; color: #dc2626;">-${(k.total_lost_sheets || 0).toLocaleString()} шт</td>
                             <td style="text-align: right; font-family: monospace; color: #ea580c;">-${(k.total_lost_tons || 0)} т</td>
-                            <td style="text-align: right; font-family: monospace; color: #dc2626;">-${(k.total_lost_margin_tenge || 0).toLocaleString()} ₸</td>
-                            <td style="text-align: right; font-family: monospace; color: #9f1239;">-${(ann.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</td>
+                            <td style="text-align: right; font-family: monospace; font-weight: 800; color: #9f1239;">-${Math.round(ann.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</td>
                             <td style="text-align: right; font-family: monospace;">100%</td>
                         </tr>
                     </tfoot>
@@ -1077,7 +1063,6 @@
                                 <th style="text-align: center; width: 85px;">Случаев</th>
                                 <th style="text-align: center; width: 95px;">Время</th>
                                 <th style="text-align: right; width: 110px;">Потеряно листов</th>
-                                <th style="text-align: right; width: 130px;">Ущерб за период</th>
                                 <th style="text-align: right; width: 170px; color: #be123c;">Годовой ущерб (₸/год)</th>
                             </tr>
                         </thead>
@@ -1102,9 +1087,8 @@
                     <td style="text-align: center; font-family: monospace; font-weight: 700;">${item.count}</td>
                     <td style="text-align: center; font-family: monospace; font-weight: 700; color: #2563eb;">${item.total_formatted}</td>
                     <td style="text-align: right; font-family: monospace; font-weight: 700; color: #dc2626;">-${(item.lost_sheets || 0).toLocaleString()} шт</td>
-                    <td style="text-align: right; font-family: monospace; font-weight: 700; color: #dc2626;">-${(item.lost_margin_tenge || 0).toLocaleString()} ₸</td>
                     <td style="text-align: right; font-family: monospace; font-weight: 800; color: #9f1239; font-size: 0.88rem;">
-                        -${(item.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год
+                        -${Math.round(item.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год
                     </td>
                 </tr>
                 `;
@@ -1135,7 +1119,7 @@
                 <div class="dt-cat-section-header ${bClass}">
                     <span>${c.title}</span>
                     <span style="font-size: 0.82rem; font-family: monospace;">
-                        Итого: <b>${c.total_formatted}</b> · Потери: <b>-${(c.lost_sheets || 0).toLocaleString()} шт</b> (${(c.percentage_of_pure_time * 100).toFixed(2)}% времени) · Риск: <b>-${(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</b>
+                        Итого: <b>${c.total_formatted}</b> · Потери: <b>-${(c.lost_sheets || 0).toLocaleString()} шт</b> (${(c.percentage_of_pure_time * 100).toFixed(2)}% времени) · Риск: <b>-${Math.round(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</b>
                     </span>
                 </div>
                 <div class="dt-table-responsive">
@@ -1149,7 +1133,7 @@
                                 <th style="width: 75px; text-align: center;">Конец</th>
                                 <th style="width: 85px; text-align: center;">Время</th>
                                 <th style="width: 100px; text-align: right;">Листов</th>
-                                <th style="width: 110px; text-align: right;">Маржа (₸)</th>
+                                <th style="width: 140px; text-align: right; color: #9f1239;">Потери в год (₸)</th>
                                 <th style="width: 85px; text-align: right;">Доля</th>
                             </tr>
                         </thead>
@@ -1177,8 +1161,8 @@
                         <td style="text-align: right; font-family: monospace; font-weight: 700; color: ${item.lost_sheets ? '#dc2626' : '#64748b'};">
                             ${item.lost_sheets ? '-' + item.lost_sheets.toLocaleString() + ' шт' : '—'}
                         </td>
-                        <td style="text-align: right; font-family: monospace; font-weight: 700; color: ${item.lost_margin_tenge ? '#dc2626' : '#64748b'};">
-                            ${item.lost_margin_tenge ? '-' + item.lost_margin_tenge.toLocaleString() + ' ₸' : '—'}
+                        <td style="text-align: right; font-family: monospace; font-weight: 800; color: ${item.annual_margin_loss_tenge ? '#9f1239' : '#64748b'};">
+                            ${item.annual_margin_loss_tenge ? '-' + Math.round(item.annual_margin_loss_tenge).toLocaleString() + ' ₸/год' : '0 ₸'}
                         </td>
                         <td style="text-align: right; font-family: monospace; font-weight: 600; color: #475569;">${(item.percentage_of_pure_time * 100).toFixed(3)}%</td>
                     </tr>
@@ -1193,7 +1177,7 @@
                                 <td colspan="5" style="text-align: right; font-weight: 800;">Итого по разделу:</td>
                                 <td style="text-align: center; font-family: monospace; font-weight: 800; color: #0f172a;">${c.total_formatted}</td>
                                 <td style="text-align: right; font-family: monospace; font-weight: 800; color: #dc2626;">-${(c.lost_sheets || 0).toLocaleString()} шт</td>
-                                <td style="text-align: right; font-family: monospace; font-weight: 800; color: #dc2626;">-${(c.lost_margin_tenge || 0).toLocaleString()} ₸</td>
+                                <td style="text-align: right; font-family: monospace; font-weight: 800; color: #9f1239;">-${Math.round(cAnn.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год</td>
                                 <td style="text-align: right; font-family: monospace; font-weight: 800; color: #0f172a;">${(c.percentage_of_pure_time * 100).toFixed(2)}%</td>
                             </tr>
                         </tfoot>
