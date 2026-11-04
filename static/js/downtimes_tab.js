@@ -1040,69 +1040,7 @@
         </div>
         `;
 
-        // 3. БЛОК: ТОП-10 повторяющихся узлов и неполадок (Рейтинг годового ущерба / Kaizen)
-        if (topRecurring.length > 0) {
-            html += `
-            <div class="dt-summary-matrix-card" style="border-left: 4px solid #e11d48;">
-                <div class="dt-summary-matrix-header">
-                    <div>
-                        <h4 style="margin: 0; font-size: 0.98rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                            <span>🎯</span> ТОП повторяющихся узлов и причин (Рейтинг годового ущерба)
-                        </h4>
-                        <span style="font-size: 0.75rem; color: #64748b;">
-                            Приоритет для инженеров и механиков: устранение этих системных узлов дает максимальный возврат инвестиций (ROI)
-                        </span>
-                    </div>
-                </div>
-                <div class="dt-table-responsive">
-                    <table class="dt-matrix-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 45px; text-align: center;">#</th>
-                                <th>Узел оборудования / Описание</th>
-                                <th style="text-align: center; width: 85px;">Случаев</th>
-                                <th style="text-align: center; width: 95px;">Время</th>
-                                <th style="text-align: right; width: 110px;">Потеряно листов</th>
-                                <th style="text-align: right; width: 170px; color: #be123c;">Годовой ущерб (₸/год)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            topRecurring.forEach((item, idx) => {
-                const rankClass = idx === 0 ? 'rank-1' : (idx === 1 ? 'rank-2' : (idx === 2 ? 'rank-3' : ''));
-                const reasonsText = item.sample_reasons && item.sample_reasons.length > 0
-                    ? item.sample_reasons.map(r => escapeHtml(r)).join(' · ')
-                    : 'Причина в рапорте мастера';
-
-                html += `
-                <tr>
-                    <td style="text-align: center;">
-                        <span class="dt-rank-badge ${rankClass}">${idx + 1}</span>
-                    </td>
-                    <td>
-                        <div style="font-weight: 800; color: #0f172a; font-size: 0.85rem;">${escapeHtml(item.node)}</div>
-                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${reasonsText}</div>
-                    </td>
-                    <td style="text-align: center; font-family: monospace; font-weight: 700;">${item.count}</td>
-                    <td style="text-align: center; font-family: monospace; font-weight: 700; color: #2563eb;">${item.total_formatted}</td>
-                    <td style="text-align: right; font-family: monospace; font-weight: 700; color: #dc2626;">-${(item.lost_sheets || 0).toLocaleString()} шт</td>
-                    <td style="text-align: right; font-family: monospace; font-weight: 800; color: #9f1239; font-size: 0.88rem;">
-                        -${Math.round(item.annual_margin_loss_tenge || 0).toLocaleString()} ₸/год
-                    </td>
-                </tr>
-                `;
-            });
-
-            html += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            `;
-        }
-
-        // 4. 5 блоков категорий (детальные рапорты)
+        // 3. 5 блоков категорий (детальные рапорты)
         const bannerClassMap = {
             'mech': 'banner-mech',
             'energy': 'banner-energy',
