@@ -410,7 +410,7 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     return db_dt
 
 
-@router.get("/api/downtimes/{dt_id}")
+@router.get("/api/downtimes/{dt_id:int}")
 def get_downtime_by_id(dt_id: int, request: Request, db: Session = Depends(get_db)):
     auth_user = get_authenticated_user_from_request(request, db)
     if auth_user:

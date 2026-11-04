@@ -1201,13 +1201,17 @@ function applyRoleVisibility() {
     const crewPlansBtn = document.getElementById('tab-btn-crew-plans');
     if (crewPlansBtn) crewPlansBtn.style.display = canViewSummary ? '' : 'none';
 
-    document.getElementById('tab-btn-production').style.display = canReport ? '' : 'none';
-    document.getElementById('tab-btn-summary').style.display = canViewSummary ? '' : 'none';
-    document.getElementById('tab-btn-daily-report').style.display = canViewSummary ? '' : 'none';
+    const prodBtn = document.getElementById('tab-btn-production');
+    if (prodBtn) prodBtn.style.display = canReport ? '' : 'none';
+    const sumBtn = document.getElementById('tab-btn-summary');
+    if (sumBtn) sumBtn.style.display = canViewSummary ? '' : 'none';
+    const dailyBtn = document.getElementById('tab-btn-daily-report');
+    if (dailyBtn) dailyBtn.style.display = canViewSummary ? '' : 'none';
     const materialsBtn = document.getElementById('tab-btn-materials');
     if (materialsBtn) materialsBtn.style.display = 'none';
     
-    document.getElementById('tab-btn-downtimes').style.display = canDowntime ? '' : 'none';
+    const dtBtn = document.getElementById('tab-btn-downtimes');
+    if (dtBtn) dtBtn.style.display = canDowntime ? '' : 'none';
     const analyticsBtn = document.getElementById('tab-btn-analytics');
     if (analyticsBtn) analyticsBtn.style.display = 'none';
     
