@@ -3200,6 +3200,40 @@ body.role-portal {
     transform: translateY(-1px);
 }
 
+/* Row Action Buttons in Downtimes Feed */
+.btn-dt-row-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    font-size: 0.85rem;
+}
+
+.btn-dt-row-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.btn-dt-row-action.edit:hover {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #93c5fd;
+}
+
+.btn-dt-row-action.delete:hover {
+    background: #fef2f2;
+    color: #ef4444;
+    border-color: #fca5a5;
+}
+
 /* Text clamp for description */
 .dt-reason-cell {
     max-width: 380px;

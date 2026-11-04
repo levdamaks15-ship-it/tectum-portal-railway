@@ -410,6 +410,61 @@ def create_downtime(shift_id: int, data: schemas.DowntimeCreate, background_task
     return db_dt
 
 
+@router.get("/api/downtimes/{dt_id}")
+def get_downtime_by_id(dt_id: int, request: Request, db: Session = Depends(get_db)):
+    auth_user = get_authenticated_user_from_request(request, db)
+    if auth_user:
+        user_role = get_primary_role(auth_user)
+    else:
+        user_role = request.session.get("user_role") if hasattr(request, "session") else None
+
+    if (user_role or "").lower() in ("workshop_master", "master"):
+        user_role = "master"
+
+    allowed_roles = {"admin", "director", "tech_director", "production_head", "technologist", "mechanic", "master", "itr", "operator"}
+    if not user_role or user_role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+
+    dt = db.query(models.Downtime).get(dt_id)
+    if not dt:
+        raise HTTPException(status_code=404, detail="Простой не найден")
+
+    dur = dt.duration or 0
+    d_date = dt.effective_actual_date or dt.record_date
+    d_date_str = d_date.strftime("%Y-%m-%d") if d_date else ""
+    d_date_display = d_date.strftime("%d.%m.%Y") if d_date else "Н/Д"
+
+    m_name = dt.master.name if dt.master else (dt.shift.master.name if (dt.shift and dt.shift.master) else "Мастер не указан")
+    line_str = dt.record_line or (dt.shift.line if dt.shift else "Линия 1")
+    shift_str = dt.record_shift_name or (dt.shift.shift_name if dt.shift else "День")
+
+    return {
+        "id": dt.id,
+        "shift_id": dt.shift_id,
+        "date": d_date_str,
+        "date_display": d_date_display,
+        "line": line_str,
+        "shift_name": shift_str,
+        "master_id": dt.master_id,
+        "master_name": m_name,
+        "start_time": dt.start_time or "",
+        "end_time": dt.end_time or "",
+        "duration": dur,
+        "duration_formatted": format_minutes_hh_mm_ss(dur),
+        "category": dt.category or "Без категории",
+        "department": dt.department or "",
+        "node": dt.node or "Основное оборудование",
+        "description": dt.description or dt.comment or "",
+        "description_kz": dt.description_kz or "",
+        "comment": dt.comment or "",
+        "is_equipment_downtime": dt.is_equipment_downtime if dt.is_equipment_downtime is not None else True,
+        "lost_tons": dt.lost_tons or 0.0,
+        "lost_tenge": dt.lost_tenge or 0.0,
+        "status": dt.status or "pending",
+        "created_at": dt.created_at.isoformat() if dt.created_at else None
+    }
+
+
 @router.put("/api/downtimes/{dt_id}", response_model=schemas.Downtime)
 def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     auth_user = get_authenticated_user_from_request(request, db)
@@ -428,18 +483,22 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
     if not user_role or not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
-    if user_role not in ["admin", "master", "mechanic", "technologist", "director"]:
+    allowed_roles = {"admin", "director", "tech_director", "production_head", "technologist", "mechanic", "master"}
+    privileged_roles = {"admin", "director", "tech_director", "production_head", "technologist", "mechanic"}
+
+    if user_role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
 
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404, "Простой не найден")
     
-    if user_role != "admin" and dt.created_at:
+    # 30-минутный лимит действует только для линейного мастера
+    if user_role not in privileged_roles and dt.created_at:
         time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
         if time_diff > 1800:
             raise HTTPException(
                 status_code=403, 
-                detail="Время на самостоятельное редактирование простоя (30 мин) истекло. Обратитесь к администратору."
+                detail="Время на самостоятельное редактирование простоя (30 мин) истекло. Обратитесь к администратору или главному технологу."
             )
     
     duration = 0
@@ -456,7 +515,7 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
             duration = 0
             
     shift = dt.shift
-    if not shift:
+    if not shift and dt.shift_id:
         shift = db.query(models.Shift).get(dt.shift_id)
         
     lost_tons, lost_tenge = calculate_downtime_losses(duration, shift, db)
@@ -474,6 +533,8 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
 
     dt.start_time = data.start_time
     dt.end_time = data.end_time
+    if data.line:
+        dt.line = data.line.strip()
     dt.description = desc_text
     if data.description_kz is not None:
         dt.description_kz = data.description_kz.strip()
@@ -495,7 +556,7 @@ def update_downtime(dt_id: int, data: schemas.DowntimeCreate, request: Request, 
         action="UPDATE",
         target_table="downtimes",
         target_id=dt_id,
-        details=f"Обновлен простой ID {dt_id}: {desc_text}"
+        details=f"Обновлен простой ID {dt_id} пользователем {user_name} ({user_role}): {desc_text}, линия {dt.line}, {duration} мин"
     ))
     db.commit()
     db.refresh(dt)
@@ -521,18 +582,22 @@ def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTa
     if not user_role or not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
 
-    if user_role not in ["admin", "master", "mechanic", "technologist", "director"]:
+    allowed_roles = {"admin", "director", "tech_director", "production_head", "technologist", "mechanic", "master"}
+    privileged_roles = {"admin", "director", "tech_director", "production_head", "technologist", "mechanic"}
+
+    if user_role not in allowed_roles:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
 
     dt = db.query(models.Downtime).get(dt_id)
     if not dt: raise HTTPException(404, "Простой не найден")
     
-    if user_role != "admin" and dt.created_at:
+    # 30-минутный лимит действует только для линейного мастера
+    if user_role not in privileged_roles and dt.created_at:
         time_diff = (datetime.utcnow() - dt.created_at).total_seconds()
         if time_diff > 1800:
             raise HTTPException(
                 status_code=403, 
-                detail="Время на самостоятельное удаление простоя (30 мин) истекло. Обратитесь к администратору."
+                detail="Время на самостоятельное удаление простоя (30 мин) истекло. Обратитесь к администратору или главному технологу."
             )
             
     db.add(models.AuditLog(
@@ -540,7 +605,7 @@ def delete_downtime(dt_id: int, request: Request, background_tasks: BackgroundTa
         action="DELETE",
         target_table="downtimes",
         target_id=dt_id,
-        details=f"Удален простой ID {dt_id}: {dt.description or ''}, {dt.duration or 0} мин."
+        details=f"Удален простой ID {dt_id} пользователем {user_name} ({user_role}): {dt.description or ''}, {dt.duration or 0} мин."
     ))
     db.delete(dt)
     db.commit()

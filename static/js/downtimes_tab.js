@@ -568,7 +568,7 @@
     async function loadDowntimesFeed(highlightId = null) {
         const tbody = document.getElementById('dt-feed-tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #64748b;">
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #64748b;">
                 <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.3rem; margin-bottom: 0.5rem; display: block; color: #2563eb;"></i>
                 Загрузка простоев за выбранный период...
             </td></tr>`;
@@ -601,7 +601,7 @@
         } catch (e) {
             console.error(e);
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #ef4444;">
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #ef4444;">
                     <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.3rem; margin-bottom: 0.5rem; display: block;"></i>
                     Не удалось загрузить данные (${e.message})
                 </td></tr>`;
@@ -615,7 +615,7 @@
         if (!tbody) return;
 
         if (items.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2.5rem; color: #64748b;">
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2.5rem; color: #64748b;">
                 <div style="font-size: 1.7rem; margin-bottom: 0.5rem;">🎉</div>
                 <b>Нет простоев за выбранный период</b>
                 <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">Все записи классифицированы или простой линии отсутствовал</div>
@@ -669,6 +669,16 @@
                         onclick="toggleEquipmentStopFast(${d.id}, ${isStop})"
                         title="Нажмите для переключения (Простой оборудования / Технологическая пауза)">
                         <span>${isStop ? '🛑 Стоп линии' : '⏸️ Без простоя'}</span>
+                    </div>
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                        <button type="button" class="btn-dt-row-action edit" onclick="openTechEditDowntimeModal(${d.id})" title="Редактировать запись">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button type="button" class="btn-dt-row-action delete" onclick="openTechDeleteDowntimeModal(${d.id})" title="Удалить запись">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -1328,6 +1338,340 @@
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
     }
+
+    // ==========================================================================
+    // Редактирование и удаление записей простоев (Технолог / Руководство)
+    // ==========================================================================
+    
+    // Открытие модального окна редактирования
+    window.openTechEditDowntimeModal = async function(id) {
+        let item = allFeedItems.find(x => x.id === id);
+        
+        // Быстрое заполнение из кеша ленты, если доступно
+        if (item) {
+            fillTechEditModalFields(item);
+        }
+
+        // Показываем оверлей и модалку
+        const overlay = document.getElementById('tech-edit-dt-overlay');
+        const modal = document.getElementById('tech-edit-dt-modal');
+        if (overlay) overlay.style.display = 'block';
+        if (modal) modal.style.display = 'block';
+
+        // Подтягиваем свежие данные с сервера (GET /api/downtimes/{id})
+        try {
+            const res = await fetch(`/api/downtimes/${id}`);
+            if (res.ok) {
+                const freshData = await res.json();
+                fillTechEditModalFields(freshData);
+            }
+        } catch(e) {
+            console.warn('Не удалось загрузить детальные данные простоя:', e);
+        }
+
+        // Заполняем datalist узлов из всех записей ленты
+        populateNodesDatalist();
+    };
+
+    function fillTechEditModalFields(d) {
+        const cleanTime = (t) => t ? t.trim().slice(0, 5) : '';
+        const idEl = document.getElementById('tech-edit-dt-id');
+        const titleEl = document.getElementById('tech-edit-modal-title');
+        const subEl = document.getElementById('tech-edit-modal-subtitle');
+        const lineEl = document.getElementById('tech-edit-dt-line');
+        const shiftInfoEl = document.getElementById('tech-edit-dt-shift-info');
+        const startEl = document.getElementById('tech-edit-dt-start');
+        const endEl = document.getElementById('tech-edit-dt-end');
+        const nodeEl = document.getElementById('tech-edit-dt-node');
+        const descEl = document.getElementById('tech-edit-dt-desc');
+        const catEl = document.getElementById('tech-edit-dt-category');
+        const stopEl = document.getElementById('tech-edit-dt-is-stop');
+
+        if (idEl) idEl.value = d.id;
+        if (titleEl) titleEl.textContent = `Редактирование простоя #${d.id}`;
+        if (subEl) subEl.textContent = `${d.date_display || d.date || ''} · ${d.shift_name || ''} · ${d.master_name || ''}`;
+        if (lineEl) lineEl.value = d.line || 'Линия 1';
+        if (shiftInfoEl) shiftInfoEl.value = `${d.shift_name || 'Смена'} (${d.master_name || 'Мастер не указан'})`;
+        if (startEl) startEl.value = cleanTime(d.start_time);
+        if (endEl) endEl.value = cleanTime(d.end_time);
+        if (nodeEl) nodeEl.value = d.node && d.node !== 'Основное оборудование' ? d.node : (d.node || '');
+        if (descEl) descEl.value = d.description || d.comment || '';
+        
+        if (catEl) {
+            const currentCat = d.category || 'Без категории';
+            // Проверяем наличие опции, если нет - ставим Без категории
+            catEl.value = Array.from(catEl.options).some(o => o.value === currentCat) ? currentCat : 'Без категории';
+        }
+        
+        if (stopEl) {
+            stopEl.checked = d.is_equipment_downtime !== false;
+        }
+
+        calcTechEditDowntimeDuration();
+    }
+
+    function populateNodesDatalist() {
+        const datalist = document.getElementById('tech-dt-nodes-datalist');
+        if (!datalist) return;
+        const nodesSet = new Set();
+        allFeedItems.forEach(x => {
+            if (x.node && x.node.trim() && x.node !== 'Основное оборудование') {
+                nodesSet.add(x.node.trim());
+            }
+        });
+        // Добавляем типовые узлы ХЦИ
+        ['Стакер', 'Дестакер', 'Пресс', 'Формовочная машина', 'Транспортер', 'Ковшевой элеватор', 'Бракомешалка', 'Сукноправка', 'Вакуумная система'].forEach(n => nodesSet.add(n));
+
+        datalist.innerHTML = Array.from(nodesSet).sort().map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+    }
+
+    // Закрытие модального окна редактирования
+    window.closeTechEditDowntimeModal = function() {
+        const overlay = document.getElementById('tech-edit-dt-overlay');
+        const modal = document.getElementById('tech-edit-dt-modal');
+        if (overlay) overlay.style.display = 'none';
+        if (modal) modal.style.display = 'none';
+    };
+
+    // Живой расчет длительности при вводе времени
+    window.calcTechEditDowntimeDuration = function() {
+        const startVal = (document.getElementById('tech-edit-dt-start')?.value || '').trim();
+        const endVal = (document.getElementById('tech-edit-dt-end')?.value || '').trim();
+        const previewEl = document.getElementById('tech-edit-dt-duration-preview');
+        if (!previewEl) return;
+
+        if (!startVal) {
+            previewEl.textContent = '-- мин';
+            previewEl.style.color = '#64748b';
+            previewEl.style.background = '#f1f5f9';
+            previewEl.style.borderColor = '#cbd5e1';
+            return;
+        }
+
+        if (!endVal) {
+            previewEl.textContent = 'В процессе...';
+            previewEl.style.color = '#d97706';
+            previewEl.style.background = '#fef3c7';
+            previewEl.style.borderColor = '#fde68a';
+            return;
+        }
+
+        const [sH, sM] = startVal.split(':').map(Number);
+        const [eH, eM] = endVal.split(':').map(Number);
+
+        if (isNaN(sH) || isNaN(sM) || isNaN(eH) || isNaN(eM)) {
+            previewEl.textContent = '-- мин';
+            return;
+        }
+
+        let diff = (eH * 60 + eM) - (sH * 60 + sM);
+        if (diff < 0) diff += 24 * 60; // Переход через полночь
+
+        const hours = Math.floor(diff / 60);
+        const mins = diff % 60;
+        let formatted = '';
+        if (hours > 0) {
+            formatted = `${hours} ч ${mins} мин (${diff} мин)`;
+        } else {
+            formatted = `${diff} мин`;
+        }
+
+        previewEl.textContent = formatted;
+        previewEl.style.color = '#15803d';
+        previewEl.style.background = '#f0fdf4';
+        previewEl.style.borderColor = '#bbf7d0';
+    };
+
+    // Сохранение изменений простоя
+    window.submitTechEditDowntime = async function() {
+        const id = document.getElementById('tech-edit-dt-id')?.value;
+        const line = document.getElementById('tech-edit-dt-line')?.value || 'Линия 1';
+        const startTime = (document.getElementById('tech-edit-dt-start')?.value || '').trim();
+        const endTime = (document.getElementById('tech-edit-dt-end')?.value || '').trim();
+        const node = (document.getElementById('tech-edit-dt-node')?.value || '').trim() || 'Основное оборудование';
+        const desc = (document.getElementById('tech-edit-dt-desc')?.value || '').trim();
+        const category = document.getElementById('tech-edit-dt-category')?.value || 'Без категории';
+        const isEquipmentStop = document.getElementById('tech-edit-dt-is-stop')?.checked ?? true;
+        const btnSubmit = document.getElementById('btn-submit-tech-edit-dt');
+
+        if (!id) return;
+        if (!startTime) {
+            showDtToast('Укажите время начала простоя', 'error');
+            document.getElementById('tech-edit-dt-start')?.focus();
+            return;
+        }
+        if (!desc) {
+            showDtToast('Укажите описание поломки / работ', 'error');
+            document.getElementById('tech-edit-dt-desc')?.focus();
+            return;
+        }
+
+        // Double-Submit Guard
+        if (btnSubmit) {
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Сохранение...</span>`;
+        }
+
+        const payload = {
+            line: line,
+            start_time: startTime,
+            end_time: endTime || null,
+            node: node,
+            description: desc,
+            comment: desc,
+            category: category,
+            is_equipment_downtime: isEquipmentStop
+        };
+
+        try {
+            const res = await fetch(`/api/downtimes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || 'Не удалось сохранить изменения');
+            }
+
+            const updated = await res.json();
+
+            // Локально обновляем данные в памяти
+            const item = allFeedItems.find(x => x.id === parseInt(id));
+            if (item) {
+                item.line = line;
+                item.start_time = startTime;
+                item.end_time = endTime || '--:--';
+                item.node = node;
+                item.description = desc;
+                item.category = category;
+                item.is_equipment_downtime = isEquipmentStop;
+                if (updated.duration !== undefined) {
+                    item.duration_minutes = updated.duration;
+                }
+            }
+
+            closeTechEditDowntimeModal();
+            showDtToast(`Простой #${id} успешно обновлен`, 'success');
+            
+            // Перерисовываем таблицу с подсветкой сохраненной строки
+            renderFeedTable(allFeedItems, parseInt(id));
+
+        } catch(e) {
+            console.error(e);
+            showDtToast(e.message || 'Ошибка сети при сохранении', 'error');
+        } finally {
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = `<i class="fa-solid fa-check"></i> <span>Сохранить изменения</span>`;
+            }
+        }
+    };
+
+    // Открытие модального окна удаления
+    window.openTechDeleteDowntimeModal = function(id) {
+        const item = allFeedItems.find(x => x.id === id);
+        const modal = document.getElementById('tech-delete-dt-modal');
+        const overlay = document.getElementById('tech-delete-dt-overlay');
+        const idInput = document.getElementById('tech-delete-dt-id');
+        const infoEl = document.getElementById('tech-delete-dt-info');
+
+        if (!modal || !overlay) return;
+
+        if (idInput) idInput.value = id;
+
+        if (infoEl) {
+            if (item) {
+                const durText = (item.duration_minutes !== undefined && item.duration_minutes !== null ? (item.duration_minutes >= 60 ? Math.floor(item.duration_minutes/60) + " ч " + (item.duration_minutes%60) + " мин" : item.duration_minutes + " мин") : (item.duration || 0) + " мин");
+                infoEl.innerHTML = `
+                    <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">ID #${item.id} · ${escapeHtml(item.date)} (${escapeHtml(item.shift_name)})</div>
+                    <div style="color: #64748b; margin-bottom: 2px;">Линия: <b style="color: #334155;">${escapeHtml(item.line)}</b> · Мастер: ${escapeHtml(item.master_name)}</div>
+                    <div style="color: #64748b; margin-bottom: 4px;">Время: <b style="font-family: monospace; color: #0f172a;">${item.start_time} - ${item.end_time}</b> (⏱️ ${durText})</div>
+                    <div style="color: #334155; font-size: 0.78rem; border-top: 1px solid #e2e8f0; padding-top: 4px; margin-top: 4px;">
+                        <b>Причина:</b> ${escapeHtml(item.node ? item.node + ': ' : '')}${escapeHtml(item.description)}
+                    </div>
+                `;
+            } else {
+                infoEl.innerHTML = `<div>Удаление записи простоя ID #${id}</div>`;
+            }
+        }
+
+        overlay.style.display = 'block';
+        modal.style.display = 'block';
+    };
+
+    // Закрытие модального окна удаления
+    window.closeTechDeleteDowntimeModal = function() {
+        const modal = document.getElementById('tech-delete-dt-modal');
+        const overlay = document.getElementById('tech-delete-dt-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (modal) modal.style.display = 'none';
+    };
+
+    // Подтверждение удаления
+    window.confirmTechDeleteDowntime = async function() {
+        const id = document.getElementById('tech-delete-dt-id')?.value;
+        const btnConfirm = document.getElementById('btn-confirm-tech-delete-dt');
+        if (!id) return;
+
+        // Double-Submit Guard
+        if (btnConfirm) {
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Удаление...</span>`;
+        }
+
+        try {
+            const res = await fetch(`/api/downtimes/${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || 'Не удалось удалить запись');
+            }
+
+            closeTechDeleteDowntimeModal();
+            showDtToast(`Запись простоя #${id} удалена`, 'success');
+
+            // Удаляем запись из локального массива
+            allFeedItems = allFeedItems.filter(x => x.id !== parseInt(id));
+
+            // Обновляем счетчики в пилюлях
+            const totalCountEl = document.getElementById('dt-feed-total-count');
+            const unclassCountEl = document.getElementById('dt-feed-unclass-count');
+            if (totalCountEl) {
+                const cur = parseInt(totalCountEl.textContent) || 0;
+                totalCountEl.textContent = Math.max(0, cur - 1);
+            }
+            if (unclassCountEl) {
+                const curUnclass = allFeedItems.filter(x => x.is_unclassified).length;
+                unclassCountEl.textContent = curUnclass;
+            }
+
+            // Удаляем строку из DOM с плавной анимацией
+            const row = document.getElementById(`dt-row-${id}`);
+            if (row) {
+                row.style.transition = 'all 0.3s ease';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(20px)';
+                setTimeout(() => {
+                    row.remove();
+                    if (allFeedItems.length === 0) {
+                        renderFeedTable([]);
+                    }
+                }, 300);
+            } else {
+                renderFeedTable(allFeedItems);
+            }
+
+        } catch(e) {
+            console.error(e);
+            showDtToast(e.message || 'Ошибка сети при удалении', 'error');
+        } finally {
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = `<i class="fa-solid fa-trash-can"></i> <span>Да, удалить</span>`;
+            }
+        }
+    };
 
 })();
 
