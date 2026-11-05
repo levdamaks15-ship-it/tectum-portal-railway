@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container" id="app-container" style="max-width: 1360px; margin: 0 auto; padding: 1rem 1.5rem; min-height: 90vh;">
+
 <div id="main-app" style="display: block;">
             <!-- Portal Employee Hub (For non-workshop employees: Planner + Knowledge Base) -->
             <div id="portal-employee-hub" style="display: none; max-width: 860px; margin: 1.5rem auto 2.5rem; padding: 0 1rem;">
@@ -84,29 +84,13 @@
             </div>
 
 
-            <!-- Active Shift Banner: Bento Style -->
-            <div class="glass-panel card" id="active-shift-banner"
-                style="display: none; margin-bottom: 1.5rem; padding: 1rem 1.5rem; text-align: center; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; position: relative; border-radius: 16px; border: 1px solid var(--stripe-border); background: #ffffff; box-shadow: var(--stripe-shadow-card);">
-                <div id="readonly-badge"
-                    style="display:none; position: absolute; top: -10px; right: -10px; background: var(--danger-color); color: white; padding: 0.3rem 0.6rem; border-radius: 8px; font-weight: bold; font-size: 0.8rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-                    РЕЖИМ ПРОСМОТРА</div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span class="stripe-badge badge-brand">Текущая смена</span>
-                    <strong id="active-shift-display" style="color: var(--text-primary); font-size: 0.95rem;">Нет
-                        открытой смены</strong>
-                </div>
-                <div id="shift-dev-indicator"
-                    style="display:none; cursor: pointer; border: 1px solid var(--stripe-border); padding: 0.4rem 0.9rem; border-radius: 9999px; background: #f8fafc; font-size: 0.85rem;"
-                    onclick="switchTab('materials')">
-                    Отклонение по сырью: <strong id="shift-dev-val" style="color: var(--primary-color);">0 кг</strong>
-                </div>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <button onclick="loadData()" class="btn-secondary"
-                        style="width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">🔄 Обновить</button>
-                    <button id="btn-close-shift" class="btn-danger" onclick="closeShift()"
-                        style="display: none; width: auto; padding: 0.45rem 1rem; font-size: 0.85rem;">Закрыть
-                        смену</button>
-                </div>
+            <!-- Active Shift State (Hidden, values kept for JS compatibility) -->
+            <div id="active-shift-banner" style="display: none !important;">
+                <span id="readonly-badge" style="display:none;"></span>
+                <span id="active-shift-display" style="display:none;"></span>
+                <span id="shift-dev-indicator" style="display:none;"></span>
+                <span id="shift-dev-val" style="display:none;"></span>
+                <button id="btn-close-shift" style="display:none;"></button>
             </div>
 
             <!-- 1. PRODUCTION TAB (📝 Рапорт мастера) -->
@@ -1912,7 +1896,6 @@
             ОК
         </button>
     </div>
-</div>
 </div>
 {% endblock %}
 
